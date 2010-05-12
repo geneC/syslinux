@@ -603,9 +603,9 @@ static char *is_fkey(char *cmdstr, int *fkeyno)
 static void parse_config_file(FILE * f)
 {
     char line[MAX_LINE], *p, *ep, ch;
-    enum kernel_type type;
-    enum message_number msgnr;
-    int fkeyno;
+    enum kernel_type type = -1;
+    enum message_number msgnr = -1;
+    int fkeyno = 0;
     struct menu *m = current_menu;
 
     while (fgets(line, sizeof line, f)) {
