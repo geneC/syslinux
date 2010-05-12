@@ -715,7 +715,6 @@ static void exec_command(char *line, struct s_hardware *hardware)
 	}
     }
 
-out:
     /* Let's not forget to clean ourselves */
     if (command != NULL)
 	free(command);
@@ -781,6 +780,10 @@ void start_auto_mode(struct s_hardware *hardware)
 
 void print_history(int argc, char **argv, struct s_hardware * hardware)
 {
+    (void)argc;
+    (void)argv;
+    (void)hardware;
+
     reset_more_printf();
     for (int i = 1; i <= MAX_HISTORY_SIZE; i++) {
 	if (i == hdt_cli.history_pos) {
