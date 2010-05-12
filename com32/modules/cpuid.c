@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     }
 
     leaf = strtoul(argv[1], NULL, 0);
-    counter = (argv > 2) ? strtoul(argv[2], NULL, 0) : 0;
+    counter = (argc > 2) ? strtoul(argv[2], NULL, 0) : 0;
 
     if (!cpu_has_eflag(EFLAGS_ID)) {
 	printf("The CPUID instruction is not supported\n");
