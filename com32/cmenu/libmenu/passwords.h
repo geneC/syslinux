@@ -8,7 +8,7 @@ char isallowed(const char *username, const char *perm);
 // Initialise the list of of user passwords permissions from file
 void init_passwords(const char *filename);
 // Free all space used for internal data structures
-void close_passwords();
+void close_passwords(void);
 
 #define MAX_USERS 128		// Maximum number of users
 #define USERNAME_LENGTH 12	// Max length of user name
