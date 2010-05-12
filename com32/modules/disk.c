@@ -19,12 +19,13 @@
 #include <disk/errno_disk.h>
 #include <disk/error.h>
 
-int main(int argc __attribute__ (( unused )),
-	 char *argv[] __attribute__ (( unused )))
+int main(int argc, char *argv[])
 {
-	int err;
 	struct driveinfo drive;
 	struct driveinfo *d = &drive;
+
+	(void)argc;
+	(void)argv;
 
 	openconsole(&dev_null_r, &dev_stdcon_w);
 
