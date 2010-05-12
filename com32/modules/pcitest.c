@@ -105,6 +105,9 @@ int main(int argc, char *argv[])
     int return_code = 0;
     int nb_pci_devices = 0;
 
+    (void)argc;
+    (void)argv;
+
     openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
     /* Scanning to detect pci buses and devices */
