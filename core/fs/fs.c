@@ -363,6 +363,7 @@ void fs_init(com32sys_t *regs)
     sector_t disk_offset = regs->ecx.l | ((sector_t)regs->ebx.l << 32);
     uint16_t disk_heads = regs->esi.w[0];
     uint16_t disk_sectors = regs->edi.w[0];
+    uint32_t maxtransfer = regs->ebp.l;
     int blk_shift = -1;
     struct device *dev = NULL;
     /* ops is a ptr list for several fs_ops */
@@ -387,7 +388,7 @@ void fs_init(com32sys_t *regs)
 	} else {
 	    if (!dev)
 		dev = device_init(disk_devno, disk_cdrom, disk_offset,
-				  disk_heads, disk_sectors);
+				  disk_heads, disk_sectors, maxtransfer);
 	    fs.fs_dev = dev;
 	}
 	/* invoke the fs-specific init code */

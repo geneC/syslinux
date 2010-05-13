@@ -221,6 +221,7 @@ adhcp_copy:
 ; do fs initialize
 ;
 	        mov eax,ROOT_FS_OPS
+		xor ebp,ebp
                 pm_call fs_init
 
 		section .rodata

@@ -456,7 +456,6 @@ bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 		zb 1F8h-($-$$)
 
 FirstSector	dd 0xDEADBEEF			; Location of sector 1
-		global MaxTransfer
 MaxTransfer	dw 0x007F			; Max transfer size
 
 ; This field will be filled in 0xAA55 by the installer, but we abuse it
@@ -746,5 +745,6 @@ expand_super:
 		xor ebx,ebx
 		mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
+		movzx ebp,word [MaxTransfer]
 		pm_call fs_init
 		popad

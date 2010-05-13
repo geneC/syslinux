@@ -1,3 +1,4 @@
+#include <dprintf.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -7,8 +8,6 @@
 #include <disk.h>
 
 #define RETRY_COUNT 6
-
-static uint16_t MaxTransfer = 1 << (16 - 9);
 
 static int chs_rdwr_sectors(struct disk *disk, void *buf,
 			    sector_t lba, size_t count, bool is_write)
@@ -32,8 +31,8 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 
     while (count) {
 	chunk = count;
-	if (chunk > MaxTransfer)
-	    chunk = MaxTransfer;
+	if (chunk > disk->maxtransfer)
+	    chunk = disk->maxtransfer;
 
 	freeseg = (0x10000 - ((size_t)ptr & 0xffff)) >> sector_shift;
 
@@ -77,7 +76,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
             if (chunk) {
-		MaxTransfer = chunk;
+		disk->maxtransfer = chunk;
 		retry = RETRY_COUNT;
                 ireg.eax.b[0] = chunk;
                 continue;
@@ -129,8 +128,8 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     lba += disk->part_start;
     while (count) {
 	chunk = count;
-	if (chunk > MaxTransfer)
-	    chunk = MaxTransfer;
+	if (chunk > disk->maxtransfer)
+	    chunk = disk->maxtransfer;
 
 	freeseg = (0x10000 - ((size_t)ptr & 0xffff)) >> sector_shift;
 
@@ -150,14 +149,14 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	if (tptr != ptr && is_write)
 	    memcpy(tptr, ptr, bytes);
 
-	pkt.size   = sizeof pkt;
-	pkt.blocks = chunk;
-	pkt.buf    = FAR_PTR(tptr);
-	pkt.lba    = lba;
-        
 	retry = RETRY_COUNT;
 
 	for (;;) {
+	    pkt.size   = sizeof pkt;
+	    pkt.blocks = chunk;
+	    pkt.buf    = FAR_PTR(tptr);
+	    pkt.lba    = lba;
+
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
 		break;
@@ -167,9 +166,8 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
 	    if (chunk) {
-		MaxTransfer = chunk;
+		disk->maxtransfer = chunk;
 		retry = RETRY_COUNT;
-                pkt.blocks = chunk;
 		continue;
 	    }
 
@@ -237,13 +235,15 @@ void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
 
 
 struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
-                       uint16_t bsHeads, uint16_t bsSecPerTrack)
+                       uint16_t bsHeads, uint16_t bsSecPerTrack,
+		       uint32_t MaxTransfer)
 {
     static struct disk disk;
     static __lowmem struct edd_disk_params edd_params;
     com32sys_t ireg, oreg;
     bool ebios = cdrom;
     int sector_size = cdrom ? 2048 : 512;
+    unsigned int hard_max_transfer = ebios ? 127 : 63;
 
     memset(&ireg, 0, sizeof ireg);
 
@@ -258,6 +258,7 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     if (cdrom || (!(oreg.eflags.l & EFLAGS_CF) &&
 		  oreg.ebx.w[0] == 0xaa55 && (oreg.ecx.b[0] & 1))) {
 	ebios = true;
+	hard_max_transfer = 127;
 
 	/* Query EBIOS parameters */
 	edd_params.len = sizeof edd_params;
@@ -300,6 +301,11 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     disk.part_start    = part_start;
     disk.rdwr_sectors  = ebios ? edd_rdwr_sectors : chs_rdwr_sectors;
 
+    if (!MaxTransfer || MaxTransfer > hard_max_transfer)
+	MaxTransfer = hard_max_transfer;
+
+    disk.maxtransfer   = MaxTransfer;
+
     return &disk;
 }
 
@@ -310,12 +316,14 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
  * NOTE: the disk cache needs to be revamped to support multiple devices...
  */
 struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
-                            uint16_t bsHeads, uint16_t bsSecPerTrack)
+                            uint16_t bsHeads, uint16_t bsSecPerTrack,
+			    uint32_t MaxTransfer)
 {
     static struct device dev;
     static __hugebss char diskcache[128*1024];
 
-    dev.disk = disk_init(devno, cdrom, part_start, bsHeads, bsSecPerTrack);
+    dev.disk = disk_init(devno, cdrom, part_start,
+			 bsHeads, bsSecPerTrack, MaxTransfer);
         
     dev.cache_data = diskcache;
     dev.cache_size = sizeof diskcache;

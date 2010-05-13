@@ -23,6 +23,8 @@ struct disk {
 
     sector_t part_start;   /* the start address of this partition(in sectors) */
     
+    uint32_t maxtransfer;	/* Max sectors per transfer */
+
     int (*rdwr_sectors)(struct disk *, void *, sector_t, size_t, bool);
 };
 
@@ -30,7 +32,7 @@ extern void read_sectors(char *, sector_t, int);
 extern void getoneblk(struct disk *, char *, block_t, int);
 
 /* diskio.c */
-struct disk *disk_init(uint8_t, bool, sector_t, uint16_t, uint16_t);
-struct device *device_init(uint8_t, bool, sector_t, uint16_t, uint16_t);                           
+struct disk *disk_init(uint8_t, bool, sector_t, uint16_t, uint16_t, uint32_t);
+struct device *device_init(uint8_t, bool, sector_t, uint16_t, uint16_t, uint32_t);
 
 #endif /* DISK_H */

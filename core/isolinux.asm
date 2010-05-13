@@ -1093,7 +1093,6 @@ bios_ebios:	dw getlinsec_ebios, bios_ebios_str
 %endif
 
 ; Maximum transfer size
-                global MaxTransfer          
 MaxTransfer	dw 127				; Hard disk modes
 MaxTransferCD	dw 32				; CD mode
 
@@ -1154,11 +1153,18 @@ all_read:
 ; (which will be at 16 only for a single-session disk!); from the PVD
 ; we should be able to find the rest of what we need to know.
 ;
+init_fs:
 		pushad
 	        mov eax,ROOT_FS_OPS
 	        mov dl,[DriveNumber]
                	cmp word [BIOSType],bios_cdrom
                 sete dh                        ; 1 for cdrom, 0 for hybrid mode
+		jne .hybrid
+		movzx ebp,word [MaxTransferCD]
+		jmp .common
+.hybrid:
+		movzx ebp,word [MaxTransfer]
+.common:
 	        mov ecx,[bsHidden]
 	        mov ebx,[bsHidden+4]
                 mov si,[bsHeads]
