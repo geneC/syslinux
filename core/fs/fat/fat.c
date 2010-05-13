@@ -33,7 +33,6 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
     uint32_t next_cluster = 0;
     sector_t fat_sector;
     uint32_t offset;
-    int lo, hi;
     uint32_t sector_mask = SECTOR_SIZE(fs) - 1;
     const uint8_t *data;
 
@@ -50,10 +49,9 @@ static uint32_t get_next_cluster(struct fs_info *fs, uint32_t clust_num)
 	     * so store the low part, then read the next fat
 	     * sector, read the high part, then combine it.
 	     */
-	    lo = data[offset];
+	    next_cluster = data[offset];
 	    data = get_fat_sector(fs, fat_sector + 1);
-	    hi = data[0];
-	    next_cluster = (hi << 8) + lo;
+	    next_cluster += data[0] << 8;
 	} else {
 	    next_cluster = *(const uint16_t *)(data + offset);
 	}
@@ -93,6 +91,7 @@ static int fat_next_extent(struct inode *inode, uint32_t lstart)
     uint32_t lcluster;
     uint32_t pcluster;
     uint32_t tcluster;
+    uint32_t xcluster;
     const uint32_t cluster_bytes = UINT32_C(1) << sbi->clust_byte_shift;
     const uint32_t cluster_secs  = UINT32_C(1) << sbi->clust_shift;
     sector_t data_area = sbi->data;
@@ -101,22 +100,10 @@ static int fat_next_extent(struct inode *inode, uint32_t lstart)
     if (mcluster >= tcluster)
 	goto err;		/* Requested cluster beyond end of file */
 
-    dprintf("Getting next cluster, inode = %p, lstart = %u, mcluster = %u, tcluster = %u\n",
-	    inode, lstart, mcluster, tcluster);
+    lcluster = PVT(inode)->offset >> sbi->clust_shift;
+    pcluster = ((PVT(inode)->here - data_area) >> sbi->clust_shift) + 2;
 
-    if (inode->next_extent.len) {
-	if (inode->next_extent.pstart < data_area)
-	    goto err;		/* Root directory has only one extent */
-	lcluster = (inode->next_extent.lstart + inode->next_extent.len)
-	    >> sbi->clust_shift;
-	pcluster = ((inode->next_extent.pstart + inode->next_extent.len
-		     - data_area) >> sbi->clust_shift) + 2;
-
-	if (lcluster > mcluster) {
-	    lcluster = 0;
-	    pcluster = PVT(inode)->start_cluster;
-	}
-    } else {
+    if (lcluster > mcluster || PVT(inode)->here < data_area) {
 	lcluster = 0;
 	pcluster = PVT(inode)->start_cluster;
     }
@@ -137,17 +124,19 @@ static int fat_next_extent(struct inode *inode, uint32_t lstart)
     inode->next_extent.pstart =
 	((sector_t)(pcluster-2) << sbi->clust_shift) + data_area;
     inode->next_extent.len = cluster_secs;
-    lcluster++;
+    xcluster = 0;		/* Nonsense */
 
-    while (lcluster < tcluster) {
-	uint32_t xcluster;
+    while (++lcluster < tcluster) {
 	xcluster = get_next_cluster(fs, pcluster);
-	if (xcluster != pcluster+1)
+	if (xcluster != ++pcluster)
 	    break;		/* Not contiguous */
-	pcluster = xcluster;
 	inode->next_extent.len += cluster_secs;
-	lcluster++;
     }
+
+    /* Note: ->here is bogus if ->offset >= EOF, but that's okay */
+    PVT(inode)->offset = lcluster << sbi->clust_shift;
+    PVT(inode)->here   = ((xcluster-2) << sbi->clust_shift) + data_area;
+
     return 0;
 
 err:
