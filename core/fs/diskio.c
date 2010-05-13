@@ -133,7 +133,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 
 	freeseg = (0x10000 - ((size_t)ptr & 0xffff)) >> sector_shift;
 
-	if ((size_t)buf <= 0xf0000 && freeseg) {
+	if ((size_t)ptr <= 0xf0000 && freeseg) {
 	    /* Can do a direct load */
 	    tptr = ptr;
 	} else {
