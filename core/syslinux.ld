@@ -317,8 +317,6 @@ SECTIONS
 		__got_end = .;
 	}
 
-	. = ALIGN(16);
-
 	__data_vma = .;
 	__data_lma = __data_vma + __text_lma - __text_vma;
 	.data : AT(__data_lma) {
