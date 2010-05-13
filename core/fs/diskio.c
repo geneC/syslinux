@@ -74,8 +74,8 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	    if (retry--)
 		continue;
 
-            /* if we are reading ONE sector and go here, just make it _faile_ */
-            chunk = chunk == 1 ? 0 : ((chunk+1) >> 1);
+	    /* For any starting value, this will always end with ..., 1, 0 */
+	    chunk >>= 1;
             if (chunk) {
 		MaxTransfer = chunk;
 		retry = RETRY_COUNT;
@@ -163,13 +163,16 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 		break;
 	    if (retry--)
 		continue;
-	    chunk = chunk == 1 ? 0 : ((chunk+1) >> 1);
+
+	    /* For any starting value, this will always end with ..., 1, 0 */
+	    chunk >>= 1;
 	    if (chunk) {
 		MaxTransfer = chunk;
 		retry = RETRY_COUNT;
                 pkt.blocks = chunk;
 		continue;
 	    }
+
 	    /*** XXX: Consider falling back to CHS here?! ***/
             printf("reading sectors error(EDD)\n");
 	    return done;	/* Failure */
