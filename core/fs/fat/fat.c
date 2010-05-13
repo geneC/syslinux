@@ -93,12 +93,16 @@ static int fat_next_extent(struct inode *inode, uint32_t lstart)
     uint32_t lcluster;
     uint32_t pcluster;
     uint32_t tcluster;
-    uint32_t cluster_size = UINT32_C(1) << sbi->clust_shift;
+    const uint32_t cluster_bytes = UINT32_C(1) << sbi->clust_byte_shift;
+    const uint32_t cluster_secs  = UINT32_C(1) << sbi->clust_shift;
     sector_t data_area = sbi->data;
 
-    tcluster = (inode->size + cluster_size - 1) >> sbi->clust_shift;
+    tcluster = (inode->size + cluster_bytes - 1) >> sbi->clust_byte_shift;
     if (mcluster >= tcluster)
 	goto err;		/* Requested cluster beyond end of file */
+
+    dprintf("Getting next cluster, inode = %p, lstart = %u, mcluster = %u, tcluster = %u\n",
+	    inode, lstart, mcluster, tcluster);
 
     if (inode->next_extent.len) {
 	if (inode->next_extent.pstart < data_area)
@@ -132,7 +136,7 @@ static int fat_next_extent(struct inode *inode, uint32_t lstart)
 
     inode->next_extent.pstart =
 	((sector_t)(pcluster-2) << sbi->clust_shift) + data_area;
-    inode->next_extent.len = cluster_size;
+    inode->next_extent.len = cluster_secs;
     lcluster++;
 
     while (lcluster < tcluster) {
@@ -141,7 +145,7 @@ static int fat_next_extent(struct inode *inode, uint32_t lstart)
 	if (xcluster != pcluster+1)
 	    break;		/* Not contiguous */
 	pcluster = xcluster;
-	inode->next_extent.len += cluster_size;
+	inode->next_extent.len += cluster_secs;
 	lcluster++;
     }
     return 0;
@@ -183,12 +187,9 @@ static sector_t get_next_sector(struct fs_info* fs, uint32_t sector)
 }
 
 /*
- * Here comes the place I don't like VFAT fs most; if we need seek
- * the file to the right place, we need get the right sector address
- * from begining everytime! Since it's a kind a signle link list, we
- * need to traver from the head-node to find the right node in that list.
- *
- * What a waste of time!
+ * The FAT is a single-linked list.  We remember the last place we
+ * were, so for a forward seek we can move forward from there, but
+ * for a reverse seek we have to start over...
  */
 static sector_t get_the_right_sector(struct file *file)
 {
