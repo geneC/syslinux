@@ -534,14 +534,3 @@ KeepPXE		db 0			; Should PXE be kept around?
 		alignz 4
                 global MyIP
 MyIP		dd 0			; My IP address 
-;
-; Variables that are uninitialized in SYSLINUX but initialized here
-;
-		alignz 4
-BufSafe		dw trackbufsize/TFTP_BLOCKSIZE	; Clusters we can load into trackbuf
-BufSafeBytes	dw trackbufsize		; = how many bytes?
-%ifndef DEPEND
-%if ( trackbufsize % TFTP_BLOCKSIZE ) != 0
-%error trackbufsize must be a multiple of TFTP_BLOCKSIZE
-%endif
-%endif

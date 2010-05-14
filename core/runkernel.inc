@@ -55,10 +55,10 @@ is_linux_kernel:
 ; work since we might have funny stuff up near the end of memory).
 ;
 		call abort_check		; Check for abort key
-		mov cx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
+		mov cx,8000h			; Half a moby (32K)
 		xor bx,bx
                 pop si                          ; <A> file pointer
-		pm_call getfssec
+		pm_call getfsbytes
 		cmp cx,1024
 		jb kernel_corrupt
                 cmp word [es:bs_bootsign],0AA55h

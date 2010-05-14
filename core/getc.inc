@@ -23,7 +23,6 @@ MAX_GETC_LG2	equ 4			; Max number of file nesting
 MAX_GETC	equ (1 << MAX_GETC_LG2)
 bytes_per_getc_lg2	equ 16-MAX_GETC_LG2
 bytes_per_getc		equ (1 << bytes_per_getc_lg2)
-secs_per_getc	equ bytes_per_getc/SECTOR_SIZE
 MAX_UNGET	equ 9			; Max bytes that can be pushed back
 
 		struc getc_file
@@ -135,8 +134,8 @@ getc:
 		and si,si
 		mov [di+gc_bufbytes],si	; In case SI == 0
 		jz .empty
-		mov cx,bytes_per_getc >> SECTOR_SHIFT
-		pm_call getfssec
+		mov cx,bytes_per_getc
+		pm_call getfsbytes
 		mov [di+gc_bufbytes],cx
 		mov [di+gc_file],si
 		jcxz .empty

@@ -117,6 +117,35 @@ void getfssec(com32sys_t *regs)
     regs->ecx.l = bytes_read;
 }
 
+void getfsbytes(com32sys_t *regs)
+{
+    int sectors;
+    bool have_more;
+    uint32_t bytes_read;
+    char *buf;
+    struct file *file;
+    uint16_t handle;
+
+    handle = regs->esi.w[0];
+    file = handle_to_file(handle);
+
+    sectors = regs->ecx.w[0] >> SECTOR_SHIFT(file->fs);
+
+    buf = MK_PTR(regs->es, regs->ebx.w[0]);
+    bytes_read = file->fs->fs_ops->getfssec(file, buf, sectors, &have_more);
+
+    /*
+     * If we reach EOF, the filesystem driver will have already closed
+     * the underlying file... this really should be cleaner.
+     */
+    if (!have_more) {
+	_close_file(file);
+        regs->esi.w[0] = 0;
+    }
+
+    regs->ecx.l = bytes_read;
+}
+
 size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors)
 {
     bool have_more;
@@ -353,8 +382,9 @@ void pm_close_file(com32sys_t *regs)
  *    invoke the fs-specific init function;
  *    initialize the cache if we need one;
  *    finally, get the current inode for relative path looking.
- *
  */
+__bss16 uint16_t SectorSize, SectorShift;
+
 void fs_init(com32sys_t *regs)
 {
     static struct fs_info fs;	/* The actual filesystem buffer */
@@ -411,4 +441,7 @@ void fs_init(com32sys_t *regs)
 	fs.root = fs.fs_ops->iget_root(&fs);
 	fs.cwd = get_inode(fs.root);
     }
+
+    SectorShift = fs.sector_shift;
+    SectorSize  = fs.sector_size;
 }

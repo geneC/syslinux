@@ -206,8 +206,8 @@ static struct inode *iso_get_inode(struct fs_info *fs,
     inode->blocks = (inode->size + BLOCK_SIZE(fs) - 1) >> BLOCK_SHIFT(fs);
 
     /* We have a single extent for all data */
-    inode->next_extent.pstart = de->extent_le << blktosec;
-    inode->next_extent.len = inode->blocks << blktosec;
+    inode->next_extent.pstart = (sector_t)de->extent_le << blktosec;
+    inode->next_extent.len    = (sector_t)inode->blocks << blktosec;
 
     return inode;
 }

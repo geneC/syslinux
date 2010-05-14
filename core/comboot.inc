@@ -124,9 +124,8 @@ is_comboot_image:
 		; Now actually load the file...
 		pop si			; File handle
 		mov bx,100h		; Load at <seg>:0100h
-		mov cx,10000h >> SECTOR_SHIFT
-					; Absolute maximum # of sectors
-		pm_call getfssec
+		mov cx,0FF00h		; Maximum number of bytes
+		pm_call getfsbytes
 		cmp ecx,65536-256-2	; Maximum size
 		ja comboot_too_large
 
@@ -586,7 +585,8 @@ comapi_derinfo:
 %else
 		; Physical medium...
 
-		mov P_CL,SECTOR_SHIFT
+		mov al,[SectorShift]
+		mov P_CL,al
 		mov al,[DriveNumber]
 		mov P_DL,al
 		mov P_FS,cs

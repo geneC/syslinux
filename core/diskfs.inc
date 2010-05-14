@@ -171,12 +171,3 @@ exten_table_end:
 %ifdef debug				; This code for debugging only
 debug_magic	dw 0D00Dh		; Debug code sentinel
 %endif
-
-		alignz 4
-BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
-BufSafeBytes	dw trackbufsize		; = how many bytes?
-%ifndef DEPEND
-%if ( trackbufsize % SECTOR_SIZE ) != 0
-%error trackbufsize must be a multiple of SECTOR_SIZE
-%endif
-%endif

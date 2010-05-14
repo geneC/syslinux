@@ -1379,22 +1379,3 @@ img_table:
 		db 80-1			; Max cylinder
 		db 36			; Max sector
 		db 2-1			; Max head
-
-;
-; Misc initialized (data) variables
-;
-
-;
-; Variables that are uninitialized in SYSLINUX but initialized here
-;
-; **** ISOLINUX:: We may have to make this flexible, based on what the
-; **** BIOS expects our "sector size" to be.
-;
-		alignz 4
-BufSafe		dw trackbufsize/SECTOR_SIZE	; Clusters we can load into trackbuf
-BufSafeBytes	dw trackbufsize		; = how many bytes?
-%ifndef DEPEND
-%if ( trackbufsize % SECTOR_SIZE ) != 0
-%error trackbufsize must be a multiple of SECTOR_SIZE
-%endif
-%endif
