@@ -57,85 +57,15 @@ typedef uint64_t u64;
 #include "fat.h"
 #include "../version.h"
 #include "syslxint.h"
+#include "syslxcom.h" /* common functions shared with extlinux and syslinux */
+#include "setadv.h"
+#include "syslxopt.h" /* unified options */
 
 #ifdef DEBUG
 # define dprintf printf
 #else
 # define dprintf(...) ((void)0)
 #endif
-
-/* Global option handling */
-/* Global fs_type for handling fat, ext2/3/4 and btrfs */
-static enum filesystem {
-    NONE,
-    EXT2,
-    BTRFS,
-    VFAT,
-} fs_type;
-
-const char *program;
-
-/* These are the options we can set and their values */
-struct my_options {
-    unsigned int sectors;
-    unsigned int heads;
-    int raid_mode;
-    int stupid_mode;
-    int reset_adv;
-    const char *set_once;
-} opt = {
-.sectors = 0,.heads = 0,.raid_mode = 0,.stupid_mode = 0,.reset_adv =
-	0,.set_once = NULL,};
-
-static void __attribute__ ((noreturn)) usage(int rv)
-{
-    fprintf(stderr,
-	    "Usage: %s [options] directory\n"
-	    "  --install    -i  Install over the current bootsector\n"
-	    "  --update     -U  Update a previous EXTLINUX installation\n"
-	    "  --zip        -z  Force zipdrive geometry (-H 64 -S 32)\n"
-	    "  --sectors=#  -S  Force the number of sectors per track\n"
-	    "  --heads=#    -H  Force number of heads\n"
-	    "  --stupid     -s  Slow, safe and stupid mode\n"
-	    "  --raid       -r  Fall back to the next device on boot failure\n"
-	    "  --once=...   -o  Execute a command once upon boot\n"
-	    "  --clear-once -O  Clear the boot-once command\n"
-	    "  --reset-adv      Reset auxilliary data\n"
-	    "\n"
-	    "  Note: geometry is determined at boot time for devices which\n"
-	    "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
-	    "  not possible for devices which are considered floppy disks,\n"
-	    "  which includes zipdisks and LS-120 superfloppies.\n"
-	    "\n"
-	    "  The -z option is useful for USB devices which are considered\n"
-	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n",
-	    program);
-
-    exit(rv);
-}
-
-enum long_only_opt {
-    OPT_NONE,
-    OPT_RESET_ADV,
-};
-
-static const struct option long_options[] = {
-    {"install", 0, NULL, 'i'},
-    {"update", 0, NULL, 'U'},
-    {"zipdrive", 0, NULL, 'z'},
-    {"sectors", 1, NULL, 'S'},
-    {"stupid", 0, NULL, 's'},
-    {"heads", 1, NULL, 'H'},
-    {"raid-mode", 0, NULL, 'r'},
-    {"version", 0, NULL, 'v'},
-    {"help", 0, NULL, 'h'},
-    {"once", 1, NULL, 'o'},
-    {"clear-once", 0, NULL, 'O'},
-    {"reset-adv", 0, NULL, OPT_RESET_ADV},
-    {0, 0, 0, 0}
-};
-
-static const char short_options[] = "iUuzS:H:rvho:O";
 
 #if defined(__linux__) && !defined(BLKGETSIZE64)
 /* This takes a u64, but the size field says size_t.  Someone screwed big. */
@@ -168,169 +98,7 @@ extern unsigned int extlinux_image_len;
 #define boot_image	extlinux_image
 #define boot_image_len  extlinux_image_len
 
-/*
- * Common abort function
- */
-void __attribute__ ((noreturn)) die(const char *msg)
-{
-    fputs(msg, stderr);
-    exit(1);
-}
-
-/*
- * read/write wrapper functions
- */
-ssize_t xpread(int fd, void *buf, size_t count, off_t offset)
-{
-    char *bufp = (char *)buf;
-    ssize_t rv;
-    ssize_t done = 0;
-
-    while (count) {
-	rv = pread(fd, bufp, count, offset);
-	if (rv == 0) {
-	    die("short read");
-	} else if (rv == -1) {
-	    if (errno == EINTR) {
-		continue;
-	    } else {
-		die(strerror(errno));
-	    }
-	} else {
-	    bufp += rv;
-	    offset += rv;
-	    done += rv;
-	    count -= rv;
-	}
-    }
-
-    return done;
-}
-
-ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
-{
-    const char *bufp = (const char *)buf;
-    ssize_t rv;
-    ssize_t done = 0;
-
-    while (count) {
-	rv = pwrite(fd, bufp, count, offset);
-	if (rv == 0) {
-	    die("short write");
-	} else if (rv == -1) {
-	    if (errno == EINTR) {
-		continue;
-	    } else {
-		die(strerror(errno));
-	    }
-	} else {
-	    bufp += rv;
-	    offset += rv;
-	    done += rv;
-	    count -= rv;
-	}
-    }
-
-    return done;
-}
-
-/*
- * Set and clear file attributes
- */
-static void clear_attributes(int fd)
-{
-    struct stat st;
-
-    if (!fstat(fd, &st)) {
-	switch (fs_type) {
-	case EXT2:
-	{
-	    int flags;
-
-	    if (!ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
-		flags &= ~EXT2_IMMUTABLE_FL;
-		ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
-	    }
-	    break;
-	}
-	case VFAT:
-	{
-	    uint32_t attr = 0x00; /* Clear all attributes */
-	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
-	    break;
-	}
-	default:
-	    break;
-	}
-	fchmod(fd, st.st_mode | S_IWUSR);
-    }
-}
-
-static void set_attributes(int fd)
-{
-    struct stat st;
-
-    if (!fstat(fd, &st)) {
-	fchmod(fd, st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH));
-	switch (fs_type) {
-	case EXT2:
-	{
-	    int flags;
-
-	    if (st.st_uid == 0 && !ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
-		flags |= EXT2_IMMUTABLE_FL;
-		ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
-	    }
-	    break;
-	}
-	case VFAT:
-	{
-	    uint32_t attr = 0x07; /* Hidden+System+Readonly */
-	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
-	    break;
-	}
-	default:
-	    break;
-	}
-    }
-}
-
-/*
- * Produce file map
- */
-int sectmap(int fd, uint32_t * sectors, int nsectors)
-{
-    unsigned int blksize, blk, nblk;
-    unsigned int i;
-
-    /* Get block size */
-    if (ioctl(fd, FIGETBSZ, &blksize))
-	return -1;
-
-    /* Number of sectors per block */
-    blksize >>= SECTOR_SHIFT;
-
-    nblk = 0;
-    while (nsectors) {
-
-	blk = nblk++;
-	dprintf("querying block %u\n", blk);
-	if (ioctl(fd, FIBMAP, &blk))
-	    return -1;
-
-	blk *= blksize;
-	for (i = 0; i < blksize; i++) {
-	    if (!nsectors)
-		return 0;
-
-	    dprintf("Sector: %10u\n", blk);
-	    *sectors++ = blk++;
-	    nsectors--;
-	}
-    }
-
-    return 0;
-}
+#define BTRFS_ADV_OFFSET (BTRFS_EXTLINUX_OFFSET + boot_image_len)
 
 /*
  * Get the size of a block device
@@ -597,146 +365,6 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
      * of keeping track of what the highest modified address ever was.
      */
     return dw << 2;
-}
-
-/*
- * Read the ADV from an existing instance, or initialize if invalid.
- * Returns -1 on fatal errors, 0 if ADV is okay, and 1 if no valid
- * ADV was found.
- */
-int read_adv(const char *path, int devfd)
-{
-    char *file;
-    int fd = -1;
-    struct stat st;
-    int err = 0;
-
-    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
-	if (xpread(devfd, syslinux_adv, 2 * ADV_SIZE,
-		BTRFS_EXTLINUX_OFFSET + boot_image_len) != 2 * ADV_SIZE) {
-		perror("writing adv");
-		return 1;
-	}
-	return 0;
-    }
-    asprintf(&file, "%s%sextlinux.sys",
-	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
-
-    if (!file) {
-	perror(program);
-	return -1;
-    }
-
-    fd = open(file, O_RDONLY);
-    if (fd < 0) {
-	if (errno != ENOENT) {
-	    err = -1;
-	} else {
-	    syslinux_reset_adv(syslinux_adv);
-	}
-    } else if (fstat(fd, &st)) {
-	err = -1;
-    } else if (st.st_size < 2 * ADV_SIZE) {
-	/* Too small to be useful */
-	syslinux_reset_adv(syslinux_adv);
-	err = 0;		/* Nothing to read... */
-    } else if (xpread(fd, syslinux_adv, 2 * ADV_SIZE,
-		      st.st_size - 2 * ADV_SIZE) != 2 * ADV_SIZE) {
-	err = -1;
-    } else {
-	/* We got it... maybe? */
-	err = syslinux_validate_adv(syslinux_adv) ? 1 : 0;
-    }
-
-    if (err < 0)
-	perror(file);
-
-    if (fd >= 0)
-	close(fd);
-    if (file)
-	free(file);
-
-    return err;
-}
-
-/*
- * Update the ADV in an existing installation.
- */
-int write_adv(const char *path, int devfd)
-{
-    unsigned char advtmp[2 * ADV_SIZE];
-    char *file;
-    int fd = -1;
-    struct stat st, xst;
-    int err = 0;
-
-    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
-	if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
-		BTRFS_EXTLINUX_OFFSET + boot_image_len) != 2 * ADV_SIZE) {
-		perror("writing adv");
-		return 1;
-	}
-	return 0;
-    }
-    asprintf(&file, "%s%sextlinux.sys",
-	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
-
-    if (!file) {
-	perror(program);
-	return -1;
-    }
-
-    fd = open(file, O_RDONLY);
-    if (fd < 0) {
-	err = -1;
-    } else if (fstat(fd, &st)) {
-	err = -1;
-    } else if (st.st_size < 2 * ADV_SIZE) {
-	/* Too small to be useful */
-	err = -2;
-    } else if (xpread(fd, advtmp, 2 * ADV_SIZE,
-		      st.st_size - 2 * ADV_SIZE) != 2 * ADV_SIZE) {
-	err = -1;
-    } else {
-	/* We got it... maybe? */
-	err = syslinux_validate_adv(advtmp) ? -2 : 0;
-	if (!err) {
-	    /* Got a good one, write our own ADV here */
-	    clear_attributes(fd);
-
-	    /* Need to re-open read-write */
-	    close(fd);
-	    fd = open(file, O_RDWR | O_SYNC);
-	    if (fd < 0) {
-		err = -1;
-	    } else if (fstat(fd, &xst) || xst.st_ino != st.st_ino ||
-		       xst.st_dev != st.st_dev || xst.st_size != st.st_size) {
-		fprintf(stderr, "%s: race condition on write\n", file);
-		err = -2;
-	    }
-	    /* Write our own version ... */
-	    if (xpwrite(fd, syslinux_adv, 2 * ADV_SIZE,
-			st.st_size - 2 * ADV_SIZE) != 2 * ADV_SIZE) {
-		err = -1;
-	    }
-
-	    sync();
-	    set_attributes(fd);
-	}
-    }
-
-    if (err == -2)
-	fprintf(stderr, "%s: cannot write auxilliary data (need --update)?\n",
-		file);
-    else if (err == -1)
-	perror(file);
-
-    if (fd >= 0)
-	close(fd);
-    if (file)
-	free(file);
-
-    return err;
 }
 
 /*
@@ -1137,6 +765,32 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
     return devfd;
 }
 
+static int ext_read_adv(const char *path, const char *cfg, int devfd)
+{
+    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
+	if (xpread(devfd, syslinux_adv, 2 * ADV_SIZE,
+		BTRFS_ADV_OFFSET) != 2 * ADV_SIZE) {
+		perror("btrfs writing adv");
+		return 1;
+	}
+	return 0;
+    }
+    return read_adv(path, cfg);
+}
+
+static int ext_write_adv(const char *path, const char *cfg, int devfd)
+{
+    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
+	if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
+		BTRFS_ADV_OFFSET) != 2 * ADV_SIZE) {
+		perror("writing adv");
+		return 1;
+	}
+	return 0;
+    }
+    return write_adv(path, cfg);
+}
+
 int install_loader(const char *path, int update_only)
 {
     struct stat st, fst;
@@ -1157,7 +811,7 @@ int install_loader(const char *path, int update_only)
     /* Read a pre-existing ADV, if already installed */
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (read_adv(path, devfd) < 0) {
+    else if (ext_read_adv(path, "extlinux.sys", devfd) < 0) {
 	close(devfd);
 	return 1;
     }
@@ -1199,7 +853,7 @@ int modify_existing_adv(const char *path)
 
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (read_adv(path, devfd) < 0) {
+    else if (ext_read_adv(path, "extlinux.sys", devfd) < 0) {
 	close(devfd);
 	return 1;
     }
@@ -1207,7 +861,7 @@ int modify_existing_adv(const char *path)
 	close(devfd);
 	return 1;
     }
-    if (write_adv(path, devfd) < 0) {
+    if (ext_write_adv(path, "extlinux.sys", devfd) < 0) {
 	close(devfd);
 	return 1;
     }
@@ -1217,83 +871,17 @@ int modify_existing_adv(const char *path)
 
 int main(int argc, char *argv[])
 {
-    int o;
-    const char *directory;
-    int update_only = -1;
+    parse_options(argc, argv, 0);
 
-    program = argv[0];
+    if (!opt.directory)
+	usage(EX_USAGE, 0);
 
-    while ((o = getopt_long(argc, argv, short_options,
-			    long_options, NULL)) != EOF) {
-	switch (o) {
-	case 'z':
-	    opt.heads = 64;
-	    opt.sectors = 32;
-	    break;
-	case 'S':
-	    opt.sectors = strtoul(optarg, NULL, 0);
-	    if (opt.sectors < 1 || opt.sectors > 63) {
-		fprintf(stderr,
-			"%s: invalid number of sectors: %u (must be 1-63)\n",
-			program, opt.sectors);
-		exit(EX_USAGE);
-	    }
-	    break;
-	case 'H':
-	    opt.heads = strtoul(optarg, NULL, 0);
-	    if (opt.heads < 1 || opt.heads > 256) {
-		fprintf(stderr,
-			"%s: invalid number of heads: %u (must be 1-256)\n",
-			program, opt.heads);
-		exit(EX_USAGE);
-	    }
-	    break;
-	case 'r':
-	    opt.raid_mode = 1;
-	    break;
-	case 's':
-	    opt.stupid_mode = 1;
-	    break;
-	case 'i':
-	    update_only = 0;
-	    break;
-	case 'u':
-	case 'U':
-	    update_only = 1;
-	    break;
-	case 'h':
-	    usage(0);
-	    break;
-	case 'o':
-	    opt.set_once = optarg;
-	    break;
-	case 'O':
-	    opt.set_once = "";
-	    break;
-	case OPT_RESET_ADV:
-	    opt.reset_adv = 1;
-	    break;
-	case 'v':
-	    fputs("extlinux " VERSION_STR
-		  "  Copyright 1994-" YEAR_STR " H. Peter Anvin \n", stderr);
-	    exit(0);
-	default:
-	    usage(EX_USAGE);
-	}
+    if (opt.update_only == -1) {
+	if (opt.reset_adv || opt.set_once)
+	    return modify_existing_adv(opt.directory);
+	else
+	    usage(EX_USAGE, 0);
     }
 
-    directory = argv[optind];
-
-    if (!directory)
-	usage(EX_USAGE);
-
-    if (update_only == -1) {
-	if (opt.reset_adv || opt.set_once) {
-	    return modify_existing_adv(directory);
-	} else {
-	    usage(EX_USAGE);
-	}
-    }
-
-    return install_loader(directory, update_only);
+    return install_loader(opt.directory, opt.update_only);
 }

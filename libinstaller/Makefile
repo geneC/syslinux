@@ -11,7 +11,7 @@ bootsect_bin.c: ../core/ldlinux.bss bin2c.pl
 	$(PERL) bin2c.pl syslinux_bootsect < $< > $@
 
 ldlinux_bin.c: ../core/ldlinux.sys bin2c.pl
-	$(PERL) bin2c.pl syslinux_ldlinux < $< > $@
+	$(PERL) bin2c.pl syslinux_ldlinux 512 < $< > $@
 
 extlinux_bss_bin.c: ../core/extlinux.bss bin2c.pl
 	$(PERL) bin2c.pl extlinux_bootsect < $< > $@

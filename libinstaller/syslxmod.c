@@ -261,7 +261,7 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     /* Set up the totals */
     dw = syslinux_ldlinux_len >> 2;	/* COMPLETE dwords, excluding ADV */
     set_16_sl(&patcharea->data_sectors, nsect);	/* Not including ADVs */
-    set_16_sl(&patcharea->adv_sectors, 0);	/* ADVs not supported yet */
+    set_16_sl(&patcharea->adv_sectors, 2);	/* ADVs need 2 sectors */
     set_32_sl(&patcharea->dwords, dw);
 
     /* Set the sector pointers */
@@ -269,6 +269,7 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
 		       get_16_sl(&patcharea->secptroffset));
     nptrs = get_16_sl(&patcharea->secptrcnt);
 
+    nsect += 2;
     while (--nsect) { /* the first sector is in bs->NextSector */
 	set_32_sl(wp++, *sectors++);
 	nptrs--;

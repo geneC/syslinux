@@ -23,6 +23,9 @@ CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -s
 
 SRCS     = syslinux.c \
+	   ../libinstaller/syslxopt.c \
+	   ../libinstaller/syslxcom.c \
+	   ../libinstaller/setadv.c \
            ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c

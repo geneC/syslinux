@@ -170,14 +170,6 @@ struct ext2_group_desc {
 #define EXT2_FL_USER_MODIFIABLE		0x000000FF	/* User modifiable flags */
 
 /*
- * ioctl commands
- */
-#define	EXT2_IOC_GETFLAGS		_IOR('f', 1, long)
-#define	EXT2_IOC_SETFLAGS		_IOW('f', 2, long)
-#define	EXT2_IOC_GETVERSION		_IOR('v', 1, long)
-#define	EXT2_IOC_SETVERSION		_IOW('v', 2, long)
-
-/*
  * Structure of an inode on the disk
  */
 struct ext2_inode {
