@@ -269,7 +269,7 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
 		       get_16_sl(&patcharea->secptroffset));
     nptrs = get_16_sl(&patcharea->secptrcnt);
 
-    while (nsect--) {
+    while (--nsect) { /* the first sector is in bs->NextSector */
 	set_32_sl(wp++, *sectors++);
 	nptrs--;
     }

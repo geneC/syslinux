@@ -561,7 +561,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     nptrs = get_16(&patcharea->secptrcnt);
 
     memset(wp, 0, nptrs * 4);
-    while (nsect--)
+    while (--nsect) /* the first sector in bs->NextSector */
 	set_32(wp++, *sectp++);
 
     /* Poke in the base directory path */

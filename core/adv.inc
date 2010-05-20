@@ -77,8 +77,8 @@ adv_init:
 		mov bx,[DataSectors]
 		shl bx,2
 		mov ecx,[bsHidden]
-		mov eax,[bx+SectorPtrs]		; First ADV sector
-		mov edx,[bx+SectorPtrs+4]	; Second ADV sector
+		mov eax,[bx+SectorPtrs-4]; First ADV sector
+		mov edx,[bx+SectorPtrs]	; Second ADV sector
 		add eax,ecx
 		add edx,ecx
 		mov [ADVSec0],eax
