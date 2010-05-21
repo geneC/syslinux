@@ -5,25 +5,29 @@
 int main(int argc, char *argv[])
 {
     FILE *f;
-    int ch;
+    int i;
+    int len;
+    char buf[4096];
 
     openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
     if (argc < 2) {
-	fprintf(stderr, "Usage: cat.c32 filename\n");
+	fprintf(stderr, "Usage: %s filename...\n", argv[0]);
 	return 1;
     }
 
-    f = fopen(argv[1], "r");
-    if (!f) {
-	fprintf(stderr, "File \"%s\" does not exist.\n", argv[1]);
-	return 1;
+    for (i = 1; i < argc; i++) {
+	f = fopen(argv[i], "r");
+	if (!f) {
+	    fprintf(stderr, "%s: %s: file not found\n", argv[0], argv[i]);
+	    return 1;
+	}
+
+	while ((len = fread(buf, 1, sizeof buf, f)) > 0)
+	    fwrite(buf, 1, len, stdout);
+	
+	fclose(f);
     }
-
-    while ((ch = getc(f)) != EOF)
-	putchar(ch);
-
-    fclose(f);
 
     return 0;
 }
