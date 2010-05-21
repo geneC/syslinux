@@ -130,7 +130,7 @@ check_option(int argc, char *argv[])
     };
 
     opterr = mode = 0;
-    while ((n = getopt_long(argc, argv, optstr, lopt, &ind)) != -1)
+    while ((n = getopt_long_only(argc, argv, optstr, lopt, &ind)) != -1)
     {
         switch (n)
         {
