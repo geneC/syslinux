@@ -47,7 +47,7 @@ static void ansicon_erase(const struct term_state *, int, int, int, int);
 static void ansicon_write_char(int, int, uint8_t, const struct term_state *);
 static void ansicon_showcursor(const struct term_state *);
 static void ansicon_scroll_up(const struct term_state *);
-static void ansicon_set_cursor(int, int, int);
+static void ansicon_set_cursor(int, int, bool);
 
 static struct term_state ts;
 struct ansi_ops __ansicon_ops = {
@@ -176,7 +176,7 @@ static void ansicon_showcursor(const struct term_state *st)
     __intcall(0x10, &ireg, NULL);
 }
 
-static void ansicon_set_cursor(int x, int y, int visible)
+static void ansicon_set_cursor(int x, int y, bool visible)
 {
     const int page = BIOS_PAGE;
     struct curxy xy = BIOS_CURXY[page];
@@ -198,7 +198,7 @@ static void ansicon_write_char(int x, int y, uint8_t ch,
 {
     static com32sys_t ireg;
 
-    ansicon_set_cursor(x, y, 0);
+    ansicon_set_cursor(x, y, false);
 
     ireg.eax.b[1] = 0x09;
     ireg.eax.b[0] = ch;

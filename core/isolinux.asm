@@ -199,7 +199,7 @@ Files		resb MAX_OPEN*open_file_t_size
 ;; CD-ROM sector (2K) of the file, so the number one priority is actually
 ;; loading the rest.
 ;;
-StackBuf	equ $-44		; 44 bytes needed for
+StackBuf	equ STACK_TOP-44	; 44 bytes needed for
 					; the bootsector chainloading
 					; code!
 OrigESDI	equ StackBuf-4          ; The high dword on the stack
@@ -1034,7 +1034,7 @@ writestr_early	equ writestr
 ; Data that needs to be in the first sector
 ; -----------------------------------------------------------------------------
 
-syslinux_banner	db CR, LF, 'ISOLINUX ', VERSION_STR, ' ', DATE_STR, ' ', 0
+syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
 		db ' H. Peter Anvin et al', CR, LF, 0

@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -46,14 +46,22 @@
  *	when you want more than one ISOLINUX per CD/DVD.
  *
  * ntldr=<loader>:
- *	equivalent to -seg 0x2000 -file <loader>, used with WinNT's loaders
+ *	equivalent to seg=0x2000 file=<loader> sethidden,
+ *      used with WinNT's loaders
+ *
+ * cmldr=<loader>:
+ *      used with Recovery Console of Windows NT/2K/XP.
+ *      same as ntldr=<loader> & "cmdcons\0" written to
+ *      the system name field in the bootsector
  *
  * freedos=<loader>:
- *	equivalent to -seg 0x60 -file <loader>, used with FreeDOS kernel.sys.
+ *	equivalent to seg=0x60 file=<loader> sethidden,
+ *      used with FreeDOS kernel.sys.
  *
  * msdos=<loader>
  * pcdos=<loader>
- *	equivalent to -seg 0x70 -file <loader>, used with DOS' io.sys.
+ *	equivalent to seg=0x70 file=<loader> sethidden,
+ *      used with DOS' io.sys.
  *
  * swap:
  *	if the disk is not fd0/hd0, install a BIOS stub which swaps
@@ -63,6 +71,10 @@
  *	change type of primary partitions with IDs 01, 04, 06, 07,
  *	0b, 0c, or 0e to 1x, except for the selected partition, which
  *	is converted the other way.
+ *
+ * sethidden:
+ *      update the "hidden sectors" (partition offset) field in a
+ *      FAT/NTFS boot sector.
  */
 
 #include <com32.h>
@@ -76,6 +88,7 @@
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/config.h>
+#include <syslinux/video.h>
 
 #define SECTOR 512		/* bytes/sector */
 
@@ -84,9 +97,17 @@ static struct options {
     uint16_t keeppxe;
     uint16_t seg;
     bool isolinux;
+    bool cmldr;
     bool swap;
     bool hide;
+    bool sethidden;
 } opt;
+
+struct data_area {
+    void *data;
+    addr_t base;
+    addr_t size;
+};
 
 static inline void error(const char *msg)
 {
@@ -388,10 +409,13 @@ static struct part_entry *find_logical_partition(int whichpart, char *table,
 	    /* Adjust the offset to account for the extended partition itself */
 	    ptab[i].start_lba += self->start_lba;
 
-	    /* Sanity check entry: must not extend outside the extended partition.
-	       This is necessary since some OSes put crap in some entries. */
-	    if (ptab[i].start_lba + ptab[i].length <= self->start_lba ||
-		ptab[i].start_lba >= self->start_lba + self->length)
+	    /*
+	     * Sanity check entry: must not extend outside the
+	     * extended partition.  This is necessary since some OSes
+	     * put crap in some entries.  Note that root is non-NULL here.
+	     */
+	    if (ptab[i].start_lba + ptab[i].length <= root->start_lba ||
+		ptab[i].start_lba >= root->start_lba + root->length)
 		continue;
 
 	    /* OK, it's a data partition.  Is it the one we're looking for? */
@@ -437,7 +461,7 @@ static struct part_entry *find_logical_partition(int whichpart, char *table,
     return NULL;
 }
 
-static void do_boot(void *boot_sector, size_t boot_size,
+static void do_boot(struct data_area *data, int ndata,
 		    struct syslinux_rm_regs *regs)
 {
     uint16_t *const bios_fbm = (uint16_t *) 0x413;
@@ -448,7 +472,6 @@ static void do_boot(void *boot_sector, size_t boot_size,
     uint8_t driveno = regs->edx.b[0];
     uint8_t swapdrive = driveno & 0x80;
     int i;
-    addr_t loadbase = opt.seg ? (opt.seg << 4) : 0x7c00;
 
     mmap = syslinux_memory_map();
 
@@ -457,16 +480,19 @@ static void do_boot(void *boot_sector, size_t boot_size,
 	return;
     }
 
-    /* Nothing below 0x7c00, much simpler... */
-
-    if (boot_size >= dosmem - loadbase)
+    endimage = 0;
+    for (i = 0; i < ndata; i++) {
+	if (data[i].base + data[i].size > endimage)
+	    endimage = data[i].base + data[i].size;
+    }
+    if (endimage > dosmem)
 	goto too_big;
 
-    endimage = loadbase + boot_size;
-
-    if (syslinux_add_movelist
-	(&mlist, loadbase, (addr_t) boot_sector, boot_size))
-	goto enomem;
+    for (i = 0; i < ndata; i++) {
+	if (syslinux_add_movelist(&mlist, data[i].base,
+				  (addr_t)data[i].data, data[i].size))
+	    goto enomem;
+    }
 
     if (opt.swap && driveno != swapdrive) {
 	static const uint8_t swapstub_master[] = {
@@ -547,6 +573,9 @@ static void do_boot(void *boot_sector, size_t boot_size,
 
     /* Tell the shuffler not to muck with this area... */
     syslinux_add_memmap(&mmap, endimage, 0xa0000 - endimage, SMT_RESERVED);
+
+    /* Force text mode */
+    syslinux_force_text_mode();
 
     fputs("Booting...\n", stdout);
     syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, regs);
@@ -637,10 +666,30 @@ static uint32_t get_file_lba(const char *filename)
     return lba;
 }
 
+static void usage(void)
+{
+    error("Usage:   chain.c32 hd<disk#> [<partition>] [options]\n"
+	  "         chain.c32 fd<disk#> [options]\n"
+	  "         chain.c32 mbr:<id> [<partition>] [options]\n"
+	  "         chain.c32 boot [<partition>] [options]\n"
+	  "Options: file=<loader>      load file, instead of boot sector\n"
+	  "         isolinux=<loader>  load another version of ISOLINUX\n"
+	  "         ntldr=<loader>     load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n"
+	  "         cmldr=<loader>     load Recovery Console of Windows NT/2K/XP\n"
+	  "         freedos=<loader>   load FreeDOS kernel.sys\n"
+	  "         msdos=<loader>     load MS-DOS io.sys\n"
+	  "         pcdos=<loader>     load PC-DOS ibmbio.com\n"
+	  "         seg=<segment>      jump to <seg>:0000 instead of 0000:7C00\n"
+	  "         swap               swap drive numbers, if bootdisk is not fd0/hd0\n"
+	  "         hide               hide primary partitions, except selected partition\n"
+	  "         sethidden          set the FAT/NTFS hidden sectors field\n"
+	);
+}
+
+
 int main(int argc, char *argv[])
 {
     char *mbr, *p;
-    void *boot_sector = NULL;
     struct part_entry *partinfo;
     struct syslinux_rm_regs regs;
     char *drivename, *partition;
@@ -649,7 +698,10 @@ int main(int argc, char *argv[])
     uint32_t file_lba = 0;
     unsigned char *isolinux_bin;
     uint32_t *checksum, *chkhead, *chktail;
-    size_t boot_size = SECTOR;
+    struct data_area data[3];
+    int ndata = 0;
+    addr_t load_base;
+    static const char cmldr_signature[8] = "cmdcons";
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
@@ -675,24 +727,41 @@ int main(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.seg = 0x2000;	/* NTLDR wants this address */
 	    opt.loadfile = argv[i] + 6;
+	    opt.sethidden = true;
+	} else if (!strncmp(argv[i], "cmldr=", 6)) {
+	    opt.seg = 0x2000;    /* CMLDR wants this address */
+	    opt.loadfile = argv[i] + 6;
+	    opt.cmldr = true;
+	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.seg = 0x60;	/* FREEDOS wants this address */
 	    opt.loadfile = argv[i] + 8;
+	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "msdos=", 6) ||
 		   !strncmp(argv[i], "pcdos=", 6)) {
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
 	    opt.loadfile = argv[i] + 6;
+	    opt.sethidden = true;
 	} else if (!strcmp(argv[i], "swap")) {
 	    opt.swap = true;
+	} else if (!strcmp(argv[i], "noswap")) {
+	    opt.swap = false;
 	} else if (!strcmp(argv[i], "hide")) {
 	    opt.hide = true;
+	} else if (!strcmp(argv[i], "nohide")) {
+	    opt.hide = false;
 	} else if (!strcmp(argv[i], "keeppxe")) {
 	    opt.keeppxe = 3;
-	} else
-	    if (((argv[i][0] == 'h' || argv[i][0] == 'f') && argv[i][1] == 'd')
-		|| !strncmp(argv[i], "mbr:", 4)
-		|| !strncmp(argv[i], "mbr=", 4)
-		|| !strcmp(argv[i], "boot") || !strncmp(argv[i], "boot,", 5)) {
+	} else if (!strcmp(argv[i], "sethidden")) {
+	    opt.sethidden = true;
+	} else if (!strcmp(argv[i], "nosethidden")) {
+	    opt.sethidden = false;
+	} else if (((argv[i][0] == 'h' || argv[i][0] == 'f')
+		    && argv[i][1] == 'd')
+		   || !strncmp(argv[i], "mbr:", 4)
+		   || !strncmp(argv[i], "mbr=", 4)
+		   || !strcmp(argv[i], "boot")
+		   || !strncmp(argv[i], "boot,", 5)) {
 	    drivename = argv[i];
 	    p = strchr(drivename, ',');
 	    if (p) {
@@ -703,20 +772,7 @@ int main(int argc, char *argv[])
 		partition = argv[++i];
 	    }
 	} else {
-	    error
-		("Usage:   chain.c32 hd<disk#> [<partition>] [options]\n"
-		 "         chain.c32 fd<disk#> [options]\n"
-		 "         chain.c32 mbr:<id> [<partition>] [options]\n"
-		 "         chain.c32 boot [<partition>] [options]\n"
-		 "Options: file=<loader>      load file, instead of boot sector\n"
-		 "         isolinux=<loader>  load another version of ISOLINUX\n"
-		 "         ntldr=<loader>     load Windows bootloaders: NTLDR, SETUPLDR, BOOTMGR\n"
-		 "         freedos=<loader>   load FreeDOS kernel.sys\n"
-		 "         msdos=<loader>     load MS-DOS io.sys\n"
-		 "         pcdos=<loader>     load PC-DOS ibmbio.com\n"
-		 "         seg=<segment>      jump to <seg>:0000 instead of 0000:7C00\n"
-		 "         swap               swap drive numbers, if bootdisk is not fd0/hd0\n"
-		 "         hide               hide primary partitions, except selected partition\n");
+	    usage();
 	    goto bail;
 	}
     }
@@ -755,13 +811,20 @@ int main(int argc, char *argv[])
     regs.ebx.b[0] = regs.edx.b[0] = drive;
 
     whichpart = 0;		/* Default */
-
     if (partition)
 	whichpart = strtoul(partition, NULL, 0);
 
     if (!(drive & 0x80) && whichpart) {
 	error("Warning: Partitions of floppy devices may not work\n");
     }
+
+    /* 
+     * grldr of Grub4dos wants the partition number in DH:
+     * -1:   whole drive (default)
+     * 0-3:  primary partitions
+     * 4-*:  logical partitions
+     */
+    regs.edx.b[1] = whichpart-1;
 
     /* Get the disk geometry and disk access setup */
     if (get_disk_params(drive)) {
@@ -786,7 +849,6 @@ int main(int argc, char *argv[])
 	/* Boot the MBR */
 
 	partinfo = NULL;
-	boot_sector = mbr;
     } else if (whichpart <= 4) {
 	/* Boot a primary partition */
 
@@ -808,12 +870,16 @@ int main(int argc, char *argv[])
     }
 
     /* Do the actual chainloading */
+    load_base = opt.seg ? (opt.seg << 4) : 0x7c00;
+
     if (opt.loadfile) {
 	fputs("Loading the boot file...\n", stdout);
-	if (loadfile(opt.loadfile, &boot_sector, &boot_size)) {
+	if (loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size)) {
 	    error("Failed to load the boot file\n");
 	    goto bail;
 	}
+	data[ndata].base = load_base;
+	load_base = 0x7c00;	/* If we also load a boot sector */
 
 	/* Create boot info table: needed when you want to chainload
 	   another version of ISOLINUX (or another bootlaoder that needs
@@ -840,7 +906,7 @@ int main(int argc, char *argv[])
 		   LBA of primary volume descriptor should already be set to 16. 
 		 */
 
-		isolinux_bin = (unsigned char *)boot_sector;
+		isolinux_bin = (unsigned char *)data[ndata].data;
 
 		/* Get LBA address of bootfile */
 		file_lba = get_file_lba(opt.loadfile);
@@ -850,20 +916,27 @@ int main(int argc, char *argv[])
 		    goto bail;
 		}
 		/* Set it */
-		*((uint32_t *) & isolinux_bin[12]) = file_lba;
+		*((uint32_t *) &isolinux_bin[12]) = file_lba;
 
 		/* Set boot file length */
-		*((uint32_t *) & isolinux_bin[16]) = boot_size;
+		*((uint32_t *) &isolinux_bin[16]) = data[ndata].size;
 
 		/* Calculate checksum */
-		checksum = (uint32_t *) & isolinux_bin[20];
-		chkhead = (uint32_t *) & isolinux_bin[64];
-		chktail = (uint32_t *) & isolinux_bin[boot_size - 1];
-		/* Fresh checksum and clear possibly fractional uint32_t at the end */
-		*checksum = *((uint32_t *) & isolinux_bin[boot_size]) = 0;
-
-		while (chkhead <= chktail) {
+		checksum = (uint32_t *) &isolinux_bin[20];
+		chkhead = (uint32_t *) &isolinux_bin[64];
+		chktail = (uint32_t *) &isolinux_bin[data[ndata].size & ~3];
+		*checksum = 0;
+		while (chkhead < chktail)
 		    *checksum += *chkhead++;
+
+		/*
+		 * Deal with possible fractional dword at the end;
+		 * this *should* never happen...
+		 */
+		if (data[ndata].size & 3) {
+		    uint32_t xword = 0;
+		    memcpy(&xword, chkhead, data[ndata].size & 3);
+		    *checksum += xword;
 		}
 	    } else {
 		error
@@ -872,30 +945,60 @@ int main(int argc, char *argv[])
 	    }
 	}
 
-    } else if (partinfo) {
+	ndata++;
+    }
+
+    if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
 	/* Actually read the boot sector */
-	/* Pick the first buffer that isn't already in use */
-	if (!(boot_sector = read_sector(partinfo->start_lba))) {
+	if (!partinfo) {
+	    data[ndata].data = mbr;
+	} else if (!(data[ndata].data = read_sector(partinfo->start_lba))) {
 	    error("Cannot read boot sector\n");
 	    goto bail;
 	}
-    }
-
-    if (!opt.loadfile) {
-	if (*(uint16_t *) ((char *)boot_sector + boot_size - 2) != 0xaa55) {
-	    error
-		("Boot sector signature not found (unbootable disk/partition?)\n");
+	data[ndata].size = SECTOR;
+	data[ndata].base = load_base;
+	
+	if (!opt.loadfile &&
+	    *(uint16_t *)((char *)data[ndata].data +
+			  data[ndata].size - 2) != 0xaa55) {
+	    error("Boot sector signature not found (unbootable disk/partition?)\n");
 	    goto bail;
 	}
+
+	/*
+	 * To boot the Recovery Console of Windows NT/2K/XP we need to write
+	 * the string "cmdcons\0" to memory location 0000:7C03.
+	 * Memory location 0000:7C00 contains the bootsector of the partition.
+	 */
+	if (partinfo && opt.cmldr) {
+	    memcpy((char *)data[ndata].data+3, cmldr_signature,
+		   sizeof cmldr_signature);
+	}
+
+	/*
+	 * Modify the hidden sectors (partition offset) copy in memory;
+	 * this modifies the field used by FAT and NTFS filesystems, and
+	 * possibly other boot loaders which use the same format.
+	 */
+	if (partinfo && opt.sethidden) {
+	    *(uint32_t *)((char *)data[ndata].data + 28) =
+		partinfo->start_lba;
+	}
+
+	ndata++;
     }
 
     if (partinfo) {
 	/* 0x7BE is the canonical place for the first partition entry. */
+	data[ndata].data = partinfo;
+	data[ndata].base = 0x7be;
+	data[ndata].size = sizeof *partinfo;
+	ndata++;
 	regs.esi.w[0] = 0x7be;
-	memcpy((char *)0x7be, partinfo, sizeof(*partinfo));
     }
 
-    do_boot(boot_sector, boot_size, &regs);
+    do_boot(data, ndata, &regs);
 
   bail:
     return 255;

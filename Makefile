@@ -32,7 +32,8 @@ include $(topdir)/MCONFIG
 # List of module objects that should be installed for all derivatives
 MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
-	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32
+	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
+	com32/sysdump/*.c32
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
@@ -43,6 +44,7 @@ BOBJECTS = $(BTARGET) \
 	mbr/mbr_f.bin mbr/altmbr_f.bin mbr/gptmbr_f.bin \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
 	gpxe/gpxelinux.0 dos/syslinux.com win32/syslinux.exe \
+	dosutil/*.com dosutil/*.sys \
 	$(MODULES)
 
 # BSUBDIRs build the on-target binary components.
@@ -52,9 +54,9 @@ BOBJECTS = $(BTARGET) \
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
 BSUBDIRS = codepage core memdisk modules com32 mbr memdump gpxe sample \
-	   libinstaller dos win32
+	   libinstaller dos win32 dosutil
 ITARGET  =
-IOBJECTS = $(ITARGET) dos/copybs.com \
+IOBJECTS = $(ITARGET) \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \
 	mtools/syslinux linux/syslinux extlinux/extlinux
 ISUBDIRS = libinstaller mtools linux extlinux utils
@@ -66,12 +68,12 @@ INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		core/isolinux-debug.bin \
-		dos/syslinux.com dos/copybs.com win32/syslinux.exe \
+		dos/syslinux.com win32/syslinux.exe \
 		mbr/*.bin $(MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe
 
 # These directories manage their own installables
-INSTALLSUBDIRS = com32 utils
+INSTALLSUBDIRS = com32 utils dosutil
 
 # Things to install in /boot/extlinux
 EXTBOOTINSTALL = $(MODULES)

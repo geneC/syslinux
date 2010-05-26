@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 /* These are global parameters regardless of which menu we're displaying */
 int shiftkey = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu = 0;
+int clearmenu = 0;
 long long totaltimeout = 0;
 
 /* Keep track of global default */
@@ -690,6 +691,8 @@ static void parse_config_file(FILE * f)
 		m->menu_background = refdup_word(&p);
 	    } else if ((ep = looking_at(p, "hidden"))) {
 		hiddenmenu = 1;
+	    } else if ((ep = looking_at(p, "clear"))) {
+		clearmenu = 1;
 	    } else if ((ep = is_message_name(p, &msgnr))) {
 		refstr_put(m->messages[msgnr]);
 		m->messages[msgnr] = refstrdup(skipspace(ep));
@@ -818,6 +821,11 @@ static void parse_config_file(FILE * f)
 		}
 	    } else if (looking_at(p, "start")) {
 		start_menu = m;
+	    } else if ((ep = looking_at(p, "resolution"))) {
+		int x, y;
+		x = strtoul(ep, &ep, 0);
+		y = strtoul(skipspace(ep), NULL, 0);
+		set_resolution(x, y);
 	    } else {
 		/* Unknown, check for layout parameters */
 		enum parameter_number mp;

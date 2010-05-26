@@ -20,8 +20,6 @@ OUTPUT_ARCH(i386)
 EXTERN(_start)
 ENTRY(_start)
 
-STACK_LEN = 4096;
-
 SECTIONS
 {
 	/* "Early" sections (before the load) */
@@ -63,7 +61,6 @@ SECTIONS
 
 	/* Stack */
 
-	STACK_BASE = 0x7c00 - STACK_LEN;
 	. = STACK_BASE;
 	.stack : AT(STACK_BASE) {
 		__stack_start = .;

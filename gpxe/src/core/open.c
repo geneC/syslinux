@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
@@ -29,18 +31,6 @@
  * Data transfer interface opening
  *
  */
-
-/** Registered URI openers */
-static struct uri_opener uri_openers[0]
-	__table_start ( struct uri_opener, uri_openers );
-static struct uri_opener uri_openers_end[0]
-	__table_end ( struct uri_opener, uri_openers );
-
-/** Registered socket openers */
-static struct socket_opener socket_openers[0]
-	__table_start ( struct socket_opener, socket_openers );
-static struct socket_opener socket_openers_end[0]
-	__table_end ( struct socket_opener, socket_openers );
 
 /**
  * Open URI
@@ -63,8 +53,10 @@ int xfer_open_uri ( struct xfer_interface *xfer, struct uri *uri ) {
 		return -ENOMEM;
 
 	/* Find opener which supports this URI scheme */
-	for ( opener = uri_openers ; opener < uri_openers_end ; opener++ ) {
+	for_each_table_entry ( opener, URI_OPENERS ) {
 		if ( strcmp ( resolved_uri->scheme, opener->scheme ) == 0 ) {
+			DBGC ( xfer, "XFER %p opening %s URI\n",
+			       xfer, opener->scheme );
 			rc = opener->open ( xfer, resolved_uri );
 			goto done;
 		}
@@ -121,7 +113,7 @@ int xfer_open_socket ( struct xfer_interface *xfer, int semantics,
 	       socket_semantics_name ( semantics ),
 	       socket_family_name ( peer->sa_family ) );
 
-	for ( opener = socket_openers; opener < socket_openers_end; opener++ ){
+	for_each_table_entry ( opener, SOCKET_OPENERS ) {
 		if ( ( opener->semantics == semantics ) &&
 		     ( opener->family == peer->sa_family ) ) {
 			return opener->open ( xfer, peer, local );
@@ -181,4 +173,25 @@ int xfer_open ( struct xfer_interface *xfer, int type, ... ) {
 	rc = xfer_vopen ( xfer, type, args );
 	va_end ( args );
 	return rc;
+}
+
+/**
+ * Reopen location
+ *
+ * @v xfer		Data transfer interface
+ * @v type		Location type
+ * @v args		Remaining arguments depend upon location type
+ * @ret rc		Return status code
+ *
+ * This will close the existing connection and open a new connection
+ * using xfer_vopen().  It is intended to be used as a .vredirect
+ * method handler.
+ */
+int xfer_vreopen ( struct xfer_interface *xfer, int type, va_list args ) {
+
+	/* Close existing connection */
+	xfer_close ( xfer, 0 );
+
+	/* Open new location */
+	return xfer_vopen ( xfer, type, args );
 }

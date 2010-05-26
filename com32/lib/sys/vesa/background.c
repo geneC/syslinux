@@ -44,9 +44,9 @@
    aligned dwords. */
 static void draw_background_line(int line, int start, int npixels)
 {
-    uint32_t *bgptr = &__vesacon_background[line][start];
+    uint32_t *bgptr = &__vesacon_background[line*__vesa_info.mi.h_res+start];
     unsigned int bytes_per_pixel = __vesacon_bytes_per_pixel;
-    size_t fbptr = line * __vesa_info.mi.logical_scan + start * bytes_per_pixel;
+    size_t fbptr = line * __vesa_info.mi.logical_scan + start*bytes_per_pixel;
 
     __vesacon_copy_to_screen(fbptr, bgptr, npixels);
 }
@@ -60,45 +60,75 @@ static void draw_background(void)
     const int right_border = VIDEO_BORDER + (TEXT_PIXEL_COLS % FONT_WIDTH);
 
     for (i = 0; i < VIDEO_BORDER; i++)
-	draw_background_line(i, 0, VIDEO_X_SIZE);
+	draw_background_line(i, 0, __vesa_info.mi.h_res);
 
-    for (i = VIDEO_BORDER; i < VIDEO_Y_SIZE - bottom_border; i++) {
+    for (i = VIDEO_BORDER; i < __vesa_info.mi.v_res - bottom_border; i++) {
 	draw_background_line(i, 0, VIDEO_BORDER);
-	draw_background_line(i, VIDEO_X_SIZE - right_border, right_border);
+	draw_background_line(i, __vesa_info.mi.h_res - right_border,
+			     right_border);
     }
 
-    for (i = VIDEO_Y_SIZE - bottom_border; i < VIDEO_Y_SIZE; i++)
-	draw_background_line(i, 0, VIDEO_X_SIZE);
+    for (i = __vesa_info.mi.v_res - bottom_border;
+	 i < __vesa_info.mi.v_res; i++)
+	draw_background_line(i, 0, __vesa_info.mi.h_res);
 
     __vesacon_redraw_text();
+}
+
+/*
+ * Tile an image in the UL corner across the entire screen
+ */
+static void tile_image(int width, int height)
+{
+    int xsize = __vesa_info.mi.h_res;
+    int ysize = __vesa_info.mi.v_res;
+    int x, y, yr;
+    int xl, yl;
+    uint32_t *sp, *dp, *drp, *dtp;
+
+    drp = __vesacon_background;
+    for (y = 0 ; y < ysize ; y += height) {
+	yl = min(height, ysize-y);
+	dtp = drp;
+	for (x = 0 ; x < xsize ; x += width) {
+	    xl = min(width, xsize-x);
+	    if (x || y) {
+		sp = __vesacon_background;
+		dp = dtp;
+		for (yr = 0 ; yr < yl ; yr++) {
+		    memcpy(dp, sp, xl*sizeof(uint32_t));
+		    dp += xsize;
+		    sp += xsize;
+		}
+	    }
+	    dtp += xl;
+	}
+	drp += xsize*height;
+    }
 }
 
 static int read_png_file(FILE * fp)
 {
     png_structp png_ptr = NULL;
     png_infop info_ptr = NULL;
-    png_infop end_ptr = NULL;
 #if 0
     png_color_16p image_background;
     static const png_color_16 my_background = { 0, 0, 0, 0, 0 };
 #endif
-    png_bytep row_pointers[VIDEO_Y_SIZE];
-    int passes;
+    png_bytep row_pointers[__vesa_info.mi.v_res], rp;
     int i;
     int rv = -1;
 
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-
     info_ptr = png_create_info_struct(png_ptr);
-    end_ptr = png_create_info_struct(png_ptr);
 
-    if (!png_ptr || !info_ptr || !end_ptr || setjmp(png_jmpbuf(png_ptr)))
+    if (!png_ptr || !info_ptr || setjmp(png_jmpbuf(png_ptr)))
 	goto err;
 
     png_init_io(png_ptr, fp);
     png_set_sig_bytes(png_ptr, 8);
 
-    png_set_user_limits(png_ptr, VIDEO_X_SIZE, VIDEO_Y_SIZE);
+    png_set_user_limits(png_ptr, __vesa_info.mi.h_res, __vesa_info.mi.v_res);
 
     png_read_info(png_ptr, info_ptr);
 
@@ -138,25 +168,28 @@ static int read_png_file(FILE * fp)
 #endif
 
     /* Whew!  Now we should get the stuff we want... */
-    for (i = 0; i < (int)info_ptr->height; i++)
-	row_pointers[i] = (void *)__vesacon_background[i];
+    rp = (png_bytep)__vesacon_background;
+    for (i = 0; i < (int)info_ptr->height; i++) {
+	row_pointers[i] = rp;
+	rp += __vesa_info.mi.h_res << 2;
+    }
 
-    passes = png_set_interlace_handling(png_ptr);
+    png_read_image(png_ptr, row_pointers);
 
-    for (i = 0; i < passes; i++)
-	png_read_rows(png_ptr, row_pointers, NULL, info_ptr->height);
+    tile_image(info_ptr->width, info_ptr->height);
 
     rv = 0;
 
 err:
     if (png_ptr)
-	png_destroy_read_struct(&png_ptr, (png_infopp) NULL, (png_infopp) NULL);
+	png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp) NULL);
     return rv;
 }
 
 static int jpeg_sig_cmp(uint8_t * bytes, int len)
 {
     (void)len;
+
     return (bytes[0] == 0xff && bytes[1] == 0xd8) ? 0 : -1;
 }
 
@@ -183,15 +216,16 @@ static int read_jpeg_file(FILE * fp, uint8_t * header, int len)
 	goto err;
 
     tinyjpeg_get_size(jdec, &width, &height);
-    if (width > VIDEO_X_SIZE || height > VIDEO_Y_SIZE)
+    if (width > __vesa_info.mi.h_res || height > __vesa_info.mi.v_res)
 	goto err;
 
-    components[0] = (void *)&__vesacon_background[0];
+    components[0] = (void *)__vesacon_background;
     tinyjpeg_set_components(jdec, components, 1);
-    bytes_per_row[0] = VIDEO_X_SIZE << 2;
+    bytes_per_row[0] = __vesa_info.mi.h_res << 2;
     tinyjpeg_set_bytes_per_row(jdec, bytes_per_row, 1);
 
     tinyjpeg_decode(jdec, TINYJPEG_FMT_BGRA32);
+    tile_image(width, height);
 
     rv = 0;
 
@@ -211,16 +245,25 @@ err:
 int vesacon_default_background(void)
 {
     int x, y, dx, dy, dy2;
-    uint8_t *bgptr = (uint8_t *) & __vesacon_background;
+    int z;
+    unsigned int shft;
+    uint8_t *bgptr = (uint8_t *)__vesacon_background;
     uint8_t k;
 
     if (__vesacon_pixel_format == PXF_NONE)
 	return 0;		/* Not in graphics mode */
 
-    for (y = 0, dy = -VIDEO_Y_SIZE / 2; y < VIDEO_Y_SIZE; y++, dy++) {
+    z = max(__vesa_info.mi.v_res, __vesa_info.mi.h_res) >> 1;
+    z = ((z*z) >> 11) - 1;
+    asm("bsrl %1,%0" : "=r" (shft) : "rm" (z));
+    shft++;
+
+    for (y = 0, dy = -(__vesa_info.mi.v_res >> 1);
+	 y < __vesa_info.mi.v_res; y++, dy++) {
 	dy2 = dy * dy;
-	for (x = 0, dx = -VIDEO_X_SIZE / 2; x < VIDEO_X_SIZE; x++, dx++) {
-	    k = __vesacon_linear_to_srgb[500 + ((dx * dx + dy2) >> 6)];
+	for (x = 0, dx = -(__vesa_info.mi.h_res >> 1);
+	     x < __vesa_info.mi.h_res; x++, dx++) {
+	    k = __vesacon_linear_to_srgb[500 + ((dx*dx + dy2) >> shft)];
 	    bgptr[0] = k;	/* Blue */
 	    bgptr[1] = k;	/* Green */
 	    bgptr[2] = k;	/* Red */
@@ -236,7 +279,7 @@ int vesacon_default_background(void)
 int vesacon_set_background(unsigned int rgb)
 {
     void *bgptr = __vesacon_background;
-    unsigned int count = VIDEO_X_SIZE * VIDEO_Y_SIZE;
+    unsigned int count = __vesa_info.mi.h_res * __vesa_info.mi.v_res;
 
     if (__vesacon_pixel_format == PXF_NONE)
 	return 0;		/* Not in graphics mode */
@@ -265,7 +308,8 @@ static inline int lss16_sig_cmp(const void *header, int len)
 	return 1;
 
     return !(h->magic == LSS16_MAGIC &&
-	     h->xsize <= VIDEO_X_SIZE && h->ysize <= VIDEO_Y_SIZE);
+	     h->xsize <= __vesa_info.mi.h_res &&
+	     h->ysize <= __vesa_info.mi.v_res);
 }
 
 static int read_lss16_file(FILE * fp, const void *header, int header_len)
@@ -283,7 +327,7 @@ static int read_lss16_file(FILE * fp, const void *header, int header_len)
 	st_c2,
     } state;
     int i, x, y;
-    uint32_t *bgptr = (void *)__vesacon_background;
+    uint32_t *bgptr = __vesacon_background;
 
     /* Assume the header, 8 bytes, has already been loaded. */
     if (header_len != 8)
@@ -295,7 +339,8 @@ static int read_lss16_file(FILE * fp, const void *header, int header_len)
 	    return -1;
 
 	colors[i] = (((rgb[0] & 63) * 255 / 63) << 16) +
-	    (((rgb[1] & 63) * 255 / 63) << 8) + ((rgb[2] & 63) * 255 / 63);
+	    (((rgb[1] & 63) * 255 / 63) << 8) +
+	    ((rgb[2] & 63) * 255 / 63);
     }
 
     /* By spec, the state machine is per row */
@@ -356,12 +401,12 @@ do_run:
 	}
 
 	/* Zero-fill rest of row */
-	i = VIDEO_X_SIZE - x;
+	i = __vesa_info.mi.h_res - x;
 	asm volatile ("rep; stosl":"+D" (bgptr), "+c"(i):"a"(0):"memory");
     }
 
     /* Zero-fill rest of screen */
-    i = (VIDEO_Y_SIZE - y) * VIDEO_X_SIZE;
+    i = (__vesa_info.mi.v_res - y) * __vesa_info.mi.h_res;
     asm volatile ("rep; stosl":"+D" (bgptr), "+c"(i):"a"(0):"memory");
 
     return 0;
@@ -404,7 +449,7 @@ err:
 
 int __vesacon_init_background(void)
 {
-    /* The BSS clearing has already cleared __vesacon_background */
+    /* __vesacon_background was cleared by calloc() */
 
     /* The VESA BIOS has already cleared the screen */
     return 0;

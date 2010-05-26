@@ -6,6 +6,8 @@
  * Character types
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #define isdigit(c)	((c) >= '0' && (c) <= '9')
 #define islower(c)	((c) >= 'a' && (c) <= 'z')
 #define isupper(c)	((c) >= 'A' && (c) <= 'Z')
@@ -23,5 +25,7 @@ static inline unsigned char toupper(unsigned char c)
 		c -= 'a'-'A';
 	return c;
 }
+
+extern int isspace ( int c );
 
 #endif /* _CTYPE_H */

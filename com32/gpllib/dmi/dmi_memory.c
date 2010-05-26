@@ -157,7 +157,7 @@ void dmi_memory_device_type_detail(uint16_t code, char *type_detail)
 
 	for (i = 1; i <= 12; i++)
 	    if (code & (1 << i))
-		sprintf(type_detail, "%s", detail[i - 1]);
+		snprintf(type_detail,sizeof(type_detail), "%s", detail[i - 1]);
     }
 }
 
@@ -197,7 +197,7 @@ void dmi_memory_module_types(uint16_t code, const char *sep, char *type)
 
 	for (i = 0; i <= 10; i++)
 	    if (code & (1 << i))
-		sprintf(type, "%s%s%s", type, sep, types[i]);
+		snprintf(type,sizeof(type), "%s%s%s", type, sep, types[i]);
     }
 }
 
@@ -209,7 +209,7 @@ void dmi_memory_module_connections(uint8_t code, char *connection)
 	if ((code & 0xF0) != 0xF0)
 	    sprintf(connection, "%u ", code >> 4);
 	if ((code & 0x0F) != 0x0F)
-	    sprintf(connection, "%s%u", connection, code & 0x0F);
+	    snprintf(connection,sizeof(connection), "%s%u", connection, code & 0x0F);
     }
 }
 
@@ -239,9 +239,9 @@ void dmi_memory_module_size(uint8_t code, char *size)
     }
 
     if (code & 0x80)
-	sprintf(size, "%s %s", size, "(Double-bank Connection)");
+	snprintf(size,sizeof(size),"%s %s", size, "(Double-bank Connection)");
     else
-	sprintf(size, "%s %s", size, "(Single-bank Connection)");
+	snprintf(size,sizeof(size), "%s %s", size, "(Single-bank Connection)");
 }
 
 void dmi_memory_module_error(uint8_t code, const char *prefix, char *error)

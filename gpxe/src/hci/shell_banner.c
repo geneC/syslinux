@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdio.h>
 #include <console.h>
 #include <unistd.h>
@@ -38,6 +40,9 @@ int shell_banner ( void ) {
 	int enter_shell = 0;
 	int wait_count;
 	int key;
+
+	if ( BANNER_TIMEOUT <= 0 )
+		return enter_shell;
 
 	printf ( "\nPress Ctrl-B for the gPXE command line..." );
 

@@ -48,6 +48,14 @@ MENU HIDDEN
 	All that is displayed is a timeout message.
 
 
+MENU CLEAR
+
+	Clear the screen when exiting the menu, instead of leaving the
+	menu displayed.  For vesamenu, this means the graphical
+	background is still displayed without the menu itself for as
+	long as the screen remains in graphics mode.
+
+
 MENU SHIFTKEY
 
 	Exit the menu system immediately unless either the Shift or Alt
@@ -203,12 +211,24 @@ MENU MASTER PASSWD passwd
 	work.
 
 
+MENU RESOLUTION height width
+
+	Requests a specific screen resolution when in graphics mode.
+	The default is "640 480" corresponding to a resolution of
+	640x480 pixels, which all VGA-compatible monitors should be
+	able to display.
+
+	If the selected resolution is unavailable, the text mode menu
+	is displayed instead.
+
+
 MENU BACKGROUND background
 
 	For vesamenu.c32, sets the background image.  The background
 	can either be a color (see MENU COLOR) or the name of an image
-	file, which should be 640x480 pixels and either in PNG or JPEG
-	format.
+	file, which should be the size of the screen (normally 640x480
+	pixels, but see MENU RESOLUTION) and either in PNG, JPEG or
+	LSS16 format.
 
 
 MENU BEGIN [tagname]

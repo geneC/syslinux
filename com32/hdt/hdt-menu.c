@@ -76,7 +76,7 @@ int start_menu_mode(struct s_hardware *hardware, char *version_string)
 }
 
 /* In the menu system, what to do on keyboard timeout */
-TIMEOUTCODE ontimeout()
+TIMEOUTCODE ontimeout(void)
 {
     // beep();
     return CODE_WAIT;

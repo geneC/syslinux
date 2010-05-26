@@ -180,10 +180,14 @@ extern struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 /* These are global parameters regardless of which menu we're displaying */
 extern int shiftkey;
 extern int hiddenmenu;
+extern int clearmenu;
 extern long long totaltimeout;
 
 void parse_configs(char **argv);
 int draw_background(const char *filename);
+void set_resolution(int x, int y);
+void start_console(void);
+void local_cursor_enable(bool);
 
 static inline int my_isspace(char c)
 {
@@ -194,10 +198,6 @@ int my_isxdigit(char c);
 unsigned int hexval(char c);
 unsigned int hexval2(const char *p);
 uint32_t parse_argb(char **p);
-
-int menu_main(int argc, char *argv[]);
-void console_prepare(void);
-void console_cleanup(void);
 
 extern const int message_base_color, menu_color_table_size;
 int mygetkey(clock_t timeout);

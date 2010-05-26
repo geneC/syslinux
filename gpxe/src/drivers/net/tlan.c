@@ -38,10 +38,13 @@
 *    Indent Options: indent -kr -i8
 ***************************************************************************/
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include "etherboot.h"
 #include "nic.h"
 #include <gpxe/pci.h>
 #include <gpxe/ethernet.h>
+#include <mii.h>
 #include "tlan.h"
 
 #define drv_version "v1.4"
@@ -398,21 +401,21 @@ void TLan_FinishReset(struct nic *nic)
 	}
 	TLan_DioWrite8(BASE, TLAN_NET_MASK, data);
 	TLan_DioWrite16(BASE, TLAN_MAX_RX, ((1536) + 7) & ~7);
-	TLan_MiiReadReg(nic, phy, MII_GEN_ID_HI, &tlphy_id1);
-	TLan_MiiReadReg(nic, phy, MII_GEN_ID_LO, &tlphy_id2);
+	TLan_MiiReadReg(nic, phy, MII_PHYSID1, &tlphy_id1);
+	TLan_MiiReadReg(nic, phy, MII_PHYSID2, &tlphy_id2);
 
 	if ((tlan_pci_tbl[chip_idx].flags & TLAN_ADAPTER_UNMANAGED_PHY)
 	    || (priv->aui)) {
-		status = MII_GS_LINK;
+		status = BMSR_LSTATUS;
 		DBG ( "TLAN:  %s: Link forced.\n", priv->nic_name );
 	} else {
-		TLan_MiiReadReg(nic, phy, MII_GEN_STS, &status);
+		TLan_MiiReadReg(nic, phy, MII_BMSR, &status);
 		udelay(1000);
-		TLan_MiiReadReg(nic, phy, MII_GEN_STS, &status);
-		if ((status & MII_GS_LINK) &&	/* We only support link info on Nat.Sem. PHY's */
+		TLan_MiiReadReg(nic, phy, MII_BMSR, &status);
+		if ((status & BMSR_LSTATUS) &&	/* We only support link info on Nat.Sem. PHY's */
 		    (tlphy_id1 == NAT_SEM_ID1)
 		    && (tlphy_id2 == NAT_SEM_ID2)) {
-			TLan_MiiReadReg(nic, phy, MII_AN_LPA, &partner);
+			TLan_MiiReadReg(nic, phy, MII_LPA, &partner);
 			TLan_MiiReadReg(nic, phy, TLAN_TLPHY_PAR,
 					&tlphy_par);
 
@@ -448,7 +451,7 @@ void TLan_FinishReset(struct nic *nic)
 			mdelay(10000);
 			TLan_PhyMonitor(nic);
 #endif
-		} else if (status & MII_GS_LINK) {
+		} else if (status & BMSR_LSTATUS) {
 			DBG ( "TLAN: %s: Link active\n", priv->nic_name );
 			TLan_DioWrite8(BASE, TLAN_LED_REG, TLAN_LED_LINK);
 		}
@@ -463,7 +466,7 @@ void TLan_FinishReset(struct nic *nic)
 		TLan_DioWrite8(BASE, TLAN_NET_SIO, sio);
 	}
 
-	if (status & MII_GS_LINK) {
+	if (status & BMSR_LSTATUS) {
 		TLan_SetMac(nic, 0, nic->node_addr);
 		priv->phyOnline = 1;
 		outb((TLAN_HC_INT_ON >> 8), BASE + TLAN_HOST_CMD + 1);
@@ -1344,7 +1347,7 @@ void TLan_PhyDetect(struct nic *nic)
 		return;
 	}
 
-	TLan_MiiReadReg(nic, TLAN_PHY_MAX_ADDR, MII_GEN_ID_HI, &hi);
+	TLan_MiiReadReg(nic, TLAN_PHY_MAX_ADDR, MII_PHYSID1, &hi);
 
 	if (hi != 0xFFFF) {
 		priv->phy[0] = TLAN_PHY_MAX_ADDR;
@@ -1354,9 +1357,9 @@ void TLan_PhyDetect(struct nic *nic)
 
 	priv->phy[1] = TLAN_PHY_NONE;
 	for (phy = 0; phy <= TLAN_PHY_MAX_ADDR; phy++) {
-		TLan_MiiReadReg(nic, phy, MII_GEN_CTL, &control);
-		TLan_MiiReadReg(nic, phy, MII_GEN_ID_HI, &hi);
-		TLan_MiiReadReg(nic, phy, MII_GEN_ID_LO, &lo);
+		TLan_MiiReadReg(nic, phy, MII_BMCR, &control);
+		TLan_MiiReadReg(nic, phy, MII_PHYSID1, &hi);
+		TLan_MiiReadReg(nic, phy, MII_PHYSID2, &lo);
 		if ((control != 0xFFFF) || (hi != 0xFFFF)
 		    || (lo != 0xFFFF)) {
 			printf("PHY found at %hX %hX %hX %hX\n", 
@@ -1384,15 +1387,15 @@ void TLan_PhyPowerDown(struct nic *nic)
 
 	u16 value;
 	DBG ( "%s: Powering down PHY(s).\n", priv->nic_name );
-	value = MII_GC_PDOWN | MII_GC_LOOPBK | MII_GC_ISOLATE;
+	value = BMCR_PDOWN | BMCR_LOOPBACK | BMCR_ISOLATE;
 	TLan_MiiSync(BASE);
-	TLan_MiiWriteReg(nic, priv->phy[priv->phyNum], MII_GEN_CTL, value);
+	TLan_MiiWriteReg(nic, priv->phy[priv->phyNum], MII_BMCR, value);
 	if ((priv->phyNum == 0) && (priv->phy[1] != TLAN_PHY_NONE)
 	    &&
 	    (!(tlan_pci_tbl[chip_idx].
 	       flags & TLAN_ADAPTER_USE_INTERN_10))) {
 		TLan_MiiSync(BASE);
-		TLan_MiiWriteReg(nic, priv->phy[1], MII_GEN_CTL, value);
+		TLan_MiiWriteReg(nic, priv->phy[1], MII_BMCR, value);
 	}
 
 	/* Wait for 50 ms and powerup
@@ -1412,8 +1415,8 @@ void TLan_PhyPowerUp(struct nic *nic)
 
 	DBG ( "%s: Powering up PHY.\n", priv->nic_name );
 	TLan_MiiSync(BASE);
-	value = MII_GC_LOOPBK;
-	TLan_MiiWriteReg(nic, priv->phy[priv->phyNum], MII_GEN_CTL, value);
+	value = BMCR_LOOPBACK;
+	TLan_MiiWriteReg(nic, priv->phy[priv->phyNum], MII_BMCR, value);
 	TLan_MiiSync(BASE);
 	/* Wait for 500 ms and reset the
 	 * tranceiver.  The TLAN docs say both 50 ms and
@@ -1434,11 +1437,11 @@ void TLan_PhyReset(struct nic *nic)
 
 	DBG ( "%s: Reseting PHY.\n", priv->nic_name );
 	TLan_MiiSync(BASE);
-	value = MII_GC_LOOPBK | MII_GC_RESET;
-	TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, value);
-	TLan_MiiReadReg(nic, phy, MII_GEN_CTL, &value);
-	while (value & MII_GC_RESET) {
-		TLan_MiiReadReg(nic, phy, MII_GEN_CTL, &value);
+	value = BMCR_LOOPBACK | BMCR_RESET;
+	TLan_MiiWriteReg(nic, phy, MII_BMCR, value);
+	TLan_MiiReadReg(nic, phy, MII_BMCR, &value);
+	while (value & BMCR_RESET) {
+		TLan_MiiReadReg(nic, phy, MII_BMCR, &value);
 	}
 
 	/* Wait for 500 ms and initialize.
@@ -1464,34 +1467,34 @@ void TLan_PhyStartLink(struct nic *nic)
 
 	phy = priv->phy[priv->phyNum];
 	DBG ( "%s: Trying to activate link.\n", priv->nic_name );
-	TLan_MiiReadReg(nic, phy, MII_GEN_STS, &status);
-	TLan_MiiReadReg(nic, phy, MII_GEN_STS, &ability);
+	TLan_MiiReadReg(nic, phy, MII_BMSR, &status);
+	TLan_MiiReadReg(nic, phy, MII_BMSR, &ability);
 
-	if ((status & MII_GS_AUTONEG) && (!priv->aui)) {
+	if ((status & BMSR_ANEGCAPABLE) && (!priv->aui)) {
 		ability = status >> 11;
 		if (priv->speed == TLAN_SPEED_10 &&
 		    priv->duplex == TLAN_DUPLEX_HALF) {
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, 0x0000);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR, 0x0000);
 		} else if (priv->speed == TLAN_SPEED_10 &&
 			   priv->duplex == TLAN_DUPLEX_FULL) {
 			priv->tlanFullDuplex = TRUE;
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, 0x0100);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR, 0x0100);
 		} else if (priv->speed == TLAN_SPEED_100 &&
 			   priv->duplex == TLAN_DUPLEX_HALF) {
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, 0x2000);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR, 0x2000);
 		} else if (priv->speed == TLAN_SPEED_100 &&
 			   priv->duplex == TLAN_DUPLEX_FULL) {
 			priv->tlanFullDuplex = TRUE;
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, 0x2100);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR, 0x2100);
 		} else {
 
 			/* Set Auto-Neg advertisement */
-			TLan_MiiWriteReg(nic, phy, MII_AN_ADV,
+			TLan_MiiWriteReg(nic, phy, MII_ADVERTISE,
 					 (ability << 5) | 1);
 			/* Enablee Auto-Neg */
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, 0x1000);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR, 0x1000);
 			/* Restart Auto-Neg */
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, 0x1200);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR, 0x1200);
 			/* Wait for 4 sec for autonegotiation
 			 * to complete.  The max spec time is less than this
 			 * but the card need additional time to start AN.
@@ -1525,14 +1528,14 @@ void TLan_PhyStartLink(struct nic *nic)
 		} else {
 			tctl &= ~TLAN_TC_AUISEL;
 			if (priv->duplex == TLAN_DUPLEX_FULL) {
-				control |= MII_GC_DUPLEX;
+				control |= BMCR_FULLDPLX;
 				priv->tlanFullDuplex = TRUE;
 			}
 			if (priv->speed == TLAN_SPEED_100) {
-				control |= MII_GC_SPEEDSEL;
+				control |= BMCR_SPEED100;
 			}
 		}
-		TLan_MiiWriteReg(nic, phy, MII_GEN_CTL, control);
+		TLan_MiiWriteReg(nic, phy, MII_BMCR, control);
 		TLan_MiiWriteReg(nic, phy, TLAN_TLPHY_CTL, tctl);
 	}
 
@@ -1557,11 +1560,11 @@ void TLan_PhyFinishAutoNeg(struct nic *nic)
 
 	phy = priv->phy[priv->phyNum];
 
-	TLan_MiiReadReg(nic, phy, MII_GEN_STS, &status);
+	TLan_MiiReadReg(nic, phy, MII_BMSR, &status);
 	udelay(1000);
-	TLan_MiiReadReg(nic, phy, MII_GEN_STS, &status);
+	TLan_MiiReadReg(nic, phy, MII_BMSR, &status);
 
-	if (!(status & MII_GS_AUTOCMPLT)) {
+	if (!(status & BMSR_ANEGCOMPLETE)) {
 		/* Wait for 8 sec to give the process
 		 * more time.  Perhaps we should fail after a while.
 		 */
@@ -1582,8 +1585,8 @@ void TLan_PhyFinishAutoNeg(struct nic *nic)
 	}
 
 	DBG ( "TLAN: %s: Autonegotiation complete.\n", priv->nic_name );
-	TLan_MiiReadReg(nic, phy, MII_AN_ADV, &an_adv);
-	TLan_MiiReadReg(nic, phy, MII_AN_LPA, &an_lpa);
+	TLan_MiiReadReg(nic, phy, MII_ADVERTISE, &an_adv);
+	TLan_MiiReadReg(nic, phy, MII_LPA, &an_lpa);
 	mode = an_adv & an_lpa & 0x03E0;
 	if (mode & 0x0100) {
 		printf("Full Duplex\n");
@@ -1610,13 +1613,13 @@ void TLan_PhyFinishAutoNeg(struct nic *nic)
 	if (priv->phyNum == 0) {
 		if ((priv->duplex == TLAN_DUPLEX_FULL)
 		    || (an_adv & an_lpa & 0x0040)) {
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL,
-					 MII_GC_AUTOENB | MII_GC_DUPLEX);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR,
+					 BMCR_ANENABLE | BMCR_FULLDPLX);
 			DBG 
 			    ( "TLAN:  Starting internal PHY with FULL-DUPLEX\n" );
 		} else {
-			TLan_MiiWriteReg(nic, phy, MII_GEN_CTL,
-					 MII_GC_AUTOENB);
+			TLan_MiiWriteReg(nic, phy, MII_BMCR,
+					 BMCR_ANENABLE);
 			DBG 
 			    ( "TLAN:  Starting internal PHY with HALF-DUPLEX\n" );
 		}
@@ -1659,10 +1662,10 @@ void TLan_PhyMonitor(struct net_device *dev)
 	phy = priv->phy[priv->phyNum];
 
 	/* Get PHY status register */
-	TLan_MiiReadReg(nic, phy, MII_GEN_STS, &phy_status);
+	TLan_MiiReadReg(nic, phy, MII_BMSR, &phy_status);
 
 	/* Check if link has been lost */
-	if (!(phy_status & MII_GS_LINK)) {
+	if (!(phy_status & BMSR_LSTATUS)) {
 		if (priv->link) {
 			priv->link = 0;
 			printf("TLAN: %s has lost link\n", priv->nic_name);
@@ -1675,7 +1678,7 @@ void TLan_PhyMonitor(struct net_device *dev)
 	}
 
 	/* Link restablished? */
-	if ((phy_status & MII_GS_LINK) && !priv->link) {
+	if ((phy_status & BMSR_LSTATUS) && !priv->link) {
 		priv->link = 1;
 		printf("TLAN: %s has reestablished link\n",
 		       priv->nic_name);
@@ -1691,19 +1694,19 @@ void TLan_PhyMonitor(struct net_device *dev)
 #endif				/* MONITOR */
 
 static struct pci_device_id tlan_nics[] = {
-	PCI_ROM(0x0e11, 0xae34, "netel10", "Compaq Netelligent 10 T PCI UTP"),
-	PCI_ROM(0x0e11, 0xae32, "netel100","Compaq Netelligent 10/100 TX PCI UTP"),
-	PCI_ROM(0x0e11, 0xae35, "netflex3i", "Compaq Integrated NetFlex-3/P"),
-	PCI_ROM(0x0e11, 0xf130, "thunder", "Compaq NetFlex-3/P"),
-	PCI_ROM(0x0e11, 0xf150, "netflex3b", "Compaq NetFlex-3/P"),
-	PCI_ROM(0x0e11, 0xae43, "netel100pi", "Compaq Netelligent Integrated 10/100 TX UTP"),
-	PCI_ROM(0x0e11, 0xae40, "netel100d", "Compaq Netelligent Dual 10/100 TX PCI UTP"),
-	PCI_ROM(0x0e11, 0xb011, "netel100i", "Compaq Netelligent 10/100 TX Embedded UTP"),
-	PCI_ROM(0x108d, 0x0013, "oc2183", "Olicom OC-2183/2185"),
-	PCI_ROM(0x108d, 0x0012, "oc2325", "Olicom OC-2325"),
-	PCI_ROM(0x108d, 0x0014, "oc2326", "Olicom OC-2326"),
-	PCI_ROM(0x0e11, 0xb030, "netelligent_10_100_ws_5100", "Compaq Netelligent 10/100 TX UTP"),
-	PCI_ROM(0x0e11, 0xb012, "netelligent_10_t2", "Compaq Netelligent 10 T/2 PCI UTP/Coax"),
+	PCI_ROM(0x0e11, 0xae34, "netel10", "Compaq Netelligent 10 T PCI UTP", 0),
+	PCI_ROM(0x0e11, 0xae32, "netel100","Compaq Netelligent 10/100 TX PCI UTP", 0),
+	PCI_ROM(0x0e11, 0xae35, "netflex3i", "Compaq Integrated NetFlex-3/P", 0),
+	PCI_ROM(0x0e11, 0xf130, "thunder", "Compaq NetFlex-3/P", 0),
+	PCI_ROM(0x0e11, 0xf150, "netflex3b", "Compaq NetFlex-3/P", 0),
+	PCI_ROM(0x0e11, 0xae43, "netel100pi", "Compaq Netelligent Integrated 10/100 TX UTP", 0),
+	PCI_ROM(0x0e11, 0xae40, "netel100d", "Compaq Netelligent Dual 10/100 TX PCI UTP", 0),
+	PCI_ROM(0x0e11, 0xb011, "netel100i", "Compaq Netelligent 10/100 TX Embedded UTP", 0),
+	PCI_ROM(0x108d, 0x0013, "oc2183", "Olicom OC-2183/2185", 0),
+	PCI_ROM(0x108d, 0x0012, "oc2325", "Olicom OC-2325", 0),
+	PCI_ROM(0x108d, 0x0014, "oc2326", "Olicom OC-2326", 0),
+	PCI_ROM(0x0e11, 0xb030, "netelligent_10_100_ws_5100", "Compaq Netelligent 10/100 TX UTP", 0),
+	PCI_ROM(0x0e11, 0xb012, "netelligent_10_t2", "Compaq Netelligent 10 T/2 PCI UTP/Coax", 0),
 };
 
 PCI_DRIVER ( tlan_driver, tlan_nics, PCI_NO_CLASS );

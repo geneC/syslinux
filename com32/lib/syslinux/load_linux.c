@@ -253,6 +253,9 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	case 'n':		/* "normal" */
 	    video_mode = 0xffff;
 	    break;
+	case 'c':		/* "current" */
+	    video_mode = 0x0f04;
+	    break;
 	default:
 	    video_mode = strtoul(arg, NULL, 0);
 	    break;

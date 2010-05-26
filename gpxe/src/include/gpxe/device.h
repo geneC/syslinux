@@ -8,6 +8,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/list.h>
 #include <gpxe/tables.h>
 
@@ -102,7 +104,10 @@ struct root_driver {
 	void ( * remove ) ( struct root_device *rootdev );
 };
 
+/** Root device table */
+#define ROOT_DEVICES __table ( struct root_device, "root_devices" )
+
 /** Declare a root device */
-#define __root_device __table ( struct root_device, root_devices, 01 )
+#define __root_device __table_entry ( ROOT_DEVICES, 01 )
 
 #endif /* _GPXE_DEVICE_H */

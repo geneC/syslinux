@@ -1,7 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,24 @@ BSS_START	equ 0800h
 
 ; Text starts at the load address of 07C00h.
 TEXT_START	equ 7C00h
+
+;
+; Stack layout
+;
+; PXELINUX: There are apparently some AMI BIOSes in the field which
+; put their BEV stack somewhere below 7C00h (and therefore don't
+; handle localboot properly), so avoid that immediate memory region.
+; The range that is known to be bad is approximately 75E8..7C00; the
+; lower bound is tight.
+; 
+		global STACK_LEN, STACK_TOP, STACK_BASE
+STACK_LEN	equ 4096
+%if IS_PXELINUX
+STACK_TOP	equ 7000h
+%else
+STACK_TOP	equ 7c00h
+%endif
+STACK_BASE	equ STACK_TOP - STACK_LEN
 
 ; The secondary BSS section, above the text; we really wish we could
 ; just make it follow .bcopy32 or hang off the end,

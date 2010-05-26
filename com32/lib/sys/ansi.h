@@ -48,7 +48,7 @@ struct ansi_ops {
     void (*write_char) (int x, int y, uint8_t ch, const struct term_state * st);
     void (*showcursor) (const struct term_state * st);
     void (*scroll_up) (const struct term_state * st);
-    void (*set_cursor) (int x, int y, int visible);
+    void (*set_cursor) (int x, int y, bool visible);
     void (*beep) (void);
 };
 

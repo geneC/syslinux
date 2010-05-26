@@ -64,10 +64,11 @@ LIBOBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
+	sys/vesa/i915resolution.o					\
 	\
-	pci/cfgtype.o pci/scan.o					\
-	pci/readb.o pci/readw.o pci/readl.o pci/readbios.o		\
-	pci/writeb.o pci/writew.o pci/writel.o pci/writebios.o		\
+	pci/cfgtype.o pci/scan.o pci/bios.o				\
+	pci/readb.o pci/readw.o pci/readl.o				\
+	pci/writeb.o pci/writew.o pci/writel.o				\
 	\
 	zlib/adler32.o zlib/compress.o zlib/crc32.o 			\
 	zlib/uncompr.o zlib/deflate.o zlib/trees.o zlib/zutil.o		\
@@ -80,7 +81,8 @@ LIBOBJS = \
 	libpng/pngerror.o libpng/pngpread.o				\
 	\
 	jpeg/tinyjpeg.o jpeg/jidctflt.o	jpeg/decode1.o jpeg/decode3.o   \
-	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
+	jpeg/grey.o jpeg/yuv420p.o					\
+	jpeg/rgb24.o jpeg/bgr24.o					\
 	jpeg/rgba32.o jpeg/bgra32.o					\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
@@ -107,9 +109,13 @@ LIBOBJS = \
 	syslinux/initramfs_archive.o					\
 	\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
+	syslinux/pxe_dns.o						\
 	\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
-	syslinux/setadv.o
+	syslinux/setadv.o						\
+	\
+	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
+	syslinux/video/reportmode.o
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib

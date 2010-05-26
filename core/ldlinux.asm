@@ -116,6 +116,7 @@ RootDirSize	resd 1			; Root dir size in sectors
 TotalSectors	resd 1			; Total number of sectors
 ClustSize	resd 1			; Bytes/cluster
 ClustMask	resd 1			; Sectors/cluster - 1
+Clusters	resd 1			; Total number of clusters
 CopySuper	resb 1			; Distinguish .bs versus .bss
 DriveNumber	resb 1			; BIOS drive number
 ClustShift	resb 1			; Shift count for sectors/cluster
@@ -183,24 +184,31 @@ getfattype:
 		sub eax,[DataArea]
 		shr eax,cl			; cl == ClustShift
 		mov cl,nextcluster_fat12-(nextcluster+2)
-		cmp eax,4085			; FAT12 limit
-		jb .setsize
+		cmp eax,0xFF4			; FAT12 limit
+		jbe .setsize
 		mov cl,nextcluster_fat16-(nextcluster+2)
-		cmp eax,65525			; FAT16 limit
-		jb .setsize
+		cmp eax,0xFFF4			; FAT16 limit
+		jbe .setsize
 		;
 		; FAT32, root directory is a cluster chain
 		;
+		mov ecx,0x0FFFFFF4		; Max possible cluster count
+		cmp eax,ecx
+		jb .oksize
+		mov eax,ecx
+.oksize:
+
 		mov cl,[ClustShift]
-		mov eax,[bootsec+44]		; Root directory cluster
-		sub eax,2
-		shl eax,cl
-		add eax,[DataArea]
-		mov [RootDir],eax
+		mov edx,[bootsec+44]		; Root directory cluster
+		sub edx,2
+		shl edx,cl
+		add edx,[DataArea]
+		mov [RootDir],edx
 		mov cl,nextcluster_fat28-(nextcluster+2)
 		mov byte [SuperSize],superblock_len_fat32
 .setsize:
 		mov byte [nextcluster+1],cl
+		mov [Clusters],eax		; Total clusters
 
 ;
 ; Common initialization code
@@ -1242,7 +1250,8 @@ nextcluster_fat12:
 		shr cx,4
 .even:		and cx,0FFFh
 		movzx edi,cx
-		cmp di,0FF0h
+		lea ax,[di-2]
+		cmp ax,[Clusters]
 		pop si
 		pop cx
 		pop bx
@@ -1264,7 +1273,8 @@ nextcluster_fat16:
 		add bx,bx
 		and bx,1FEh
 		movzx edi,word [gs:si+bx]
-		cmp di,0FFF0h
+		lea ax,[di-2]
+		cmp ax,[Clusters]
 		pop bx
 		pop si
 		pop eax
@@ -1285,7 +1295,8 @@ nextcluster_fat28:
 		and bx,1FCh
 		mov edi,dword [gs:si+bx]
 		and edi,0FFFFFFFh	; 28 bits only
-		cmp edi,0FFFFFF0h
+		lea eax,[edi-2]
+		cmp eax,[Clusters]
 		pop bx
 		pop si
 		pop eax

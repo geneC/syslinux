@@ -21,7 +21,7 @@ OPTFLAGS =
 INCLUDES = -include code16.h -I.
 LDFLAGS	 = -T com16.ld
 
-SRCS     = main.c serial.c ymsend.c
+SRCS     = main.c serial.c ymsend.c srecsend.c
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = conio.o memcpy.o memset.o skipatou.o strtoul.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o

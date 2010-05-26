@@ -24,6 +24,8 @@
    preliminary Rev. 1.0 Jan. 18, 1998
    http://www.sis.com.tw/support/databook.htm */
 
+FILE_LICENCE ( GPL_ANY );
+
 /* Revision History */
 
 /*
@@ -1181,7 +1183,11 @@ static int
 sis900_poll(struct nic *nic, int retrieve)
 {
     u32 rx_status = rxd[cur_rx].cmdsts;
+    u32 intr_status;
     int retstat = 0;
+
+     /* acknowledge interrupts by reading interrupt status register */
+    intr_status = inl(ioaddr + isr);
 
     if (sis900_debug > 2)
         printf("sis900_poll: cur_rx:%d, status:%X\n", cur_rx, 
@@ -1262,8 +1268,10 @@ sis900_irq(struct nic *nic __unused, irq_action_t action __unused)
 {
   switch ( action ) {
   case DISABLE :
+    outl(0, ioaddr + imr);
     break;
   case ENABLE :
+    outl((RxSOVR|RxORN|RxERR|RxOK|TxURN|TxERR|TxIDLE), ioaddr + imr);
     break;
   case FORCE :
     break;
@@ -1278,8 +1286,8 @@ static struct nic_operations sis900_operations = {
 };
 
 static struct pci_device_id sis900_nics[] = {
-PCI_ROM(0x1039, 0x0900, "sis900",  "SIS900"),
-PCI_ROM(0x1039, 0x7016, "sis7016", "SIS7016"),
+PCI_ROM(0x1039, 0x0900, "sis900",  "SIS900", 0),
+PCI_ROM(0x1039, 0x7016, "sis7016", "SIS7016", 0),
 };
 
 PCI_DRIVER ( sis900_driver, sis900_nics, PCI_NO_CLASS );

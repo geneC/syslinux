@@ -13,7 +13,6 @@
 #ifndef DMI_H
 #define DMI_H
 #include <inttypes.h>
-#define DMI_BUFFER_SIZE 16
 #define MAX_DMI_MEMORY_ITEMS 32
 #define MAX_DMI_CACHE_ITEMS 32
 #define OEM_STRINGS_SIZE 512

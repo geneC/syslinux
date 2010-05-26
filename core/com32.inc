@@ -65,6 +65,10 @@ is_com32_image:
 		sub cx,si
 		fs rep movsb
 
+		mov si,KernelCName
+		mov di,Com32Name
+		call strcpy
+
 		call comboot_setup_api	; Set up the COMBOOT-style API
 
 		mov edi,pm_entry	; Load address
@@ -172,6 +176,7 @@ com32_call_start:
 
 		; Now everything is set up for interrupts...
 
+		push dword Com32Name		; Module filename
 		push dword [HighMemSize]	; Memory managed by Syslinux
 		push dword com32_cfarcall	; Cfarcall entry point
 		push dword com32_farcall	; Farcall entry point
@@ -179,7 +184,7 @@ com32_call_start:
 		push dword (xfer_buf_seg << 4)	; Bounce buffer address
 		push dword com32_intcall	; Intcall entry point
 		push dword command_line		; Command line pointer
-		push dword 7			; Argument count
+		push dword 8			; Argument count
 		sti				; Interrupts OK now
 		call pm_entry			; Run the program...
 		; ... on return, fall through to com32_exit ...
@@ -424,5 +429,12 @@ RealModeSSSP	resd 1			; Real-mode SS:SP
 RealModeEAX	resd 1			; Real mode EAX
 PMESP		resd 1			; Protected-mode ESP
 Com32SysSP	resw 1			; SP saved during COM32 syscall
+
+		section .uibss
+%if IS_SYSLINUX
+Com32Name	resb FILENAME_MAX+2
+%else
+Com32Name	resb FILENAME_MAX
+%endif
 
 		section .text

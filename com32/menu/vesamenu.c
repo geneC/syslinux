@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -35,8 +36,17 @@ int draw_background(const char *what)
 	return vesacon_load_background(what);
 }
 
-int main(int argc, char *argv[])
+void set_resolution(int x, int y)
+{
+    vesacon_set_resolution(x, y);
+}
+
+void local_cursor_enable(bool enabled)
+{
+    vesacon_cursor_enable(enabled);
+}
+
+void start_console(void)
 {
     openconsole(&dev_rawcon_r, &dev_vesaserial_w);
-    return menu_main(argc, argv);
 }

@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <gpxe/socket.h>
 #include <gpxe/scsi.h>
@@ -247,7 +249,7 @@ struct iscsi_bhs_scsi_command {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** SCSI Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Expected data transfer length */
@@ -342,7 +344,7 @@ struct iscsi_bhs_data_in {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Target Transfer Tag */
@@ -390,7 +392,7 @@ struct iscsi_bhs_data_out {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Target Transfer Tag */
@@ -426,7 +428,7 @@ struct iscsi_bhs_r2t {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Target Transfer Tag */
@@ -505,7 +507,7 @@ struct iscsi_session {
 	/** Target IQN */
 	char *target_iqn;
 	/** Logical Unit Number (LUN) */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Target socket address (recorded only for iBFT) */
 	struct sockaddr target_sockaddr;
 
@@ -612,11 +614,6 @@ struct iscsi_session {
 	 * Set to NULL when command is complete.
 	 */
 	struct scsi_command *command;
-	/** SCSI command return code
-	 *
-	 * Set to -EINPROGRESS while command is processing.
-	 */
-	int rc;
 	/** Instant return code
 	 *
 	 * Set to a non-zero value if all requests should return

@@ -1,8 +1,9 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
- *   Portions copyright 2009 Shao Miller [El Torito code]
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Portions copyright 2009-2010 Shao Miller
+ *				  [El Torito code, mBFT, "safe hook"]
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -13,6 +14,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdint.h>
+#include "acpi.h"
 #include "bda.h"
 #include "dskprobe.h"
 #include "e820.h"
@@ -46,6 +48,18 @@ struct memdisk_header {
     uint16_t total_size;
     uint16_t iret_offs;
 };
+
+struct safe_hook {
+    uint8_t jump[3];		/* Max. three bytes for jump */
+    uint8_t signature[8];	/* "$INT13SF" */
+    uint8_t vendor[8];		/* "MEMDISK " */
+    uint32_t old_hook;		/* SEG:OFF for previous INT 13h hook */
+    uint32_t flags;		/* "Safe hook" flags */
+    /* The next field is a MEMDISK extension to the "safe hook" structure */
+    uint32_t mBFT;		/* Offset from hook to the mBFT; refilled
+				 * by setup() with the physical address
+				 */
+} __attribute__((packed));
 
 /* The Disk Parameter Table may be required */
 typedef union {
@@ -100,6 +114,11 @@ struct edd_dpt {
     uint64_t devpath[2];	/* Device path (double QuadWord!) */
     uint8_t  res3;		/* Reserved */
     uint8_t  chksum;		/* DPI checksum */
+} __attribute__((packed));
+
+struct mBFT {
+    struct acpi_description_header acpi;
+    uint32_t safe_hook;		/* "Safe hook" physical address */
 } __attribute__((packed));
 
 struct patch_area {
@@ -574,7 +593,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 		while (!ok) {
 		    /* Assume it's a floppy drive, guess a geometry */
 		    unsigned int type, track;
-		    int c, h, s;
+		    int c, h, s = 0;
 
 		    if (xsectors < 320 * 2) {
 			c = 40;
@@ -630,7 +649,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 		if (!hd_geometry.driveno)
 		    hd_geometry.driveno = 0x80;
 
-		if (*(uint16_t *) ((char *)where + 512 - 2) == 0xaa55) {
+		if (*(uint16_t *) ((char *)where + hd_geometry.offset + 512 - 2) == 0xaa55) {
 		    for (i = 0; i < 4; i++) {
 			if (ptab[i].type && !(ptab[i].active & 0x7f)) {
 			    s = (ptab[i].start_s & 0x3f);
@@ -777,7 +796,7 @@ static void relocate_rm_code(uint32_t newbase)
 static uint8_t checksum_buf(const void *buf, int count)
 {
     const uint8_t *p = buf;
-    uint8_t c;
+    uint8_t c = 0;
 
     while (count--)
 	c += *p++;
@@ -816,6 +835,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     unsigned int bin_size;
     char *memdisk_hook;
     struct memdisk_header *hptr;
+    struct safe_hook *safe_hook;
     struct patch_area *pptr;
     uint16_t driverseg;
     uint32_t driverptr, driveraddr;
@@ -899,6 +919,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Figure out where it needs to go */
     hptr = (struct memdisk_header *)memdisk_hook;
+    safe_hook = (struct safe_hook *)(memdisk_hook + hptr->int13_offs);
     pptr = (struct patch_area *)(memdisk_hook + hptr->patch_offs);
 
     dosmem_k = rdz_16(BIOS_BASEMEM);
@@ -1099,12 +1120,18 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	ranges[--nranges].type = -1;
     }
 
-    if (getcmditem("nopass") != CMD_NOTFOUND) {
-	/* nopass specified - we're the only drive by definition */
+    if (getcmditem("nopassany") != CMD_NOTFOUND) {
+	printf("nopassany specified - we're the only drive of any kind\n");
+	bios_drives = 0;
+	pptr->drivecnt = 0;
+	no_bpt = 1;
+	pptr->oldint13 = driverptr + hptr->iret_offs;
+	wrz_8(BIOS_EQUIP, rdz_8(BIOS_EQUIP) & ~0xc1);
+	wrz_8(BIOS_HD_COUNT, 0);
+    } else if (getcmditem("nopass") != CMD_NOTFOUND) {
 	printf("nopass specified - we're the only drive\n");
 	bios_drives = 0;
 	pptr->drivecnt = 0;
-	pptr->oldint13 = driverptr + hptr->iret_offs;
 	no_bpt = 1;
     } else {
 	/* Query drive parameters of this type */
@@ -1146,6 +1173,9 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	}
     }
 
+    /* Note the previous INT 13h hook in the "safe hook" structure */
+    safe_hook->old_hook = pptr->oldint13;
+
     /* Add ourselves to the drive count */
     pptr->drivecnt++;
 
@@ -1170,6 +1200,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
 	/* Adjust these pointers to point to the installed image */
 	/* Careful about the order here... the image isn't copied yet! */
+	safe_hook = (struct safe_hook *)(dpp + hptr->int13_offs);
 	pptr = (struct patch_area *)(dpp + hptr->patch_offs);
 	hptr = (struct memdisk_header *)dpp;
 
@@ -1178,6 +1209,9 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	dpp = mempcpy(dpp, ranges, (nranges + 1) * sizeof(ranges[0]));
 	dpp = mempcpy(dpp, shdr->cmdline, cmdline_len);
     }
+
+    /* Re-fill the "safe hook" mBFT field with the physical address */
+    safe_hook->mBFT += (uint32_t)hptr;
 
     /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -1188,7 +1222,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	if (nhd > 128)
 	    nhd = 128;
 
-	if (!do_eltorito) wrz_8(BIOS_HD_COUNT, nhd);
+	if (!do_eltorito)
+	    wrz_8(BIOS_HD_COUNT, nhd);
     } else {
 	/* Update BIOS floppy disk count */
 	uint8_t equip = rdz_8(BIOS_EQUIP);
@@ -1209,6 +1244,18 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	    /* Do install a replacement DPT into INT 1Eh */
 	    pptr->dpt_ptr = hptr->patch_offs + offsetof(struct patch_area, dpt);
 	}
+    }
+
+    /* Complete the mBFT */
+    {
+	struct mBFT *mBFT = (struct mBFT *)safe_hook->mBFT;
+
+	mBFT->acpi.signature[0] = 'm';	/* "mBFT" */
+	mBFT->acpi.signature[1] = 'B';
+	mBFT->acpi.signature[2] = 'F';
+	mBFT->acpi.signature[3] = 'T';
+	mBFT->safe_hook = (uint32_t)safe_hook;
+	mBFT->acpi.checksum = -checksum_buf(mBFT, mBFT->acpi.length);
     }
 
     /* Install the interrupt handlers */

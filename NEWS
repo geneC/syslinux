@@ -2,10 +2,72 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 3.86:
+	* chain.c32: fix chainloading the MBR of a hard disk (broken
+	  in 3.85).
+	* mboot.c32: report the boot loader name in the information
+	  structure.
+	* com32: set argv[0] in a com32 module.
+	* core: add a workaround for a bug in Xen HVM older than
+	  version 3.3: disable halt on those platforms.
+	* Fix problems where certain operations in com32 modules would
+	  cause the core to believe the system was idle.
+	* MEMDISK: fix MBR detection when used with a DOSEMU header or
+	  an offset.
+	* MEMDISK: generate the mBFT checksum correctly.
+
+Changes in 3.85:
+	* gPXELINUX: updated to gPXE 1.0.0.  gPXELINUX can now do NBP
+	  chainloading, and does not require a second DHCP.
+	* vesamenu.c32: unbreak the default "grey hole" background.
+	* We no longer have a built-in default of "linux auto".
+	  Instead, if no DEFAULT or UI statement is found, or the
+	  configuration file is missing entirely, we drop to the boot:
+	  prompt with an error message (if NOESCAPE is set, we stop
+	  with a "boot failed" message; this is also the case for
+	  PXELINUX if the configuration file is not found.)
+	* chain.c32: support chainloading Grub4DOS; patch by Gert
+	  Hulselmans.
+	* New tool: sysdump.c32, can be used to produce system
+	  information for debugging via tftp or ymodem (serial port).
+	* "vga=current" on the Linux command line is now supported.
+	* chain.c32: support for Windows Recovery Console, via the
+	  "cmldr=" option.
+	* chain.c32: should now support loading NTLDR from different
+	  type media than loaded from.
+	* chain.c32: support chainloading to a FAT/NTFS partition with
+	  invalid "hidden sectors" via the "sethidden" option.
+	* memdisk: fix the mBFT ACPI table.
+	* vesamenu.c32: if the image is smaller than the screen, tile
+	  it across the whole screen.
+	* mkdiskimage: -s option for producing a sparse image.
+	* vesamenu.c32: support arbitrary resolution setting (beyond
+	  BIOS support) on some Intel-based video chipsets.  This code
+	  is a modified version of the "915resolution" tool by
+	  Steve Tomljenovic; your mileage might vary.
+	  
 Changes in 3.84:
 	* SYSLINUX: make the DOS installer work for MS-DOS 7.x/8.x
 	  (Win9x/ME) again.
-	* HDT: updated to version 0.3.5.
+	* HDT: updated to version 0.3.6 (numerous changes.)
+	* mboot.c32: now supports video mode setting if requested by
+	  the image.
+	* MEMDISK: Fix floppy images of PC-DOS.
+	* MEMDISK: Add support for emulation of CD-ROM images; patch
+	  by Shao Miller.
+	* MEMDISK: Comply with the Win9x "safe hook" standard,
+	  allowing a protected-mode driver.
+	* MEMDISK: New "mBFT" ACPI table, by analogy with the iSCSI
+	  iBFT table.  This allows detection from a protected-mode
+	  operating system without EDD support.
+	* 32-bit version of the gfxboot loader (gfxboot.c32), so far
+	  experimental.  This will replace gfxboot.com in the future.
+	* vesamenu.c32: new MENU RESOLUTION directive to set a screen
+	  resolution other than 640x480.
+	* chain.c32: add support for loading isolinux.bin.
+	* chain.c32: make sure to always return to text mode.
+	* eltorito.sys: DOS driver for generic CD-ROMs; by Gary Tong
+	  and Bart Lagerweij.
 
 Changes in 3.83:
 	* PXELINUX: clear memory before handing over to a chainloaded

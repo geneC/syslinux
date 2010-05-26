@@ -31,11 +31,17 @@
 /* EFI headers rudely redefine NULL */
 #undef NULL
 
+/* EFI headers expect ICC to define __GNUC__ */
+#if defined ( __ICC ) && ! defined ( __GNUC__ )
+#define __GNUC__ 1
+#endif
+
 /* Include the top-level EFI header files */
 #include <gpxe/efi/Uefi.h>
 #include <gpxe/efi/PiDxe.h>
 
 /* Reset any trailing #pragma pack directives */
+#pragma pack(1)
 #pragma pack()
 
 #include <gpxe/tables.h>
@@ -54,9 +60,11 @@ struct efi_protocol {
 	void **protocol;
 };
 
+/** EFI protocol table */
+#define EFI_PROTOCOLS __table ( struct efi_protocol, "efi_protocols" )
+
 /** Declare an EFI protocol used by gPXE */
-#define __efi_protocol \
-	__table ( struct efi_protocol, efi_protocols, 01 )
+#define __efi_protocol __table_entry ( EFI_PROTOCOLS, 01 )
 
 /** Declare an EFI protocol to be required by gPXE
  *
@@ -67,7 +75,7 @@ struct efi_protocol {
 	struct efi_protocol __ ## _protocol __efi_protocol = {		     \
 		.u.guid = _protocol ## _GUID,				     \
 		.protocol = ( ( void ** ) ( void * )			     \
-			      ( ( (_ptr) == ( ( _protocol ** ) NULL ) ) ?    \
+			      ( ( (_ptr) == ( ( _protocol ** ) (_ptr) ) ) ?  \
 				(_ptr) : (_ptr) ) ),			     \
 	}
 
@@ -86,9 +94,12 @@ struct efi_config_table {
 	int required;
 };
 
+/** EFI configuration table table */
+#define EFI_CONFIG_TABLES \
+	__table ( struct efi_config_table, "efi_config_tables" )
+
 /** Declare an EFI configuration table used by gPXE */
-#define __efi_config_table \
-	__table ( struct efi_config_table, efi_config_tables, 01 )
+#define __efi_config_table __table_entry ( EFI_CONFIG_TABLES, 01 )
 
 /** Declare an EFI configuration table to be used by gPXE
  *

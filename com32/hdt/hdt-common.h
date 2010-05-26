@@ -211,7 +211,7 @@ struct s_hardware {
     char vesa_background[255];
 };
 
-void reset_more_printf();
+void reset_more_printf(void);
 const char *find_argument(const char **argv, const char *argument);
 char *remove_spaces(char *p);
 char *remove_trailing_lf(char *p);

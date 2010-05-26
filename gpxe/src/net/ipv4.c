@@ -21,6 +21,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /* Unique IP datagram identification number */
 static uint16_t next_ident = 0;
 
@@ -38,7 +40,7 @@ static LIST_HEAD ( frag_buffers );
  * @v netdev		Network device
  * @v address		IPv4 address
  * @v netmask		Subnet mask
- * @v gateway		Gateway address (or @c INADDR_NONE for no gateway)
+ * @v gateway		Gateway address (if any)
  * @ret miniroute	Routing table entry, or NULL
  */
 static struct ipv4_miniroute * __malloc
@@ -48,7 +50,7 @@ add_ipv4_miniroute ( struct net_device *netdev, struct in_addr address,
 
 	DBG ( "IPv4 add %s", inet_ntoa ( address ) );
 	DBG ( "/%s ", inet_ntoa ( netmask ) );
-	if ( gateway.s_addr != INADDR_NONE )
+	if ( gateway.s_addr )
 		DBG ( "gw %s ", inet_ntoa ( gateway ) );
 	DBG ( "via %s\n", netdev->name );
 
@@ -68,7 +70,7 @@ add_ipv4_miniroute ( struct net_device *netdev, struct in_addr address,
 	/* Add to end of list if we have a gateway, otherwise
 	 * to start of list.
 	 */
-	if ( gateway.s_addr != INADDR_NONE ) {
+	if ( gateway.s_addr ) {
 		list_add_tail ( &miniroute->list, &ipv4_miniroutes );
 	} else {
 		list_add ( &miniroute->list, &ipv4_miniroutes );
@@ -86,7 +88,7 @@ static void del_ipv4_miniroute ( struct ipv4_miniroute *miniroute ) {
 
 	DBG ( "IPv4 del %s", inet_ntoa ( miniroute->address ) );
 	DBG ( "/%s ", inet_ntoa ( miniroute->netmask ) );
-	if ( miniroute->gateway.s_addr != INADDR_NONE )
+	if ( miniroute->gateway.s_addr )
 		DBG ( "gw %s ", inet_ntoa ( miniroute->gateway ) );
 	DBG ( "via %s\n", miniroute->netdev->name );
 
@@ -116,9 +118,11 @@ static struct ipv4_miniroute * ipv4_route ( struct in_addr *dest ) {
 
 	/* Find first usable route in routing table */
 	list_for_each_entry ( miniroute, &ipv4_miniroutes, list ) {
+		if ( ! ( miniroute->netdev->state & NETDEV_OPEN ) )
+			continue;
 		local = ( ( ( dest->s_addr ^ miniroute->address.s_addr )
 			    & miniroute->netmask.s_addr ) == 0 );
-		has_gw = ( miniroute->gateway.s_addr != INADDR_NONE );
+		has_gw = ( miniroute->gateway.s_addr );
 		if ( local || has_gw ) {
 			if ( ! local )
 				*dest = miniroute->gateway;
@@ -269,7 +273,7 @@ static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
 
 	if ( dest.s_addr == INADDR_BROADCAST ) {
 		/* Broadcast address */
-		memcpy ( ll_dest, ll_protocol->ll_broadcast,
+		memcpy ( ll_dest, netdev->ll_broadcast,
 			 ll_protocol->ll_addr_len );
 		return 0;
 	} else if ( IN_MULTICAST ( ntohl ( dest.s_addr ) ) ) {
@@ -584,7 +588,7 @@ static int ipv4_create_routes ( void ) {
 	struct settings *settings;
 	struct in_addr address = { 0 };
 	struct in_addr netmask = { 0 };
-	struct in_addr gateway = { INADDR_NONE };
+	struct in_addr gateway = { 0 };
 
 	/* Delete all existing routes */
 	list_for_each_entry_safe ( miniroute, tmp, &ipv4_miniroutes, list )
@@ -598,20 +602,19 @@ static int ipv4_create_routes ( void ) {
 		fetch_ipv4_setting ( settings, &ip_setting, &address );
 		if ( ! address.s_addr )
 			continue;
-		/* Calculate default netmask */
-		if ( IN_CLASSA ( ntohl ( address.s_addr ) ) ) {
-			netmask.s_addr = htonl ( IN_CLASSA_NET );
-		} else if ( IN_CLASSB ( ntohl ( address.s_addr ) ) ) {
-			netmask.s_addr = htonl ( IN_CLASSB_NET );
-		} else if ( IN_CLASSC ( ntohl ( address.s_addr ) ) ) {
-			netmask.s_addr = htonl ( IN_CLASSC_NET );
-		} else {
-			netmask.s_addr = 0;
-		}
-		/* Override with subnet mask, if present */
+		/* Get subnet mask */
 		fetch_ipv4_setting ( settings, &netmask_setting, &netmask );
+		/* Calculate default netmask, if necessary */
+		if ( ! netmask.s_addr ) {
+			if ( IN_CLASSA ( ntohl ( address.s_addr ) ) ) {
+				netmask.s_addr = htonl ( IN_CLASSA_NET );
+			} else if ( IN_CLASSB ( ntohl ( address.s_addr ) ) ) {
+				netmask.s_addr = htonl ( IN_CLASSB_NET );
+			} else if ( IN_CLASSC ( ntohl ( address.s_addr ) ) ) {
+				netmask.s_addr = htonl ( IN_CLASSC_NET );
+			}
+		}
 		/* Get default gateway, if present */
-		gateway.s_addr = INADDR_NONE;
 		fetch_ipv4_setting ( settings, &gateway_setting, &gateway );
 		/* Configure route */
 		miniroute = add_ipv4_miniroute ( netdev, address,

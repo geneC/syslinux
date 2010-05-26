@@ -17,10 +17,11 @@
 topdir = ..
 include $(topdir)/MCONFIG
 
-CFLAGS   = -W -Wall -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 LDFLAGS  = -O2 -s
 
 TARGETS	 = mkdiskimage isohybrid gethostip
+TARGETS += isohybrid.pl  # about to be obsoleted
 ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi \
 	   pxelinux-options
 
@@ -36,16 +37,23 @@ mkdiskimage: mkdiskimage.in ../mbr/mbr.bin bin2hex.pl
 	$(PERL) bin2hex.pl < ../mbr/mbr.bin | cat mkdiskimage.in - > $@
 	chmod a+x $@
 
-isohybrid: isohybrid.in $(ISOHDPFX) bin2hex.pl
+# Works on anything with a Perl interpreter...
+isohybrid.pl: isohybrid.in $(ISOHDPFX) bin2hex.pl
 	cp -f isohybrid.in $@
 	for f in $(ISOHDPFX) ; do $(PERL) bin2hex.pl < $$f >> $@ ; done
 	chmod a+x $@
+
+isohdpfx.c: $(ISOHDPFX) isohdpfxarray.pl
+	$(PERL) isohdpfxarray.pl $(ISOHDPFX) > $@
+
+isohybrid: isohybrid.c isohdpfx.c isohybrid.h
+	$(CC) $(UMAKEDEPS) $(CFLGAS) -o $@ isohybrid.c isohdpfx.c
 
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 tidy dist:
-	rm -f *.o .*.d
+	rm -f *.o .*.d isohdpfx.c
 
 clean: tidy
 	rm -f $(TARGETS)

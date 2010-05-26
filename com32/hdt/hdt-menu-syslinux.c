@@ -51,9 +51,9 @@ void compute_syslinuxmenu(struct s_my_menu *menu, struct s_hardware *hardware)
     menu->items_count++;
 
     snprintf(buffer, sizeof buffer, "Version    : %s",
-	     hardware->sv->version_string + 2);
+	     hardware->sv->version_string);
     snprintf(statbuffer, sizeof statbuffer, "Version: %s",
-	     hardware->sv->version_string + 2);
+	     hardware->sv->version_string);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
@@ -71,10 +71,10 @@ void compute_syslinuxmenu(struct s_my_menu *menu, struct s_hardware *hardware)
 
     add_item("", "", OPT_SEP, "", 0);
 
-    snprintf(buffer, sizeof buffer, "%s", hardware->sv->copyright_string + 1);
+    snprintf(buffer, sizeof buffer, "%s", hardware->sv->copyright_string);
     /* Remove the trailing LF in the copyright string to avoid scrolling */
     snprintf(statbuffer, sizeof statbuffer, "%s",
-	     remove_trailing_lf(hardware->sv->copyright_string + 1));
+	     remove_trailing_lf((char *)hardware->sv->copyright_string));
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 

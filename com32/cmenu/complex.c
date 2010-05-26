@@ -54,7 +54,7 @@ char username[12];		// Name of user currently using the system
 
 /* End globals */
 
-TIMEOUTCODE ontimeout()
+TIMEOUTCODE ontimeout(void)
 {
     beep();
     return CODE_WAIT;
@@ -92,7 +92,7 @@ void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi,
     }
 }
 
-t_handler_return login_handler(t_menuitem * mi)
+t_handler_return login_handler(t_menusystem * ms, t_menuitem * mi)
 {
     (void)mi;			// Unused
     char pwd[40];
@@ -244,7 +244,7 @@ t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
     return rv;
 }
 
-int main()
+int main(void)
 {
     t_menuitem *curr;
     char cmd[160];

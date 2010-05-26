@@ -218,8 +218,9 @@ int main(int argc, char *argv[])
 	exit(1);
     }
     fprintf(mtc,
-	    /* "MTOOLS_NO_VFAT=1\n" */
-	    "MTOOLS_SKIP_CHECK=1\n"	/* Needed for some flash memories */
+	    /* These are needed for some flash memories */
+	    "MTOOLS_SKIP_CHECK=1\n"
+	    "MTOOLS_FAT_COMPATIBILITY=1\n"
 	    "drive s:\n"
 	    "  file=\"/proc/%lu/fd/%d\"\n"
 	    "  offset=%llu\n",

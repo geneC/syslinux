@@ -28,7 +28,7 @@ SuperInfo	resq 16			; The first 16 bytes expanded 8 times
 ; "close" to the initial stack pointer offset, in order to
 ; reduce the code size...
 ;
-StackBuf	equ $-44-32		; Start the stack here (grow down - 4K)
+StackBuf	equ STACK_TOP-44-32	; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf		; Saved partition table entry
 FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
 OrigFDCTabPtr	equ StackBuf-8		; The 2nd high dword on the stack
@@ -467,9 +467,8 @@ bootsignature	dw kaboom.again-bootsec
 
 ldlinux_sys:
 
-syslinux_banner	db 0Dh, 0Ah
-		db MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
-		db 0Dh, 0Ah, 1Ah	; EOF if we "type" this in DOS
+syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
+		db CR, LF, 1Ah	; EOF if we "type" this in DOS
 
 		alignz 8
 ldlinux_magic	dd LDLINUX_MAGIC

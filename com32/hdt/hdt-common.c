@@ -678,7 +678,7 @@ char *del_multi_spaces(char *p)
 }
 
 /* Reset the more_printf counter */
-void reset_more_printf()
+void reset_more_printf(void)
 {
     display_line_nb = 0;
 }

@@ -98,7 +98,7 @@ static void autocomplete_add_token_to_list(const char *token)
     autocomplete_tail = new;
 }
 
-static void autocomplete_destroy_list()
+static void autocomplete_destroy_list(void)
 {
     struct autocomplete_list *tmp = NULL;
 
@@ -723,7 +723,7 @@ out:
 	free(argv);
 }
 
-static void reset_prompt()
+static void reset_prompt(void)
 {
     /* No need to display the prompt if we exit */
     if (hdt_cli.mode != EXIT_MODE) {
@@ -775,7 +775,7 @@ void start_auto_mode(struct s_hardware *hardware)
     more_printf("\n");
 }
 
-void print_history()
+void print_history(int argc, char **argv, struct s_hardware * hardware)
 {
     reset_more_printf();
     for (int i = 1; i <= MAX_HISTORY_SIZE; i++) {

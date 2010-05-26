@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -135,7 +137,7 @@ static void undipci_remove ( struct pci_device *pci ) {
 }
 
 static struct pci_device_id undipci_nics[] = {
-PCI_ROM ( 0xffff, 0xffff, "undipci", "UNDI (PCI)" ),
+PCI_ROM ( 0xffff, 0xffff, "undipci", "UNDI (PCI)", 0 ),
 };
 
 struct pci_driver undipci_driver __pci_driver = {

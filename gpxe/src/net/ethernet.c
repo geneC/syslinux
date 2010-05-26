@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -41,13 +43,15 @@ static uint8_t eth_broadcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 /**
  * Add Ethernet link-layer header
  *
+ * @v netdev		Network device
  * @v iobuf		I/O buffer
  * @v ll_dest		Link-layer destination address
  * @v ll_source		Source link-layer address
  * @v net_proto		Network-layer protocol, in network-byte order
  * @ret rc		Return status code
  */
-static int eth_push ( struct io_buffer *iobuf, const void *ll_dest,
+static int eth_push ( struct net_device *netdev __unused,
+		      struct io_buffer *iobuf, const void *ll_dest,
 		      const void *ll_source, uint16_t net_proto ) {
 	struct ethhdr *ethhdr = iob_push ( iobuf, sizeof ( *ethhdr ) );
 
@@ -62,13 +66,15 @@ static int eth_push ( struct io_buffer *iobuf, const void *ll_dest,
 /**
  * Remove Ethernet link-layer header
  *
+ * @v netdev		Network device
  * @v iobuf		I/O buffer
  * @ret ll_dest		Link-layer destination address
  * @ret ll_source	Source link-layer address
  * @ret net_proto	Network-layer protocol, in network-byte order
  * @ret rc		Return status code
  */
-static int eth_pull ( struct io_buffer *iobuf, const void **ll_dest,
+static int eth_pull ( struct net_device *netdev __unused, 
+		      struct io_buffer *iobuf, const void **ll_dest,
 		      const void **ll_source, uint16_t *net_proto ) {
 	struct ethhdr *ethhdr = iobuf->data;
 
@@ -88,6 +94,16 @@ static int eth_pull ( struct io_buffer *iobuf, const void **ll_dest,
 	*net_proto = ethhdr->h_protocol;
 
 	return 0;
+}
+
+/**
+ * Initialise Ethernet address
+ *
+ * @v hw_addr		Hardware address
+ * @v ll_addr		Link-layer address
+ */
+void eth_init_addr ( const void *hw_addr, void *ll_addr ) {
+	memcpy ( ll_addr, hw_addr, ETH_ALEN );
 }
 
 /**
@@ -114,8 +130,7 @@ const char * eth_ntoa ( const void *ll_addr ) {
  * @v ll_addr		Link-layer address to fill in
  * @ret rc		Return status code
  */
-static int eth_mc_hash ( unsigned int af, const void *net_addr,
-			 void *ll_addr ) {
+int eth_mc_hash ( unsigned int af, const void *net_addr, void *ll_addr ) {
 	const uint8_t *net_addr_bytes = net_addr;
 	uint8_t *ll_addr_bytes = ll_addr;
 
@@ -133,15 +148,46 @@ static int eth_mc_hash ( unsigned int af, const void *net_addr,
 	}
 }
 
+/**
+ * Generate Ethernet-compatible compressed link-layer address
+ *
+ * @v ll_addr		Link-layer address
+ * @v eth_addr		Ethernet-compatible address to fill in
+ */
+int eth_eth_addr ( const void *ll_addr, void *eth_addr ) {
+	memcpy ( eth_addr, ll_addr, ETH_ALEN );
+	return 0;
+}
+
 /** Ethernet protocol */
 struct ll_protocol ethernet_protocol __ll_protocol = {
 	.name		= "Ethernet",
 	.ll_proto	= htons ( ARPHRD_ETHER ),
+	.hw_addr_len	= ETH_ALEN,
 	.ll_addr_len	= ETH_ALEN,
 	.ll_header_len	= ETH_HLEN,
-	.ll_broadcast	= eth_broadcast,
 	.push		= eth_push,
 	.pull		= eth_pull,
+	.init_addr	= eth_init_addr,
 	.ntoa		= eth_ntoa,
 	.mc_hash	= eth_mc_hash,
+	.eth_addr	= eth_eth_addr,
 };
+
+/**
+ * Allocate Ethernet device
+ *
+ * @v priv_size		Size of driver private data
+ * @ret netdev		Network device, or NULL
+ */
+struct net_device * alloc_etherdev ( size_t priv_size ) {
+	struct net_device *netdev;
+
+	netdev = alloc_netdev ( priv_size );
+	if ( netdev ) {
+		netdev->ll_protocol = &ethernet_protocol;
+		netdev->ll_broadcast = eth_broadcast;
+		netdev->max_pkt_len = ETH_FRAME_LEN;
+	}
+	return netdev;
+}

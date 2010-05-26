@@ -30,6 +30,9 @@
  * SOFTWARE.
  *
  */
+
+FILE_LICENCE ( GPL2_ONLY );
+
 #include <strings.h>
 #include <errno.h>
 #include <gpxe/malloc.h>
@@ -1811,7 +1814,7 @@ mtnic_probe(struct pci_device *pci,
 		/* Program the MAC address */
 		mac = priv->mtnic->fw.mac[port_index];
 		for (mac_idx = 0; mac_idx < MAC_ADDRESS_SIZE; ++mac_idx) {
-			mtnic->netdev[port_index]->ll_addr[MAC_ADDRESS_SIZE - mac_idx - 1] = mac & 0xFF;
+			mtnic->netdev[port_index]->hw_addr[MAC_ADDRESS_SIZE - mac_idx - 1] = mac & 0xFF;
 			mac = mac >> 8;
 		}
 
@@ -1835,10 +1838,10 @@ err_init_card:
 
 
 static struct pci_device_id mtnic_nics[] = {
-	PCI_ROM ( 0x15b3, 0x6368, "mt25448", "Mellanox ConnectX EN driver" ),
-	PCI_ROM ( 0x15b3, 0x6372, "mt25458", "Mellanox ConnectX ENt driver" ),
-	PCI_ROM ( 0x15b3, 0x6750, "mt26448", "Mellanox ConnectX EN GEN2 driver" ),
-	PCI_ROM ( 0x15b3, 0x675a, "mt26458", "Mellanox ConnectX ENt GEN2 driver" ),
+	PCI_ROM ( 0x15b3, 0x6368, "mt25448", "Mellanox ConnectX EN driver", 0 ),
+	PCI_ROM ( 0x15b3, 0x6372, "mt25458", "Mellanox ConnectX ENt driver", 0 ),
+	PCI_ROM ( 0x15b3, 0x6750, "mt26448", "Mellanox ConnectX EN GEN2 driver", 0 ),
+	PCI_ROM ( 0x15b3, 0x675a, "mt26458", "Mellanox ConnectX ENt GEN2 driver", 0 ),
 };
 
 struct pci_driver mtnic_driver __pci_driver = {

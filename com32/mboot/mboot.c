@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -36,7 +36,7 @@
 
 struct multiboot_info mbinfo;
 struct syslinux_pm_regs regs;
-struct my_options opt;
+struct my_options opt, set;
 
 struct module_data {
     void *data;
@@ -161,11 +161,21 @@ int main(int argc, char *argv[])
     argv++;
 
     while (*argv) {
-	if (!strcmp(*argv, "-solaris"))
-	    opt.solaris = true;
-	else if (!strcmp(*argv, "-aout"))
-	    opt.aout = true;
-	else
+	bool v = true;
+	const char *p = *argv;
+
+	if (!memcmp(p, "-no", 3)) {
+	    v = false;
+	    p += 3;
+	}
+
+	if (!strcmp(p, "-solaris")) {
+	    opt.solaris = v;
+	    set.solaris = true;
+	} else if (!strcmp(p, "-aout")) {
+	    opt.aout = v;
+	    set.aout = true;
+	} else
 	    break;
 	argv++;
     }
@@ -222,6 +232,8 @@ int main(int argc, char *argv[])
     /* Add auxilliary information */
     mboot_make_memmap();
     mboot_apm();
+    mboot_syslinux_info();
+
     if (opt.solaris)
 	mboot_solaris_dhcp_hack();
 

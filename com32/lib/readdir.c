@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 struct dirent *readdir(DIR * dir)
 {
@@ -28,8 +29,10 @@ struct dirent *readdir(DIR * dir)
 
 	__com32.cs_intcall(0x22, &regs, &regs);
 
-	/* Don't do this as we won't be able to rewind.
+#if 0
+	/* Don't do this as we won't be able to rewind. */
 	   dir->dd_fd = regs.esi.w[0];  /* Shouldn't be needed? */
+#endif
 	if ((!(regs.eflags.l & EFLAGS_CF)) && (regs.esi.w[0] != 0)) {
 	    newde = calloc(1, sizeof(newde));
 	    if (newde != NULL) {

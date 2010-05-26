@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,6 +30,7 @@
 #include <gpxe/process.h>
 #include <gpxe/init.h>
 #include <gpxe/device.h>
+#include <gpxe/errortab.h>
 #include <gpxe/netdevice.h>
 
 /** @file
@@ -36,17 +39,39 @@
  *
  */
 
-/** Registered network-layer protocols */
-static struct net_protocol net_protocols[0]
-	__table_start ( struct net_protocol, net_protocols );
-static struct net_protocol net_protocols_end[0]
-	__table_end ( struct net_protocol, net_protocols );
-
 /** List of network devices */
 struct list_head net_devices = LIST_HEAD_INIT ( net_devices );
 
 /** List of open network devices, in reverse order of opening */
-struct list_head open_net_devices = LIST_HEAD_INIT ( open_net_devices );
+static struct list_head open_net_devices = LIST_HEAD_INIT ( open_net_devices );
+
+/** Default link status code */
+#define EUNKNOWN_LINK_STATUS EINPROGRESS
+
+/** Human-readable message for the default link status */
+struct errortab netdev_errors[] __errortab = {
+	{ EUNKNOWN_LINK_STATUS, "Unknown" },
+};
+
+/**
+ * Mark network device as having link down
+ *
+ * @v netdev		Network device
+ */
+void netdev_link_down ( struct net_device *netdev ) {
+
+	switch ( netdev->link_rc ) {
+	case 0:
+	case -EUNKNOWN_LINK_STATUS:
+		netdev->link_rc = -ENOTCONN;
+		break;
+	default:
+		/* Avoid clobbering a more detailed link status code,
+		 * if one is already set.
+		 */
+		break;
+	}
+}
 
 /**
  * Record network device statistic
@@ -286,6 +311,7 @@ static void free_netdev ( struct refcnt *refcnt ) {
 	
 	netdev_tx_flush ( netdev );
 	netdev_rx_flush ( netdev );
+	clear_settings ( netdev_settings ( netdev ) );
 	free ( netdev );
 }
 
@@ -305,11 +331,10 @@ struct net_device * alloc_netdev ( size_t priv_size ) {
 	netdev = zalloc ( total_len );
 	if ( netdev ) {
 		netdev->refcnt.free = free_netdev;
+		netdev->link_rc = -EUNKNOWN_LINK_STATUS;
 		INIT_LIST_HEAD ( &netdev->tx_queue );
 		INIT_LIST_HEAD ( &netdev->rx_queue );
-		settings_init ( netdev_settings ( netdev ),
-				&netdev_settings_operations, &netdev->refcnt,
-				netdev->name, 0 );
+		netdev_settings_init ( netdev );
 		netdev->priv = ( ( ( void * ) netdev ) + sizeof ( *netdev ) );
 	}
 	return netdev;
@@ -332,6 +357,9 @@ int register_netdev ( struct net_device *netdev ) {
 	snprintf ( netdev->name, sizeof ( netdev->name ), "net%d",
 		   ifindex++ );
 
+	/* Set initial link-layer address */
+	netdev->ll_protocol->init_addr ( netdev->hw_addr, netdev->ll_addr );
+
 	/* Register per-netdev configuration settings */
 	if ( ( rc = register_settings ( netdev_settings ( netdev ),
 					NULL ) ) != 0 ) {
@@ -345,7 +373,7 @@ int register_netdev ( struct net_device *netdev ) {
 	list_add_tail ( &netdev->list, &net_devices );
 	DBGC ( netdev, "NETDEV %p registered as %s (phys %s hwaddr %s)\n",
 	       netdev, netdev->name, netdev->dev->name,
-	       netdev_hwaddr ( netdev ) );
+	       netdev_addr ( netdev ) );
 
 	return 0;
 }
@@ -514,7 +542,7 @@ int net_tx ( struct io_buffer *iobuf, struct net_device *netdev,
 	netdev_poll ( netdev );
 
 	/* Add link-layer header */
-	if ( ( rc = ll_protocol->push ( iobuf, ll_dest, netdev->ll_addr,
+	if ( ( rc = ll_protocol->push ( netdev, iobuf, ll_dest, netdev->ll_addr,
 					net_protocol->net_proto ) ) != 0 ) {
 		free_iob ( iobuf );
 		return rc;
@@ -538,12 +566,13 @@ int net_rx ( struct io_buffer *iobuf, struct net_device *netdev,
 	struct net_protocol *net_protocol;
 
 	/* Hand off to network-layer protocol, if any */
-	for ( net_protocol = net_protocols ; net_protocol < net_protocols_end ;
-	      net_protocol++ ) {
-		if ( net_protocol->net_proto == net_proto ) {
+	for_each_table_entry ( net_protocol, NET_PROTOCOLS ) {
+		if ( net_protocol->net_proto == net_proto )
 			return net_protocol->rx ( iobuf, netdev, ll_source );
-		}
 	}
+
+	DBGC ( netdev, "NETDEV %p unknown network protocol %04x\n",
+	       netdev, ntohs ( net_proto ) );
 	free_iob ( iobuf );
 	return 0;
 }
@@ -585,8 +614,8 @@ static void net_step ( struct process *process __unused ) {
 
 			/* Remove link-layer header */
 			ll_protocol = netdev->ll_protocol;
-			if ( ( rc = ll_protocol->pull ( iobuf, &ll_dest,
-							&ll_source,
+			if ( ( rc = ll_protocol->pull ( netdev, iobuf,
+							&ll_dest, &ll_source,
 							&net_proto ) ) != 0 ) {
 				free_iob ( iobuf );
 				continue;
@@ -599,5 +628,6 @@ static void net_step ( struct process *process __unused ) {
 
 /** Networking stack process */
 struct process net_process __permanent_process = {
+	.list = LIST_HEAD_INIT ( net_process.list ),
 	.step = net_step,
 };

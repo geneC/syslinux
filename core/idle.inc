@@ -59,7 +59,7 @@ do_idle:
 		cmp ax,TICKS_TO_IDLE
 		jb .done
 		call [IdleHook]
-		cmp word [NoHalt],0
+		cmp dword [NoHalt],0
 		jne .done
 		hlt
 .done:
@@ -69,8 +69,10 @@ do_idle:
 .ret:		ret
 
 		section .data
+		alignb 4
+NoHalt		dw 0			; NoHalt set by user
+ForceNoHalt	dw 0			; NoHalt forced by hardware config
 IdleHook	dw do_idle.ret
-NoHalt		dw 0
 
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 
 

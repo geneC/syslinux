@@ -16,11 +16,12 @@
 #include <string.h>
 #include <disk/geom.h>
 #include <disk/util.h>
+#include <disk/errno_disk.h>
+#include <disk/error.h>
 
 int main(int argc __attribute__ (( unused )),
 	 char *argv[] __attribute__ (( unused )))
 {
-	char* error_buffer;
 	int err;
 	struct driveinfo drive;
 	struct driveinfo *d = &drive;
@@ -30,17 +31,14 @@ int main(int argc __attribute__ (( unused )),
 	for (int disk = 0x80; disk < 0xff; disk++) {
 		memset(d, 0, sizeof(struct driveinfo));
 		d->disk = disk;
-		err = get_drive_parameters(d);
+		get_drive_parameters(d);
 
 		/* Do not print output when drive does not exists */
-		if (err == -1)
+		if (errno_disk == -1 || !d->cbios)
 			continue;
 
-		if (err) {
-			get_error(err, &error_buffer);
-			printf("Error 0x%Xh while reading disk 0x%X:\n  %s\n",
-					err, d->disk, error_buffer);
-			free(error_buffer);
+		if (errno_disk) {
+			get_error("reading disk");
 			continue;
 		}
 

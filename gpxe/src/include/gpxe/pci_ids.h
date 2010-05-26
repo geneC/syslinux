@@ -7,6 +7,8 @@
  *	Please keep sorted.
  */
 
+FILE_LICENCE ( GPL2_ONLY );
+
 /* Device classes and subclasses */
 
 #define PCI_CLASS_NOT_DEFINED		0x0000
@@ -315,6 +317,7 @@
 #define PCI_VENDOR_ID_TIMEDIA		0x1409
 #define PCI_VENDOR_ID_OXSEMI		0x1415
 #define PCI_VENDOR_ID_AIRONET		0x14b9
+#define PCI_VENDOR_ID_MYRICOM		0x14c1
 #define PCI_VENDOR_ID_TITAN		0x14D2
 #define PCI_VENDOR_ID_PANACOM		0x14d4
 #define PCI_VENDOR_ID_BROADCOM		0x14e4

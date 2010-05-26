@@ -151,6 +151,10 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 	!eh->e_phnum || eh->e_phoff + eh->e_phentsize * eh->e_phnum > len)
 	eh = NULL;		/* No valid ELF header found */
 
+    /* Is this a Solaris kernel? */
+    if (!set.solaris && eh && kernel_is_solaris(eh))
+	opt.solaris = true;
+
     /*
      * Note: the Multiboot Specification implies that AOUT_KLUDGE should
      * have precedence over the ELF header.  However, Grub disagrees, and

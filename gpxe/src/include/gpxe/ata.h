@@ -12,6 +12,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * An ATA Logical Block Address
  *
@@ -152,6 +154,8 @@ struct ata_command {
 	 * sectors in size.
 	 */
 	userptr_t data_in;
+	/** Command status code */
+	int rc;
 };
 
 /**

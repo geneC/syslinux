@@ -48,6 +48,7 @@
 static void vesacon_erase(const struct term_state *, int, int, int, int);
 static void vesacon_write_char(int, int, uint8_t, const struct term_state *);
 static void vesacon_showcursor(const struct term_state *);
+static void vesacon_setcursor(int x, int y, bool visible);
 static void vesacon_scroll_up(const struct term_state *);
 
 static struct term_state ts;
@@ -55,13 +56,12 @@ static struct ansi_ops op = {
     .erase = vesacon_erase,
     .write_char = vesacon_write_char,
     .showcursor = vesacon_showcursor,
-    .set_cursor = __vesacon_set_cursor,	/* in drawtxt.c */
+    .set_cursor = vesacon_setcursor,
     .scroll_up = vesacon_scroll_up,
     .beep = __ansicon_beep,
 };
 
 static struct term_info ti = {
-    .cols = TEXT_PIXEL_COLS / FONT_WIDTH,
     .disabled = 0,
     .ts = &ts,
     .op = &op
@@ -70,6 +70,20 @@ static struct term_info ti = {
 /* Reference counter to the screen, to keep track of if we need
    reinitialization. */
 static int vesacon_counter = 0;
+
+static struct {
+    int x, y;
+} vesacon_resolution = {
+    .x = DEFAULT_VESA_X_SIZE,
+    .y = DEFAULT_VESA_Y_SIZE,
+};
+
+/* Set desired resolution - requires a full close/open cycle */
+void vesacon_set_resolution(int x, int y)
+{
+    vesacon_resolution.x = x;
+    vesacon_resolution.y = y;
+}
 
 /* Common setup */
 int __vesacon_open(struct file_info *fp)
@@ -84,7 +98,7 @@ int __vesacon_open(struct file_info *fp)
 	    ti.cols = 80;
 	} else {
 	    /* Switch mode */
-	    if (__vesacon_init()) {
+	    if (__vesacon_init(vesacon_resolution.x, vesacon_resolution.y)) {
 		vesacon_counter = -1;
 		return EAGAIN;
 	    }
@@ -92,6 +106,7 @@ int __vesacon_open(struct file_info *fp)
 	    /* Initial state */
 	    __ansi_init(&ti);
 	    ti.rows = __vesacon_text_rows;
+	    ti.cols = __vesacon_text_cols;
 	}
     } else if (vesacon_counter == -1) {
 	return EAGAIN;
@@ -127,9 +142,18 @@ static void vesacon_write_char(int x, int y, uint8_t ch,
 }
 
 /* Show or hide the cursor */
+static bool cursor_enabled = true;
+void vesacon_cursor_enable(bool enabled)
+{
+    cursor_enabled = enabled;
+}
 static void vesacon_showcursor(const struct term_state *st)
 {
-    __vesacon_set_cursor(st->xy.x, st->xy.y, st->cursor);
+    vesacon_setcursor(st->xy.x, st->xy.y, st->cursor);
+}
+static void vesacon_setcursor(int x, int y, bool visible)
+{
+    __vesacon_set_cursor(x, y, visible && cursor_enabled);
 }
 
 static void vesacon_scroll_up(const struct term_state *st)

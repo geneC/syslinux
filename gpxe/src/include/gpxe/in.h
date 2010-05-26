@@ -1,13 +1,14 @@
 #ifndef	_GPXE_IN_H
 #define	_GPXE_IN_H
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <gpxe/socket.h>
 
 /* Protocol numbers */
 
 #define IP_ICMP		1
-#define IP_IGMP		2
 #define IP_TCP		6
 #define IP_UDP		17
 #define IP_ICMP6	58

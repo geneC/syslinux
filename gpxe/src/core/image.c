@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
@@ -36,12 +38,6 @@
 
 /** List of registered images */
 struct list_head images = LIST_HEAD_INIT ( images );
-
-/** List of image types */
-static struct image_type image_types[0]
-	__table_start ( struct image_type, image_types );
-static struct image_type image_types_end[0]
-	__table_end ( struct image_type, image_types );
 
 /**
  * Free executable/loadable image
@@ -219,7 +215,7 @@ int image_autoload ( struct image *image ) {
 		return image_load ( image );
 
 	/* Otherwise probe for a suitable type */
-	for ( type = image_types ; type < image_types_end ; type++ ) {
+	for_each_table_entry ( type, IMAGE_TYPES ) {
 		DBGC ( image, "IMAGE %p trying type %s\n", image, type->name );
 		rc = image_load_type ( image, type );
 		if ( image->type == NULL )
