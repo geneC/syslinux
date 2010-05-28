@@ -63,6 +63,7 @@ struct menu_entry {
     int entry;			/* Entry number inside menu */
     enum menu_action action;
     unsigned char hotkey;
+    bool immediate;		/* Hotkey action does not require Enter */
     bool save;			/* Save this entry if selected */
 };
 
@@ -156,6 +157,7 @@ struct menu {
     int timeout;
 
     bool allowedit;
+    bool immediate;		/* MENU IMMEDIATE default for this menu */
     bool save;			/* MENU SAVE default for this menu */
 
     int curentry;

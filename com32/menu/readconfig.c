@@ -172,6 +172,7 @@ static struct menu *new_menu(struct menu *parent,
 	m->allowedit = parent->allowedit;
 	m->timeout = parent->timeout;
 	m->save = parent->save;
+	m->immediate = parent->immediate;
 
 	m->ontimeout = refstr_get(parent->ontimeout);
 	m->onerror = refstr_get(parent->onerror);
@@ -219,6 +220,7 @@ struct labeldata {
     unsigned int menuindent;
     enum menu_action action;
     int save;
+    int immediate;
     struct menu *submenu;
 };
 
@@ -304,6 +306,7 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	me->hotkey = 0;
 	me->action = ld->action ? ld->action : MA_CMD;
 	me->save = ld->save ? (ld->save > 0) : m->save;
+	me->immediate = ld->immediate ? (ld->immediate > 0) : m->immediate;
 
 	if (ld->menuindent) {
 	    const char *dn;
@@ -674,6 +677,16 @@ static void parse_config_file(FILE * f)
 		    ld.save = -1;
 		else
 		    m->save = false;
+	    } else if (looking_at(p, "immediate")) {
+		if (ld.label)
+		    ld.immediate = 1;
+		else
+		    m->immediate = true;
+	    } else if (looking_at(p, "noimmediate")) {
+		if (ld.label)
+		    ld.immediate = -1;
+		else
+		    m->immediate = false;
 	    } else if (looking_at(p, "onerror")) {
 		refstr_put(m->onerror);
 		m->onerror = refstrdup(skipspace(p + 7));
