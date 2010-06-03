@@ -107,6 +107,11 @@ void free(void *ptr)
     assert(ah->a.type == ARENA_TYPE_USED);
 #endif
 
+	if (ah->a.type != ARENA_TYPE_USED || ah->a.size == 0) {
+		printf("error in free, ptr = %p\n", ptr);
+		return;
+	}
+
     __free_block(ah);
 
     /* Here we could insert code to return memory to the system. */

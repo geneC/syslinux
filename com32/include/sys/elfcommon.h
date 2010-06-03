@@ -59,32 +59,108 @@
 #define EM_S390_OLD     0xA390	/* Obsolete interrim value for S/390 */
 
 /* Dynamic type values */
-#define DT_NULL		0
-#define DT_NEEDED	1
-#define DT_PLTRELSZ	2
-#define DT_PLTGOT	3
-#define DT_HASH		4
-#define DT_STRTAB	5
-#define DT_SYMTAB	6
-#define DT_RELA		7
-#define DT_RELASZ	8
-#define DT_RELAENT	9
-#define DT_STRSZ	10
-#define DT_SYMENT	11
-#define DT_INIT		12
-#define DT_FINI		13
-#define DT_SONAME	14
-#define DT_RPATH	15
-#define DT_SYMBOLIC	16
-#define DT_REL		17
-#define DT_RELSZ	18
-#define DT_RELENT	19
-#define DT_PLTREL	20
-#define DT_DEBUG	21
-#define DT_TEXTREL	22
-#define DT_JMPREL	23
-#define DT_LOPROC	0x70000000
-#define DT_HIPROC	0x7fffffff
+#define DT_NULL		0		/* Marks end of dynamic section */
+#define DT_NEEDED	1		/* Name of needed library */
+#define DT_PLTRELSZ	2		/* Size in bytes of PLT relocs */
+#define DT_PLTGOT	3		/* Processor defined value */
+#define DT_HASH		4		/* Address of symbol hash table */
+#define DT_STRTAB	5		/* Address of string table */
+#define DT_SYMTAB	6		/* Address of symbol table */
+#define DT_RELA		7		/* Address of Rela relocs */
+#define DT_RELASZ	8		/* Total size of Rela relocs */
+#define DT_RELAENT	9		/* Size of one Rela reloc */
+#define DT_STRSZ	10		/* Size of string table */
+#define DT_SYMENT	11		/* Size of one symbol table entry */
+#define DT_INIT		12		/* Address of init function */
+#define DT_FINI		13		/* Address of termination function */
+#define DT_SONAME	14		/* Name of shared object */
+#define DT_RPATH	15		/* Library search path (deprecated) */
+#define DT_SYMBOLIC	16		/* Start symbol search here */
+#define DT_REL		17		/* Address of Rel relocs */
+#define DT_RELSZ	18		/* Total size of Rel relocs */
+#define DT_RELENT	19		/* Size of one Rel reloc */
+#define DT_PLTREL	20		/* Type of reloc in PLT */
+#define DT_DEBUG	21		/* For debugging; unspecified */
+#define DT_TEXTREL	22		/* Reloc might modify .text */
+#define DT_JMPREL	23		/* Address of PLT relocs */
+#define	DT_BIND_NOW	24		/* Process relocations of object */
+#define	DT_INIT_ARRAY	25		/* Array with addresses of init fct */
+#define	DT_FINI_ARRAY	26		/* Array with addresses of fini fct */
+#define	DT_INIT_ARRAYSZ	27		/* Size in bytes of DT_INIT_ARRAY */
+#define	DT_FINI_ARRAYSZ	28		/* Size in bytes of DT_FINI_ARRAY */
+#define DT_RUNPATH	29		/* Library search path */
+#define DT_FLAGS	30		/* Flags for the object being loaded */
+#define DT_ENCODING	32		/* Start of encoded range */
+#define DT_PREINIT_ARRAY 32		/* Array with addresses of preinit fct*/
+#define DT_PREINIT_ARRAYSZ 33		/* size in bytes of DT_PREINIT_ARRAY */
+#define	DT_NUM		34		/* Number used */
+#define DT_LOOS		0x6000000d	/* Start of OS-specific */
+#define DT_HIOS		0x6ffff000	/* End of OS-specific */
+#define DT_LOPROC	0x70000000	/* Start of processor-specific */
+#define DT_HIPROC	0x7fffffff	/* End of processor-specific */
+
+#define DT_VALRNGLO	0x6ffffd00
+#define DT_GNU_PRELINKED 0x6ffffdf5	/* Prelinking timestamp */
+#define DT_GNU_CONFLICTSZ 0x6ffffdf6	/* Size of conflict section */
+#define DT_GNU_LIBLISTSZ 0x6ffffdf7	/* Size of library list */
+#define DT_CHECKSUM	0x6ffffdf8
+#define DT_PLTPADSZ	0x6ffffdf9
+#define DT_MOVEENT	0x6ffffdfa
+#define DT_MOVESZ	0x6ffffdfb
+#define DT_FEATURE_1	0x6ffffdfc	/* Feature selection (DTF_*).  */
+#define DT_POSFLAG_1	0x6ffffdfd	/* Flags for DT_* entries, effecting
+					   the following DT_* entry.  */
+#define DT_SYMINSZ	0x6ffffdfe	/* Size of syminfo table (in bytes) */
+#define DT_SYMINENT	0x6ffffdff	/* Entry size of syminfo */
+#define DT_VALRNGHI	0x6ffffdff
+#define DT_VALTAGIDX(tag)	(DT_VALRNGHI - (tag))	/* Reverse order! */
+#define DT_VALNUM 12
+
+/* DT_* entries which fall between DT_ADDRRNGHI & DT_ADDRRNGLO use the
+   Dyn.d_un.d_ptr field of the Elf*_Dyn structure.
+
+   If any adjustment is made to the ELF object after it has been
+   built these entries will need to be adjusted.  */
+#define DT_ADDRRNGLO	0x6ffffe00
+#define DT_GNU_HASH	0x6ffffef5	/* GNU-style hash table.  */
+#define DT_TLSDESC_PLT	0x6ffffef6
+#define DT_TLSDESC_GOT	0x6ffffef7
+#define DT_GNU_CONFLICT	0x6ffffef8	/* Start of conflict section */
+#define DT_GNU_LIBLIST	0x6ffffef9	/* Library list */
+#define DT_CONFIG	0x6ffffefa	/* Configuration information.  */
+#define DT_DEPAUDIT	0x6ffffefb	/* Dependency auditing.  */
+#define DT_AUDIT	0x6ffffefc	/* Object auditing.  */
+#define	DT_PLTPAD	0x6ffffefd	/* PLT padding.  */
+#define	DT_MOVETAB	0x6ffffefe	/* Move table.  */
+#define DT_SYMINFO	0x6ffffeff	/* Syminfo table.  */
+#define DT_ADDRRNGHI	0x6ffffeff
+#define DT_ADDRTAGIDX(tag)	(DT_ADDRRNGHI - (tag))	/* Reverse order! */
+#define DT_ADDRNUM 11
+
+/* The versioning entry types.  The next are defined as part of the
+   GNU extension.  */
+#define DT_VERSYM	0x6ffffff0
+
+#define DT_RELACOUNT	0x6ffffff9
+#define DT_RELCOUNT	0x6ffffffa
+
+/* These were chosen by Sun.  */
+#define DT_FLAGS_1	0x6ffffffb	/* State flags, see DF_1_* below.  */
+#define	DT_VERDEF	0x6ffffffc	/* Address of version definition
+					   table */
+#define	DT_VERDEFNUM	0x6ffffffd	/* Number of version definitions */
+#define	DT_VERNEED	0x6ffffffe	/* Address of table with needed
+					   versions */
+#define	DT_VERNEEDNUM	0x6fffffff	/* Number of needed versions */
+#define DT_VERSIONTAGIDX(tag)	(DT_VERNEEDNUM - (tag))	/* Reverse order! */
+#define DT_VERSIONTAGNUM 16
+
+/* Sun added these machine-independent extensions in the "processor-specific"
+   range.  Be compatible.  */
+#define DT_AUXILIARY    0x7ffffffd      /* Shared object to load before self */
+#define DT_FILTER       0x7fffffff      /* Shared object to get values from */
+#define DT_EXTRATAGIDX(tag)	((Elf32_Word)-((Elf32_Sword) (tag) <<1>>1)-1)
+#define DT_EXTRANUM	3
 
 /* Auxilliary table entries */
 #define AT_NULL		0	/* end of vector */
@@ -147,6 +223,52 @@
 #define SHN_COMMON      0xfff2
 #define SHN_HIRESERVE   0xffff
 
+/* Symbol table definitions */
+
+/* How to extract and insert information held in the st_info field.  */
+
+#define ELF32_ST_BIND(val)		(((unsigned char) (val)) >> 4)
+#define ELF32_ST_TYPE(val)		((val) & 0xf)
+#define ELF32_ST_INFO(bind, type)	(((bind) << 4) + ((type) & 0xf))
+
+/* Both Elf32_Sym and Elf64_Sym use the same one-byte st_info field.  */
+#define ELF64_ST_BIND(val)		ELF32_ST_BIND (val)
+#define ELF64_ST_TYPE(val)		ELF32_ST_TYPE (val)
+#define ELF64_ST_INFO(bind, type)	ELF32_ST_INFO ((bind), (type))
+
+/* Legal values for ST_BIND subfield of st_info (symbol binding).  */
+
+#define STB_LOCAL	0		/* Local symbol */
+#define STB_GLOBAL	1		/* Global symbol */
+#define STB_WEAK	2		/* Weak symbol */
+#define	STB_NUM		3		/* Number of defined types.  */
+#define STB_LOOS	10		/* Start of OS-specific */
+#define STB_HIOS	12		/* End of OS-specific */
+#define STB_LOPROC	13		/* Start of processor-specific */
+#define STB_HIPROC	15		/* End of processor-specific */
+
+/* Legal values for ST_TYPE subfield of st_info (symbol type).  */
+
+#define STT_NOTYPE	0		/* Symbol type is unspecified */
+#define STT_OBJECT	1		/* Symbol is a data object */
+#define STT_FUNC	2		/* Symbol is a code object */
+#define STT_SECTION	3		/* Symbol associated with a section */
+#define STT_FILE	4		/* Symbol's name is file name */
+#define STT_COMMON	5		/* Symbol is a common data object */
+#define STT_TLS		6		/* Symbol is thread-local data object*/
+#define	STT_NUM		7		/* Number of defined types.  */
+#define STT_LOOS	10		/* Start of OS-specific */
+#define STT_HIOS	12		/* End of OS-specific */
+#define STT_LOPROC	13		/* Start of processor-specific */
+#define STT_HIPROC	15		/* End of processor-specific */
+
+
+/* Symbol table indices are found in the hash buckets and chain table
+   of a symbol hash table section.  This special index value indicates
+   the end of a chain, meaning no further symbols are found in that bucket.  */
+
+#define STN_UNDEF	0		/* End of a chain.  */
+
 /* Lenght of magic at the start of a file */
 #define EI_NIDENT	16
 
@@ -184,4 +306,59 @@
 #define ELFOSABI_NONE   0
 #define ELFOSABI_LINUX  3
 
-#endif /* _SYS_ELFCOMMON_H */
+/* Intel 80386 specific definitions.  */
+
+/* i386 relocs.  */
+
+#define R_386_NONE	   0		/* No reloc */
+#define R_386_32	   1		/* Direct 32 bit  */
+#define R_386_PC32	   2		/* PC relative 32 bit */
+#define R_386_GOT32	   3		/* 32 bit GOT entry */
+#define R_386_PLT32	   4		/* 32 bit PLT address */
+#define R_386_COPY	   5		/* Copy symbol at runtime */
+#define R_386_GLOB_DAT	   6		/* Create GOT entry */
+#define R_386_JMP_SLOT	   7		/* Create PLT entry */
+#define R_386_RELATIVE	   8		/* Adjust by program base */
+#define R_386_GOTOFF	   9		/* 32 bit offset to GOT */
+#define R_386_GOTPC	   10		/* 32 bit PC relative offset to GOT */
+#define R_386_32PLT	   11
+#define R_386_TLS_TPOFF	   14		/* Offset in static TLS block */
+#define R_386_TLS_IE	   15		/* Address of GOT entry for static TLS
+					   block offset */
+#define R_386_TLS_GOTIE	   16		/* GOT entry for static TLS block
+					   offset */
+#define R_386_TLS_LE	   17		/* Offset relative to static TLS
+					   block */
+#define R_386_TLS_GD	   18		/* Direct 32 bit for GNU version of
+					   general dynamic thread local data */
+#define R_386_TLS_LDM	   19		/* Direct 32 bit for GNU version of
+					   local dynamic thread local data
+					   in LE code */
+#define R_386_16	   20
+#define R_386_PC16	   21
+#define R_386_8		   22
+#define R_386_PC8	   23
+#define R_386_TLS_GD_32	   24		/* Direct 32 bit for general dynamic
+					   thread local data */
+#define R_386_TLS_GD_PUSH  25		/* Tag for pushl in GD TLS code */
+#define R_386_TLS_GD_CALL  26		/* Relocation for call to
+					   __tls_get_addr() */
+#define R_386_TLS_GD_POP   27		/* Tag for popl in GD TLS code */
+#define R_386_TLS_LDM_32   28		/* Direct 32 bit for local dynamic
+					   thread local data in LE code */
+#define R_386_TLS_LDM_PUSH 29		/* Tag for pushl in LDM TLS code */
+#define R_386_TLS_LDM_CALL 30		/* Relocation for call to
+					   __tls_get_addr() in LDM code */
+#define R_386_TLS_LDM_POP  31		/* Tag for popl in LDM TLS code */
+#define R_386_TLS_LDO_32   32		/* Offset relative to TLS block */
+#define R_386_TLS_IE_32	   33		/* GOT entry for negated static TLS
+					   block offset */
+#define R_386_TLS_LE_32	   34		/* Negated offset relative to static
+					   TLS block */
+#define R_386_TLS_DTPMOD32 35		/* ID of module containing symbol */
+#define R_386_TLS_DTPOFF32 36		/* Offset in TLS block */
+#define R_386_TLS_TPOFF32  37		/* Negated offset in static TLS block */
+/* Keep this the last entry.  */
+#define R_386_NUM	   38
+
+#endif				/* _SYS_ELFCOMMON_H */

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <com32.h>
+#include <errno.h>
 #include <syslinux/memscan.h>
 #include "init.h"
 #include "malloc.h"
@@ -144,7 +145,7 @@ void *malloc(size_t size)
     size = (size + 2 * sizeof(struct arena_header) - 1) & ARENA_SIZE_MASK;
 
     for (fp = __malloc_head.next_free; fp->a.type != ARENA_TYPE_HEAD;
-	 fp = fp->next_free) {
+	fp = fp->next_free) {
 	if (fp->a.size >= size) {
 	    /* Found fit -- allocate out of this block */
 	    return __malloc_from_block(fp, size);
@@ -153,4 +154,24 @@ void *malloc(size_t size)
 
     /* Nothing found... need to request a block from the kernel */
     return NULL;		/* No kernel to get stuff from */
+}
+
+/* need to revisit this later */
+int posix_memalign(void **memptr, size_t align, size_t size)
+{
+	void *ptr;
+	unsigned long tmp;
+
+	ptr = malloc(size + align - 1);
+	if (!ptr)
+		return -ENOMEM;
+
+	/* do the alignment  */
+	tmp = (unsigned long)ptr;
+	tmp = (tmp + align -1) & ~(align - 1);
+	ptr = (void *)tmp;
+
+	*memptr = ptr;
+	return 0;
+
 }
