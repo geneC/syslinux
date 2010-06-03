@@ -50,7 +50,9 @@ COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
 LIB	 = libcore.a
-LIBS	 = $(LIB) $(com32)/lib/libcomcore.a $(LIBGCC)
+#LIBS	 = $(LIB) $(com32)/lib/libcomcore.a $(LIBGCC)
+LIBS     = $(LIB) $(LIBGCC) --whole-archive $(com32)/lib/libcom32min.a 
+LIBDEP   = $(filter-out -% %start%,$(LIBS))
 LIBOBJS	 = $(COBJ) $(SOBJ)
 
 NASMDEBUG = -g -F dwarf
@@ -88,9 +90,12 @@ kwdhash.gen: keywords genhash.pl
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
-%.elf: %.o $(LIBS) syslinux.ld
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< \
-		--start-group $(LIBS) --end-group \
+#%.elf: %.o $(LIBS) syslinux.ld
+#	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< \
+#		--start-group $(LIBS) --end-group \
+%.elf: %.o $(LIBDEP) syslinux.ld
+	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu \
+		-T syslinux.ld -M -o $@ $< $(LIBS) \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
