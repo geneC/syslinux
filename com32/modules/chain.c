@@ -63,6 +63,10 @@
  *	equivalent to seg=0x70 file=<loader> sethidden,
  *      used with DOS' io.sys.
  *
+ * grub=<loader>:
+ *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
+ *      used with GRUB stage2 files.
+ *
  * swap:
  *	if the disk is not fd0/hd0, install a BIOS stub which swaps
  *	the drive numbers.
@@ -101,6 +105,7 @@ static struct options {
     bool swap;
     bool hide;
     bool sethidden;
+    bool grub;
 } opt;
 
 struct data_area {
@@ -679,6 +684,7 @@ static void usage(void)
 	  "         freedos=<loader>   load FreeDOS kernel.sys\n"
 	  "         msdos=<loader>     load MS-DOS io.sys\n"
 	  "         pcdos=<loader>     load PC-DOS ibmbio.com\n"
+	  "         grub=<loader>      load GRUB stage2\n"
 	  "         seg=<segment>      jump to <seg>:0000 instead of 0000:7C00\n"
 	  "         swap               swap drive numbers, if bootdisk is not fd0/hd0\n"
 	  "         hide               hide primary partitions, except selected partition\n"
@@ -742,6 +748,10 @@ int main(int argc, char *argv[])
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethidden = true;
+	} else if (!strncmp(argv[i], "grub=", 5)) {
+	    opt.seg = 0x800;	/* stage2 wants this address */
+	    opt.loadfile = argv[i] + 5;
+	    opt.grub = true;
 	} else if (!strcmp(argv[i], "swap")) {
 	    opt.swap = true;
 	} else if (!strcmp(argv[i], "noswap")) {
@@ -943,6 +953,15 @@ int main(int argc, char *argv[])
 		    ("The isolinux= option is only valid when run from ISOLINUX\n");
 		goto bail;
 	    }
+	}
+
+	if (opt.grub) {
+		regs.ip = 0x200; /* jump 0x200 bytes into the loadfile */
+
+		/* 0xffffff00 seems to be GRUB ways to record that it's
+		   "root" is the whole disk (and not a partition). */
+		*(uint32_t *) ((unsigned char *) data[ndata].data + 0x208) =
+			0xffffff00ul;
 	}
 
 	ndata++;
