@@ -13,6 +13,7 @@ struct sys_options {
     const char *directory;
     const char *device;
     unsigned int offset;
+    const char *menu_save;
 };
 
 enum long_only_opt {

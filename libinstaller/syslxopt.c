@@ -38,6 +38,7 @@ struct sys_options opt = {
     .directory = NULL,
     .device = NULL,
     .offset = 0,
+    .menu_save = NULL,
 };
 
 const struct option long_options[] = {
@@ -55,10 +56,11 @@ const struct option long_options[] = {
     {"once", 1, NULL, 'o'},
     {"clear-once", 0, NULL, 'O'},
     {"reset-adv", 0, NULL, OPT_RESET_ADV},
+    {"menu-save", 1, NULL, 'M'},
     {0, 0, 0, 0}
 };
 
-const char short_options[] = "id:f:UuzS:H:rvho:O";
+const char short_options[] = "id:f:UuzS:H:rvho:OM:";
 
 void __attribute__ ((noreturn)) usage(int rv, int mode)
 {
@@ -83,6 +85,7 @@ void __attribute__ ((noreturn)) usage(int rv, int mode)
 	    "  --once=...   -o  Execute a command once upon boot\n"
 	    "  --clear-once -O  Clear the boot-once command\n"
 	    "  --reset-adv      Reset auxilliary data\n"
+	    "  --menu-save= -M  Set the label to select as default on the next boot\n"
 	    "\n"
 	    "  Note: geometry is determined at boot time for devices which\n"
 	    "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
@@ -154,6 +157,9 @@ void parse_options(int argc, char *argv[], int mode)
 	    opt.directory = optarg;
 	case OPT_RESET_ADV:
 	    opt.reset_adv = 1;
+	    break;
+	case 'M':
+	    opt.menu_save = optarg;
 	    break;
 	case 'v':
 	    fputs(program, stderr);

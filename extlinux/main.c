@@ -381,6 +381,13 @@ int modify_adv(void)
 	    rv = -1;
 	}
     }
+    if (opt.menu_save) {
+        if (syslinux_setadv(ADV_MENUSAVE, strlen(opt.menu_save), opt.menu_save)) {
+	    fprintf(stderr, "%s: not enough space for menu-save label\n",
+		    program);
+	    rv = -1;
+        }
+    }
 
     return rv;
 }
@@ -877,7 +884,7 @@ int main(int argc, char *argv[])
 	usage(EX_USAGE, 0);
 
     if (opt.update_only == -1) {
-	if (opt.reset_adv || opt.set_once)
+	if (opt.reset_adv || opt.set_once || opt.menu_save)
 	    return modify_existing_adv(opt.directory);
 	else
 	    usage(EX_USAGE, 0);
