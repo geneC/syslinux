@@ -12,8 +12,9 @@
 #include <linux/list.h>
 #include <sys/exec.h>
 #include <sys/module.h>
-#include "getkey.h"
+#include <core.h>
 
+#include "getkey.h"
 #include "common.h"
 #include "menu.h"
 #include "cli.h"
@@ -36,9 +37,9 @@ int mygetkey(clock_t timeout)
 	tto = min(totaltimeout, INT_MAX);
 	to = timeout ? min(tto, timeout) : tto;
 
-	t0 = times(NULL);
+	t0 = jiffies();
 	key = get_key(stdin, to);
-	t = times(NULL) - t0;
+	t = jiffies() - t0;
 
 	if (totaltimeout <= t)
 	    longjmp(timeout_jump, 1);

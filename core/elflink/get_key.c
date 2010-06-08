@@ -38,8 +38,11 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <core.h>
+
 #include <sys/times.h>
 #include <sys/module.h>
+
 #include "getkey.h"
 
 struct keycode {
@@ -132,11 +135,11 @@ int get_key(FILE * f, clock_t timeout)
 	timeout++;
 
     nc = 0;
-    start = times(NULL);
+    start = jiffies();
     do {
 	rv = read(fileno(f), &ch, 1);
 	if (rv == 0 || (rv == -1 && errno == EAGAIN)) {
-	    clock_t lateness = times(NULL) - start;
+	    clock_t lateness = jiffies() - start;
 	    if (nc && lateness > 1 + KEY_TIMEOUT) {
 		if (nc == 1)
 		    return buffer[0];	/* timeout in sequence */
@@ -151,7 +154,7 @@ int get_key(FILE * f, clock_t timeout)
 	    continue;
 	}
 
-	start = times(NULL);
+	start = jiffies();
 
 	buffer[nc++] = ch;
 
