@@ -107,15 +107,15 @@ struct multiboot_header *map_image(void *ptr, size_t len)
     Elf32_Ehdr *eh = ptr;
     Elf32_Phdr *ph;
     Elf32_Shdr *sh;
-    unsigned int i;
+    unsigned int i, mbh_offset;
     uint32_t bad_flags;
 
     /*
      * Search for the multiboot header...
      */
     mbh_len = 0;
-    for (i = 0; i < MULTIBOOT_SEARCH; i += 4) {
-	mbh = (struct multiboot_header *)((char *)ptr + i);
+    for (mbh_offset = 0; mbh_offset < MULTIBOOT_SEARCH; mbh_offset += 4) {
+	mbh = (struct multiboot_header *)((char *)ptr + mbh_offset);
 	if (mbh->magic != MULTIBOOT_MAGIC)
 	    continue;
 	if (mbh->magic + mbh->flags + mbh->checksum)
@@ -127,7 +127,7 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 	else
 	    mbh_len = 12;
 
-	if (i + mbh_len > len)
+	if (mbh_offset + mbh_len > len)
 	    mbh_len = 0;	/* Invalid... */
 	else
 	    break;		/* Found something... */
@@ -276,8 +276,16 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 	regs.eip = mbh->entry_addr;
 
 	data_ptr = (char *)mbh - (mbh->header_addr - mbh->load_addr);
-	data_len = mbh->load_end_addr - mbh->load_addr;
-	bss_len = mbh->bss_end_addr - mbh->load_end_addr;
+	
+	if (mbh->load_end_addr)
+	    data_len = mbh->load_end_addr - mbh->load_addr;
+	else
+	    data_len = len - mbh_offset + (mbh->header_addr - mbh->load_addr);
+
+	if (mbh->bss_end_addr)
+	    bss_len = mbh->bss_end_addr - mbh->load_end_addr;
+	else
+	    bss_len = 0;
 
 	if (syslinux_memmap_type(amap, mbh->load_addr, data_len + bss_len)
 	    != SMT_FREE) {
