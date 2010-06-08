@@ -298,6 +298,39 @@ SECTIONS
 
 	. = ALIGN(4);
 
+	__dynsym_vma = .;
+	__dynsym_lma = __dynsym_vma + __text_lma - __text_vma;
+	.dynsym : AT(__dynsym_lma) {
+		__dynsym_start = .;
+		*(.dynsym)
+		__dynsym_end = .;
+	}
+	__dynsym_len = __dynsym_end - __dynsym_start;
+
+	. = ALIGN(4);
+
+	__dynstr_vma = .;
+	__dynstr_lma = __dynstr_vma + __text_lma - __text_vma;
+	.dynstr : AT(__dynstr_lma) {
+		__dynstr_start = .;
+		*(.dynstr)
+		__dynstr_end = .;
+	}
+	__dynstr_len = __dynstr_end - __dynstr_start;
+
+	. = ALIGN(4);
+
+	__gnu_hash_vma = .;
+	__gnu_hash_lma = __gnu_hash_vma + __text_lma - __text_vma;
+	.gnu.hash : AT(__gnu_hash_lma) {
+		__gnu_hash_start = .;
+		*(.gnu.hash)
+		__gnu_hash_end = .;
+	}
+
+
+	. = ALIGN(4);
+
 	__dynlink_vma = .;
 	__dynlink_lma = __dynlink_vma + __text_lma - __text_vma;
 	.dynlink : AT(__dynlink_lma) {
@@ -316,6 +349,18 @@ SECTIONS
 		KEEP (*(.got))
 		__got_end = .;
 	}
+
+	. = ALIGN(4);
+
+	__dynamic_vma = .;
+	__dynamic_lma = __dynamic_vma + __text_lma - __text_vma;
+	.dynamic : AT(__dynamic_lma) {
+		__dynamic_start = .;
+		*(.dynamic)
+		__dynamic_end = .;
+	}
+
+	. = ALIGN(16);
 
 	__data_vma = .;
 	__data_lma = __data_vma + __text_lma - __text_vma;
