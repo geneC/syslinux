@@ -13,7 +13,7 @@ __free_block(struct free_arena_header *ah)
 {
     struct free_arena_header *pah, *nah;
     struct free_arena_header *head =
-	&__malloc_head[ARENA_HEAP_GET(ah->a.attrs)];
+	&__core_malloc_head[ARENA_HEAP_GET(ah->a.attrs)];
 
     pah = ah->a.prev;
     nah = ah->a.next;
@@ -93,7 +93,7 @@ void free(void *ptr)
 void __inject_free_block(struct free_arena_header *ah)
 {
     struct free_arena_header *head =
-	&__malloc_head[ARENA_HEAP_GET(ah->a.attrs)];
+	&__core_malloc_head[ARENA_HEAP_GET(ah->a.attrs)];
     struct free_arena_header *nah;
     size_t a_end = (size_t) ah + ARENA_SIZE_GET(ah->a.attrs);
     size_t n_end;
@@ -135,7 +135,7 @@ static void __free_tagged(malloc_tag_t tag) {
 
     for (i = 0; i < NHEAP; i++) {
 	dprintf("__free_tagged(%u) heap %d\n", tag, i);
-	head = &__malloc_head[i];
+	head = &__core_malloc_head[i];
 	for (fp = head ; fp != head ; fp = fp->a.next) {
 	    if (ARENA_TYPE_GET(fp->a.attrs) == ARENA_TYPE_USED &&
 		fp->a.tag == tag)

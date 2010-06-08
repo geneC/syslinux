@@ -3,7 +3,7 @@
 #include <string.h>
 #include "malloc.h"
 
-struct free_arena_header __malloc_head[NHEAP];
+struct free_arena_header __core_malloc_head[NHEAP];
 
 static __hugebss char main_heap[128 << 10];
 extern char __lowmem_heap[];
@@ -16,7 +16,7 @@ void mem_init(void)
 
     /* Initialize the head nodes */
 
-    fp = &__malloc_head[0];
+    fp = &__core_malloc_head[0];
     for (i = 0 ; i < NHEAP ; i++) {
 	fp->a.next = fp->a.prev = fp->next_free = fp->prev_free = fp;
 	fp->a.attrs = ARENA_TYPE_HEAD | (i << ARENA_HEAP_POS);

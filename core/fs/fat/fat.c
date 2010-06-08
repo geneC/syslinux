@@ -754,7 +754,7 @@ static int vfat_fs_init(struct fs_info *fs)
     /* XXX: Find better sanity checks... */
     if (!fat.bxResSectors || !fat.bxFATs)
 	return -1;
-    sbi = malloc(sizeof(*sbi));
+    sbi = hmalloc(sizeof(*sbi));
     if (!sbi)
 	malloc_error("fat_sb_info structure");
     fs->fs_info = sbi;

@@ -60,7 +60,7 @@ static void *__malloc_from_block(struct free_arena_header *fp,
 static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
 {
     struct free_arena_header *fp;
-    struct free_arena_header *head = &__malloc_head[heap];
+    struct free_arena_header *head = &__core_malloc_head[heap];
     void *p = NULL;
 
     dprintf("_malloc(%zu, %u, %u) @ %p = ",
@@ -83,7 +83,7 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     return p;
 }
 
-void *malloc(size_t size)
+void *hmalloc(size_t size)
 {
     return _malloc(size, HEAP_MAIN, MALLOC_CORE);
 }

@@ -78,5 +78,5 @@ struct free_arena_header {
     size_t _pad[2];		/* Pad to 2*sizeof(struct arena_header) */
 };
 
-extern struct free_arena_header __malloc_head[NHEAP];
+extern struct free_arena_header __core_malloc_head[NHEAP];
 void __inject_free_block(struct free_arena_header *ah);

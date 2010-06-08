@@ -250,7 +250,7 @@ int searchdir(const char *name)
 			total_len > MAX_SYMLINK_BUF)
 			goto err;
 
-		    linkbuf = malloc(total_len);
+		    linkbuf = hmalloc(total_len);
 		    if (!linkbuf)
 			goto err;
 
