@@ -49,8 +49,8 @@ ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
-LIB	 = libcore.a
-LIBS	 = $(LIB) $(com32)/lib/libcomcore.a $(LIBGCC)
+LIB	 = libcom32.a
+LIBS	 = $(LIB) $(com32)/lib/libcom32min.a $(LIBGCC)
 LIBOBJS	 = $(COBJ) $(SOBJ)
 
 NASMDEBUG = -g -F dwarf

@@ -15,12 +15,13 @@
 ; This file should be entered with the config file open (for getc)
 ;
 %if 1
-;on_error:
+on_error:
 no_config_file:
 enter_command:
 auto_boot:
 load_kernel:
 kernel_good_saved:
+kernel_corrupt:
 		pm_call hello
 		pm_call enter_cmdline		; Never return
 	

@@ -100,6 +100,9 @@ __extern int vsnprintf(char *, size_t n, const char *, va_list);
 __extern int asprintf(char **, const char *, ...);
 __extern int vasprintf(char **, const char *, va_list);
 
+#define mp(f, x...) \
+        printf("[%s()]: " f "\n", __func__,##x)
+
 /* No buffering, so no flushing needed */
 static __inline__ int fflush(FILE * __f)
 {
