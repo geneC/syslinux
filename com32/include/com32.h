@@ -120,7 +120,7 @@ extern const com32sys_t __com32_zero_regs;
 /*
  * Lowmem allocation functions
  */
-void *lmalloc(size_t);
+void *clmalloc(size_t);
 void *lzalloc(size_t);
 void lfree(void *);
 char *lstrdup(const char *);

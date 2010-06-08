@@ -125,6 +125,10 @@ LIBOTHER_OBJS = \
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o zalloc.o						\
 	\
+	lmalloc.o lstrdup.o						\
+	\
+	dprintf.o vdprintf.o						\
+	\
 	sys/readdir.o getcwd.o chdir.o fdopendir.o	\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
