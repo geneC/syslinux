@@ -82,11 +82,14 @@ typedef uint64_t u64;
 #define BTRFS_SUBVOL_OPT "subvol="
 #define BTRFS_SUBVOL_MAX 256	/* By btrfs specification */
 static char subvol[BTRFS_SUBVOL_MAX];
+
 /*
  * Boot block
  */
 extern unsigned char extlinux_bootsect[];
 extern unsigned int extlinux_bootsect_len;
+#undef  boot_block
+#undef  boot_block_len
 #define boot_block	extlinux_bootsect
 #define boot_block_len  extlinux_bootsect_len
 
@@ -95,6 +98,8 @@ extern unsigned int extlinux_bootsect_len;
  */
 extern unsigned char extlinux_image[];
 extern unsigned int extlinux_image_len;
+#undef  boot_image
+#undef  boot_image_len
 #define boot_image	extlinux_image
 #define boot_image_len  extlinux_image_len
 

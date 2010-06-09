@@ -21,6 +21,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "syslinux.h"
 #include "syslxint.h"
@@ -233,9 +234,9 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     uint32_t *wp;
     int nsect = (boot_image_len + 511) >> 9;
     uint32_t csum;
-    int i, dw, nptrs, rv;
+    int i, dw, nptrs;
     struct boot_sector *sbs = (struct boot_sector *)boot_sector;
-    int diroffset, dirlen;
+    size_t diroffset, dirlen;
 
     if (nsectors < nsect)
 	return -1;
