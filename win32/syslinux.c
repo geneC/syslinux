@@ -433,7 +433,7 @@ int main(int argc, char *argv[])
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    syslinux_patch(sectors, nsectors, stupid, raid_mode);
+    syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir);
 
     /*
      * Rewrite the file

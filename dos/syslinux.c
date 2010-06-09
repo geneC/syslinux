@@ -755,7 +755,7 @@ int main(int argc, char *argv[])
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
+    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /*

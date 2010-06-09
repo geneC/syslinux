@@ -708,7 +708,7 @@ static int vfat_load_config(void)
     com32sys_t regs;
     int i;
 
-    /* If installed by extlinux, try the extlinux filename */
+    /* If path filled by installer, then use that to load config*/
     if (*CurrentDirName && !generic_load_config())
 	return 0;
 

@@ -29,7 +29,7 @@ void syslinux_make_bootsect(void *bs)
 {
     struct boot_sector *bootsect = bs;
     const struct boot_sector *sbs =
-	(const struct boot_sector *)syslinux_bootsect;
+	(const struct boot_sector *)boot_sector;
 
     memcpy(&bootsect->bsHead, &sbs->bsHead, bsHeadLen);
     memcpy(&bootsect->bsCode, &sbs->bsCode, bsCodeLen);
@@ -227,14 +227,15 @@ static __noinline void set_32_sl(uint32_t * p, uint32_t v)
  * otherwise -1.
  */
 int syslinux_patch(const uint32_t * sectors, int nsectors,
-		   int stupid, int raid_mode)
+		   int stupid, int raid_mode, const char *subdir)
 {
     struct patch_area *patcharea;
     uint32_t *wp;
-    int nsect = (syslinux_ldlinux_len + 511) >> 9;
+    int nsect = (boot_image_len + 511) >> 9;
     uint32_t csum;
     int i, dw, nptrs, rv;
-    struct boot_sector *sbs = (struct boot_sector *)syslinux_bootsect;
+    struct boot_sector *sbs = (struct boot_sector *)boot_sector;
+    int diroffset, dirlen;
 
     if (nsectors < nsect)
 	return -1;
@@ -254,18 +255,29 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     set_32(&sbs->NextSector, *sectors++);
 
     /* Search for LDLINUX_MAGIC to find the patch area */
-    for (wp = (uint32_t *) syslinux_ldlinux; get_32_sl(wp) != LDLINUX_MAGIC;
+    for (wp = (uint32_t *)boot_image; get_32_sl(wp) != LDLINUX_MAGIC;
 	 wp++) ;
     patcharea = (struct patch_area *)wp;
 
     /* Set up the totals */
-    dw = syslinux_ldlinux_len >> 2;	/* COMPLETE dwords, excluding ADV */
+    dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
     set_16_sl(&patcharea->data_sectors, nsect);	/* Not including ADVs */
     set_16_sl(&patcharea->adv_sectors, 2);	/* ADVs need 2 sectors */
     set_32_sl(&patcharea->dwords, dw);
 
+    /* Poke in the base directory path */
+    if (subdir) {
+	diroffset = get_16(&patcharea->diroffset);
+	dirlen = get_16(&patcharea->dirlen);
+	if (dirlen <= strlen(subdir)) {
+	    fprintf(stderr, "Subdirectory path too long... aborting install!\n");
+	    exit(1);
+	}
+	memcpy((char *)boot_image + diroffset, subdir, strlen(subdir) + 1);
+    }
+
     /* Set the sector pointers */
-    wp = (uint32_t *) ((char *)syslinux_ldlinux +
+    wp = (uint32_t *) ((char *)boot_image +
 		       get_16_sl(&patcharea->secptroffset));
     nptrs = get_16_sl(&patcharea->secptrcnt);
 
@@ -277,16 +289,14 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     while (nptrs--)
 	set_32_sl(wp++, 0);
 
-    rv = (char *)wp - (char *)syslinux_ldlinux;
-
     /* Now produce a checksum */
     set_32_sl(&patcharea->checksum, 0);
 
     csum = LDLINUX_MAGIC;
-    for (i = 0, wp = (uint32_t *) syslinux_ldlinux; i < dw; i++, wp++)
+    for (i = 0, wp = (uint32_t *)boot_image; i < dw; i++, wp++)
 	csum -= get_32_sl(wp);	/* Negative checksum */
 
     set_32_sl(&patcharea->checksum, csum);
 
-    return rv;
+    return dw << 2;
 }
