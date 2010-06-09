@@ -20,7 +20,6 @@ static struct inode * new_fat_inode(struct fs_info *fs)
     return inode;
 }
 
-
 /*
  * Check for a particular sector in the FAT cache
  */
@@ -697,39 +696,6 @@ got:
     return 0;
 }
 
-/* Load the config file, return 1 if failed, or 0 */
-static int vfat_load_config(void)
-{
-    const char *search_directories[] = {
-	"/boot/syslinux", 
-	"/syslinux",
-	"/",
-	NULL
-    };
-    com32sys_t regs;
-    int i;
-
-    /* If path filled by installer, then use that to load config*/
-    if (*CurrentDirName && !generic_load_config())
-	return 0;
-
-    for (i = 0; search_directories[i]; i++) {
-	    memset(&regs, 0, sizeof regs);
-	    snprintf(ConfigName, FILENAME_MAX, "%s/syslinux.cfg",
-		     search_directories[i]);
-	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-	    call16(core_open, &regs, &regs);
-	    if (!(regs.eflags.l & EFLAGS_ZF))
-		break;
-    }
-    if (!search_directories[i])
-	return -1;
-
-    /* Set the current working directory */
-    chdir(search_directories[i]);
-    return 0;
-}
-
 /* init. the fs meta data, return the block size in bits */
 static int vfat_fs_init(struct fs_info *fs)
 {
@@ -803,7 +769,7 @@ const struct fs_ops vfat_fs_ops = {
     .getfssec      = generic_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = vfat_mangle_name,
-    .load_config   = vfat_load_config,
+    .load_config   = generic_load_config,
     .readdir       = vfat_readdir,
     .iget_root     = vfat_iget_root,
     .iget          = vfat_iget,
