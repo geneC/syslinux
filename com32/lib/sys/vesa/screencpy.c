@@ -30,6 +30,7 @@
 #include <klibc/compiler.h>
 #include <string.h>
 #include <com32.h>
+#include <ilog2.h>
 #include "vesa.h"
 #include "video.h"
 
@@ -40,12 +41,6 @@ static struct win_info {
     int win_gshift;
     int win_num;
 } wi;
-
-static inline int __constfunc ilog2(unsigned int x)
-{
-    asm("bsrl %1,%0" : "=r"(x) : "rm"(x));
-    return x;
-}
 
 void __vesacon_init_copy_to_screen(void)
 {

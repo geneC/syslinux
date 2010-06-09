@@ -6,6 +6,7 @@
 #include <core.h>
 #include <disk.h>
 #include <fs.h>
+#include <ilog2.h>
 #include <klibc/compiler.h>
 #include "codepage.h"
 #include "fat_fs.h"
@@ -729,12 +730,6 @@ static int vfat_load_config(void)
     return 0;
 }
 
-static inline __constfunc uint32_t bsr(uint32_t num)
-{
-    asm("bsrl %1,%0" : "=r" (num) : "rm" (num));
-    return num;
-}
-
 /* init. the fs meta data, return the block size in bits */
 static int vfat_fs_init(struct fs_info *fs)
 {
@@ -767,7 +762,7 @@ static int vfat_fs_init(struct fs_info *fs)
     sbi->root_size = root_dir_size(fs, &fat);
     sbi->data      = sbi->root + sbi->root_size;
 
-    sbi->clust_shift      = bsr(fat.bxSecPerClust);
+    sbi->clust_shift      = ilog2(fat.bxSecPerClust);
     sbi->clust_byte_shift = sbi->clust_shift + fs->sector_shift;
     sbi->clust_mask       = fat.bxSecPerClust - 1;
     sbi->clust_size       = fat.bxSecPerClust << fs->sector_shift;
