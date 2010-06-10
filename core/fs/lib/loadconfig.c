@@ -30,11 +30,15 @@ int generic_load_config(void)
 
     search_directories[0] = CurrentDirName;
 
+    dprintf("CurrentDirName: \"%s\"\n", CurrentDirName);
+
     for (i = *CurrentDirName ? 0 : 1; search_directories[i]; i++) {
+	const char *sd = search_directories[i];
 	for (j = 0; filenames[j]; j++) {
 	    memset(&regs, 0, sizeof regs);
-	    snprintf(ConfigName, FILENAME_MAX, "%s/%s",
-		     search_directories[i], filenames[j]);
+	    snprintf(ConfigName, FILENAME_MAX, "%s%s%s",
+		     sd, (*sd && sd[strlen(sd)-1] == '/') ? "" : "/",
+		     filenames[j]);
 	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
 	    dprintf("Config search: %s\n", ConfigName);
 	    call16(core_open, &regs, &regs);

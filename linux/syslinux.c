@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
     char mntname[128];
     char *ldlinux_name;
     char *ldlinux_path;
-    const char *subdir;
+    char *subdir;
     uint32_t *sectors = NULL;
     int ldlinux_sectors = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     const char *errmsg;
@@ -288,7 +288,12 @@ int main(int argc, char *argv[])
     umask(077);
     parse_options(argc, argv, MODE_SYSLINUX);
 
-    subdir = opt.directory;
+    asprintf(&subdir, "%s%s",
+	     opt.directory[0] == '/' ? "" : "/", opt.directory);
+    if (!subdir) {
+	perror(program);
+	exit(1);
+    }
 
     if (!opt.device)
 	usage(EX_USAGE, MODE_SYSLINUX);
