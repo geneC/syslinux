@@ -61,7 +61,7 @@ const struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-const char short_options[] = "tfid:UuzS:H:rvho:OM:";
+const char short_options[] = "t:fid:UuzS:H:rvho:OM:";
 
 void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 {
@@ -70,7 +70,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	/* For unmounted fs installation (syslinux) */
 	fprintf(stderr,
 	    "Usage: %s [options] device\n"
-	    "  --offset     -t Offset of the file system on the device \n"
+	    "  --offset     -t  Offset of the file system on the device \n"
 	    "  --directory  -d  Directory for installation target\n",
 	    program);
 	break;
@@ -159,7 +159,7 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	    break;
 	case 'o':
 	    if (mode == MODE_SYSLINUX) {
-		fprintf(stderr,	"Warning: -o will change meaning in a future version, use -t or --offset\n");
+		fprintf(stderr,	"%s: -o will change meaning in a future version, use -t or --offset\n", program);
 		goto opt_offset;
 	    }
 	    /* else fall through */
@@ -167,8 +167,9 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	    opt.set_once = optarg;
 	    break;
 	case 't':
-opt_offset:
+	opt_offset:
 	    opt.offset = strtoul(optarg, NULL, 0);
+	    break;
 	case 'O':
 	    opt.set_once = "";
 	    break;
@@ -181,16 +182,26 @@ opt_offset:
 	    opt.menu_save = optarg;
 	    break;
 	case 'v':
-	    fputs(program, stderr);
-	    fputs(" " VERSION_STR
-		  "  Copyright 1994-" YEAR_STR " H. Peter Anvin \n", stderr);
+	    fprintf(stderr,
+		    "%s " VERSION_STR "  Copyright 1994-" YEAR_STR
+		    " H. Peter Anvin et al\n", program);
 	    exit(0);
 	default:
+	    fprintf(stderr, "%s: Unknown option: -%c\n", program, optopt);
 	    usage(EX_USAGE, mode);
 	}
     }
-    if (mode)
-	opt.device = argv[optind];
-    else if (!opt.directory)
-	opt.directory = argv[optind];
+
+    switch (mode) {
+    case MODE_SYSLINUX:
+	opt.device = argv[optind++];
+	break;
+    case MODE_EXTLINUX:
+	if (!opt.directory)
+	    opt.directory = argv[optind++];
+	break;
+    }
+
+    if (argv[optind])
+	usage(EX_USAGE, mode);	/* Excess arguments */
 }

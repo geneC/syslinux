@@ -399,8 +399,10 @@ int main(int argc, char *argv[])
 	    sync();
 	    rmdir(mntpath);
 	    exit(0);
-	} else
-	    usage(EX_USAGE, MODE_SYSLINUX);
+	} else {
+	    fprintf(stderr, "%s: please specify --install or --update for the future\n", argv[0]);
+	    opt.update_only = 0;
+	}
     }
 
     /* Read a pre-existing ADV, if already installed */
