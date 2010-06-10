@@ -183,8 +183,8 @@ int read_adv(const char *path, const char *cfg)
     struct stat st;
     int err = 0;
 
-    err = asprintf(&file, "%s%s%s",
-	path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/", cfg);
+    asprintf(&file, "%s%s%s",
+	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/", cfg);
 
     if (!file) {
 	perror(program);
@@ -217,8 +217,8 @@ int read_adv(const char *path, const char *cfg)
 
     if (fd >= 0)
 	close(fd);
-    if (file)
-	free(file);
+
+    free(file);
 
     return err;
 }
