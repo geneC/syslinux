@@ -286,12 +286,12 @@ int main(int argc, char *argv[])
 
     mypid = getpid();
     umask(077);
-    parse_options(argc, argv, 1);
+    parse_options(argc, argv, MODE_SYSLINUX);
 
     subdir = opt.directory;
 
     if (!opt.device)
-	usage(EX_USAGE, 1);
+	usage(EX_USAGE, MODE_SYSLINUX);
 
     /*
      * First make sure we can open the device at all, and that we have
@@ -400,7 +400,7 @@ int main(int argc, char *argv[])
 	    rmdir(mntpath);
 	    exit(0);
 	} else
-	    usage(EX_USAGE, 0);
+	    usage(EX_USAGE, MODE_SYSLINUX);
     }
 
     /* Read a pre-existing ADV, if already installed */

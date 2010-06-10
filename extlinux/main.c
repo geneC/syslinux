@@ -883,7 +883,7 @@ int modify_existing_adv(const char *path)
 
 int main(int argc, char *argv[])
 {
-    parse_options(argc, argv, 0);
+    parse_options(argc, argv, MODE_EXTLINUX);
 
     if (!opt.directory)
 	usage(EX_USAGE, 0);
@@ -892,7 +892,7 @@ int main(int argc, char *argv[])
 	if (opt.reset_adv || opt.set_once || opt.menu_save)
 	    return modify_existing_adv(opt.directory);
 	else
-	    usage(EX_USAGE, 0);
+	    usage(EX_USAGE, MODE_EXTLINUX);
     }
 
     return install_loader(opt.directory, opt.update_only);
