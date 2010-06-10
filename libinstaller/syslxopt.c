@@ -175,6 +175,7 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	    break;
 	case 'd':
 	    opt.directory = optarg;
+	    break;
 	case OPT_RESET_ADV:
 	    opt.reset_adv = 1;
 	    break;
