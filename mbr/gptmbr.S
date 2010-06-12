@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -190,7 +190,7 @@ found_part:
 	call	saturate_stosl		/* Partition start */
 
 	movl	40(%si),%eax
-	movl	48(%si),%edx
+	movl	44(%si),%edx
 	subl	32(%si),%eax
 	sbbl	36(%si),%edx
 	call	inc64
