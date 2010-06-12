@@ -3,6 +3,7 @@
 
 #include "core.h"
 
+/*
 int printf(const char *format, ...)
 {
     char buf[1024];
@@ -18,3 +19,4 @@ int printf(const char *format, ...)
     return rv;
 
 }
+*/

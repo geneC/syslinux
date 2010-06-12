@@ -47,6 +47,7 @@ common_init:
 ; Now set up screen parameters
 ;
 		call adjust_screen
+		pm_call printf_init
 
 ;
 ; CPU-dependent initialization and related checks.
