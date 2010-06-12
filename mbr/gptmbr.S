@@ -222,15 +222,20 @@ boot:
 	cli
 	jmpw	*%sp		/* %sp == bootsec */
 
+/*
+ * Store the value in %eax to %di iff %edx == 0, otherwise store -1.
+ * Returns the value that was actually written in %eax.
+ */
 saturate_stosl:
-	pushl	%eax
 	andl	%edx,%edx
 	jz 1f
 	orl	$-1,%eax
 1:	stosl
-	popl	%eax
 	ret
 
+/*
+ * Increment %edx:%eax
+ */
 inc64:
 	addl	$1,%eax
 	adcl	$0,%edx
