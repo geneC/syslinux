@@ -40,8 +40,6 @@ phdr		= stack		/* Above the stack, overwritten by bootsect */
 /* To handle > 32K we need to play segment tricks... */
 psec		= _phdr + 512
 
-/* BootGUID */
-bootguid	= _start + 0x1a8
 /* Where we put DS:SI */
 dssi_out	= _start + 0x1be
 
@@ -148,24 +146,31 @@ get_ptab:
 	loopw	get_ptab
 
 	/* Find the boot partition */
-	popw	%si			/* Partition table in memory */
+	xorw	%si,%si			/* Nothing found yet */
+	popw	%di			/* Partition table in memory */
 	popw	%cx			/* NumberOfPartitionEntries */
 	popw	%ax			/* SizeOfPartitionEntry */
+
 find_part:
-	pushw	%cx
-	pushw	%si
-	addw	$16,%si
-	movw	$bootguid,%di
-	movw	$8,%cx
-	repe; cmpsw
-	popw	%si
-	popw	%cx
-	je found_part
-	addw	%ax,%si
+	testb	$0x04,48(%di)
+	jz	not_this
+	andw	%si,%si
+	jnz	found_multiple
+	movw	%di,%si
+not_this:
+	addw	%ax,%di
 	loopw	find_part
 
+	andw	%si,%si
+	jnz	found_part
+
+missing_os:
 	call	error
-	.ascii	"Boot partition not found\r\n"
+	.ascii	"Missing OS\r\n"
+
+found_multiple:
+	call	error
+	.ascii	"Multiple active partitions\r\n"
 
 found_part:
 	xchgw	%ax,%cx		/* Set up %cx for rep movsb further down */
@@ -191,6 +196,9 @@ found_part:
 	call	inc64
 	call	saturate_stosl		/* Partition length */
 
+	movzwl	%cx,%eax		/* Length of GPT entry */
+	stosl
+	
 	rep; movsb			/* GPT entry follows MBR entry */
 	popw	%si
 
@@ -200,8 +208,8 @@ found_part:
  * is phdr == 0x7c00 == the address of the boot sector.
  */
 boot:
-	movl	(32+16)(%si),%eax
-	movl	(36+16)(%si),%edx
+	movl	(32+20)(%si),%eax
+	movl	(36+20)(%si),%edx
 	popw	%bx
 	call	read_sector
 	cmpw	$0xaa55, -2(%bx)
@@ -213,10 +221,6 @@ boot:
 	movl	$0x54504721,%eax /* !GPT magic number */
 	cli
 	jmpw	*%sp		/* %sp == bootsec */
-
-missing_os:
-	call	error
-	.ascii	"OS not bootable\r\n"
 
 saturate_stosl:
 	pushl	%eax

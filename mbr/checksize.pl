@@ -26,7 +26,7 @@ if (!defined($maxsize)) {
     if ($file =~ /^mbr[^0-9a-z]/) {
 	$maxsize = $padsize = 440;
     } elsif ($file =~ /^gptmbr[^0-9a-z]/) {
-	$maxsize = $padsize = 424;
+	$maxsize = $padsize = 440;
     } elsif ($file =~ /^isohdp[fp]x[^0-9a-z]/) {
 	$maxsize = $padsize = 432;
     } elsif ($file =~ /^altmbr[^0-9a-z]/) {
