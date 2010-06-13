@@ -199,6 +199,12 @@ int main(int argc, char **argv)
     gfx_config.boot_drive = 0;
   }
 
+  gfx_config.media_type = gfx_config.boot_drive < 0x80 ? 1 : 0;
+
+  if(sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
+    gfx_config.media_type = sdi->iso.cd_mode ? 0 : 2;
+  }
+
   gfx_config.bootloader = 1;
   gfx_config.sysconfig_size = sizeof gfx_config;
   gfx_config.bootloader_seg = 0;	// apparently not needed
