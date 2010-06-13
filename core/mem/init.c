@@ -3,6 +3,8 @@
 #include <string.h>
 #include "malloc.h"
 
+#include <stdio.h>
+
 struct free_arena_header __core_malloc_head[NHEAP];
 
 static __hugebss char main_heap[128 << 10];
@@ -29,6 +31,7 @@ void mem_init(void)
     ARENA_SIZE_SET(fp->a.attrs, sizeof main_heap);
     __inject_free_block(fp);
 
+	//mp("__lowmem_heap = 0x%p bios_free = 0x%p", __lowmem_heap, *bios_free_mem);
     /* Initialize the lowmem heap */
     fp = (struct free_arena_header *)__lowmem_heap;
     fp->a.attrs = ARENA_TYPE_USED | (HEAP_LOWMEM << ARENA_HEAP_POS);

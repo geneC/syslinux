@@ -101,7 +101,7 @@ void __inject_free_block(struct free_arena_header *ah)
     size_t n_end;
 
     //dprintf("inject: %#zx bytes @ %p, heap %u (%p)\n",
-    mp("inject: %#zx bytes @ %p, heap %u (%p)",
+    printf("inject: %#zx bytes @%p, heap%u (%p)\n",
 	    ARENA_SIZE_GET(ah->a.attrs), ah,
 	    ARENA_HEAP_GET(ah->a.attrs), head);
 
@@ -115,6 +115,8 @@ void __inject_free_block(struct free_arena_header *ah)
         /* Is this block entirely beyond nah? */
         if ((size_t) ah >= n_end)
             continue;
+
+	printf("conflict:ah: %p, a_end: %p, nah: %p, n_end: %p\n", ah, a_end, nah, n_end);
 
         /* Otherwise we have some sort of overlap - reject this block */
         return;

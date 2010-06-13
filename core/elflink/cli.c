@@ -85,7 +85,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	if (getscreensize(1, &height, &width))
 	    width = 80;
     }
-    printf("width = %d\n", width);
 
     strncpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';

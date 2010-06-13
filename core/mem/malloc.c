@@ -10,6 +10,8 @@
 #include <dprintf.h>
 #include "malloc.h"
 
+#include <stdio.h>
+
 static void *__malloc_from_block(struct free_arena_header *fp,
 				 size_t size, malloc_tag_t tag)
 {
@@ -63,6 +65,7 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     struct free_arena_header *head = &__core_malloc_head[heap];
     void *p = NULL;
 
+    //mp("_malloc(%zu, %u, %u) @ %p = ",
     dprintf("_malloc(%zu, %u, %u) @ %p = ",
 	    size, heap, tag, __builtin_return_address(0));
 
@@ -79,11 +82,17 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
         }
     }
 
-    dprintf("%p\n", p);
+    //dprintf("%p\n", p);
+    //printf("%p\n", p);
     return p;
 }
 
 void *hmalloc(size_t size)
+{
+    return _malloc(size, HEAP_MAIN, MALLOC_CORE);
+}
+
+void *malloc(size_t size)
 {
     return _malloc(size, HEAP_MAIN, MALLOC_CORE);
 }

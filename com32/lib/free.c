@@ -98,6 +98,7 @@ void __inject_free_block(struct free_arena_header *ah)
     __free_block(ah);
 }
 
+#if 0
 void free(void *ptr)
 {
     struct free_arena_header *ah;
@@ -121,3 +122,4 @@ void free(void *ptr)
 
     /* Here we could insert code to return memory to the system. */
 }
+#endif

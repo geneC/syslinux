@@ -220,7 +220,7 @@ int searchdir(const char *name)
     if (!pathbuf)
 	goto err;
 
-	mp("parent->ino = %d", parent->ino);
+	//mp("parent->ino = %d", parent->ino);
 
     do {
     got_link:
@@ -338,7 +338,7 @@ int open_file(const char *name, struct com32_filedata *filedata)
     mangle_name(mangled_name, name);
     rv = searchdir(mangled_name);
 
-    mp("name = %s, rv = %d", name, rv);
+    //mp("name = %s, rv = %d", name, rv);
 
     if (rv >= 0) {
 	file = handle_to_file(rv);

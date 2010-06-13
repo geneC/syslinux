@@ -139,6 +139,7 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
     return (void *)(&fp->a + 1);
 }
 
+#if 0
 void *malloc(size_t size)
 {
     struct free_arena_header *fp;
@@ -166,6 +167,7 @@ void *malloc(size_t size)
     mp("will return 0x%p", buf);
     return buf;
 }
+#endif
 
 /* need to revisit this later */
 int posix_memalign(void **memptr, size_t align, size_t size)
