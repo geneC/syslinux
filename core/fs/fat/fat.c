@@ -276,26 +276,32 @@ static void mangle_dos_name(char *mangle_buf, const char *src)
     int i;
     unsigned char c;
 
-    i = 0;
-    while (i < 11) {
-	c = *src++;
-
+    if (src[0] == '.' && (!src[1] || (src[1] == '.' && !src[2]))) {
+	/* . and .. mangle to their respective zero-padded version */
+	i = stpcpy(mangle_buf, src) - mangle_buf;
+    } else {
+	i = 0;
+	while (i < 11) {
+	    c = *src++;
+	    
 	if ((c <= ' ') || (c == '/'))
 	    break;
-
+	
 	if (c == '.') {
 	    while (i < 8)
 		mangle_buf[i++] = ' ';
 	    i = 8;
 	    continue;
 	}
-
+	
 	c = codepage.upper[c];
 	if (i == 0 && c == 0xe5)
 	    c = 0x05;		/* Special hack for the first byte only! */
-
+	
 	mangle_buf[i++] = c;
+	}
     }
+
     while (i < 11)
 	mangle_buf[i++] = ' ';
 
@@ -408,7 +414,10 @@ static inline sector_t first_sector(struct fs_info *fs,
     sector_t sector;
 
     first_clust = (dir->first_cluster_high << 16) + dir->first_cluster_low;
-    sector = ((first_clust - 2) << sbi->clust_shift) + sbi->data;
+    if (first_clust == 0)
+	sector = sbi->root;	/* first_clust == 0 means root directory */
+    else
+	sector = ((first_clust - 2) << sbi->clust_shift) + sbi->data;
 
     return sector;
 }
@@ -533,7 +542,16 @@ found:
     inode->size = de->file_size;
     PVT(inode)->start_cluster = 
 	(de->first_cluster_high << 16) + de->first_cluster_low;
-    PVT(inode)->start = PVT(inode)->here = first_sector(fs, de);
+    if (PVT(inode)->start_cluster == 0) {
+	/* Root directory */
+	int root_size = FAT_SB(fs)->root_size;
+
+	PVT(inode)->start_cluster = FAT_SB(fs)->root_cluster;
+	inode->size = root_size ? root_size << fs->sector_shift : ~0;
+	PVT(inode)->start = PVT(inode)->here = FAT_SB(fs)->root;
+    } else {
+	PVT(inode)->start = PVT(inode)->here = first_sector(fs, de);
+    }
     inode->mode = get_inode_mode(de->attr);
 
     return inode;
