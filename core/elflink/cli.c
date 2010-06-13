@@ -21,6 +21,7 @@
 
 void clear_screen(void)
 {
+	mp("enter");
     fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
 }
 
@@ -30,6 +31,7 @@ int mygetkey(clock_t timeout)
     clock_t tto, to;
     int key;
 
+	//mp("enter");
     if (!totaltimeout)
 	return get_key(stdin, timeout);
 
@@ -46,12 +48,16 @@ int mygetkey(clock_t timeout)
 
 	totaltimeout -= t;
 
-	if (key != KEY_NONE)
+	if (key != KEY_NONE) {
+		//mp("get key 0x%x", key);
 	    return key;
+	}
 
 	if (timeout) {
-	    if (timeout <= t)
+	    if (timeout <= t) {
+		//mp("timeout");
 		return KEY_NONE;
+		}
 
 	    timeout -= t;
 	}
@@ -79,7 +85,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	if (getscreensize(1, &height, &width))
 	    width = 80;
     }
-    //printf("width = %d\n", width);
+    printf("width = %d\n", width);
 
     strncpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';

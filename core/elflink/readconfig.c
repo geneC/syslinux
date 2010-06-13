@@ -1109,6 +1109,7 @@ void parse_configs(char **argv)
     struct menu *m;
     struct menu_entry *me;
     char *cmdline;
+    mp("enter");
 
     empty_string = refstrdup("");
 

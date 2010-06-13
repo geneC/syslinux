@@ -12,6 +12,8 @@
 #include "init.h"
 #include "malloc.h"
 
+#include <stdio.h>
+
 struct free_arena_header __malloc_head = {
     {
      ARENA_TYPE_HEAD,
@@ -59,6 +61,7 @@ static int consider_memory_area(void *dummy, addr_t start,
 	    if (len >= 2 * sizeof(struct arena_header)) {
 		fp = (struct free_arena_header *)start;
 		fp->a.size = len;
+		mp("will inject a block with size %d", len);
 		__inject_free_block(fp);
 	    }
 	}
@@ -71,6 +74,8 @@ static void __constructor init_memory_arena(void)
 {
     struct free_arena_header *fp;
     size_t start, total_space;
+
+    mp("enter");
 
     start = (size_t) ARENA_ALIGN_UP(__mem_end);
     total_space = sp() - start;
@@ -137,6 +142,9 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
 void *malloc(size_t size)
 {
     struct free_arena_header *fp;
+    char *buf = NULL;
+
+    mp("enter, size = %d", size);
 
     if (size == 0)
 	return NULL;
@@ -148,12 +156,15 @@ void *malloc(size_t size)
 	fp = fp->next_free) {
 	if (fp->a.size >= size) {
 	    /* Found fit -- allocate out of this block */
-	    return __malloc_from_block(fp, size);
+	    //return __malloc_from_block(fp, size);
+	    buf = __malloc_from_block(fp, size);
 	}
     }
 
     /* Nothing found... need to request a block from the kernel */
-    return NULL;		/* No kernel to get stuff from */
+    //return NULL;		/* No kernel to get stuff from */
+    mp("will return 0x%p", buf);
+    return buf;
 }
 
 /* need to revisit this later */

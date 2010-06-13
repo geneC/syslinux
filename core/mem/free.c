@@ -8,6 +8,8 @@
 #include <dprintf.h>
 #include "malloc.h"
 
+#include <stdio.h>
+
 static struct free_arena_header *
 __free_block(struct free_arena_header *ah)
 {
@@ -98,7 +100,8 @@ void __inject_free_block(struct free_arena_header *ah)
     size_t a_end = (size_t) ah + ARENA_SIZE_GET(ah->a.attrs);
     size_t n_end;
 
-    dprintf("inject: %#zx bytes @ %p, heap %u (%p)\n",
+    //dprintf("inject: %#zx bytes @ %p, heap %u (%p)\n",
+    mp("inject: %#zx bytes @ %p, heap %u (%p)",
 	    ARENA_SIZE_GET(ah->a.attrs), ah,
 	    ARENA_HEAP_GET(ah->a.attrs), head);
 

@@ -193,13 +193,18 @@ int searchdir(const char *name)
     char *part, *p, echar;
     int symlink_count = MAX_SYMLINK_CNT;
 
+//   mp("enter: name = %s", name);
+
     if (!(file = alloc_file()))
 	goto err_no_close;
+//	mp("111");
     file->fs = this_fs;
 
     /* if we have ->searchdir method, call it */
     if (file->fs->fs_ops->searchdir) {
 	file->fs->fs_ops->searchdir(name, file);
+
+//	mp("this fs has searchdir(), inode = %d",file->inode);
 
 	if (file->inode)
 	    return file_to_handle(file);
@@ -210,9 +215,12 @@ int searchdir(const char *name)
     /* else, try the generic-path-lookup method */
 
     parent = get_inode(this_fs->cwd);
+//	mp("222");
     p = pathbuf = strdup(name);
     if (!pathbuf)
 	goto err;
+
+	mp("parent->ino = %d", parent->ino);
 
     do {
     got_link:
@@ -329,6 +337,8 @@ int open_file(const char *name, struct com32_filedata *filedata)
 
     mangle_name(mangled_name, name);
     rv = searchdir(mangled_name);
+
+    mp("name = %s, rv = %d", name, rv);
 
     if (rv >= 0) {
 	file = handle_to_file(rv);

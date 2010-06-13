@@ -92,7 +92,9 @@ void start_ui(char *config_file)
 	char *cmdline;
 	char *argv[2] = {config_file, NULL};
 
-	parse_configs(argv);
+	mp("enter, config file = %s", config_file);
+
+	//parse_configs(argv);
 	/* run the default menu if found */
 	/*
 	if (default_menu) {
@@ -117,11 +119,11 @@ void start_ui(char *config_file)
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32(com32sys_t * regs)
 {
+	printf("Starting 32 bit elf module subsystem...\n");
 	call_constr();
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 	INIT_LIST_HEAD(&cli_history_head);
 
-	printf("Starting 32 bit elf module subsystem...\n");
 	init_module_subsystem(&core_module);
 
 	start_ui(NULL);

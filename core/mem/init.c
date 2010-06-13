@@ -15,7 +15,6 @@ void mem_init(void)
     uint16_t *bios_free_mem = (uint16_t *)0x413;
 
     /* Initialize the head nodes */
-
     fp = &__core_malloc_head[0];
     for (i = 0 ; i < NHEAP ; i++) {
 	fp->a.next = fp->a.prev = fp->next_free = fp->prev_free = fp;

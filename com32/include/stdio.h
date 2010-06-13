@@ -102,6 +102,8 @@ __extern int vasprintf(char **, const char *, va_list);
 
 #define mp(f, x...) \
         printf("[%s()]: " f "\n", __func__,##x)
+#define mpi()	mp("enter")
+#define mpo()	mp("exit")
 
 /* No buffering, so no flushing needed */
 static __inline__ int fflush(FILE * __f)

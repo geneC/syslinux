@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include "malloc.h"
 
+#include <stdio.h>
+
 static struct free_arena_header *__free_block(struct free_arena_header *ah)
 {
     struct free_arena_header *pah, *nah;
@@ -67,6 +69,9 @@ void __inject_free_block(struct free_arena_header *ah)
     struct free_arena_header *nah;
     size_t a_end = (size_t) ah + ah->a.size;
     size_t n_end;
+
+    mp("size = %d, type = 0x%x, end = 0x%x",
+	ah->a.size, ah->a.type, a_end);
 
     for (nah = __malloc_head.a.next; nah->a.type != ARENA_TYPE_HEAD;
 	 nah = nah->a.next) {
