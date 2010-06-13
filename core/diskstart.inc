@@ -747,4 +747,5 @@ expand_super:
 		mov di,[bsSecPerTrack]
 		movzx ebp,word [MaxTransfer]
 		pm_call fs_init
+		pm_call load_env32
 		popad
