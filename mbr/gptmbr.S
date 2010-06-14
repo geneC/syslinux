@@ -183,7 +183,7 @@ found_part:
 	xorl	%eax,%eax
 	movb	$0x80,%al
 	stosl
-	movb	$0xee,%al
+	movb	$0xed,%al
 	stosl
 	movl	32(%si),%eax
 	movl	36(%si),%edx
