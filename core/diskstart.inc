@@ -367,7 +367,8 @@ kaboom:
 					; NB: replaced by int 18h if
 					; chosen at install time..
 		int 19h			; And try once more to boot...
-.norge:		jmp short .norge	; If int 19h returned; this is the end
+.norge:		hlt			; If int 19h returned; this is the end
+		jmp short .norge
 
 ;
 ;
