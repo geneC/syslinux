@@ -314,9 +314,6 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 
     /* First sector need pointer in boot sector */
     set_32(&bs->NextSector, *sectp++);
-    /* Stupid mode? */
-    if (opt.stupid_mode)
-	set_16(&bs->MaxTransfer, 1);
 
     /* Search for LDLINUX_MAGIC to find the patch area */
     for (wp = (uint32_t *) boot_image; get_32(wp) != LDLINUX_MAGIC; wp++) ;
@@ -327,6 +324,10 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     set_16(&patcharea->data_sectors, nsect - 2);	/* -2 for the ADVs */
     set_16(&patcharea->adv_sectors, 2);
     set_32(&patcharea->dwords, dw);
+
+    /* Stupid mode? */
+    if (opt.stupid_mode)
+	set_16(&patcharea->maxtransfer, 1);
 
     /* Set the sector pointers */
     secptroffset = get_16(&patcharea->secptroffset);

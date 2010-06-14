@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -241,12 +241,7 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     if (nsectors < nsect)
 	return -1;
 
-    /* Patch in options, as appropriate */
-    if (stupid) {
-	/* Access only one sector at a time */
-	set_16(&sbs->MaxTransfer, 1);
-    }
-
+    /* Handle RAID mode, write proper bsSignature */
     i = get_16(&sbs->bsSignature);
     if (raid_mode)
 	set_16((uint16_t *) ((char *)sbs + i), 0x18CD);	/* INT 18h */
@@ -275,6 +270,12 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
 	    exit(1);
 	}
 	memcpy((char *)boot_image + diroffset, subdir, strlen(subdir) + 1);
+    }
+
+    /* Handle Stupid mode */
+    if (stupid) {
+	/* Access only one sector at a time */
+	set_16(&patcharea->maxtransfer, 1);
     }
 
     /* Set the sector pointers */

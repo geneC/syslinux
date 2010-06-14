@@ -87,6 +87,7 @@ struct patch_area {
     uint16_t adv_sectors;
     uint32_t dwords;
     uint32_t checksum;
+    uint16_t maxtransfer;
     uint16_t diroffset;
     uint16_t dirlen;
     uint16_t subvoloffset;
@@ -120,7 +121,7 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[442];
+	    uint8_t Code[444];
 	} __attribute__ ((packed)) bs16;
 	struct {
 	    uint32_t FATSz32;
@@ -136,12 +137,11 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[414];
+	    uint8_t Code[416];
 	} __attribute__ ((packed)) bs32;
     } __attribute__ ((packed));
 
     uint32_t NextSector;	/* Pointer to the first unused sector */
-    uint16_t MaxTransfer;	/* Max sectors per transfer */
     uint16_t bsSignature;
 } __attribute__ ((packed));
 
