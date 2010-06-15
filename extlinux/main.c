@@ -222,7 +222,6 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
 	if (len) {
 	    set_64(&ex->lba, lba);
 	    set_16(&ex->len, len);
-	    printf("EXTENT: %11lu / %5u\n", lba, len);
 	    ex++;
 	}
 
@@ -238,7 +237,6 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
     if (len) {
 	set_64(&ex->lba, lba);
 	set_16(&ex->len, len);
-	printf("EXTENT: %11lu / %5u\n", lba, len);
 	ex++;
     }
 }
