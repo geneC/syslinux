@@ -200,7 +200,8 @@ static MDISKCHK_FUNC_DECL(show_usage)
 	   "Action: --safe-hooks . . Will scan INT 13h \"safe hook\" chain\n"
 	   "        --mbfts . . . .  Will scan memory for MEMDISK mBFTs\n"
 	   "        --batch-output . Will output SET command output based\n"
-	   "                         on MEMDISK kernel arguments\n");
+	   "                         on MEMDISK kernel arguments\n"
+	   "        --no-sequential  Suppresses probing all drive numbers\n");
 }
 
 /* Search memory for mBFTs and report them via the output method */
@@ -297,6 +298,7 @@ int main(int argc, char *argv[])
 {
     int d;
     int found = 0;
+    int sequential_scan = 1;	/* Classic behaviour */
     const struct memdiskinfo *m;
 
     /* Default behaviour */
@@ -331,6 +333,10 @@ int main(int argc, char *argv[])
 	    case 'b':
 		show_memdisk = batch_output;
 		break;
+	    case 'N':
+	    case 'n':
+		sequential_scan = 0;
+		break;
 	    default:
 		usage = show_usage;
 	} /* switch */
@@ -338,6 +344,8 @@ int main(int argc, char *argv[])
 
     safe_hooks();
     mbfts();
+    if (!sequential_scan)
+	goto skip_sequential;
     for (d = 0; d <= 0xff; d++) {
 	m = query_memdisk(d);
 	if (m != NULL) {
@@ -345,6 +353,7 @@ int main(int argc, char *argv[])
 	    show_memdisk(d, m);
 	}
     }
+skip_sequential:
     usage();
 
     return found;
