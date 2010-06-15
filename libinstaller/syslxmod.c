@@ -161,7 +161,7 @@ static __noinline uint8_t get_8_sl(const uint8_t * p)
     uint8_t v;
 
     p = set_fs(p);
-    asm volatile ("movb %%fs:%1,%0":"=q" (v):"m"(*p));
+    asm volatile("movb %%fs:%1,%0":"=q" (v):"m"(*p));
     return v;
 }
 #endif
@@ -171,7 +171,7 @@ static __noinline uint16_t get_16_sl(const uint16_t * p)
     uint16_t v;
 
     p = set_fs(p);
-    asm volatile ("movw %%fs:%1,%0":"=r" (v):"m"(*p));
+    asm volatile("movw %%fs:%1,%0":"=r" (v):"m"(*p));
     return v;
 }
 
@@ -180,28 +180,50 @@ static __noinline uint32_t get_32_sl(const uint32_t * p)
     uint32_t v;
 
     p = set_fs(p);
-    asm volatile ("movl %%fs:%1,%0":"=r" (v):"m"(*p));
+    asm volatile("movl %%fs:%1,%0":"=r" (v):"m"(*p));
     return v;
 }
+
+#if 0				/* unused */
+static __noinline uint64_t get_64_sl(const uint64_t * p)
+{
+    uint32_t v0, v1;
+    const uint32_t *pp = (const uint32_t *)p;
+
+    p = set_fs(p);
+    asm volatile("movl %%fs:%1,%0" : "=r" (v0) : "m" (pp[0]));
+    asm volatile("movl %%fs:%1,%0" : "=r" (v1) : "m" (pp[1]));
+    return v0 + ((uint64_t)v1 << 32);
+}
+#endif
 
 #if 0				/* unused */
 static __noinline void set_8_sl(uint8_t * p, uint8_t v)
 {
     p = set_fs(p);
-    asm volatile ("movb %1,%%fs:%0":"=m" (*p):"qi"(v));
+    asm volatile("movb %1,%%fs:%0":"=m" (*p):"qi"(v));
 }
 #endif
 
 static __noinline void set_16_sl(uint16_t * p, uint16_t v)
 {
     p = set_fs(p);
-    asm volatile ("movw %1,%%fs:%0":"=m" (*p):"ri"(v));
+    asm volatile("movw %1,%%fs:%0":"=m" (*p):"ri"(v));
 }
 
 static __noinline void set_32_sl(uint32_t * p, uint32_t v)
 {
     p = set_fs(p);
-    asm volatile ("movl %1,%%fs:%0":"=m" (*p):"ri"(v));
+    asm volatile("movl %1,%%fs:%0":"=m" (*p):"ri"(v));
+}
+
+static __noinline void set_64_sl(uint64_t * p, uint64_t v)
+{
+    uint32_t *pp = (uint32_t *)p;
+
+    p = set_fs(p);
+    asm volatile("movl %1,%%fs:%0" : "=m" (pp[0]) : "ri"((uint32_t)v));
+    asm volatile("movl %1,%%fs:%0" : "=m" (pp[1]) : "ri"((uint32_t)(v >> 32)));
 }
 
 #else
@@ -210,11 +232,61 @@ static __noinline void set_32_sl(uint32_t * p, uint32_t v)
 #define get_8_sl(x)    get_8(x)
 #define get_16_sl(x)   get_16(x)
 #define get_32_sl(x)   get_32(x)
+#define get_64_sl(x)   get_64(x)
 #define set_8_sl(x,y)  set_8(x,y)
 #define set_16_sl(x,y) set_16(x,y)
 #define set_32_sl(x,y) set_32(x,y)
+#define set_64_sl(x,y) set_64(x,y)
 
 #endif
+
+/*
+ * Generate sector extents
+ */
+static void generate_extents(struct syslinux_extent *ex, int nptrs,
+			     const sector_t *sectp, int nsect)
+{
+    struct syslinux_extent thisex;
+    uint32_t addr = 0x7c00 + 2*SECTOR_SIZE;
+    uint32_t base;
+    sector_t sect;
+
+    thisex.len = base = 0;
+
+    memset(ex, 0, nptrs * sizeof *ex);
+
+    while (nsect) {
+	sect = *sectp++;
+
+	if (thisex.len &&
+	    sect == thisex.lba + thisex.len &&
+	    ((addr ^ (base + thisex.len * SECTOR_SIZE)) & 0xffff0000) == 0) {
+	    /* We can add to the current extent */
+	    thisex.len++;
+	    goto next;
+	}
+
+	if (thisex.len) {
+	    set_64_sl(&ex->lba, thisex.lba);
+	    set_16_sl(&ex->len, thisex.len);
+	    ex++;
+	}
+
+	base = addr;
+	thisex.lba = sect;
+	thisex.len = 1;
+
+    next:
+	addr += SECTOR_SIZE;
+	nsect--;
+    }
+
+    if (thisex.len) {
+	set_64_sl(&ex->lba, thisex.lba);
+	set_16_sl(&ex->len, thisex.len);
+	ex++;
+    }
+}
 
 /*
  * This patches the boot sector and the beginning of ldlinux.sys
@@ -227,18 +299,23 @@ static __noinline void set_32_sl(uint32_t * p, uint32_t v)
  * Returns the number of modified bytes in ldlinux.sys if successful,
  * otherwise -1.
  */
-int syslinux_patch(const uint32_t * sectors, int nsectors,
+#define NADV 2
+
+int syslinux_patch(const sector_t *sectp, int nsectors,
 		   int stupid, int raid_mode, const char *subdir)
 {
     struct patch_area *patcharea;
+    struct syslinux_extent *ex;
     uint32_t *wp;
-    int nsect = (boot_image_len + 511) >> 9;
+    int nsect = ((boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT) + 2;
     uint32_t csum;
     int i, dw, nptrs;
     struct boot_sector *sbs = (struct boot_sector *)boot_sector;
     size_t diroffset, dirlen;
+    int secptroffset;
+    uint64_t *advptrs;
 
-    if (nsectors < nsect)
+    if (nsectors <= nsect)
 	return -1;
 
     /* Handle RAID mode, write proper bsSignature */
@@ -248,7 +325,7 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
     set_16(&sbs->bsSignature, 0xAA55);
 
     /* First sector need pointer in boot sector */
-    set_32(&sbs->NextSector, *sectors++);
+    set_64(&sbs->NextSector, *sectp++);
 
     /* Search for LDLINUX_MAGIC to find the patch area */
     for (wp = (uint32_t *)boot_image; get_32_sl(wp) != LDLINUX_MAGIC;
@@ -257,9 +334,35 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
 
     /* Set up the totals */
     dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
-    set_16_sl(&patcharea->data_sectors, nsect);	/* Not including ADVs */
+    set_16_sl(&patcharea->data_sectors, nsect - 2); /* Not including ADVs */
     set_16_sl(&patcharea->adv_sectors, 2);	/* ADVs need 2 sectors */
     set_32_sl(&patcharea->dwords, dw);
+
+    /* Handle Stupid mode */
+    if (stupid) {
+	/* Access only one sector at a time */
+	set_16(&patcharea->maxtransfer, 1);
+    }
+
+    /* Set the sector extents */
+    secptroffset = get_16_sl(&patcharea->secptroffset);
+    ex = (struct syslinux_extent *) ((char *)boot_image + secptroffset);
+    nptrs = get_16_sl(&patcharea->secptrcnt);
+
+    if (nsect > nptrs) {
+	/* Not necessarily an error in this case, but a general problem */
+	fprintf(stderr, "Insufficient extent space, build error!\n");
+	exit(1);
+    }
+
+    /* -1 for the pointer in the boot sector, -2 for the two ADVs */
+    generate_extents(ex, nptrs, sectp, nsect-1-2);
+
+    /* ADV pointers */
+    advptrs = (uint64_t *)((char *)boot_image +
+			   get_16_sl(&patcharea->advptroffset));
+    set_64_sl(&advptrs[0], sectp[nsect-1-2]);
+    set_64_sl(&advptrs[1], sectp[nsect-1-1]);
 
     /* Poke in the base directory path */
     if (subdir) {
@@ -271,25 +374,6 @@ int syslinux_patch(const uint32_t * sectors, int nsectors,
 	}
 	memcpy((char *)boot_image + diroffset, subdir, strlen(subdir) + 1);
     }
-
-    /* Handle Stupid mode */
-    if (stupid) {
-	/* Access only one sector at a time */
-	set_16(&patcharea->maxtransfer, 1);
-    }
-
-    /* Set the sector pointers */
-    wp = (uint32_t *) ((char *)boot_image +
-		       get_16_sl(&patcharea->secptroffset));
-    nptrs = get_16_sl(&patcharea->secptrcnt);
-
-    nsect += 2;
-    while (--nsect) { /* the first sector is in bs->NextSector */
-	set_32_sl(wp++, *sectors++);
-	nptrs--;
-    }
-    while (nptrs--)
-	set_32_sl(wp++, 0);
 
     /* Now produce a checksum */
     set_32_sl(&patcharea->checksum, 0);

@@ -195,6 +195,55 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 }
 
 /*
+ * Generate sector extents
+ */
+static void generate_extents(struct syslinux_extent *ex, int nptrs,
+			     sector_t *sectp, int nsect)
+{
+    uint32_t addr = 0x7c00 + 2*SECTOR_SIZE;
+    uint32_t base;
+    sector_t sect, lba;
+    unsigned int len;
+
+    len = lba = base = 0;
+
+    memset(ex, 0, nptrs * sizeof *ex);
+
+    while (nsect) {
+	sect = *sectp++;
+
+	if (len && sect == lba + len &&
+	    ((addr ^ (base + len * SECTOR_SIZE)) & 0xffff0000) == 0) {
+	    /* We can add to the current extent */
+	    len++;
+	    goto next;
+	}
+
+	if (len) {
+	    set_64(&ex->lba, lba);
+	    set_16(&ex->len, len);
+	    printf("EXTENT: %11lu / %5u\n", lba, len);
+	    ex++;
+	}
+
+	base = addr;
+	lba  = sect;
+	len  = 1;
+
+    next:
+	addr += SECTOR_SIZE;
+	nsect--;
+    }
+
+    if (len) {
+	set_64(&ex->lba, lba);
+	set_16(&ex->len, len);
+	printf("EXTENT: %11lu / %5u\n", lba, len);
+	ex++;
+    }
+}
+
+/*
  * Query the device geometry and put it into the boot sector.
  * Map the file and put the map in the boot sector and file.
  * Stick the "current directory" inode number into the file.
@@ -205,16 +254,18 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 {
     struct stat dirst, xdst;
     struct hd_geometry geo;
-    uint32_t *sectp;
+    sector_t *sectp;
     uint64_t totalbytes, totalsectors;
     int nsect;
     uint32_t *wp;
     struct boot_sector *bs;
     struct patch_area *patcharea;
+    struct syslinux_extent *ex;
     int i, dw, nptrs;
     uint32_t csum;
     int secptroffset, diroffset, dirlen, subvoloffset, subvollen;
     char *dirpath, *subpath, *xdirpath, *xsubpath;
+    uint64_t *advptrs;
 
     dirpath = realpath(dir, NULL);
     if (!dirpath || stat(dir, &dirst)) {
@@ -299,7 +350,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     dprintf("directory inode = %lu\n", (unsigned long)dirst.st_ino);
     nsect = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     nsect += 2;			/* Two sectors for the ADV */
-    sectp = alloca(sizeof(uint32_t) * nsect);
+    sectp = alloca(sizeof(sector_t) * nsect);
     if (fs_type == EXT2 || fs_type == VFAT) {
 	if (sectmap(fd, sectp, nsect)) {
 		perror("bmap");
@@ -313,7 +364,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     }
 
     /* First sector need pointer in boot sector */
-    set_32(&bs->NextSector, *sectp++);
+    set_64(&bs->NextSector, *sectp++);
 
     /* Search for LDLINUX_MAGIC to find the patch area */
     for (wp = (uint32_t *) boot_image; get_32(wp) != LDLINUX_MAGIC; wp++) ;
@@ -329,14 +380,25 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     if (opt.stupid_mode)
 	set_16(&patcharea->maxtransfer, 1);
 
-    /* Set the sector pointers */
+    /* Set the sector extents */
     secptroffset = get_16(&patcharea->secptroffset);
-    wp = (uint32_t *) ((char *)boot_image + secptroffset);
+    ex = (struct syslinux_extent *) ((char *)boot_image + secptroffset);
     nptrs = get_16(&patcharea->secptrcnt);
 
-    memset(wp, 0, nptrs * 4);
-    while (--nsect) /* the first sector in bs->NextSector */
-	set_32(wp++, *sectp++);
+    if (nsect > nptrs) {
+	/* Not necessarily an error in this case, but a general problem */
+	fprintf(stderr, "Insufficient extent space, build error!\n");
+	exit(1);
+    }
+
+    /* -1 for the pointer in the boot sector, -2 for the two ADVs */
+    generate_extents(ex, nptrs, sectp, nsect-1-2);
+
+    /* ADV pointers */
+    advptrs = (uint64_t *)((char *)boot_image +
+			   get_16(&patcharea->advptroffset));
+    set_64(&advptrs[0], sectp[nsect-1-2]);
+    set_64(&advptrs[1], sectp[nsect-1-1]);
 
     /* Poke in the base directory path */
     diroffset = get_16(&patcharea->diroffset);
