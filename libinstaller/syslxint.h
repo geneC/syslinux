@@ -15,6 +15,12 @@
 
 #include "syslinux.h"
 
+#if defined(__386__) || defined(__i386__) || defined(__x86_64__)
+# define X86_MEM 1		/* Littleendian and unaligned safe */
+#else
+# define X86_MEM 0
+#endif
+
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
@@ -25,37 +31,47 @@ static inline uint8_t get_8(const uint8_t * p)
 
 static inline uint16_t get_16(const uint16_t * p)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#if X86_MEM
     /* Littleendian and unaligned-capable */
     return *p;
 #else
     const uint8_t *pp = (const uint8_t *)p;
-    return (uint16_t) pp[0] + ((uint16_t) pp[1] << 8);
+    return pp[0] + ((uint16_t)pp[1] << 8);
 #endif
 }
 
 static inline uint32_t get_32(const uint32_t * p)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#if X86_MEM
     /* Littleendian and unaligned-capable */
     return *p;
 #else
-    const uint8_t *pp = (const uint8_t *)p;
-    return (uint32_t) pp[0] + ((uint32_t) pp[1] << 8) +
-	((uint32_t) pp[2] << 16) + ((uint32_t) pp[3] << 24);
+    const uint16_t *pp = (const uint16_t *)p;
+    return get_16(pp[0]) + (uint32_t)get_16(pp[1]);
 #endif
 }
 
-static inline void set_8(uint8_t * p, uint8_t v)
+static inline uint64_t get_64(const uint64_t * p)
+{
+#if X86_MEM
+    /* Littleendian and unaligned-capable */
+    return *p;
+#else
+    const uint32_t *pp = (const uint32_t *)p;
+    return get_32(pp[0]) + (uint64_t)get_32(pp[1]);
+#endif
+}
+
+static inline void set_8(uint8_t *p, uint8_t v)
 {
     *p = v;
 }
 
-static inline void set_16(uint16_t * p, uint16_t v)
+static inline void set_16(uint16_t *p, uint16_t v)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#if X86_MEM
     /* Littleendian and unaligned-capable */
-    *(uint16_t *) p = v;
+    *p = v;
 #else
     uint8_t *pp = (uint8_t *) p;
     pp[0] = (v & 0xff);
@@ -63,17 +79,29 @@ static inline void set_16(uint16_t * p, uint16_t v)
 #endif
 }
 
-static inline void set_32(uint32_t * p, uint32_t v)
+static inline void set_32(uint32_t *p, uint32_t v)
 {
-#if defined(__i386__) || defined(__x86_64__)
+#if X86_MEM
     /* Littleendian and unaligned-capable */
-    *(uint32_t *) p = v;
+    *p = v;
 #else
     uint8_t *pp = (uint8_t *) p;
     pp[0] = (v & 0xff);
     pp[1] = ((v >> 8) & 0xff);
     pp[2] = ((v >> 16) & 0xff);
     pp[3] = ((v >> 24) & 0xff);
+#endif
+}
+
+static inline void set_64(uint64_t *p, uint64_t v)
+{
+#if X86_MEM
+    /* Littleendian and unaligned-capable */
+    *p = v;
+#else
+    uint32_t *pp = (uint32_t *) p;
+    set_32(pp[0], v);
+    set_32(pp[1], v >> 32);
 #endif
 }
 
@@ -88,6 +116,7 @@ struct patch_area {
     uint32_t dwords;
     uint32_t checksum;
     uint16_t maxtransfer;
+    uint16_t advptroffset;
     uint16_t diroffset;
     uint16_t dirlen;
     uint16_t subvoloffset;
@@ -96,7 +125,13 @@ struct patch_area {
     uint16_t secptrcnt;
 };
 
-  /* FAT bootsector format, also used by other disk-based derivatives */
+/* Sector extent */
+struct syslinux_extent {
+    uint64_t lba;
+    uint16_t len;
+} __attribute__((packed));
+
+/* FAT bootsector format, also used by other disk-based derivatives */
 struct boot_sector {
     uint8_t bsJump[3];
     char bsOemName[8];
@@ -121,7 +156,7 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[444];
+	    uint8_t Code[440];
 	} __attribute__ ((packed)) bs16;
 	struct {
 	    uint32_t FATSz32;
@@ -137,11 +172,11 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[416];
+	    uint8_t Code[412];
 	} __attribute__ ((packed)) bs32;
     } __attribute__ ((packed));
 
-    uint32_t NextSector;	/* Pointer to the first unused sector */
+    uint64_t NextSector;	/* Pointer to the first unused sector */
     uint16_t bsSignature;
 } __attribute__ ((packed));
 

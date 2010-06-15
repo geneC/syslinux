@@ -33,6 +33,8 @@
 #include <sys/vfs.h>
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
 #include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
+#undef SECTOR_SIZE		/* Defined in msdos_fs.h for no good reason */
+#include <linux/fiemap.h>	/* FIEMAP definitions */
 #include "syslxcom.h"
 
 const char *program;
@@ -180,13 +182,86 @@ void set_attributes(int fd)
     }
 }
 
-/*
- * Produce file map
- */
-int sectmap(int fd, uint32_t * sectors, int nsectors)
+/* New FIEMAP based mapping */
+static int sectmap_fie(int fd, sector_t *sectors, int nsectors)
 {
-    unsigned int blksize, blk, nblk;
+    struct fiemap *fm;
+    struct fiemap_extent *fe;
+    unsigned int i, nsec;
+    sector_t sec, *secp, *esec;
+    struct stat st;
+    uint64_t maplen;
+
+    if (fstat(fd, &st))
+	return -1;
+
+    fm = alloca(sizeof(struct fiemap)
+		+ nsectors * sizeof(struct fiemap_extent));
+
+    memset(fm, 0, sizeof *fm);
+
+    maplen = (uint64_t)nsectors << SECTOR_SHIFT;
+    if (maplen > (uint64_t)st.st_size)
+	maplen = st.st_size;
+
+    fm->fm_start        = 0;
+    fm->fm_length       = maplen;
+    fm->fm_flags        = FIEMAP_FLAG_SYNC;
+    fm->fm_extent_count = nsectors;
+
+    if (ioctl(fd, FS_IOC_FIEMAP, &fm))
+	return -1;
+
+    memset(sectors, 0, nsectors * sizeof *sectors);
+    esec = sectors + nsectors;
+
+    fe = fm->fm_extents;
+
+    if (fm->fm_mapped_extents < 1 ||
+	!(fe[fm->fm_mapped_extents-1].fe_flags & FIEMAP_EXTENT_LAST))
+	return -1;
+
+    for (i = 0; i < fm->fm_mapped_extents; i++) {
+	if (fe->fe_flags & FIEMAP_EXTENT_LAST) {
+	    /* If this is the *final* extent, pad the length */
+	    fe->fe_length = (fe->fe_length + SECTOR_SIZE - 1)
+		& (SECTOR_SIZE - 1);
+	}
+
+	if ((fe->fe_logical | fe->fe_physical| fe->fe_length) &
+	    (SECTOR_SIZE - 1))
+	    return -1;
+
+	if (fe->fe_flags & (FIEMAP_EXTENT_UNKNOWN|
+			    FIEMAP_EXTENT_DELALLOC|
+			    FIEMAP_EXTENT_ENCODED|
+			    FIEMAP_EXTENT_DATA_ENCRYPTED|
+			    FIEMAP_EXTENT_UNWRITTEN))
+	    return -1;
+
+	secp = sectors + (fe->fe_logical >> SECTOR_SHIFT);
+	sec  = fe->fe_physical >> SECTOR_SHIFT;
+	nsec = fe->fe_length >> SECTOR_SHIFT;
+
+	while (nsec--) {
+	    if (secp >= esec)
+		break;
+	    *secp++ = sec++;
+	}
+
+	fe++;
+    }
+
+    return 0;
+}
+
+/* Legacy FIBMAP based mapping */
+static int sectmap_fib(int fd, sector_t *sectors, int nsectors)
+{
+    unsigned int blk, nblk;
     unsigned int i;
+    unsigned int blksize;
+    sector_t sec;
 
     /* Get block size */
     if (ioctl(fd, FIGETBSZ, &blksize))
@@ -197,22 +272,28 @@ int sectmap(int fd, uint32_t * sectors, int nsectors)
 
     nblk = 0;
     while (nsectors) {
-
 	blk = nblk++;
-	dprintf("querying block %u\n", blk);
 	if (ioctl(fd, FIBMAP, &blk))
 	    return -1;
 
-	blk *= blksize;
+	sec = (sector_t)blk * blksize;
 	for (i = 0; i < blksize; i++) {
-	    if (!nsectors)
-		return 0;
-
-	    dprintf("Sector: %10u\n", blk);
-	    *sectors++ = blk++;
-	    nsectors--;
+	    *sectors++ = sec++;
+	    if (! --nsectors)
+		break;
 	}
     }
 
     return 0;
+}
+
+/*
+ * Produce file map
+ */
+int sectmap(int fd, sector_t *sectors, int nsectors)
+{
+    if (!sectmap_fie(fd, sectors, nsectors))
+	return 0;
+
+    return sectmap_fib(fd, sectors, nsectors);
 }

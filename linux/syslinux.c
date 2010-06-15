@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
     char *ldlinux_name;
     char *ldlinux_path;
     char *subdir;
-    uint32_t *sectors = NULL;
+    sector_t *sectors = NULL;
     int ldlinux_sectors = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     const char *errmsg;
     int mnt_cookie;
@@ -472,7 +472,8 @@ umount:
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    i = syslinux_patch(sectors, ldlinux_sectors, opt.stupid_mode, opt.raid_mode, subdir);
+    i = syslinux_patch(sectors, ldlinux_sectors, opt.stupid_mode,
+		       opt.raid_mode, subdir);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /*

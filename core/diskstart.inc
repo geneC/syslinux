@@ -236,6 +236,7 @@ eddcheck:
 ; together with EBIOS support, unfortunately.
 ;
 		mov eax,[FirstSector]	; Sector start
+		mov edx,[FirstSector+4]
 		mov bx,ldlinux_sys	; Where to load it
 		call getonesec
 
@@ -258,7 +259,6 @@ eddcheck:
 ; the order to dst,src to keep things sane.
 ;
 getonesec:
-		xor edx,edx			; Assume 32-bit partition size
 		add eax,[Hidden]		; Add partition offset
 		adc edx,[Hidden+4]
 		mov cx,retry_count
@@ -404,8 +404,8 @@ xint13:
 bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 
 		; This fails if the boot sector overflowsg
-		zb 1FAh-($-$$)
-FirstSector	dd 0xDEADBEEF			; Location of sector 1
+		zb 1F6h-($-$$)
+FirstSector	dq 0xFEEDFACEDEADBEEF		; Location of sector 1
 
 ; This field will be filled in 0xAA55 by the installer, but we abuse it
 ; to house a pointer to the INT 16h instruction at
@@ -443,12 +443,13 @@ LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
 MaxTransfer	dw 127		; Max sectors to transfer
+ADVSecPtr	dw ADVSec0 - LDLINUX_SYS
 CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
 CurrentDirLen	dw CURRENTDIR_MAX
 SubvolPtr	dw SubvolName-LDLINUX_SYS
 SubvolLen	dw SUBVOL_MAX
 SecPtrOffset	dw SectorPtrs-LDLINUX_SYS
-SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
+SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs)/10
 
 ;
 ; Installer pokes the base directory here.  This is in .data16 so it
@@ -518,37 +519,19 @@ load_rest:
 
 .get_chunk:
 		jcxz .done
-		xor ebp,ebp
-		mov di,bx			; Low 64K of target address
-		lodsd				; First sector of this chunk
-
-		mov edx,eax
-
-.make_chunk:
-		inc bp
-		dec cx
-		jz .chunk_ready
-		cmp esi,ebx			; Pointer we don't have yet?
-		jae .chunk_ready
-		inc edx				; Next linear sector
-		cmp [si],edx			; Does it match
-		jnz .chunk_ready		; If not, this is it
-		add si,4			; If so, add sector to chunk
-		add di,SECTOR_SIZE		; Check for 64K segment wrap
-		jnz .make_chunk
-
-.chunk_ready:
+		mov eax,[si]
+		mov edx,[si+4]
+		movzx ebp,word [si+8]
+		sub cx,bp
 		push ebx
-		push es
 		shr ebx,4			; Convert to a segment
 		mov es,bx
 		xor bx,bx
-		xor edx,edx			; Zero-extend LBA
 		call getlinsec
-		pop es
 		pop ebx
 		shl ebp,SECTOR_SHIFT
 		add ebx,ebp
+		add si,10
 		jmp .get_chunk
 
 .done:
@@ -563,7 +546,6 @@ verify_checksum:
 		mov ecx,[LDLDwords]
 		sub ecx,SECTOR_SIZE >> 2
 		mov eax,[CheckSum]
-		push ds
 .checksum:
 		add eax,[si]
 		add si,4
@@ -575,7 +557,6 @@ verify_checksum:
 .nowrap:
 		dec ecx
 		jnz .checksum
-		pop ds
 
 		and eax,eax			; Should be zero
 		jz all_read			; We're cool, go for it!
@@ -609,7 +590,6 @@ verify_checksum:
 		global getlinsec
 getlinsec:
 		pushad
-		xor edx,edx			; For now only 32-bit internal
 		add eax,[Hidden]		; Add partition offset
 		adc edx,[Hidden+4]
 .jmp:		jmp strict short getlinsec_cbios
@@ -790,16 +770,22 @@ rl_checkpt	equ $				; Must be <= 8000h
 
 rl_checkpt_off	equ ($-$$)
 %ifndef DEPEND
-%if rl_checkpt_off > 3FCh			; Need one pointer in here
-%error "Sector 1 overflow"
-%endif
+ %if rl_checkpt_off > 3F6h			; Need one extent
+  %assign rl_checkpt_overflow rl_checkpt_off - 3F6h
+  %error Sector 1 overflow by rl_checkpt_overflow bytes
+ %endif
 %endif
 
-; Sector pointers
-		alignz 4
+;
+; Extent pointers... each extent contains an 8-byte LBA and an 2-byte
+; sector count.  In most cases, we will only ever need a handful of
+; extents, but we have to assume a maximally fragmented system where each
+; extent contains only one sector.
+;
+		alignz 2
 MaxInitDataSize	equ 96 << 10
 MaxLMA		equ TEXT_START+SECTOR_SIZE+MaxInitDataSize
-SectorPtrs	times MaxInitDataSize >> SECTOR_SHIFT dd 0
+SectorPtrs	zb 10*(MaxInitDataSize >> SECTOR_SHIFT)
 SectorPtrsEnd	equ $
 
 ; ----------------------------------------------------------------------------
@@ -808,6 +794,10 @@ SectorPtrsEnd	equ $
 
 		section .text16
 all_read:
+		; We enter here with both DS and ES scrambled...
+		xor ax,ax
+		mov ds,ax
+		mov es,ax
 ;
 ; Let the user (and programmer!) know we got this far.  This used to be
 ; in Sector 1, but makes a lot more sense here.

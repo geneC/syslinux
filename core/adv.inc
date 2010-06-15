@@ -71,18 +71,12 @@ adv_init:
 		cmp word [ADVSectors],2		; Not present?
 		jb adv_verify
 
-		;
-		; Update pointers to default ADVs...
-		;
-		mov bx,[DataSectors]
-		shl bx,2
-		mov ecx,[bsHidden]
-		mov eax,[bx+SectorPtrs-4]; First ADV sector
-		mov edx,[bx+SectorPtrs]	; Second ADV sector
-		add eax,ecx
-		add edx,ecx
-		mov [ADVSec0],eax
-		mov [ADVSec1],edx
+		mov eax,[Hidden]
+		mov edx,[Hidden+4]
+		add [ADVSec0],eax
+		adc [ADVSec0+4],edx
+		add [ADVSec1],eax
+		adc [ADVSec1+4],edx
 		mov al,[DriveNumber]
 		mov [ADVDrive],al
 		jmp adv_read
@@ -300,23 +294,26 @@ adv_cleanup:
 ;		Returns CF=1 if the ADV cannot be written.
 ;
 adv_write:
-		cmp dword [ADVSec0],0
+		push eax
+		mov eax,[ADVSec0]
+		or eax,[ADVSec0+4]
 		je .bad
-		cmp dword [ADVSec1],0
+		mov eax,[ADVSec1]
+		or eax,[ADVSec1+4]
 		je .bad
 		cmp byte [ADVDrive],-1
 		je .bad
 
-		push ax
 		call adv_cleanup
 		mov ah,3			; Write
 		call adv_read_write
-		pop ax
 
 		clc
+		pop eax
 		ret
 .bad:						; No location for ADV set
 		stc
+		pop eax
 		ret
 
 ;
@@ -358,10 +355,12 @@ adv_read_write:
 .noedd:
 
 		mov eax,[ADVSec0]
+		mov edx,[ADVSec0+4]
 		mov bx,adv0
 		call .doone
 
 		mov eax,[ADVSec1]
+		mov edx,[ADVSec1+4]
 		mov bx,adv1
 		call .doone
 
@@ -369,7 +368,6 @@ adv_read_write:
 		ret
 
 .doone:
-		xor edx,edx			; Zero-extend LBA
 		push si
 		jmp si
 
@@ -495,9 +493,9 @@ adv_read_write:
 		jmp .cb_done
 
 		section .data16
-		alignz 4
-ADVSec0		dd 0			; Not specified
-ADVSec1		dd 0			; Not specified
+		alignz 8
+ADVSec0		dq 0			; Not specified
+ADVSec1		dq 0			; Not specified
 ADVDrive	db -1			; No ADV defined
 ADVCHSInfo	db -1			; We have CHS info for this drive
 
