@@ -246,44 +246,43 @@ static __noinline void set_64_sl(uint64_t * p, uint64_t v)
 static void generate_extents(struct syslinux_extent *ex, int nptrs,
 			     const sector_t *sectp, int nsect)
 {
-    struct syslinux_extent thisex;
     uint32_t addr = 0x7c00 + 2*SECTOR_SIZE;
     uint32_t base;
-    sector_t sect;
+    sector_t sect, lba;
+    unsigned int len;
 
-    thisex.len = base = 0;
+    len = lba = base = 0;
 
     memset(ex, 0, nptrs * sizeof *ex);
 
     while (nsect) {
 	sect = *sectp++;
 
-	if (thisex.len &&
-	    sect == thisex.lba + thisex.len &&
-	    ((addr ^ (base + thisex.len * SECTOR_SIZE)) & 0xffff0000) == 0) {
+	if (len && sect == lba + len &&
+	    ((addr ^ (base + len * SECTOR_SIZE)) & 0xffff0000) == 0) {
 	    /* We can add to the current extent */
-	    thisex.len++;
+	    len++;
 	    goto next;
 	}
 
-	if (thisex.len) {
-	    set_64_sl(&ex->lba, thisex.lba);
-	    set_16_sl(&ex->len, thisex.len);
+	if (len) {
+	    set_64_sl(&ex->lba, lba);
+	    set_16_sl(&ex->len, len);
 	    ex++;
 	}
 
 	base = addr;
-	thisex.lba = sect;
-	thisex.len = 1;
+	lba  = sect;
+	len  = 1;
 
     next:
 	addr += SECTOR_SIZE;
 	nsect--;
     }
 
-    if (thisex.len) {
-	set_64_sl(&ex->lba, thisex.lba);
-	set_16_sl(&ex->len, thisex.len);
+    if (len) {
+	set_64_sl(&ex->lba, lba);
+	set_16_sl(&ex->len, len);
 	ex++;
     }
 }

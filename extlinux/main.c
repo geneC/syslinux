@@ -198,7 +198,7 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
  * Generate sector extents
  */
 static void generate_extents(struct syslinux_extent *ex, int nptrs,
-			     sector_t *sectp, int nsect)
+			     const sector_t *sectp, int nsect)
 {
     uint32_t addr = 0x7c00 + 2*SECTOR_SIZE;
     uint32_t base;
@@ -222,7 +222,6 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
 	if (len) {
 	    set_64(&ex->lba, lba);
 	    set_16(&ex->len, len);
-	    printf("EXTENT: %11lu / %5u\n", lba, len);
 	    ex++;
 	}
 
@@ -238,7 +237,6 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
     if (len) {
 	set_64(&ex->lba, lba);
 	set_16(&ex->len, len);
-	printf("EXTENT: %11lu / %5u\n", lba, len);
 	ex++;
     }
 }
