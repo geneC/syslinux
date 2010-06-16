@@ -52,6 +52,9 @@ static int consider_memory_area(void *dummy, addr_t start,
 
 	end = start + len;
 
+	mp("start = 0x%x, len = 0x%x",
+		start, len);
+
 	if (end > __com32.cs_memsize) {
 	    if (start <= __com32.cs_memsize) {
 		start = __com32.cs_memsize;
@@ -61,7 +64,7 @@ static int consider_memory_area(void *dummy, addr_t start,
 	    if (len >= 2 * sizeof(struct arena_header)) {
 		fp = (struct free_arena_header *)start;
 		fp->a.size = len;
-		mp("will inject a block with size %d", len);
+		mp("will inject a block start:0x%x size 0x%x", start, len);
 		__inject_free_block(fp);
 	    }
 	}
@@ -75,10 +78,15 @@ static void __constructor init_memory_arena(void)
     struct free_arena_header *fp;
     size_t start, total_space;
 
-    mp("enter");
+    //mp("enter");
+
+	mp("skip this init as core has a mem_init");
+    return;
 
     start = (size_t) ARENA_ALIGN_UP(__mem_end);
     total_space = sp() - start;
+
+    mp("start = 0x%x, sp() = 0x%0x, space = 0x%x", start, sp(), total_space);
 
     if (__stack_size == 0 || __stack_size > total_space >> 1)
 	__stack_size = total_space >> 1;	/* Half for the stack, half for the heap... */

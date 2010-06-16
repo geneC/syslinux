@@ -7,7 +7,8 @@
 
 struct free_arena_header __core_malloc_head[NHEAP];
 
-static __hugebss char main_heap[128 << 10];
+//static __hugebss char main_heap[128 << 10];
+static __hugebss char main_heap[128 << 13];
 extern char __lowmem_heap[];
 
 void mem_init(void)

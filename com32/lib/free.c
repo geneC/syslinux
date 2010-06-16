@@ -64,6 +64,7 @@ static struct free_arena_header *__free_block(struct free_arena_header *ah)
  * free list.  Only the a.size field of the arena header is assumed
  * to be valid.
  */
+#if 0
 void __inject_free_block(struct free_arena_header *ah)
 {
     struct free_arena_header *nah;
@@ -97,6 +98,7 @@ void __inject_free_block(struct free_arena_header *ah)
 
     __free_block(ah);
 }
+#endif
 
 #if 0
 void free(void *ptr)
