@@ -26,15 +26,11 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/vfs.h>
-#include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
-#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
-#undef SECTOR_SIZE		/* Defined in msdos_fs.h for no good reason */
-#include <linux/fiemap.h>	/* FIEMAP definitions */
+#include "linuxioctl.h"
 #include "syslxcom.h"
 
 const char *program;
@@ -48,15 +44,6 @@ int fs_type;
 #endif
 
 #define SECTOR_SHIFT	9
-#define EXT2_IMMUTABLE_FL		0x00000010	/* Immutable file */
-
-/*
- * ioctl commands
- */
-#define	EXT2_IOC_GETFLAGS		_IOR('f', 1, long)
-#define	EXT2_IOC_SETFLAGS		_IOW('f', 2, long)
-#define	EXT2_IOC_GETVERSION		_IOR('v', 1, long)
-#define	EXT2_IOC_SETVERSION		_IOW('v', 2, long)
 
 static void die(const char *msg)
 {
