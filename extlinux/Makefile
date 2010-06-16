@@ -17,7 +17,7 @@
 topdir = ..
 include $(topdir)/MCONFIG
 
-OPTFLAGS = -g -O0
+OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = $(GCCWARN) -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
 	   $(OPTFLAGS) $(INCLUDES)
