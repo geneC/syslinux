@@ -46,14 +46,7 @@
 #include <sys/wait.h>
 #include <sys/mount.h>
 
-#include <sys/ioctl.h>
-#include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
-#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
-#ifndef FAT_IOCTL_SET_ATTRIBUTES
-# define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
-#endif
-#undef SECTOR_SIZE
-#undef SECTOR_SHIFT
+#include "linuxioctl.h"
 
 #include <paths.h>
 #ifndef _PATH_MOUNT

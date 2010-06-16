@@ -188,9 +188,8 @@ static __noinline uint32_t get_32_sl(const uint32_t * p)
 static __noinline uint64_t get_64_sl(const uint64_t * p)
 {
     uint32_t v0, v1;
-    const uint32_t *pp = (const uint32_t *)p;
+    const uint32_t *pp = (const uint32_t *)set_fs(p);
 
-    p = set_fs(p);
     asm volatile("movl %%fs:%1,%0" : "=r" (v0) : "m" (pp[0]));
     asm volatile("movl %%fs:%1,%0" : "=r" (v1) : "m" (pp[1]));
     return v0 + ((uint64_t)v1 << 32);
@@ -219,9 +218,7 @@ static __noinline void set_32_sl(uint32_t * p, uint32_t v)
 
 static __noinline void set_64_sl(uint64_t * p, uint64_t v)
 {
-    uint32_t *pp = (uint32_t *)p;
-
-    p = set_fs(p);
+    uint32_t *pp = (uint32_t *)set_fs(p);
     asm volatile("movl %1,%%fs:%0" : "=m" (pp[0]) : "ri"((uint32_t)v));
     asm volatile("movl %1,%%fs:%0" : "=m" (pp[1]) : "ri"((uint32_t)(v >> 32)));
 }

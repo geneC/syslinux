@@ -41,18 +41,8 @@ typedef uint64_t u64;
 #include <sys/mount.h>
 #include <sys/vfs.h>
 
-#include <linux/fd.h>		/* Floppy geometry */
-#include <linux/hdreg.h>	/* Hard disk geometry */
-#define statfs _kernel_statfs	/* HACK to deal with broken 2.4 distros */
-#include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
-#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
-#ifndef FAT_IOCTL_SET_ATTRIBUTES
-# define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
-#endif
-#undef statfs
-#undef SECTOR_SIZE		/* Garbage from <linux/msdos_fs.h> */
+#include "linuxioctl.h"
 
-#include "ext2_fs.h"
 #include "btrfs.h"
 #include "fat.h"
 #include "../version.h"
