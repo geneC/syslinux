@@ -209,7 +209,7 @@ static int sectmap_fie(int fd, sector_t *sectors, int nsectors)
     fm->fm_flags        = FIEMAP_FLAG_SYNC;
     fm->fm_extent_count = nsectors;
 
-    if (ioctl(fd, FS_IOC_FIEMAP, &fm))
+    if (ioctl(fd, FS_IOC_FIEMAP, fm))
 	return -1;
 
     memset(sectors, 0, nsectors * sizeof *sectors);
@@ -225,7 +225,7 @@ static int sectmap_fie(int fd, sector_t *sectors, int nsectors)
 	if (fe->fe_flags & FIEMAP_EXTENT_LAST) {
 	    /* If this is the *final* extent, pad the length */
 	    fe->fe_length = (fe->fe_length + SECTOR_SIZE - 1)
-		& (SECTOR_SIZE - 1);
+		& ~(SECTOR_SIZE - 1);
 	}
 
 	if ((fe->fe_logical | fe->fe_physical| fe->fe_length) &
