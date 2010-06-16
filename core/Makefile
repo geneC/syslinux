@@ -42,7 +42,7 @@ NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
 CSRC	 := $(wildcard *.c */*.c */*/*.c)
 SSRC	 := $(wildcard *.S */*.S */*/*.S)
-CHDR	 := $(wildcard *.h)
+CHDR	 := $(wildcard *.h */*.h */*/*.h)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
@@ -89,7 +89,7 @@ kwdhash.gen: keywords genhash.pl
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
 %.elf: %.o $(LIBS) syslinux.ld
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< \
+	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
 		--start-group $(LIBS) --end-group \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
