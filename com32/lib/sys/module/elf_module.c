@@ -461,6 +461,8 @@ int module_load(struct elf_module *module) {
 	// Obtain dynamic linking information
 	CHECKED(res, prepare_dynlinking(module), error);
 	//printf("check... 4\n");
+	//
+	dump_elf_module(module);
 
 	// Check the symbols for duplicates / missing definitions
 	CHECKED(res, check_symbols(module), error);
@@ -484,12 +486,12 @@ int module_load(struct elf_module *module) {
 	image_unload(module);
 
 	/*
+	*/
 	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (main@%p, init@%p, exit@%p)\n",
 			module->name,
 			(module->main_func == NULL) ? NULL : *(module->main_func),
 			(module->init_func == NULL) ? NULL : *(module->init_func),
 			(module->exit_func == NULL) ? NULL : *(module->exit_func));
-	*/
 
 	return 0;
 
