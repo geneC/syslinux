@@ -306,6 +306,7 @@ int spawn_load(const char *name,const char **argv)
 		else
 			exit((*module->main_func)(argc, args)); /* Actually run! */
 
+
 		// Clean up the allocation context
 		//__free_tagged(module);
 		// Restore the allocation context
