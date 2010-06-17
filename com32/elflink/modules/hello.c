@@ -14,8 +14,7 @@
 #define NUM_COUNT		10
 #define MAX_NUM			100
 
-//static int hello_main(int argc, char **argv)
-int hello_main(int argc, char **argv)
+static int hello_main(int argc, char **argv)
 {
     int *nums = NULL;
     int i;

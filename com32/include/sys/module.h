@@ -15,8 +15,6 @@
 #include <stdbool.h>
 #include <linux/list.h>
 
-
-
 /*
  * The maximum length of the module file name (including path), stored
  * in the struct module descriptor.
@@ -138,7 +136,7 @@ static inline dump_elf_module(struct elf_module *module)
 {
 	mp("module name = %s", module->name);
 	printf("base_addr = 0x%p, module_size = %d\n", module->base_addr, module->module_size);
-	//printf("hash tlb = 0x%p, ghash tbl = 0x%p\n", module->hash_table, module->ghash_table);
+	printf("hash tlb = 0x%p, ghash tbl = 0x%p\n", module->hash_table, module->ghash_table);
 	printf("str tbl = 0x%p, size = %d\n", module->str_table, module->strtable_size);
 	printf("sym tbl = 0x%p, entry = %d, size = %d\n", module->sym_table, module->syment_size, module->symtable_size);
 	/*
@@ -171,7 +169,6 @@ struct module_dep {
  * This portion is included by dynamic (ELF) module source files.
  */
 
-#if 1
 #define MODULE_INIT(fn)	static module_init_t __module_init \
 	__used __attribute__((section(".ctors_modinit")))  = fn
 
@@ -180,20 +177,6 @@ struct module_dep {
 
 #define MODULE_MAIN(fn) static module_main_t __module_main \
 	__used __attribute__((section(".ctors_modmain")))  = fn
-
-#else
-
-#define MODULE_INIT(fn)	static module_init_t __module_init \
-	__attribute__((section(".ctors_modinit")))  = fn
-
-#define MODULE_EXIT(fn) static module_exit_t __module_exit \
-	__attribute__((section(".dtors_modexit")))  = fn
-
-#define MODULE_MAIN(fn) static module_main_t __module_main \
-	__attribute__((section(".ctors_modmain")))  = fn
-
-#endif
-
 
 #else
 
