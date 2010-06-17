@@ -134,4 +134,8 @@ extern int check_zip(void *indata, uint32_t size, uint32_t * zbytes_p,
 extern void *unzip(void *indata, uint32_t zbytes, uint32_t dbytes,
 		   uint32_t orig_crc, void *target);
 
+/* Structure packing can be different for different compilers */
+#define MEMDISK_PACKED_PREFIX
+#define MEMDISK_PACKED_POSTFIX __attribute__ (( packed ))
+
 #endif
