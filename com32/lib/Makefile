@@ -106,6 +106,7 @@ LIBCONSOLE_OBJS = \
 	\
 	syslinux/serial.o
 
+	#sys/readdir.o getcwd.o chdir.o fdopendir.o
 LIBOTHER_OBJS = \
 	atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
@@ -117,7 +118,7 @@ LIBOTHER_OBJS = \
 	sprintf.o srand48.o sscanf.o strcasecmp.o strcat.o	\
 	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
 	strnlen.o							\
-	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
+	strncat.o strncmp.o strncpy.o strndup.o		\
 	stpcpy.o stpncpy.o						\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
@@ -129,7 +130,7 @@ LIBOTHER_OBJS = \
 	\
 	dprintf.o vdprintf.o						\
 	\
-	sys/readdir.o getcwd.o chdir.o fdopendir.o	\
+	getcwd.o fdopendir.o	\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
@@ -164,6 +165,7 @@ MINLIBOBJS = \
 	$(LIBCONSOLE_OBJS) \
 	$(LIBLOAD_OBJS) \
 	$(LIBMODULE_OBJS) \
+	$(LIBZLIB_OBJS)
 #	$(LIBVESA_OBJS)
 
 
