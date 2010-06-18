@@ -616,8 +616,10 @@ verify_checksum:
 		jnz .checksum
 		pop ds
 
+		push eax
 		mov si,cbios_name
 		call writestr_early
+		pop eax
 		and eax,eax			; Should be zero
 		jz all_read			; We're cool, go for it!
 
@@ -706,6 +708,8 @@ SectorPtrsEnd	equ $
 ; ----------------------------------------------------------------------------
 
 		section .text16
+test_string	db 'test', 0			; temp add by feng 
+
 all_read:
 ;
 ; Let the user (and programmer!) know we got this far.  This used to be
@@ -714,7 +718,7 @@ all_read:
 		;mov si,copyright_str
 		;call writestr_early
 
-		mov si,ebios_name
+		mov si,test_string
 		call writestr_early
 ;
 ; Insane hack to expand the DOS superblock to dwords

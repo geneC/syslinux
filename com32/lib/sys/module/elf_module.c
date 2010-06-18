@@ -151,10 +151,12 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 				}
 			}
 
+			/*
 			DBG_PRINT("Loadable segment of size 0x%08x copied from vaddr 0x%08x at 0x%08x\n",
 					cr_pht->p_filesz,
 					cr_pht->p_vaddr,
 					(Elf32_Addr)module_get_absolute(cr_pht->p_vaddr, module));
+			*/
 		}
 	}
 

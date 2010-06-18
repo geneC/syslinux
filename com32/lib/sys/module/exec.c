@@ -72,7 +72,8 @@ int load_library(const char *name)
 
 	if (module->init_func != NULL) {
 		res = (*(module->init_func))();
-		DBG_PRINT("Initialization function returned: %d\n", res);
+		if (res)
+			DBG_PRINT("Initialization error! function returned: %d\n", res);
 	} else {
 		DBG_PRINT("No initialization function present.\n");
 	}

@@ -94,7 +94,7 @@ void start_ui(char *config_file)
 
 	mp("enter, config file = %s", config_file);
 
-	//parse_configs(argv);
+	parse_configs(argv);
 	/* run the default menu if found */
 	/*
 	if (default_menu) {

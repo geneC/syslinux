@@ -80,7 +80,7 @@ static void __constructor init_memory_arena(void)
 
     //mp("enter");
 
-	mp("skip this init as core has a mem_init");
+//	mp("skip this init as core has a mem_init");
     return;
 
     start = (size_t) ARENA_ALIGN_UP(__mem_end);
