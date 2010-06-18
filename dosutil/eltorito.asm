@@ -1029,7 +1029,7 @@ SpecGo:		mov	si,SpecPkt
 
 ScanDrives:	push	ax		; at df3 in 1.4
 		push	si
-		mov dl, 0ffh		;Start at Drive 0xff
+		mov dl, 80h		;Start at Drive 0x80
 NextDrv:	mov	ax,4B01h		;Get Bootable CD-ROM Status
 		mov	BYTE [SpecPkt],0		;Clear 1st byte of SpecPkt
 		call	SpecGo
@@ -1044,9 +1044,9 @@ NextDrv:	mov	ax,4B01h		;Get Bootable CD-ROM Status
 		ja	FindFail	; in 1.4 at e16
 		jmp	short SendFound	; in 1.4 at e26
 
-FindFail:	dec	dl			;Next drive
-		cmp	dl, 80h
-		jb	SendFail		; Check from ffh..80h
+FindFail:	inc	dl			;Next drive
+		cmp	dl, 0ffh
+		jb	SendFail		; Check from 80h..ffh
 		jmp	short NextDrv
 SendFail:	xor	dl,dl
 		stc
