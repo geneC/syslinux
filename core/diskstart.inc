@@ -616,6 +616,8 @@ verify_checksum:
 		jnz .checksum
 		pop ds
 
+		mov si,cbios_name
+		call writestr_early
 		and eax,eax			; Should be zero
 		jz all_read			; We're cool, go for it!
 
@@ -709,10 +711,11 @@ all_read:
 ; Let the user (and programmer!) know we got this far.  This used to be
 ; in Sector 1, but makes a lot more sense here.
 ;
-		mov si,copyright_str
+		;mov si,copyright_str
+		;call writestr_early
+
+		mov si,ebios_name
 		call writestr_early
-
-
 ;
 ; Insane hack to expand the DOS superblock to dwords
 ;
@@ -746,6 +749,14 @@ expand_super:
 		mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
 		movzx ebp,word [MaxTransfer]
+
+		mov si,ebios_name
+		call writestr_early
+
 		pm_call fs_init
+
+		mov si,ebios_name
+		call writestr_early
+
 		pm_call load_env32
 		popad
