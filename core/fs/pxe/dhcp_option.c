@@ -244,6 +244,8 @@ void parse_dhcp(int pkt_len)
     struct bootp_t *dhcp = (struct bootp_t *)trackbuf;
     int opt_len;
 
+    IPInfo.ipv4 = 4;		/* This is IPv4 only for now... */
+
     over_load = 0;
     if (ip_ok(dhcp->yip))
         IPInfo.myip = dhcp->yip;
