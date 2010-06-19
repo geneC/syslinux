@@ -19,9 +19,11 @@ struct e820_info {
 static void dump_e820(struct backend *be)
 {
     com32sys_t ireg, oreg;
-    struct e820_info *curr = __com32.cs_bounce;
+    struct e820_info *curr;
     struct e820_info *buf, *p;
     int nentry, nalloc;
+
+    curr = lmalloc(sizeof *curr);
 
     buf = p = NULL;
     nentry = nalloc = 0;
@@ -56,7 +58,9 @@ static void dump_e820(struct backend *be)
 
     if (nentry)
 	cpio_writefile(be, "memmap/15e820", buf, nentry*sizeof *buf);
+
     free(buf);
+    lfree(curr);
 }
 
 void dump_memory_map(struct backend *be)

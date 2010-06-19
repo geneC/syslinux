@@ -7,6 +7,7 @@
 void dump_vesa_tables(struct backend *be)
 {
     com32sys_t rm;
+    struct vesa_info *vip;
     struct vesa_general_info *gip, gi;
     struct vesa_mode_info *mip, mi;
     uint16_t mode, *mode_ptr;
@@ -15,8 +16,9 @@ void dump_vesa_tables(struct backend *be)
     printf("Scanning VESA BIOS... ");
 
     /* Allocate space in the bounce buffer for these structures */
-    gip = &((struct vesa_info *)__com32.cs_bounce)->gi;
-    mip = &((struct vesa_info *)__com32.cs_bounce)->mi;
+    vip = lmalloc(sizeof *vip);
+    gip = &vip->gi;
+    mip = &vip->mi;
 
     memset(&rm, 0, sizeof rm);
     memset(gip, 0, sizeof *gip);
@@ -56,5 +58,6 @@ void dump_vesa_tables(struct backend *be)
 	cpio_writefile(be, modefile, &mi, sizeof mi);
     }
 
+    lfree(vip);
     printf("done.\n");
 }
