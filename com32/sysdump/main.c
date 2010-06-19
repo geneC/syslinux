@@ -41,6 +41,7 @@ static void dump_all(struct backend *be, const char *argv[])
     dump_memory_map(be);
     dump_memory(be);
     dump_dmi(be);
+    dump_acpi(be);
     dump_cpuid(be);
     dump_pci(be);
     dump_vesa_tables(be);

@@ -9,10 +9,7 @@
 
 #define GPXE 1
 
-uint32_t server_ip = 0;            /* IP address of boot server */
-uint32_t net_mask = 0;             /* net_mask of this subnet */
-uint32_t gate_way = 0;             /* Default router */
-uint16_t real_base_mem;            /* Amount of DOS memory after freeing */
+static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
 uint8_t MAC[MAC_MAX];		   /* Actual MAC address */
 uint8_t MAC_len;                   /* MAC address len */
@@ -297,7 +294,7 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
     udp_write.src_port    = socket->tftp_localport;
     udp_write.dst_port    = socket->tftp_remoteport;
     udp_write.ip          = socket->tftp_remoteip;
-    udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.gw          = gateway(udp_write.ip);
     udp_write.buffer      = FAR_PTR(&err_buf);
     udp_write.buffer_size = 4 + len + 1;
 
@@ -326,7 +323,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
     udp_write.src_port    = socket->tftp_localport;
     udp_write.dst_port    = socket->tftp_remoteport;
     udp_write.ip          = socket->tftp_remoteip;
-    udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.gw          = gateway(udp_write.ip);
     udp_write.buffer      = FAR_PTR(ack_packet_buf);
     udp_write.buffer_size = 4;
 
@@ -513,7 +510,7 @@ static void fill_buffer(struct inode *inode)
         udp_read.buffer      = FAR_PTR(packet_buf);
         udp_read.buffer_size = PKTBUF_SIZE;
         udp_read.src_ip      = socket->tftp_remoteip;
-        udp_read.dest_ip     = MyIP;
+        udp_read.dest_ip     = IPInfo.myip;
         udp_read.s_port      = socket->tftp_remoteport;
         udp_read.d_port      = socket->tftp_localport;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
@@ -688,12 +685,12 @@ static void pxe_searchdir(const char *filename, struct file *file)
     case PXE_RELATIVE:		/* Really shouldn't happen... */
     case PXE_URL:
 	buf = stpcpy(buf, filename);
-	ip = server_ip;		/* Default server */
+	ip = IPInfo.serverip;	/* Default server */
 	break;
 
     case PXE_HOMESERVER:
 	buf = stpcpy(buf, filename+2);
-	ip = server_ip;
+	ip = IPInfo.serverip;
 	break;
 
     case PXE_TFTP:
@@ -781,7 +778,7 @@ sendreq:
     tid = socket->tftp_localport;   /* TID(local port No) */
     udp_write.buffer    = FAR_PTR(rrq_packet_buf);
     udp_write.ip        = ip;
-    udp_write.gw        = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.gw        = gateway(udp_write.ip);
     udp_write.src_port  = tid;
     udp_write.dst_port  = server_port;
     udp_write.buffer_size = buf - rrq_packet_buf;
@@ -794,7 +791,7 @@ wait_pkt:
         buf                  = packet_buf;
         udp_read.buffer      = FAR_PTR(buf);
         udp_read.buffer_size = PKTBUF_SIZE;
-        udp_read.dest_ip     = MyIP;
+        udp_read.dest_ip     = IPInfo.myip;
         udp_read.d_port      = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
@@ -1107,7 +1104,7 @@ static int pxe_load_config(void)
         return 0;
 
     /* Nope, try hexadecimal IP prefixes... */
-    uchexbytes(config_file, (uint8_t *)&MyIP, 4);     /* Convet to hex string */
+    uchexbytes(config_file, (uint8_t *)&IPInfo.myip, 4);     /* Convet to hex string */
     last = &config_file[8];
     while (tries) {
         *last = '\0';        /* Zero-terminate string */
@@ -1151,26 +1148,23 @@ char __bss16 IPOption[3+4*16];
 static void genipopt(void)
 {
     char *p = IPOption;
+    const uint32_t *v = &IPInfo.myip;
+    int i;
 
     p = stpcpy(p, "ip=");
 
-    p += gendotquad(p, MyIP);
-    *p++ = ':';
-
-    p += gendotquad(p, server_ip);
-    *p++ = ':';
-
-    p += gendotquad(p, gate_way);
-    *p++ = ':';
-
-    gendotquad(p, net_mask);
+    for (i = 0; i < 4; i++) {
+	p += gendotquad(p, *v++);
+	*p++ = ':';
+    }
+    *--p = '\0';
 }
 
 
 /* Generate ip= option and print the ip adress */
 static void ip_init(void)
 {
-    uint32_t ip = MyIP;
+    uint32_t ip = IPInfo.myip;
 
     genipopt();
     gendotquad(dot_quad_buf, ip);
@@ -1412,7 +1406,7 @@ static void udp_init(void)
 {
     int err;
     static __lowmem struct s_PXENV_UDP_OPEN udp_open;
-    udp_open.src_ip = MyIP;
+    udp_open.src_ip = IPInfo.myip;
     err = pxe_call(PXENV_UDP_OPEN, &udp_open);
     if (err || udp_open.status) {
         printf("Failed to initialize UDP stack ");

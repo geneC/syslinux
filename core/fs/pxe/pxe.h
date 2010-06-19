@@ -170,13 +170,20 @@ struct pxe_pvt_inode {
 #define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))
 
 /*
+ * Network boot information
+ */
+struct ip_info {
+    uint32_t ipv4;
+    uint32_t myip;
+    uint32_t serverip;
+    uint32_t gateway;
+    uint32_t netmask;
+};
+
+/*
  * Variable externs
  */
-extern uint32_t server_ip;
-extern uint32_t MyIP;
-extern uint32_t net_mask;
-extern uint32_t gate_way;
-extern uint16_t server_port;
+extern struct ip_info IPInfo;
 
 extern uint8_t MAC[];
 extern char BOOTIFStr[];
@@ -195,7 +202,6 @@ extern char dot_quad_buf[];
 
 extern uint32_t dns_server[];
 
-extern uint16_t real_base_mem;
 extern uint16_t APIVer;
 extern far_ptr_t PXEEntry;
 extern uint8_t KeepPXE;
@@ -209,6 +215,17 @@ extern char uuid[];
 extern uint16_t BIOS_fbm;
 extern const uint8_t TimeoutTable[];
 
+/*
+ * Compute the suitable gateway for a specific route -- too many
+ * vendor PXE stacks don't do this correctly...
+ */
+static inline uint32_t gateway(uint32_t ip)
+{
+    if ((ip ^ IPInfo.myip) & IPInfo.netmask)
+	return IPInfo.gateway;
+    else
+	return 0;
+}
 
 /*
  * functions 
