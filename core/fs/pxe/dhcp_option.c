@@ -16,14 +16,14 @@ static void subnet_mask(void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
-    net_mask = *(uint32_t *)data;
+    IPInfo.netmask = *(uint32_t *)data;
 }
 
 static void router(void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
-    gate_way = *(uint32_t *)data;
+    IPInfo.gateway = *(uint32_t *)data;
 }
 
 static void dns_servers(void *data, int opt_len)
@@ -83,12 +83,12 @@ static void server(void *data, int opt_len)
     if (opt_len != 4)
 	return;
     
-    if (server_ip)
+    if (IPInfo.serverip)
         return;
     
     ip = *(uint32_t *)data;
     if (ip_ok(ip))
-        server_ip = ip;
+        IPInfo.serverip = ip;
 }
 
 static void client_identifier(void *data, int opt_len)
@@ -246,10 +246,10 @@ void parse_dhcp(int pkt_len)
 
     over_load = 0;
     if (ip_ok(dhcp->yip))
-        MyIP = dhcp->yip;
+        IPInfo.myip = dhcp->yip;
     
     if (ip_ok(dhcp->sip))
-        server_ip = dhcp->sip;
+        IPInfo.serverip = dhcp->sip;
     
     opt_len = (char *)dhcp + pkt_len - (char *)&dhcp->options;
     if (opt_len && (dhcp->option_magic == BOOTP_OPTION_MAGIC)) 

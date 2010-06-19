@@ -27,7 +27,7 @@ static int pxe_idle_poll(void)
     memset(&read_buf, 0, sizeof read_buf);
 
     read_buf.src_ip  = 0;	 /* Any destination */
-    read_buf.dest_ip = MyIP;
+    read_buf.dest_ip = IPInfo.myip;
     read_buf.s_port  = 0;	 /* Any source port */
     read_buf.d_port  = htons(9); /* Discard port (not used...) */
     read_buf.buffer_size = sizeof junk_pkt;

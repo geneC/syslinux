@@ -54,6 +54,14 @@ struct syslinux_version {
     const char *copyright_string;
 };
 
+struct syslinux_ipinfo {
+    uint32_t ipver;
+    uint32_t myip;
+    uint32_t netmask;
+    uint32_t gateway;
+    uint32_t serverip;
+};
+
 extern __nocommon struct syslinux_version __syslinux_version;
 static inline const struct syslinux_version *syslinux_version(void)
 {
@@ -116,6 +124,7 @@ union syslinux_derivative_info {
 	uint32_t _eflags;
 	const void *pxenvptr;
 	const void *stack;
+	const struct syslinux_ipinfo *ipinfo;
     } pxe;			/* pxelinux */
     struct {
 	uint16_t _gs, _fs, _es, _ds;
