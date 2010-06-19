@@ -349,5 +349,4 @@ void pxe_dns_resolv(com32sys_t *regs)
     const char *name = MK_PTR(regs->ds, regs->esi.w[0]);
 
     regs->eax.l = dns_resolv(name);
-    printf("dnsresolv returns %08x\n", regs->eax.l);
 }
