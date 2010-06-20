@@ -33,7 +33,7 @@ SRCS     = syslinux.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = header.o crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = int2526.o conio.o memcpy.o memset.o  skipatou.o atou.o \
-	   malloc.o free.o \
+	   malloc.o free.o getsetsl.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
 VPATH = .:../libfat:../libinstaller

@@ -235,8 +235,10 @@ eddcheck:
 ; with parsing the superblock and root directory; it doesn't fit
 ; together with EBIOS support, unfortunately.
 ;
-		mov eax,[FirstSector]	; Sector start
-		mov edx,[FirstSector+4]
+		mov eax,strict dword 0xdeadbeef
+Sect1Ptr0	equ $-4
+		mov edx,strict dword 0xfeedface
+Sect1Ptr1	equ $-4
 		mov bx,ldlinux_sys	; Where to load it
 		call getonesec
 
@@ -404,13 +406,9 @@ xint13:
 bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 
 		; This fails if the boot sector overflowsg
-		zb 1F6h-($-$$)
-FirstSector	dq 0xFEEDFACEDEADBEEF		; Location of sector 1
+		zb 1FEh-($-$$)
 
-; This field will be filled in 0xAA55 by the installer, but we abuse it
-; to house a pointer to the INT 16h instruction at
-; kaboom.again, which gets patched to INT 18h in RAID mode.
-bootsignature	dw kaboom.again-bootsec
+bootsignature	dw 0xAA55
 
 ;
 ; ===========================================================================
@@ -443,6 +441,15 @@ LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
 CheckSum	dd 0		; Checksum starting at ldlinux_sys
 				; value = LDLINUX_MAGIC - [sum of dwords]
 MaxTransfer	dw 127		; Max sectors to transfer
+EPAPtr		dw EPA - LDLINUX_SYS	; Pointer to the extended patch area
+
+;
+; Extended patch area -- this is in .data16 so it doesn't occupy space in
+; the first sector.  Use this structure for anything that isn't used by
+; the first sector itself.
+;
+		section .data16
+EPA:
 ADVSecPtr	dw ADVSec0 - LDLINUX_SYS
 CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
 CurrentDirLen	dw CURRENTDIR_MAX
@@ -452,16 +459,21 @@ SecPtrOffset	dw SectorPtrs-LDLINUX_SYS
 SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs)/10
 
 ;
-; Installer pokes the base directory here.  This is in .data16 so it
-; isn't actually located in the first sector.
+; Boot sector patch pointers
+;
+Sect1Ptr0Ptr	dw Sect1Ptr0 - bootsec		; Pointers to Sector 1 location
+Sect1Ptr1Ptr	dw Sect1Ptr1 - bootsec
+RAIDPatchPtr	dw kaboom.again - bootsec	; Patch to INT 18h in RAID mode
+
+;
+; Base directory name and subvolume, if applicable.
 ;
 %define HAVE_CURRENTDIRNAME
-		section .data16
 		global CurrentDirName, SubvolName
 CurrentDirName	times CURRENTDIR_MAX db 0
 SubvolName	times SUBVOL_MAX db 0
-		section .init
 
+		section .init
 ldlinux_ent:
 ;
 ; Note that some BIOSes are buggy and run the boot sector at 07C0:0000

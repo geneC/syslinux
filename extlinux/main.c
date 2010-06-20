@@ -210,8 +210,8 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
 	}
 
 	if (len) {
-	    set_64(&ex->lba, lba);
-	    set_16(&ex->len, len);
+	    set_64_sl(&ex->lba, lba);
+	    set_16_sl(&ex->len, len);
 	    ex++;
 	}
 
@@ -225,10 +225,18 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
     }
 
     if (len) {
-	set_64(&ex->lba, lba);
-	set_16(&ex->len, len);
+	set_64_sl(&ex->lba, lba);
+	set_16_sl(&ex->len, len);
 	ex++;
     }
+}
+
+/*
+ * Form a pointer based on a 16-bit patcharea/epa field
+ */
+static inline void *ptr(void *img, uint16_t *offset_p)
+{
+    return (char *)img + get_16_sl(offset_p);
 }
 
 /*
@@ -246,12 +254,12 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     uint64_t totalbytes, totalsectors;
     int nsect;
     uint32_t *wp;
-    struct boot_sector *bs;
+    struct boot_sector *sbs;
     struct patch_area *patcharea;
+    struct ext_patch_area *epa;
     struct syslinux_extent *ex;
     int i, dw, nptrs;
     uint32_t csum;
-    int secptroffset, diroffset, dirlen, subvoloffset, subvollen;
     char *dirpath, *subpath, *xdirpath, *xsubpath;
     uint64_t *advptrs;
 
@@ -310,28 +318,20 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
        early bootstrap share code with the FAT version. */
     dprintf("heads = %u, sect = %u\n", geo.heads, geo.sectors);
 
-    bs = (struct boot_sector *)boot_block;
+    sbs = (struct boot_sector *)boot_block;
 
     totalsectors = totalbytes >> SECTOR_SHIFT;
     if (totalsectors >= 65536) {
-	set_16(&bs->bsSectors, 0);
+	set_16(&sbs->bsSectors, 0);
     } else {
-	set_16(&bs->bsSectors, totalsectors);
+	set_16(&sbs->bsSectors, totalsectors);
     }
-    set_32(&bs->bsHugeSectors, totalsectors);
+    set_32(&sbs->bsHugeSectors, totalsectors);
 
-    set_16(&bs->bsBytesPerSec, SECTOR_SIZE);
-    set_16(&bs->bsSecPerTrack, geo.sectors);
-    set_16(&bs->bsHeads, geo.heads);
-    set_32(&bs->bsHiddenSecs, geo.start);
-
-    /* If we're in RAID mode then patch the appropriate instruction;
-       either way write the proper boot signature */
-    i = get_16(&bs->bsSignature);
-    if (opt.raid_mode)
-	set_16((uint16_t *) (boot_block + i), 0x18CD);	/* INT 18h */
-
-    set_16(&bs->bsSignature, 0xAA55);
+    set_16(&sbs->bsBytesPerSec, SECTOR_SIZE);
+    set_16(&sbs->bsSecPerTrack, geo.sectors);
+    set_16(&sbs->bsHeads, geo.heads);
+    set_32(&sbs->bsHiddenSecs, geo.start);
 
     /* Construct the boot file */
 
@@ -351,27 +351,39 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 		*(sectp + i) = BTRFS_EXTLINUX_OFFSET/SECTOR_SIZE + i;
     }
 
-    /* First sector need pointer in boot sector */
-    set_64(&bs->NextSector, *sectp++);
-
     /* Search for LDLINUX_MAGIC to find the patch area */
-    for (wp = (uint32_t *) boot_image; get_32(wp) != LDLINUX_MAGIC; wp++) ;
+    for (wp = (uint32_t *) boot_image; get_32_sl(wp) != LDLINUX_MAGIC;
+	 wp++)
+	;
     patcharea = (struct patch_area *)wp;
+    epa = ptr(boot_image, &patcharea->epaoffset);
+
+    /* First sector need pointer in boot sector */
+    set_32(ptr(sbs, &epa->sect1ptr0), sectp[0]);
+    set_32(ptr(sbs, &epa->sect1ptr1), sectp[0] >> 32);
+    sectp++;
+
+    /* Handle RAID mode */
+    if (opt.raid_mode) {
+	/* Patch in INT 18h = CD 18 */
+	set_16(ptr(sbs, &epa->raidpatch), 0x18CD);
+    }
 
     /* Set up the totals */
     dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
-    set_16(&patcharea->data_sectors, nsect - 2);	/* -2 for the ADVs */
-    set_16(&patcharea->adv_sectors, 2);
-    set_32(&patcharea->dwords, dw);
+    set_16_sl(&patcharea->data_sectors, nsect - 2); /* Not including ADVs */
+    set_16_sl(&patcharea->adv_sectors, 2);	/* ADVs need 2 sectors */
+    set_32_sl(&patcharea->dwords, dw);
 
     /* Stupid mode? */
-    if (opt.stupid_mode)
-	set_16(&patcharea->maxtransfer, 1);
+    if (opt.stupid_mode) {
+	/* Access only one sector at a time */
+	set_16_sl(&patcharea->maxtransfer, 1);
+    }
 
     /* Set the sector extents */
-    secptroffset = get_16(&patcharea->secptroffset);
-    ex = (struct syslinux_extent *) ((char *)boot_image + secptroffset);
-    nptrs = get_16(&patcharea->secptrcnt);
+    ex = ptr(boot_image, &epa->secptroffset);
+    nptrs = get_16_sl(&epa->secptrcnt);
 
     if (nsect > nptrs) {
 	/* Not necessarily an error in this case, but a general problem */
@@ -383,38 +395,39 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     generate_extents(ex, nptrs, sectp, nsect-1-2);
 
     /* ADV pointers */
-    advptrs = (uint64_t *)((char *)boot_image +
-			   get_16(&patcharea->advptroffset));
-    set_64(&advptrs[0], sectp[nsect-1-2]);
-    set_64(&advptrs[1], sectp[nsect-1-1]);
+    advptrs = ptr(boot_image, &epa->advptroffset);
+    set_64_sl(&advptrs[0], sectp[nsect-1-2]);
+    set_64_sl(&advptrs[1], sectp[nsect-1-1]);
 
     /* Poke in the base directory path */
-    diroffset = get_16(&patcharea->diroffset);
-    dirlen = get_16(&patcharea->dirlen);
-    if (dirlen <= strlen(subpath)) {
-	fprintf(stderr, "Subdirectory path too long... aborting install!\n");
-	exit(1);
+    if (subpath) {
+	int sublen = strlen(subpath) + 1;
+	if (get_16_sl(&epa->dirlen) < sublen) {
+	    fprintf(stderr, "Subdirectory path too long... aborting install!\n");
+	    exit(1);
+	}
+	memcpy_to_sl(ptr(boot_image, &epa->diroffset), subpath, sublen);
     }
-    strncpy((char *)boot_image + diroffset, subpath, dirlen);
     free(dirpath);
 
-    /* write subvol info if we have */
-    subvoloffset = get_16(&patcharea->subvoloffset);
-    subvollen = get_16(&patcharea->subvollen);
-    if (subvollen <= strlen(subvol)) {
-	fprintf(stderr, "Subvol name too long... aborting install!\n");
-	exit(1);
+    /* Poke in the subvolume information */
+    if (1 /* subvol */) {
+	int sublen = strlen(subvol) + 1;
+	if (get_16_sl(&epa->subvollen) < sublen) {
+	    fprintf(stderr, "Subvol name too long... aborting install!\n");
+	    exit(1);
+	}
+	memcpy_to_sl(ptr(boot_image, &epa->subvoloffset), subvol, sublen);
     }
-    strncpy((char *)boot_image + subvoloffset, subvol, subvollen);
 
     /* Now produce a checksum */
-    set_32(&patcharea->checksum, 0);
+    set_32_sl(&patcharea->checksum, 0);
 
     csum = LDLINUX_MAGIC;
     for (i = 0, wp = (uint32_t *) boot_image; i < dw; i++, wp++)
-	csum -= get_32(wp);	/* Negative checksum */
+	csum -= get_32_sl(wp);	/* Negative checksum */
 
-    set_32(&patcharea->checksum, csum);
+    set_32_sl(&patcharea->checksum, csum);
 
     /*
      * Assume all bytes modified.  This can be optimized at the expense
@@ -490,9 +503,9 @@ int install_bootblock(int fd, const char *device)
 	return 1;
     }
     if (fs_type == VFAT) {
-	struct boot_sector *bs = (struct boot_sector *)extlinux_bootsect;
-        if (xpwrite(fd, &bs->bsHead, bsHeadLen, 0) != bsHeadLen ||
-	    xpwrite(fd, &bs->bsCode, bsCodeLen,
+	struct boot_sector *sbs = (struct boot_sector *)extlinux_bootsect;
+        if (xpwrite(fd, &sbs->bsHead, bsHeadLen, 0) != bsHeadLen ||
+	    xpwrite(fd, &sbs->bsCode, bsCodeLen,
 		    offsetof(struct boot_sector, bsCode)) != bsCodeLen) {
 	    perror("writing fat bootblock");
 	    return 1;

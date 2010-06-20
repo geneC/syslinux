@@ -129,115 +129,6 @@ const char *syslinux_check_bootsect(const void *bs)
 }
 
 /*
- * Special handling for the MS-DOS derivative: syslinux_ldlinux
- * is a "far" object...
- */
-#ifdef __MSDOS__
-
-#define __noinline __attribute__((noinline))
-
-extern uint16_t ldlinux_seg;	/* Defined in dos/syslinux.c */
-
-static inline __attribute__ ((const))
-uint16_t ds(void)
-{
-    uint16_t v;
-asm("movw %%ds,%0":"=rm"(v));
-    return v;
-}
-
-static inline void *set_fs(const void *p)
-{
-    uint16_t seg;
-
-    seg = ldlinux_seg + ((size_t) p >> 4);
-    asm volatile ("movw %0,%%fs"::"rm" (seg));
-    return (void *)((size_t) p & 0xf);
-}
-
-#if 0				/* unused */
-static __noinline uint8_t get_8_sl(const uint8_t * p)
-{
-    uint8_t v;
-
-    p = set_fs(p);
-    asm volatile("movb %%fs:%1,%0":"=q" (v):"m"(*p));
-    return v;
-}
-#endif
-
-static __noinline uint16_t get_16_sl(const uint16_t * p)
-{
-    uint16_t v;
-
-    p = set_fs(p);
-    asm volatile("movw %%fs:%1,%0":"=r" (v):"m"(*p));
-    return v;
-}
-
-static __noinline uint32_t get_32_sl(const uint32_t * p)
-{
-    uint32_t v;
-
-    p = set_fs(p);
-    asm volatile("movl %%fs:%1,%0":"=r" (v):"m"(*p));
-    return v;
-}
-
-#if 0				/* unused */
-static __noinline uint64_t get_64_sl(const uint64_t * p)
-{
-    uint32_t v0, v1;
-    const uint32_t *pp = (const uint32_t *)set_fs(p);
-
-    asm volatile("movl %%fs:%1,%0" : "=r" (v0) : "m" (pp[0]));
-    asm volatile("movl %%fs:%1,%0" : "=r" (v1) : "m" (pp[1]));
-    return v0 + ((uint64_t)v1 << 32);
-}
-#endif
-
-#if 0				/* unused */
-static __noinline void set_8_sl(uint8_t * p, uint8_t v)
-{
-    p = set_fs(p);
-    asm volatile("movb %1,%%fs:%0":"=m" (*p):"qi"(v));
-}
-#endif
-
-static __noinline void set_16_sl(uint16_t * p, uint16_t v)
-{
-    p = set_fs(p);
-    asm volatile("movw %1,%%fs:%0":"=m" (*p):"ri"(v));
-}
-
-static __noinline void set_32_sl(uint32_t * p, uint32_t v)
-{
-    p = set_fs(p);
-    asm volatile("movl %1,%%fs:%0":"=m" (*p):"ri"(v));
-}
-
-static __noinline void set_64_sl(uint64_t * p, uint64_t v)
-{
-    uint32_t *pp = (uint32_t *)set_fs(p);
-    asm volatile("movl %1,%%fs:%0" : "=m" (pp[0]) : "ri"((uint32_t)v));
-    asm volatile("movl %1,%%fs:%0" : "=m" (pp[1]) : "ri"((uint32_t)(v >> 32)));
-}
-
-#else
-
-/* Sane system ... */
-#define get_8_sl(x)    get_8(x)
-#define get_16_sl(x)   get_16(x)
-#define get_32_sl(x)   get_32(x)
-#define get_64_sl(x)   get_64(x)
-#define set_8_sl(x,y)  set_8(x,y)
-#define set_16_sl(x,y) set_16(x,y)
-#define set_32_sl(x,y) set_32(x,y)
-#define set_64_sl(x,y) set_64(x,y)
-
-#endif
-
-/*
  * Generate sector extents
  */
 static void generate_extents(struct syslinux_extent *ex, int nptrs,
@@ -285,6 +176,14 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
 }
 
 /*
+ * Form a pointer based on a 16-bit patcharea/epa field
+ */
+static inline void *ptr(void *img, uint16_t *offset_p)
+{
+    return (char *)img + get_16_sl(offset_p);
+}
+
+/*
  * This patches the boot sector and the beginning of ldlinux.sys
  * based on an ldlinux.sys sector map passed in.  Typically this is
  * handled by writing ldlinux.sys, mapping it, and then overwrite it
@@ -301,33 +200,35 @@ int syslinux_patch(const sector_t *sectp, int nsectors,
 		   int stupid, int raid_mode, const char *subdir)
 {
     struct patch_area *patcharea;
+    struct ext_patch_area *epa;
     struct syslinux_extent *ex;
     uint32_t *wp;
     int nsect = ((boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT) + 2;
     uint32_t csum;
     int i, dw, nptrs;
     struct boot_sector *sbs = (struct boot_sector *)boot_sector;
-    size_t diroffset, dirlen;
-    int secptroffset;
     uint64_t *advptrs;
 
     if (nsectors < nsect)
 	return -1;		/* The actual file is too small for content */
-
-    /* Handle RAID mode, write proper bsSignature */
-    i = get_16(&sbs->bsSignature);
-    if (raid_mode)
-	set_16((uint16_t *) ((char *)sbs + i), 0x18CD);	/* INT 18h */
-    set_16(&sbs->bsSignature, 0xAA55);
-
-    /* First sector need pointer in boot sector */
-    set_64(&sbs->NextSector, *sectp++);
 
     /* Search for LDLINUX_MAGIC to find the patch area */
     for (wp = (uint32_t *)boot_image; get_32_sl(wp) != LDLINUX_MAGIC;
 	 wp++)
 	;
     patcharea = (struct patch_area *)wp;
+    epa = ptr(boot_image, &patcharea->epaoffset);
+
+    /* First sector need pointer in boot sector */
+    set_32(ptr(sbs, &epa->sect1ptr0), sectp[0]);
+    set_32(ptr(sbs, &epa->sect1ptr1), sectp[0] >> 32);
+    sectp++;
+
+    /* Handle RAID mode */
+    if (raid_mode) {
+	/* Patch in INT 18h = CD 18 */
+	set_16(ptr(sbs, &epa->raidpatch), 0x18CD);
+    }
 
     /* Set up the totals */
     dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
@@ -338,13 +239,12 @@ int syslinux_patch(const sector_t *sectp, int nsectors,
     /* Handle Stupid mode */
     if (stupid) {
 	/* Access only one sector at a time */
-	set_16(&patcharea->maxtransfer, 1);
+	set_16_sl(&patcharea->maxtransfer, 1);
     }
 
     /* Set the sector extents */
-    secptroffset = get_16_sl(&patcharea->secptroffset);
-    ex = (struct syslinux_extent *) ((char *)boot_image + secptroffset);
-    nptrs = get_16_sl(&patcharea->secptrcnt);
+    ex = ptr(boot_image, &epa->secptroffset);
+    nptrs = get_16_sl(&epa->secptrcnt);
 
     if (nsect > nptrs) {
 	/* Not necessarily an error in this case, but a general problem */
@@ -356,20 +256,18 @@ int syslinux_patch(const sector_t *sectp, int nsectors,
     generate_extents(ex, nptrs, sectp, nsect-1-2);
 
     /* ADV pointers */
-    advptrs = (uint64_t *)((char *)boot_image +
-			   get_16_sl(&patcharea->advptroffset));
+    advptrs = ptr(boot_image, &epa->advptroffset);
     set_64_sl(&advptrs[0], sectp[nsect-1-2]);
     set_64_sl(&advptrs[1], sectp[nsect-1-1]);
 
     /* Poke in the base directory path */
     if (subdir) {
-	diroffset = get_16(&patcharea->diroffset);
-	dirlen = get_16(&patcharea->dirlen);
-	if (dirlen <= strlen(subdir)) {
+	int sublen = strlen(subdir) + 1;
+	if (get_16_sl(&epa->dirlen) < sublen) {
 	    fprintf(stderr, "Subdirectory path too long... aborting install!\n");
 	    exit(1);
 	}
-	memcpy((char *)boot_image + diroffset, subdir, strlen(subdir) + 1);
+	memcpy_to_sl(ptr(boot_image, &epa->diroffset), subdir, sublen);
     }
 
     /* Now produce a checksum */
@@ -381,5 +279,9 @@ int syslinux_patch(const sector_t *sectp, int nsectors,
 
     set_32_sl(&patcharea->checksum, csum);
 
+    /*
+     * Assume all bytes modified.  This can be optimized at the expense
+     * of keeping track of what the highest modified address ever was.
+     */
     return dw << 2;
 }

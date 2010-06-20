@@ -105,6 +105,56 @@ static inline void set_64(uint64_t *p, uint64_t v)
 #endif
 }
 
+/*
+ * Special handling for the MS-DOS derivative: syslinux_ldlinux
+ * is a "far" object...
+ */
+#ifdef __MSDOS__
+
+extern uint16_t ldlinux_seg;	/* Defined in dos/syslinux.c */
+
+static inline __attribute__ ((const))
+uint16_t ds(void)
+{
+    uint16_t v;
+    asm("movw %%ds,%0":"=rm"(v));
+    return v;
+}
+
+static inline void *set_fs(const void *p)
+{
+    uint16_t seg;
+
+    seg = ldlinux_seg + ((size_t) p >> 4);
+    asm volatile ("movw %0,%%fs"::"rm" (seg));
+    return (void *)((size_t) p & 0xf);
+}
+
+uint8_t get_8_sl(const uint8_t * p);
+uint16_t get_16_sl(const uint16_t * p);
+uint32_t get_32_sl(const uint32_t * p);
+uint64_t get_64_sl(const uint64_t * p);
+void set_8_sl(uint8_t * p, uint8_t v);
+void set_16_sl(uint16_t * p, uint16_t v);
+void set_32_sl(uint32_t * p, uint32_t v);
+void set_64_sl(uint64_t * p, uint64_t v);
+void memcpy_to_sl(void *dst, const void *src, size_t len);
+
+#else
+
+/* Sane system ... */
+#define get_8_sl(x)    		get_8(x)
+#define get_16_sl(x)   		get_16(x)
+#define get_32_sl(x)   		get_32(x)
+#define get_64_sl(x)   		get_64(x)
+#define set_8_sl(x,y)  		set_8(x,y)
+#define set_16_sl(x,y) 		set_16(x,y)
+#define set_32_sl(x,y) 		set_32(x,y)
+#define set_64_sl(x,y) 		set_64(x,y)
+#define memcpy_to_sl(d,s,l)	memcpy(d,s,l)
+
+#endif
+
 #define LDLINUX_MAGIC	0x3eb202fe
 
 /* Patch area for disk-based installers */
@@ -116,13 +166,21 @@ struct patch_area {
     uint32_t dwords;
     uint32_t checksum;
     uint16_t maxtransfer;
-    uint16_t advptroffset;
-    uint16_t diroffset;
-    uint16_t dirlen;
-    uint16_t subvoloffset;
-    uint16_t subvollen;
-    uint16_t secptroffset;
-    uint16_t secptrcnt;
+    uint16_t epaoffset;		/* Pointer to the extended patch area */
+};
+
+struct ext_patch_area {
+    uint16_t advptroffset;	/* ADV pointers */
+    uint16_t diroffset;		/* Current directory field */
+    uint16_t dirlen;		/* Length of current directory field */
+    uint16_t subvoloffset;	/* Subvolume field */
+    uint16_t subvollen;		/* Length of subvolume field */
+    uint16_t secptroffset;	/* Sector extent pointers */
+    uint16_t secptrcnt;		/* Number of sector extent pointers */
+
+    uint16_t sect1ptr0;		/* Boot sector offset of sector 1 ptr LSW */
+    uint16_t sect1ptr1;		/* Boot sector offset of sector 1 ptr MSW */
+    uint16_t raidpatch;		/* Boot sector RAID mode patch pointer */
 };
 
 /* Sector extent */
@@ -156,7 +214,7 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[440];
+	    uint8_t Code[448];
 	} __attribute__ ((packed)) bs16;
 	struct {
 	    uint32_t FATSz32;
@@ -172,11 +230,10 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[412];
+	    uint8_t Code[420];
 	} __attribute__ ((packed)) bs32;
     } __attribute__ ((packed));
 
-    uint64_t NextSector;	/* Pointer to the first unused sector */
     uint16_t bsSignature;
 } __attribute__ ((packed));
 
