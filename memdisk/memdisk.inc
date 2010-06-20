@@ -616,7 +616,12 @@ ElToritoTerminate:
 		mov ax,[cs:SavedAX]
 		cmp al,1		; We only support query, not terminate
 		jne ElToritoErr		; Fail
-		mov es,P_DS		; Caller's DS:SI pointed to packet
+		cmp dl,7fh		; Terminate all?
+		je .doit
+		cmp dl,[cs:DriveNo]	; Terminate our drive?
+		je .doit
+		jmp ElToritoErr		; Fail
+.doit:		mov es,P_DS		; Caller's DS:SI pointed to packet
 		mov di,P_SI		; We'll use ES:DI
 		mov si,CD_PKT.size	; First byte is packet size
 		xor cx,0		; Empty our count
