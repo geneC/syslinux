@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -281,11 +282,19 @@ int main(int argc, char *argv[])
     umask(077);
     parse_options(argc, argv, MODE_SYSLINUX);
 
-    asprintf(&subdir, "%s%s",
-	     opt.directory[0] == '/' ? "" : "/", opt.directory);
-    if (!subdir) {
-	perror(program);
-	exit(1);
+    /* Note: subdir is guaranteed to start and end in / */
+    if (opt.directory && opt.directory[0]) {
+	int len = strlen(opt.directory);
+	asprintf(&subdir, "%s%s%s",
+		 opt.directory[0] == '/' ? "" : "/",
+		 opt.directory,
+		 opt.directory[len-1] == '/' ? "" : "/");
+	if (!subdir) {
+	    perror(program);
+	    exit(1);
+	}
+    } else {
+	subdir = "/";
     }
 
     if (!opt.device)
@@ -377,9 +386,8 @@ int main(int argc, char *argv[])
 	die("mount failed");
     }
 
-    ldlinux_path = alloca(strlen(mntpath) +  (subdir ? strlen(subdir) + 2 : 0));
-    sprintf(ldlinux_path, "%s%s%s",
-	    mntpath, subdir ? "//" : "", subdir ? subdir : "");
+    ldlinux_path = alloca(strlen(mntpath) + strlen(subdir) + 1);
+    sprintf(ldlinux_path, "%s%s", mntpath, subdir);
 
     ldlinux_name = alloca(strlen(ldlinux_path) + 14);
     if (!ldlinux_name) {
@@ -387,7 +395,7 @@ int main(int argc, char *argv[])
 	err = 1;
 	goto umount;
     }
-    sprintf(ldlinux_name, "%s//ldlinux.sys", ldlinux_path);
+    sprintf(ldlinux_name, "%sldlinux.sys", ldlinux_path);
 
     /* update ADV only ? */
     if (opt.update_only == -1) {
