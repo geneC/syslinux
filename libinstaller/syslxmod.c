@@ -311,8 +311,8 @@ int syslinux_patch(const sector_t *sectp, int nsectors,
     int secptroffset;
     uint64_t *advptrs;
 
-    if (nsectors <= nsect)
-	return -1;
+    if (nsectors < nsect)
+	return -1;		/* The actual file is too small for content */
 
     /* Handle RAID mode, write proper bsSignature */
     i = get_16(&sbs->bsSignature);
@@ -325,7 +325,8 @@ int syslinux_patch(const sector_t *sectp, int nsectors,
 
     /* Search for LDLINUX_MAGIC to find the patch area */
     for (wp = (uint32_t *)boot_image; get_32_sl(wp) != LDLINUX_MAGIC;
-	 wp++) ;
+	 wp++)
+	;
     patcharea = (struct patch_area *)wp;
 
     /* Set up the totals */
