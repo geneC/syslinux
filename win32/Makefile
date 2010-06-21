@@ -45,6 +45,7 @@ WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) -o hello.exe hello.
 .SUFFIXES: .c .o .i .s .S
 
 SRCS     = syslinux.c \
+	   ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \

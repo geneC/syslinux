@@ -26,6 +26,7 @@ INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 	   -I. -I.. -I../libfat -I ../libinstaller
 
 SRCS     = syslinux.c \
+	   ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \

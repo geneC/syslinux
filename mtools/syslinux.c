@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
     libfat_close(fs);
 
     /* Patch ldlinux.sys and the boot sector */
-    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir);
+    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /* Write the now-patched first sectors of ldlinux.sys */

@@ -14,7 +14,7 @@
 /*
  * extlinux.c
  *
- * Install the extlinux boot block on an fat, ext2/3/4 and btrfs filesystem
+ * Install the syslinux boot block on an fat, ext2/3/4 and btrfs filesystem
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
@@ -72,26 +72,6 @@ typedef uint64_t u64;
 #define BTRFS_SUBVOL_OPT "subvol="
 #define BTRFS_SUBVOL_MAX 256	/* By btrfs specification */
 static char subvol[BTRFS_SUBVOL_MAX];
-
-/*
- * Boot block
- */
-extern unsigned char extlinux_bootsect[];
-extern unsigned int extlinux_bootsect_len;
-#undef  boot_block
-#undef  boot_block_len
-#define boot_block	extlinux_bootsect
-#define boot_block_len  extlinux_bootsect_len
-
-/*
- * Image file
- */
-extern unsigned char extlinux_image[];
-extern unsigned int extlinux_image_len;
-#undef  boot_image
-#undef  boot_image_len
-#define boot_image	extlinux_image
-#define boot_image_len  extlinux_image_len
 
 #define BTRFS_ADV_OFFSET (BTRFS_EXTLINUX_OFFSET + boot_image_len)
 
@@ -185,61 +165,6 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 }
 
 /*
- * Generate sector extents
- */
-static void generate_extents(struct syslinux_extent *ex, int nptrs,
-			     const sector_t *sectp, int nsect)
-{
-    uint32_t addr = 0x7c00 + 2*SECTOR_SIZE;
-    uint32_t base;
-    sector_t sect, lba;
-    unsigned int len;
-
-    len = lba = base = 0;
-
-    memset(ex, 0, nptrs * sizeof *ex);
-
-    while (nsect) {
-	sect = *sectp++;
-
-	if (len && sect == lba + len &&
-	    ((addr ^ (base + len * SECTOR_SIZE)) & 0xffff0000) == 0) {
-	    /* We can add to the current extent */
-	    len++;
-	    goto next;
-	}
-
-	if (len) {
-	    set_64_sl(&ex->lba, lba);
-	    set_16_sl(&ex->len, len);
-	    ex++;
-	}
-
-	base = addr;
-	lba  = sect;
-	len  = 1;
-
-    next:
-	addr += SECTOR_SIZE;
-	nsect--;
-    }
-
-    if (len) {
-	set_64_sl(&ex->lba, lba);
-	set_16_sl(&ex->len, len);
-	ex++;
-    }
-}
-
-/*
- * Form a pointer based on a 16-bit patcharea/epa field
- */
-static inline void *ptr(void *img, uint16_t *offset_p)
-{
-    return (char *)img + get_16_sl(offset_p);
-}
-
-/*
  * Query the device geometry and put it into the boot sector.
  * Map the file and put the map in the boot sector and file.
  * Stick the "current directory" inode number into the file.
@@ -253,15 +178,9 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     sector_t *sectp;
     uint64_t totalbytes, totalsectors;
     int nsect;
-    uint32_t *wp;
     struct boot_sector *sbs;
-    struct patch_area *patcharea;
-    struct ext_patch_area *epa;
-    struct syslinux_extent *ex;
-    int i, dw, nptrs;
-    uint32_t csum;
     char *dirpath, *subpath, *xdirpath, *xsubpath;
-    uint64_t *advptrs;
+    int rv;
 
     dirpath = realpath(dir, NULL);
     if (!dirpath || stat(dir, &dirst)) {
@@ -318,7 +237,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
        early bootstrap share code with the FAT version. */
     dprintf("heads = %u, sect = %u\n", geo.heads, geo.sectors);
 
-    sbs = (struct boot_sector *)boot_block;
+    sbs = (struct boot_sector *)syslinux_bootsect;
 
     totalsectors = totalbytes >> SECTOR_SHIFT;
     if (totalsectors >= 65536) {
@@ -333,7 +252,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     set_16(&sbs->bsHeads, geo.heads);
     set_32(&sbs->bsHiddenSecs, geo.start);
 
-    /* Construct the boot file */
+    /* Construct the boot file map */
 
     dprintf("directory inode = %lu\n", (unsigned long)dirst.st_ino);
     nsect = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
@@ -348,92 +267,15 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 	int i;
 
 	for (i = 0; i < nsect; i++)
-		*(sectp + i) = BTRFS_EXTLINUX_OFFSET/SECTOR_SIZE + i;
+	    sectp[i] = BTRFS_EXTLINUX_OFFSET/SECTOR_SIZE + i;
     }
 
-    /* Search for LDLINUX_MAGIC to find the patch area */
-    for (wp = (uint32_t *) boot_image; get_32_sl(wp) != LDLINUX_MAGIC;
-	 wp++)
-	;
-    patcharea = (struct patch_area *)wp;
-    epa = ptr(boot_image, &patcharea->epaoffset);
+    /* Create the modified image in memory */
+    rv = syslinux_patch(sectp, nsect, opt.stupid_mode,
+			opt.raid_mode, subpath, subvol);
 
-    /* First sector need pointer in boot sector */
-    set_32(ptr(sbs, &epa->sect1ptr0), sectp[0]);
-    set_32(ptr(sbs, &epa->sect1ptr1), sectp[0] >> 32);
-    sectp++;
-
-    /* Handle RAID mode */
-    if (opt.raid_mode) {
-	/* Patch in INT 18h = CD 18 */
-	set_16(ptr(sbs, &epa->raidpatch), 0x18CD);
-    }
-
-    /* Set up the totals */
-    dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
-    set_16_sl(&patcharea->data_sectors, nsect - 2); /* Not including ADVs */
-    set_16_sl(&patcharea->adv_sectors, 2);	/* ADVs need 2 sectors */
-    set_32_sl(&patcharea->dwords, dw);
-
-    /* Stupid mode? */
-    if (opt.stupid_mode) {
-	/* Access only one sector at a time */
-	set_16_sl(&patcharea->maxtransfer, 1);
-    }
-
-    /* Set the sector extents */
-    ex = ptr(boot_image, &epa->secptroffset);
-    nptrs = get_16_sl(&epa->secptrcnt);
-
-    if (nsect > nptrs) {
-	/* Not necessarily an error in this case, but a general problem */
-	fprintf(stderr, "Insufficient extent space, build error!\n");
-	exit(1);
-    }
-
-    /* -1 for the pointer in the boot sector, -2 for the two ADVs */
-    generate_extents(ex, nptrs, sectp, nsect-1-2);
-
-    /* ADV pointers */
-    advptrs = ptr(boot_image, &epa->advptroffset);
-    set_64_sl(&advptrs[0], sectp[nsect-1-2]);
-    set_64_sl(&advptrs[1], sectp[nsect-1-1]);
-
-    /* Poke in the base directory path */
-    if (subpath) {
-	int sublen = strlen(subpath) + 1;
-	if (get_16_sl(&epa->dirlen) < sublen) {
-	    fprintf(stderr, "Subdirectory path too long... aborting install!\n");
-	    exit(1);
-	}
-	memcpy_to_sl(ptr(boot_image, &epa->diroffset), subpath, sublen);
-    }
     free(dirpath);
-
-    /* Poke in the subvolume information */
-    if (1 /* subvol */) {
-	int sublen = strlen(subvol) + 1;
-	if (get_16_sl(&epa->subvollen) < sublen) {
-	    fprintf(stderr, "Subvol name too long... aborting install!\n");
-	    exit(1);
-	}
-	memcpy_to_sl(ptr(boot_image, &epa->subvoloffset), subvol, sublen);
-    }
-
-    /* Now produce a checksum */
-    set_32_sl(&patcharea->checksum, 0);
-
-    csum = LDLINUX_MAGIC;
-    for (i = 0, wp = (uint32_t *) boot_image; i < dw; i++, wp++)
-	csum -= get_32_sl(wp);	/* Negative checksum */
-
-    set_32_sl(&patcharea->checksum, csum);
-
-    /*
-     * Assume all bytes modified.  This can be optimized at the expense
-     * of keeping track of what the highest modified address ever was.
-     */
-    return dw << 2;
+    return rv;
 }
 
 /*
@@ -503,7 +345,7 @@ int install_bootblock(int fd, const char *device)
 	return 1;
     }
     if (fs_type == VFAT) {
-	struct boot_sector *sbs = (struct boot_sector *)extlinux_bootsect;
+	struct boot_sector *sbs = (struct boot_sector *)syslinux_bootsect;
         if (xpwrite(fd, &sbs->bsHead, bsHeadLen, 0) != bsHeadLen ||
 	    xpwrite(fd, &sbs->bsCode, bsCodeLen,
 		    offsetof(struct boot_sector, bsCode)) != bsCodeLen) {
@@ -511,7 +353,8 @@ int install_bootblock(int fd, const char *device)
 	    return 1;
 	}
     } else {
-	if (xpwrite(fd, boot_block, boot_block_len, 0) != boot_block_len) {
+	if (xpwrite(fd, syslinux_bootsect, syslinux_bootsect_len, 0)
+	    != syslinux_bootsect_len) {
 	    perror("writing bootblock");
 	    return 1;
 	}
@@ -526,7 +369,7 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
     int fd = -1, dirfd = -1;
     int modbytes;
 
-    asprintf(&file, "%s%sextlinux.sys",
+    asprintf(&file, "%s%sldlinux.sys",
 	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
     if (!file) {
 	perror(program);
@@ -597,9 +440,9 @@ bail:
     return 1;
 }
 
-/* btrfs has to install the extlinux.sys in the first 64K blank area, which
+/* btrfs has to install the ldlinux.sys in the first 64K blank area, which
    is not managered by btrfs tree, so actually this is not installed as files.
-   since the cow feature of btrfs will move the extlinux.sys every where */
+   since the cow feature of btrfs will move the ldlinux.sys every where */
 int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 {
     patch_file_and_bootblock(-1, path, devfd);
@@ -631,14 +474,17 @@ int install_file(const char *path, int devfd, struct stat *rst)
 	return 1;
 }
 
-/* EXTLINUX installs the string 'EXTLINUX' at offset 3 in the boot
-   sector; this is consistent with FAT filesystems. */
+/*
+ * SYSLINUX installs the string 'SYSLINUX' at offset 3 in the boot
+ * sector; this is consistent with FAT filesystems.  Earlier versions
+ * would install the string "EXTLINUX" instead, handle both.
+ */
 int already_installed(int devfd)
 {
     char buffer[8];
 
     xpread(devfd, buffer, 8, 3);
-    return !memcmp(buffer, "EXTLINUX", 8);
+    return !memcmp(buffer, "SYSLINUX", 8) || !memcmp(buffer, "EXTLINUX", 8);
 }
 
 #ifdef __KLIBC__
@@ -843,7 +689,7 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
 
 static int ext_read_adv(const char *path, const char *cfg, int devfd)
 {
-    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
+    if (fs_type == BTRFS) { /* btrfs "ldlinux.sys" is in 64k blank area */
 	if (xpread(devfd, syslinux_adv, 2 * ADV_SIZE,
 		BTRFS_ADV_OFFSET) != 2 * ADV_SIZE) {
 		perror("btrfs writing adv");
@@ -856,7 +702,7 @@ static int ext_read_adv(const char *path, const char *cfg, int devfd)
 
 static int ext_write_adv(const char *path, const char *cfg, int devfd)
 {
-    if (fs_type == BTRFS) { /* btrfs "extlinux.sys" is in 64k blank area */
+    if (fs_type == BTRFS) { /* btrfs "ldlinux.sys" is in 64k blank area */
 	if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
 		BTRFS_ADV_OFFSET) != 2 * ADV_SIZE) {
 		perror("writing adv");
@@ -878,7 +724,7 @@ int install_loader(const char *path, int update_only)
 	return 1;
 
     if (update_only && !already_installed(devfd)) {
-	fprintf(stderr, "%s: no previous extlinux boot sector found\n",
+	fprintf(stderr, "%s: no previous syslinux boot sector found\n",
 		program);
 	close(devfd);
 	return 1;
@@ -887,7 +733,7 @@ int install_loader(const char *path, int update_only)
     /* Read a pre-existing ADV, if already installed */
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (ext_read_adv(path, "extlinux.sys", devfd) < 0) {
+    else if (ext_read_adv(path, "ldlinux.sys", devfd) < 0) {
 	close(devfd);
 	return 1;
     }
@@ -896,7 +742,7 @@ int install_loader(const char *path, int update_only)
 	return 1;
     }
 
-    /* Install extlinux.sys */
+    /* Install ldlinux.sys */
     if (install_file(path, devfd, &fst)) {
 	close(devfd);
 	return 1;
@@ -929,7 +775,7 @@ int modify_existing_adv(const char *path)
 
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (ext_read_adv(path, "extlinux.sys", devfd) < 0) {
+    else if (ext_read_adv(path, "ldlinux.sys", devfd) < 0) {
 	close(devfd);
 	return 1;
     }
@@ -937,7 +783,7 @@ int modify_existing_adv(const char *path)
 	close(devfd);
 	return 1;
     }
-    if (ext_write_adv(path, "extlinux.sys", devfd) < 0) {
+    if (ext_write_adv(path, "ldlinux.sys", devfd) < 0) {
 	close(devfd);
 	return 1;
     }

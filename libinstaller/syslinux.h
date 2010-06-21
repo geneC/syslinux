@@ -48,6 +48,7 @@ const char *syslinux_check_bootsect(const void *bs);
 /* This patches the boot sector and ldlinux.sys based on a sector map */
 typedef uint64_t sector_t;
 int syslinux_patch(const sector_t *sectors, int nsectors,
-		   int stupid, int raid_mode, const char *subdir);
+		   int stupid, int raid_mode,
+		   const char *subdir, const char *subvol);
 
 #endif

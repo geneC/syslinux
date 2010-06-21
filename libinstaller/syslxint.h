@@ -238,7 +238,7 @@ struct boot_sector {
 } __attribute__ ((packed));
 
 #define bsHead      bsJump
-#define bsHeadLen   offsetof(struct boot_sector, bsOemName)
+#define bsHeadLen   offsetof(struct boot_sector, bsBytesPerSec)
 #define bsCode	    bs32.Code	/* The common safe choice */
 #define bsCodeLen   (offsetof(struct boot_sector, bsSignature) - \
 		     offsetof(struct boot_sector, bsCode))
