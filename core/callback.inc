@@ -74,7 +74,7 @@ core_syscall:
 		mov eax,.rm_return	; Return seg:offs
 		stosd			; Save in stack frame
 		mov eax,[edi-12]	; Return flags
-		and eax,0x200cd7	; Mask (potentially) unsafe flags
+		and eax,0x200ed7	; Mask (potentially) unsafe flags
 		mov [edi-12],eax	; Primary flags entry
 		stosw			; Return flags
 
