@@ -247,7 +247,10 @@ uint32_t dns_resolv(const char *name)
             continue;
 
         oldtime = jiffies();
-	while (1) {
+	do {
+	    if (jiffies() - oldtime >= timeout)
+		goto again;
+
             udp_read.status      = 0;
             udp_read.src_ip      = srv;
             udp_read.dest_ip     = IPInfo.myip;
@@ -256,16 +259,8 @@ uint32_t dns_resolv(const char *name)
             udp_read.buffer_size = PKTBUF_SIZE;
             udp_read.buffer      = FAR_PTR(DNSRecvBuf);
             err = pxe_call(PXENV_UDP_READ, &udp_read);
-            if (err || udp_read.status)
-                continue;
+	} while (err || udp_read.status || hd2->id != hd1->id);
 
-            /* Got a packet, deal with it... */
-            if (hd2->id == hd1->id)
-                break;
-
-	    if (jiffies() - oldtime >= timeout)
-		goto again;
-        }
         if ((hd2->flags ^ 0x80) & htons(0xf80f))
             goto badness;
 
