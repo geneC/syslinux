@@ -407,6 +407,9 @@ adv_read_write:
 		push eax
 		push bp
 
+		and edx,edx			; > 2 TiB not possible
+		jnz .cb_overflow
+
 		mov dl,[ADVDrive]
 		and dl,dl
 		; Floppies: can't trust INT 13h 08h, we better know
@@ -443,6 +446,7 @@ adv_read_write:
                 ; Dividing by sectors to get (track,sector): we may have
                 ; up to 2^18 tracks, so we need to use 32-bit arithmetric.
                 ;
+		xor edx,edx
                 div esi
                 xor cx,cx
                 xchg cx,dx              ; CX <- sector index (0-based)
