@@ -159,12 +159,13 @@ floppy:
 		fs rep movsw		; Faster to move words
 		mov cl,[bsSecPerTrack]  ; Patch the sector count
 		mov [di-76+8],cl
-		int 13h			; Some BIOSes need this
 
-		push cx			; Partition offset == 0
-		push cx
-		push cx
-		push cx
+		push ax			; Partition offset == 0
+		push ax
+		push ax
+		push ax
+
+		int 13h			; Some BIOSes need this
 		jmp short not_harddisk
 ;
 ; The drive number and possibly partition information was passed to us
@@ -326,9 +327,8 @@ getonesec_cbios:
 		; eax = track #
 		div edi			; Convert track to head/cyl
 
-		; We should test this, but it doesn't fit...
-		; cmp eax,1023
-		; ja .error
+		cmp eax,1023		; Outside the CHS range?
+		ja kaboom
 
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
@@ -343,11 +343,11 @@ getonesec_cbios:
 		mov dh,dl
 		mov ax,0201h		; Read one sector
 		call xint13
+		popad
 		jc .error
 		ret
 
 .error:
-		popad
 		loop .retry
 		; Fall through to disk_error
 
@@ -699,9 +699,8 @@ getlinsec_cbios:
 		; eax = track #
 		div edi			; Convert track to head/cyl
 
-		; We should test this, but it doesn't fit...
-		; cmp eax,1023
-		; ja .error
+		cmp eax,1023		; Outside the CHS range?
+		ja kaboom
 
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
