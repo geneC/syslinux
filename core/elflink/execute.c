@@ -21,13 +21,21 @@ void execute(const char *cmdline, enum kernel_type type)
 {
 	com32sys_t ireg;
 	const char *p, *const *pp;
-	char *q = __com32.cs_bounce;
+	//char *q = __com32.cs_bounce;
+	char *q;
 	const char *kernel, *args;
 
 	/* work around for spawn_load parameter */
 	char *spawn_load_param[2] = { NULL, NULL};
 
 	memset(&ireg, 0, sizeof ireg);
+
+	q = lmalloc(128);
+	if (!q) {
+		printf("%s(): Fail to lmalloc a buffer to exec %s\n",
+			__func__, cmdline);
+		return;
+	}
 
 	kernel = q;
 	p = cmdline;
@@ -80,6 +88,8 @@ void execute(const char *cmdline, enum kernel_type type)
 
 		__intcall(0x22, &ireg, NULL);
 	}
+
+	lfree(kernel);
 
 	/* If this returns, something went bad; return to menu */
 }
