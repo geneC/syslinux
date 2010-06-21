@@ -705,8 +705,8 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	while (*np && *np != '/' && *np != ':')
 	    np++;
 	if (np > filename + 7) {
-	    if (parse_dotquad(filename, &ip) != np)
-		ip = dns_resolv(filename);
+	    if (parse_dotquad(filename + 7, &ip) != np)
+		ip = dns_resolv(filename + 7);
 	}
 	if (*np == ':') {
 	    np++;
