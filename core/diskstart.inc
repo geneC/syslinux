@@ -449,6 +449,7 @@ EPAPtr		dw EPA - LDLINUX_SYS	; Pointer to the extended patch area
 ; the first sector itself.
 ;
 		section .data16
+		alignz 2
 EPA:
 ADVSecPtr	dw ADVSec0 - LDLINUX_SYS
 CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
