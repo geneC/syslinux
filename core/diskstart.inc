@@ -22,7 +22,7 @@
 PartInfo:				; Partition table info
 .mbr:		resb 16			; MBR partition info
 .gptlen:	resd 1
-.gpt:		resb 92
+.gpt:		resb 56			; GPT partition info (minus name)
 FloppyTable	resb 16			; Floppy info table (must follow PartInfo)
 
 		section .init
@@ -121,10 +121,10 @@ start:
 
 ;
 ; DS:SI may contain a partition table entry and possibly a GPT entry.
-; Preserve it for us.  This saves 92 bytes of the GPT entry, which is
-; currently the maximum we care about.
+; Preserve it for us.  This saves 56 bytes of the GPT entry, which is
+; currently the maximum we care about.  Total is 76 bytes.
 ;
-		mov cl,(16+4+92)/2	; Save partition info
+		mov cl,(16+4+56)/2	; Save partition info
 		mov di,PartInfo
 		rep movsw		; This puts CX back to zero
 
@@ -158,7 +158,7 @@ floppy:
 		mov [bx+2],ax		; Segment 0
 		fs rep movsw		; Faster to move words
 		mov cl,[bsSecPerTrack]  ; Patch the sector count
-		mov [di-112+8],cl
+		mov [di-76+8],cl
 		int 13h			; Some BIOSes need this
 
 		push cx			; Partition offset == 0
@@ -174,17 +174,19 @@ floppy:
 ; Note: di points to beyond the end of PartInfo
 ;
 harddisk:
-		test byte [di-112],7Fh	; Sanity check: "active flag" should
+		test byte [di-76],7Fh	; Sanity check: "active flag" should
 		jnz no_partition	; be 00 or 80
 		cmp eax,'!GPT'		; !GPT signature?
 		jne .not_gpt
-		push dword [di-112+20+36]
-		push dword [di-112+20+32]
+		cmp byte [di-76+4],0EDh	; Synthetic GPT partition entry?
+		jne .not_gpt
+		push dword [di-76+20+36]
+		push dword [di-76+20+32]
 		jmp .gotoffs
 .not_gpt:
 		push cx			; Upper half partition offset == 0
 		push cx
-		push dword [di-112+8]	; Partition offset (dword)
+		push dword [di-76+8]	; Partition offset (dword)
 .gotoffs:
 no_partition:
 ;
