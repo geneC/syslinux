@@ -477,7 +477,7 @@ static void fill_buffer(struct inode *inode)
 {
     int err;
     int last_pkt;
-    const uint8_t *timeout_ptr = TimeoutTable;
+    const uint8_t *timeout_ptr;
     uint8_t timeout;
     uint16_t buffersize;
     uint32_t oldtime;
@@ -730,6 +730,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
 		*buf++ = *np++;
 	    }
 	}
+	*buf = '\0';
 	break;
     }
 
