@@ -344,7 +344,8 @@ int main(int argc, char *argv[])
 	   Make a temp dir and pass all the gunky options to mount. */
 
 	if (chdir(_PATH_TMP)) {
-	    perror(program);
+	    fprintf(stderr, "%s: Cannot access the %s directory.\n",
+		    program, _PATH_TMP);
 	    exit(1);
 	}
 #define TMP_MODE (S_IXUSR|S_IWUSR|S_IXGRP|S_IWGRP|S_IWOTH|S_IXOTH|S_ISVTX)
