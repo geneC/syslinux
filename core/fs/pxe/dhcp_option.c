@@ -28,27 +28,22 @@ static void router(void *data, int opt_len)
 
 static void dns_servers(void *data, int opt_len)
 {
-    int num = opt_len >> 2;
-    int i;
+    const uint32_t *dp = data;
+    int num = 0;
 
-    if (num > DNS_MAX_SERVERS)
-        num = DNS_MAX_SERVERS;
+    while (num < DNS_MAX_SERVERS) {
+	uint32_t ip;
 
-    for (i = 0; i < num; i++) {
-        dns_server[i] = *(uint32_t *)data;
-        data += 4;
+	if (opt_len < 4)
+	    break;
+
+	opt_len -= 4;
+	ip = *dp++;
+	if (ip_ok(ip))
+	    dns_server[num++] = ip;
     }
-
-#if 0
-    /*
-     * if you find you got no corret DNS server, you can add
-     * it here manually. BUT be carefull the DNS_MAX_SERVERS
-     */
-    if (i < DNS_MAX_SERVERS ) {
-        dns_server[i++] = your_master_dns_server;
-        dns_server[i++] = your_second_dns_server;
-    }
-#endif
+    while (num < DNS_MAX_SERVERS)
+	dns_server[num++] = 0;
 }
 
 static void local_domain(void *data, int opt_len)
@@ -56,7 +51,7 @@ static void local_domain(void *data, int opt_len)
     char *p = (char *)data + opt_len;
     char *ld = LocalDomain;
     char end = *p;
-    
+
     *p = '\0';   /* Zero-terminate option */
     dns_mangle(&ld, data);
     *p = end;    /* Restore ending byte */
@@ -82,10 +77,10 @@ static void server(void *data, int opt_len)
 
     if (opt_len != 4)
 	return;
-    
+
     if (IPInfo.serverip)
         return;
-    
+
     ip = *(uint32_t *)data;
     if (ip_ok(ip))
         IPInfo.serverip = ip;
@@ -94,7 +89,7 @@ static void server(void *data, int opt_len)
 static void client_identifier(void *data, int opt_len)
 {
     if (opt_len > MAC_MAX || opt_len < 2 ||
-        MAC_len != (opt_len >> 8) || 
+        MAC_len != (opt_len >> 8) ||
         *(uint8_t *)data != MAC_type)
         return;
 
@@ -109,7 +104,7 @@ static void bootfile_name(void *data, int opt_len)
     strncpy(boot_file, data, opt_len);
     boot_file[opt_len] = 0;
 }
-   
+
 static void uuid_client_identifier(void *data, int opt_len)
 {
     int type = *(uint8_t *)data;
@@ -140,7 +135,7 @@ static void pxelinux_reboottime(void *data, int opt_len)
 {
     if ((opt_len && 0xff) != 4)
         return ;
-    
+
     RebootTime = ntohl(*(uint32_t *)data);
     DHCPMagic |= 8;     /* Got reboot time */
 }
@@ -151,7 +146,7 @@ struct dhcp_options {
     void (*fun) (void *, int);
 };
 
-static struct dhcp_options dhcp_opts[] = { 
+static struct dhcp_options dhcp_opts[] = {
     {1,   subnet_mask},
     {3,   router},
     {6,   dns_servers},
@@ -168,13 +163,13 @@ static struct dhcp_options dhcp_opts[] = {
 };
 
 /*
- * Parse a sequence of DHCP options, pointed to by _option_; 
+ * Parse a sequence of DHCP options, pointed to by _option_;
  * -- some DHCP servers leave option fields unterminated
  * in violation of the spec.
  *
  * filter  contains the minimum value for the option to recognize
  * -- this is used to restrict parsing to PXELINUX-specific options only.
- */  
+ */
 static void parse_dhcp_options(void *option, int size, uint8_t opt_filter)
 {
     uint8_t opt_num;
@@ -183,7 +178,7 @@ static void parse_dhcp_options(void *option, int size, uint8_t opt_filter)
     int i = 0;
     char *p = option;
     struct dhcp_options *opt;
-    
+
     while (size--) {
         opt_num = *p++;
 
@@ -193,7 +188,7 @@ static void parse_dhcp_options(void *option, int size, uint8_t opt_filter)
             continue;
         if (opt_num == 0xff)
             break;
-        
+
         /* Anything else will have a lenght filed */
         opt_len = *p++; /* c  <- option lenght */
         size = size - opt_len - 1;
@@ -209,15 +204,15 @@ static void parse_dhcp_options(void *option, int size, uint8_t opt_filter)
             if (opt_num == opt->opt_num) {
                 opt->fun(p, opt_len);
                 break;
-            }            
+            }
             opt ++;
         }
-        
+
         /* parse next */
         p += opt_len;
     }
 }
- 
+
 /*
  * parse_dhcp
  *
@@ -249,19 +244,19 @@ void parse_dhcp(int pkt_len)
     over_load = 0;
     if (ip_ok(dhcp->yip))
         IPInfo.myip = dhcp->yip;
-    
+
     if (ip_ok(dhcp->sip))
         IPInfo.serverip = dhcp->sip;
-    
+
     opt_len = (char *)dhcp + pkt_len - (char *)&dhcp->options;
-    if (opt_len && (dhcp->option_magic == BOOTP_OPTION_MAGIC)) 
+    if (opt_len && (dhcp->option_magic == BOOTP_OPTION_MAGIC))
         parse_dhcp_options(&dhcp->options, opt_len, 0);
 
-    if (over_load & 1) 
+    if (over_load & 1)
         parse_dhcp_options(&dhcp->bootfile, 128, 0);
-    else if (dhcp->bootfile[0]) 
+    else if (dhcp->bootfile[0])
             strcpy(boot_file, dhcp->bootfile);
-    
-    if (over_load & 2) 
+
+    if (over_load & 2)
         parse_dhcp_options(dhcp->sname, 64, 0);
-}  
+}
