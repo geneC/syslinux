@@ -832,8 +832,8 @@ AX=0018h [3.30]	Query custom font
 
 AX=0019h [3.50] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 	Input:	AX	0019h
-		EDX	Sector number
-		ESI	Reserved - MUST BE ZERO
+		EDX	Sector number (LSW)
+		ESI	Sector number (MSW) [4.00]
 		EDI	Reserved - MUST BE ZERO
 		CX	Sector count
 		ES:BX	Buffer address

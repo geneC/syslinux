@@ -837,10 +837,10 @@ comapi_userfont:
 ;
 %if IS_SYSLINUX || IS_ISOLINUX || IS_EXTLINUX
 comapi_readdisk:
-		mov esi,P_ESI		; Enforce ESI == EDI == 0, these
-		or esi,P_EDI		; are reserved for future expansion
+		cmp P_EDI,0		; Reserved for future expansion
 		jnz .err
 		mov eax,P_EDX
+		mov edx,P_ESI
 		mov es,P_ES
 		mov bx,P_BX
 		mov bp,P_CX		; WE CANNOT use P_* after touching bp!
