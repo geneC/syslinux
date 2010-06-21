@@ -387,7 +387,7 @@ static enum pxe_path_type pxe_path_type(const char *str)
 		else
 		    return PXE_TFTP;
 	    } else if (p > str && p[1] == '/' && p[2] == '/') {
-		if (strncasecmp(str, "tftp://", 7))
+		if (!strncasecmp(str, "tftp://", 7))
 		    return PXE_URL_TFTP;
 		else
 		    return PXE_URL;
