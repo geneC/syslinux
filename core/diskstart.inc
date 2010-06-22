@@ -176,20 +176,26 @@ floppy:
 ;
 harddisk:
 		test byte [di-76],7Fh	; Sanity check: "active flag" should
-		jnz no_partition	; be 00 or 80
+		jnz .no_partition	; be 00 or 80
 		cmp eax,'!GPT'		; !GPT signature?
-		jne .not_gpt
+		jne .mbr
 		cmp byte [di-76+4],0EDh	; Synthetic GPT partition entry?
-		jne .not_gpt
+		jne .mbr
+.gpt:					; GPT-style partition info
 		push dword [di-76+20+36]
 		push dword [di-76+20+32]
 		jmp .gotoffs
-.not_gpt:
+.mbr:					; MBR-style partition info
 		push cx			; Upper half partition offset == 0
 		push cx
 		push dword [di-76+8]	; Partition offset (dword)
+		jmp .gotoffs
+.no_partition:
+		push cx
+		push cx
+		push cx
+		push cx
 .gotoffs:
-no_partition:
 ;
 ; Get disk drive parameters (don't trust the superblock.)  Don't do this for
 ; floppy drives -- INT 13:08 on floppy drives will (may?) return info about
