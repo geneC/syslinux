@@ -93,13 +93,16 @@ int main(int argc, char *argv[])
 
     munmap((void *)map, 4096);
 
+    if (fbm < 64 || fbm >= 640)
+	return 1;
+
     mapbase = (fbm << 10) & ~(page - 1);
     maplen  = 0xa0000 - mapbase;
     map = mmap(NULL, maplen, PROT_READ, MAP_SHARED, memfd, mapbase);
     if (map == MAP_FAILED) {
 	fprintf(stderr, "%s: cannot map base memory: %s\n",
 		argv[0], strerror(errno));
-	exit(1);
+	return 2;
     }
 
     ptr = map + ((fbm << 10) & (page - 1));
