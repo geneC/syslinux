@@ -1045,6 +1045,7 @@ static int try_load(char *config_name)
     regs.edi.w[0] = OFFS_WRT(KernelName, 0);
     call16(core_open, &regs, &regs);
     if (regs.eflags.l & EFLAGS_ZF) {
+	strcpy(ConfigName, KernelName);
         printf("\r");
         return 0;
     } else {
@@ -1067,15 +1068,14 @@ static int pxe_load_config(void)
     get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
-	if (try_load(boot_file))
+	if (try_load(ConfigName))
 	    return 0;
     }
 
     /*
      * Have to guess config file name ...
      */
-    memcpy(ConfigName, cfgprefix, strlen(cfgprefix));
-    config_file = ConfigName + strlen(cfgprefix);
+    config_file = stpcpy(ConfigName, cfgprefix);
 
     /* Try loading by UUID */
     if (have_uuid) {
@@ -1105,7 +1105,7 @@ static int pxe_load_config(void)
         return 0;
 
     /* Nope, try hexadecimal IP prefixes... */
-    uchexbytes(config_file, (uint8_t *)&IPInfo.myip, 4);     /* Convet to hex string */
+    uchexbytes(config_file, (uint8_t *)&IPInfo.myip, 4);
     last = &config_file[8];
     while (tries) {
         *last = '\0';        /* Zero-terminate string */

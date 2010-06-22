@@ -10,23 +10,23 @@ int over_load;
 uint8_t uuid_type;
 char uuid[17];
 
-static void parse_dhcp_options(void *, int, uint8_t);
+static void parse_dhcp_options(const void *, int, uint8_t);
 
-static void subnet_mask(void *data, int opt_len)
+static void subnet_mask(const void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
-    IPInfo.netmask = *(uint32_t *)data;
+    IPInfo.netmask = *(const uint32_t *)data;
 }
 
-static void router(void *data, int opt_len)
+static void router(const void *data, int opt_len)
 {
     if (opt_len != 4)
 	return;
-    IPInfo.gateway = *(uint32_t *)data;
+    IPInfo.gateway = *(const uint32_t *)data;
 }
 
-static void dns_servers(void *data, int opt_len)
+static void dns_servers(const void *data, int opt_len)
 {
     const uint32_t *dp = data;
     int num = 0;
@@ -46,32 +46,31 @@ static void dns_servers(void *data, int opt_len)
 	dns_server[num++] = 0;
 }
 
-static void local_domain(void *data, int opt_len)
+static void local_domain(const void *data, int opt_len)
 {
-    char *p = (char *)data + opt_len;
+    char buffer[256];
     char *ld = LocalDomain;
-    char end = *p;
 
-    *p = '\0';   /* Zero-terminate option */
-    dns_mangle(&ld, data);
-    *p = end;    /* Restore ending byte */
+    memcpy(buffer, data, opt_len);
+    buffer[opt_len] = 0;
+
+    dns_mangle(&ld, buffer);
 }
 
-static void vendor_encaps(void *data, int opt_len)
+static void vendor_encaps(const void *data, int opt_len)
 {
-    /* Only recongnize PXELINUX options */
+    /* Only recognize PXELINUX options */
     parse_dhcp_options(data, opt_len, 208);
 }
 
-static void option_overload(void *data, int opt_len)
+static void option_overload(const void *data, int opt_len)
 {
     if (opt_len != 1)
 	return;
     over_load = *(uint8_t *)data;
 }
 
-
-static void server(void *data, int opt_len)
+static void server(const void *data, int opt_len)
 {
     uint32_t ip;
 
@@ -86,7 +85,7 @@ static void server(void *data, int opt_len)
         IPInfo.serverip = ip;
 }
 
-static void client_identifier(void *data, int opt_len)
+static void client_identifier(const void *data, int opt_len)
 {
     if (opt_len > MAC_MAX || opt_len < 2 ||
         MAC_len != (opt_len >> 8) ||
@@ -99,15 +98,15 @@ static void client_identifier(void *data, int opt_len)
     MAC[opt_len] = 0;
 }
 
-static void bootfile_name(void *data, int opt_len)
+static void bootfile_name(const void *data, int opt_len)
 {
-    strncpy(boot_file, data, opt_len);
+    memcpy(boot_file, data, opt_len);
     boot_file[opt_len] = 0;
 }
 
-static void uuid_client_identifier(void *data, int opt_len)
+static void uuid_client_identifier(const void *data, int opt_len)
 {
-    int type = *(uint8_t *)data;
+    int type = *(const uint8_t *)data;
     if (opt_len != 17 || type != 0 || have_uuid)
         return;
 
@@ -117,36 +116,36 @@ static void uuid_client_identifier(void *data, int opt_len)
     uuid[16] = 0;
 }
 
-static void pxelinux_configfile(void *data, int opt_len)
+static void pxelinux_configfile(const void *data, int opt_len)
 {
     DHCPMagic |= 2;
-    strncpy(ConfigName, data, opt_len);
+    memcpy(ConfigName, data, opt_len);
     ConfigName[opt_len] = 0;
 }
 
-static void pxelinux_pathprefix(void *data, int opt_len)
+static void pxelinux_pathprefix(const void *data, int opt_len)
 {
     DHCPMagic |= 4;
-    strncpy(path_prefix, data, opt_len);
+    memcpy(path_prefix, data, opt_len);
     path_prefix[opt_len] = 0;
 }
 
-static void pxelinux_reboottime(void *data, int opt_len)
+static void pxelinux_reboottime(const void *data, int opt_len)
 {
-    if ((opt_len && 0xff) != 4)
-        return ;
+    if (opt_len != 4)
+        return;
 
-    RebootTime = ntohl(*(uint32_t *)data);
+    RebootTime = ntohl(*(const uint32_t *)data);
     DHCPMagic |= 8;     /* Got reboot time */
 }
 
 
 struct dhcp_options {
     int opt_num;
-    void (*fun) (void *, int);
+    void (*fun)(const void *, int);
 };
 
-static struct dhcp_options dhcp_opts[] = {
+static const struct dhcp_options dhcp_opts[] = {
     {1,   subnet_mask},
     {3,   router},
     {6,   dns_servers},
@@ -170,43 +169,41 @@ static struct dhcp_options dhcp_opts[] = {
  * filter  contains the minimum value for the option to recognize
  * -- this is used to restrict parsing to PXELINUX-specific options only.
  */
-static void parse_dhcp_options(void *option, int size, uint8_t opt_filter)
+static void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
 {
-    uint8_t opt_num;
-    uint8_t opt_len;
-    int opt_entries = sizeof(dhcp_opts) / sizeof(dhcp_opts[0]);
+    int opt_num;
+    int opt_len;
+    const int opt_entries = sizeof(dhcp_opts) / sizeof(dhcp_opts[0]);
     int i = 0;
-    char *p = option;
-    struct dhcp_options *opt;
+    const uint8_t *p = option;
+    const struct dhcp_options *opt;
 
-    while (size--) {
+    /* The only 1-byte options are 00 and FF, neither of which matter */
+    while (size >= 2) {
         opt_num = *p++;
+	size--;
 
-        if (!size)
-            break;
         if (opt_num == 0)
             continue;
         if (opt_num == 0xff)
             break;
 
-        /* Anything else will have a lenght filed */
+        /* Anything else will have a length field */
         opt_len = *p++; /* c  <- option lenght */
-        size = size - opt_len - 1;
+        size -= opt_len + 1;
         if (size < 0)
             break;
-        if (opt_num < opt_filter) {       /* Is the option value valid */
-            option += opt_len;   /* Try next */
-            continue;
-        }
 
-        opt = dhcp_opts;
-        for (i = 0; i < opt_entries; i++) {
-            if (opt_num == opt->opt_num) {
-                opt->fun(p, opt_len);
-                break;
-            }
-            opt ++;
-        }
+	if (opt_num >= opt_filter) {
+	    opt = dhcp_opts;
+	    for (i = 0; i < opt_entries; i++) {
+		if (opt_num == opt->opt_num) {
+		    opt->fun(p, opt_len);
+		    break;
+		}
+		opt++;
+	    }
+	}
 
         /* parse next */
         p += opt_len;
@@ -255,7 +252,7 @@ void parse_dhcp(int pkt_len)
     if (over_load & 1)
         parse_dhcp_options(&dhcp->bootfile, 128, 0);
     else if (dhcp->bootfile[0])
-            strcpy(boot_file, dhcp->bootfile);
+	strcpy(boot_file, dhcp->bootfile);
 
     if (over_load & 2)
         parse_dhcp_options(dhcp->sname, 64, 0);
