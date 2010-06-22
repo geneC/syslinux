@@ -242,7 +242,7 @@ struct geometry {
     uint32_t boot_lba;		/* LBA of bootstrap code */
     uint8_t type;		/* Type byte for INT 13h AH=08h */
     uint8_t driveno;		/* Drive no */
-    uint16_t sector_size;	/* Sector size in bytes (512 vs. 2048) */
+    uint8_t sector_shift;	/* Sector size as a power of 2 */
     const char *hsrc, *ssrc;	/* Origins of H and S geometries */
 };
 
@@ -322,13 +322,13 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 
     printf("command line: %s\n", shdr->cmdline);
 
-    hd_geometry.sector_size = 512;	/* Assume floppy/HDD at first */
+    hd_geometry.sector_shift = 9;	/* Assume floppy/HDD at first */
 
     offset = 0;
     if (CMD_HASDATA(p = getcmditem("offset")) && (v = atou(p)))
 	offset = v;
 
-    sectors = xsectors = (size - offset) >> 9;
+    sectors = xsectors = (size - offset) >> hd_geometry.sector_shift;
 
     hd_geometry.hsrc = "guess";
     hd_geometry.ssrc = "guess";
@@ -372,8 +372,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	    hd_geometry.h = 255;
 	    hd_geometry.s = 15;
 	    /* 2048-byte sectors, so adjust the size and count */
-	    hd_geometry.sector_size = 2048;
-	    sectors = (size - hd_geometry.offset) >> 11;
+	    hd_geometry.sector_shift = 11;
 	    break;
 	case 1:		/* 1.2 MB floppy  */
 	    hd_geometry.s = 15;
@@ -393,9 +392,10 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	case 4:
 	    hd_geometry.driveno = 0x80;
 	    hd_geometry.type = 0;
-	    sectors = (size - hd_geometry.offset) >> 9;
 	    break;
 	}
+	sectors = (size - hd_geometry.offset) >> hd_geometry.sector_shift;
+
 	/* For HDD emulation, we figure out the geometry later. Otherwise: */
 	if (hd_geometry.s) {
 	    hd_geometry.hsrc = hd_geometry.ssrc = "El Torito";
@@ -413,7 +413,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	hd_geometry.h = dosemu.h;
 	hd_geometry.s = dosemu.s;
 	hd_geometry.offset += dosemu.offset;
-	sectors = (size - hd_geometry.offset) >> 9;
+	sectors = (size - hd_geometry.offset) >> hd_geometry.sector_shift;
 
 	hd_geometry.hsrc = hd_geometry.ssrc = "DOSEMU";
     }
@@ -466,7 +466,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 
 	if (!(max_h | max_s)) {
 	    /* No FAT filesystem found to steal geometry from... */
-	    if ((sectors < 4096 * 2) && (hd_geometry.sector_size == 512)) {
+	    if ((sectors < 4096 * 2) && (hd_geometry.sector_shift == 9)) {
 		int ok = 0;
 		unsigned int xsectors = sectors;
 
@@ -718,6 +718,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     char *memdisk_hook;
     struct memdisk_header *hptr;
     struct patch_area *pptr;
+    struct mBFT *mbft;
     uint16_t driverseg;
     uint32_t driverptr, driveraddr;
     uint16_t dosmem_k;
@@ -777,7 +778,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Choose the appropriate installable memdisk hook */
     if (do_eltorito) {
-	if (geometry->sector_size == 2048) {
+	if (geometry->sector_shift == 11) {
 	    bin_size = (int)&_binary_memdisk_iso_2048_bin_size;
 	    memdisk_hook = (char *)&_binary_memdisk_iso_2048_bin_start;
 	} else {
@@ -816,6 +817,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     pptr->sectors = geometry->s;
     pptr->mdi.disksize = geometry->sectors;
     pptr->mdi.diskbuf = ramdisk_image + geometry->offset;
+    pptr->mdi.sector_shift = geometry->sector_shift;
     pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
 
     pptr->mdi.bootloaderid = shdr->type_of_loader;
@@ -911,7 +913,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	     * for INT 0x13, AH=0x48 "EDD Get Disk Parameters" call on an
 	     * El Torito ODD.  Check for 2048-byte sector size
 	     */
-	    if (geometry->sector_size != 2048)
+	    if (geometry->sector_shift != 11)
 		pptr->edd_dpt.flags |= 0x0002;	/* Geometry valid */
 	}
 	if (!(geometry->driveno & 0x80)) {
@@ -1090,8 +1092,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     hptr->safe_hook.old_hook.uint32 = pptr->mdi.oldint13.uint32;
 
     /* Re-fill the "safe hook" mBFT field with the physical address */
-    hptr->safe_hook.mBFT.ptr =
-        (struct mBFT *)(((const char *)hptr) + hptr->safe_hook.mBFT.offset);
+    mbft = (struct mBFT *)(((const char *)hptr) + hptr->safe_hook.mbft);
+    hptr->safe_hook.mbft = (size_t)mbft;
 
     /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -1128,14 +1130,12 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Complete the mBFT */
-    hptr->safe_hook.mBFT.ptr->acpi.signature[0] = 'm';	/* "mBFT" */
-    hptr->safe_hook.mBFT.ptr->acpi.signature[1] = 'B';
-    hptr->safe_hook.mBFT.ptr->acpi.signature[2] = 'F';
-    hptr->safe_hook.mBFT.ptr->acpi.signature[3] = 'T';
-    hptr->safe_hook.mBFT.ptr->safe_hook.ptr = &hptr->safe_hook;
-    hptr->safe_hook.mBFT.ptr->acpi.checksum =
-	-checksum_buf(hptr->safe_hook.mBFT.ptr,
-		      hptr->safe_hook.mBFT.ptr->acpi.length);
+    mbft->acpi.signature[0] = 'm';	/* "mBFT" */
+    mbft->acpi.signature[1] = 'B';
+    mbft->acpi.signature[2] = 'F';
+    mbft->acpi.signature[3] = 'T';
+    mbft->safe_hook = (size_t)&hptr->safe_hook;
+    mbft->acpi.checksum = -checksum_buf(mbft, mbft->acpi.length);
 
     /* Install the interrupt handlers */
     printf("old: int13 = %08x  int15 = %08x  int1e = %08x\n",

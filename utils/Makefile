@@ -20,7 +20,7 @@ include $(topdir)/MCONFIG
 CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 LDFLAGS  = -O2 -s
 
-TARGETS	 = mkdiskimage isohybrid gethostip
+TARGETS	 = mkdiskimage isohybrid gethostip memdiskfind
 TARGETS += isohybrid.pl  # about to be obsoleted
 ASIS     = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass syslinux2ansi \
 	   pxelinux-options
@@ -46,10 +46,13 @@ isohybrid.pl: isohybrid.in $(ISOHDPFX) bin2hex.pl
 isohdpfx.c: $(ISOHDPFX) isohdpfxarray.pl
 	$(PERL) isohdpfxarray.pl $(ISOHDPFX) > $@
 
-isohybrid: isohybrid.c isohdpfx.c isohybrid.h
-	$(CC) $(UMAKEDEPS) $(CFLGAS) -o $@ isohybrid.c isohdpfx.c
+isohybrid: isohybrid.o isohdpfx.o
+	$(CC) $(LDFLAGS) -o $@ $^
 
 gethostip: gethostip.o
+	$(CC) $(LDFLAGS) -o $@ $^
+
+memdiskfind: memdiskfind.o
 	$(CC) $(LDFLAGS) -o $@ $^
 
 tidy dist:

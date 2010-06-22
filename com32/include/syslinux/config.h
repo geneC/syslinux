@@ -57,9 +57,9 @@ struct syslinux_version {
 struct syslinux_ipinfo {
     uint32_t ipver;
     uint32_t myip;
-    uint32_t netmask;
-    uint32_t gateway;
     uint32_t serverip;
+    uint32_t gateway;
+    uint32_t netmask;
 };
 
 extern __nocommon struct syslinux_version __syslinux_version;

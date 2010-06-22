@@ -31,10 +31,6 @@ typedef unsigned long uint32_t;
 typedef unsigned short uint16_t;
 typedef unsigned char uint8_t;
 
-/* OpenWatcom uses a packed structure prefix */
-#define MEMDISK_PACKED_PREFIX _Packed
-#define MEMDISK_PACKED_POSTFIX
-
 /* Pull in MEMDISK common structures */
 #include "../memdisk/mstructs.h"
 
@@ -277,7 +273,7 @@ static MDISKCHK_FUNC_DECL(show_safe_hooks)
 	    struct patch_area far *patch_area;
 
 	    /* Copy the MDI from the mBFT.  Offset is a misnomer here */
-	    mbft = MK_FP(hook->mBFT.offset >> 4, 0);	/* Always aligned */
+	    mbft = MK_FP(hook->mbft >> 4, 0);	/* Always aligned */
 	    _fmemcpy((void far *)&m, &mbft->mdi, sizeof(struct mdi));
 	    /* Adjust C/H/S since we actually know
 	     * it directly for any MEMDISK with an mBFT

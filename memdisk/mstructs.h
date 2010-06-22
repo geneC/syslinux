@@ -16,6 +16,7 @@
 /* These structures are common to MEMDISK and MDISKCHK.COM */
 
 #include <stdint.h>
+#include "compiler.h"
 
 struct seg_off {
     uint16_t offset;
@@ -38,10 +39,7 @@ struct safe_hook {
     real_addr_t old_hook;	/* SEG:OFF for previous INT 13h hook */
     uint32_t flags;		/* "Safe hook" flags */
     /* The next field is a MEMDISK extension to the "safe hook" structure */
-    union {
-	uint32_t offset;	/* Offset from hook to the mBFT; refilled */
-	struct mBFT *ptr;	/* by setup() with the physical address */
-    } mBFT;
+    uint32_t mbft;
 } MEMDISK_PACKED_POSTFIX;
 
 struct memdisk_header {
@@ -95,7 +93,7 @@ struct mdi {
 
     uint16_t olddosmem;
     uint8_t bootloaderid;
-    uint8_t _pad1;
+    uint8_t sector_shift;
 
     uint16_t dpt_ptr;
 } MEMDISK_PACKED_POSTFIX;
@@ -106,10 +104,7 @@ struct mdi {
 MEMDISK_PACKED_PREFIX
 struct mBFT {
     struct acpi_description_header acpi;
-    union {
-	struct safe_hook *ptr;
-	uint32_t phys_addr;
-    } safe_hook;		/* "Safe hook" physical address */
+    uint32_t safe_hook;		/* "Safe hook" physical address */
     struct mdi mdi;
 } MEMDISK_PACKED_POSTFIX;
 

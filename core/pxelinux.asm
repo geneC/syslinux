@@ -534,7 +534,7 @@ KeepPXE		db 0			; Should PXE be kept around?
 ; Linux kernel expects in the ip= option.
 ;
 		section .bss16
-		alignz 4
+		alignb 4
 		global IPInfo
 IPInfo:
 .IPv4		resd 1			; IPv4 information

@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include "sysdump.h"
 #include "backend.h"
+#include "rbtree.h"
 
 struct acpi_rsdp {
     uint8_t  magic[8];		/* "RSD PTR " */
@@ -27,7 +28,7 @@ struct acpi_rsdp {
     uint8_t  rev;
     uint32_t rsdt_addr;
     uint32_t len;
-    uint64_t xdst_addr;
+    uint64_t xsdt_addr;
     uint8_t  xcsum;
     uint8_t  rsvd[3];
 };
@@ -48,6 +49,35 @@ struct acpi_rsdt {
     struct acpi_hdr hdr;
     uint32_t entry[0];
 };
+
+struct acpi_xsdt {
+    struct acpi_hdr hdr;
+    uint64_t entry[0];
+};
+
+static struct rbtree *rb_types, *rb_addrs;
+
+static bool rb_has(struct rbtree **tree, uint64_t key)
+{
+    struct rbtree *node;
+
+    node = rb_search(*tree, key);
+    if (node && node->key == key)
+	return true;
+
+    node = malloc(sizeof *node);
+    if (node) {
+	node->key = key;
+	*tree = rb_insert(*tree, node);
+    }
+    return false;
+}
+
+static inline bool addr_ok(uint64_t addr)
+{
+    /* We can only handle 32-bit addresses for now... */
+    return addr <= 0xffffffff;
+}
 
 enum tbl_errs {
     ERR_NONE,			/* No errors */
@@ -125,10 +155,15 @@ static void dump_table(struct backend *be,
 		       const char name[], const void *ptr, uint32_t len)
 {
     char namebuf[64];
+    uint32_t name_key = *(uint32_t *)name;
 
-    /* XXX: this make cause the same directory to show up more than once */
-    snprintf(namebuf, sizeof namebuf, "acpi/%4.4s", name);
-    cpio_mkdir(be, namebuf);
+    if (rb_has(&rb_addrs, (size_t)ptr))
+	return;			/* Already dumped this table */
+
+    if (!rb_has(&rb_types, name_key)) {
+	snprintf(namebuf, sizeof namebuf, "acpi/%4.4s", name);
+	cpio_mkdir(be, namebuf);
+    }
 
     snprintf(namebuf, sizeof namebuf, "acpi/%4.4s/%08x", name, (uint32_t)ptr);
     cpio_hdr(be, MODE_FILE, len, namebuf);
@@ -136,27 +171,14 @@ static void dump_table(struct backend *be,
     write_data(be, ptr, len);
 }
 
-void dump_acpi(struct backend *be)
+static void dump_rsdt(struct backend *be, const struct acpi_rsdp *rsdp)
 {
-    const struct acpi_rsdp *rsdp;
     const struct acpi_rsdt *rsdt;
-    uint32_t rsdp_len;
     uint32_t i, n;
-
-    rsdp = find_rsdp();
-
-    if (!rsdp)
-	return;			/* No ACPI information found */
-
-    cpio_mkdir(be, "acpi");
-
-    rsdp_len = rsdp->rev > 0 ? rsdp->len : 20;
-
-    dump_table(be, "RSDP", rsdp, rsdp_len);
 
     rsdt = (const struct acpi_rsdt *)rsdp->rsdt_addr;
 
-    if (memcmp(rsdt->hdr.sig, "RSDT", 4) || is_valid_table(rsdt) != ERR_NONE)
+    if (memcmp(rsdt->hdr.sig, "RSDT", 4) || is_valid_table(rsdt) > ERR_CSUM)
 	return;
 
     dump_table(be, rsdt->hdr.sig, rsdt, rsdt->hdr.len);
@@ -172,4 +194,66 @@ void dump_acpi(struct backend *be)
 	if (is_valid_table(hdr) <= ERR_CSUM)
 	    dump_table(be, hdr->sig, hdr, hdr->len);
     }
+}
+
+static void dump_xsdt(struct backend *be, const struct acpi_rsdp *rsdp)
+{
+    const struct acpi_xsdt *xsdt;
+    uint32_t rsdp_len = rsdp->rev > 0 ? rsdp->len : 20;
+    uint32_t i, n;
+
+    if (rsdp_len < 34)
+	return;
+
+    if (!addr_ok(rsdp->xsdt_addr))
+	return;
+
+    xsdt = (const struct acpi_xsdt *)(size_t)rsdp->xsdt_addr;
+
+    if (memcmp(xsdt->hdr.sig, "XSDT", 4) || is_valid_table(xsdt) > ERR_CSUM)
+	return;
+
+    dump_table(be, xsdt->hdr.sig, xsdt, xsdt->hdr.len);
+
+    if (xsdt->hdr.len < 36)
+	return;
+
+    n = (xsdt->hdr.len - 36) >> 3;
+
+    for (i = 0; i < n; i++) {
+	const struct acpi_hdr *hdr;
+	if (addr_ok(xsdt->entry[i])) {
+	    hdr = (const struct acpi_hdr *)(size_t)(xsdt->entry[i]);
+
+	    if (is_valid_table(hdr) <= ERR_CSUM)
+		dump_table(be, hdr->sig, hdr, hdr->len);
+	}
+    }
+}
+
+void dump_acpi(struct backend *be)
+{
+    const struct acpi_rsdp *rsdp;
+    uint32_t rsdp_len;
+
+    rsdp = find_rsdp();
+
+    printf("Dumping ACPI... ");
+
+    if (!rsdp)
+	return;			/* No ACPI information found */
+
+    cpio_mkdir(be, "acpi");
+
+    rsdp_len = rsdp->rev > 0 ? rsdp->len : 20;
+
+    dump_table(be, "RSDP", rsdp, rsdp_len);
+
+    dump_rsdt(be, rsdp);
+    dump_xsdt(be, rsdp);
+
+    rb_destroy(rb_types);
+    rb_destroy(rb_addrs);
+
+    printf("done.\n");
 }
