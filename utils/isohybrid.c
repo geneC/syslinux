@@ -499,7 +499,7 @@ main(int argc, char *argv[])
     padding = (frac > 0) ? cylsize - frac : 0;
 
     if (mode & VERBOSE)
-        printf("imgsize: %lu, padding: %d\n", isostat.st_size, padding);
+        printf("imgsize: %zu, padding: %d\n", (size_t)isostat.st_size, padding);
 
     cc = c = (isostat.st_size + padding) / cylsize;
     if (c > 1024)
