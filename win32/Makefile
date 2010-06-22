@@ -1,6 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2010 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -44,14 +45,17 @@ WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) -o hello.exe hello.
 
 .SUFFIXES: .c .o .i .s .S
 
-SRCS     = syslinux.c \
-	   ../libinstaller/fat.c \
+SRCS     = syslinux.c
+OBJS     = $(patsubst %.c,%.obj,$(notdir $(SRCS)))
+LIBSRC   = ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
 	   $(wildcard ../libfat/*.c)
-OBJS     = $(patsubst %.c,%.o,$(notdir $(SRCS)))
+LIBOBJS  = $(patsubst %.c,%.obj,$(notdir $(LIBSRC)))
+
+LIB	 = syslinux.lib
 
 VPATH = .:../libfat:../libinstaller
 
@@ -65,7 +69,7 @@ all:
 endif
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d *.tmp *_bin.c hello.exe
+	-rm -f *.o *.obj *.lib *.i *.s *.a .*.d *.tmp *_bin.c hello.exe
 
 clean: tidy
 
@@ -74,11 +78,15 @@ spotless: clean
 
 installer:
 
-syslinux.exe: $(OBJS)
+$(LIB): $(LIBOBJS)
+	$(WINAR) cq $@ $^
+	$(WINRANLIB) $@
+
+syslinux.exe: $(OBJS) $(LIB)
 	$(WINCC) $(WINLDFLAGS) -o $@ $^
 
 
-%.o: %.c
+%.obj: %.c
 	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -c -o $@ $<
 %.i: %.c
 	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -E -o $@ $<
