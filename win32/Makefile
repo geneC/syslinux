@@ -49,6 +49,7 @@ SRCS     = syslinux.c
 OBJS     = $(patsubst %.c,%.obj,$(notdir $(SRCS)))
 LIBSRC   = ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/setadv.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \

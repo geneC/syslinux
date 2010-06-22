@@ -77,12 +77,6 @@ extern const char *program;	/* Name of program */
 pid_t mypid;
 char *mntpath = NULL;		/* Path on which to mount */
 
-/*
- * Image file
- */
-#define boot_image	syslinux_ldlinux
-#define boot_image_len  syslinux_ldlinux_len
-
 #if DO_DIRECT_MOUNT
 int loop_fd = -1;		/* Loop device */
 #endif

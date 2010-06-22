@@ -26,6 +26,7 @@ SRCS     = syslinux.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/syslxcom.c \
 	   ../libinstaller/setadv.c \
+	   ../libinstaller/advio.c \
            ../libinstaller/fat.c \
            ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
