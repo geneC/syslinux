@@ -24,7 +24,6 @@ char dot_quad_buf[16];
 
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
-static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 bool have_uuid = false;
 
 /* Common receive buffer */
@@ -1063,7 +1062,6 @@ static int pxe_load_config(void)
     char *config_file;
     char *last;
     char *p;
-    uint8_t *uuid_ptr;
     int tries = 8;
 
     get_prefix();
@@ -1081,11 +1079,13 @@ static int pxe_load_config(void)
 
     /* Try loading by UUID */
     if (have_uuid) {
-        uuid_ptr  = uuid_dashes;
+	static const uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
+	char *src = uuid;
+	const uint8_t *uuid_ptr = uuid_dashes;
+
 	p = config_file;
         while (*uuid_ptr) {
-            int len = *uuid_ptr;
-            char *src = uuid;
+	    int len = *uuid_ptr;
 
             lchexbytes(p, src, len);
             p += len * 2;
