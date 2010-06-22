@@ -54,6 +54,7 @@ static struct backend *backends[] =
 {
     &be_tftp,
     &be_ymodem,
+    &be_srec,
     NULL
 };
 
