@@ -3,6 +3,7 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 #include <syslinux/pxe.h>
 #include <syslinux/config.h>
 #include <netinet/in.h>
@@ -120,11 +121,30 @@ static int be_tftp_write(struct backend *be)
 
     tftp.my_ip    = sdi->pxe.myip;
     tftp.my_port  = htons(local_port++);
-    tftp.srv_ip   = pxe_dns(be->argv[1]);
     tftp.srv_gw   = ((tftp.srv_ip ^ tftp.my_ip) & sdi->pxe.ipinfo->netmask)
 	? sdi->pxe.ipinfo->gateway : 0;
     tftp.srv_port = 0;
     tftp.seq      = 0;
+
+    if (be->argv[1]) {
+	tftp.srv_ip   = pxe_dns(be->argv[1]);
+	if (!tftp.srv_ip) {
+	    printf("\nUnable to resolve hostname: %s\n", be->argv[1]);
+	    return -1;
+	}
+    } else {
+	tftp.srv_ip   = sdi->pxe.ipinfo->serverip;
+	if (!tftp.srv_ip) {
+	    printf("\nNo server IP address\n");
+	    return -1;
+	}
+    }
+
+    printf("server %u.%u.%u.%u... ",
+	   ((uint8_t *)&tftp.srv_ip)[0],
+	   ((uint8_t *)&tftp.srv_ip)[1],
+	   ((uint8_t *)&tftp.srv_ip)[2],
+	   ((uint8_t *)&tftp.srv_ip)[3]);
 
     buffer[0] = 0;
     buffer[1] = TFTP_WRQ;
@@ -152,7 +172,7 @@ static int be_tftp_write(struct backend *be)
 
 struct backend be_tftp = {
     .name       = "tftp",
-    .helpmsg    = "filename tftp_server",
-    .minargs    = 2,
+    .helpmsg    = "filename [tftp_server]",
+    .minargs    = 1,
     .write      = be_tftp_write,
 };
