@@ -29,6 +29,8 @@
 
 	extern printf_init
 
+	extern mem_init
+
 	; fs.c
 	extern fs_init, pm_searchdir, getfssec, getfsbytes
 	extern pm_mangle_name, load_config

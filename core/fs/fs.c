@@ -409,8 +409,10 @@ void fs_init(com32sys_t *regs)
     /* ops is a ptr list for several fs_ops */
     const struct fs_ops **ops = (const struct fs_ops **)regs->eax.l;
 
+    mp("enter");
+
     /* Initialize malloc() */
-    mem_init();
+    //mem_init();
 
     /* Default name for the root directory */
     fs.cwd_name[0] = '/';

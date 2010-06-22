@@ -50,6 +50,13 @@ common_init:
 		pm_call printf_init
 
 ;
+; Inite the memmory subsystem
+;
+		pm_call mem_init
+		mov eax,[HighMemSize]
+		mov [VKernelEnd],eax
+
+;
 ; CPU-dependent initialization and related checks.
 ;
 check_escapes:

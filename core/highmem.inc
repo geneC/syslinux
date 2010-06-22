@@ -24,6 +24,7 @@
 ; HighMemSize.  All registers are preserved.
 ;
 highmemsize:
+		ret
 		push es
 		pushfd
 		pushad

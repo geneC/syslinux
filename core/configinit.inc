@@ -20,7 +20,7 @@
 		section .text16
 
 reset_config:
-		call highmemsize
+		;call highmemsize
 
 		; Initialize the .config section
 		xor eax,eax
@@ -45,7 +45,6 @@ mkkeymap:	stosb
 		inc al
 		loop mkkeymap
 
-		mov eax,[HighMemSize]
-		mov [VKernelEnd],eax
-
+		;mov eax,[HighMemSize]
+		;mov [VKernelEnd],eax
 		ret
