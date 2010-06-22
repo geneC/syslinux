@@ -16,7 +16,7 @@ include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
 INCLUDES = -I$(topdir)/com32/include
-CFLAGS  += -DDATE='"$(DATE)"'
+CFLAGS  += -D__MEMDISK__ -DDATE='"$(DATE)"'
 LDFLAGS  = $(GCCOPT) -g
 NASM     = nasm
 NASMOPT  = -O9999

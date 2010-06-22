@@ -17,6 +17,7 @@
  */
 
 #include <stdint.h>
+#include "compiler.h"
 
 /* EDD-4 Bootable Optical Disc Drive Boot Volume Descriptor */
 MEMDISK_PACKED_PREFIX

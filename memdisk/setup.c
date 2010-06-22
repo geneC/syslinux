@@ -718,6 +718,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     char *memdisk_hook;
     struct memdisk_header *hptr;
     struct patch_area *pptr;
+    struct mBFT *mbft;
     uint16_t driverseg;
     uint32_t driverptr, driveraddr;
     uint16_t dosmem_k;
@@ -1090,8 +1091,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     hptr->safe_hook.old_hook.uint32 = pptr->mdi.oldint13.uint32;
 
     /* Re-fill the "safe hook" mBFT field with the physical address */
-    hptr->safe_hook.mBFT.ptr =
-        (struct mBFT *)(((const char *)hptr) + hptr->safe_hook.mBFT.offset);
+    mbft = (struct mBFT *)(((const char *)hptr) + hptr->safe_hook.mbft);
+    hptr->safe_hook.mbft = (size_t)mbft;
 
     /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -1128,14 +1129,12 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     /* Complete the mBFT */
-    hptr->safe_hook.mBFT.ptr->acpi.signature[0] = 'm';	/* "mBFT" */
-    hptr->safe_hook.mBFT.ptr->acpi.signature[1] = 'B';
-    hptr->safe_hook.mBFT.ptr->acpi.signature[2] = 'F';
-    hptr->safe_hook.mBFT.ptr->acpi.signature[3] = 'T';
-    hptr->safe_hook.mBFT.ptr->safe_hook.ptr = &hptr->safe_hook;
-    hptr->safe_hook.mBFT.ptr->acpi.checksum =
-	-checksum_buf(hptr->safe_hook.mBFT.ptr,
-		      hptr->safe_hook.mBFT.ptr->acpi.length);
+    mbft->acpi.signature[0] = 'm';	/* "mBFT" */
+    mbft->acpi.signature[1] = 'B';
+    mbft->acpi.signature[2] = 'F';
+    mbft->acpi.signature[3] = 'T';
+    mbft->safe_hook = (size_t)&hptr->safe_hook;
+    mbft->acpi.checksum = -checksum_buf(mbft, mbft->acpi.length);
 
     /* Install the interrupt handlers */
     printf("old: int13 = %08x  int15 = %08x  int1e = %08x\n",
