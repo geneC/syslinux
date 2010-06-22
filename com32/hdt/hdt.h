@@ -33,8 +33,8 @@
 #define AUTHOR "Erwan Velu"
 #define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.3.6"
-#define CODENAME "bluelabel"
+#define VERSION "0.3.6.1"
+#define CODENAME "cachaca"
 #define NB_CONTRIBUTORS 3
 #define CONTRIBUTORS {"Sebastien Gonzalve (Patches)", "Gert Hulselmans (Tests)", "Alexander Andino (Design)"}
 #define WEBSITE_URL "http://hdt-project.org"
