@@ -634,7 +634,7 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
  * @param:filename, the file we wanna open
  *
  * @out: open_file_t structure, stores in file->open_file
- * @ouT: the lenght of this file, stores in file->file_len
+ * @out: the lenght of this file, stores in file->file_len
  *
  */
 static void pxe_searchdir(const char *filename, struct file *file)
@@ -745,11 +745,6 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	return;			/* Allocation failure */
     socket = PVT(inode);
 
-    timeout_ptr = TimeoutTable;   /* Reset timeout */
-    timeout = *timeout_ptr;
-    oldtime = jiffies();
-    
-sendreq:
 #if GPXE
     if (path_type == PXE_URL) {
 	if (has_gpxe) {
@@ -774,6 +769,14 @@ sendreq:
     }
 #endif /* GPXE */
 
+    timeout_ptr = TimeoutTable;   /* Reset timeout */
+    
+sendreq:
+    timeout = *timeout_ptr++;
+    if (!timeout)
+	return;			/* No file available... */
+    oldtime = jiffies();
+
     socket->tftp_remoteip = ip;
     tid = socket->tftp_localport;   /* TID(local port No) */
     udp_write.buffer    = FAR_PTR(rrq_packet_buf);
@@ -782,28 +785,28 @@ sendreq:
     udp_write.src_port  = tid;
     udp_write.dst_port  = server_port;
     udp_write.buffer_size = buf - rrq_packet_buf;
-    err = pxe_call(PXENV_UDP_WRITE, &udp_write);
+    pxe_call(PXENV_UDP_WRITE, &udp_write);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
 
 wait_pkt:
     for (;;) {
         buf                  = packet_buf;
+	udp_read.status      = 0;
         udp_read.buffer      = FAR_PTR(buf);
         udp_read.buffer_size = PKTBUF_SIZE;
         udp_read.dest_ip     = IPInfo.myip;
         udp_read.d_port      = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
-        if (err) {
+        if (err || udp_read.status) {
 	    uint32_t now = jiffies();
-	    if (now-oldtime >= timeout)
-		goto failure;
-	    continue;
-        }
-
-        /* Make sure the packet actually came from the server */
-        if (udp_read.src_ip == socket->tftp_remoteip)
-            break;
+	    if (now - oldtime >= timeout)
+		goto sendreq;
+        } else {
+	    /* Make sure the packet actually came from the server */
+	    if (udp_read.src_ip == socket->tftp_remoteip)
+		break;
+	}
     }
 
     socket->tftp_remoteport = udp_read.s_port;
@@ -814,7 +817,7 @@ wait_pkt:
     socket->tftp_blksize = TFTP_BLOCKSIZE;
     buffersize = udp_read.buffer_size - 2;  /* bytes after opcode */
     if (buffersize < 0)
-        goto failure;                     /* Garbled reply */
+        goto wait_pkt;                     /* Garbled reply */
 
     /*
      * Get the opcode type, and parse it
@@ -838,12 +841,12 @@ wait_pkt:
          */
         buffersize -= 2;
         if (buffersize < 0)
-            goto failure;
+            goto wait_pkt;
         data = packet_buf + 2;
         blk_num = *(uint16_t *)data;
         data += 2;
         if (blk_num != htons(1))
-            goto failure;
+            goto wait_pkt;
         socket->tftp_lastpkt = blk_num;
         if (buffersize > TFTP_BLOCKSIZE)
             goto err_reply;  /* Corrupt */
@@ -952,15 +955,6 @@ err_reply:
     tftp_error(inode, TFTP_EOPTNEG, "TFTP protocol error");
     printf("TFTP server sent an incomprehesible reply\n");
     kaboom();
-
-failure:
-    if (jiffies() - oldtime < timeout)
-	goto wait_pkt;
-
-    /* Otherwise, we need to try again */
-    timeout_ptr++;
-    if (*timeout_ptr)
-        goto sendreq;  /* Try again */
 }
 
 
