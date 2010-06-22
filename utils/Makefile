@@ -46,8 +46,8 @@ isohybrid.pl: isohybrid.in $(ISOHDPFX) bin2hex.pl
 isohdpfx.c: $(ISOHDPFX) isohdpfxarray.pl
 	$(PERL) isohdpfxarray.pl $(ISOHDPFX) > $@
 
-isohybrid: isohybrid.c isohdpfx.c isohybrid.h
-	$(CC) $(UMAKEDEPS) $(CFLGAS) -o $@ isohybrid.c isohdpfx.c
+isohybrid: isohybrid.o isohdpfx.o
+	$(CC) $(LDFLAGS) -o $@ $^
 
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
