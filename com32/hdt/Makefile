@@ -30,7 +30,7 @@ VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
 VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')
 
-MEMTEST_URL = http://memtest.org/download/4.00/memtest86+-4.00.bin
+MEMTEST_URL = http://memtest.org/download/4.10/memtest86+-4.10.bin
 MEMTEST     = memtest.bin
 
 KERNEL_VERSION          ?= $(shell uname -r)
