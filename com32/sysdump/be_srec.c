@@ -68,6 +68,7 @@ static int be_srec_write(struct backend *be)
 	write_srecord(chunk, 4, offset, '3', buf);
 	buf += chunk;
 	len -= chunk;
+	offset += chunk;
     }
 
     /* Write termination record */
