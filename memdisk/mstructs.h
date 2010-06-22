@@ -93,7 +93,7 @@ struct mdi {
 
     uint16_t olddosmem;
     uint8_t bootloaderid;
-    uint8_t _pad1;
+    uint8_t sector_shift;
 
     uint16_t dpt_ptr;
 } MEMDISK_PACKED_POSTFIX;

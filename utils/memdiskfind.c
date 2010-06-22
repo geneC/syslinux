@@ -60,7 +60,13 @@ static bool valid_mbft(const struct mBFT *mbft, size_t space)
 
 static void output_params(const struct mBFT *mbft)
 {
-    printf("%u,%u\n", mbft->mdi.diskbuf, mbft->mdi.disksize);
+    int sector_shift = mbft->mdi.sector_shift;
+
+    if (!sector_shift)
+	sector_shift = 9;
+
+    printf("%#x,%#x\n",
+	   mbft->mdi.diskbuf, mbft->mdi.disksize << sector_shift);
 }
 
 int main(int argc, char *argv[])
