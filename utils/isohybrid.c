@@ -401,7 +401,7 @@ display_mbr(const uint8_t *mbr, size_t len)
     unsigned char c = 0;
     unsigned int i = 0, j = 0;
 
-    printf("sizeof(MBR): %d bytes\n", len);
+    printf("sizeof(MBR): %zu bytes\n", len);
     for (i = 0; i < len; i++)
     {
         if (!(i % 16))
@@ -514,7 +514,7 @@ main(int argc, char *argv[])
         if (fseek(fp, 440, SEEK_SET))
             err(1, "%s: seek error - 4", argv[0]);
 
-        fscanf(fp, "%4c", &id);
+	fread(&id, 4, 1, fp);
         id = lendian_int(id);
         if (!id)
         {
