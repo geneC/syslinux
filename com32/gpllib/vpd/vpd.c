@@ -81,19 +81,19 @@ int vpd_decode(s_vpd * vpd)
 		printf("VPD: Bad checksum!\n");
 	    }
 
-	    strncpy(vpd->bios_build_id, q + 0x0D, 9);
-	    strncpy(vpd->box_serial_number, q + 0x16, 7);
-	    strncpy(vpd->motherboard_serial_number, q + 0x1D, 11);
-	    strncpy(vpd->machine_type_model, q + 0x28, 7);
+	    strlcpy(vpd->bios_build_id, q + 0x0D, 9);
+	    strlcpy(vpd->box_serial_number, q + 0x16, 7);
+	    strlcpy(vpd->motherboard_serial_number, q + 0x1D, 11);
+	    strlcpy(vpd->machine_type_model, q + 0x28, 7);
 
 	    if (q[5] < 0x44)
 		return VPD_TABLE_PRESENT;
 
-	    strncpy(vpd->bios_release_date, q + 0x30, 8);
-	    strncpy(vpd->default_flash_filename, q + 0x38, 12);
+	    strlcpy(vpd->bios_release_date, q + 0x30, 8);
+	    strlcpy(vpd->default_flash_filename, q + 0x38, 12);
 
 	    if (q[5] >= 0x46 && q[0x44] != 0x00) {
-		strncpy(vpd->bios_version, q + 0x44, 255);
+		strlcpy(vpd->bios_version, q + 0x44, 255);
 	    }
 
 	    return VPD_TABLE_PRESENT;

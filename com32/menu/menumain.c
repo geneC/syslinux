@@ -446,7 +446,7 @@ static const char *edit_cmdline(const char *input, int top)
     int key, len, prev_len, cursor;
     int redraw = 1;		/* We enter with the menu already drawn */
 
-    strncpy(cmdline, input, MAX_CMDLINE_LEN);
+    strlcpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';
 
     len = cursor = strlen(cmdline);
