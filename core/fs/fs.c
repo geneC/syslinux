@@ -330,12 +330,20 @@ int open_file(const char *name, struct com32_filedata *filedata)
     mangle_name(mangled_name, name);
     rv = searchdir(mangled_name);
 
-    if (rv >= 0) {
-	file = handle_to_file(rv);
-	filedata->size		= file->inode->size;
-	filedata->blocklg2	= SECTOR_SHIFT(file->fs);
-	filedata->handle	= rv;
+    if (rv < 0)
+	return rv;
+
+    file = handle_to_file(rv);
+
+    if (file->inode->mode != DT_REG) {
+	_close_file(file);
+	return -1;
     }
+
+    filedata->size	= file->inode->size;
+    filedata->blocklg2	= SECTOR_SHIFT(file->fs);
+    filedata->handle	= rv;
+
     return rv;
 }
 
