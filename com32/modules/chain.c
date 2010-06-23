@@ -495,7 +495,7 @@ static void do_boot(struct data_area *data, int ndata,
 
     for (i = 0; i < ndata; i++) {
 	if (syslinux_add_movelist(&mlist, data[i].base,
-				  (addr_t)data[i].data, data[i].size))
+				  (addr_t) data[i].data, data[i].size))
 	    goto enomem;
     }
 
@@ -587,11 +587,11 @@ static void do_boot(struct data_area *data, int ndata,
     error("Chainboot failed!\n");
     return;
 
-  too_big:
+too_big:
     error("Loader file too large\n");
     return;
 
-  enomem:
+enomem:
     error("Out of memory\n");
     return;
 }
@@ -688,10 +688,8 @@ static void usage(void)
 	  "         seg=<segment>      jump to <seg>:0000 instead of 0000:7C00\n"
 	  "         swap               swap drive numbers, if bootdisk is not fd0/hd0\n"
 	  "         hide               hide primary partitions, except selected partition\n"
-	  "         sethidden          set the FAT/NTFS hidden sectors field\n"
-	);
+	  "         sethidden          set the FAT/NTFS hidden sectors field\n");
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -735,7 +733,7 @@ int main(int argc, char *argv[])
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
-	    opt.seg = 0x2000;    /* CMLDR wants this address */
+	    opt.seg = 0x2000;	/* CMLDR wants this address */
 	    opt.loadfile = argv[i] + 6;
 	    opt.cmldr = true;
 	    opt.sethidden = true;
@@ -834,7 +832,7 @@ int main(int argc, char *argv[])
      * 0-3:  primary partitions
      * 4-*:  logical partitions
      */
-    regs.edx.b[1] = whichpart-1;
+    regs.edx.b[1] = whichpart - 1;
 
     /* Get the disk geometry and disk access setup */
     if (get_disk_params(drive)) {
@@ -926,15 +924,15 @@ int main(int argc, char *argv[])
 		    goto bail;
 		}
 		/* Set it */
-		*((uint32_t *) &isolinux_bin[12]) = file_lba;
+		*((uint32_t *) & isolinux_bin[12]) = file_lba;
 
 		/* Set boot file length */
-		*((uint32_t *) &isolinux_bin[16]) = data[ndata].size;
+		*((uint32_t *) & isolinux_bin[16]) = data[ndata].size;
 
 		/* Calculate checksum */
-		checksum = (uint32_t *) &isolinux_bin[20];
-		chkhead = (uint32_t *) &isolinux_bin[64];
-		chktail = (uint32_t *) &isolinux_bin[data[ndata].size & ~3];
+		checksum = (uint32_t *) & isolinux_bin[20];
+		chkhead = (uint32_t *) & isolinux_bin[64];
+		chktail = (uint32_t *) & isolinux_bin[data[ndata].size & ~3];
 		*checksum = 0;
 		while (chkhead < chktail)
 		    *checksum += *chkhead++;
@@ -956,12 +954,12 @@ int main(int argc, char *argv[])
 	}
 
 	if (opt.grub) {
-		regs.ip = 0x200; /* jump 0x200 bytes into the loadfile */
+	    regs.ip = 0x200;	/* jump 0x200 bytes into the loadfile */
 
-		/* 0xffffff00 seems to be GRUB ways to record that it's
-		   "root" is the whole disk (and not a partition). */
-		*(uint32_t *) ((unsigned char *) data[ndata].data + 0x208) =
-			0xffffff00ul;
+	    /* 0xffffff00 seems to be GRUB ways to record that it's
+	       "root" is the whole disk (and not a partition). */
+	    *(uint32_t *) ((unsigned char *)data[ndata].data + 0x208) =
+		0xffffff00ul;
 	}
 
 	ndata++;
@@ -977,11 +975,12 @@ int main(int argc, char *argv[])
 	}
 	data[ndata].size = SECTOR;
 	data[ndata].base = load_base;
-	
+
 	if (!opt.loadfile &&
-	    *(uint16_t *)((char *)data[ndata].data +
-			  data[ndata].size - 2) != 0xaa55) {
-	    error("Boot sector signature not found (unbootable disk/partition?)\n");
+	    *(uint16_t *) ((char *)data[ndata].data +
+			   data[ndata].size - 2) != 0xaa55) {
+	    error
+		("Boot sector signature not found (unbootable disk/partition?)\n");
 	    goto bail;
 	}
 
@@ -991,7 +990,7 @@ int main(int argc, char *argv[])
 	 * Memory location 0000:7C00 contains the bootsector of the partition.
 	 */
 	if (partinfo && opt.cmldr) {
-	    memcpy((char *)data[ndata].data+3, cmldr_signature,
+	    memcpy((char *)data[ndata].data + 3, cmldr_signature,
 		   sizeof cmldr_signature);
 	}
 
@@ -1001,8 +1000,7 @@ int main(int argc, char *argv[])
 	 * possibly other boot loaders which use the same format.
 	 */
 	if (partinfo && opt.sethidden) {
-	    *(uint32_t *)((char *)data[ndata].data + 28) =
-		partinfo->start_lba;
+	    *(uint32_t *) ((char *)data[ndata].data + 28) = partinfo->start_lba;
 	}
 
 	ndata++;
@@ -1019,6 +1017,6 @@ int main(int argc, char *argv[])
 
     do_boot(data, ndata, &regs);
 
-  bail:
+bail:
     return 255;
 }
