@@ -279,31 +279,6 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 }
 
 /*
- * Make any user-specified ADV modifications
- */
-int modify_adv(void)
-{
-    int rv = 0;
-
-    if (opt.set_once) {
-	if (syslinux_setadv(ADV_BOOTONCE, strlen(opt.set_once), opt.set_once)) {
-	    fprintf(stderr, "%s: not enough space for boot-once command\n",
-		    program);
-	    rv = -1;
-	}
-    }
-    if (opt.menu_save) {
-        if (syslinux_setadv(ADV_MENUSAVE, strlen(opt.menu_save), opt.menu_save)) {
-	    fprintf(stderr, "%s: not enough space for menu-save label\n",
-		    program);
-	    rv = -1;
-        }
-    }
-
-    return rv;
-}
-
-/*
  * Install the boot block on the specified device.
  * Must be run AFTER install_file()!
  */

@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <getopt.h>
 #include <sysexits.h>
 #include "../version.h"
@@ -205,4 +206,32 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 
     if (argv[optind])
 	usage(EX_USAGE, mode);	/* Excess arguments */
+}
+
+/*
+ * Make any user-specified ADV modifications in memory
+ */
+int modify_adv(void)
+{
+    int rv = 0;
+
+    if (opt.reset_adv)
+	syslinux_reset_adv(syslinux_adv);
+
+    if (opt.set_once) {
+	if (syslinux_setadv(ADV_BOOTONCE, strlen(opt.set_once), opt.set_once)) {
+	    fprintf(stderr, "%s: not enough space for boot-once command\n",
+		    program);
+	    rv = -1;
+	}
+    }
+    if (opt.menu_save) {
+        if (syslinux_setadv(ADV_MENUSAVE, strlen(opt.menu_save), opt.menu_save)) {
+	    fprintf(stderr, "%s: not enough space for menu-save label\n",
+		    program);
+	    rv = -1;
+        }
+    }
+
+    return rv;
 }

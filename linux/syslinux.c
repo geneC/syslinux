@@ -219,24 +219,6 @@ void do_umount(const char *mntpath, int cookie)
 }
 
 /*
- * Make any user-specified ADV modifications
- */
-int modify_adv(void)
-{
-    int rv = 0;
-
-    if (opt.set_once) {
-	if (syslinux_setadv(ADV_BOOTONCE, strlen(opt.set_once), opt.set_once)) {
-	    fprintf(stderr, "%s: not enough space for boot-once command\n",
-		    program);
-	    rv = -1;
-	}
-    }
-
-    return rv;
-}
-
-/*
  * Modify the ADV of an existing installation
  */
 int modify_existing_adv(const char *path)

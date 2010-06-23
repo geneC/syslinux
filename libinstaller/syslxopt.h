@@ -29,6 +29,7 @@ enum syslinux_mode {
 
 void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode);
 void parse_options(int argc, char *argv[], enum syslinux_mode mode);
+int modify_adv(void);
 
 extern struct sys_options opt;
 extern const struct option long_options[];
