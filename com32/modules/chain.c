@@ -204,18 +204,23 @@ struct ebios_dapa {
     uint64_t lba;
 };
 
-static void *read_sector(unsigned int lba)
+/* Read count sectors from drive, starting at lba.  Return a new buffer */
+static void *read_sectors(uint64_t lba, uint8_t count)
 {
     com32sys_t inreg;
     struct ebios_dapa *dapa = __com32.cs_bounce;
     void *buf = (char *)__com32.cs_bounce + SECTOR;
     void *data;
 
+    if (!count)
+	/* Silly */
+	return NULL;
+
     memset(&inreg, 0, sizeof inreg);
 
     if (disk_info.ebios) {
 	dapa->len = sizeof(*dapa);
-	dapa->count = 1;	/* 1 sector */
+	dapa->count = count;
 	dapa->off = OFFS(buf);
 	dapa->seg = SEG(buf);
 	dapa->lba = lba;
@@ -246,7 +251,8 @@ static void *read_sector(unsigned int lba)
 	if (s > 63 || h > 256 || c > 1023)
 	    return NULL;
 
-	inreg.eax.w[0] = 0x0201;	/* Read one sector */
+	inreg.eax.b[0] = count;
+	inreg.eax.b[1] = 0x02;	/* Read */
 	inreg.ecx.b[1] = c & 0xff;
 	inreg.ecx.b[0] = s + (c >> 6);
 	inreg.edx.b[1] = h;
@@ -260,7 +266,7 @@ static void *read_sector(unsigned int lba)
 
     data = malloc(SECTOR);
     if (data)
-	memcpy(data, buf, SECTOR);
+	memcpy(data, buf, count * SECTOR);
     return data;
 }
 
@@ -329,7 +335,7 @@ static int write_verify_sector(unsigned int lba, const void *buf)
     rv = write_sector(lba, buf);
     if (rv)
 	return rv;		/* Write failure */
-    rb = read_sector(lba);
+    rb = read_sectors(lba, 1);
     if (!rb)
 	return -1;		/* Readback failure */
     rv = memcmp(buf, rb, SECTOR);
@@ -348,7 +354,7 @@ static int find_disk(uint32_t mbr_sig)
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (get_disk_params(drive))
 	    continue;		/* Drive doesn't exist */
-	if (!(buf = read_sector(0)))
+	if (!(buf = read_sectors(0, 1)))
 	    continue;		/* Cannot read sector */
 	is_me = (*(uint32_t *) ((char *)buf + 440) == mbr_sig);
 	free(buf);
@@ -452,7 +458,7 @@ static struct part_entry *find_logical_partition(int whichpart, char *table,
 		continue;
 
 	/* Process this partition */
-	if (!(sector = read_sector(ptab[i].start_lba)))
+	if (!(sector = read_sectors(ptab[i].start_lba, 1)))
 	    continue;		/* Read error, must be invalid */
 
 	found = find_logical_partition(whichpart, sector, &ptab[i],
@@ -841,7 +847,7 @@ int main(int argc, char *argv[])
     }
 
     /* Get MBR */
-    if (!(mbr = read_sector(0))) {
+    if (!(mbr = read_sectors(0, 1))) {
 	error("Cannot read Master Boot Record\n");
 	goto bail;
     }
@@ -969,7 +975,7 @@ int main(int argc, char *argv[])
 	/* Actually read the boot sector */
 	if (!partinfo) {
 	    data[ndata].data = mbr;
-	} else if (!(data[ndata].data = read_sector(partinfo->start_lba))) {
+	} else if (!(data[ndata].data = read_sectors(partinfo->start_lba, 1))) {
 	    error("Cannot read boot sector\n");
 	    goto bail;
 	}
