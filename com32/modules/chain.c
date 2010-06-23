@@ -343,27 +343,6 @@ static int write_verify_sector(unsigned int lba, const void *buf)
     return rv ? -1 : 0;
 }
 
-/* Search for a specific drive, based on the MBR signature; bytes
-   440-443. */
-static int find_disk(uint32_t mbr_sig)
-{
-    int drive;
-    bool is_me;
-    char *buf;
-
-    for (drive = 0x80; drive <= 0xff; drive++) {
-	if (get_disk_params(drive))
-	    continue;		/* Drive doesn't exist */
-	if (!(buf = read_sectors(0, 1)))
-	    continue;		/* Cannot read sector */
-	is_me = (*(uint32_t *) ((char *)buf + 440) == mbr_sig);
-	free(buf);
-	if (is_me)
-	    return drive;
-    }
-    return -1;
-}
-
 /*
  * CHS (cylinder, head, sector) value extraction macros.
  * Taken from WinVBlock.  Does not expand to an lvalue
@@ -385,6 +364,37 @@ struct part_entry {
     uint32_t length;
 } __attribute__ ((packed));
 
+/* A DOS MBR */
+struct mbr {
+    char code[440];
+    uint32_t disk_sig;
+    char pad[2];
+    struct part_entry table[4];
+    uint16_t sig;
+} __attribute__ ((packed));
+static const uint16_t mbr_sig_magic = 0xAA55;
+
+/* Search for a specific drive, based on the MBR signature; bytes
+   440-443. */
+static int find_disk(uint32_t mbr_sig)
+{
+    int drive;
+    bool is_me;
+    struct mbr *mbr;
+
+    for (drive = 0x80; drive <= 0xff; drive++) {
+	if (get_disk_params(drive))
+	    continue;		/* Drive doesn't exist */
+	if (!(mbr = read_sectors(0, 1)))
+	    continue;		/* Cannot read sector */
+	is_me = (mbr->disk_sig == mbr_sig);
+	free(mbr);
+	if (is_me)
+	    return drive;
+    }
+    return -1;
+}
+
 /* Search for a logical partition.  Logical partitions are actually implemented
    as recursive partition tables; theoretically they're supposed to form a
    linked list, but other structures have been seen.
@@ -396,18 +406,18 @@ struct part_entry {
 
 int nextpart;			/* Number of the next logical partition */
 
-static struct part_entry *find_logical_partition(int whichpart, char *table,
+static struct part_entry *find_logical_partition(int whichpart, struct mbr *br,
 						 struct part_entry *self,
 						 struct part_entry *root)
 {
     static struct part_entry ltab_entry;
-    struct part_entry *ptab = (struct part_entry *)(table + 0x1be);
+    struct part_entry *ptab = br->table;
     struct part_entry *found;
-    char *sector;
+    struct mbr *ebr;
 
     int i;
 
-    if (*(uint16_t *) (table + 0x1fe) != 0xaa55)
+    if (br->sig != mbr_sig_magic)
 	return NULL;		/* Signature missing */
 
     /* We are assumed to already having enumerated all the data partitions
@@ -465,12 +475,12 @@ static struct part_entry *find_logical_partition(int whichpart, char *table,
 		continue;
 
 	/* Process this partition */
-	if (!(sector = read_sectors(ptab[i].start_lba, 1)))
+	if (!(ebr = read_sectors(ptab[i].start_lba, 1)))
 	    continue;		/* Read error, must be invalid */
 
-	found = find_logical_partition(whichpart, sector, &ptab[i],
+	found = find_logical_partition(whichpart, ebr, &ptab[i],
 				       root ? root : &ptab[i]);
-	free(sector);
+	free(ebr);
 	if (found)
 	    return found;
     }
@@ -609,7 +619,7 @@ enomem:
     return;
 }
 
-static int hide_unhide(char *mbr, int part)
+static int hide_unhide(struct mbr *mbr, int part)
 {
     int i;
     struct part_entry *pt;
@@ -622,7 +632,7 @@ static int hide_unhide(char *mbr, int part)
     bool write_back = false;
 
     for (i = 1; i <= 4; i++) {
-	pt = (struct part_entry *)&mbr[0x1be + 16 * (i - 1)];
+	pt = mbr->table + i - 1;
 	t = pt->ostype;
 	if ((t <= 0x1f) && ((mask >> (t & ~0x10)) & 1)) {
 	    /* It's a hideable partition type */
@@ -706,7 +716,8 @@ static void usage(void)
 
 int main(int argc, char *argv[])
 {
-    char *mbr, *p;
+    struct mbr *mbr;
+    char *p;
     struct part_entry *partinfo;
     struct syslinux_rm_regs regs;
     char *drivename, *partition;
@@ -873,7 +884,7 @@ int main(int argc, char *argv[])
     } else if (whichpart <= 4) {
 	/* Boot a primary partition */
 
-	partinfo = &((struct part_entry *)(mbr + 0x1be))[whichpart - 1];
+	partinfo = mbr->table + whichpart - 1;
 	if (partinfo->ostype == 0) {
 	    error("Invalid primary partition\n");
 	    goto bail;
@@ -989,14 +1000,16 @@ int main(int argc, char *argv[])
 	data[ndata].size = SECTOR;
 	data[ndata].base = load_base;
 
-	if (!opt.loadfile &&
-	    *(uint16_t *) ((char *)data[ndata].data +
-			   data[ndata].size - 2) != 0xaa55) {
-	    error
-		("Boot sector signature not found (unbootable disk/partition?)\n");
-	    goto bail;
+	if (!opt.loadfile) {
+	    const struct mbr *br =
+		(const struct mbr *)((char *)data[ndata].data +
+				     data[ndata].size - sizeof(struct mbr));
+	    if (br->sig != mbr_sig_magic) {
+		error
+		    ("Boot sector signature not found (unbootable disk/partition?)\n");
+		goto bail;
+	    }
 	}
-
 	/*
 	 * To boot the Recovery Console of Windows NT/2K/XP we need to write
 	 * the string "cmdcons\0" to memory location 0000:7C03.
