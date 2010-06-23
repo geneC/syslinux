@@ -364,16 +364,23 @@ static int find_disk(uint32_t mbr_sig)
     return -1;
 }
 
+/*
+ * CHS (cylinder, head, sector) value extraction macros.
+ * Taken from WinVBlock.  Does not expand to an lvalue
+*/
+#define     chs_head(chs) chs[0]
+#define   chs_sector(chs) (chs[1] & 0x3F)
+#define chs_cyl_high(chs) (((uint16_t)(chs[1] & 0xC0)) << 2)
+#define  chs_cyl_low(chs) ((uint16_t)chs[2])
+#define chs_cylinder(chs) (chs_cyl_high(chs) | chs_cyl_low(chs))
+typedef uint8_t chs[3];
+
 /* A DOS partition table entry */
 struct part_entry {
     uint8_t active_flag;	/* 0x80 if "active" */
-    uint8_t start_head;
-    uint8_t start_sect;
-    uint8_t start_cyl;
+    chs start;
     uint8_t ostype;
-    uint8_t end_head;
-    uint8_t end_sect;
-    uint8_t end_cyl;
+    chs end;
     uint32_t start_lba;
     uint32_t length;
 } __attribute__ ((packed));
