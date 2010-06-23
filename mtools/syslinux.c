@@ -37,6 +37,7 @@
 
 #include "syslinux.h"
 #include "libfat.h"
+#include "setadv.h"
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
@@ -239,12 +240,20 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
+    /*
+     * Create a vacuous ADV in memory.  This should be smarter.
+     */
+    syslinux_reset_adv(syslinux_adv);
+
     /* This command may fail legitimately */
     system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
 
     mtp = popen("mcopy -D o -D O -o - s:/ldlinux.sys", "w");
-    if (!mtp || (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
-		 != syslinux_ldlinux_len) ||
+    if (!mtp ||
+	fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
+		!= syslinux_ldlinux_len ||
+	fwrite(syslinux_adv, 1, 2 * ADV_SIZE, mtp)
+		!= 2 * ADV_SIZE ||
 	(status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status))) {
 	die("failed to create ldlinux.sys");
     }
