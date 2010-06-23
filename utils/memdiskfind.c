@@ -110,8 +110,6 @@ int main(int argc, char *argv[])
     if (!mapbase)
 	return 2;
 
-    printf("mapbase = %#zx\n", mapbase);
-
     memfd = open("/dev/mem", O_RDONLY);
     if (memfd < 0) {
 	fprintf(stderr, "%s: cannot open /dev/mem: %s\n",
