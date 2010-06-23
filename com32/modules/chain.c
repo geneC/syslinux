@@ -81,6 +81,8 @@
  *      FAT/NTFS boot sector.
  */
 
+#define DEBUG 0			/* 1 to enable */
+
 #include <com32.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -364,6 +366,33 @@ struct part_entry {
     uint32_t length;
 } __attribute__ ((packed));
 
+#if DEBUG
+static void mbr_part_dump(const struct part_entry *part)
+{
+    printf("-------------------------------\n"
+	   "Partition status _____ : 0x%.2x\n"
+	   "Partition CHS start\n"
+	   "  Cylinder ___________ : 0x%.4x\n"
+	   "  Head _______________ : 0x%.2x\n"
+	   "  Sector _____________ : 0x%.2x\n"
+	   "Partition type _______ : 0x%.2x\n"
+	   "Partition CHS end\n"
+	   "  Cylinder ___________ : 0x%.4x\n"
+	   "  Head _______________ : 0x%.2x\n"
+	   "  Sector _____________ : 0x%.2x\n"
+	   "Partition LBA start __ : 0x%.16x\n"
+	   "Partition LBA count __ : 0x%.16x\n",
+	   part->active_flag,
+	   chs_cylinder(part->start),
+	   chs_head(part->start),
+	   chs_sector(part->start),
+	   part->ostype,
+	   chs_cylinder(part->end),
+	   chs_head(part->end),
+	   chs_sector(part->end), part->start_lba, part->length);
+}
+#endif
+
 /* A DOS MBR */
 struct mbr {
     char code[440];
@@ -445,6 +474,10 @@ static struct part_entry *find_logical_partition(int whichpart, struct mbr *br,
 	    if (ptab[i].start_lba + ptab[i].length <= root->start_lba ||
 		ptab[i].start_lba >= root->start_lba + root->length)
 		continue;
+
+#if DEBUG
+	    mbr_part_dump(ptab + i);
+#endif
 
 	    /* OK, it's a data partition.  Is it the one we're looking for? */
 	    if (nextpart++ == whichpart) {
