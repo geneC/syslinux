@@ -69,17 +69,48 @@ static void output_params(const struct mBFT *mbft)
 	   mbft->mdi.diskbuf, mbft->mdi.disksize << sector_shift);
 }
 
+static size_t memlimit(void)
+{
+    char txtline[256], user[256];
+    size_t maxram = 0;
+    unsigned long long start, end;
+    FILE *iomem;
+
+    iomem = fopen("/proc/iomem", "r");
+    if (!iomem)
+	return 0;
+
+    while (fgets(txtline, sizeof txtline, iomem) != NULL) {
+	if (sscanf(txtline, "%llx-%llx : %[^\n]", &start, &end, user) != 3)
+	    continue;
+	if (strcmp(user, "System RAM"))
+	    continue;
+	if (start >= 0xa0000)
+	    continue;
+	maxram = (end >= 0xa0000) ? 0xa0000 : end+1;
+    }
+    fclose(iomem);
+
+    return maxram;
+}
+
 int main(int argc, char *argv[])
 {
     const char *map;
     int memfd;
-    uint16_t fbm;
+    size_t fbm;
     const char *ptr, *end;
     size_t page = sysconf(_SC_PAGESIZE);
     size_t mapbase, maplen;
     int err = 1;
 
     (void)argc;
+
+    mapbase = memlimit() & ~(page - 1);
+    if (!mapbase)
+	return 2;
+
+    printf("mapbase = %#zx\n", mapbase);
 
     memfd = open("/dev/mem", O_RDONLY);
     if (memfd < 0) {
@@ -95,14 +126,15 @@ int main(int argc, char *argv[])
 	return 2;
     }
 
-    fbm = *(uint16_t *)(map + 0x413);
+    fbm = *(uint16_t *)(map + 0x413) << 10;
+    if (fbm < mapbase)
+	fbm = mapbase;
 
-    munmap((void *)map, 4096);
+    munmap((void *)map, page);
 
-    if (fbm < 64 || fbm >= 640)
+    if (fbm < 64*1024 || fbm >= 640*1024)
 	return 1;
 
-    mapbase = (fbm << 10) & ~(page - 1);
     maplen  = 0xa0000 - mapbase;
     map = mmap(NULL, maplen, PROT_READ, MAP_SHARED, memfd, mapbase);
     if (map == MAP_FAILED) {
@@ -111,7 +143,7 @@ int main(int argc, char *argv[])
 	return 2;
     }
 
-    ptr = map + ((fbm << 10) & (page - 1));
+    ptr = map + (fbm - mapbase);
     end = map + (0xa0000 - mapbase);
     while (ptr < end) {
 	if (valid_mbft((const struct mBFT *)ptr, end-ptr)) {
