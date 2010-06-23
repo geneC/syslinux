@@ -66,6 +66,7 @@ static struct inode *allocate_socket(struct fs_info *fs)
     } else {
 	struct pxe_pvt_inode *socket = PVT(inode);
 	socket->tftp_localport = get_port();
+	inode->mode = DT_REG;	/* No other types relevant for PXE */
     }
 
     return inode;
