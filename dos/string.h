@@ -7,6 +7,7 @@
 
 /* Standard routines */
 #define memcpy(a,b,c)	__builtin_memcpy(a,b,c)
+#define memmove(a,b,c)	__builtin_memmove(a,b,c)
 #define memset(a,b,c)	__builtin_memset(a,b,c)
 #define strcpy(a,b)	__builtin_strcpy(a,b)
 #define strlen(a)	__builtin_strlen(a)
