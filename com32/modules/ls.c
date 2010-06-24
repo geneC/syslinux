@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
     else if (argc == 2)
 	rv = display_directory(argv[1]);
     else {
-	printf("Usage: dir directory\n");
+	printf("Usage: %s directory\n", argv[0]);
 	rv = 1;
     }
 
