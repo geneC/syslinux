@@ -65,7 +65,6 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     struct free_arena_header *fp;
     struct free_arena_header *head = &__core_malloc_head[heap];
     void *p = NULL;
-    static once = 0;
 
     dprintf("_malloc(%zu, %u, %u) @ %p = ",
 	size, heap, tag, __builtin_return_address(0));
@@ -206,4 +205,35 @@ void *realloc(void *ptr, size_t size)
 	    return newptr;
 	}
     }
+}
+
+void *zalloc(size_t size)
+{
+    void *ptr;
+
+    ptr = malloc(size);
+    if (ptr)
+	memset(ptr, 0, size);
+
+    return ptr;
+}
+
+/* need to revisit this later */
+int posix_memalign(void **memptr, size_t align, size_t size)
+{
+	void *ptr;
+	unsigned long tmp;
+
+	ptr = malloc(size + align - 1);
+	if (!ptr)
+		return -ENOMEM;
+
+	/* do the alignment  */
+	tmp = (unsigned long)ptr;
+	tmp = (tmp + align -1) & ~(align - 1);
+	ptr = (void *)tmp;
+
+	*memptr = ptr;
+	return 0;
+
 }
