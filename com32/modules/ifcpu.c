@@ -36,7 +36,6 @@ static inline void error(const char *msg)
 static void usage(void) 
 {
  error("Run one command if system match some CPU features, another if it doesn't. \n"
- "\n"
  "Usage: \n"
  "   label ifcpu \n"
  "       com32 ifcpu.c32 \n"
@@ -53,10 +52,11 @@ static void usage(void)
  "   dry-run   : just do the detection, don't boot \n"
  "\n"
  "cpu_features could be:\n"
- "   64        : CPU have to be x86_64 compatible \n"
- "   hvm       : Processor must have hardware virtualization (hvm or svm) \n"
+ "   64        : Processor is x86_64 compatible (lm cpu flag)\n"
+ "   hvm       : Processor features hardware virtualization (hvm or svm cpu flag)\n"
  "   multicore : Processor must be multi-core \n"
- "   smp       : System have to be SMP \n"
+ "   smp       : System must be multi-processor \n"
+ "   pae       : Processor features Physical Address Extension (PAE)\n"
  "\n"
  "if you want to match many cpu features, just separate them with a single space.\n");
 }
@@ -132,6 +132,11 @@ int main(int argc, char *argv[])
 		printf(" 64bit     : %s on this system\n",
 		       show_bool(cpu.flags.lm));
 	    hardware_matches = cpu.flags.lm && hardware_matches;
+	} else if (!strcmp(argv[i], "pae")) {
+	    if (debug)
+		printf(" pae       : %s on this system\n",
+		       show_bool(cpu.flags.pae));
+	    hardware_matches = cpu.flags.pae && hardware_matches;
 	} else if (!strcmp(argv[i], "hvm")) {
 	    if (debug)
 		printf(" hvm       : %s on this system\n",
