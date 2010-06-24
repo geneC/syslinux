@@ -21,9 +21,9 @@
 #include "libfatint.h"
 #include "ulint.h"
 
-struct libfat_filesystem
-    *libfat_open(int (*readfunc) (intptr_t, void *, size_t, libfat_sector_t),
-		 intptr_t readptr)
+struct libfat_filesystem *
+libfat_open(int (*readfunc) (intptr_t, void *, size_t, libfat_sector_t),
+	    intptr_t readptr)
 {
     struct libfat_filesystem *fs = NULL;
     struct fat_bootsect *bs;
