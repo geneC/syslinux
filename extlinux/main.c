@@ -365,13 +365,15 @@ int install_bootblock(int fd, const char *device)
 
 int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 {
-    char *file;
+    char *file, *oldfile;
     int fd = -1, dirfd = -1;
     int modbytes;
 
     asprintf(&file, "%s%sldlinux.sys",
 	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
-    if (!file) {
+    asprintf(&oldfile, "%s%sextlinux.sys",
+	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
+    if (!file || !oldfile) {
 	perror(program);
 	return 1;
     }
@@ -429,6 +431,17 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 
     close(dirfd);
     close(fd);
+
+    /* Look if we have the old filename */
+    fd = open(oldfile, O_RDONLY);
+    if (fd >= 0) {
+	clear_attributes(fd);
+	close(fd);
+	unlink(oldfile);
+    }
+
+    free(file);
+    free(oldfile);
     return 0;
 
 bail:
@@ -437,6 +450,8 @@ bail:
     if (fd >= 0)
 	close(fd);
 
+    free(file);
+    free(oldfile);
     return 1;
 }
 
@@ -687,17 +702,23 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
     return devfd;
 }
 
+static int btrfs_read_adv(int devfd)
+{
+    if (xpread(devfd, syslinux_adv, 2 * ADV_SIZE, BTRFS_ADV_OFFSET)
+	!= 2 * ADV_SIZE)
+	return -1;
+
+    return syslinux_validate_adv(syslinux_adv) ? 1 : 0;
+}
+
 static int ext_read_adv(const char *path, const char *cfg, int devfd)
 {
-    if (fs_type == BTRFS) { /* btrfs "ldlinux.sys" is in 64k blank area */
-	if (xpread(devfd, syslinux_adv, 2 * ADV_SIZE,
-		BTRFS_ADV_OFFSET) != 2 * ADV_SIZE) {
-		perror("btrfs writing adv");
-		return 1;
-	}
-	return 0;
+    if (fs_type == BTRFS) {
+	/* btrfs "ldlinux.sys" is in 64k blank area */
+	return btrfs_read_adv(devfd);
+    } else {	
+	return read_adv(path, cfg);
     }
-    return read_adv(path, cfg);
 }
 
 static int ext_write_adv(const char *path, const char *cfg, int devfd)
@@ -731,12 +752,13 @@ int install_loader(const char *path, int update_only)
     }
 
     /* Read a pre-existing ADV, if already installed */
-    if (opt.reset_adv)
+    if (opt.reset_adv ||
+	!already_installed(devfd) ||
+	(ext_read_adv(path, "ldlinux.sys", devfd) < 0 &&
+	 ext_read_adv(path, "extlinux.sys", devfd) < 0)) {
 	syslinux_reset_adv(syslinux_adv);
-    else if (ext_read_adv(path, "ldlinux.sys", devfd) < 0) {
-	close(devfd);
-	return 1;
     }
+
     if (modify_adv() < 0) {
 	close(devfd);
 	return 1;
@@ -767,6 +789,7 @@ int install_loader(const char *path, int update_only)
  */
 int modify_existing_adv(const char *path)
 {
+    const char *filename;
     int devfd;
 
     devfd = open_device(path, NULL, NULL);
@@ -775,7 +798,8 @@ int modify_existing_adv(const char *path)
 
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (ext_read_adv(path, "ldlinux.sys", devfd) < 0) {
+    else if (ext_read_adv(path, filename = "ldlinux.sys", devfd) < 0 &&
+	     ext_read_adv(path, filename = "extlinux.sys", devfd) < 0) {
 	close(devfd);
 	return 1;
     }
@@ -783,7 +807,7 @@ int modify_existing_adv(const char *path)
 	close(devfd);
 	return 1;
     }
-    if (ext_write_adv(path, "ldlinux.sys", devfd) < 0) {
+    if (ext_write_adv(path, filename, devfd) < 0) {
 	close(devfd);
 	return 1;
     }
