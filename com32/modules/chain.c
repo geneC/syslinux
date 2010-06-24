@@ -2,6 +2,8 @@
  *
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Significant portions copyright (C) 2010 Shao Miller
+ *					[partition iteration]
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -424,101 +426,211 @@ static int find_disk(uint32_t mbr_sig)
     return -1;
 }
 
-/* Search for a logical partition.  Logical partitions are actually implemented
-   as recursive partition tables; theoretically they're supposed to form a
-   linked list, but other structures have been seen.
+/* Forward declaration */
+struct disk_part_iter;
 
-   To make things extra confusing: data partition offsets are relative to where
-   the data partition record is stored, whereas extended partition offsets
-   are relative to the beginning of the extended partition all the way back
-   at the MBR... but still not absolute! */
+/* Partition-/scheme-specific routine returning the next partition */
+#define disk_part_iter_func_decl(func) \
+struct disk_part_iter *func(struct disk_part_iter *part)
+typedef disk_part_iter_func_decl((*disk_part_iter_func));
 
-int nextpart;			/* Number of the next logical partition */
+/* Contains details for a partition under examination */
+struct disk_part_iter {
+    /* The block holding the table we are part of */
+    char *block;
+    /* The LBA for the beginning of data */
+    uint64_t lba_data;
+    /* The partition number, as determined by our heuristic */
+    int index;
+    /* The DOS partition record to pass, if applicable */
+    const struct part_entry *record;
+    /* Function returning the next available partition */
+    disk_part_iter_func next;
+    /* Partition-/scheme-specific details */
+    union {
+	/* MBR specifics */
+	int mbr_index;
+	/* EBR specifics */
+	struct {
+	    /* The first extended partition's start LBA */
+	    uint64_t lba_extended;
+	    /* Any applicable parent, or NULL */
+	    struct disk_part_iter *parent;
+	    /* The parent extended partition index */
+	    int parent_index;
+	} ebr;
+    } private;
+};
 
-static struct part_entry *find_logical_partition(int whichpart, struct mbr *br,
-						 struct part_entry *self,
-						 struct part_entry *root)
+static disk_part_iter_func_decl(next_ebr_part)
 {
-    static struct part_entry ltab_entry;
-    struct part_entry *ptab = br->table;
-    struct part_entry *found;
-    struct mbr *ebr;
+    const struct part_entry *ebr_table;
+    const struct part_entry *parent_table =
+	((const struct mbr *)part->private.ebr.parent->block)->table;
+    static const struct part_entry phony = {.start_lba = 0 };
+    uint64_t ebr_lba;
 
-    int i;
+    /* Don't look for a "next EBR" the first time around */
+    if (part->private.ebr.parent_index >= 0)
+	/* Look at the linked list */
+	ebr_table = ((const struct mbr *)part->block)->table + 1;
+    /* Do we need to look for an extended partition? */
+    if (part->private.ebr.parent_index < 0 || !ebr_table->start_lba) {
+	/* Start looking for an extended partition in the MBR */
+	while (++part->private.ebr.parent_index < 4) {
+	    uint8_t type = parent_table[part->private.ebr.parent_index].ostype;
 
-    if (br->sig != mbr_sig_magic)
-	return NULL;		/* Signature missing */
-
-    /* We are assumed to already having enumerated all the data partitions
-       in this table if this is the MBR.  For MBR, self == NULL. */
-
-    if (self) {
-	/* Scan the data partitions. */
-
-	for (i = 0; i < 4; i++) {
-	    if (ptab[i].ostype == 0x00 || ptab[i].ostype == 0x05 ||
-		ptab[i].ostype == 0x0f || ptab[i].ostype == 0x85)
-		continue;	/* Skip empty or extended partitions */
-
-	    if (!ptab[i].length)
-		continue;
-
-	    /* Adjust the offset to account for the extended partition itself */
-	    ptab[i].start_lba += self->start_lba;
-
-	    /*
-	     * Sanity check entry: must not extend outside the
-	     * extended partition.  This is necessary since some OSes
-	     * put crap in some entries.  Note that root is non-NULL here.
-	     */
-	    if (ptab[i].start_lba + ptab[i].length <= root->start_lba ||
-		ptab[i].start_lba >= root->start_lba + root->length)
-		continue;
-
+	    if ((type == 0x05) || (type == 0x0F) || (type == 0x85))
+		break;
+	}
+	if (part->private.ebr.parent_index == 4)
+	    /* No extended partitions found */
+	    goto out_finished;
+	part->private.ebr.lba_extended =
+	    parent_table[part->private.ebr.parent_index].start_lba;
+	ebr_table = &phony;
+    }
+    /* Load next EBR */
+    ebr_lba = ebr_table->start_lba + part->private.ebr.lba_extended;
+    free(part->block);
+    part->block = read_sectors(ebr_lba, 1);
+    if (!part->block) {
+	error("Could not load EBR!\n");
+	goto err_ebr;
+    }
+    ebr_table = ((const struct mbr *)part->block)->table;
 #if DEBUG
-	    mbr_part_dump(ptab + i);
+    mbr_part_dump(ebr_table);
 #endif
+    /*
+     * Sanity check entry: must not extend outside the
+     * extended partition.  This is necessary since some OSes
+     * put crap in some entries.
+     */
+    {
+	const struct mbr *mbr =
+	    (const struct mbr *)part->private.ebr.parent->block;
+	const struct part_entry *extended =
+	    mbr->table + part->private.ebr.parent_index;
 
-	    /* OK, it's a data partition.  Is it the one we're looking for? */
-	    if (nextpart++ == whichpart) {
-		memcpy(&ltab_entry, &ptab[i], sizeof ltab_entry);
-		return &ltab_entry;
-	    }
+	if (ebr_table[0].start_lba >= extended->start_lba + extended->length) {
+	    error("Insane logical partition!\n");
+	    goto err_insane;
 	}
     }
+    /* Success */
+    part->lba_data = ebr_table[0].start_lba + ebr_lba;
+    part->index++;
+    part->record = ebr_table;
+    return part;
 
-    /* Scan the extended partitions. */
-    for (i = 0; i < 4; i++) {
-	if (ptab[i].ostype != 0x05 &&
-	    ptab[i].ostype != 0x0f && ptab[i].ostype != 0x85)
-	    continue;		/* Skip empty or data partitions */
+err_insane:
 
-	if (!ptab[i].length)
+    free(part->block);
+    part->block = NULL;
+err_ebr:
+
+out_finished:
+    free(part->private.ebr.parent->block);
+    free(part->private.ebr.parent);
+    free(part->block);
+    free(part);
+    return NULL;
+}
+
+static disk_part_iter_func_decl(next_mbr_part)
+{
+    struct disk_part_iter *ebr_part;
+    /* Look at the partition table */
+    struct part_entry *table = ((struct mbr *)part->block)->table;
+
+    /* Look for data partitions */
+    while (++part->private.mbr_index < 4) {
+	uint8_t type = table[part->private.mbr_index].ostype;
+
+	if (type == 0x00 || type == 0x05 || type == 0x0F || type == 0x85)
+	    /* Skip empty or extended partitions */
 	    continue;
-
-	/* Adjust the offset to account for the extended partition itself */
-	if (root)
-	    ptab[i].start_lba += root->start_lba;
-
-	/* Sanity check entry: must not extend outside the extended partition.
-	   This is necessary since some OSes put crap in some entries. */
-	if (root)
-	    if (ptab[i].start_lba + ptab[i].length <= root->start_lba ||
-		ptab[i].start_lba >= root->start_lba + root->length)
-		continue;
-
-	/* Process this partition */
-	if (!(ebr = read_sectors(ptab[i].start_lba, 1)))
-	    continue;		/* Read error, must be invalid */
-
-	found = find_logical_partition(whichpart, ebr, &ptab[i],
-				       root ? root : &ptab[i]);
-	free(ebr);
-	if (found)
-	    return found;
+	if (!table[part->private.mbr_index].length)
+	    /* Empty */
+	    continue;
+	break;
     }
+    /* If we're currently the last partition, it's time for EBR processing */
+    if (part->private.mbr_index == 4) {
+	/* Allocate another iterator for extended partitions */
+	ebr_part = malloc(sizeof(*ebr_part));
+	if (!ebr_part) {
+	    error("Could not allocate extended partition iterator!\n");
+	    goto err_alloc;
+	}
+	/* Setup EBR iterator parameters */
+	ebr_part->block = NULL;
+	ebr_part->index = 4;
+	ebr_part->record = NULL;
+	ebr_part->next = next_ebr_part;
+	ebr_part->private.ebr.parent = part;
+	/* Trigger an initial EBR load */
+	ebr_part->private.ebr.parent_index = -1;
+	/* The EBR iterator is responsible for freeing us */
+	return next_ebr_part(ebr_part);
+    }
+#if DEBUG
+    mbr_part_dump(table + part->private.mbr_index);
+#endif
+    /* Update parameters to reflect this new partition.  Re-use iterator */
+    part->lba_data = table[part->private.mbr_index].start_lba;
+    part->index++;
+    part->record = table + part->private.mbr_index;
+    return part;
 
-    /* If we get here, there ain't nothing... */
+    free(ebr_part);
+err_alloc:
+
+    free(part->block);
+    free(part);
+    return NULL;
+}
+
+static disk_part_iter_func_decl(get_first_partition)
+{
+    /*
+     * Ignore any passed partition iterator.  The caller should
+     * have passed NULL.  Allocate a new partition iterator
+     */
+    part = malloc(sizeof(*part));
+    if (!part) {
+	error("Count not allocate partition iterator!\n");
+	goto err_alloc_iter;
+    }
+    /* Read MBR */
+    part->block = read_sectors(0, 2);
+    if (!part->block) {
+	error("Could not read two sectors!\n");
+	goto err_read_mbr;
+    }
+    /* Check for an MBR */
+    if (((struct mbr *)part->block)->sig != mbr_sig_magic) {
+	error("No MBR magic!\n");
+	goto err_mbr;
+    }
+    /* Establish a pseudo-partition for the MBR (index 0) */
+    part->index = 0;
+    part->record = NULL;
+    part->private.mbr_index = -1;
+    part->next = next_mbr_part;
+    /* Return the pseudo-partition's next partition, which is real */
+    return part->next(part);
+
+err_mbr:
+
+    free(part->block);
+    part->block = NULL;
+err_read_mbr:
+
+    free(part);
+err_alloc_iter:
+
     return NULL;
 }
 
@@ -749,9 +861,9 @@ static void usage(void)
 
 int main(int argc, char *argv[])
 {
-    struct mbr *mbr;
+    struct mbr *mbr = NULL;
     char *p;
-    struct part_entry *partinfo;
+    struct disk_part_iter *cur_part = NULL;
     struct syslinux_rm_regs regs;
     char *drivename, *partition;
     int hd, drive, whichpart;
@@ -910,26 +1022,18 @@ int main(int argc, char *argv[])
 	    error("WARNING: failed to write MBR for 'hide'\n");
     }
 
-    if (whichpart == 0) {
-	/* Boot the MBR */
-
-	partinfo = NULL;
-    } else if (whichpart <= 4) {
-	/* Boot a primary partition */
-
-	partinfo = mbr->table + whichpart - 1;
-	if (partinfo->ostype == 0) {
-	    error("Invalid primary partition\n");
-	    goto bail;
+    /* Boot the MBR by default */
+    if (whichpart) {
+	/* Boot a partition */
+	cur_part = get_first_partition(NULL);
+	while (cur_part) {
+	    if (cur_part->index == whichpart)
+		/* Found the partition to boot */
+		break;
+	    cur_part = cur_part->next(cur_part);
 	}
-    } else {
-	/* Boot a logical partition */
-
-	nextpart = 5;
-	partinfo = find_logical_partition(whichpart, mbr, NULL, NULL);
-
-	if (!partinfo || partinfo->ostype == 0) {
-	    error("Requested logical partition not found\n");
+	if (!cur_part) {
+	    error("Requested partition not found!\n");
 	    goto bail;
 	}
     }
@@ -1024,9 +1128,9 @@ int main(int argc, char *argv[])
 
     if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
 	/* Actually read the boot sector */
-	if (!partinfo) {
+	if (!cur_part) {
 	    data[ndata].data = mbr;
-	} else if (!(data[ndata].data = read_sectors(partinfo->start_lba, 1))) {
+	} else if (!(data[ndata].data = read_sectors(cur_part->lba_data, 1))) {
 	    error("Cannot read boot sector\n");
 	    goto bail;
 	}
@@ -1048,7 +1152,7 @@ int main(int argc, char *argv[])
 	 * the string "cmdcons\0" to memory location 0000:7C03.
 	 * Memory location 0000:7C00 contains the bootsector of the partition.
 	 */
-	if (partinfo && opt.cmldr) {
+	if (cur_part && opt.cmldr) {
 	    memcpy((char *)data[ndata].data + 3, cmldr_signature,
 		   sizeof cmldr_signature);
 	}
@@ -1058,18 +1162,18 @@ int main(int argc, char *argv[])
 	 * this modifies the field used by FAT and NTFS filesystems, and
 	 * possibly other boot loaders which use the same format.
 	 */
-	if (partinfo && opt.sethidden) {
-	    *(uint32_t *) ((char *)data[ndata].data + 28) = partinfo->start_lba;
+	if (cur_part && opt.sethidden) {
+	    *(uint32_t *) ((char *)data[ndata].data + 28) = cur_part->lba_data;
 	}
 
 	ndata++;
     }
 
-    if (partinfo) {
+    if (cur_part && cur_part->record) {
 	/* 0x7BE is the canonical place for the first partition entry. */
-	data[ndata].data = partinfo;
+	data[ndata].data = (void *)cur_part->record;
 	data[ndata].base = 0x7be;
-	data[ndata].size = sizeof *partinfo;
+	data[ndata].size = sizeof(*cur_part->record);
 	ndata++;
 	regs.esi.w[0] = 0x7be;
     }
@@ -1077,5 +1181,9 @@ int main(int argc, char *argv[])
     do_boot(data, ndata, &regs);
 
 bail:
+    if (cur_part)
+	free(cur_part->block);
+    free(cur_part);
+    free(mbr);
     return 255;
 }
