@@ -3,7 +3,7 @@
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *   Significant portions copyright (C) 2010 Shao Miller
- *					[partition iteration]
+ *					[partition iteration, GPT]
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -459,6 +459,15 @@ struct disk_part_iter {
 	    /* The parent extended partition index */
 	    int parent_index;
 	} ebr;
+	/* GPT specifics */
+	struct {
+	    /* Real (not effective) index in the partition table */
+	    int index;
+	    /* Count of entries in GPT */
+	    int parts;
+	    /* Partition record size */
+	    uint32_t size;
+	} gpt;
     } private;
 };
 
@@ -592,8 +601,195 @@ err_alloc:
     return NULL;
 }
 
+/*
+ * GUID
+ * Be careful with endianness, you must adjust it yourself
+ * iff you are directly using the fourth data chunk
+ */
+struct guid {
+    uint32_t data1;
+    uint16_t data2;
+    uint16_t data3;
+    uint64_t data4;
+} __attribute__ ((packed));
+
+#if DEBUG
+/*
+ * Fill a buffer with a textual GUID representation.
+ * The buffer must be >= char[37] and will be populated
+ * with an ASCII NUL C string terminator.
+ * Example: 11111111-2222-3333-4444-444444444444
+ * Endian:  LLLLLLLL-LLLL-LLLL-BBBB-BBBBBBBBBBBB
+ */
+static void guid_to_str(char *buf, const struct guid *id)
+{
+    /*
+     * This walk-map effectively reverses the little-endian
+     * portions of the GUID in the output text
+     */
+    static const char le_walk_map[] = {
+	3, -1, -1, -1, 0,
+	5, -1, 0,
+	3, -1, 0,
+	2, 1, 0,
+	1, 1, 1, 1, 1, 1
+    };
+    unsigned int i = 0;
+    const char *walker = (const char *)id;
+
+    while (i < sizeof(le_walk_map)) {
+	walker += le_walk_map[i];
+	if (!le_walk_map[i])
+	    *buf = '-';
+	else {
+	    *buf = ((*walker & 0xF0) >> 4) + '0';
+	    if (*buf > '9')
+		*buf += 'A' - '9' - 1;
+	    buf++;
+	    *buf = (*walker & 0x0F) + '0';
+	    if (*buf > '9')
+		*buf += 'A' - '9' - 1;
+	}
+	buf++;
+	i++;
+    }
+    *buf = 0;
+}
+#endif
+
+/* A GPT partition */
+struct gpt_part {
+    struct guid type;
+    struct guid uid;
+    uint64_t lba_first;
+    uint64_t lba_last;
+    uint64_t attribs;
+    char name[72];
+} __attribute__ ((packed));
+
+#if DEBUG
+static void gpt_part_dump(const struct gpt_part *gpt_part)
+{
+    unsigned int i;
+    char guid_text[37];
+
+    printf("----------------------------------\n"
+	   "GPT part. LBA first __ : 0x%.16llx\n"
+	   "GPT part. LBA last ___ : 0x%.16llx\n"
+	   "GPT part. attribs ____ : 0x%.16llx\n"
+	   "GPT part. name _______ : '",
+	   gpt_part->lba_first, gpt_part->lba_last, gpt_part->attribs);
+    for (i = 0; i < sizeof(gpt_part->name); i++) {
+	if (gpt_part->name[i])
+	    printf("%c", gpt_part->name[i]);
+    }
+    puts("'");
+    guid_to_str(guid_text, &gpt_part->type);
+    printf("GPT part. type GUID __ : {%s}\n", guid_text);
+    guid_to_str(guid_text, &gpt_part->uid);
+    printf("GPT part. unique ID __ : {%s}\n", guid_text);
+}
+#endif
+
+/* A GPT header */
+struct gpt {
+    char sig[8];
+    union {
+	struct {
+	    uint16_t minor;
+	    uint16_t major;
+	} fields __attribute__ ((packed));
+	uint32_t uint32;
+	char raw[4];
+    } rev __attribute__ ((packed));
+    uint32_t hdr_size;
+    uint32_t chksum;
+    char reserved1[4];
+    uint64_t lba_cur;
+    uint64_t lba_alt;
+    uint64_t lba_first_usable;
+    uint64_t lba_last_usable;
+    struct guid disk_guid;
+    uint64_t lba_table;
+    uint32_t part_count;
+    uint32_t part_size;
+    uint32_t table_chksum;
+    char reserved2[1];
+} __attribute__ ((packed));
+static const char gpt_sig_magic[] = "EFI PART";
+
+#if DEBUG
+static void gpt_dump(const struct gpt *gpt)
+{
+    char guid_text[37];
+
+    printf("GPT sig ______________ : '%8.8s'\n"
+	   "GPT major revision ___ : 0x%.4x\n"
+	   "GPT minor revision ___ : 0x%.4x\n"
+	   "GPT header size ______ : 0x%.8x\n"
+	   "GPT header checksum __ : 0x%.8x\n"
+	   "GPT reserved _________ : '%4.4s'\n"
+	   "GPT LBA current ______ : 0x%.16llx\n"
+	   "GPT LBA alternative __ : 0x%.16llx\n"
+	   "GPT LBA first usable _ : 0x%.16llx\n"
+	   "GPT LBA last usable __ : 0x%.16llx\n"
+	   "GPT LBA part. table __ : 0x%.16llx\n"
+	   "GPT partition count __ : 0x%.8x\n"
+	   "GPT partition size ___ : 0x%.8x\n"
+	   "GPT part. table chksum : 0x%.8x\n",
+	   gpt->sig,
+	   gpt->rev.fields.major,
+	   gpt->rev.fields.minor,
+	   gpt->hdr_size,
+	   gpt->chksum,
+	   gpt->reserved1,
+	   gpt->lba_cur,
+	   gpt->lba_alt,
+	   gpt->lba_first_usable,
+	   gpt->lba_last_usable,
+	   gpt->lba_table, gpt->part_count, gpt->part_size, gpt->table_chksum);
+    guid_to_str(guid_text, &gpt->disk_guid);
+    printf("GPT disk GUID ________ : {%s}\n", guid_text);
+}
+#endif
+
+static disk_part_iter_func_decl(next_gpt_part)
+{
+    const struct gpt_part *gpt_part = NULL;
+
+    while (++part->private.gpt.index < part->private.gpt.parts) {
+	gpt_part =
+	    (const struct gpt_part *)(part->block +
+				      (part->private.gpt.index *
+				       part->private.gpt.size));
+	if (!gpt_part->lba_first)
+	    continue;
+	break;
+    }
+    /* Were we the last partition? */
+    if (part->private.gpt.index == part->private.gpt.parts) {
+	goto err_last;
+    }
+    part->lba_data = gpt_part->lba_first;
+    /* Update our index */
+    part->index++;
+#if DEBUG
+    gpt_part_dump(gpt_part);
+#endif
+    /* In a GPT scheme, we re-use the iterator */
+    return part;
+
+err_last:
+    free(part->block);
+    free(part);
+
+    return NULL;
+}
+
 static disk_part_iter_func_decl(get_first_partition)
 {
+    const struct gpt *gpt_candidate;
+
     /*
      * Ignore any passed partition iterator.  The caller should
      * have passed NULL.  Allocate a new partition iterator
@@ -619,8 +815,41 @@ static disk_part_iter_func_decl(get_first_partition)
     part->record = NULL;
     part->private.mbr_index = -1;
     part->next = next_mbr_part;
+    /* Check for a GPT disk */
+    gpt_candidate = (const struct gpt *)(part->block + SECTOR);
+    if (!memcmp(gpt_candidate->sig, gpt_sig_magic, sizeof(gpt_sig_magic))) {
+	/* LBA for partition table */
+	uint64_t lba_table;
+
+	/* It looks like one */
+	/* TODO: Check checksum.  Possibly try alternative GPT */
+#if DEBUG
+	puts("Looks like a GPT disk.");
+	gpt_dump(gpt_candidate);
+#endif
+	/* TODO: Check table checksum (maybe) */
+	/* Note relevant GPT details */
+	part->next = next_gpt_part;
+	part->private.gpt.index = -1;
+	part->private.gpt.parts = gpt_candidate->part_count;
+	part->private.gpt.size = gpt_candidate->part_size;
+	lba_table = gpt_candidate->lba_table;
+	gpt_candidate = NULL;
+	/* Load the partition table */
+	free(part->block);
+	part->block =
+	    read_sectors(lba_table,
+			 ((part->private.gpt.size * part->private.gpt.parts) +
+			  SECTOR - 1) / SECTOR);
+	if (!part->block) {
+	    error("Could not read GPT partition list!\n");
+	    goto err_gpt_table;
+	}
+    }
     /* Return the pseudo-partition's next partition, which is real */
     return part->next(part);
+
+err_gpt_table:
 
 err_mbr:
 
