@@ -711,13 +711,21 @@ static int btrfs_read_adv(int devfd)
     return syslinux_validate_adv(syslinux_adv) ? 1 : 0;
 }
 
-static int ext_read_adv(const char *path, const char *cfg, int devfd)
+static int ext_read_adv(const char *path, int devfd, const char **namep)
 {
+    int err;
+    const char *name;
+
     if (fs_type == BTRFS) {
 	/* btrfs "ldlinux.sys" is in 64k blank area */
 	return btrfs_read_adv(devfd);
-    } else {	
-	return read_adv(path, cfg);
+    } else {
+	err = read_adv(path, name = "ldlinux.sys");
+	if (err == 2)		/* ldlinux.sys does not exist */
+	    err = read_adv(path, name = "extlinux.sys");
+	if (namep)
+	    *namep = name; 
+	return err;
     }
 }
 
@@ -752,11 +760,11 @@ int install_loader(const char *path, int update_only)
     }
 
     /* Read a pre-existing ADV, if already installed */
-    if (opt.reset_adv ||
-	!already_installed(devfd) ||
-	(ext_read_adv(path, "ldlinux.sys", devfd) < 0 &&
-	 ext_read_adv(path, "extlinux.sys", devfd) < 0)) {
+    if (opt.reset_adv) {
 	syslinux_reset_adv(syslinux_adv);
+    } else if (ext_read_adv(path, devfd, NULL) < 0) {
+	close(devfd);
+	return 1;
     }
 
     if (modify_adv() < 0) {
@@ -798,8 +806,7 @@ int modify_existing_adv(const char *path)
 
     if (opt.reset_adv)
 	syslinux_reset_adv(syslinux_adv);
-    else if (ext_read_adv(path, filename = "ldlinux.sys", devfd) < 0 &&
-	     ext_read_adv(path, filename = "extlinux.sys", devfd) < 0) {
+    else if (ext_read_adv(path, devfd, &filename) < 0) {
 	close(devfd);
 	return 1;
     }
