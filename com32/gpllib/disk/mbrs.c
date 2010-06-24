@@ -71,6 +71,8 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 	    strlcpy(buffer, "fbinst", buffer_size - 1);
 	else if (((label >> 8) & 0xff) == 0x80)
 	    strlcpy(buffer, "Grub4Dos", buffer_size - 1);
+	else if (((label >> 8) & 0xff) == 0x90)
+	    strlcpy(buffer, "WEE", buffer_size - 1);
 	else
 	    strlcpy(buffer, "Unknown mbr", buffer_size - 1);
 	break;
