@@ -3,7 +3,7 @@
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *   Significant portions copyright (C) 2010 Shao Miller
- *					[partition iteration, GPT]
+ *					[partition iteration, GPT, "fs"]
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
  * filesystem.  "chain hd0 1" will boot the first partition on the first hard
  * disk.
  *
- * When none of the "hdX", "fdX", "mbr:" or "boot" options are specified,
+ * When none of the "hdX", "fdX", "mbr:", "boot" or "fs" options are specified,
  * the default behaviour is equivalent to "boot".  "boot" means to use the
  * current Syslinux drive, and you can also specify a partition.
  *
@@ -36,6 +36,9 @@
  * specific MBR serial number (bytes 440-443) is found.
  *
  * Partitions 1-4 are primary, 5+ logical, 0 = boot MBR (default.)
+ *
+ * "fs" will use the current Syslinux filesystem as the boot drive/partition.
+ * When booting from PXELINUX, you will most likely wish to specify a disk.
  *
  * Options:
  *
@@ -1080,6 +1083,7 @@ Usage:   chain.c32 [options]\n\
          chain.c32 fd<disk#> [options]\n\
          chain.c32 mbr:<id> [<partition>] [options]\n\
          chain.c32 boot [<partition>] [options]\n\
+         chain.c32 fs [options]\n\
 Options: file=<loader>      Load and execute file, instead of boot sector\n\
          isolinux=<loader>  Load another version of ISOLINUX\n\
          ntldr=<loader>     Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
@@ -1103,8 +1107,9 @@ int main(int argc, char *argv[])
     struct disk_part_iter *cur_part = NULL;
     struct syslinux_rm_regs regs;
     char *drivename, *partition;
-    int hd, drive, whichpart;
+    int hd, drive, whichpart = 0;	/* MBR by default */
     int i;
+    uint64_t fs_lba = 0;	/* Syslinux partition */
     uint32_t file_lba = 0;
     unsigned char *isolinux_bin;
     uint32_t *checksum, *chkhead, *chktail;
@@ -1175,7 +1180,8 @@ int main(int argc, char *argv[])
 		   || !strncmp(argv[i], "mbr:", 4)
 		   || !strncmp(argv[i], "mbr=", 4)
 		   || !strcmp(argv[i], "boot")
-		   || !strncmp(argv[i], "boot,", 5)) {
+		   || !strncmp(argv[i], "boot,", 5)
+		   || !strncmp(argv[i], "fs", 2)) {
 	    drivename = argv[i];
 	    p = strchr(drivename, ',');
 	    if (p) {
@@ -1209,13 +1215,19 @@ int main(int argc, char *argv[])
 	hd = drivename[0] == 'h';
 	drivename += 2;
 	drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
-    } else if (!strcmp(drivename, "boot")) {
+    } else if (!strcmp(drivename, "boot") || !strcmp(drivename, "fs")) {
 	const union syslinux_derivative_info *sdi;
+
 	sdi = syslinux_derivative_info();
 	if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX)
 	    drive = 0x80;	/* Boot drive not available */
 	else
 	    drive = sdi->disk.drive_number;
+	if (!strcmp(drivename, "fs")
+	    && (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX
+		|| sdi->c.filesystem == SYSLINUX_FS_EXTLINUX))
+	    /* We should lookup the Syslinux partition number and use it */
+	    fs_lba = ((struct part_entry *)sdi->disk.ptab_ptr)->start_lba;
     } else {
 	error("Unparsable drive specification\n");
 	goto bail;
@@ -1224,9 +1236,38 @@ int main(int argc, char *argv[])
     /* DOS kernels want the drive number in BL instead of DL.  Indulge them. */
     regs.ebx.b[0] = regs.edx.b[0] = drive;
 
-    whichpart = 0;		/* Default */
+    /* Get the disk geometry and disk access setup */
+    if (get_disk_params(drive)) {
+	error("Cannot get disk parameters\n");
+	goto bail;
+    }
+
+    /* Get MBR */
+    if (!(mbr = read_sectors(0, 1))) {
+	error("Cannot read Master Boot Record or sector 0\n");
+	goto bail;
+    }
+
     if (partition)
 	whichpart = strtoul(partition, NULL, 0);
+
+    /* Boot the MBR by default */
+    if (whichpart || fs_lba) {
+	/* Boot a partition, possibly the Syslinux partition itself */
+	cur_part = get_first_partition(NULL);
+	while (cur_part) {
+	    if ((cur_part->index == whichpart)
+		|| (cur_part->lba_data == fs_lba))
+		/* Found the partition to boot */
+		break;
+	    cur_part = cur_part->next(cur_part);
+	}
+	if (!cur_part) {
+	    error("Requested partition not found!\n");
+	    goto bail;
+	}
+	whichpart = cur_part->index;
+    }
 
     if (!(drive & 0x80) && whichpart) {
 	error("Warning: Partitions of floppy devices may not work\n");
@@ -1240,39 +1281,11 @@ int main(int argc, char *argv[])
      */
     regs.edx.b[1] = whichpart - 1;
 
-    /* Get the disk geometry and disk access setup */
-    if (get_disk_params(drive)) {
-	error("Cannot get disk parameters\n");
-	goto bail;
-    }
-
-    /* Get MBR */
-    if (!(mbr = read_sectors(0, 1))) {
-	error("Cannot read Master Boot Record\n");
-	goto bail;
-    }
-
     if (opt.hide) {
 	if (whichpart < 1 || whichpart > 4)
 	    error("WARNING: hide specified without a non-primary partition\n");
 	if (hide_unhide(mbr, whichpart))
 	    error("WARNING: failed to write MBR for 'hide'\n");
-    }
-
-    /* Boot the MBR by default */
-    if (whichpart) {
-	/* Boot a partition */
-	cur_part = get_first_partition(NULL);
-	while (cur_part) {
-	    if (cur_part->index == whichpart)
-		/* Found the partition to boot */
-		break;
-	    cur_part = cur_part->next(cur_part);
-	}
-	if (!cur_part) {
-	    error("Requested partition not found!\n");
-	    goto bail;
-	}
     }
 
     /* Do the actual chainloading */
