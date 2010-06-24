@@ -266,7 +266,7 @@ static void *read_sectors(uint64_t lba, uint8_t count)
     if (int13_retry(&inreg, NULL))
 	return NULL;
 
-    data = malloc(SECTOR);
+    data = malloc(count * SECTOR);
     if (data)
 	memcpy(data, buf, count * SECTOR);
     return data;
