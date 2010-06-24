@@ -36,8 +36,8 @@
 
 /*
  * Read the ADV from an existing instance, or initialize if invalid.
- * Returns -1 on fatal errors, 0 if ADV is okay, and 1 if no valid
- * ADV was found.
+ * Returns -1 on fatal errors, 0 if ADV is okay, 1 if the ADV is
+ * invalid, and 2 if the file does not exist.
  */
 int read_adv(const char *path, const char *cfg)
 {
@@ -60,6 +60,7 @@ int read_adv(const char *path, const char *cfg)
 	    err = -1;
 	} else {
 	    syslinux_reset_adv(syslinux_adv);
+	    err = 2;		/* Nonexistence is not a fatal error */
 	}
     } else if (fstat(fd, &st)) {
 	err = -1;
