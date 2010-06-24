@@ -82,7 +82,7 @@ static void insert_map(struct btrfs_chunk_map_item *item)
 	if (chunk_map.map == NULL) { /* first item */
 		chunk_map.map_length = BTRFS_MAX_CHUNK_ENTRIES;
 		chunk_map.map = (struct btrfs_chunk_map_item *)
-			hmalloc(chunk_map.map_length * sizeof(*chunk_map.map));
+			malloc(chunk_map.map_length * sizeof(*chunk_map.map));
 		chunk_map.map[0] = *item;
 		chunk_map.cur_length = 1;
 		return;

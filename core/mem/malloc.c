@@ -86,11 +86,6 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     return p;
 }
 
-void *hmalloc(size_t size)
-{
-    return _malloc(size, HEAP_MAIN, MALLOC_CORE);
-}
-
 void *malloc(size_t size)
 {
     return _malloc(size, HEAP_MAIN, MALLOC_CORE);

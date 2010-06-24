@@ -307,7 +307,7 @@ static int iso_fs_init(struct fs_info *fs)
     struct disk *disk = fs->fs_dev->disk;
     int blktosec;
 
-    sbi = hmalloc(sizeof(*sbi));
+    sbi = malloc(sizeof(*sbi));
     if (!sbi) {
 	malloc_error("iso_sb_info structure");
 	return 1;

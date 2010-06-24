@@ -30,7 +30,6 @@ extern void __idle(void);
 extern void reset_idle(void);
 
 /* mem/malloc.c, mem/free.c, mem/init.c */
-extern void *hmalloc(size_t);
 extern void *lmalloc(size_t);
 extern void *pmapi_lmalloc(size_t);
 extern void *zalloc(size_t);

@@ -280,7 +280,7 @@ static int ext2_fs_init(struct fs_info *fs)
     if (sb.s_magic != EXT2_SUPER_MAGIC)
 	return -1;
 
-    sbi = hmalloc(sizeof(*sbi));
+    sbi = malloc(sizeof(*sbi));
     if (!sbi) {
 	malloc_error("ext2_sb_info structure");
 	return -1;
