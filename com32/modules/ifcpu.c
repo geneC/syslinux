@@ -13,34 +13,6 @@
 /*
  * ifcpu.c
  *
- * Run one command (boot_entry_1) if the booted system match some CPU features
- * and another (boot_entry_2) if it doesn't.
- * Eventually this and other features should get folded into some kind
- * of scripting engine.
- *
- * Usage:
- *
- *    label test
- *        com32 ifcpu.c32
- *        append <option> <cpu_features> -- boot_entry_1 -- boot_entry_2
- *    label boot_entry_1
- *    	  kernel vmlinuz
- *    	  append ...
- *    label boot_entry_2
- *        kernel vmlinuz_64
- *        append ...
- *
- * options could be :
- *    debug     : display some debugging messages
- *    dry-run   : just do the detection, don't boot
- *
- * cpu_features could be:
- *    64        : CPU have to be x86_64 compatible
- *    hvm       : Processor must have hardware virtualization (hvm or svm)
- *    multicore : Processor must be multi-core
- *    smp       : System have to be SMP
- *
- * if you want to match many cpu features, just separate them with a single space
  */
 
 #include <alloca.h>
@@ -55,6 +27,39 @@
 #define REG_AH(x) ((x).eax.b[1])
 #define REG_CX(x) ((x).ecx.w[0])
 #define REG_DX(x) ((x).edx.w[0])
+
+static inline void error(const char *msg)
+{
+    fputs(msg, stderr);
+}
+
+static void usage(void) 
+{
+ error("Run one command if system match some CPU features, another if it doesn't. \n"
+ "\n"
+ "Usage: \n"
+ "   label ifcpu \n"
+ "       com32 ifcpu.c32 \n"
+ "       append <option> <cpu_features> -- boot_entry_1 -- boot_entry_2 \n"
+ "   label boot_entry_1 \n"
+ "   	  kernel vmlinuz_entry1 \n"
+ "	  append ... \n"
+ "   label boot_entry_2 \n"
+ "       kernel vmlinuz_entry2 \n"
+ "       append ... \n"
+ "\n"
+ "options could be :\n"
+ "   debug     : display some debugging messages \n"
+ "   dry-run   : just do the detection, don't boot \n"
+ "\n"
+ "cpu_features could be:\n"
+ "   64        : CPU have to be x86_64 compatible \n"
+ "   hvm       : Processor must have hardware virtualization (hvm or svm) \n"
+ "   multicore : Processor must be multi-core \n"
+ "   smp       : System have to be SMP \n"
+ "\n"
+ "if you want to match many cpu features, just separate them with a single space.\n");
+}
 
 static unsigned char sleep(unsigned int msec)
 {
@@ -101,8 +106,8 @@ static void boot_args(char **args)
 int main(int argc, char *argv[])
 {
     char **args[3];
-    int i;
-    int n;
+    int i=0;
+    int n=0;
     bool hardware_matches = true;
     bool multicore = false;
     bool dryrun = false;
@@ -111,7 +116,13 @@ int main(int argc, char *argv[])
     s_cpu cpu;
     console_ansi_raw();
     detect_cpu(&cpu);
-    n = 0;
+
+    /* If no argument got passed, let's show the usage */
+    if (argc == 1) {
+	    usage();
+	    return -1;
+    }
+
     for (i = 1; i < argc; i++) {
 	if (!strcmp(argv[i], "--")) {
 	    argv[i] = NULL;
