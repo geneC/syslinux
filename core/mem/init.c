@@ -9,8 +9,6 @@
 struct free_arena_header __core_malloc_head[NHEAP];
 
 static __hugebss char main_heap[128 << 10];
-/* change it to 32M */
-//static __hugebss char main_heap[32 << 20];
 extern char __lowmem_heap[];
 extern char free_high_memory[];
 
@@ -20,14 +18,16 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 	struct free_arena_header *fp;
 	addr_t end;
 
-	mp("start = %x, len = %x, is_ram = %d\n", start, len, is_ram);
+	mp("start = %x, len = %x, is_ram = %d", start, len, is_ram);
 
 	if (start < 0x100000 || start > E820_MEM_MAX
 			     || !is_ram)
 		return 0;
 
-	if (start < __com32.cs_memsize)
+	if (start < __com32.cs_memsize) {
+		len -= __com32.cs_memsize - start;
 		start = __com32.cs_memsize;
+	}
 	if (len > E820_MEM_MAX - start)
 		len = E820_MEM_MAX - start;
 	end = start + len;
@@ -42,6 +42,26 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 
 	__com32.cs_memsize = start + len; /* update the HighMemSize */
 	return 0;
+}
+
+static void mpool_dump(enum heap heap)
+{
+	struct free_arena_header *head = &__core_malloc_head[heap];
+	struct free_arena_header *fp;
+	void *p = NULL;
+	int size, type, i = 0;
+	addr_t start, end;
+
+	fp = head->next_free;
+	while (fp != head) {
+		size = ARENA_SIZE_GET(fp->a.attrs);
+		type = ARENA_TYPE_GET(fp->a.attrs);
+		start = (addr_t)fp;
+		end = start + size;
+		printf("area[%d]: start = 0x%08x, end = 0x%08x, type = %d\n",
+			i++, start, end, type);
+		fp = fp->next_free;
+	}
 }
 
 void mem_init(void)
@@ -61,7 +81,10 @@ void mem_init(void)
 	fp++;
 	}
 
-	//mp("__lowmem_heap = 0x%p bios_free = 0x%p", __lowmem_heap, *bios_free_mem);
+	/*
+	mp("__lowmem_heap = 0x%p bios_free = 0x%p",
+		__lowmem_heap, *bios_free_mem);
+	*/
 	/* Initialize the lowmem heap */
 	fp = (struct free_arena_header *)__lowmem_heap;
 	fp->a.attrs = ARENA_TYPE_USED | (HEAP_LOWMEM << ARENA_HEAP_POS);
@@ -69,13 +92,8 @@ void mem_init(void)
 	__inject_free_block(fp);
 
 	/* Initialize the main heap */
-	/*
-	fp = (struct free_arena_header *)main_heap;
-	fp->a.attrs = ARENA_TYPE_USED | (HEAP_MAIN << ARENA_HEAP_POS);
-	ARENA_SIZE_SET(fp->a.attrs, sizeof main_heap);
-	__inject_free_block(fp);
-	*/
-
 	__com32.cs_memsize = free_high_memory;
 	syslinux_scan_memory(scan_highmem_area, NULL);
+
+	//mpool_dump(HEAP_MAIN);
 }

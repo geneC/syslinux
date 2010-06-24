@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 
+#if 0
 static struct free_arena_header *__free_block(struct free_arena_header *ah)
 {
     struct free_arena_header *pah, *nah;
@@ -64,7 +65,6 @@ static struct free_arena_header *__free_block(struct free_arena_header *ah)
  * free list.  Only the a.size field of the arena header is assumed
  * to be valid.
  */
-#if 0
 void __inject_free_block(struct free_arena_header *ah)
 {
     struct free_arena_header *nah;

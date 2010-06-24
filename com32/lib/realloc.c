@@ -8,6 +8,7 @@
 
 #include "malloc.h"
 
+#if 0
 void *realloc(void *ptr, size_t size)
 {
     struct free_arena_header *ah, *nah;
@@ -96,3 +97,4 @@ void *realloc(void *ptr, size_t size)
 	}
     }
 }
+#endif

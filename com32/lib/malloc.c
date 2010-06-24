@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 
+#if 0
 struct free_arena_header __malloc_head = {
     {
      ARENA_TYPE_HEAD,
@@ -147,7 +148,6 @@ static void *__malloc_from_block(struct free_arena_header *fp, size_t size)
     return (void *)(&fp->a + 1);
 }
 
-#if 0
 void *malloc(size_t size)
 {
     struct free_arena_header *fp;

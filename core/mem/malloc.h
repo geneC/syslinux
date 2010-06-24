@@ -20,6 +20,18 @@ enum malloc_owner {
     MALLOC_MODULE,
 };
 
+enum arena_type {
+    ARENA_TYPE_USED = 0,
+    ARENA_TYPE_FREE = 1,
+    ARENA_TYPE_HEAD = 2,
+    ARENA_TYPE_DEAD = 3,
+};
+enum heap {
+    HEAP_MAIN,
+    HEAP_LOWMEM,
+    NHEAP
+};
+
 struct free_arena_header;
 
 /*
@@ -34,16 +46,14 @@ struct arena_header {
     struct free_arena_header *next, *prev;
 };
 
-enum arena_type {
-    ARENA_TYPE_USED = 0,
-    ARENA_TYPE_FREE = 1,
-    ARENA_TYPE_HEAD = 2,
-    ARENA_TYPE_DEAD = 3,
-};
-enum heap {
-    HEAP_MAIN,
-    HEAP_LOWMEM,
-    NHEAP
+/*
+ * This structure should be no more than twice the size of the
+ * previous structure.
+ */
+struct free_arena_header {
+    struct arena_header a;
+    struct free_arena_header *next_free, *prev_free;
+    size_t _pad[2];		/* Pad to 2*sizeof(struct arena_header) */
 };
 
 #define ARENA_SIZE_MASK (~(uintptr_t)(sizeof(struct arena_header)-1))
@@ -67,16 +77,6 @@ enum heap {
 #define ARENA_TYPE_SET(attrs, type) \
 	((attrs) = ((attrs) & ~ARENA_TYPE_MASK) | \
 	 ((type) & ARENA_TYPE_MASK))
-
-/*
- * This structure should be no more than twice the size of the
- * previous structure.
- */
-struct free_arena_header {
-    struct arena_header a;
-    struct free_arena_header *next_free, *prev_free;
-    size_t _pad[2];		/* Pad to 2*sizeof(struct arena_header) */
-};
 
 extern struct free_arena_header __core_malloc_head[NHEAP];
 void __inject_free_block(struct free_arena_header *ah);
