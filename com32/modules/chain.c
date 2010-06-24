@@ -430,9 +430,8 @@ static int find_disk(uint32_t mbr_sig)
 struct disk_part_iter;
 
 /* Partition-/scheme-specific routine returning the next partition */
-#define disk_part_iter_func_decl(func) \
-struct disk_part_iter *func(struct disk_part_iter *part)
-typedef disk_part_iter_func_decl((*disk_part_iter_func));
+typedef struct disk_part_iter *(*disk_part_iter_func) (struct disk_part_iter *
+						       part);
 
 /* Contains details for a partition under examination */
 struct disk_part_iter {
@@ -471,7 +470,7 @@ struct disk_part_iter {
     } private;
 };
 
-static disk_part_iter_func_decl(next_ebr_part)
+static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
 {
     const struct part_entry *ebr_table;
     const struct part_entry *parent_table =
@@ -547,7 +546,7 @@ out_finished:
     return NULL;
 }
 
-static disk_part_iter_func_decl(next_mbr_part)
+static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 {
     struct disk_part_iter *ebr_part;
     /* Look at the partition table */
@@ -753,7 +752,7 @@ static void gpt_dump(const struct gpt *gpt)
 }
 #endif
 
-static disk_part_iter_func_decl(next_gpt_part)
+static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
 {
     const struct gpt_part *gpt_part = NULL;
 
@@ -786,7 +785,7 @@ err_last:
     return NULL;
 }
 
-static disk_part_iter_func_decl(get_first_partition)
+static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 {
     const struct gpt *gpt_candidate;
 
