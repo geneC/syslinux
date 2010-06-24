@@ -18,14 +18,19 @@
  *
  * Chainload a hard disk (currently rather braindead.)
  *
- * Usage: chain hd<disk#> [<partition>] [options]
+ * Usage: chain [options]
+ *        chain hd<disk#> [<partition>] [options]
  *        chain fd<disk#> [options]
  *	  chain mbr:<id> [<partition>] [options]
  *	  chain boot [<partition>] [options]
  *
- * ... e.g. "chain hd0 1" will boot the first partition on the first hard
+ * For example, "chain msdos=io.sys" will load DOS from the current Syslinux
+ * filesystem.  "chain hd0 1" will boot the first partition on the first hard
  * disk.
  *
+ * When none of the "hdX", "fdX", "mbr:" or "boot" options are specified,
+ * the default behaviour is equivalent to "boot".  "boot" means to use the
+ * current Syslinux drive, and you can also specify a partition.
  *
  * The mbr: syntax means search all the hard disks until one with a
  * specific MBR serial number (bytes 440-443) is found.
@@ -35,7 +40,7 @@
  * Options:
  *
  * file=<loader>:
- *	loads the file <loader> **from the SYSLINUX filesystem**
+ *	loads the file <loader> **from the Syslinux filesystem**
  *	instead of loading the boot sector.
  *
  * seg=<segment>:
@@ -1069,22 +1074,26 @@ static uint32_t get_file_lba(const char *filename)
 
 static void usage(void)
 {
-    error("Usage:   chain.c32 hd<disk#> [<partition>] [options]\n"
-	  "         chain.c32 fd<disk#> [options]\n"
-	  "         chain.c32 mbr:<id> [<partition>] [options]\n"
-	  "         chain.c32 boot [<partition>] [options]\n"
-	  "Options: file=<loader>      load file, instead of boot sector\n"
-	  "         isolinux=<loader>  load another version of ISOLINUX\n"
-	  "         ntldr=<loader>     load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n"
-	  "         cmldr=<loader>     load Recovery Console of Windows NT/2K/XP\n"
-	  "         freedos=<loader>   load FreeDOS kernel.sys\n"
-	  "         msdos=<loader>     load MS-DOS io.sys\n"
-	  "         pcdos=<loader>     load PC-DOS ibmbio.com\n"
-	  "         grub=<loader>      load GRUB stage2\n"
-	  "         seg=<segment>      jump to <seg>:0000 instead of 0000:7C00\n"
-	  "         swap               swap drive numbers, if bootdisk is not fd0/hd0\n"
-	  "         hide               hide primary partitions, except selected partition\n"
-	  "         sethidden          set the FAT/NTFS hidden sectors field\n");
+    static const char usage[] = "\
+Usage:   chain.c32 [options]\n\
+         chain.c32 hd<disk#> [<partition>] [options]\n\
+         chain.c32 fd<disk#> [options]\n\
+         chain.c32 mbr:<id> [<partition>] [options]\n\
+         chain.c32 boot [<partition>] [options]\n\
+Options: file=<loader>      Load and execute file, instead of boot sector\n\
+         isolinux=<loader>  Load another version of ISOLINUX\n\
+         ntldr=<loader>     Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
+         cmldr=<loader>     Load Recovery Console of Windows NT/2K/XP/2003\n\
+         freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
+         msdos=<loader>     Load MS-DOS IO.SYS\n\
+         pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
+         grub=<loader>      Load GRUB stage2\n\
+         seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
+         swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
+         hide               Hide primary partitions, except selected partition\n\
+         sethidden          Set the FAT/NTFS hidden sectors field\n\
+See syslinux/com32/modules/chain.c for more information\n";
+    error(usage);
 }
 
 int main(int argc, char *argv[])
@@ -1224,7 +1233,7 @@ int main(int argc, char *argv[])
     }
 
     /* 
-     * grldr of Grub4dos wants the partition number in DH:
+     * GRLDR of GRUB4DOS wants the partition number in DH:
      * -1:   whole drive (default)
      * 0-3:  primary partitions
      * 4-*:  logical partitions
