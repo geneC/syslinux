@@ -659,6 +659,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
     int i = 0;
     int err;
     int buffersize;
+    int rrq_len;
     const uint8_t  *timeout_ptr;
     uint32_t timeout;
     uint32_t oldtime;
@@ -743,6 +744,8 @@ static void pxe_searchdir(const char *filename, struct file *file)
     memcpy(buf, rrq_tail, sizeof rrq_tail);
     buf += sizeof rrq_tail;
 
+    rrq_len = buf - rrq_packet_buf;
+
     inode = allocate_socket(fs);
     if (!inode)
 	return;			/* Allocation failure */
@@ -787,7 +790,7 @@ sendreq:
     udp_write.gw        = gateway(udp_write.ip);
     udp_write.src_port  = tid;
     udp_write.dst_port  = server_port;
-    udp_write.buffer_size = buf - rrq_packet_buf;
+    udp_write.buffer_size = rrq_len;
     pxe_call(PXENV_UDP_WRITE, &udp_write);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
