@@ -63,9 +63,7 @@ partition entry), except that the information is provided
 synthetically.  The MBR-compatible fields are directly usable if they
 are < 2 TB, otherwise these fields should contain 0xFFFFFFFF and the
 OS will need to understand the GPT partition entry which follows the
-MBR one.  The "!GPT" magic number in EAX and the 0xEE partition type
+MBR one.  The "!GPT" magic number in EAX and the 0xED partition type
 also informs the OS that the GPT partition information is present.
 
-Currently, this is compatible with Syslinux as long as the Syslinux
-partition is < 2 TB; this probably will be improved in a future
-version.
+Syslinux 4.00 and later fully implements this protocol.
