@@ -1419,6 +1419,53 @@ int main(int argc, char *argv[])
 	ndata++;
     }
 
+    /* Do GPT hand-over, if applicable (as per syslinux/doc/gpt.txt) */
+    if (cur_part && (cur_part->next == next_gpt_part)) {
+	struct part_entry *record;
+	/* Look at the GPT partition */
+	const struct gpt_part *gp = (const struct gpt_part *)
+	    (cur_part->block +
+	     (cur_part->private.gpt.size * cur_part->private.gpt.index));
+	/* Note the partition length */
+	uint64_t lba_count = gp->lba_last - gp->lba_first + 1;
+	/* The length of the hand-over */
+	int synth_size =
+	    sizeof(struct part_entry) + sizeof(uint32_t) +
+	    cur_part->private.gpt.size;
+	/* Will point to the partition record length in the hand-over */
+	uint32_t *plen;
+
+	/* Allocate the hand-over record */
+	record = malloc(synth_size);
+	if (!record) {
+	    error("Could not build GPT hand-over record!\n");
+	    goto bail;
+	}
+	/* Synthesize the record */
+	memset(record, 0, synth_size);
+	record->active_flag = 0x80;
+	record->ostype = 0xED;
+	/* All bits set by default */
+	record->start_lba = ~(uint32_t) 0;
+	record->length = ~(uint32_t) 0;
+	/* If these fit the precision, pass them on */
+	if (cur_part->lba_data < record->start_lba)
+	    record->start_lba = cur_part->lba_data;
+	if (lba_count < record->length)
+	    record->length = lba_count;
+	/* Next comes the GPT partition record length */
+	plen = (uint32_t *) (record + 1);
+	plen[0] = cur_part->private.gpt.size;
+	/* Next comes the GPT partition record copy */
+	memcpy(plen + 1, gp, plen[0]);
+	cur_part->record = record;
+	regs.eax.l = 0x54504721;	/* '!GPT' */
+#if DEBUG
+	mbr_part_dump(record);
+	gpt_part_dump((struct gpt_part *)(plen + 1));
+#endif
+    }
+
     if (cur_part && cur_part->record) {
 	/* 0x7BE is the canonical place for the first partition entry. */
 	data[ndata].data = (void *)cur_part->record;
@@ -1431,8 +1478,10 @@ int main(int argc, char *argv[])
     do_boot(data, ndata, &regs);
 
 bail:
-    if (cur_part)
+    if (cur_part) {
 	free(cur_part->block);
+	free((void *)cur_part->record);
+    }
     free(cur_part);
     free(mbr);
     return 255;
