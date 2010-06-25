@@ -172,15 +172,17 @@ static int hexbyte(const char *p)
  * assignable unicast addresses in the near future.
  *
  */
-int ip_ok(uint32_t ip)
+bool ip_ok(uint32_t ip)
 {
-    if (ip == -1 ||            /* Refuse the all-one address */
-        (ip & 0xff) == 0 ||    /* Refuse network zero */
-        (ip & 0xff) == 0xff || /* Refuse loopback */
-        (ip & 0xf0) == 0xe0 )  /* Refuse class D */
-        return 0;
+    uint8_t ip_hi = (uint8_t)ip; /* First octet of the ip address */
 
-    return 1;
+    if (ip == 0xffffffff ||	/* Refuse the all-ones address */
+	ip_hi == 0 ||		/* Refuse network zero */
+	ip_hi == 127 ||		/* Refuse the loopback network */
+	(ip_hi & 240) == 224)	/* Refuse class D */
+	return false;
+
+    return true;
 }
 
 

@@ -232,7 +232,7 @@ static inline uint32_t gateway(uint32_t ip)
  */
 
 /* pxe.c */
-int ip_ok(uint32_t);
+bool ip_ok(uint32_t);
 int pxe_call(int, void *);
 
 /* dhcp_options.c */
