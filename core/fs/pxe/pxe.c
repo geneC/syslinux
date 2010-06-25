@@ -1619,12 +1619,17 @@ void unload_pxe(void)
 	PXENV_UNDI_SHUTDOWN, PXENV_UNLOAD_STACK, PXENV_UNDI_CLEANUP, 0
     };
 
-    uint8_t api;
+    unsigned int api;
     const uint8_t *api_ptr;
-    uint16_t flag = 0;
     int err;
     size_t int_addr;
-    static __lowmem struct s_PXENV_UNLOAD_STACK unload_stack;
+    static __lowmem union {
+	struct s_PXENV_UNDI_SHUTDOWN undi_shutdown;
+	struct s_PXENV_UNLOAD_STACK unload_stack;
+	struct s_PXENV_STOP_UNDI stop_undi;
+	struct s_PXENV_UNDI_CLEANUP undi_cleanup;
+	uint16_t Status;	/* All calls have this as the first member */
+    } unload_call;
 
     dprintf("FBM before unload = %d\n", BIOS_fbm);
 
@@ -1636,22 +1641,25 @@ void unload_pxe(void)
     if (KeepPXE || err)
 	return;
 
-    api_ptr = major_ver(APIVer) >= 2 ? new_api_unload : old_api_unload;
+    dprintf("APIVer = %04x\n", APIVer);
+
+    api_ptr = APIVer >= 0x0200 ? new_api_unload : old_api_unload;
     while((api = *api_ptr++)) {
-	memset(&unload_stack, 0, sizeof unload_stack);
-	err = pxe_call(api, &unload_stack);
-	if (err || unload_stack.Status != PXENV_STATUS_SUCCESS) {
+	dprintf("PXE call %04x\n", api);
+	memset(&unload_call, 0, sizeof unload_call);
+	err = pxe_call(api, &unload_call);
+	if (err || unload_call.Status != PXENV_STATUS_SUCCESS) {
 	    dprintf("PXE unload API call %04x failed\n", api);
 	    goto cant_free;
 	}
     }
 
-    flag = 0xff00;
-    if (real_base_mem <= BIOS_fbm) {  /* Santiy check */ 
+    api = 0xff00;
+    if (real_base_mem <= BIOS_fbm) {  /* Sanity check */ 
 	dprintf("FBM %d < real_base_mem %d\n", BIOS_fbm, real_base_mem);
 	goto cant_free;
     }
-    flag++;
+    api++;
 
     /* Check that PXE actually unhooked the INT 0x1A chain */
     int_addr = (size_t)GET_PTR(*(far_ptr_t *)(4 * 0x1a));
@@ -1662,13 +1670,14 @@ void unload_pxe(void)
 	return;
     }
 
-    dprintf("Can't free FBM, real_base_mem = %d, FBM = %d, INT 1A = %08x (%d)\n",
-	    real_base_mem, BIOS_fbm, *(uint32_t *)(4 * 0x1a), int_addr);
+    dprintf("Can't free FBM, real_base_mem = %d, "
+	    "FBM = %d, INT 1A = %08x (%d)\n",
+	    real_base_mem, BIOS_fbm,
+	    *(uint32_t *)(4 * 0x1a), int_addr);
 
 cant_free:
-	    
-    printf("Failed to free base memory error %04x-%08x\n",
-	   flag, *(uint32_t *)(4 * 0x1a));
+    printf("Failed to free base memory error %04x-%08x (%d/%dK)\n",
+	   api, *(uint32_t *)(4 * 0x1a), BIOS_fbm, real_base_mem);
     return;
 }
 

@@ -32,7 +32,6 @@
 #define PKTBUF_SIZE     2048			/*  */
 
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
-#define major_ver(v)    (((v) >> 8) && 0xff)
 
 static inline bool is_hex(char c)
 {
