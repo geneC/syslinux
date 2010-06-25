@@ -261,7 +261,8 @@ int main(int argc, char *argv[])
     /*
      * Now, use libfat to create a block map
      */
-    ldlinux_sectors = (syslinux_ldlinux_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    ldlinux_sectors = (syslinux_ldlinux_len + 2 * ADV_SIZE
+		       + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     sectors = calloc(ldlinux_sectors, sizeof *sectors);
     fs = libfat_open(libfat_xpread, dev_fd);
     ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
