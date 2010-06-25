@@ -701,7 +701,8 @@ int main(int argc, char *argv[])
      * this is supposed to be a simple, privileged version
      * of the installer.
      */
-    ldlinux_sectors = (syslinux_ldlinux_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    ldlinux_sectors = (syslinux_ldlinux_len + 2 * ADV_SIZE
+		       + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     sectors = calloc(ldlinux_sectors, sizeof *sectors);
     lock_device(2);
     fs = libfat_open(libfat_xpread, dev_fd);
