@@ -52,6 +52,8 @@ struct com32_filedata {
 };
 
 struct com32_pmapi {
+    size_t __pmapi_size;
+
     void *(*lmalloc)(size_t);
     void (*lfree)(void *);
 
