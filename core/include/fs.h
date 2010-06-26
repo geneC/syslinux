@@ -94,6 +94,7 @@ struct extent {
  */
 struct inode {
     struct fs_info *fs;	 /* The filesystem this inode is associated with */
+    struct inode *parent;	/* Parent directory, if any */
     int		 refcnt;
     int          mode;   /* FILE , DIR or SYMLINK */
     uint32_t     size;
@@ -157,11 +158,8 @@ static inline struct inode *get_inode(struct inode *inode)
     inode->refcnt++;
     return inode;
 }
-static inline void put_inode(struct inode *inode)
-{
-    if (! --inode->refcnt)
-	free(inode);
-}
+
+void put_inode(struct inode *inode);
 
 static inline void malloc_error(char *obj)
 {

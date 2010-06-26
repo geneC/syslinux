@@ -30,6 +30,19 @@ struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data)
 }
 
 /*
+ * Free a refcounted inode
+ */
+void put_inode(struct inode *inode)
+{
+    if (inode) {
+	if (! --inode->refcnt) {
+	    put_inode(inode->parent);
+	    free(inode);
+	}
+    }
+}
+
+/*
  * Get an empty file structure
  */
 static struct file *alloc_file(void)
@@ -235,7 +248,20 @@ int searchdir(const char *name)
 		p++;
 	    *p++ = '\0';
 
-	    if (part[0] != '.' || part[1] != '\0') {
+	    if (part[0] == '.' && part[1] == '.' && part[2] == '\0') {
+		if (inode->parent) {
+		    put_inode(parent);
+		    parent = get_inode(inode->parent);
+		    put_inode(inode);
+		    inode = NULL;
+		    if (!echar) {
+			/* Terminal double dots */
+			inode = parent;
+			parent = inode->parent ?
+			    get_inode(inode->parent) : NULL;
+		    }
+		}
+	    } else if (part[0] != '.' || part[1] != '\0') {
 		inode = this_fs->fs_ops->iget(part, parent);
 		if (!inode)
 		    goto err;
@@ -278,7 +304,7 @@ int searchdir(const char *name)
 		    goto got_link;
 		}
 
-		put_inode(parent);
+		inode->parent = parent;
 		parent = NULL;
 
 		if (!echar)
@@ -304,16 +330,11 @@ int searchdir(const char *name)
     file->inode  = inode;
     file->offset = 0;
 
-    dprintf("File %s -> %p (inode %p) len %u\n", name, file,
-	    inode, inode->size);
-
     return file_to_handle(file);
 
 err:
-    if (inode)
-	put_inode(inode);
-    if (parent)
-	put_inode(parent);
+    put_inode(inode);
+    put_inode(parent);
     if (pathbuf)
 	free(pathbuf);
     _close_file(file);
