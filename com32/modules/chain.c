@@ -1353,7 +1353,7 @@ int main(int argc, char *argv[])
 		   || !strncmp(argv[i], "label=", 6)
 		   || !strcmp(argv[i], "boot")
 		   || !strncmp(argv[i], "boot,", 5)
-		   || !strncmp(argv[i], "fs", 2)) {
+		   || !strcmp(argv[i], "fs")) {
 	    drivename = argv[i];
 	    p = strchr(drivename, ',');
 	    if (p) {
