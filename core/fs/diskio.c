@@ -80,6 +80,10 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 		retry = RETRY_COUNT;
                 ireg.eax.b[0] = chunk;
                 continue;
+	    } else {
+		printf("CHS: Error %s sector %llu (%u/%u/%u)\n",
+		       is_write ? "writing" : "reading",
+		       lba, c, h, s+1);
 	    }
 	    return done;	/* Failure */
 	}
@@ -172,7 +176,9 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    }
 
 	    /*** XXX: Consider falling back to CHS here?! ***/
-            printf("reading sectors error(EDD)\n");
+            printf("EDD: Error %s sector %llu\n",
+		   is_write ? "writing" : "reading",
+		   lba);
 	    return done;	/* Failure */
 	}
 
