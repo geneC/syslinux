@@ -23,15 +23,17 @@
  *        chain fd<disk#> [options]
  *	  chain mbr:<id> [<partition>] [options]
  *	  chain guid:<guid> [<partition>] [options]
+ *	  chain label:<label> [<partition>] [options]
  *	  chain boot [<partition>] [options]
  *
  * For example, "chain msdos=io.sys" will load DOS from the current Syslinux
  * filesystem.  "chain hd0 1" will boot the first partition on the first hard
  * disk.
  *
- * When none of the "hdX", "fdX", "mbr:", "guid:", "boot" or "fs" options are
- * specified, the default behaviour is equivalent to "boot".  "boot" means to
- * use the current Syslinux drive, and you can also specify a partition.
+ * When none of the "hdX", "fdX", "mbr:", "guid:", "label:", "boot" or "fs"
+ * options are specified, the default behaviour is equivalent to "boot".
+ * "boot" means to use the current Syslinux drive, and you can also specify
+ * a partition.
  *
  * The mbr: syntax means search all the hard disks until one with a
  * specific MBR serial number (bytes 440-443) is found.
@@ -472,6 +474,8 @@ struct disk_part_iter {
 	    int index;
 	    /* Current partition GUID */
 	    const struct guid *part_guid;
+	    /* Current partition label */
+	    const char *part_label;
 	    /* Count of entries in GPT */
 	    int parts;
 	    /* Partition record size */
@@ -839,6 +843,7 @@ static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
     }
     part->lba_data = gpt_part->lba_first;
     part->private.gpt.part_guid = &gpt_part->uid;
+    part->private.gpt.part_label = gpt_part->name;
     /* Update our index */
     part->index++;
 #if DEBUG
@@ -977,6 +982,56 @@ static int find_by_guid(const struct guid *gpt_guid,
 	if (is_me)
 	    return drive;
     }
+    return -1;
+}
+
+/*
+ * Search for a specific partition, based on the GPT label.
+ * We return the disk drive number if found, as well as populating the
+ * boot_part pointer with the matching partition, if applicable.
+ * If no matching partition is found, boot_part will be populated with
+ * NULL and we return -1.
+ */
+static int find_by_label(const char *label, struct disk_part_iter **boot_part)
+{
+    int drive;
+    bool is_me;
+
+    for (drive = 0x80; drive <= 0xff; drive++) {
+	if (get_disk_params(drive))
+	    continue;		/* Drive doesn't exist */
+	/* Check for a GPT disk */
+	boot_part[0] = get_first_partition(NULL);
+	if (!(boot_part[0]->next == next_gpt_part)) {
+	    /* Not a GPT disk */
+	    while (boot_part[0]) {
+		/* Run through until the end */
+		boot_part[0] = boot_part[0]->next(boot_part[0]);
+	    }
+	    continue;
+	}
+	/* Check for a matching partition */
+	while (boot_part[0]) {
+	    char gpt_label[sizeof(((struct gpt_part *) NULL)->name)];
+	    const char *gpt_label_scanner =
+		boot_part[0]->private.gpt.part_label;
+	    int j = 0;
+
+	    /* Re-write the GPT partition label as ASCII */
+	    while (gpt_label_scanner <
+		   boot_part[0]->private.gpt.part_label + sizeof(gpt_label)) {
+		if ((gpt_label[j] = *gpt_label_scanner))
+		    j++;
+		gpt_label_scanner++;
+	    }
+	    if ((is_me = !strcmp(label, gpt_label)))
+		break;
+	    boot_part[0] = boot_part[0]->next(boot_part[0]);
+	}
+	if (is_me)
+	    return drive;
+    }
+
     return -1;
 }
 
@@ -1193,6 +1248,7 @@ Usage:   chain.c32 [options]\n\
          chain.c32 fd<disk#> [options]\n\
          chain.c32 mbr:<id> [<partition>] [options]\n\
          chain.c32 guid:<guid> [<partition>] [options]\n\
+         chain.c32 label:<label> [<partition>] [options]\n\
          chain.c32 boot [<partition>] [options]\n\
          chain.c32 fs [options]\n\
 Options: file=<loader>      Load and execute file, instead of boot sector\n\
@@ -1293,6 +1349,8 @@ int main(int argc, char *argv[])
 		   || !strncmp(argv[i], "mbr=", 4)
 		   || !strncmp(argv[i], "guid:", 5)
 		   || !strncmp(argv[i], "guid=", 5)
+		   || !strncmp(argv[i], "label:", 6)
+		   || !strncmp(argv[i], "label=", 6)
 		   || !strcmp(argv[i], "boot")
 		   || !strncmp(argv[i], "boot,", 5)
 		   || !strncmp(argv[i], "fs", 2)) {
@@ -1330,6 +1388,16 @@ int main(int argc, char *argv[])
 	drive = find_by_guid(&gpt_guid, &cur_part);
 	if (drive == -1) {
 	    error("Unable to find requested GPT disk/partition\n");
+	    goto bail;
+	}
+    } else if (!strncmp(drivename, "label", 5)) {
+	if (!drivename[6]) {
+	    error("No label specified.\n");
+	    goto bail;
+	}
+	drive = find_by_label(drivename + 6, &cur_part);
+	if (drive == -1) {
+	    error("Unable to find requested partition by label\n");
 	    goto bail;
 	}
     } else if ((drivename[0] == 'h' || drivename[0] == 'f') &&
@@ -1372,8 +1440,7 @@ int main(int argc, char *argv[])
 
     if (partition)
 	whichpart = strtoul(partition, NULL, 0);
-
-    /* "guid:" might have specified a partition */
+    /* "guid:" or "label:" might have specified a partition */
     if (cur_part)
 	whichpart = cur_part->index;
 
