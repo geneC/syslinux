@@ -67,13 +67,14 @@ typedef uint64_t u64;
 #endif
 
 /* the btrfs partition first 64K blank area is used to store boot sector and
-   boot image, the boot sector is from 0~512, the boot image starts at 2K */
-#define BTRFS_EXTLINUX_OFFSET (2*1024)
+   boot image, the boot sector is from 0~512, the boot image starts after */
+#define BTRFS_BOOTSECT_AREA	65536
+#define BTRFS_EXTLINUX_OFFSET	SECTOR_SIZE
 #define BTRFS_SUBVOL_OPT "subvol="
 #define BTRFS_SUBVOL_MAX 256	/* By btrfs specification */
 static char subvol[BTRFS_SUBVOL_MAX];
 
-#define BTRFS_ADV_OFFSET (BTRFS_EXTLINUX_OFFSET + boot_image_len)
+#define BTRFS_ADV_OFFSET (BTRFS_BOOTSECT_AREA - 2 * ADV_SIZE)
 
 /*
  * Get the size of a block device
@@ -265,9 +266,12 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 	}
     } else if (fs_type == BTRFS) {
 	int i;
+	sector_t *sp = sectp;
 
-	for (i = 0; i < nsect; i++)
-	    sectp[i] = BTRFS_EXTLINUX_OFFSET/SECTOR_SIZE + i;
+	for (i = 0; i < nsect - 2; i++)
+	    *sp++ = BTRFS_EXTLINUX_OFFSET/SECTOR_SIZE + i;
+	for (i = 0; i < 2; i++)
+	    *sp++ = BTRFS_ADV_OFFSET/SECTOR_SIZE + i;
     }
 
     /* Create the modified image in memory */
@@ -441,13 +445,13 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 	perror("writing bootblock");
 	return 1;
     }
-    printf("write boot_image to 0x%x\n", BTRFS_EXTLINUX_OFFSET);
-    if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
-		BTRFS_EXTLINUX_OFFSET + boot_image_len) != 2 * ADV_SIZE) {
+    dprintf("write boot_image to 0x%x\n", BTRFS_EXTLINUX_OFFSET);
+    if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE, BTRFS_ADV_OFFSET)
+	!= 2 * ADV_SIZE) {
 	perror("writing adv");
 	return 1;
     }
-    printf("write adv to 0x%x\n", BTRFS_EXTLINUX_OFFSET + boot_image_len);
+    dprintf("write adv to 0x%x\n", BTRFS_ADV_OFFSET);
     if (stat(path, rst)) {
 	perror(path);
 	return 1;
