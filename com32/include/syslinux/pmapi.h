@@ -67,6 +67,8 @@ struct com32_pmapi {
 
     void (*idle)(void);
     void (*reset_idle)(void);
+
+    int (*chdir)(const char *);
 };
 
 #endif /* _SYSLINUX_PMAPI_H */

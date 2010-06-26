@@ -34,4 +34,6 @@ const struct com32_pmapi pm_api_vector =
 
     .idle	= __idle,
     .reset_idle	= reset_idle,
+
+    .chdir	= chdir,
 };
