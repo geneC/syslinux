@@ -22,15 +22,16 @@
  *        chain hd<disk#> [<partition>] [options]
  *        chain fd<disk#> [options]
  *	  chain mbr:<id> [<partition>] [options]
+ *	  chain guid:<guid> [<partition>] [options]
  *	  chain boot [<partition>] [options]
  *
  * For example, "chain msdos=io.sys" will load DOS from the current Syslinux
  * filesystem.  "chain hd0 1" will boot the first partition on the first hard
  * disk.
  *
- * When none of the "hdX", "fdX", "mbr:", "boot" or "fs" options are specified,
- * the default behaviour is equivalent to "boot".  "boot" means to use the
- * current Syslinux drive, and you can also specify a partition.
+ * When none of the "hdX", "fdX", "mbr:", "guid:", "boot" or "fs" options are
+ * specified, the default behaviour is equivalent to "boot".  "boot" means to
+ * use the current Syslinux drive, and you can also specify a partition.
  *
  * The mbr: syntax means search all the hard disks until one with a
  * specific MBR serial number (bytes 440-443) is found.
@@ -413,8 +414,7 @@ struct mbr {
 } __attribute__ ((packed));
 static const uint16_t mbr_sig_magic = 0xAA55;
 
-/* Search for a specific drive, based on the MBR signature; bytes
-   440-443. */
+/* Search for a specific drive, based on the MBR signature; bytes 440-443 */
 static int find_disk(uint32_t mbr_sig)
 {
     int drive;
@@ -470,6 +470,8 @@ struct disk_part_iter {
 	struct {
 	    /* Real (not effective) index in the partition table */
 	    int index;
+	    /* Current partition GUID */
+	    const struct guid *part_guid;
 	    /* Count of entries in GPT */
 	    int parts;
 	    /* Partition record size */
@@ -620,6 +622,18 @@ struct guid {
     uint64_t data4;
 } __attribute__ ((packed));
 
+    /*
+     * This walk-map effectively reverses the little-endian
+     * portions of the GUID in the output text
+     */
+static const char guid_le_walk_map[] = {
+    3, -1, -1, -1, 0,
+    5, -1, 0,
+    3, -1, 0,
+    2, 1, 0,
+    1, 1, 1, 1, 1, 1
+};
+
 #if DEBUG
 /*
  * Fill a buffer with a textual GUID representation.
@@ -630,23 +644,12 @@ struct guid {
  */
 static void guid_to_str(char *buf, const struct guid *id)
 {
-    /*
-     * This walk-map effectively reverses the little-endian
-     * portions of the GUID in the output text
-     */
-    static const char le_walk_map[] = {
-	3, -1, -1, -1, 0,
-	5, -1, 0,
-	3, -1, 0,
-	2, 1, 0,
-	1, 1, 1, 1, 1, 1
-    };
     unsigned int i = 0;
     const char *walker = (const char *)id;
 
-    while (i < sizeof(le_walk_map)) {
-	walker += le_walk_map[i];
-	if (!le_walk_map[i])
+    while (i < sizeof(guid_le_walk_map)) {
+	walker += guid_le_walk_map[i];
+	if (!guid_le_walk_map[i])
 	    *buf = '-';
 	else {
 	    *buf = ((*walker & 0xF0) >> 4) + '0';
@@ -663,6 +666,63 @@ static void guid_to_str(char *buf, const struct guid *id)
     *buf = 0;
 }
 #endif
+
+/*
+ * Create a GUID structure from a textual GUID representation.
+ * The input buffer must be >= 32 hexadecimal chars and be
+ * terminated with an ASCII NUL.  Returns non-zero on failure.
+ * Example: 11111111-2222-3333-4444-444444444444
+ * Endian:  LLLLLLLL-LLLL-LLLL-BBBB-BBBBBBBBBBBB
+ */
+static int str_to_guid(const char *buf, struct guid *id)
+{
+    char guid_seq[sizeof(struct guid) * 2];
+    unsigned int i = 0;
+    char *walker = (char *)id;
+
+    while (*buf && i < sizeof(guid_seq)) {
+	switch (*buf) {
+	    /* Skip these three characters */
+	case '{':
+	case '}':
+	case '-':
+	    break;
+	default:
+	    /* Copy something useful to the temp. sequence */
+	    if ((*buf >= '0') && (*buf <= '9'))
+		guid_seq[i] = *buf - '0';
+	    else if ((*buf >= 'A') && (*buf <= 'F'))
+		guid_seq[i] = *buf - 'A' + 10;
+	    else if ((*buf >= 'a') && (*buf <= 'f'))
+		guid_seq[i] = *buf - 'a' + 10;
+	    else {
+		/* Or not */
+		error("Illegal character in GUID!\n");
+		return -1;
+	    }
+	    i++;
+	}
+	buf++;
+    }
+    /* Check for insufficient valid characters */
+    if (i < sizeof(guid_seq)) {
+	error("Too few GUID characters!\n");
+	return -1;
+    }
+    buf = guid_seq;
+    i = 0;
+    while (i < sizeof(guid_le_walk_map)) {
+	if (!guid_le_walk_map[i])
+	    i++;
+	walker += guid_le_walk_map[i];
+	*walker = *buf << 4;
+	buf++;
+	*walker |= *buf;
+	buf++;
+	i++;
+    }
+    return 0;
+}
 
 /* A GPT partition */
 struct gpt_part {
@@ -778,6 +838,7 @@ static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
 	goto err_last;
     }
     part->lba_data = gpt_part->lba_first;
+    part->private.gpt.part_guid = &gpt_part->uid;
     /* Update our index */
     part->index++;
 #if DEBUG
@@ -868,6 +929,55 @@ err_read_mbr:
 err_alloc_iter:
 
     return NULL;
+}
+
+/*
+ * Search for a specific drive/partition, based on the GPT GUID.
+ * We return the disk drive number if found, as well as populating the
+ * boot_part pointer with the matching partition, if applicable.
+ * If no matching partition is found or the GUID is a disk GUID,
+ * boot_part will be populated with NULL.  If not matching disk is
+ * found, we return -1.
+ */
+static int find_by_guid(const struct guid *gpt_guid,
+			struct disk_part_iter **boot_part)
+{
+    int drive;
+    bool is_me;
+    struct gpt *header;
+
+    for (drive = 0x80; drive <= 0xff; drive++) {
+	if (get_disk_params(drive))
+	    continue;		/* Drive doesn't exist */
+	if (!(header = read_sectors(1, 1)))
+	    continue;		/* Cannot read sector */
+	if (memcmp(&header->sig, gpt_sig_magic, sizeof(gpt_sig_magic))) {
+	    /* Not a GPT disk */
+	    free(header);
+	    continue;
+	}
+#if DEBUG
+	gpt_dump(header);
+#endif
+	is_me = !memcmp(&header->disk_guid, &gpt_guid, sizeof(*gpt_guid));
+	free(header);
+	if (!is_me) {
+	    /* Check for a matching partition */
+	    boot_part[0] = get_first_partition(NULL);
+	    while (boot_part[0]) {
+		is_me =
+		    !memcmp(boot_part[0]->private.gpt.part_guid, gpt_guid,
+			    sizeof(*gpt_guid));
+		if (is_me)
+		    break;
+		boot_part[0] = boot_part[0]->next(boot_part[0]);
+	    }
+	} else
+	    boot_part[0] = NULL;
+	if (is_me)
+	    return drive;
+    }
+    return -1;
 }
 
 static void do_boot(struct data_area *data, int ndata,
@@ -1082,6 +1192,7 @@ Usage:   chain.c32 [options]\n\
          chain.c32 hd<disk#> [<partition>] [options]\n\
          chain.c32 fd<disk#> [options]\n\
          chain.c32 mbr:<id> [<partition>] [options]\n\
+         chain.c32 guid:<guid> [<partition>] [options]\n\
          chain.c32 boot [<partition>] [options]\n\
          chain.c32 fs [options]\n\
 Options: file=<loader>      Load and execute file, instead of boot sector\n\
@@ -1111,6 +1222,7 @@ int main(int argc, char *argv[])
     int i;
     uint64_t fs_lba = 0;	/* Syslinux partition */
     uint32_t file_lba = 0;
+    struct guid gpt_guid;
     unsigned char *isolinux_bin;
     uint32_t *checksum, *chkhead, *chktail;
     struct data_area data[3];
@@ -1179,6 +1291,8 @@ int main(int argc, char *argv[])
 		    && argv[i][1] == 'd')
 		   || !strncmp(argv[i], "mbr:", 4)
 		   || !strncmp(argv[i], "mbr=", 4)
+		   || !strncmp(argv[i], "guid:", 5)
+		   || !strncmp(argv[i], "guid=", 5)
 		   || !strcmp(argv[i], "boot")
 		   || !strncmp(argv[i], "boot,", 5)
 		   || !strncmp(argv[i], "fs", 2)) {
@@ -1208,6 +1322,14 @@ int main(int argc, char *argv[])
 	drive = find_disk(strtoul(drivename + 4, NULL, 0));
 	if (drive == -1) {
 	    error("Unable to find requested MBR signature\n");
+	    goto bail;
+	}
+    } else if (!strncmp(drivename, "guid", 4)) {
+	if (str_to_guid(drivename + 5, &gpt_guid))
+	    goto bail;
+	drive = find_by_guid(&gpt_guid, &cur_part);
+	if (drive == -1) {
+	    error("Unable to find requested GPT disk/partition\n");
 	    goto bail;
 	}
     } else if ((drivename[0] == 'h' || drivename[0] == 'f') &&
@@ -1251,8 +1373,12 @@ int main(int argc, char *argv[])
     if (partition)
 	whichpart = strtoul(partition, NULL, 0);
 
+    /* "guid:" might have specified a partition */
+    if (cur_part)
+	whichpart = cur_part->index;
+
     /* Boot the MBR by default */
-    if (whichpart || fs_lba) {
+    if (!cur_part && (whichpart || fs_lba)) {
 	/* Boot a partition, possibly the Syslinux partition itself */
 	cur_part = get_first_partition(NULL);
 	while (cur_part) {
@@ -1425,8 +1551,8 @@ int main(int argc, char *argv[])
 	    struct part_entry *record;
 	    /* Look at the GPT partition */
 	    const struct gpt_part *gp = (const struct gpt_part *)
-	    (cur_part->block +
-	     (cur_part->private.gpt.size * cur_part->private.gpt.index));
+		(cur_part->block +
+		 (cur_part->private.gpt.size * cur_part->private.gpt.index));
 	    /* Note the partition length */
 	    uint64_t lba_count = gp->lba_last - gp->lba_first + 1;
 	    /* The length of the hand-over */

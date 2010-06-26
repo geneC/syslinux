@@ -3,7 +3,7 @@ or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
 Changes in 4.00:
-	* chain.c32: support booting GPT partitions by index
+	* chain.c32: support booting GPT partitions by index and GUID
 	* chain.c32: support booting the Syslinux partition with "fs"
 	* chain.c32: implement gpt.txt hand-over protocol
 Changes in 3.86:
