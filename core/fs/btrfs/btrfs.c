@@ -11,6 +11,7 @@
  *
  */
 
+#include <dprintf.h>
 #include <stdio.h>
 #include <string.h>
 #include <cache.h>
@@ -207,9 +208,16 @@ static void btrfs_read_super_block(struct fs_info *fs)
 	u64 transid = 0;
 	struct btrfs_super_block buf;
 
+	sb.total_bytes = ~0;	/* Unknown as of yet */
+
 	/* find most recent super block */
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		offset = btrfs_sb_offset(i);
+		dprintf("btrfs super: %llu max %llu\n",
+			offset, sb.total_bytes);
+		if (offset >= sb.total_bytes)
+			break;
+
 		ret = btrfs_read(fs, (char *)&buf, offset, sizeof(buf));
 		if (ret < sizeof(buf))
 			break;
