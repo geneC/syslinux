@@ -176,6 +176,8 @@ floppy:
 harddisk:
 		test byte [di-76],7Fh	; Sanity check: "active flag" should
 		jnz .no_partition	; be 00 or 80
+		cmp [di-76+4],cl	; Sanity check: partition type != 0
+		je .no_partition
 		cmp eax,'!GPT'		; !GPT signature?
 		jne .mbr
 		cmp byte [di-76+4],0EDh	; Synthetic GPT partition entry?
@@ -190,10 +192,13 @@ harddisk:
 		push dword [di-76+8]	; Partition offset (dword)
 		jmp .gotoffs
 .no_partition:
+;
+; No partition table given... assume that the Hidden field in the boot sector
+; tells the truth (in particular, is zero if this is an unpartitioned disk.)
+;
 		push cx
 		push cx
-		push cx
-		push cx
+		push dword [bsHidden]
 .gotoffs:
 ;
 ; Get disk drive parameters (don't trust the superblock.)  Don't do this for
