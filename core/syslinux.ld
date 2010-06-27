@@ -20,8 +20,6 @@ OUTPUT_ARCH(i386)
 EXTERN(_start)
 ENTRY(_start)
 
-STACK32_LEN = 65536;
-
 SECTIONS
 {
 	/* Prefix structure for the compression program */
