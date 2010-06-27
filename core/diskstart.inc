@@ -17,21 +17,20 @@
 ; Common early-bootstrap code for harddisk-based Syslinux derivatives.
 ;
 
-		section .earlybss
-		alignb 16
-PartInfo:				; Partition table info
-.mbr:		resb 16			; MBR partition info
-.gptlen:	resd 1
-.gpt:		resb 56			; GPT partition info (minus name)
-FloppyTable	resb 16			; Floppy info table (must follow PartInfo)
-
 		section .init
 ;
 ; Some of the things that have to be saved very early are saved
 ; "close" to the initial stack pointer offset, in order to
 ; reduce the code size...
 ;
-StackBuf	equ STACK_TOP-44	; Start the stack here (grow down - 4K)
+
+StackBuf	equ STACK_TOP-44-92	; Start the stack here (grow down - 4K)
+PartInfo	equ StackBuf
+.mbr		equ PartInfo
+.gptlen		equ PartInfo+16
+.gpt		equ PartInfo+20
+FloppyTable	equ PartInfo+76
+; Total size of PartInfo + FloppyTable == 76+16 = 92 bytes
 Hidden		equ StackBuf-20		; Partition offset
 OrigFDCTabPtr	equ StackBuf-12		; The 2nd high dword on the stack
 OrigESDI	equ StackBuf-8		; The high dword on the stack
