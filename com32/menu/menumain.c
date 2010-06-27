@@ -921,6 +921,13 @@ static const char *run_menu(void)
 		    clear = 1;
 		    draw_row(entry - top + 4 + VSHIFT, -1, top, 0, 0);
 		    break;
+		case MA_HELP:
+		    key = show_message_file(me->cmdline, me->background);
+		    /* If the exit was an F-key, display that help screen */
+		    show_fkey(key);
+		    done = 0;
+		    clear = 1;
+		    break;
 		default:
 		    done = 0;
 		    break;

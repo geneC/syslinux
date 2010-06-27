@@ -497,16 +497,23 @@ MENU VSHIFT 0
 	screen (25 for text mode, 28 for VESA graphics mode.)
 
 
-F1 textfile background
+F1 textfile [background]
 ...
-F12 textfile background
+F12 textfile [background]
 
 	Displays full-screen help (also available at the command line.)
 	The same control code sequences as in the command line
 	interface are supported, although some are ignored.
 
-	Additionally, a second argument allows a different background
-	image (see MENU BACKGROUND for supported formats) to be displayed.
+	Additionally, a optional second argument allows a different
+	background image (see MENU BACKGROUND for supported formats)
+	to be displayed.
+
+
+MENU HELP textfile [background]
+
+	Creates a menu entry which, when selected, displays
+	full-screen help in the same way as the F-key help.
 
 
 The menu system honours the TIMEOUT command; if TIMEOUT is specified

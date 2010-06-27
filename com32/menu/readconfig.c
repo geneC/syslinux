@@ -372,6 +372,11 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	    me->submenu = ld->submenu;
 	    break;
 
+	case MA_HELP:
+	    me->cmdline = refstr_get(ld->kernel);
+	    me->background = refstr_get(ld->append);
+	    break;
+
 	default:
 	    break;
 	}
@@ -834,6 +839,24 @@ static void parse_config_file(FILE * f)
 		}
 	    } else if (looking_at(p, "start")) {
 		start_menu = m;
+	    } else if (looking_at(p, "help")) {
+		if (ld.label) {
+		    ld.action = MA_HELP;
+		    p = skipspace(p + 4);
+
+		    refstr_put(ld.kernel);
+		    ld.kernel = refdup_word(&p);
+
+		    if (ld.append) {
+			refstr_put(ld.append);
+			ld.append = NULL;
+		    }
+
+		    if (*p) {
+			p = skipspace(p);
+			ld.append = refdup_word(&p); /* Background */
+		    }
+		}
 	    } else if ((ep = looking_at(p, "resolution"))) {
 		int x, y;
 		x = strtoul(ep, &ep, 0);
