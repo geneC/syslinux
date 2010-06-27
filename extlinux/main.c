@@ -57,11 +57,6 @@ typedef uint64_t u64;
 # define dprintf(...) ((void)0)
 #endif
 
-#if defined(__linux__) && !defined(BLKGETSIZE64)
-/* This takes a u64, but the size field says size_t.  Someone screwed big. */
-# define BLKGETSIZE64 _IOR(0x12,114,size_t)
-#endif
-
 #ifndef EXT2_SUPER_OFFSET
 #define EXT2_SUPER_OFFSET 1024
 #endif
@@ -125,6 +120,8 @@ static const struct geometry_table standard_geometries[] = {
 int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 {
     struct floppy_struct fd_str;
+    struct loop_info li;
+    struct loop_info64 li64;
     const struct geometry_table *gp;
 
     memset(geo, 0, sizeof *geo);
@@ -161,6 +158,12 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 		"Warning: unable to obtain device geometry (defaulting to %d heads, %d sectors)\n"
 		"         (on hard disks, this is usually harmless.)\n",
 		geo->heads, geo->sectors);
+
+    /* If this is a loopback device, try to set the start */
+    if (!ioctl(devfd, LOOP_GET_STATUS64, &li64))
+	geo->start = li64.lo_offset >> SECTOR_SHIFT;
+    else if (!ioctl(devfd, LOOP_GET_STATUS, &li))
+	geo->start = (unsigned int)li.lo_offset >> SECTOR_SHIFT;
 
     return 1;
 }

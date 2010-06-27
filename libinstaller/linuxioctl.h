@@ -37,4 +37,11 @@
 
 #undef statfs
 
+#if defined(__linux__) && !defined(BLKGETSIZE64)
+/* This takes a u64, but the size field says size_t.  Someone screwed big. */
+# define BLKGETSIZE64 _IOR(0x12,114,size_t)
+#endif
+
+#include <linux/loop.h>
+
 #endif /* LIBINSTALLER_LINUXIOCTL_H */
