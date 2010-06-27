@@ -101,7 +101,7 @@ ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
 		alignb 8
-bsHidden	resq 1			; Used in hybrid mode
+Hidden	resq 1			; Used in hybrid mode
 bsSecPerTrack	resw 1			; Used in hybrid mode
 bsHeads		resw 1			; Used in hybrid mode
 
@@ -242,8 +242,8 @@ _start_hybrid:
 		pop eax
 		pop ebx
 .nooffset:
-		mov [cs:bsHidden],eax
-		mov [cs:bsHidden+4],ebx
+		mov [cs:Hidden],eax
+		mov [cs:Hidden+4],ebx
 
 		mov si,bios_cbios
 		jcxz _start_common
@@ -779,8 +779,8 @@ getlinsec_ebios:
 		xor edx,edx
 		shld edx,eax,2
 		shl eax,2			; Convert to HDD sectors
-		add eax,[bsHidden]
-		adc edx,[bsHidden+4]
+		add eax,[Hidden]
+		adc edx,[Hidden+4]
 		shl bp,2
 
 .loop:
@@ -852,7 +852,7 @@ getlinsec_ebios:
 getlinsec_cbios:
 		xor edx,edx
 		shl eax,2			; Convert to HDD sectors
-		add eax,[bsHidden]
+		add eax,[Hidden]
 		shl bp,2
 
 .loop:
@@ -1165,8 +1165,8 @@ init_fs:
 .hybrid:
 		movzx ebp,word [MaxTransfer]
 .common:
-	        mov ecx,[bsHidden]
-	        mov ebx,[bsHidden+4]
+	        mov ecx,[Hidden]
+	        mov ebx,[Hidden+4]
                 mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
 		pm_call fs_init

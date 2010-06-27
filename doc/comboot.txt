@@ -426,8 +426,12 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 	Output:	AL	31h (SYSLINUX), 34h (EXTLINUX)
 		DL	drive number
 		CL	sector size as a power of 2 (9 = 512 bytes) [3.35]
+		CH	mode [3.73]
+			1 = CBIOS mode
+			2 = EBIOS mode
 		ES:BX	pointer to partition table entry (if DL >= 80h)
 		FS:SI	pointer to initial ES:DI value [3.53]
+		GS:DI	pointer to partition offset (QWORD) [4.00]
 
 		Note: This function was broken in EXTLINUX 3.00-3.02.
 
@@ -501,16 +505,13 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 			2 = Hybrid (hard disk), EBIOS mode
 		ES:BX	pointer to El Torito spec packet
 		FS:SI	pointer to initial ES:DI value [3.53]
+		GS:DI	pointer to partition offset (QWORD) [4.00]
 
 		Note: Some very broken El Torito implementations do
 		not provide the spec packet information.  If so, ES:BX
 		may point to all zeroes or to garbage.  Call INT 13h,
 		AX=4B01h to obtain the spec packet directly from the
 		BIOS if necessary.
-
-	This call gives information specific to a particular Syslinux
-	derivative.  The value returned in AL is the same as is
-	returned in DL by INT 22h AX=0001h.
 
 
 AX=000Bh [2.00]	Get Serial Console Configuration

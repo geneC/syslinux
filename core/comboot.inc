@@ -593,6 +593,8 @@ comapi_derinfo:
 		mov P_DL,al
 		mov P_FS,cs
 		mov P_SI,OrigESDI
+		mov P_GS,cs
+		mov P_DI,Hidden
 %if IS_SYSLINUX || IS_EXTLINUX
 		mov P_ES,cs
 		mov P_BX,PartInfo

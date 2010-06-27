@@ -1425,9 +1425,10 @@ int main(int argc, char *argv[])
 	    drive = sdi->disk.drive_number;
 	if (!strcmp(drivename, "fs")
 	    && (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX
-		|| sdi->c.filesystem == SYSLINUX_FS_EXTLINUX))
+		|| sdi->c.filesystem == SYSLINUX_FS_EXTLINUX
+		|| sdi->c.filesystem == SYSLINUX_FS_ISOLINUX))
 	    /* We should lookup the Syslinux partition number and use it */
-	    fs_lba = ((struct part_entry *)sdi->disk.ptab_ptr)->start_lba;
+	    fs_lba = *sdi->disk.partoffset;
     } else {
 	error("Unparsable drive specification\n");
 	goto bail;

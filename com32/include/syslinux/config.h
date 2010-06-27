@@ -112,6 +112,7 @@ union syslinux_derivative_info {
 	uint32_t _eflags;
 	const void *ptab_ptr;
 	const uint32_t *esdi_ptr;
+	const uint64_t *partoffset;
     } disk;			/* syslinux/extlinux */
     struct {
 	uint16_t _gs, _fs, _es, _ds;
@@ -138,6 +139,7 @@ union syslinux_derivative_info {
 	uint32_t _eflags;
 	const void *spec_packet;
 	const uint32_t *esdi_ptr;
+	const uint64_t *partoffset;
     } iso;			/* isolinux */
 };
 
