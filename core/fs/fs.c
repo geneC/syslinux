@@ -34,11 +34,10 @@ struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data)
  */
 void put_inode(struct inode *inode)
 {
-    if (inode) {
-	if (! --inode->refcnt) {
-	    put_inode(inode->parent);
-	    free(inode);
-	}
+    while (inode && --inode->refcnt == 0) {
+	struct inode *dead = inode;
+	inode = inode->parent;
+	free(dead);
     }
 }
 
