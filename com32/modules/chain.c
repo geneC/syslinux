@@ -94,8 +94,6 @@
  *      FAT/NTFS boot sector.
  */
 
-#define DEBUG 0			/* 1 to enable */
-
 #include <com32.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -104,6 +102,7 @@
 #include <console.h>
 #include <minmax.h>
 #include <stdbool.h>
+#include <dprintf.h>
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/config.h>
@@ -379,32 +378,41 @@ struct part_entry {
     uint32_t length;
 } __attribute__ ((packed));
 
-#if DEBUG
 static void mbr_part_dump(const struct part_entry *part)
 {
-    printf("-------------------------------\n"
-	   "Partition status _____ : 0x%.2x\n"
-	   "Partition CHS start\n"
-	   "  Cylinder ___________ : 0x%.4x\n"
-	   "  Head _______________ : 0x%.2x\n"
-	   "  Sector _____________ : 0x%.2x\n"
-	   "Partition type _______ : 0x%.2x\n"
-	   "Partition CHS end\n"
-	   "  Cylinder ___________ : 0x%.4x\n"
-	   "  Head _______________ : 0x%.2x\n"
-	   "  Sector _____________ : 0x%.2x\n"
-	   "Partition LBA start __ : 0x%.16x\n"
-	   "Partition LBA count __ : 0x%.16x\n",
-	   part->active_flag,
-	   chs_cylinder(part->start),
-	   chs_head(part->start),
-	   chs_sector(part->start),
-	   part->ostype,
-	   chs_cylinder(part->end),
-	   chs_head(part->end),
-	   chs_sector(part->end), part->start_lba, part->length);
+    (void)part;
+    dprintf("Partition status _____ : 0x%.2x\n"
+	    "Partition CHS start\n"
+	    "  Cylinder ___________ : 0x%.4x (%u)\n"
+	    "  Head _______________ : 0x%.2x (%u)\n"
+	    "  Sector _____________ : 0x%.2x (%u)\n"
+	    "Partition type _______ : 0x%.2x\n"
+	    "Partition CHS end\n"
+	    "  Cylinder ___________ : 0x%.4x (%u)\n"
+	    "  Head _______________ : 0x%.2x (%u)\n"
+	    "  Sector _____________ : 0x%.2x (%u)\n"
+	    "Partition LBA start __ : 0x%.8x (%u)\n"
+	    "Partition LBA count __ : 0x%.8x (%u)\n"
+	    "-------------------------------\n",
+	    part->active_flag,
+	    chs_cylinder(part->start),
+	    chs_cylinder(part->start),
+	    chs_head(part->start),
+	    chs_head(part->start),
+	    chs_sector(part->start),
+	    chs_sector(part->start),
+	    part->ostype,
+	    chs_cylinder(part->end),
+	    chs_cylinder(part->end),
+	    chs_head(part->end),
+	    chs_head(part->end),
+	    chs_sector(part->end),
+	    chs_sector(part->end),
+	    part->start_lba,
+	    part->start_lba,
+	    part->length,
+	    part->length);
 }
-#endif
 
 /* A DOS MBR */
 struct mbr {
@@ -521,9 +529,9 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
 	goto err_ebr;
     }
     ebr_table = ((const struct mbr *)part->block)->table;
-#if DEBUG
+    dprintf("next_ebr_part:\n");
     mbr_part_dump(ebr_table);
-#endif
+
     /*
      * Sanity check entry: must not extend outside the
      * extended partition.  This is necessary since some OSes
@@ -536,12 +544,13 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
 	    mbr->table + part->private.ebr.parent_index;
 
 	if (ebr_table[0].start_lba >= extended->start_lba + extended->length) {
-	    error("Insane logical partition!\n");
+	    dprintf("Insane logical partition!\n");
 	    goto err_insane;
 	}
     }
     /* Success */
     part->lba_data = ebr_table[0].start_lba + ebr_lba;
+    dprintf("Partition %d logical lba %u\n", part->index, part->lba_data);
     part->index++;
     part->record = ebr_table;
     return part;
@@ -597,11 +606,12 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 	/* The EBR iterator is responsible for freeing us */
 	return next_ebr_part(ebr_part);
     }
-#if DEBUG
+    dprintf("next_mbr_part:\n");
     mbr_part_dump(table + part->private.mbr_index);
-#endif
+
     /* Update parameters to reflect this new partition.  Re-use iterator */
     part->lba_data = table[part->private.mbr_index].start_lba;
+    dprintf("Partition %d primary lba %u\n", part->index, part->lba_data);
     part->index++;
     part->record = table + part->private.mbr_index;
     return part;
@@ -738,29 +748,30 @@ struct gpt_part {
     char name[72];
 } __attribute__ ((packed));
 
-#if DEBUG
 static void gpt_part_dump(const struct gpt_part *gpt_part)
 {
+#ifdef DEBUG
     unsigned int i;
     char guid_text[37];
 
-    printf("----------------------------------\n"
-	   "GPT part. LBA first __ : 0x%.16llx\n"
-	   "GPT part. LBA last ___ : 0x%.16llx\n"
-	   "GPT part. attribs ____ : 0x%.16llx\n"
-	   "GPT part. name _______ : '",
-	   gpt_part->lba_first, gpt_part->lba_last, gpt_part->attribs);
+    dprintf("----------------------------------\n"
+	    "GPT part. LBA first __ : 0x%.16llx\n"
+	    "GPT part. LBA last ___ : 0x%.16llx\n"
+	    "GPT part. attribs ____ : 0x%.16llx\n"
+	    "GPT part. name _______ : '",
+	    gpt_part->lba_first, gpt_part->lba_last, gpt_part->attribs);
     for (i = 0; i < sizeof(gpt_part->name); i++) {
 	if (gpt_part->name[i])
-	    printf("%c", gpt_part->name[i]);
+	    dprintf("%c", gpt_part->name[i]);
     }
-    puts("'");
+    dprintf("'");
     guid_to_str(guid_text, &gpt_part->type);
-    printf("GPT part. type GUID __ : {%s}\n", guid_text);
+    dprintf("GPT part. type GUID __ : {%s}\n", guid_text);
     guid_to_str(guid_text, &gpt_part->uid);
-    printf("GPT part. unique ID __ : {%s}\n", guid_text);
-}
+    dprintf("GPT part. unique ID __ : {%s}\n", guid_text);
 #endif
+    (void)gpt_part;
+}
 
 /* A GPT header */
 struct gpt {
@@ -846,9 +857,8 @@ static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
     part->private.gpt.part_label = gpt_part->name;
     /* Update our index */
     part->index++;
-#if DEBUG
     gpt_part_dump(gpt_part);
-#endif
+
     /* In a GPT scheme, we re-use the iterator */
     return part;
 
@@ -1660,18 +1670,25 @@ int main(int argc, char *argv[])
 	    data[ndata].data = (void *)record;
 	    ndata++;
 	    regs.esi.w[0] = 0x7be;
-#if DEBUG
+
+	    dprintf("GPT handover:\n");
 	    mbr_part_dump(record);
 	    gpt_part_dump((struct gpt_part *)(plen + 1));
-#endif
 	} else if (cur_part->record) {
 	    /* MBR handover protocol */
+	    static struct part_entry handover_record;
+
+	    handover_record = *cur_part->record;
+	    handover_record.start_lba = cur_part->lba_data;
 
 	    data[ndata].base = 0x7be;
-	    data[ndata].size = sizeof(*cur_part->record);
-	    data[ndata].data = (void *)cur_part->record;
+	    data[ndata].size = sizeof handover_record;
+	    data[ndata].data = &handover_record;
 	    ndata++;
 	    regs.esi.w[0] = 0x7be;
+
+	    dprintf("MBR handover:\n");
+	    mbr_part_dump(&handover_record);
 	}
     }
 
