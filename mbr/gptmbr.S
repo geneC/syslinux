@@ -152,6 +152,12 @@ get_ptab:
 	popw	%ax			/* SizeOfPartitionEntry */
 
 find_part:
+	/* If the PartitionTypeGUID is all zero, it's an empty slot */
+	movl	  (%di),%edx
+	orl	 4(%di),%edx
+	orl	 8(%di),%edx
+	orl	12(%di),%edx
+	jz	not_this
 	testb	$0x04,48(%di)
 	jz	not_this
 	andw	%si,%si
