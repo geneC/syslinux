@@ -147,17 +147,7 @@ static inline void error(const char *msg)
 
 static struct disk_info diskinfo;
 
-/* A DOS partition table entry */
-struct part_entry {
-    uint8_t active_flag;	/* 0x80 if "active" */
-    disk_chs start;
-    uint8_t ostype;
-    disk_chs end;
-    uint32_t start_lba;
-    uint32_t length;
-} __attribute__ ((packed));
-
-static void mbr_part_dump(const struct part_entry *part)
+static void mbr_part_dump(const struct disk_dos_part_entry *part)
 {
     (void)part;
     dprintf("Partition status _____ : 0x%.2x\n"
@@ -195,7 +185,7 @@ struct mbr {
     char code[440];
     uint32_t disk_sig;
     char pad[2];
-    struct part_entry table[4];
+    struct disk_dos_part_entry table[4];
     uint16_t sig;
 } __attribute__ ((packed));
 static const uint16_t mbr_sig_magic = 0xAA55;
@@ -236,7 +226,7 @@ struct disk_part_iter {
     /* The partition number, as determined by our heuristic */
     int index;
     /* The DOS partition record to pass, if applicable */
-    const struct part_entry *record;
+    const struct disk_dos_part_entry *record;
     /* Function returning the next available partition */
     disk_part_iter_func next;
     /* Partition-/scheme-specific details */
@@ -270,10 +260,10 @@ struct disk_part_iter {
 
 static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
 {
-    const struct part_entry *ebr_table;
-    const struct part_entry *parent_table =
+    const struct disk_dos_part_entry *ebr_table;
+    const struct disk_dos_part_entry *parent_table =
 	((const struct mbr *)part->private.ebr.parent->block)->table;
-    static const struct part_entry phony = {.start_lba = 0 };
+    static const struct disk_dos_part_entry phony = {.start_lba = 0 };
     uint64_t ebr_lba;
 
     /* Don't look for a "next EBR" the first time around */
@@ -316,7 +306,7 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
     {
 	const struct mbr *mbr =
 	    (const struct mbr *)part->private.ebr.parent->block;
-	const struct part_entry *extended =
+	const struct disk_dos_part_entry *extended =
 	    mbr->table + part->private.ebr.parent_index;
 
 	if (ebr_table[0].start_lba >= extended->start_lba + extended->length) {
@@ -349,7 +339,7 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 {
     struct disk_part_iter *ebr_part;
     /* Look at the partition table */
-    struct part_entry *table = ((struct mbr *)part->block)->table;
+    struct disk_dos_part_entry *table = ((struct mbr *)part->block)->table;
 
     /* Look for data partitions */
     while (++part->private.mbr_index < 4) {
@@ -955,7 +945,7 @@ enomem:
 static int hide_unhide(struct mbr *mbr, int part)
 {
     int i;
-    struct part_entry *pt;
+    struct disk_dos_part_entry *pt;
     const uint16_t mask =
 	(1 << 0x01) | (1 << 0x04) | (1 << 0x06) | (1 << 0x07) | (1 << 0x0b) | (1
 									       <<
@@ -1513,7 +1503,7 @@ int main(int argc, char *argv[])
     if (cur_part) {
 	if (cur_part->next == next_gpt_part) {
 	    /* Do GPT hand-over, if applicable (as per syslinux/doc/gpt.txt) */
-	    struct part_entry *record;
+	    struct disk_dos_part_entry *record;
 	    /* Look at the GPT partition */
 	    const struct gpt_part *gp = (const struct gpt_part *)
 		(cur_part->block +
@@ -1522,7 +1512,7 @@ int main(int argc, char *argv[])
 	    uint64_t lba_count = gp->lba_last - gp->lba_first + 1;
 	    /* The length of the hand-over */
 	    int synth_size =
-		sizeof(struct part_entry) + sizeof(uint32_t) +
+		sizeof(struct disk_dos_part_entry) + sizeof(uint32_t) +
 		cur_part->private.gpt.size;
 	    /* Will point to the partition record length in the hand-over */
 	    uint32_t *plen;
@@ -1564,7 +1554,7 @@ int main(int argc, char *argv[])
 	    gpt_part_dump((struct gpt_part *)(plen + 1));
 	} else if (cur_part->record) {
 	    /* MBR handover protocol */
-	    static struct part_entry handover_record;
+	    static struct disk_dos_part_entry handover_record;
 
 	    handover_record = *cur_part->record;
 	    handover_record.start_lba = cur_part->lba_data;

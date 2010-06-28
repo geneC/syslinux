@@ -68,6 +68,16 @@ struct disk_ebios_dapa {
 #define chs_cylinder(chs) (chs_cyl_high(chs) | chs_cyl_low(chs))
 typedef uint8_t disk_chs[3];
 
+/* A DOS partition table entry */
+struct disk_dos_part_entry {
+    uint8_t active_flag;	/* 0x80 if "active" */
+    disk_chs start;
+    uint8_t ostype;
+    disk_chs end;
+    uint32_t start_lba;
+    uint32_t length;
+} __attribute__ ((packed));
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,
