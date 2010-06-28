@@ -146,26 +146,6 @@ static inline void error(const char *msg)
 }
 
 /*
- * Call int 13h, but with retry on failure.  Especially floppies need this.
- */
-static int int13_retry(const com32sys_t * inreg, com32sys_t * outreg)
-{
-    int retry = 6;		/* Number of retries */
-    com32sys_t tmpregs;
-
-    if (!outreg)
-	outreg = &tmpregs;
-
-    while (retry--) {
-	__intcall(0x13, inreg, outreg);
-	if (!(outreg->eflags.l & EFLAGS_CF))
-	    return 0;		/* CF=0, OK */
-    }
-
-    return -1;			/* Error */
-}
-
-/*
  * Query disk parameters and EBIOS availability for a particular disk.
  */
 struct diskinfo {
@@ -287,7 +267,7 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 	inreg.es = SEG(buf);
     }
 
-    if (int13_retry(&inreg, NULL))
+    if (disk_int13_retry(&inreg, NULL))
 	return NULL;
 
     data = malloc(count * SECTOR);
@@ -347,7 +327,7 @@ static int write_sector(unsigned int lba, const void *data)
 	inreg.es = SEG(buf);
     }
 
-    if (int13_retry(&inreg, NULL))
+    if (disk_int13_retry(&inreg, NULL))
 	return -1;
 
     return 0;			/* ok */

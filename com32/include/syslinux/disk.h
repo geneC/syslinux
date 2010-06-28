@@ -36,6 +36,10 @@
 #ifndef _SYSLINUX_DISK_H
 #define _SYSLINUX_DISK_H
 
+#include <com32.h>
+
 #define SECTOR 512		/* bytes/sector */
+
+extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 
 #endif /* _SYSLINUX_DISK_H */
