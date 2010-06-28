@@ -61,5 +61,7 @@ extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *diskinfo);
 extern void *disk_read_sectors(struct disk_info *diskinfo, uint64_t lba,
 			       uint8_t count);
+extern int disk_write_sector(struct disk_info *diskinfo, unsigned int lba,
+			     const void *data);
 
 #endif /* _SYSLINUX_DISK_H */

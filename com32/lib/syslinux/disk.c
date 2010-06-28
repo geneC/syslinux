@@ -185,3 +185,72 @@ void *disk_read_sectors(struct disk_info *diskinfo, uint64_t lba, uint8_t count)
 	memcpy(data, buf, count * SECTOR);
     return data;
 }
+
+/**
+ * Write a disk block.
+ *
+ * @v diskinfo			The disk drive to write to
+ * @v lba			The logical block address to begin writing at
+ * @v data			The data to write
+ * @ret (int)			0 upon success, -1 upon failure
+ *
+ * Uses the disk number and information from diskinfo.
+ * Write a sector to a disk drive, starting at lba.
+ */
+int disk_write_sector(struct disk_info *diskinfo, unsigned int lba,
+		      const void *data)
+{
+    com32sys_t inreg;
+    struct disk_ebios_dapa *dapa = __com32.cs_bounce;
+    void *buf = (char *)__com32.cs_bounce + SECTOR;
+
+    memcpy(buf, data, SECTOR);
+    memset(&inreg, 0, sizeof inreg);
+
+    if (diskinfo->ebios) {
+	dapa->len = sizeof(*dapa);
+	dapa->count = 1;	/* 1 sector */
+	dapa->off = OFFS(buf);
+	dapa->seg = SEG(buf);
+	dapa->lba = lba;
+
+	inreg.esi.w[0] = OFFS(dapa);
+	inreg.ds = SEG(dapa);
+	inreg.edx.b[0] = diskinfo->disk;
+	inreg.eax.w[0] = 0x4300;	/* Extended write */
+    } else {
+	unsigned int c, h, s, t;
+
+	if (!diskinfo->cbios) {
+	    /* We failed to get the geometry */
+
+	    if (lba)
+		return -1;	/* Can only write MBR */
+
+	    s = 1;
+	    h = 0;
+	    c = 0;
+	} else {
+	    s = (lba % diskinfo->sect) + 1;
+	    t = lba / diskinfo->sect;	/* Track = head*cyl */
+	    h = t % diskinfo->head;
+	    c = t / diskinfo->head;
+	}
+
+	if (s > 63 || h > 256 || c > 1023)
+	    return -1;
+
+	inreg.eax.w[0] = 0x0301;	/* Write one sector */
+	inreg.ecx.b[1] = c & 0xff;
+	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.edx.b[1] = h;
+	inreg.edx.b[0] = diskinfo->disk;
+	inreg.ebx.w[0] = OFFS(buf);
+	inreg.es = SEG(buf);
+    }
+
+    if (disk_int13_retry(&inreg, NULL))
+	return -1;
+
+    return 0;			/* ok */
+}
