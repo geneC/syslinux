@@ -68,7 +68,7 @@ int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg)
  * @v diskinfo			The structure to save the queried params to
  * @ret (int)			0 upon success, -1 upon failure
  */
-int disk_get_params(int disk, struct disk_info *diskinfo)
+int disk_get_params(int disk, struct disk_info *const diskinfo)
 {
     static com32sys_t getparm, parm, getebios, ebios;
 
@@ -121,7 +121,8 @@ int disk_get_params(int disk, struct disk_info *diskinfo)
  * Uses the disk number and information from diskinfo.  Read count sectors
  * from drive, starting at lba.  Return a new buffer, or NULL upon failure.
  */
-void *disk_read_sectors(struct disk_info *diskinfo, uint64_t lba, uint8_t count)
+void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
+			uint8_t count)
 {
     com32sys_t inreg;
     struct disk_ebios_dapa *dapa = __com32.cs_bounce;
@@ -197,7 +198,7 @@ void *disk_read_sectors(struct disk_info *diskinfo, uint64_t lba, uint8_t count)
  * Uses the disk number and information from diskinfo.
  * Write a sector to a disk drive, starting at lba.
  */
-int disk_write_sector(struct disk_info *diskinfo, unsigned int lba,
+int disk_write_sector(const struct disk_info *const diskinfo, unsigned int lba,
 		      const void *data)
 {
     com32sys_t inreg;
@@ -267,8 +268,8 @@ int disk_write_sector(struct disk_info *diskinfo, unsigned int lba,
  * Writes a sector to a disk drive starting at lba, then reads it back
  * to verify it was written correctly.
  */
-int disk_write_verify_sector(struct disk_info *diskinfo, unsigned int lba,
-			     const void *buf)
+int disk_write_verify_sector(const struct disk_info *const diskinfo,
+			     unsigned int lba, const void *buf)
 {
     char *rb;
     int rv;
