@@ -102,6 +102,19 @@ struct guid {
     uint64_t data4;
 } __attribute__ ((packed));
 
+/**
+ * This walk-map effectively reverses the little-endian
+ * portions of a GPT disk/partition GUID for a string representation.
+ * There might be a better header for this...
+ */
+static const char guid_le_walk_map[] = {
+    3, -1, -1, -1, 0,
+    5, -1, 0,
+    3, -1, 0,
+    2, 1, 0,
+    1, 1, 1, 1, 1, 1
+};
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,

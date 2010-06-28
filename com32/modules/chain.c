@@ -348,18 +348,6 @@ err_alloc:
     return NULL;
 }
 
-    /*
-     * This walk-map effectively reverses the little-endian
-     * portions of the GUID in the output text
-     */
-static const char guid_le_walk_map[] = {
-    3, -1, -1, -1, 0,
-    5, -1, 0,
-    3, -1, 0,
-    2, 1, 0,
-    1, 1, 1, 1, 1, 1
-};
-
 #if DEBUG
 /*
  * Fill a buffer with a textual GUID representation.
