@@ -80,6 +80,10 @@
  *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
  *	used with GRUB stage2 files.
  *
+ * grldr=<loader>
+ *	pass the partition number to GRUB4DOS,
+ *	used with GRUB4DOS' grldr.
+ *
  * swap
  *	if the disk is not fd0/hd0, install a BIOS stub which swaps
  *	the drive numbers.
@@ -119,10 +123,11 @@ static struct options {
     uint16_t seg;
     bool isolinux;
     bool cmldr;
+    bool grub;
+    bool grldr;
     bool swap;
     bool hide;
     bool sethidden;
-    bool grub;
 } opt;
 
 struct data_area {
@@ -1272,6 +1277,7 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          msdos=<loader>     Load MS-DOS IO.SYS\n\
          pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
          grub=<loader>      Load GRUB stage2\n\
+         grldr=<loader>     Load GRUB4DOS grldr\n\
          seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
          swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
          hide               Hide primary partitions, except selected partition\n\
@@ -1343,6 +1349,9 @@ int main(int argc, char *argv[])
 	    opt.seg = 0x800;	/* stage2 wants this address */
 	    opt.loadfile = argv[i] + 5;
 	    opt.grub = true;
+	} else if (!strncmp(argv[i], "grldr=", 6)) {
+	    opt.loadfile = argv[i] + 6;
+	    opt.grldr = true;
 	} else if (!strcmp(argv[i], "swap")) {
 	    opt.swap = true;
 	} else if (!strcmp(argv[i], "noswap")) {
@@ -1487,7 +1496,8 @@ int main(int argc, char *argv[])
      * 0-3:  primary partitions
      * 4-*:  logical partitions
      */
-    regs.edx.b[1] = whichpart - 1;
+    if (opt.grldr)
+	regs.edx.b[1] = whichpart - 1;
 
     if (opt.hide) {
 	if (whichpart < 1 || whichpart > 4)
@@ -1575,10 +1585,13 @@ int main(int argc, char *argv[])
 	if (opt.grub) {
 	    regs.ip = 0x200;	/* jump 0x200 bytes into the loadfile */
 
-	    /* 0xffffff00 seems to be GRUB ways to record that it's
-	       "root" is the whole disk (and not a partition). */
-	    *(uint32_t *) ((unsigned char *)data[ndata].data + 0x208) =
-		0xffffff00ul;
+	    /* GRUB's stage2 wants the partition number in the install_partition
+	     * variable, located at memory address 0x8208.
+	     * We only need to change the value of memory address 0x820a too:
+	     *   -1:   whole drive (default)
+	     *   0-3:  primary partitions
+	     *   4-*:  logical partitions */
+	    ((uint8_t*) data[ndata].data)[0x20a] = (uint8_t)(whichpart - 1);
 	}
 
 	ndata++;
