@@ -123,11 +123,11 @@ static struct options {
     uint16_t seg;
     bool isolinux;
     bool cmldr;
+    bool grub;
     bool grldr;
     bool swap;
     bool hide;
     bool sethidden;
-    bool grub;
 } opt;
 
 struct data_area {
@@ -1585,10 +1585,13 @@ int main(int argc, char *argv[])
 	if (opt.grub) {
 	    regs.ip = 0x200;	/* jump 0x200 bytes into the loadfile */
 
-	    /* 0xffffff00 seems to be GRUB ways to record that it's
-	       "root" is the whole disk (and not a partition). */
-	    *(uint32_t *) ((unsigned char *)data[ndata].data + 0x208) =
-		0xffffff00ul;
+	    /* GRUB's stage2 wants the partition number in the install_partition
+	     * variable, located at memory address 0x8208.
+	     * We only need to change the value of memory address 0x820a too:
+	     *   -1:   whole drive (default)
+	     *   0-3:  primary partitions
+	     *   4-*:  logical partitions */
+	    ((uint8_t*) data[ndata].data)[0x20a] = (uint8_t)(whichpart - 1);
 	}
 
 	ndata++;
