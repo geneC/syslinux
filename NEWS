@@ -48,6 +48,8 @@ Changes in 4.00:
 	* ifcpu.c32, ifcpu64.c32: handle more than one argument per
 	  target.
 	* isohybrid: C version which does not require Perl.
+	* New command MENU IMMEDIATE to permit hotkeys to activate
+	  immediately without needing Enter.
 
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
