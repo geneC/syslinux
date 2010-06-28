@@ -19,8 +19,8 @@
  * Chainload a hard disk (currently rather braindead.)
  *
  * Usage: chain [options]
- *        chain hd<disk#> [<partition>] [options]
- *        chain fd<disk#> [options]
+ *	  chain hd<disk#> [<partition>] [options]
+ *	  chain fd<disk#> [options]
  *	  chain mbr:<id> [<partition>] [options]
  *	  chain guid:<guid> [<partition>] [options]
  *	  chain label:<label> [<partition>] [options]
@@ -45,53 +45,56 @@
  *
  * Options:
  *
- * file=<loader>:
+ * file=<loader>
  *	loads the file <loader> **from the Syslinux filesystem**
  *	instead of loading the boot sector.
  *
- * seg=<segment>:
+ * seg=<segment>
  *	loads at and jumps to <seg>:0000 instead of 0000:7C00.
  *
- * isolinux=<loader>:
+ * isolinux=<loader>
  *	chainload another version/build of the ISOLINUX bootloader and patch
  *	the loader with appropriate parameters in memory.
  *	This avoids the need for the -eltorito-alt-boot parameter of mkisofs,
  *	when you want more than one ISOLINUX per CD/DVD.
  *
- * ntldr=<loader>:
+ * ntldr=<loader>
  *	equivalent to seg=0x2000 file=<loader> sethidden,
- *      used with WinNT's loaders
+ *	used with WinNT's loaders
  *
- * cmldr=<loader>:
- *      used with Recovery Console of Windows NT/2K/XP.
- *      same as ntldr=<loader> & "cmdcons\0" written to
- *      the system name field in the bootsector
+ * cmldr=<loader>
+ *	used with Recovery Console of Windows NT/2K/XP.
+ *	same as ntldr=<loader> & "cmdcons\0" written to
+ *	the system name field in the bootsector
  *
- * freedos=<loader>:
+ * freedos=<loader>
  *	equivalent to seg=0x60 file=<loader> sethidden,
- *      used with FreeDOS kernel.sys.
+ *	used with FreeDOS' kernel.sys.
  *
  * msdos=<loader>
  * pcdos=<loader>
  *	equivalent to seg=0x70 file=<loader> sethidden,
- *      used with DOS' io.sys.
+ *	used with DOS' io.sys.
  *
- * grub=<loader>:
+ * grub=<loader>
  *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
- *      used with GRUB stage2 files.
+ *	used with GRUB stage2 files.
  *
- * swap:
+ * swap
  *	if the disk is not fd0/hd0, install a BIOS stub which swaps
  *	the drive numbers.
  *
- * hide:
+ * hide
  *	change type of primary partitions with IDs 01, 04, 06, 07,
  *	0b, 0c, or 0e to 1x, except for the selected partition, which
  *	is converted the other way.
  *
- * sethidden:
- *      update the "hidden sectors" (partition offset) field in a
- *      FAT/NTFS boot sector.
+ * sethidden
+ *	update the "hidden sectors" (partition offset) field in a
+ *	FAT/NTFS boot sector.
+ *
+ * keeppxe
+ *	keep the PXE and UNDI stacks in memory (PXELINUX only).
  */
 
 #include <com32.h>
@@ -1273,6 +1276,7 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
          hide               Hide primary partitions, except selected partition\n\
          sethidden          Set the FAT/NTFS hidden sectors field\n\
+         keeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
 See syslinux/com32/modules/chain.c for more information\n";
     error(usage);
 }
