@@ -25,6 +25,12 @@ enum {
 
 #include <asm/posix_types.h>	/* for __kernel_old_dev_t */
 #include <linux/types.h>	/* for __u64 */
+#include <linux/version.h>	/* version of Linux kernel headers */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
+/* We have truly ancient Linux kernel headers installed */
+typedef __kernel_dev_t __kernel_old_dev_t;
+#endif
 
 /* Backwards compatibility version */
 struct loop_info {
