@@ -115,6 +115,16 @@ static const char guid_le_walk_map[] = {
     1, 1, 1, 1, 1, 1
 };
 
+/* A GPT partition */
+struct disk_gpt_part_entry {
+    struct guid type;
+    struct guid uid;
+    uint64_t lba_first;
+    uint64_t lba_last;
+    uint64_t attribs;
+    char name[72];
+} __attribute__ ((packed));
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,

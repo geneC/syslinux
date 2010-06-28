@@ -438,17 +438,7 @@ static int str_to_guid(const char *buf, struct guid *id)
     return 0;
 }
 
-/* A GPT partition */
-struct gpt_part {
-    struct guid type;
-    struct guid uid;
-    uint64_t lba_first;
-    uint64_t lba_last;
-    uint64_t attribs;
-    char name[72];
-} __attribute__ ((packed));
-
-static void gpt_part_dump(const struct gpt_part *gpt_part)
+static void gpt_part_dump(const struct disk_gpt_part_entry *gpt_part)
 {
 #ifdef DEBUG
     unsigned int i;
@@ -537,13 +527,13 @@ static void gpt_dump(const struct gpt *gpt)
 
 static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
 {
-    const struct gpt_part *gpt_part = NULL;
+    const struct disk_gpt_part_entry *gpt_part = NULL;
 
     while (++part->private.gpt.index < part->private.gpt.parts) {
 	gpt_part =
-	    (const struct gpt_part *)(part->block +
-				      (part->private.gpt.index *
-				       part->private.gpt.size));
+	    (const struct disk_gpt_part_entry *)(part->block +
+						 (part->private.gpt.index *
+						  part->private.gpt.size));
 	if (!gpt_part->lba_first)
 	    continue;
 	break;
@@ -723,7 +713,7 @@ static int find_by_label(const char *label, struct disk_part_iter **boot_part)
 	}
 	/* Check for a matching partition */
 	while (boot_part[0]) {
-	    char gpt_label[sizeof(((struct gpt_part *) NULL)->name)];
+	    char gpt_label[sizeof(((struct disk_gpt_part_entry *) NULL)->name)];
 	    const char *gpt_label_scanner =
 		boot_part[0]->private.gpt.part_label;
 	    int j = 0;
@@ -1440,7 +1430,8 @@ int main(int argc, char *argv[])
 	    /* Do GPT hand-over, if applicable (as per syslinux/doc/gpt.txt) */
 	    struct disk_dos_part_entry *record;
 	    /* Look at the GPT partition */
-	    const struct gpt_part *gp = (const struct gpt_part *)
+	    const struct disk_gpt_part_entry *gp =
+		(const struct disk_gpt_part_entry *)
 		(cur_part->block +
 		 (cur_part->private.gpt.size * cur_part->private.gpt.index));
 	    /* Note the partition length */
@@ -1486,7 +1477,7 @@ int main(int argc, char *argv[])
 
 	    dprintf("GPT handover:\n");
 	    disk_dos_part_dump(record);
-	    gpt_part_dump((struct gpt_part *)(plen + 1));
+	    gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 	} else if (cur_part->record) {
 	    /* MBR handover protocol */
 	    static struct disk_dos_part_entry handover_record;
