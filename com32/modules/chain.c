@@ -400,10 +400,7 @@ static void mbr_part_dump(const struct part_entry *part)
 	    chs_head(part->end),
 	    chs_sector(part->end),
 	    chs_sector(part->end),
-	    part->start_lba,
-	    part->start_lba,
-	    part->length,
-	    part->length);
+	    part->start_lba, part->start_lba, part->length, part->length);
 }
 
 /* A DOS MBR */
