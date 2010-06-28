@@ -152,5 +152,6 @@ extern void guid_to_str(char *buf, const struct guid *const id);
 extern int str_to_guid(const char *buf, struct guid *const id);
 extern void disk_gpt_part_dump(const struct disk_gpt_part_entry *const
 			       gpt_part);
+extern void disk_gpt_header_dump(const struct disk_gpt_header *const gpt);
 
 #endif /* _SYSLINUX_DISK_H */

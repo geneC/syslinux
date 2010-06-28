@@ -467,3 +467,41 @@ void disk_gpt_part_dump(const struct disk_gpt_part_entry *const gpt_part)
     guid_to_str(guid_text, &gpt_part->uid);
     dprintf("GPT part. unique ID __ : {%s}\n", guid_text);
 }
+
+/**
+ * Display GPT header details.
+ *
+ * @v gpt			The GPT header to display
+ */
+void disk_gpt_header_dump(const struct disk_gpt_header *const gpt)
+{
+    char guid_text[37];
+
+    printf("GPT sig ______________ : '%8.8s'\n"
+	   "GPT major revision ___ : 0x%.4x\n"
+	   "GPT minor revision ___ : 0x%.4x\n"
+	   "GPT header size ______ : 0x%.8x\n"
+	   "GPT header checksum __ : 0x%.8x\n"
+	   "GPT reserved _________ : '%4.4s'\n"
+	   "GPT LBA current ______ : 0x%.16llx\n"
+	   "GPT LBA alternative __ : 0x%.16llx\n"
+	   "GPT LBA first usable _ : 0x%.16llx\n"
+	   "GPT LBA last usable __ : 0x%.16llx\n"
+	   "GPT LBA part. table __ : 0x%.16llx\n"
+	   "GPT partition count __ : 0x%.8x\n"
+	   "GPT partition size ___ : 0x%.8x\n"
+	   "GPT part. table chksum : 0x%.8x\n",
+	   gpt->sig,
+	   gpt->rev.fields.major,
+	   gpt->rev.fields.minor,
+	   gpt->hdr_size,
+	   gpt->chksum,
+	   gpt->reserved1,
+	   gpt->lba_cur,
+	   gpt->lba_alt,
+	   gpt->lba_first_usable,
+	   gpt->lba_last_usable,
+	   gpt->lba_table, gpt->part_count, gpt->part_size, gpt->table_chksum);
+    guid_to_str(guid_text, &gpt->disk_guid);
+    printf("GPT disk GUID ________ : {%s}\n", guid_text);
+}

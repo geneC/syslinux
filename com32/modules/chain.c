@@ -348,41 +348,6 @@ err_alloc:
     return NULL;
 }
 
-#if DEBUG
-static void gpt_dump(const struct disk_gpt_header *gpt)
-{
-    char guid_text[37];
-
-    printf("GPT sig ______________ : '%8.8s'\n"
-	   "GPT major revision ___ : 0x%.4x\n"
-	   "GPT minor revision ___ : 0x%.4x\n"
-	   "GPT header size ______ : 0x%.8x\n"
-	   "GPT header checksum __ : 0x%.8x\n"
-	   "GPT reserved _________ : '%4.4s'\n"
-	   "GPT LBA current ______ : 0x%.16llx\n"
-	   "GPT LBA alternative __ : 0x%.16llx\n"
-	   "GPT LBA first usable _ : 0x%.16llx\n"
-	   "GPT LBA last usable __ : 0x%.16llx\n"
-	   "GPT LBA part. table __ : 0x%.16llx\n"
-	   "GPT partition count __ : 0x%.8x\n"
-	   "GPT partition size ___ : 0x%.8x\n"
-	   "GPT part. table chksum : 0x%.8x\n",
-	   gpt->sig,
-	   gpt->rev.fields.major,
-	   gpt->rev.fields.minor,
-	   gpt->hdr_size,
-	   gpt->chksum,
-	   gpt->reserved1,
-	   gpt->lba_cur,
-	   gpt->lba_alt,
-	   gpt->lba_first_usable,
-	   gpt->lba_last_usable,
-	   gpt->lba_table, gpt->part_count, gpt->part_size, gpt->table_chksum);
-    guid_to_str(guid_text, &gpt->disk_guid);
-    printf("GPT disk GUID ________ : {%s}\n", guid_text);
-}
-#endif
-
 static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
 {
     const struct disk_gpt_part_entry *gpt_part = NULL;
@@ -459,7 +424,7 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 	/* TODO: Check checksum.  Possibly try alternative GPT */
 #if DEBUG
 	puts("Looks like a GPT disk.");
-	gpt_dump(gpt_candidate);
+	disk_gpt_header_dump(gpt_candidate);
 #endif
 	/* TODO: Check table checksum (maybe) */
 	/* Note relevant GPT details */
@@ -525,7 +490,7 @@ static int find_by_guid(const struct guid *gpt_guid,
 	    continue;
 	}
 #if DEBUG
-	gpt_dump(header);
+	disk_gpt_header_dump(header);
 #endif
 	is_me = !memcmp(&header->disk_guid, &gpt_guid, sizeof(*gpt_guid));
 	free(header);
