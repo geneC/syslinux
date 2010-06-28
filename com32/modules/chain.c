@@ -117,9 +117,8 @@
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/config.h>
+#include <syslinux/disk.h>
 #include <syslinux/video.h>
-
-#define SECTOR 512		/* bytes/sector */
 
 static struct options {
     const char *loadfile;

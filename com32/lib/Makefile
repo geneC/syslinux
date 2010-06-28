@@ -119,7 +119,9 @@ LIBOBJS = \
 	syslinux/setadv.o						\
 	\
 	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
-	syslinux/video/reportmode.o
+	syslinux/video/reportmode.o					\
+	\
+	syslinux/disk.o
 
 # These are the objects which are also imported into the core
 LIBCOREOBJS = 	\
