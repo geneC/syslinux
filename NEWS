@@ -3,9 +3,47 @@ or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
 Changes in 4.00:
-	* chain.c32: support booting GPT partitions by index, GUID, label
-	* chain.c32: support booting the Syslinux partition with "fs"
-	* chain.c32: implement gpt.txt hand-over protocol
+	* Major code base changes; all filesystem rewritten in C.
+	  This work was done primarily by Liu Aleaxander (Yuanhan Liu).
+	* EXTLINUX: btrfs and ext4 support.  btrfs support was done by
+	  Alek Du of Intel.
+	* EXTLINUX is no longer a separate derivative; extlinux and
+	  syslinux both install the same loader (ldlinux.sys); for the
+	  Linux-based installers the extlinux binary is used for a
+	  mounted filesystem; the syslinux binary for an unmounted
+	  filesystem.
+	* When loading a new configuration file with the CONFIG
+	  command, one can now also specify a new current directory
+	  with an APPEND statement.
+	* Full ADV support for Syslinux, to boot-once and MENU SAVE
+	  works.
+	* Full support of GPT-partitioned disks, including disks
+	  and/or parititions larger than 2 TiB (if supported by BIOS.)
+	* The GPT handover protocol adjusted to the current T13
+	  committee draft; see doc/gpt.txt.
+	* HDT: major updates.
+	* The "linux" syslinux installer (syslinux-nomtools) now has a
+	  command-line syntax closer to the extlinux installer.  The
+	  mtools, dos and win32 installers will get this new syntax
+	  eventually, but it is not implemented yet.
+	* chain.c32: support booting GPT partitions by index, GUID, label.
+	* chain.c32: support booting the Syslinux partition with "fs".
+	* chain.c32: implement gpt.txt hand-over protocol.
+	* chain.c32: support for chainloading Grub stage 2.
+	* PXELINUX: TFTP URL syntax (tftp://) supported even when not
+	  running gPXE/gpxelinux.
+	* New ls.c32 module to display the contents of the disk from
+	  the command line, and pwd.c32 to display the current
+	  directory.
+	* rosh.c32 (read only shell) updated and hopefully usable.
+	* PXELINUX: Support "localboot -1", just like the other
+	  derivatives.
+	* gfxboot.com removed in favor of gfxboot.c32.
+	* New MENU HELP statement to display fullscreen help text as a
+	  result of a menu selection.
+	* memdiskfind utility that can be used with the phram driver
+	  in the Linux kernel to mount a memdisk.
+
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
 	  in 3.85).
