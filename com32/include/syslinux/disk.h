@@ -88,6 +88,20 @@ struct disk_dos_mbr {
 } __attribute__ ((packed));
 #define disk_mbr_sig_magic 0xAA55
 
+/**
+ * A GPT disk/partition GUID
+ *
+ * Be careful with endianness, you must adjust it yourself
+ * iff you are directly using the fourth data chunk.
+ * There might be a better header for this...
+ */
+struct guid {
+    uint32_t data1;
+    uint16_t data2;
+    uint16_t data3;
+    uint64_t data4;
+} __attribute__ ((packed));
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,

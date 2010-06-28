@@ -348,18 +348,6 @@ err_alloc:
     return NULL;
 }
 
-/*
- * GUID
- * Be careful with endianness, you must adjust it yourself
- * iff you are directly using the fourth data chunk
- */
-struct guid {
-    uint32_t data1;
-    uint16_t data2;
-    uint16_t data3;
-    uint64_t data4;
-} __attribute__ ((packed));
-
     /*
      * This walk-map effectively reverses the little-endian
      * portions of the GUID in the output text
