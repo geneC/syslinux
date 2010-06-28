@@ -151,19 +151,11 @@ static struct disk_info diskinfo;
  * Get a disk block and return a malloc'd buffer.
  * Uses the disk number and information from diskinfo.
  */
-struct ebios_dapa {
-    uint16_t len;
-    uint16_t count;
-    uint16_t off;
-    uint16_t seg;
-    uint64_t lba;
-};
-
 /* Read count sectors from drive, starting at lba.  Return a new buffer */
 static void *read_sectors(uint64_t lba, uint8_t count)
 {
     com32sys_t inreg;
-    struct ebios_dapa *dapa = __com32.cs_bounce;
+    struct disk_ebios_dapa *dapa = __com32.cs_bounce;
     void *buf = (char *)__com32.cs_bounce + SECTOR;
     void *data;
 
@@ -228,7 +220,7 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 static int write_sector(unsigned int lba, const void *data)
 {
     com32sys_t inreg;
-    struct ebios_dapa *dapa = __com32.cs_bounce;
+    struct disk_ebios_dapa *dapa = __com32.cs_bounce;
     void *buf = (char *)__com32.cs_bounce + SECTOR;
 
     memcpy(buf, data, SECTOR);

@@ -48,6 +48,14 @@ struct disk_info {
     int sect;
 };
 
+struct disk_ebios_dapa {
+    uint16_t len;
+    uint16_t count;
+    uint16_t off;
+    uint16_t seg;
+    uint64_t lba;
+};
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *diskinfo);
 
