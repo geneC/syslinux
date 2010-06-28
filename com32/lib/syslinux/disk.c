@@ -40,8 +40,9 @@
 /**
  * Call int 13h, but with retry on failure.  Especially floppies need this.
  *
- * @v inreg				CPU register settings upon INT call
+ * @v inreg			CPU register settings upon INT call
  * @v outreg			CPU register settings returned by INT call
+ * @ret (int)			0 upon success, -1 upon failure
  */
 int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg)
 {
@@ -60,11 +61,12 @@ int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg)
     return -1;			/* Error */
 }
 
-/*
+/**
  * Query disk parameters and EBIOS availability for a particular disk.
  *
  * @v disk			The INT 0x13 disk drive number to process
  * @v diskinfo			The structure to save the queried params to
+ * @ret (int)			0 upon success, -1 upon failure
  */
 int disk_get_params(int disk, struct disk_info *diskinfo)
 {
@@ -109,7 +111,7 @@ int disk_get_params(int disk, struct disk_info *diskinfo)
 }
 
 /**
- * Get a disk block and return a malloc'd buffer.
+ * Get disk block(s) and return a malloc'd buffer.
  *
  * @v diskinfo			The disk drive to read from
  * @v lba			The logical block address to begin reading at
