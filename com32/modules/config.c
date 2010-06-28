@@ -26,12 +26,13 @@ int main(int argc, char *argv[])
 {
     openconsole(&dev_null_r, &dev_stdcon_w);
 
-    if (argc != 2) {
-	fprintf(stderr, "Usage: config <filename>\n");
+    if (argc < 2 || argc > 3) {
+	fprintf(stderr, "Usage: config <filename> [<directory>]\n");
 	return 1;
     }
 
-    syslinux_run_kernel_image(argv[1], "", 0, IMAGE_TYPE_CONFIG);
+    syslinux_run_kernel_image(argv[1], argv[2] ? argv[2] : "",
+			      0, IMAGE_TYPE_CONFIG);
 
     fprintf(stderr, "config: %s: failed to load (missing file?)\n", argv[1]);
     return 1;
