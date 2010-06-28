@@ -48,15 +48,6 @@ void hexdump(void *buf, int bytelen, const char *str)
 	printf("\n\n");		
 }
 
-/*
-void mydump(void)
-{
-	printf("append buf at %x\n", AppendBuf);
-
-	hexdump(AppendBuf, 60, "appendbuf");
-}
-*/
-
 static inline void myprint(int num)
 {
 	uint32_t i;

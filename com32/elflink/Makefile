@@ -13,8 +13,7 @@
 topdir = ../..
 include ../MCONFIG
 
-MODULES	  = test_memalign.c32 # test_com32.c32
-
+MODULES = 
 TESTFILES =
 
 all: $(MODULES) $(TESTFILES)

@@ -29,7 +29,7 @@ unsigned long elf_gnu_hash(const unsigned char *name) {
 	return h & 0xFFFFFFFF;
 }
 
-#ifdef ELF_NO_POSIX_MEMALIGN
+#ifndef HAVE_ELF_POSIX_MEMALIGN
 
 struct memalign_info {
 	void 	*start_addr;
@@ -86,4 +86,4 @@ void elf_free(void *memptr) {
 	free(memptr);
 }
 
-#endif //ELF_NO_POSIX_MEMALIGN
+#endif //HAVE_ELF_POSIX_MEMALIGN

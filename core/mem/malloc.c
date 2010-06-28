@@ -212,23 +212,3 @@ void *zalloc(size_t size)
 
     return ptr;
 }
-
-/* need to revisit this later */
-int posix_memalign(void **memptr, size_t align, size_t size)
-{
-	void *ptr;
-	unsigned long tmp;
-
-	ptr = malloc(size + align - 1);
-	if (!ptr)
-		return -ENOMEM;
-
-	/* do the alignment  */
-	tmp = (unsigned long)ptr;
-	tmp = (tmp + align -1) & ~(align - 1);
-	ptr = (void *)tmp;
-
-	*memptr = ptr;
-	return 0;
-
-}
