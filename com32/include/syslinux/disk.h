@@ -78,6 +78,16 @@ struct disk_dos_part_entry {
     uint32_t length;
 } __attribute__ ((packed));
 
+/* A DOS MBR */
+struct disk_dos_mbr {
+    char code[440];
+    uint32_t disk_sig;
+    char pad[2];
+    struct disk_dos_part_entry table[4];
+    uint16_t sig;
+} __attribute__ ((packed));
+#define disk_mbr_sig_magic 0xAA55
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,

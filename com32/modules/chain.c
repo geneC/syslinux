@@ -147,22 +147,12 @@ static inline void error(const char *msg)
 
 static struct disk_info diskinfo;
 
-/* A DOS MBR */
-struct mbr {
-    char code[440];
-    uint32_t disk_sig;
-    char pad[2];
-    struct disk_dos_part_entry table[4];
-    uint16_t sig;
-} __attribute__ ((packed));
-static const uint16_t mbr_sig_magic = 0xAA55;
-
 /* Search for a specific drive, based on the MBR signature; bytes 440-443 */
 static int find_disk(uint32_t mbr_sig)
 {
     int drive;
     bool is_me;
-    struct mbr *mbr;
+    struct disk_dos_mbr *mbr;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (disk_get_params(drive, &diskinfo))
@@ -229,14 +219,14 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
 {
     const struct disk_dos_part_entry *ebr_table;
     const struct disk_dos_part_entry *parent_table =
-	((const struct mbr *)part->private.ebr.parent->block)->table;
+	((const struct disk_dos_mbr *)part->private.ebr.parent->block)->table;
     static const struct disk_dos_part_entry phony = {.start_lba = 0 };
     uint64_t ebr_lba;
 
     /* Don't look for a "next EBR" the first time around */
     if (part->private.ebr.parent_index >= 0)
 	/* Look at the linked list */
-	ebr_table = ((const struct mbr *)part->block)->table + 1;
+	ebr_table = ((const struct disk_dos_mbr *)part->block)->table + 1;
     /* Do we need to look for an extended partition? */
     if (part->private.ebr.parent_index < 0 || !ebr_table->start_lba) {
 	/* Start looking for an extended partition in the MBR */
@@ -261,7 +251,7 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
 	error("Could not load EBR!\n");
 	goto err_ebr;
     }
-    ebr_table = ((const struct mbr *)part->block)->table;
+    ebr_table = ((const struct disk_dos_mbr *)part->block)->table;
     dprintf("next_ebr_part:\n");
     disk_dos_part_dump(ebr_table);
 
@@ -271,8 +261,8 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
      * put crap in some entries.
      */
     {
-	const struct mbr *mbr =
-	    (const struct mbr *)part->private.ebr.parent->block;
+	const struct disk_dos_mbr *mbr =
+	    (const struct disk_dos_mbr *)part->private.ebr.parent->block;
 	const struct disk_dos_part_entry *extended =
 	    mbr->table + part->private.ebr.parent_index;
 
@@ -306,7 +296,8 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 {
     struct disk_part_iter *ebr_part;
     /* Look at the partition table */
-    struct disk_dos_part_entry *table = ((struct mbr *)part->block)->table;
+    struct disk_dos_part_entry *table =
+	((struct disk_dos_mbr *)part->block)->table;
 
     /* Look for data partitions */
     while (++part->private.mbr_index < 4) {
@@ -622,7 +613,7 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 	goto err_read_mbr;
     }
     /* Check for an MBR */
-    if (((struct mbr *)part->block)->sig != mbr_sig_magic) {
+    if (((struct disk_dos_mbr *)part->block)->sig != disk_mbr_sig_magic) {
 	error("No MBR magic!\n");
 	goto err_mbr;
     }
@@ -909,7 +900,7 @@ enomem:
     return;
 }
 
-static int hide_unhide(struct mbr *mbr, int part)
+static int hide_unhide(struct disk_dos_mbr *mbr, int part)
 {
     int i;
     struct disk_dos_part_entry *pt;
@@ -1016,7 +1007,7 @@ See syslinux/com32/modules/chain.c for more information\n";
 
 int main(int argc, char *argv[])
 {
-    struct mbr *mbr = NULL;
+    struct disk_dos_mbr *mbr = NULL;
     char *p;
     struct disk_part_iter *cur_part = NULL;
     struct syslinux_rm_regs regs;
@@ -1436,10 +1427,11 @@ int main(int argc, char *argv[])
 	data[ndata].base = load_base;
 
 	if (!opt.loadfile) {
-	    const struct mbr *br =
-		(const struct mbr *)((char *)data[ndata].data +
-				     data[ndata].size - sizeof(struct mbr));
-	    if (br->sig != mbr_sig_magic) {
+	    const struct disk_dos_mbr *br =
+		(const struct disk_dos_mbr *)((char *)data[ndata].data +
+					      data[ndata].size -
+					      sizeof(struct disk_dos_mbr));
+	    if (br->sig != disk_mbr_sig_magic) {
 		error
 		    ("Boot sector signature not found (unbootable disk/partition?)\n");
 		goto bail;
