@@ -45,6 +45,7 @@ Changes in 4.00:
 	  in the Linux kernel to mount a memdisk.
         * ifcpu.c32: Adding usage when no parameters are given, 
           adding PAE support.
+	* ifcpu.c32, ifcpu64.c32: handle more than one argument per target.
 
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
