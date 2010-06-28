@@ -40,6 +40,15 @@
 
 #define SECTOR 512		/* bytes/sector */
 
+struct disk_info {
+    int disk;
+    int ebios;			/* EBIOS supported on this disk */
+    int cbios;			/* CHS geometry is valid */
+    int head;
+    int sect;
+};
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
+extern int disk_get_params(int disk, struct disk_info *diskinfo);
 
 #endif /* _SYSLINUX_DISK_H */

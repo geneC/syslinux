@@ -57,3 +57,51 @@ int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg)
 
     return -1;			/* Error */
 }
+
+/*
+ * Query disk parameters and EBIOS availability for a particular disk.
+ *
+ * @v disk			The INT 0x13 disk drive number to process
+ * @v diskinfo			The structure to save the queried params to
+ */
+int disk_get_params(int disk, struct disk_info *diskinfo)
+{
+    static com32sys_t getparm, parm, getebios, ebios;
+
+    diskinfo->disk = disk;
+    diskinfo->ebios = diskinfo->cbios = 0;
+
+    /* Get EBIOS support */
+    getebios.eax.w[0] = 0x4100;
+    getebios.ebx.w[0] = 0x55aa;
+    getebios.edx.b[0] = disk;
+    getebios.eflags.b[0] = 0x3;	/* CF set */
+
+    __intcall(0x13, &getebios, &ebios);
+
+    if (!(ebios.eflags.l & EFLAGS_CF) &&
+	ebios.ebx.w[0] == 0xaa55 && (ebios.ecx.b[0] & 1)) {
+	diskinfo->ebios = 1;
+    }
+
+    /* Get disk parameters -- really only useful for
+       hard disks, but if we have a partitioned floppy
+       it's actually our best chance... */
+    getparm.eax.b[1] = 0x08;
+    getparm.edx.b[0] = disk;
+
+    __intcall(0x13, &getparm, &parm);
+
+    if (parm.eflags.l & EFLAGS_CF)
+	return diskinfo->ebios ? 0 : -1;
+
+    diskinfo->head = parm.edx.b[1] + 1;
+    diskinfo->sect = parm.ecx.b[0] & 0x3f;
+    if (diskinfo->sect == 0) {
+	diskinfo->sect = 1;
+    } else {
+	diskinfo->cbios = 1;	/* Valid geometry */
+    }
+
+    return 0;
+}

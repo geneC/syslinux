@@ -145,62 +145,11 @@ static inline void error(const char *msg)
     fputs(msg, stderr);
 }
 
-/*
- * Query disk parameters and EBIOS availability for a particular disk.
- */
-struct diskinfo {
-    int disk;
-    int ebios;			/* EBIOS supported on this disk */
-    int cbios;			/* CHS geometry is valid */
-    int head;
-    int sect;
-} disk_info;
-
-static int get_disk_params(int disk)
-{
-    static com32sys_t getparm, parm, getebios, ebios;
-
-    disk_info.disk = disk;
-    disk_info.ebios = disk_info.cbios = 0;
-
-    /* Get EBIOS support */
-    getebios.eax.w[0] = 0x4100;
-    getebios.ebx.w[0] = 0x55aa;
-    getebios.edx.b[0] = disk;
-    getebios.eflags.b[0] = 0x3;	/* CF set */
-
-    __intcall(0x13, &getebios, &ebios);
-
-    if (!(ebios.eflags.l & EFLAGS_CF) &&
-	ebios.ebx.w[0] == 0xaa55 && (ebios.ecx.b[0] & 1)) {
-	disk_info.ebios = 1;
-    }
-
-    /* Get disk parameters -- really only useful for
-       hard disks, but if we have a partitioned floppy
-       it's actually our best chance... */
-    getparm.eax.b[1] = 0x08;
-    getparm.edx.b[0] = disk;
-
-    __intcall(0x13, &getparm, &parm);
-
-    if (parm.eflags.l & EFLAGS_CF)
-	return disk_info.ebios ? 0 : -1;
-
-    disk_info.head = parm.edx.b[1] + 1;
-    disk_info.sect = parm.ecx.b[0] & 0x3f;
-    if (disk_info.sect == 0) {
-	disk_info.sect = 1;
-    } else {
-	disk_info.cbios = 1;	/* Valid geometry */
-    }
-
-    return 0;
-}
+static struct disk_info diskinfo;
 
 /*
  * Get a disk block and return a malloc'd buffer.
- * Uses the disk number and information from disk_info.
+ * Uses the disk number and information from diskinfo.
  */
 struct ebios_dapa {
     uint16_t len;
@@ -224,7 +173,7 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 
     memset(&inreg, 0, sizeof inreg);
 
-    if (disk_info.ebios) {
+    if (diskinfo.ebios) {
 	dapa->len = sizeof(*dapa);
 	dapa->count = count;
 	dapa->off = OFFS(buf);
@@ -233,12 +182,12 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 
 	inreg.esi.w[0] = OFFS(dapa);
 	inreg.ds = SEG(dapa);
-	inreg.edx.b[0] = disk_info.disk;
+	inreg.edx.b[0] = diskinfo.disk;
 	inreg.eax.b[1] = 0x42;	/* Extended read */
     } else {
 	unsigned int c, h, s, t;
 
-	if (!disk_info.cbios) {
+	if (!diskinfo.cbios) {
 	    /* We failed to get the geometry */
 
 	    if (lba)
@@ -248,10 +197,10 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 	    h = 0;
 	    c = 0;
 	} else {
-	    s = (lba % disk_info.sect) + 1;
-	    t = lba / disk_info.sect;	/* Track = head*cyl */
-	    h = t % disk_info.head;
-	    c = t / disk_info.head;
+	    s = (lba % diskinfo.sect) + 1;
+	    t = lba / diskinfo.sect;	/* Track = head*cyl */
+	    h = t % diskinfo.head;
+	    c = t / diskinfo.head;
 	}
 
 	if (s > 63 || h > 256 || c > 1023)
@@ -262,7 +211,7 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 	inreg.ecx.b[1] = c & 0xff;
 	inreg.ecx.b[0] = s + (c >> 6);
 	inreg.edx.b[1] = h;
-	inreg.edx.b[0] = disk_info.disk;
+	inreg.edx.b[0] = diskinfo.disk;
 	inreg.ebx.w[0] = OFFS(buf);
 	inreg.es = SEG(buf);
     }
@@ -285,7 +234,7 @@ static int write_sector(unsigned int lba, const void *data)
     memcpy(buf, data, SECTOR);
     memset(&inreg, 0, sizeof inreg);
 
-    if (disk_info.ebios) {
+    if (diskinfo.ebios) {
 	dapa->len = sizeof(*dapa);
 	dapa->count = 1;	/* 1 sector */
 	dapa->off = OFFS(buf);
@@ -294,12 +243,12 @@ static int write_sector(unsigned int lba, const void *data)
 
 	inreg.esi.w[0] = OFFS(dapa);
 	inreg.ds = SEG(dapa);
-	inreg.edx.b[0] = disk_info.disk;
+	inreg.edx.b[0] = diskinfo.disk;
 	inreg.eax.w[0] = 0x4300;	/* Extended write */
     } else {
 	unsigned int c, h, s, t;
 
-	if (!disk_info.cbios) {
+	if (!diskinfo.cbios) {
 	    /* We failed to get the geometry */
 
 	    if (lba)
@@ -309,10 +258,10 @@ static int write_sector(unsigned int lba, const void *data)
 	    h = 0;
 	    c = 0;
 	} else {
-	    s = (lba % disk_info.sect) + 1;
-	    t = lba / disk_info.sect;	/* Track = head*cyl */
-	    h = t % disk_info.head;
-	    c = t / disk_info.head;
+	    s = (lba % diskinfo.sect) + 1;
+	    t = lba / diskinfo.sect;	/* Track = head*cyl */
+	    h = t % diskinfo.head;
+	    c = t / diskinfo.head;
 	}
 
 	if (s > 63 || h > 256 || c > 1023)
@@ -322,7 +271,7 @@ static int write_sector(unsigned int lba, const void *data)
 	inreg.ecx.b[1] = c & 0xff;
 	inreg.ecx.b[0] = s + (c >> 6);
 	inreg.edx.b[1] = h;
-	inreg.edx.b[0] = disk_info.disk;
+	inreg.edx.b[0] = diskinfo.disk;
 	inreg.ebx.w[0] = OFFS(buf);
 	inreg.es = SEG(buf);
     }
@@ -421,7 +370,7 @@ static int find_disk(uint32_t mbr_sig)
     struct mbr *mbr;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
-	if (get_disk_params(drive))
+	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	if (!(mbr = read_sectors(0, 1)))
 	    continue;		/* Cannot read sector */
@@ -951,7 +900,7 @@ static int find_by_guid(const struct guid *gpt_guid,
     struct gpt *header;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
-	if (get_disk_params(drive))
+	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	if (!(header = read_sectors(1, 1)))
 	    continue;		/* Cannot read sector */
@@ -997,7 +946,7 @@ static int find_by_label(const char *label, struct disk_part_iter **boot_part)
     bool is_me;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
-	if (get_disk_params(drive))
+	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	/* Check for a GPT disk */
 	boot_part[0] = get_first_partition(NULL);
@@ -1440,7 +1389,7 @@ int main(int argc, char *argv[])
     regs.ebx.b[0] = regs.edx.b[0] = drive;
 
     /* Get the disk geometry and disk access setup */
-    if (get_disk_params(drive)) {
+    if (disk_get_params(drive, &diskinfo)) {
 	error("Cannot get disk parameters\n");
 	goto bail;
     }
