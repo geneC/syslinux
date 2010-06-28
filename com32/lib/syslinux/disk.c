@@ -34,6 +34,7 @@
  */
 
 #include <dprintf.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslinux/disk.h>
@@ -322,4 +323,120 @@ void disk_dos_part_dump(const struct disk_dos_part_entry *const part)
 	    chs_sector(part->end),
 	    chs_sector(part->end),
 	    part->start_lba, part->start_lba, part->length, part->length);
+}
+
+/* Trivial error message output */
+static inline void error(const char *msg)
+{
+    fputs(msg, stderr);
+}
+
+/**
+ * This walk-map effectively reverses the little-endian
+ * portions of a GPT disk/partition GUID for a string representation.
+ * There might be a better header for this...
+ */
+static const char guid_le_walk_map[] = {
+    3, -1, -1, -1, 0,
+    5, -1, 0,
+    3, -1, 0,
+    2, 1, 0,
+    1, 1, 1, 1, 1, 1
+};
+
+/**
+ * Fill a buffer with a textual GUID representation.
+ *
+ * @v buf			Points to a minimum array of 37 chars
+ * @v id			The GUID to represent as text
+ *
+ * The buffer must be >= char[37] and will be populated
+ * with an ASCII NUL C string terminator.
+ * Example: 11111111-2222-3333-4444-444444444444
+ * Endian:  LLLLLLLL-LLLL-LLLL-BBBB-BBBBBBBBBBBB
+ */
+void guid_to_str(char *buf, const struct guid *const id)
+{
+    unsigned int i = 0;
+    const char *walker = (const char *)id;
+
+    while (i < sizeof(guid_le_walk_map)) {
+	walker += guid_le_walk_map[i];
+	if (!guid_le_walk_map[i])
+	    *buf = '-';
+	else {
+	    *buf = ((*walker & 0xF0) >> 4) + '0';
+	    if (*buf > '9')
+		*buf += 'A' - '9' - 1;
+	    buf++;
+	    *buf = (*walker & 0x0F) + '0';
+	    if (*buf > '9')
+		*buf += 'A' - '9' - 1;
+	}
+	buf++;
+	i++;
+    }
+    *buf = 0;
+}
+
+/**
+ * Create a GUID structure from a textual GUID representation.
+ *
+ * @v buf			Points to a GUID string to parse
+ * @v id			Points to a GUID to be populated
+ * @ret (int)			Returns 0 upon success, -1 upon failure
+ *
+ * The input buffer must be >= 32 hexadecimal chars and be
+ * terminated with an ASCII NUL.  Returns non-zero on failure.
+ * Example: 11111111-2222-3333-4444-444444444444
+ * Endian:  LLLLLLLL-LLLL-LLLL-BBBB-BBBBBBBBBBBB
+ */
+int str_to_guid(const char *buf, struct guid *const id)
+{
+    char guid_seq[sizeof(struct guid) * 2];
+    unsigned int i = 0;
+    char *walker = (char *)id;
+
+    while (*buf && i < sizeof(guid_seq)) {
+	switch (*buf) {
+	    /* Skip these three characters */
+	case '{':
+	case '}':
+	case '-':
+	    break;
+	default:
+	    /* Copy something useful to the temp. sequence */
+	    if ((*buf >= '0') && (*buf <= '9'))
+		guid_seq[i] = *buf - '0';
+	    else if ((*buf >= 'A') && (*buf <= 'F'))
+		guid_seq[i] = *buf - 'A' + 10;
+	    else if ((*buf >= 'a') && (*buf <= 'f'))
+		guid_seq[i] = *buf - 'a' + 10;
+	    else {
+		/* Or not */
+		error("Illegal character in GUID!\n");
+		return -1;
+	    }
+	    i++;
+	}
+	buf++;
+    }
+    /* Check for insufficient valid characters */
+    if (i < sizeof(guid_seq)) {
+	error("Too few GUID characters!\n");
+	return -1;
+    }
+    buf = guid_seq;
+    i = 0;
+    while (i < sizeof(guid_le_walk_map)) {
+	if (!guid_le_walk_map[i])
+	    i++;
+	walker += guid_le_walk_map[i];
+	*walker = *buf << 4;
+	buf++;
+	*walker |= *buf;
+	buf++;
+	i++;
+    }
+    return 0;
 }
