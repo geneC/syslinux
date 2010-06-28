@@ -79,7 +79,7 @@ kwdhash.gen: keywords genhash.pl
 .PRECIOUS: %.elf
 
 %.raw: %.elf
-	$(OBJCOPY) -O binary $< $(@:.bin=.raw)
+	$(OBJCOPY) -O binary -S $< $(@:.bin=.raw)
 
 %.bin: %.raw $(PREPCORE)
 	$(PREPCORE) $< $@
@@ -90,7 +90,7 @@ kwdhash.gen: keywords genhash.pl
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
 %.elf: %.o $(LIBDEP) syslinux.ld
-	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
+	$(LD) $(LDFLAGS) -s -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
 		--start-group $(LIBS) --end-group \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
