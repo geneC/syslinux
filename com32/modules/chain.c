@@ -348,35 +348,8 @@ err_alloc:
     return NULL;
 }
 
-/* A GPT header */
-struct gpt {
-    char sig[8];
-    union {
-	struct {
-	    uint16_t minor;
-	    uint16_t major;
-	} fields __attribute__ ((packed));
-	uint32_t uint32;
-	char raw[4];
-    } rev __attribute__ ((packed));
-    uint32_t hdr_size;
-    uint32_t chksum;
-    char reserved1[4];
-    uint64_t lba_cur;
-    uint64_t lba_alt;
-    uint64_t lba_first_usable;
-    uint64_t lba_last_usable;
-    struct guid disk_guid;
-    uint64_t lba_table;
-    uint32_t part_count;
-    uint32_t part_size;
-    uint32_t table_chksum;
-    char reserved2[1];
-} __attribute__ ((packed));
-static const char gpt_sig_magic[] = "EFI PART";
-
 #if DEBUG
-static void gpt_dump(const struct gpt *gpt)
+static void gpt_dump(const struct disk_gpt_header *gpt)
 {
     char guid_text[37];
 
@@ -448,7 +421,7 @@ err_last:
 
 static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 {
-    const struct gpt *gpt_candidate;
+    const struct disk_gpt_header *gpt_candidate;
 
     /*
      * Ignore any passed partition iterator.  The caller should
@@ -476,8 +449,9 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
     part->private.mbr_index = -1;
     part->next = next_mbr_part;
     /* Check for a GPT disk */
-    gpt_candidate = (const struct gpt *)(part->block + SECTOR);
-    if (!memcmp(gpt_candidate->sig, gpt_sig_magic, sizeof(gpt_sig_magic))) {
+    gpt_candidate = (const struct disk_gpt_header *)(part->block + SECTOR);
+    if (!memcmp
+	(gpt_candidate->sig, disk_gpt_sig_magic, sizeof(disk_gpt_sig_magic))) {
 	/* LBA for partition table */
 	uint64_t lba_table;
 
@@ -537,14 +511,15 @@ static int find_by_guid(const struct guid *gpt_guid,
 {
     int drive;
     bool is_me;
-    struct gpt *header;
+    struct disk_gpt_header *header;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	if (!(header = disk_read_sectors(&diskinfo, 1, 1)))
 	    continue;		/* Cannot read sector */
-	if (memcmp(&header->sig, gpt_sig_magic, sizeof(gpt_sig_magic))) {
+	if (memcmp
+	    (&header->sig, disk_gpt_sig_magic, sizeof(disk_gpt_sig_magic))) {
 	    /* Not a GPT disk */
 	    free(header);
 	    continue;

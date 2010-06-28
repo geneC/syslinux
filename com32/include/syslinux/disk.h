@@ -112,6 +112,33 @@ struct disk_gpt_part_entry {
     char name[72];
 } __attribute__ ((packed));
 
+/* A GPT header */
+struct disk_gpt_header {
+    char sig[8];
+    union {
+	struct {
+	    uint16_t minor;
+	    uint16_t major;
+	} fields __attribute__ ((packed));
+	uint32_t uint32;
+	char raw[4];
+    } rev __attribute__ ((packed));
+    uint32_t hdr_size;
+    uint32_t chksum;
+    char reserved1[4];
+    uint64_t lba_cur;
+    uint64_t lba_alt;
+    uint64_t lba_first_usable;
+    uint64_t lba_last_usable;
+    struct guid disk_guid;
+    uint64_t lba_table;
+    uint32_t part_count;
+    uint32_t part_size;
+    uint32_t table_chksum;
+    char reserved2[1];
+} __attribute__ ((packed));
+static const char disk_gpt_sig_magic[] = "EFI PART";
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,
