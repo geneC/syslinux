@@ -57,6 +57,17 @@ struct disk_ebios_dapa {
     uint64_t lba;
 };
 
+/**
+ * CHS (cylinder, head, sector) value extraction macros.
+ * Taken from WinVBlock.  None expand to an lvalue.
+*/
+#define     chs_head(chs) chs[0]
+#define   chs_sector(chs) (chs[1] & 0x3F)
+#define chs_cyl_high(chs) (((uint16_t)(chs[1] & 0xC0)) << 2)
+#define  chs_cyl_low(chs) ((uint16_t)chs[2])
+#define chs_cylinder(chs) (chs_cyl_high(chs) | chs_cyl_low(chs))
+typedef uint8_t disk_chs[3];
+
 extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,
