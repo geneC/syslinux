@@ -21,7 +21,7 @@ Changes in 4.00:
 	  and/or parititions larger than 2 TiB (if supported by BIOS.)
 	* The GPT handover protocol adjusted to the current T13
 	  committee draft; see doc/gpt.txt.
-	* HDT: major updates.
+	* HDT: code cleanup, small bugfixes
 	* The "linux" syslinux installer (syslinux-nomtools) now has a
 	  command-line syntax closer to the extlinux installer.  The
 	  mtools, dos and win32 installers will get this new syntax
@@ -43,6 +43,8 @@ Changes in 4.00:
 	  result of a menu selection.
 	* memdiskfind utility that can be used with the phram driver
 	  in the Linux kernel to mount a memdisk.
+        * ifcpu.c32: Adding usage when no parameters are given, 
+          adding PAE support.
 
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
