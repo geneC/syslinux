@@ -440,3 +440,30 @@ int str_to_guid(const char *buf, struct guid *const id)
     }
     return 0;
 }
+
+/**
+ * Display GPT partition details.
+ *
+ * @v gpt_part			The GPT partition entry to display
+ */
+void disk_gpt_part_dump(const struct disk_gpt_part_entry *const gpt_part)
+{
+    unsigned int i;
+    char guid_text[37];
+
+    dprintf("----------------------------------\n"
+	    "GPT part. LBA first __ : 0x%.16llx\n"
+	    "GPT part. LBA last ___ : 0x%.16llx\n"
+	    "GPT part. attribs ____ : 0x%.16llx\n"
+	    "GPT part. name _______ : '",
+	    gpt_part->lba_first, gpt_part->lba_last, gpt_part->attribs);
+    for (i = 0; i < sizeof(gpt_part->name); i++) {
+	if (gpt_part->name[i])
+	    dprintf("%c", gpt_part->name[i]);
+    }
+    dprintf("'");
+    guid_to_str(guid_text, &gpt_part->type);
+    dprintf("GPT part. type GUID __ : {%s}\n", guid_text);
+    guid_to_str(guid_text, &gpt_part->uid);
+    dprintf("GPT part. unique ID __ : {%s}\n", guid_text);
+}

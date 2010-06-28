@@ -348,31 +348,6 @@ err_alloc:
     return NULL;
 }
 
-static void gpt_part_dump(const struct disk_gpt_part_entry *gpt_part)
-{
-#ifdef DEBUG
-    unsigned int i;
-    char guid_text[37];
-
-    dprintf("----------------------------------\n"
-	    "GPT part. LBA first __ : 0x%.16llx\n"
-	    "GPT part. LBA last ___ : 0x%.16llx\n"
-	    "GPT part. attribs ____ : 0x%.16llx\n"
-	    "GPT part. name _______ : '",
-	    gpt_part->lba_first, gpt_part->lba_last, gpt_part->attribs);
-    for (i = 0; i < sizeof(gpt_part->name); i++) {
-	if (gpt_part->name[i])
-	    dprintf("%c", gpt_part->name[i]);
-    }
-    dprintf("'");
-    guid_to_str(guid_text, &gpt_part->type);
-    dprintf("GPT part. type GUID __ : {%s}\n", guid_text);
-    guid_to_str(guid_text, &gpt_part->uid);
-    dprintf("GPT part. unique ID __ : {%s}\n", guid_text);
-#endif
-    (void)gpt_part;
-}
-
 /* A GPT header */
 struct gpt {
     char sig[8];
@@ -457,7 +432,9 @@ static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
     part->private.gpt.part_label = gpt_part->name;
     /* Update our index */
     part->index++;
-    gpt_part_dump(gpt_part);
+#ifdef DEBUG
+    disk_gpt_part_dump(gpt_part);
+#endif
 
     /* In a GPT scheme, we re-use the iterator */
     return part;
@@ -1387,7 +1364,9 @@ int main(int argc, char *argv[])
 
 	    dprintf("GPT handover:\n");
 	    disk_dos_part_dump(record);
-	    gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
+#ifdef DEBUG
+	    disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
+#endif
 	} else if (cur_part->record) {
 	    /* MBR handover protocol */
 	    static struct disk_dos_part_entry handover_record;

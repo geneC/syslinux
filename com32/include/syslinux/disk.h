@@ -123,5 +123,7 @@ extern int disk_write_verify_sector(const struct disk_info *const diskinfo,
 extern void disk_dos_part_dump(const struct disk_dos_part_entry *const part);
 extern void guid_to_str(char *buf, const struct guid *const id);
 extern int str_to_guid(const char *buf, struct guid *const id);
+extern void disk_gpt_part_dump(const struct disk_gpt_part_entry *const
+			       gpt_part);
 
 #endif /* _SYSLINUX_DISK_H */
