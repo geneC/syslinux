@@ -278,7 +278,18 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
 	    if (edd_params.len < sizeof edd_params)
 		memset((char *)&edd_params + edd_params.len, 0,
 		       sizeof edd_params - edd_params.len);
-	    if (edd_params.sector_size >= 512 &&
+
+	    /*
+	     * Note: filter impossible sector sizes.  Some BIOSes
+	     * are known to report incorrect sector size information
+	     * (usually 512 rather than 2048) for CD-ROMs, so at least
+	     * for now ignore the reported sector size if booted via
+	     * El Torito.
+	     *
+	     * Known affected systems: ThinkPad T22, T23.
+	     */
+	    if (!cdrom &&
+		edd_params.sector_size >= 512 &&
 		is_power_of_2(edd_params.sector_size))
 		sector_size = edd_params.sector_size;
 	}
