@@ -147,22 +147,6 @@ static inline void error(const char *msg)
 
 static struct disk_info diskinfo;
 
-static int write_verify_sector(unsigned int lba, const void *buf)
-{
-    char *rb;
-    int rv;
-
-    rv = disk_write_sector(&diskinfo, lba, buf);
-    if (rv)
-	return rv;		/* Write failure */
-    rb = disk_read_sectors(&diskinfo, lba, 1);
-    if (!rb)
-	return -1;		/* Readback failure */
-    rv = memcmp(buf, rb, SECTOR);
-    free(rb);
-    return rv ? -1 : 0;
-}
-
 /*
  * CHS (cylinder, head, sector) value extraction macros.
  * Taken from WinVBlock.  Does not expand to an lvalue
@@ -1008,7 +992,7 @@ static int hide_unhide(struct mbr *mbr, int part)
     }
 
     if (write_back)
-	return write_verify_sector(0, mbr);
+	return disk_write_verify_sector(&diskinfo, 0, mbr);
 
     return 0;			/* ok */
 }

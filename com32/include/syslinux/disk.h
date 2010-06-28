@@ -63,5 +63,7 @@ extern void *disk_read_sectors(struct disk_info *diskinfo, uint64_t lba,
 			       uint8_t count);
 extern int disk_write_sector(struct disk_info *diskinfo, unsigned int lba,
 			     const void *data);
+extern int disk_write_verify_sector(struct disk_info *diskinfo,
+				    unsigned int lba, const void *buf);
 
 #endif /* _SYSLINUX_DISK_H */

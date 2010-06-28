@@ -254,3 +254,32 @@ int disk_write_sector(struct disk_info *diskinfo, unsigned int lba,
 
     return 0;			/* ok */
 }
+
+/**
+ * Write a disk block and verify it was written.
+ *
+ * @v diskinfo			The disk drive to write to
+ * @v lba			The logical block address to begin writing at
+ * @v buf			The data to write
+ * @ret rv			0 upon success, -1 upon failure
+ *
+ * Uses the disk number and information from diskinfo.
+ * Writes a sector to a disk drive starting at lba, then reads it back
+ * to verify it was written correctly.
+ */
+int disk_write_verify_sector(struct disk_info *diskinfo, unsigned int lba,
+			     const void *buf)
+{
+    char *rb;
+    int rv;
+
+    rv = disk_write_sector(diskinfo, lba, buf);
+    if (rv)
+	return rv;		/* Write failure */
+    rb = disk_read_sectors(diskinfo, lba, 1);
+    if (!rb)
+	return -1;		/* Readback failure */
+    rv = memcmp(buf, rb, SECTOR);
+    free(rb);
+    return rv ? -1 : 0;
+}
