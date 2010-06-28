@@ -50,6 +50,14 @@ Changes in 4.00:
 	* isohybrid: C version which does not require Perl.
 	* New command MENU IMMEDIATE to permit hotkeys to activate
 	  immediately without needing Enter.
+	* mdiskchk.com supports a --no-sequential (or -n) option to
+	  suppress the classic all-drive-probing heuristic.  Useful
+	  on BIOSes who crash/hang when certain drive numbers are
+	  probed.
+	* ElTorito.Sys DOS driver now scans drive numbers upwards
+	  instead of downwards, in order to avoid a fairly common
+	  bug on some BIOSes where probing drive 0xFF causes a
+	  failure.
 
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
