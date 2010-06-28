@@ -86,5 +86,6 @@ extern int disk_write_sector(const struct disk_info *const diskinfo,
 			     unsigned int lba, const void *data);
 extern int disk_write_verify_sector(const struct disk_info *const diskinfo,
 				    unsigned int lba, const void *buf);
+extern void disk_dos_part_dump(const struct disk_dos_part_entry *const part);
 
 #endif /* _SYSLINUX_DISK_H */

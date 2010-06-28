@@ -33,6 +33,7 @@
  * Deal with disks and partitions
  */
 
+#include <dprintf.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslinux/disk.h>
@@ -283,4 +284,42 @@ int disk_write_verify_sector(const struct disk_info *const diskinfo,
     rv = memcmp(buf, rb, SECTOR);
     free(rb);
     return rv ? -1 : 0;
+}
+
+/**
+ * Dump info about a DOS partition entry
+ *
+ * @v part			The 16-byte partition entry to examine
+ */
+void disk_dos_part_dump(const struct disk_dos_part_entry *const part)
+{
+    (void)part;
+    dprintf("Partition status _____ : 0x%.2x\n"
+	    "Partition CHS start\n"
+	    "  Cylinder ___________ : 0x%.4x (%u)\n"
+	    "  Head _______________ : 0x%.2x (%u)\n"
+	    "  Sector _____________ : 0x%.2x (%u)\n"
+	    "Partition type _______ : 0x%.2x\n"
+	    "Partition CHS end\n"
+	    "  Cylinder ___________ : 0x%.4x (%u)\n"
+	    "  Head _______________ : 0x%.2x (%u)\n"
+	    "  Sector _____________ : 0x%.2x (%u)\n"
+	    "Partition LBA start __ : 0x%.8x (%u)\n"
+	    "Partition LBA count __ : 0x%.8x (%u)\n"
+	    "-------------------------------\n",
+	    part->active_flag,
+	    chs_cylinder(part->start),
+	    chs_cylinder(part->start),
+	    chs_head(part->start),
+	    chs_head(part->start),
+	    chs_sector(part->start),
+	    chs_sector(part->start),
+	    part->ostype,
+	    chs_cylinder(part->end),
+	    chs_cylinder(part->end),
+	    chs_head(part->end),
+	    chs_head(part->end),
+	    chs_sector(part->end),
+	    chs_sector(part->end),
+	    part->start_lba, part->start_lba, part->length, part->length);
 }

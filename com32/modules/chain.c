@@ -147,39 +147,6 @@ static inline void error(const char *msg)
 
 static struct disk_info diskinfo;
 
-static void mbr_part_dump(const struct disk_dos_part_entry *part)
-{
-    (void)part;
-    dprintf("Partition status _____ : 0x%.2x\n"
-	    "Partition CHS start\n"
-	    "  Cylinder ___________ : 0x%.4x (%u)\n"
-	    "  Head _______________ : 0x%.2x (%u)\n"
-	    "  Sector _____________ : 0x%.2x (%u)\n"
-	    "Partition type _______ : 0x%.2x\n"
-	    "Partition CHS end\n"
-	    "  Cylinder ___________ : 0x%.4x (%u)\n"
-	    "  Head _______________ : 0x%.2x (%u)\n"
-	    "  Sector _____________ : 0x%.2x (%u)\n"
-	    "Partition LBA start __ : 0x%.8x (%u)\n"
-	    "Partition LBA count __ : 0x%.8x (%u)\n"
-	    "-------------------------------\n",
-	    part->active_flag,
-	    chs_cylinder(part->start),
-	    chs_cylinder(part->start),
-	    chs_head(part->start),
-	    chs_head(part->start),
-	    chs_sector(part->start),
-	    chs_sector(part->start),
-	    part->ostype,
-	    chs_cylinder(part->end),
-	    chs_cylinder(part->end),
-	    chs_head(part->end),
-	    chs_head(part->end),
-	    chs_sector(part->end),
-	    chs_sector(part->end),
-	    part->start_lba, part->start_lba, part->length, part->length);
-}
-
 /* A DOS MBR */
 struct mbr {
     char code[440];
@@ -296,7 +263,7 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
     }
     ebr_table = ((const struct mbr *)part->block)->table;
     dprintf("next_ebr_part:\n");
-    mbr_part_dump(ebr_table);
+    disk_dos_part_dump(ebr_table);
 
     /*
      * Sanity check entry: must not extend outside the
@@ -373,7 +340,7 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 	return next_ebr_part(ebr_part);
     }
     dprintf("next_mbr_part:\n");
-    mbr_part_dump(table + part->private.mbr_index);
+    disk_dos_part_dump(table + part->private.mbr_index);
 
     /* Update parameters to reflect this new partition.  Re-use iterator */
     part->lba_data = table[part->private.mbr_index].start_lba;
@@ -1550,7 +1517,7 @@ int main(int argc, char *argv[])
 	    regs.esi.w[0] = 0x7be;
 
 	    dprintf("GPT handover:\n");
-	    mbr_part_dump(record);
+	    disk_dos_part_dump(record);
 	    gpt_part_dump((struct gpt_part *)(plen + 1));
 	} else if (cur_part->record) {
 	    /* MBR handover protocol */
@@ -1566,7 +1533,7 @@ int main(int argc, char *argv[])
 	    regs.esi.w[0] = 0x7be;
 
 	    dprintf("MBR handover:\n");
-	    mbr_part_dump(&handover_record);
+	    disk_dos_part_dump(&handover_record);
 	}
     }
 
