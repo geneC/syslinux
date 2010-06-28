@@ -147,76 +147,6 @@ static inline void error(const char *msg)
 
 static struct disk_info diskinfo;
 
-/*
- * Get a disk block and return a malloc'd buffer.
- * Uses the disk number and information from diskinfo.
- */
-/* Read count sectors from drive, starting at lba.  Return a new buffer */
-static void *read_sectors(uint64_t lba, uint8_t count)
-{
-    com32sys_t inreg;
-    struct disk_ebios_dapa *dapa = __com32.cs_bounce;
-    void *buf = (char *)__com32.cs_bounce + SECTOR;
-    void *data;
-
-    if (!count)
-	/* Silly */
-	return NULL;
-
-    memset(&inreg, 0, sizeof inreg);
-
-    if (diskinfo.ebios) {
-	dapa->len = sizeof(*dapa);
-	dapa->count = count;
-	dapa->off = OFFS(buf);
-	dapa->seg = SEG(buf);
-	dapa->lba = lba;
-
-	inreg.esi.w[0] = OFFS(dapa);
-	inreg.ds = SEG(dapa);
-	inreg.edx.b[0] = diskinfo.disk;
-	inreg.eax.b[1] = 0x42;	/* Extended read */
-    } else {
-	unsigned int c, h, s, t;
-
-	if (!diskinfo.cbios) {
-	    /* We failed to get the geometry */
-
-	    if (lba)
-		return NULL;	/* Can only read MBR */
-
-	    s = 1;
-	    h = 0;
-	    c = 0;
-	} else {
-	    s = (lba % diskinfo.sect) + 1;
-	    t = lba / diskinfo.sect;	/* Track = head*cyl */
-	    h = t % diskinfo.head;
-	    c = t / diskinfo.head;
-	}
-
-	if (s > 63 || h > 256 || c > 1023)
-	    return NULL;
-
-	inreg.eax.b[0] = count;
-	inreg.eax.b[1] = 0x02;	/* Read */
-	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
-	inreg.edx.b[1] = h;
-	inreg.edx.b[0] = diskinfo.disk;
-	inreg.ebx.w[0] = OFFS(buf);
-	inreg.es = SEG(buf);
-    }
-
-    if (disk_int13_retry(&inreg, NULL))
-	return NULL;
-
-    data = malloc(count * SECTOR);
-    if (data)
-	memcpy(data, buf, count * SECTOR);
-    return data;
-}
-
 static int write_sector(unsigned int lba, const void *data)
 {
     com32sys_t inreg;
@@ -282,7 +212,7 @@ static int write_verify_sector(unsigned int lba, const void *buf)
     rv = write_sector(lba, buf);
     if (rv)
 	return rv;		/* Write failure */
-    rb = read_sectors(lba, 1);
+    rb = disk_read_sectors(&diskinfo, lba, 1);
     if (!rb)
 	return -1;		/* Readback failure */
     rv = memcmp(buf, rb, SECTOR);
@@ -364,7 +294,7 @@ static int find_disk(uint32_t mbr_sig)
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(mbr = read_sectors(0, 1)))
+	if (!(mbr = disk_read_sectors(&diskinfo, 0, 1)))
 	    continue;		/* Cannot read sector */
 	is_me = (mbr->disk_sig == mbr_sig);
 	free(mbr);
@@ -453,7 +383,7 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
     /* Load next EBR */
     ebr_lba = ebr_table->start_lba + part->private.ebr.lba_extended;
     free(part->block);
-    part->block = read_sectors(ebr_lba, 1);
+    part->block = disk_read_sectors(&diskinfo, ebr_lba, 1);
     if (!part->block) {
 	error("Could not load EBR!\n");
 	goto err_ebr;
@@ -813,7 +743,7 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 	goto err_alloc_iter;
     }
     /* Read MBR */
-    part->block = read_sectors(0, 2);
+    part->block = disk_read_sectors(&diskinfo, 0, 2);
     if (!part->block) {
 	error("Could not read two sectors!\n");
 	goto err_read_mbr;
@@ -851,9 +781,10 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 	/* Load the partition table */
 	free(part->block);
 	part->block =
-	    read_sectors(lba_table,
-			 ((part->private.gpt.size * part->private.gpt.parts) +
-			  SECTOR - 1) / SECTOR);
+	    disk_read_sectors(&diskinfo, lba_table,
+			      ((part->private.gpt.size *
+				part->private.gpt.parts) + SECTOR -
+			       1) / SECTOR);
 	if (!part->block) {
 	    error("Could not read GPT partition list!\n");
 	    goto err_gpt_table;
@@ -894,7 +825,7 @@ static int find_by_guid(const struct guid *gpt_guid,
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(header = read_sectors(1, 1)))
+	if (!(header = disk_read_sectors(&diskinfo, 1, 1)))
 	    continue;		/* Cannot read sector */
 	if (memcmp(&header->sig, gpt_sig_magic, sizeof(gpt_sig_magic))) {
 	    /* Not a GPT disk */
@@ -1387,7 +1318,7 @@ int main(int argc, char *argv[])
     }
 
     /* Get MBR */
-    if (!(mbr = read_sectors(0, 1))) {
+    if (!(mbr = disk_read_sectors(&diskinfo, 0, 1))) {
 	error("Cannot read Master Boot Record or sector 0\n");
 	goto bail;
     }
@@ -1621,7 +1552,10 @@ int main(int argc, char *argv[])
 	/* Actually read the boot sector */
 	if (!cur_part) {
 	    data[ndata].data = mbr;
-	} else if (!(data[ndata].data = read_sectors(cur_part->lba_data, 1))) {
+	} else
+	    if (!
+		(data[ndata].data =
+		 disk_read_sectors(&diskinfo, cur_part->lba_data, 1))) {
 	    error("Cannot read boot sector\n");
 	    goto bail;
 	}

@@ -33,6 +33,8 @@
  * Deal with disks and partitions
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include <syslinux/disk.h>
 
 /**
@@ -104,4 +106,80 @@ int disk_get_params(int disk, struct disk_info *diskinfo)
     }
 
     return 0;
+}
+
+/**
+ * Get a disk block and return a malloc'd buffer.
+ *
+ * @v diskinfo			The disk drive to read from
+ * @v lba			The logical block address to begin reading at
+ * @v count			The number of sectors to read
+ * @ret data			An allocated buffer with the read data
+ *
+ * Uses the disk number and information from diskinfo.  Read count sectors
+ * from drive, starting at lba.  Return a new buffer, or NULL upon failure.
+ */
+void *disk_read_sectors(struct disk_info *diskinfo, uint64_t lba, uint8_t count)
+{
+    com32sys_t inreg;
+    struct disk_ebios_dapa *dapa = __com32.cs_bounce;
+    void *buf = (char *)__com32.cs_bounce + SECTOR;
+    void *data;
+
+    if (!count)
+	/* Silly */
+	return NULL;
+
+    memset(&inreg, 0, sizeof inreg);
+
+    if (diskinfo->ebios) {
+	dapa->len = sizeof(*dapa);
+	dapa->count = count;
+	dapa->off = OFFS(buf);
+	dapa->seg = SEG(buf);
+	dapa->lba = lba;
+
+	inreg.esi.w[0] = OFFS(dapa);
+	inreg.ds = SEG(dapa);
+	inreg.edx.b[0] = diskinfo->disk;
+	inreg.eax.b[1] = 0x42;	/* Extended read */
+    } else {
+	unsigned int c, h, s, t;
+
+	if (!diskinfo->cbios) {
+	    /* We failed to get the geometry */
+
+	    if (lba)
+		return NULL;	/* Can only read MBR */
+
+	    s = 1;
+	    h = 0;
+	    c = 0;
+	} else {
+	    s = (lba % diskinfo->sect) + 1;
+	    t = lba / diskinfo->sect;	/* Track = head*cyl */
+	    h = t % diskinfo->head;
+	    c = t / diskinfo->head;
+	}
+
+	if (s > 63 || h > 256 || c > 1023)
+	    return NULL;
+
+	inreg.eax.b[0] = count;
+	inreg.eax.b[1] = 0x02;	/* Read */
+	inreg.ecx.b[1] = c & 0xff;
+	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.edx.b[1] = h;
+	inreg.edx.b[0] = diskinfo->disk;
+	inreg.ebx.w[0] = OFFS(buf);
+	inreg.es = SEG(buf);
+    }
+
+    if (disk_int13_retry(&inreg, NULL))
+	return NULL;
+
+    data = malloc(count * SECTOR);
+    if (data)
+	memcpy(data, buf, count * SECTOR);
+    return data;
 }
