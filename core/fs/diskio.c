@@ -56,7 +56,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	t = xlba / disk->s;
 	h = t % disk->h;
 	c = t / disk->h;
-        
+
 	ireg.eax.b[0] = chunk;
 	ireg.ecx.b[1] = c;
 	ireg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
@@ -65,8 +65,14 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	ireg.es       = SEG(tptr);
 
 	retry = RETRY_COUNT;
-        
+
         for (;;) {
+	    dprintf("CHS[%02x]: %u @ %llu (%u/%u/%u) %04x:%04x %s %p\n",
+		    ireg.edx.b[0], chunk, xlba, c, h, s+1,
+		    ireg.es, ireg.ebx.w[0],
+		    (ireg.eax.b[1] & 1) ? "<-" : "->",
+		    ptr);
+
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
 		break;
@@ -123,7 +129,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     int retry;
 
     memset(&ireg, 0, sizeof ireg);
-    
+
     ireg.eax.b[1] = 0x42 + is_write;
     ireg.edx.b[0] = disk->disk_number;
     ireg.ds       = SEG(&pkt);
@@ -160,6 +166,12 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    pkt.blocks = chunk;
 	    pkt.buf    = FAR_PTR(tptr);
 	    pkt.lba    = lba;
+
+	    dprintf("EDD[%02x]: %u @ %llu %04x:%04x %s %p\n",
+		    ireg.edx.b[0], pkt.blocks, pkt.lba,
+		    pkt.buf.seg, pkt.buf.offs,
+		    (ireg.eax.b[1] & 1) ? "<-" : "->",
+		    ptr);
 
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
@@ -222,7 +234,7 @@ static inline bool is_power_of_2(uint32_t x)
 static int ilog2(uint32_t num)
 {
     int i = 0;
-    
+
     if (!is_power_of_2(num)) {
         printf("ERROR: the num must be power of 2 when conveting to log2\n");
         return 0;
@@ -323,11 +335,14 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
 
     disk.maxtransfer   = MaxTransfer;
 
+    dprintf("disk %02x cdrom %d type %d sector %u/%u offset %llu\n",
+	    devno, cdrom, ebios, sector_size, disk.sector_shift, part_start);
+
     return &disk;
 }
 
 
-/* 
+/*
  * Initialize the device structure.
  *
  * NOTE: the disk cache needs to be revamped to support multiple devices...
@@ -341,9 +356,9 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
 
     dev.disk = disk_init(devno, cdrom, part_start,
 			 bsHeads, bsSecPerTrack, MaxTransfer);
-        
+
     dev.cache_data = diskcache;
     dev.cache_size = sizeof diskcache;
-    
+
     return &dev;
 }
