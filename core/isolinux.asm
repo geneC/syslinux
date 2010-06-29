@@ -101,7 +101,7 @@ ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
 		alignb 8
-Hidden	resq 1			; Used in hybrid mode
+Hidden		resq 1			; Used in hybrid mode
 bsSecPerTrack	resw 1			; Used in hybrid mode
 bsHeads		resw 1			; Used in hybrid mode
 
@@ -242,9 +242,6 @@ _start_hybrid:
 		pop eax
 		pop ebx
 .nooffset:
-		mov [cs:Hidden],eax
-		mov [cs:Hidden+4],ebx
-
 		mov si,bios_cbios
 		jcxz _start_common
 		mov si,bios_ebios
@@ -253,20 +250,25 @@ _start_hybrid:
 
 _start1:
 		mov si,bios_cdrom
+		xor eax,eax
+		xor ebx,ebx
 _start_common:
 		mov [cs:InitStack],sp	; Save initial stack pointer
 		mov [cs:InitStack+2],ss
-		xor ax,ax
-		mov ss,ax
+		xor dx,dx
+		mov ss,dx
 		mov sp,StackBuf		; Set up stack
 		push es			; Save initial ES:DI -> $PnP pointer
 		push di
-		mov ds,ax
-		mov es,ax
-		mov fs,ax
-		mov gs,ax
+		mov ds,dx
+		mov es,dx
+		mov fs,dx
+		mov gs,dx
 		sti
 		cld
+
+		mov [Hidden],eax
+		mov [Hidden+4],ebx
 
 		mov [BIOSType],si
 		mov eax,[si]
