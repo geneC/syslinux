@@ -255,15 +255,15 @@ _start1:
 _start_common:
 		mov [cs:InitStack],sp	; Save initial stack pointer
 		mov [cs:InitStack+2],ss
-		xor dx,dx
-		mov ss,dx
+		xor cx,cx
+		mov ss,cx
 		mov sp,StackBuf		; Set up stack
 		push es			; Save initial ES:DI -> $PnP pointer
 		push di
-		mov ds,dx
-		mov es,dx
-		mov fs,dx
-		mov gs,dx
+		mov ds,cx
+		mov es,cx
+		mov fs,cx
+		mov gs,cx
 		sti
 		cld
 
