@@ -79,6 +79,8 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	    if (retry--)
 		continue;
 
+	    dprintf("CHS: error AX = %04x\n", oreg.eax.w[0]);
+
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
             if (chunk) {
@@ -87,7 +89,8 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
                 ireg.eax.b[0] = chunk;
                 continue;
 	    } else {
-		printf("CHS: Error %s sector %llu (%u/%u/%u)\n",
+		printf("CHS: Error %04x %s sector %llu (%u/%u/%u)\n",
+		       oreg.eax.w[0],
 		       is_write ? "writing" : "reading",
 		       lba, c, h, s+1);
 	    }
@@ -179,6 +182,8 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    if (retry--)
 		continue;
 
+	    dprintf("EDD: error AX = %04x\n", oreg.eax.w[0]);
+
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
 	    if (chunk) {
@@ -188,7 +193,8 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    }
 
 	    /*** XXX: Consider falling back to CHS here?! ***/
-            printf("EDD: Error %s sector %llu\n",
+            printf("EDD: Error %04x %s sector %llu\n",
+		   oreg.eax.w[0],
 		   is_write ? "writing" : "reading",
 		   lba);
 	    return done;	/* Failure */
