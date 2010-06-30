@@ -294,8 +294,10 @@ getonesec_ebios:
 		push word 1
 		push word 16
 		mov si,sp
+		pushad
                 mov ah,42h                      ; Extended Read
 		call xint13
+		popad
 		lea sp,[si+16]			; Remove DAPA
 		jc .error
                 ret
@@ -308,7 +310,7 @@ getonesec_ebios:
 
 		pushad				; Try resetting the device
 		xor ax,ax
-		int 13h
+		call xint13
 		popad
 		loop .retry			; CX-- and jump if not zero
 
@@ -407,9 +409,7 @@ writestr_early:
 ;
 xint13:
                 mov dl,[DriveNumber]
-		pushad
 		int 13h
-		popad
 		ret
 
 ;
@@ -641,12 +641,14 @@ getlinsec_ebios:
 		push di
 		push word 16
 		mov si,sp
+		pushad
                 mov ah,42h                      ; Extended Read
 		push ds
 		push ss
 		pop ds
 		call xint13
 		pop ds
+		popad
 		lea sp,[si+16]			; Remove DAPA
 		jc .error
 		pop bp
@@ -738,7 +740,9 @@ getlinsec_cbios:
 		mov ah,02h		; Read sectors
 		mov bp,retry_count
 .retry:
+		pushad
 		call xint13
+		popad
 		jc .error
 .resume:
 		movzx ecx,al		; ECX <- sectors transferred
