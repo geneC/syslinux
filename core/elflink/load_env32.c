@@ -97,6 +97,7 @@ void start_ui(char *config_file)
 	parse_configs(argv);
 	/* run the default menu if found */
 	/*
+	*/
 	if (default_menu) {
 		cmdline = default_menu->menu_entries[default_menu->defentry]->cmdline;
 		if (*cmdline == '.') {
@@ -104,7 +105,6 @@ void start_ui(char *config_file)
 		}
 		process_command(cmdline);
 	}
-	*/
 
 	/* try to run a default linux kernel */
 	/*

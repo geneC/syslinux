@@ -21,7 +21,6 @@ void execute(const char *cmdline, enum kernel_type type)
 {
 	com32sys_t ireg;
 	const char *p, *const *pp;
-	//char *q = __com32.cs_bounce;
 	char *q;
 	const char *kernel, *args;
 
@@ -30,6 +29,8 @@ void execute(const char *cmdline, enum kernel_type type)
 
 	memset(&ireg, 0, sizeof ireg);
 
+	/* for parameter will be passed to __intcall, we need use
+	 * lmalloc a block of low memory */
 	q = lmalloc(128);
 	if (!q) {
 		printf("%s(): Fail to lmalloc a buffer to exec %s\n",

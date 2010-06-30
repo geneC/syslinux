@@ -360,19 +360,17 @@ void process_command(const char *cmd)
 		printf("\n");
 		return;
 	}
+	printf("\n");
 
+	mp("raw cmd = %s", cmd);
 	strcpy(temp_cmd, cmd);
 	module_name = strtok(cmd, COMMAND_DELIM);
 	len_mn = strlen(module_name);
-
-	printf("\n");
-	mp("enter, cmd = %s, module_name = %s",cmd, module_name);
 
 	if (!strcmp(module_name + len_mn - 4, ".c32")) {
 		if (module_find(module_name) != NULL) {
 			/* make module re-enterable */
 			mp("Module %s is already running");
-			//goto cleanup;
 		}
 		do {
 			argv[0] = module_name;
