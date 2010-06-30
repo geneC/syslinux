@@ -2,6 +2,12 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 4.01:
+	* ISOLINUX: fix initialization on systems which don't zero
+	  low memory.
+	* SYSLINUX/EXTLINUX: fix handing of disk read retries in
+	  EDD mode.
+
 Changes in 4.00:
 	* Major code base changes; all filesystem rewritten in C.
 	  This work was done primarily by Liu Aleaxander (Yuanhan Liu).
