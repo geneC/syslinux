@@ -20,44 +20,42 @@
 
 static void dump_reg(const char *name, uint32_t val)
 {
-    int i;
+	int i;
 
-    printf("%-3s : %10u 0x%08x ", name, val, val);
+	printf("%-3s : %10u 0x%08x ", name, val, val);
 
-    for (i = 3; i >= 0; i--) {
-	uint8_t c = val >> (i*8);
-	putchar((c >= ' ' && c <= '~') ? c : '.');
-    }
-    putchar('\n');
+	for (i = 3; i >= 0; i--) {
+		uint8_t c = val >> (i*8);
+		putchar((c >= ' ' && c <= '~') ? c : '.');
+	}
+	putchar('\n');
 }
 
 static int cpuid_main(int argc, char *argv[])
 {
-    uint32_t leaf, counter;
-    uint32_t eax, ebx, ecx, edx;
+	uint32_t leaf, counter;
+	uint32_t eax, ebx, ecx, edx;
 
-    if (argc < 2 || argc > 4) {
-	printf("Usage: %s leaf [counter]\n", argv[0]);
-	exit(1);
-    }
+	if (argc < 2 || argc > 4) {
+		printf("Usage: %s leaf [counter]\n", argv[0]);
+		exit(1);
+	}
 
-	mp("argv[1] = %s, argv[2] = %s", argv[0], argv[1]);
+	leaf = strtoul(argv[1], NULL, 0);
+	counter = (argc > 2) ? strtoul(argv[2], NULL, 0) : 0;
 
-    leaf = strtoul(argv[1], NULL, 0);
-    counter = (argc > 2) ? strtoul(argv[2], NULL, 0) : 0;
+	if (!cpu_has_eflag(EFLAGS_ID)) {
+		printf("The CPUID instruction is not supported\n");
+		exit(1);
+	}
 
-    if (!cpu_has_eflag(EFLAGS_ID)) {
-	printf("The CPUID instruction is not supported\n");
-	exit(1);
-    }
+	cpuid_count(leaf, counter, &eax, &ebx, &ecx, &edx);
 
-    cpuid_count(leaf, counter, &eax, &ebx, &ecx, &edx);
+	dump_reg("eax", eax);
+	dump_reg("ebx", ebx);
+	dump_reg("ecx", ecx);
+	dump_reg("edx", edx);
 
-    dump_reg("eax", eax);
-    dump_reg("ebx", ebx);
-    dump_reg("ecx", ecx);
-    dump_reg("edx", edx);
-
-    return 0;
+	return 0;
 }
 MODULE_MAIN(cpuid_main);
