@@ -754,13 +754,13 @@ expand_super:
 		mov di,[bsSecPerTrack]
 		movzx ebp,word [MaxTransfer]
 
-		mov si,ebios_name
-		call writestr_early
+		;mov si,ebios_name
+		;call writestr_early
 
 		pm_call fs_init
 
-		mov si,ebios_name
-		call writestr_early
+		;mov si,ebios_name
+		;call writestr_early
 
 		pm_call load_env32
 		popad

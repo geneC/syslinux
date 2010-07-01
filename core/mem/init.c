@@ -8,7 +8,7 @@
 
 struct free_arena_header __core_malloc_head[NHEAP];
 
-static __hugebss char main_heap[128 << 10];
+//static __hugebss char main_heap[128 << 10];
 extern char __lowmem_heap[];
 extern char free_high_memory[];
 
@@ -70,7 +70,7 @@ void mem_init(void)
 	int i;
 	uint16_t *bios_free_mem = (uint16_t *)0x413;
 
-	mp("enter");
+	//mp("enter");
 
 	/* Initialize the head nodes */
 	fp = &__core_malloc_head[0];
@@ -80,11 +80,10 @@ void mem_init(void)
 	fp->a.tag = MALLOC_HEAD;
 	fp++;
 	}
-
-	/*
-	mp("__lowmem_heap = 0x%p bios_free = 0x%p",
-		__lowmem_heap, *bios_free_mem);
-	*/
+	
+	//mp("__lowmem_heap = 0x%p bios_free = 0x%p",
+	//	__lowmem_heap, *bios_free_mem);
+	
 	/* Initialize the lowmem heap */
 	fp = (struct free_arena_header *)__lowmem_heap;
 	fp->a.attrs = ARENA_TYPE_USED | (HEAP_LOWMEM << ARENA_HEAP_POS);
@@ -95,5 +94,4 @@ void mem_init(void)
 	__com32.cs_memsize = free_high_memory;
 	syslinux_scan_memory(scan_highmem_area, NULL);
 
-	//mpool_dump(HEAP_MAIN);
 }
