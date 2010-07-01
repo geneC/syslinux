@@ -7,6 +7,9 @@ Changes in 4.01:
 	  low memory.
 	* SYSLINUX/EXTLINUX: fix handing of disk read retries in
 	  EDD mode.
+	* ISOLINUX: change the initialization sequence to avoid
+	  problems with certain (old) BIOSes.  Special thanks to
+	  Helmut Hullen for invaluable debugging support.
 
 Changes in 4.00:
 	* Major code base changes; all filesystem rewritten in C.
