@@ -31,6 +31,7 @@ CFLAGS     = $(M32) -mregparm=3 -DREGPARM=3 -W -Wall -march=i386 -Os \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
 	     -I../../libutil/include -I../../include \
+	     -I../../gplinclude \
 	     -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 LNXCFLAGS  = -W -Wall -O -g -I../../libutil/include
 LNXSFLAGS  = -g
@@ -39,7 +40,9 @@ SFLAGS     = -D__COM32__ -march=i386
 LDFLAGS    = -T ../../lib/com32.ld
 OBJCOPY    = objcopy
 LIBGCC    := $(shell $(CC) --print-libgcc)
-LIBS	   = liblua.a ../../libutil/libutil_com.a ../../lib/libcom32.a  $(LIBGCC)
+LIBS	   = liblua.a ../../libutil/libutil_com.a \
+		../../gpllib/libcom32gpl.a  \
+		../../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = ../../libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .o .elf .c32 .lnx
@@ -52,7 +55,7 @@ LIBLUA_OBJS += syslinux.o
 LIBLUA_OBJS += lauxlib.o lbaselib.o ldblib.o  ltablib.o \
 	lstrlib.o loadlib.o linit.o
 LIBLUA_OBJS += liolib.o
-LIBLUA_OBJS += dmi.o ../../modules/dmi.o
+LIBLUA_OBJS += dmi.o
 
 CFLAGS += -DLUA_ANSI
 
@@ -62,6 +65,8 @@ liblua.a: $(LIBLUA_OBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
+lua.elf: lua.o liblua.a
+	$(LD) --emit-relocs $(LDFLAGS) -o $@ lua.o $(LIBS) $(LNXLIBS)
 
 
 .PRECIOUS: %.o
@@ -90,6 +95,7 @@ liblua.a: $(LIBLUA_OBJS)
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
+	../../tools/relocs $< >> $@ || ( rm -f $@ ; false )
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d

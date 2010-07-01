@@ -15,7 +15,8 @@ static int dmi_gettable(lua_State *L)
 
   lua_newtable(L);
 
-  if ( ! dmi_interate() ) {
+  /* FIXME initalize *dmi */
+  if ( ! dmi_iterate(&dmi) ) {
           printf("No DMI Structure found\n");
           return -1;
   }
@@ -231,8 +232,8 @@ static int dmi_gettable(lua_State *L)
   lua_pushnumber(L, dmi.processor.signature.minor_stepping);
   lua_settable(L,-3);
 
-  lua_pushstring(L, "processor.voltage");
-  lua_pushnumber(L, dmi.processor.voltage);
+  lua_pushstring(L, "processor.voltage_mv");
+  lua_pushnumber(L, dmi.processor.voltage_mv);
   lua_settable(L,-3);
 
   lua_pushstring(L, "processor.status");
@@ -276,7 +277,10 @@ static int dmi_gettable(lua_State *L)
 
 static int dmi_supported(lua_State *L)
 {
-  if ( dmi_interate() ) {
+  s_dmi dmi;
+
+  /* FIXME initalize *dmi */
+  if ( dmi_iterate(&dmi) ) {
     lua_pushboolean(L, 1);
   } else {
     lua_pushboolean(L, 0);
