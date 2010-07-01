@@ -17,7 +17,8 @@
 #
 .PHONY: official release
 
-PRIVATE = Makefile.private .depend */.depend
+# These files are removed when tarballs are generated.
+PRIVATE = Makefile.private MCONFIG.devel
 
 GIT_DIR ?= .git
 ABS_GIT_DIR := $(shell cd '$(GIT_DIR)' 2>/dev/null && pwd)
@@ -36,7 +37,6 @@ burn: isolinux.iso
 
 official:
 	$(MAKE) spotless CC='$(CC) -m32'
-	$(MAKE) depend CC='$(CC) -m32'
 	$(MAKE) all CC='$(CC) -m32'
 	$(MAKE) dist CC='$(CC) -m32'
 

@@ -12,6 +12,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @defgroup scsiops SCSI operation codes
  * @{
@@ -234,18 +236,23 @@ struct scsi_command {
 	uint8_t status;
 	/** SCSI sense response code */
 	uint8_t sense_response;
+	/** Command status code */
+	int rc;
 };
+
+/** A SCSI LUN
+ *
+ * This is a four-level LUN as specified by SAM-2, in big-endian
+ * order.
+ */
+struct scsi_lun {
+	uint16_t u16[4];
+}  __attribute__ (( packed ));
 
 /** A SCSI device */
 struct scsi_device {
 	/** Block device interface */
 	struct block_device blockdev;
-	/** Logical unit number (LUN)
-	 *
-	 * This is a four-level LUN as specified by SAM-2, in
-	 * big-endian order.
-	 */
-	uint64_t lun;
 	/**
 	 * Issue SCSI command
 	 *
@@ -254,10 +261,11 @@ struct scsi_device {
 	 * @ret rc		Return status code
 	 *
 	 * Note that a successful return status code indicates only
-	 * that the SCSI command completed.  The caller must check the
-	 * status field in the command structure to see if, for
-	 * example, the device returned CHECK CONDITION or some other
-	 * non-success status code.
+	 * that the SCSI command was issued.  The caller must check
+	 * the status field in the command structure to see when the
+	 * command completes and whether, for example, the device
+	 * returned CHECK CONDITION or some other non-success status
+	 * code.
 	 */
 	int ( * command ) ( struct scsi_device *scsi,
 			    struct scsi_command *command );
@@ -265,6 +273,9 @@ struct scsi_device {
 	struct refcnt *backend;
 };
 
+extern int scsi_detached_command ( struct scsi_device *scsi,
+				   struct scsi_command *command );
 extern int init_scsidev ( struct scsi_device *scsi );
+extern int scsi_parse_lun ( const char *lun_string, struct scsi_lun *lun );
 
 #endif /* _GPXE_SCSI_H */

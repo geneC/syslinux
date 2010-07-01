@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/tables.h>
 
 struct errortab {
@@ -14,6 +16,8 @@ struct errortab {
 	const char *text;
 };
 
-#define __errortab __table ( struct errortab, errortab, 01 )
+#define ERRORTAB __table ( struct errortab, "errortab" )
+
+#define __errortab __table_entry ( ERRORTAB, 01 )
 
 #endif /* _GPXE_ERRORTAB_H */

@@ -9,13 +9,16 @@
 *.elf
 *.exe
 *.gen
+*.lib
 *.lnx
 *.lo
 *.lsr
 *.lst
 *.map
 *.o
+*.obj
 *.orig
+*.raw
 *.rej
 *.s
 *.sec
@@ -34,7 +37,10 @@
 /linux/syslinux
 /linux/syslinux-nomtools
 /utils/gethostip
+/utils/isohdpfx.c
 /utils/isohybrid
+/utils/isohybrid.pl
+/utils/memdiskfind
 /utils/mkdiskimage
 /version.h
 /version.mk

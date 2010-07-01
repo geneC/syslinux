@@ -26,6 +26,8 @@
 
 *******************************************************************************/
 
+FILE_LICENCE ( GPL2_ONLY );
+
 /* Linux PRO/1000 Ethernet Driver main header file */
 
 #ifndef _E1000_H_
@@ -34,7 +36,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <io.h>
+#include <string.h>
+#include <gpxe/io.h>
 #include <errno.h>
 #include <byteswap.h>
 #include <gpxe/pci.h>

@@ -9,13 +9,14 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <gpxe/iobuf.h>
 #include <gpxe/tcpip.h>
 #include <gpxe/if_ether.h>
 
 struct xfer_interface;
-struct sockaddr;
 
 /**
  * UDP constants

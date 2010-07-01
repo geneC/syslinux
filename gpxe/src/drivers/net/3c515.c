@@ -43,6 +43,7 @@
 * Indent Options: indent -kr -i8
 * *********************************************************/
 
+FILE_LICENCE ( GPL2_OR_LATER );
 
 /* to get some global routines like printf */
 #include "etherboot.h"
@@ -640,7 +641,7 @@ static int t515_probe ( struct nic *nic, struct isapnp_device *isapnp ) {
 		}
 
 	}
-	DBG ( "3c515 Resource configuration register 0x%lX, DCR 0x%hX.\n",
+	DBG ( "3c515 Resource configuration register 0x%X, DCR 0x%hX.\n",
 	      inl(nic->ioaddr + 0x2002), inw(nic->ioaddr + 0x2000) );
 	corkscrew_found_device(nic->ioaddr, nic->irqno, CORKSCREW_ID,
 			       options, nic);

@@ -21,7 +21,7 @@
 ;
 ;	Assumes CS == DS == ES.
 ;
-		section .text
+		section .text16
 
 vgadisplayfile:
 		; This is a cheap and easy way to make sure the screen is
@@ -75,22 +75,26 @@ vgadisplayfile:
 		mov di,VGARowBuffer
 		; Pre-clear the row buffer
 		push di
+		push di
 		mov cx,640/4
 		xor eax,eax
 		rep stosd
 		pop di
-		push di
 		mov cx,[GraphXSize]
 		call rledecode			; Decode one row
+		pop si
+		mov di,VGAPlaneBuffer
+		push di
+		mov bp,640
+		call packedpixel2vga
 		pop si
 		push es
 		mov di,0A000h			; VGA segment
 		mov es,di
 		mov di,[VGAPos]
-		mov bp,640
-		call packedpixel2vga
-		add word [VGAPos],80
+		call outputvga
 		pop es
+		add word [VGAPos],640/8
 		pop cx
 		loop .drawpixelrow
 
@@ -160,36 +164,54 @@ rledecode:
 ;
 ; DS:SI -> packed pixel string
 ; BP    -> pixel count (multiple of 8)
-; ES:DI -> output
+; DS:DI -> output (four planes)
 ;
 packedpixel2vga:
+		xor cx,cx
+.planeloop:
+		inc cx
+		push si
+		push bp
+.loop1:
+		mov bx,8
+.loop2:
+		lodsb
+		shr al,cl
+		rcl dl,1		; VGA is bigendian.  Sigh.
+		dec bx
+		jnz .loop2
+		mov [di],dl
+		inc di
+		sub bp,byte 8
+		ja .loop1
+		pop bp
+		pop si
+		cmp cl,3
+		jbe .planeloop
+		ret
+
+;
+; outputvga:
+;	Output four subsequent lines of VGA data
+;
+; DS:SI	-> four planes @ 640/8=80 bytes
+; ES:DI	-> pointer into VGA memory
+;
+outputvga:
 		mov dx,3C4h	; VGA Sequencer Register select port
 		mov al,2	; Sequencer mask
 		out dx,al	; Select the sequencer mask
 		inc dx		; VGA Sequencer Register data port
-		mov al,1
-		mov bl,al
-.planeloop:
-		pusha
-		out dx,al
+		dec ax		; AL <- 1
 .loop1:
-		mov cx,8
-.loop2:
-		xchg cx,bx
-		lodsb
-		shr al,cl
-		rcl ch,1	; VGA is bigendian.  Sigh.
-		xchg cx,bx
-		loop .loop2
-		mov al,bh
-		stosb
-		sub bp,byte 8
-		ja .loop1
-		popa
-		inc bl
-		shl al,1
-		cmp bl,4
-		jbe .planeloop
+		out dx,al	; Select the bit plane to write
+		push di
+		mov cx,640/32
+		rep movsd
+		pop di
+		add ax,ax
+		cmp al,8
+		jbe .loop1
 		ret
 
 ;
@@ -300,7 +322,7 @@ vgacursorcommon:
 		ret
 
 
-		section .data
+		section .data16
 		; Map colors to consecutive DAC registers
 linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 
@@ -308,7 +330,7 @@ linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 		; of this byte.
 UsingVGA	db 0
 
-		section .bss1
+		section .bss16
 		alignb 4
 LSSHeader	equ $
 LSSMagic	resd 1			; Magic number
@@ -326,6 +348,6 @@ VGAFileBuf	resb FILENAME_MAX	; Unmangled VGA image name
 VGAFileBufEnd	equ $
 VGAFileMBuf	resb FILENAME_MAX	; Mangled VGA image name
 
-; We need a buffer of 640+80 bytes.  At this point, command_line should
-; not be in use, so use that buffer.
-VGARowBuffer	equ command_line
+		alignb 4
+VGARowBuffer	resb 640+80		; Decompression buffer
+VGAPlaneBuffer	resb (640/8)*4		; Plane buffers

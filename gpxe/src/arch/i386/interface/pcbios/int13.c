@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <limits.h>
 #include <byteswap.h>
@@ -48,6 +50,48 @@ extern void int13_wrapper ( void );
 
 /** List of registered emulated drives */
 static LIST_HEAD ( drives );
+
+/**
+ * Number of BIOS drives
+ *
+ * Note that this is the number of drives in the system as a whole
+ * (i.e. a mirror of the counter at 40:75), rather than a count of the
+ * number of emulated drives.
+ */
+static uint8_t num_drives;
+
+/**
+ * Update BIOS drive count
+ */
+static void int13_set_num_drives ( void ) {
+	struct int13_drive *drive;
+
+	/* Get current drive count */
+	get_real ( num_drives, BDA_SEG, BDA_NUM_DRIVES );
+
+	/* Ensure count is large enough to cover all of our emulated drives */
+	list_for_each_entry ( drive, &drives, list ) {
+		if ( num_drives <= ( drive->drive & 0x7f ) )
+			num_drives = ( ( drive->drive & 0x7f ) + 1 );
+	}
+
+	/* Update current drive count */
+	put_real ( num_drives, BDA_SEG, BDA_NUM_DRIVES );
+}
+
+/**
+ * Check number of drives
+ */
+static void int13_check_num_drives ( void ) {
+	uint8_t check_num_drives;
+
+	get_real ( check_num_drives, BDA_SEG, BDA_NUM_DRIVES );
+	if ( check_num_drives != num_drives ) {
+		int13_set_num_drives();
+		DBG ( "INT13 fixing up number of drives from %d to %d\n",
+		      check_num_drives, num_drives );
+	}
+}
 
 /**
  * INT 13, 00 - Reset disk system
@@ -98,6 +142,7 @@ static int int13_rw_sectors ( struct int13_drive *drive,
 	unsigned long lba;
 	unsigned int count;
 	userptr_t buffer;
+	int rc;
 
 	/* Validate blocksize */
 	if ( blockdev->blksize != INT13_BLKSIZE ) {
@@ -122,8 +167,10 @@ static int int13_rw_sectors ( struct int13_drive *drive,
 	      head, sector, lba, ix86->segs.es, ix86->regs.bx, count );
 
 	/* Read from / write to block device */
-	if ( io ( blockdev, lba, count, buffer ) != 0 )
+	if ( ( rc = io ( blockdev, lba, count, buffer ) ) != 0 ) {
+		DBG ( "INT 13 failed: %s\n", strerror ( rc ) );
 		return -INT13_STATUS_READ_ERROR;
+	}
 
 	return 0;
 }
@@ -144,7 +191,7 @@ static int int13_rw_sectors ( struct int13_drive *drive,
 static int int13_read_sectors ( struct int13_drive *drive,
 				struct i386_all_regs *ix86 ) {
 	DBG ( "Read: " );
-	return int13_rw_sectors ( drive, ix86, drive->blockdev->read );
+	return int13_rw_sectors ( drive, ix86, drive->blockdev->op->read );
 }
 
 /**
@@ -163,7 +210,7 @@ static int int13_read_sectors ( struct int13_drive *drive,
 static int int13_write_sectors ( struct int13_drive *drive,
 				 struct i386_all_regs *ix86 ) {
 	DBG ( "Write: " );
-	return int13_rw_sectors ( drive, ix86, drive->blockdev->write );
+	return int13_rw_sectors ( drive, ix86, drive->blockdev->op->write );
 }
 
 /**
@@ -202,9 +249,13 @@ static int int13_get_parameters ( struct int13_drive *drive,
  */
 static int int13_get_disk_type ( struct int13_drive *drive,
 				 struct i386_all_regs *ix86 ) {
+	uint32_t blocks;
+
 	DBG ( "Get disk type\n" );
-	ix86->regs.cx = ( drive->cylinders >> 16 );
-	ix86->regs.dx = ( drive->cylinders & 0xffff );
+	blocks = ( ( drive->blockdev->blocks <= 0xffffffffUL ) ?
+		   drive->blockdev->blocks : 0xffffffffUL );
+	ix86->regs.cx = ( blocks >> 16 );
+	ix86->regs.dx = ( blocks & 0xffff );
 	return INT13_DISK_TYPE_HDD;
 }
 
@@ -248,6 +299,7 @@ static int int13_extended_rw ( struct int13_drive *drive,
 	uint64_t lba;
 	unsigned long count;
 	userptr_t buffer;
+	int rc;
 
 	/* Read parameters from disk address structure */
 	copy_from_real ( &addr, ix86->segs.ds, ix86->regs.si, sizeof ( addr ));
@@ -259,8 +311,10 @@ static int int13_extended_rw ( struct int13_drive *drive,
 	      addr.buffer.segment, addr.buffer.offset, count );
 	
 	/* Read from / write to block device */
-	if ( io ( blockdev, lba, count, buffer ) != 0 )
+	if ( ( rc = io ( blockdev, lba, count, buffer ) ) != 0 ) {
+		DBG ( "INT 13 failed: %s\n", strerror ( rc ) );
 		return -INT13_STATUS_READ_ERROR;
+	}
 
 	return 0;
 }
@@ -275,7 +329,7 @@ static int int13_extended_rw ( struct int13_drive *drive,
 static int int13_extended_read ( struct int13_drive *drive,
 				 struct i386_all_regs *ix86 ) {
 	DBG ( "Extended read: " );
-	return int13_extended_rw ( drive, ix86, drive->blockdev->read );
+	return int13_extended_rw ( drive, ix86, drive->blockdev->op->read );
 }
 
 /**
@@ -288,7 +342,7 @@ static int int13_extended_read ( struct int13_drive *drive,
 static int int13_extended_write ( struct int13_drive *drive,
 				  struct i386_all_regs *ix86 ) {
 	DBG ( "Extended write: " );
-	return int13_extended_rw ( drive, ix86, drive->blockdev->write );
+	return int13_extended_rw ( drive, ix86, drive->blockdev->op->write );
 }
 
 /**
@@ -322,11 +376,14 @@ static int int13_get_extended_parameters ( struct int13_drive *drive,
  * INT 13 handler
  *
  */
-static __cdecl void int13 ( struct i386_all_regs *ix86 ) {
+static __asmcall void int13 ( struct i386_all_regs *ix86 ) {
 	int command = ix86->regs.ah;
 	unsigned int bios_drive = ix86->regs.dl;
 	struct int13_drive *drive;
 	int status;
+
+	/* Check BIOS hasn't killed off our drive */
+	int13_check_num_drives();
 
 	list_for_each_entry ( drive, &drives, list ) {
 
@@ -387,7 +444,7 @@ static __cdecl void int13 ( struct i386_all_regs *ix86 ) {
 		/* Negative status indicates an error */
 		if ( status < 0 ) {
 			status = -status;
-			DBG ( "INT13 failed with status %x\n", status );
+			DBG ( "INT 13 returning failure status %x\n", status );
 		} else {
 			ix86->flags &= ~CF;
 		}
@@ -488,8 +545,8 @@ static void guess_int13_geometry ( struct int13_drive *drive ) {
 	/* Scan through partition table and modify guesses for heads
 	 * and sectors_per_track if we find any used partitions.
 	 */
-	if ( drive->blockdev->read ( drive->blockdev, 0, 1,
-				     virt_to_user ( &mbr ) ) == 0 ) {
+	if ( drive->blockdev->op->read ( drive->blockdev, 0, 1,
+				         virt_to_user ( &mbr ) ) == 0 ) {
 		for ( i = 0 ; i < 4 ; i++ ) {
 			partition = &mbr.partitions[i];
 			if ( ! partition->type )
@@ -543,7 +600,6 @@ void register_int13_drive ( struct int13_drive *drive ) {
 	/* Assign natural drive number */
 	get_real ( num_drives, BDA_SEG, BDA_NUM_DRIVES );
 	drive->natural_drive = ( num_drives | 0x80 );
-	num_drives++;
 
 	/* Assign drive number */
 	if ( ( drive->drive & 0xff ) == 0xff ) {
@@ -552,12 +608,7 @@ void register_int13_drive ( struct int13_drive *drive ) {
 	} else {
 		/* Use specified drive number (+0x80 if necessary) */
 		drive->drive |= 0x80;
-		if ( num_drives <= ( drive->drive & 0x7f ) )
-			num_drives = ( ( drive->drive & 0x7f ) + 1 );
 	}
-
-	/* Update BIOS drive count */
-	put_real ( num_drives, BDA_SEG, BDA_NUM_DRIVES );
 
 	DBG ( "Registered INT13 drive %02x (naturally %02x) with C/H/S "
 	      "geometry %d/%d/%d\n", drive->drive, drive->natural_drive,
@@ -569,6 +620,9 @@ void register_int13_drive ( struct int13_drive *drive ) {
 
 	/* Add to list of emulated drives */
 	list_add ( &drive->list, &drives );
+
+	/* Update BIOS drive count */
+	int13_set_num_drives();
 }
 
 /**
@@ -652,7 +706,8 @@ int int13_boot ( unsigned int drive ) {
 
 	/* Jump to boot sector */
 	if ( ( rc = call_bootsector ( 0x0, 0x7c00, drive ) ) != 0 ) {
-		DBG ( "INT 13 drive %02x boot returned\n", drive );
+		DBG ( "INT 13 drive %02x boot returned: %s\n",
+		      drive, strerror ( rc ) );
 		return rc;
 	}
 

@@ -1,6 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 2005-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 2005-2009 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -16,11 +17,24 @@
 ; Code to terminate a kernel load
 ;
 
-		section .text
+		section .text16
+
+;
+; dot_pause: same as abort_check, except prints a dot, too
+;            assumes CS == DS
+;
+dot_pause:
+		push si
+		mov si,dot_msg
+		call writestr_qchk
+		pop si
+		; fall through
+
 ;
 ; abort_check: let the user abort with <ESC> or <Ctrl-C>
 ;
 abort_check:
+		call reset_idle			; Not idle despite pollchar
 		call pollchar
 		jz .ret1
 		pusha
@@ -64,7 +78,7 @@ error_or_command:
 		jnz on_error
 		jmp enter_command
 
-		section .data
+		section .data16
 aborted_msg	db ' aborted.', CR, LF, 0
 
-		section .text
+		section .text16

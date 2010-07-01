@@ -16,7 +16,6 @@
 ;; Code to write a simple string.
 ;;
 
-		section .text
 ;
 ; crlf: Print a newline
 ;

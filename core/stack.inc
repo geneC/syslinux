@@ -1,6 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 2005-2008 H. Peter Anvin - All Rights Reserved
+;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -29,19 +30,18 @@
 		xor %1,%1
 		mov ds,%1
 		mov es,%1
-%if IS_SYSLINUX || IS_EXTLINUX
-                mov ss,%1                       ; Just in case...
-                mov sp,StackBuf-2*5		; Reset stack
-%elif IS_PXELINUX
 		lss esp,[BaseStack]
-%elif IS_ISOLINUX
-		mov ss,%1
-		mov sp,StackBuf-2*2
-%else
-		NEED TO KNOW HOW TO RESET STACK
-%endif
+		mov dword [PMESP],__stack_end	; Reset PM stack
 		sti
 		cld
 %endmacro
+
+		section .data16
+		alignz 4
+		global BaseStack
+BaseStack	dd StackHome		; ESP of the "home" stack pointer
+		dw 0			; SS of the "home" stack pointer
+
+		section .text16
 
 %endif ; _STACK_INC

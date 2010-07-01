@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -63,7 +65,8 @@ struct job_interface monojob = {
 int monojob_wait ( const char *string ) {
 	int key;
 	int rc;
-	tick_t last_progress_dot;
+	unsigned long last_progress_dot;
+	unsigned long elapsed;
 
 	printf ( "%s.", string );
 	monojob_rc = -EINPROGRESS;
@@ -81,7 +84,8 @@ int monojob_wait ( const char *string ) {
 				break;
 			}
 		}
-		if ( ( currticks() - last_progress_dot ) > TICKS_PER_SEC ) {
+		elapsed = ( currticks() - last_progress_dot );
+		if ( elapsed >= TICKS_PER_SEC ) {
 			printf ( "." );
 			last_progress_dot = currticks();
 		}
@@ -89,6 +93,7 @@ int monojob_wait ( const char *string ) {
 	rc = monojob_rc;
 
 done:
+	job_done ( &monojob, rc );
 	if ( rc ) {
 		printf ( " %s\n", strerror ( rc ) );
 	} else {

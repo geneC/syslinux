@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,6 +30,7 @@
 #include <gpxe/process.h>
 #include <gpxe/init.h>
 #include <gpxe/device.h>
+#include <gpxe/errortab.h>
 #include <gpxe/netdevice.h>
 
 /** @file
@@ -36,14 +39,78 @@
  *
  */
 
-/** Registered network-layer protocols */
-static struct net_protocol net_protocols[0]
-	__table_start ( struct net_protocol, net_protocols );
-static struct net_protocol net_protocols_end[0]
-	__table_end ( struct net_protocol, net_protocols );
-
 /** List of network devices */
 struct list_head net_devices = LIST_HEAD_INIT ( net_devices );
+
+/** List of open network devices, in reverse order of opening */
+static struct list_head open_net_devices = LIST_HEAD_INIT ( open_net_devices );
+
+/** Default link status code */
+#define EUNKNOWN_LINK_STATUS EINPROGRESS
+
+/** Human-readable message for the default link status */
+struct errortab netdev_errors[] __errortab = {
+	{ EUNKNOWN_LINK_STATUS, "Unknown" },
+};
+
+/**
+ * Mark network device as having link down
+ *
+ * @v netdev		Network device
+ */
+void netdev_link_down ( struct net_device *netdev ) {
+
+	switch ( netdev->link_rc ) {
+	case 0:
+	case -EUNKNOWN_LINK_STATUS:
+		netdev->link_rc = -ENOTCONN;
+		break;
+	default:
+		/* Avoid clobbering a more detailed link status code,
+		 * if one is already set.
+		 */
+		break;
+	}
+}
+
+/**
+ * Record network device statistic
+ *
+ * @v stats		Network device statistics
+ * @v rc		Status code
+ */
+static void netdev_record_stat ( struct net_device_stats *stats, int rc ) {
+	struct net_device_error *error;
+	struct net_device_error *least_common_error;
+	unsigned int i;
+
+	/* If this is not an error, just update the good counter */
+	if ( rc == 0 ) {
+		stats->good++;
+		return;
+	}
+
+	/* Update the bad counter */
+	stats->bad++;
+
+	/* Locate the appropriate error record */
+	least_common_error = &stats->errors[0];
+	for ( i = 0 ; i < ( sizeof ( stats->errors ) /
+			    sizeof ( stats->errors[0] ) ) ; i++ ) {
+		error = &stats->errors[i];
+		/* Update matching record, if found */
+		if ( error->rc == rc ) {
+			error->count++;
+			return;
+		}
+		if ( error->count < least_common_error->count )
+			least_common_error = error;
+	}
+
+	/* Overwrite the least common error record */
+	least_common_error->rc = rc;
+	least_common_error->count = 1;
+}
 
 /**
  * Transmit raw packet via network device
@@ -91,12 +158,11 @@ void netdev_tx_complete_err ( struct net_device *netdev,
 			      struct io_buffer *iobuf, int rc ) {
 
 	/* Update statistics counter */
+	netdev_record_stat ( &netdev->tx_stats, rc );
 	if ( rc == 0 ) {
-		netdev->stats.tx_ok++;
 		DBGC ( netdev, "NETDEV %p transmission %p complete\n",
 		       netdev, iobuf );
 	} else {
-		netdev->stats.tx_err++;
 		DBGC ( netdev, "NETDEV %p transmission %p failed: %s\n",
 		       netdev, iobuf, strerror ( rc ) );
 	}
@@ -158,7 +224,7 @@ void netdev_rx ( struct net_device *netdev, struct io_buffer *iobuf ) {
 	list_add_tail ( &iobuf->list, &netdev->rx_queue );
 
 	/* Update statistics counter */
-	netdev->stats.rx_ok++;
+	netdev_record_stat ( &netdev->rx_stats, 0 );
 }
 
 /**
@@ -183,7 +249,7 @@ void netdev_rx_err ( struct net_device *netdev,
 	free_iob ( iobuf );
 
 	/* Update statistics counter */
-	netdev->stats.rx_err++;
+	netdev_record_stat ( &netdev->rx_stats, rc );
 }
 
 /**
@@ -245,6 +311,7 @@ static void free_netdev ( struct refcnt *refcnt ) {
 	
 	netdev_tx_flush ( netdev );
 	netdev_rx_flush ( netdev );
+	clear_settings ( netdev_settings ( netdev ) );
 	free ( netdev );
 }
 
@@ -264,11 +331,10 @@ struct net_device * alloc_netdev ( size_t priv_size ) {
 	netdev = zalloc ( total_len );
 	if ( netdev ) {
 		netdev->refcnt.free = free_netdev;
+		netdev->link_rc = -EUNKNOWN_LINK_STATUS;
 		INIT_LIST_HEAD ( &netdev->tx_queue );
 		INIT_LIST_HEAD ( &netdev->rx_queue );
-		settings_init ( netdev_settings ( netdev ),
-				&netdev_settings_operations, &netdev->refcnt,
-				netdev->name );
+		netdev_settings_init ( netdev );
 		netdev->priv = ( ( ( void * ) netdev ) + sizeof ( *netdev ) );
 	}
 	return netdev;
@@ -291,6 +357,9 @@ int register_netdev ( struct net_device *netdev ) {
 	snprintf ( netdev->name, sizeof ( netdev->name ), "net%d",
 		   ifindex++ );
 
+	/* Set initial link-layer address */
+	netdev->ll_protocol->init_addr ( netdev->hw_addr, netdev->ll_addr );
+
 	/* Register per-netdev configuration settings */
 	if ( ( rc = register_settings ( netdev_settings ( netdev ),
 					NULL ) ) != 0 ) {
@@ -304,7 +373,7 @@ int register_netdev ( struct net_device *netdev ) {
 	list_add_tail ( &netdev->list, &net_devices );
 	DBGC ( netdev, "NETDEV %p registered as %s (phys %s hwaddr %s)\n",
 	       netdev, netdev->name, netdev->dev->name,
-	       netdev_hwaddr ( netdev ) );
+	       netdev_addr ( netdev ) );
 
 	return 0;
 }
@@ -330,6 +399,10 @@ int netdev_open ( struct net_device *netdev ) {
 
 	/* Mark as opened */
 	netdev->state |= NETDEV_OPEN;
+
+	/* Add to head of open devices list */
+	list_add ( &netdev->open_list, &open_net_devices );
+
 	return 0;
 }
 
@@ -355,6 +428,9 @@ void netdev_close ( struct net_device *netdev ) {
 
 	/* Mark as closed */
 	netdev->state &= ~NETDEV_OPEN;
+
+	/* Remove from open devices list */
+	list_del ( &netdev->open_list );
 }
 
 /**
@@ -425,6 +501,22 @@ struct net_device * find_netdev_by_location ( unsigned int bus_type,
 }
 
 /**
+ * Get most recently opened network device
+ *
+ * @ret netdev		Most recently opened network device, or NULL
+ */
+struct net_device * last_opened_netdev ( void ) {
+	struct net_device *netdev;
+
+	list_for_each_entry ( netdev, &open_net_devices, open_list ) {
+		assert ( netdev->state & NETDEV_OPEN );
+		return netdev;
+	}
+
+	return NULL;
+}
+
+/**
  * Transmit network-layer packet
  *
  * @v iobuf		I/O buffer
@@ -439,6 +531,7 @@ struct net_device * find_netdev_by_location ( unsigned int bus_type,
  */
 int net_tx ( struct io_buffer *iobuf, struct net_device *netdev,
 	     struct net_protocol *net_protocol, const void *ll_dest ) {
+	struct ll_protocol *ll_protocol = netdev->ll_protocol;
 	int rc;
 
 	/* Force a poll on the netdevice to (potentially) clear any
@@ -449,8 +542,8 @@ int net_tx ( struct io_buffer *iobuf, struct net_device *netdev,
 	netdev_poll ( netdev );
 
 	/* Add link-layer header */
-	if ( ( rc = netdev->ll_protocol->push ( iobuf, netdev, net_protocol,
-						ll_dest ) ) != 0 ) {
+	if ( ( rc = ll_protocol->push ( netdev, iobuf, ll_dest, netdev->ll_addr,
+					net_protocol->net_proto ) ) != 0 ) {
 		free_iob ( iobuf );
 		return rc;
 	}
@@ -473,12 +566,13 @@ int net_rx ( struct io_buffer *iobuf, struct net_device *netdev,
 	struct net_protocol *net_protocol;
 
 	/* Hand off to network-layer protocol, if any */
-	for ( net_protocol = net_protocols ; net_protocol < net_protocols_end ;
-	      net_protocol++ ) {
-		if ( net_protocol->net_proto == net_proto ) {
+	for_each_table_entry ( net_protocol, NET_PROTOCOLS ) {
+		if ( net_protocol->net_proto == net_proto )
 			return net_protocol->rx ( iobuf, netdev, ll_source );
-		}
 	}
+
+	DBGC ( netdev, "NETDEV %p unknown network protocol %04x\n",
+	       netdev, ntohs ( net_proto ) );
 	free_iob ( iobuf );
 	return 0;
 }
@@ -495,8 +589,9 @@ static void net_step ( struct process *process __unused ) {
 	struct net_device *netdev;
 	struct io_buffer *iobuf;
 	struct ll_protocol *ll_protocol;
-	uint16_t net_proto;
+	const void *ll_dest;
 	const void *ll_source;
+	uint16_t net_proto;
 	int rc;
 
 	/* Poll and process each network device */
@@ -519,9 +614,9 @@ static void net_step ( struct process *process __unused ) {
 
 			/* Remove link-layer header */
 			ll_protocol = netdev->ll_protocol;
-			if ( ( rc = ll_protocol->pull ( iobuf, netdev,
-							&net_proto,
-							&ll_source ) ) != 0 ) {
+			if ( ( rc = ll_protocol->pull ( netdev, iobuf,
+							&ll_dest, &ll_source,
+							&net_proto ) ) != 0 ) {
 				free_iob ( iobuf );
 				continue;
 			}
@@ -533,5 +628,6 @@ static void net_step ( struct process *process __unused ) {
 
 /** Networking stack process */
 struct process net_process __permanent_process = {
+	.list = LIST_HEAD_INIT ( net_process.list ),
 	.step = net_step,
 };

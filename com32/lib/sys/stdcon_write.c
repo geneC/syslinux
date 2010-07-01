@@ -37,35 +37,53 @@
 #include <minmax.h>
 #include "file.h"
 
-static ssize_t __stdcon_write(struct file_info *fp, const void *buf, size_t count)
+#define BIOS_ROWS (*(uint8_t *)0x484)	/* Minus one; if zero use 24 (= 25 lines) */
+#define BIOS_COLS (*(uint16_t *)0x44A)
+
+static int __stdcon_open(struct file_info *fp)
 {
-  com32sys_t ireg;
-  const char *bufp = buf;
-  size_t n = 0;
+    fp->o.rows = BIOS_ROWS + 1;
+    fp->o.cols = BIOS_COLS;
 
-  (void)fp;
+    /* Sanity check */
+    if (fp->o.rows < 12)
+	fp->o.rows = 24;
+    if (fp->o.cols < 40)
+	fp->o.cols = 80;
 
-  memset(&ireg, 0, sizeof ireg);
-  ireg.eax.b[1] = 0x02;
+    return 0;
+}
 
-  while ( count-- ) {
-    if ( *bufp == '\n' ) {
-      ireg.edx.b[0] = '\r';
-      __intcall(0x21, &ireg, NULL);
+static ssize_t __stdcon_write(struct file_info *fp, const void *buf,
+			      size_t count)
+{
+    com32sys_t ireg;
+    const char *bufp = buf;
+    size_t n = 0;
+
+    (void)fp;
+
+    memset(&ireg, 0, sizeof ireg);
+    ireg.eax.b[1] = 0x02;
+
+    while (count--) {
+	if (*bufp == '\n') {
+	    ireg.edx.b[0] = '\r';
+	    __intcall(0x21, &ireg, NULL);
+	}
+	ireg.edx.b[0] = *bufp++;
+	__intcall(0x21, &ireg, NULL);
+	n++;
     }
-    ireg.edx.b[0] = *bufp++;
-    __intcall(0x21, &ireg, NULL);
-    n++;
-  }
 
-  return n;
+    return n;
 }
 
 const struct output_dev dev_stdcon_w = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY | __DEV_OUTPUT,
-  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write      = __stdcon_write,
-  .close      = NULL,
-  .open       = NULL,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_TTY | __DEV_OUTPUT,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __stdcon_write,
+    .close = NULL,
+    .open  = __stdcon_open,
 };

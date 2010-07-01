@@ -9,5 +9,5 @@
 
 void *calloc(size_t nmemb, size_t size)
 {
-  return zalloc(size*nmemb);
+    return zalloc(size * nmemb);
 }

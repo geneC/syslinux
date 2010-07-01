@@ -15,6 +15,8 @@
 
 */
 
+FILE_LICENCE ( GPL_ANY );
+
 /*********************************************************************/
 /* Revision History                                                  */
 /*********************************************************************/
@@ -630,7 +632,7 @@ static void davicom_disable ( struct nic *nic ) {
   outl(inl(ioaddr + CSR6) & ~0x00002002, ioaddr + CSR6);
 
   /* Clear the missed-packet counter. */
-  (volatile unsigned long)inl(ioaddr + CSR8);
+  inl(ioaddr + CSR8);
 }
 
 
@@ -676,7 +678,7 @@ static int davicom_probe ( struct nic *nic, struct pci_device *pci ) {
   outl(inl(ioaddr + CSR6) & ~0x00002002, ioaddr + CSR6);
 
   /* Clear the missed-packet counter. */
-  (volatile unsigned long)inl(ioaddr + CSR8);
+  inl(ioaddr + CSR8);
 
   /* Get MAC Address */
   /* read EEPROM data */
@@ -705,10 +707,10 @@ static struct nic_operations davicom_operations = {
 };
 
 static struct pci_device_id davicom_nics[] = {
-PCI_ROM(0x1282, 0x9100, "davicom9100", "Davicom 9100"),
-PCI_ROM(0x1282, 0x9102, "davicom9102", "Davicom 9102"),
-PCI_ROM(0x1282, 0x9009, "davicom9009", "Davicom 9009"),
-PCI_ROM(0x1282, 0x9132, "davicom9132", "Davicom 9132"),	/* Needs probably some fixing */
+PCI_ROM(0x1282, 0x9100, "davicom9100", "Davicom 9100", 0),
+PCI_ROM(0x1282, 0x9102, "davicom9102", "Davicom 9102", 0),
+PCI_ROM(0x1282, 0x9009, "davicom9009", "Davicom 9009", 0),
+PCI_ROM(0x1282, 0x9132, "davicom9132", "Davicom 9132", 0),	/* Needs probably some fixing */
 };
 
 PCI_DRIVER ( davicom_driver, davicom_nics, PCI_NO_CLASS );

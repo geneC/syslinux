@@ -1,6 +1,8 @@
 
 /* epic100.c: A SMC 83c170 EPIC/100 fast ethernet driver for Etherboot */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /* 05/06/2003	timlegge	Fixed relocation and implemented Multicast */
 #define LINUX_OUT_MACROS
 
@@ -309,7 +311,7 @@ epic100_transmit(struct nic *nic, const char *destaddr, unsigned int type,
     unsigned short nstype;
     unsigned char *txp;
     int entry;
-    tick_t ct;
+    unsigned long ct;
 
     /* Calculate the next Tx descriptor entry. */
     entry = cur_tx % TX_RING_SIZE;
@@ -352,7 +354,7 @@ epic100_transmit(struct nic *nic, const char *destaddr, unsigned int type,
     ct = currticks();
     /* timeout 10 ms for transmit */
     while ((le32_to_cpu(tx_ring[entry].status) & (TRING_OWN)) &&
-		ct + 10*USECS_IN_MSEC < currticks())
+		ct + 10*1000 < currticks())
 	/* Wait */;
 
     if ((le32_to_cpu(tx_ring[entry].status) & TRING_OWN) != 0)
@@ -519,8 +521,8 @@ static struct nic_operations epic100_operations = {
 };
 
 static struct pci_device_id epic100_nics[] = {
-PCI_ROM(0x10b8, 0x0005, "epic100",    "SMC EtherPowerII"),		/* SMC 83c170 EPIC/100 */
-PCI_ROM(0x10b8, 0x0006, "smc-83c175", "SMC EPIC/C 83c175"),
+PCI_ROM(0x10b8, 0x0005, "epic100",    "SMC EtherPowerII", 0),		/* SMC 83c170 EPIC/100 */
+PCI_ROM(0x10b8, 0x0006, "smc-83c175", "SMC EPIC/C 83c175", 0),
 };
 
 PCI_DRIVER ( epic100_driver, epic100_nics, PCI_NO_CLASS );

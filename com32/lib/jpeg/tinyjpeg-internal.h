@@ -35,14 +35,21 @@
 #ifndef __TINYJPEG_INTERNAL_H_
 #define __TINYJPEG_INTERNAL_H_
 
+#include <setjmp.h>
+
+#define SANITY_CHECK 1
+
 struct jdec_private;
 
+#define HUFFMAN_BITS_SIZE  256
 #define HUFFMAN_HASH_NBITS 9
 #define HUFFMAN_HASH_SIZE  (1UL<<HUFFMAN_HASH_NBITS)
 #define HUFFMAN_HASH_MASK  (HUFFMAN_HASH_SIZE-1)
 
 #define HUFFMAN_TABLES	   4
-#define COMPONENTS	   4
+#define COMPONENTS	   3
+#define JPEG_MAX_WIDTH	   4096
+#define JPEG_MAX_HEIGHT	   4096
 
 struct huffman_table
 {
@@ -66,11 +73,14 @@ struct component
   struct huffman_table *DC_table;
   short int previous_DC;	/* Previous DC coefficient */
   short int DCT[64];		/* DCT coef */
+#if SANITY_CHECK
+  unsigned int cid;
+#endif
 };
 
 
 typedef void (*decode_MCU_fct) (struct jdec_private *priv);
-typedef void (*convert_colorspace_fct) (struct jdec_private *priv);
+typedef void (*convert_colorspace_fct) (struct jdec_private *priv, int, int);
 
 struct jdec_private
 {
@@ -81,7 +91,7 @@ struct jdec_private
   unsigned int flags;
 
   /* Private variables */
-  const unsigned char *stream_begin;
+  const unsigned char *stream_begin, *stream_end;
   unsigned int stream_length;
 
   const unsigned char *stream;	/* Pointer to the current stream */
@@ -92,23 +102,27 @@ struct jdec_private
   struct huffman_table HTDC[HUFFMAN_TABLES];	/* DC huffman tables   */
   struct huffman_table HTAC[HUFFMAN_TABLES];	/* AC huffman tables   */
   int default_huffman_table_initialized;
+  int restart_interval;
+  int restarts_to_go;				/* MCUs left in this restart interval */
+  int last_rst_marker_seen;			/* Rst marker is incremented each time */
 
   /* Temp space used after the IDCT to store each components */
   uint8_t Y[64*4], Cr[64], Cb[64];
 
+  jmp_buf jump_state;
   /* Internal Pointer use for colorspace conversion, do not modify it !!! */
   uint8_t *plane[COMPONENTS];
 
 };
+
+#define IDCT tinyjpeg_idct_float
+void tinyjpeg_idct_float (struct component *compptr, uint8_t *output_buf, int stride);
 
 struct tinyjpeg_colorspace {
   convert_colorspace_fct convert_colorspace[4];
   const decode_MCU_fct *decode_mcu_table;
   int (*initialize)(struct jdec_private *, unsigned int *, unsigned int *);
 };
-
-#define IDCT jpeg_idct_float
-void jpeg_idct_float (struct component *compptr, uint8_t *output_buf, int stride);
 
 void tinyjpeg_process_Huffman_data_unit(struct jdec_private *priv, int component);
 
@@ -121,13 +135,16 @@ enum std_markers {
    DHT  = 0xC4, /* Huffman Table */
    SOI  = 0xD8, /* Start of Image */
    SOS  = 0xDA, /* Start of Scan */
+   RST  = 0xD0, /* Reset Marker d0 -> .. */
+   RST7 = 0xD7, /* Reset Marker .. -> d7 */
    EOI  = 0xD9, /* End of Image */
+   DRI  = 0xDD, /* Define Restart Interval */
    APP0 = 0xE0,
 };
 
-#define cY	1
-#define cCb	2
-#define cCr	3
+#define cY	0
+#define cCb	1
+#define cCr	2
 
 #define BLACK_Y 0
 #define BLACK_U 127
@@ -149,6 +166,16 @@ enum std_markers {
 #define error(fmt, args...) do { return -1; } while(0)
 #define trace(fmt, args...) do { } while (0)
 #endif
+
+#ifndef __likely
+# define __likely(x) (!!(x))
+#endif
+#ifndef __unlikely
+# define __unlikely(x) (!!(x))
+#endif
+
+#define min(x, y) ((x) < (y) ? (x) : (y))
+#define max(x, y) ((x) > (y) ? (x) : (y))
 
 #if 0
 static char *print_bits(unsigned int value, char *bitstr)

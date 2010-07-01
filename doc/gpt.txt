@@ -1,13 +1,10 @@
 			  GPT boot protocol
 
-There is no official MBR-to-partition handover protocol defined for
-booting from disks partitioned using GPT partition tables with
-BIOS-style firmware.  This is because the GPT partition format comes
-from the EFI spec, which thinks the universe is all going to be EFI.
-Sigh.
+There are two ways to boot a GPT-formatted disk on a BIOS system.
+Hybrid booting, and the new GPT-only booting protocol originally
+proposed by the author, and later adopted by the T13 committee in
+slightly modified form.
 
-There are thus two alternatives: hybrid booting, and defining a new
-protocol.
 
 	*** Hybrid booting ***
 
@@ -29,31 +26,16 @@ GPT disk with BIOS firmware.
 
 	*** New protocol ***
 
-This defines an alternative (experimental) booting protocol for GPT
-partitions with BIOS firmware.  It maintains backwards compatibility
-to the extent possible.  It is implemented by the file mbr/gptmbr.bin.
+This defines the T13-approved protocol for GPT partitions with BIOS
+firmware.  It maintains backwards compatibility to the extent
+possible.  It is implemented by the file mbr/gptmbr.bin.
 
-   -> The PMBR
+The (P)MBR format is the normal PMBR specified in the UEFI
+documentation, with the first 440 bytes used for the boot code.  The
+partition to be booted is marked by setting bit 2 in the GPT Partition
+Entry Attributes field (offset 48); this bit is reserved by the UEFI
+Forum for "Legacy BIOS Bootable".
 
-The PMBR (the first 512-byte sector of the disk) is divided up as
-follows:
-
-	Offset	Size	Contents
-	---------------------------------------------------------
-	  0	424	PMBR boot code
-	424	 16	GUID of the boot partition
-	440	  4	MBR-compatible disk ID
-	444	  2	Magic number: 1D 9A
-	446	 16	PMBR protective entry
-	462	 48	PMBR null entries
-	510	  2	Boot signature: 55 AA
-
-To change the bootable partition, verify that the magic number is
-present (to avoid corrupting software not compatible with this
-specification) and enter the GUID of the boot partition at offset
-424.  It might be wise to verify that the data already there is a
-valid partition GUID already, or at least warn the user if that is not
-the case.
 
     -> The handover protocol
 
@@ -66,11 +48,12 @@ form:
 	---------------------------------------------------------
 	  0	  1	0x80 (this is a bootable partition)
 	  1	  3	CHS of partition (using INT 13h geometry)
-	  4	  1	0xEE (partition type: EFI data partition)
+	  4	  1	0xED (partition type: synthetic)
 	  5	  3	CHS of partition end
 	  8	  4	Partition start LBA
 	 12	  4	Partition end LBA
-	 16	varies	GPT partition entry
+	 16	  4	Length of the GPT entry
+	 20	varies	GPT partition entry
 
 The CHS information is optional; gptmbr.bin currently does *NOT*
 calculate them, and just leaves them as zero.
@@ -80,9 +63,7 @@ partition entry), except that the information is provided
 synthetically.  The MBR-compatible fields are directly usable if they
 are < 2 TB, otherwise these fields should contain 0xFFFFFFFF and the
 OS will need to understand the GPT partition entry which follows the
-MBR one.  The "!GPT" magic number in EAX and the 0xEE partition type
+MBR one.  The "!GPT" magic number in EAX and the 0xED partition type
 also informs the OS that the GPT partition information is present.
 
-Currently, this is compatible with Syslinux as long as the Syslinux
-partition is < 2 TB; this probably will be improved in a future
-version.
+Syslinux 4.00 and later fully implements this protocol.

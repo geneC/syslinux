@@ -1,6 +1,7 @@
 /* -----------------------------------------------------------------------
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,6 +26,8 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include "adjust.h"
+
 	.code16
 	.text
 
@@ -37,11 +40,10 @@ phdr		= stack		/* Above the stack, overwritten by bootsect */
 /* To handle > 32K we need to play segment tricks... */
 psec		= _phdr + 512
 
-/* BootGUID */
-bootguid	= _start + 0x1a8
 /* Where we put DS:SI */
 dssi_out	= _start + 0x1be
 
+BIOS_kbdflags	= 0x417
 BIOS_page	= 0x462
 
 	/* gas/ld has issues with doing this as absolute addresses... */
@@ -61,7 +63,6 @@ _start:
 	movw	%sp, %si
 	pushw	%es		/* 4(%bp) es:di -> $PnP header */
 	pushw	%di		/* 2(%bp) */
-	pushw	%dx		/* 0(%bp) = %dl -> drive number */
 	movw	%ax, %es
 	sti
 	cld
@@ -72,8 +73,11 @@ _start:
 	rep; movsw
 
 	ljmpw	$0, $next
-
 next:
+
+	ADJUST_DRIVE
+	pushw	%dx		/* 0(%bp) = %dl -> drive number */
+
 	/* Check to see if we have EBIOS */
 	pushw	%dx		/* drive number */
 	movb	$0x41, %ah	/* %al == 0 already */
@@ -142,49 +146,65 @@ get_ptab:
 	loopw	get_ptab
 
 	/* Find the boot partition */
-	popw	%si			/* Partition table in memory */
+	xorw	%si,%si			/* Nothing found yet */
+	popw	%di			/* Partition table in memory */
 	popw	%cx			/* NumberOfPartitionEntries */
 	popw	%ax			/* SizeOfPartitionEntry */
+
 find_part:
-	pushw	%cx
-	pushw	%si
-	addw	$16,%si
-	movw	$bootguid,%di
-	movw	$8,%cx
-	repe; cmpsw
-	popw	%si
-	popw	%cx
-	je found_part
-	addw	%ax,%si
+	/* If the PartitionTypeGUID is all zero, it's an empty slot */
+	movl	  (%di),%edx
+	orl	 4(%di),%edx
+	orl	 8(%di),%edx
+	orl	12(%di),%edx
+	jz	not_this
+	testb	$0x04,48(%di)
+	jz	not_this
+	andw	%si,%si
+	jnz	found_multiple
+	movw	%di,%si
+not_this:
+	addw	%ax,%di
 	loopw	find_part
 
+	andw	%si,%si
+	jnz	found_part
+
+missing_os:
 	call	error
-	.ascii	"Boot partition not found\r\n"
+	.ascii	"Missing OS\r\n"
+
+found_multiple:
+	call	error
+	.ascii	"Multiple active partitions\r\n"
 
 found_part:
 	xchgw	%ax,%cx		/* Set up %cx for rep movsb further down */
-	
+
 	movw	$dssi_out,%di
 	pushw	%di
-	
+
 	/* 80 00 00 00 ee 00 00 00
 	   - bootable partition, type EFI (EE), no CHS information */
 	xorl	%eax,%eax
 	movb	$0x80,%al
 	stosl
-	movb	$0xee,%al
+	movb	$0xed,%al
 	stosl
 	movl	32(%si),%eax
 	movl	36(%si),%edx
 	call	saturate_stosl		/* Partition start */
 
 	movl	40(%si),%eax
-	movl	48(%si),%edx
+	movl	44(%si),%edx
 	subl	32(%si),%eax
 	sbbl	36(%si),%edx
 	call	inc64
 	call	saturate_stosl		/* Partition length */
 
+	movzwl	%cx,%eax		/* Length of GPT entry */
+	stosl
+	
 	rep; movsb			/* GPT entry follows MBR entry */
 	popw	%si
 
@@ -194,8 +214,8 @@ found_part:
  * is phdr == 0x7c00 == the address of the boot sector.
  */
 boot:
-	movl	(32+16)(%si),%eax
-	movl	(36+16)(%si),%edx
+	movl	(32+20)(%si),%eax
+	movl	(36+20)(%si),%edx
 	popw	%bx
 	call	read_sector
 	cmpw	$0xaa55, -2(%bx)
@@ -208,19 +228,20 @@ boot:
 	cli
 	jmpw	*%sp		/* %sp == bootsec */
 
-missing_os:
-	call	error
-	.ascii	"Operating system not bootable\r\n"
-
+/*
+ * Store the value in %eax to %di iff %edx == 0, otherwise store -1.
+ * Returns the value that was actually written in %eax.
+ */
 saturate_stosl:
-	pushl	%eax
 	andl	%edx,%edx
 	jz 1f
 	orl	$-1,%eax
 1:	stosl
-	popl	%eax
 	ret
 
+/*
+ * Increment %edx:%eax
+ */
 inc64:
 	addl	$1,%eax
 	adcl	$0,%edx

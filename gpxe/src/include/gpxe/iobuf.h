@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <assert.h>
 #include <gpxe/list.h>
@@ -180,6 +182,44 @@ static inline size_t iob_headroom ( struct io_buffer *iobuf ) {
 static inline size_t iob_tailroom ( struct io_buffer *iobuf ) {
 	return ( iobuf->end - iobuf->tail );
 }
+
+/**
+ * Create a temporary I/O buffer
+ *
+ * @v iobuf	I/O buffer
+ * @v data	Data buffer
+ * @v len	Length of data
+ * @v max_len	Length of buffer
+ *
+ * It is sometimes useful to use the iob_xxx() methods on temporary
+ * data buffers.
+ */
+static inline void iob_populate ( struct io_buffer *iobuf,
+				  void *data, size_t len, size_t max_len ) {
+	iobuf->head = iobuf->data = data;
+	iobuf->tail = ( data + len );
+	iobuf->end = ( data + max_len );
+}
+
+/**
+ * Disown an I/O buffer
+ *
+ * @v iobuf	I/O buffer
+ *
+ * There are many functions that take ownership of the I/O buffer they
+ * are passed as a parameter.  The caller should not retain a pointer
+ * to the I/O buffer.  Use iob_disown() to automatically nullify the
+ * caller's pointer, e.g.:
+ *
+ *     xfer_deliver_iob ( xfer, iob_disown ( iobuf ) );
+ *
+ * This will ensure that iobuf is set to NULL for any code after the
+ * call to xfer_deliver_iob().
+ */
+#define iob_disown( iobuf ) ( {				\
+	struct io_buffer *__iobuf = (iobuf);		\
+	(iobuf) = NULL;					\
+	__iobuf; } )
 
 extern struct io_buffer * __malloc alloc_iob ( size_t len );
 extern void free_iob ( struct io_buffer *iobuf );

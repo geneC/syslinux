@@ -24,40 +24,201 @@
  *
  */
 
-/* Not quite sure why cpp requires two levels of macro call in order
- * to actually expand OBJECT...
+/* Force visibility of all symbols to "hidden", i.e. inform gcc that
+ * all symbol references resolve strictly within our final binary.
+ * This avoids unnecessary PLT/GOT entries on x86_64.
+ *
+ * This is a stronger claim than specifying "-fvisibility=hidden",
+ * since it also affects symbols marked with "extern".
  */
-#undef _H1
-#define _H1( x, y ) x ## y
-#undef _H2
-#define _H2( x, y ) _H1 ( x, y )
-#define PREFIX_OBJECT(prefix) _H2 ( prefix, OBJECT )
-#define OBJECT_SYMBOL PREFIX_OBJECT(obj_)
-#undef _STR
-#define _STR(s) #s
-#undef _XSTR
-#define _XSTR(s) _STR(s)
-#define OBJECT_SYMBOL_STR _XSTR ( OBJECT_SYMBOL )
+#ifndef ASSEMBLY
+#if __GNUC__ >= 4
+#pragma GCC visibility push(hidden)
+#endif
+#endif /* ASSEMBLY */
 
-#ifdef ASSEMBLY
+#undef _S1
+#undef _S2
+#undef _C1
+#undef _C2
 
-	.globl	OBJECT_SYMBOL
-	.equ	OBJECT_SYMBOL, 0
+/** Concatenate non-expanded arguments */
+#define _C1( x, y ) x ## y
+/** Concatenate expanded arguments */
+#define _C2( x, y ) _C1 ( x, y )
 
-#else /* ASSEMBLY */
-
-__asm__ ( ".globl\t" OBJECT_SYMBOL_STR );
-__asm__ ( ".equ\t" OBJECT_SYMBOL_STR ", 0" );
+/** Stringify non-expanded argument */
+#define _S1( x ) #x
+/** Stringify expanded argument */
+#define _S2( x ) _S1 ( x )
 
 /**
- * Drag in an object by object name.
- *
- * Macro to allow objects to explicitly drag in other objects by
- * object name.  Used by config.c.
- *
+ * @defgroup symmacros Macros to provide or require explicit symbols
+ * @{
  */
-#define REQUIRE_OBJECT(object) \
-	__asm__ ( ".equ\tneed_" #object ", obj_" #object );
+
+/** Provide a symbol within this object file */
+#ifdef ASSEMBLY
+#define PROVIDE_SYMBOL( _sym )				\
+	.globl	_sym ;					\
+	.comm	_sym, 0
+#else /* ASSEMBLY */
+#define PROVIDE_SYMBOL( _sym )				\
+	char _sym[0]
+#endif /* ASSEMBLY */
+
+/** Require a symbol within this object file
+ *
+ * The symbol is referenced by a relocation in a discarded section, so
+ * if it is not available at link time the link will fail.
+ */
+#ifdef ASSEMBLY
+#define REQUIRE_SYMBOL( _sym )				\
+	.section ".discard", "a", @progbits ;		\
+	.extern	_sym ;					\
+	.long	_sym ;					\
+	.previous
+#else /* ASSEMBLY */
+#define REQUIRE_SYMBOL( _sym )				\
+	extern char _sym;				\
+	static char * _C2 ( _C2 ( __require_, _sym ), _C2 ( _, __LINE__ ) ) \
+		__attribute__ (( section ( ".discard" ), used )) \
+		= &_sym
+#endif
+
+/** Request that a symbol be available at runtime
+ *
+ * The requested symbol is entered as undefined into the symbol table
+ * for this object, so the linker will pull in other object files as
+ * necessary to satisfy the reference. However, the undefined symbol
+ * is not referenced in any relocations, so the link can still succeed
+ * if no file contains it.
+ *
+ * A symbol passed to this macro may not be referenced anywhere
+ * else in the file. If you want to do that, see IMPORT_SYMBOL().
+ */
+#ifdef ASSEMBLY
+#define REQUEST_SYMBOL( _sym )				\
+	.equ	__need_ ## _sym, _sym
+#else /* ASSEMBLY */
+#define REQUEST_SYMBOL( _sym )				\
+	__asm__ ( ".equ\t__need_" #_sym ", " #_sym )
+#endif /* ASSEMBLY */
+
+/** Set up a symbol to be usable in another file by IMPORT_SYMBOL()
+ *
+ * The symbol must already be marked as global.
+ */
+#define EXPORT_SYMBOL( _sym )	PROVIDE_SYMBOL ( __export_ ## _sym )
+
+/** Make a symbol usable to this file if available at link time
+ *
+ * If no file passed to the linker contains the symbol, it will have
+ * @c NULL value to future uses. Keep in mind that the symbol value is
+ * really the @e address of a variable or function; see the code
+ * snippet below.
+ *
+ * In C using IMPORT_SYMBOL, you must specify the declaration as the
+ * second argument, for instance
+ *
+ * @code
+ *   IMPORT_SYMBOL ( my_func, int my_func ( int arg ) );
+ *   IMPORT_SYMBOL ( my_var, int my_var );
+ *
+ *   void use_imports ( void ) {
+ * 	if ( my_func && &my_var )
+ * 	   my_var = my_func ( my_var );
+ *   }
+ * @endcode
+ *
+ * GCC considers a weak declaration to override a strong one no matter
+ * which comes first, so it is safe to include a header file declaring
+ * the imported symbol normally, but providing the declaration to
+ * IMPORT_SYMBOL is still required.
+ *
+ * If no EXPORT_SYMBOL declaration exists for the imported symbol in
+ * another file, the behavior will be most likely be identical to that
+ * for an unavailable symbol.
+ */
+#ifdef ASSEMBLY
+#define IMPORT_SYMBOL( _sym )				\
+	REQUEST_SYMBOL ( __export_ ## _sym ) ;		\
+	.weak	_sym
+#else /* ASSEMBLY */
+#define IMPORT_SYMBOL( _sym, _decl )			\
+	REQUEST_SYMBOL ( __export_ ## _sym ) ;		\
+	extern _decl __attribute__ (( weak ))
+#endif
+
+/** @} */
+
+/**
+ * @defgroup objmacros Macros to provide or require explicit objects
+ * @{
+ */
+
+#define PREFIX_OBJECT( _prefix ) _C2 ( _prefix, OBJECT )
+#define OBJECT_SYMBOL PREFIX_OBJECT ( obj_ )
+#define REQUEST_EXPANDED( _sym ) REQUEST_SYMBOL ( _sym )
+#define CONFIG_SYMBOL PREFIX_OBJECT ( obj_config_ )
+
+/** Always provide the symbol for the current object (defined by -DOBJECT) */
+PROVIDE_SYMBOL ( OBJECT_SYMBOL );
+
+/** Pull in an object-specific configuration file if available */
+REQUEST_EXPANDED ( CONFIG_SYMBOL );
+
+/** Explicitly require another object */
+#define REQUIRE_OBJECT( _obj ) REQUIRE_SYMBOL ( obj_ ## _obj )
+
+/** Pull in another object if it exists */
+#define REQUEST_OBJECT( _obj ) REQUEST_SYMBOL ( obj_ ## _obj )
+
+/** @} */
+
+/** Select file identifier for errno.h (if used) */
+#define ERRFILE PREFIX_OBJECT ( ERRFILE_ )
+
+/**
+ * @defgroup weakmacros Macros to manage weak symbol definitions
+ *
+ * Weak symbols allow one to reference a function in another file
+ * without necessarily requiring that file to be linked in. In their
+ * native form, the function will be @c NULL if its file is not linked
+ * in; these macros provide an inline wrapper that returns an
+ * appropriate error indication or default value.
+ *
+ * @{
+ */
+#ifndef ASSEMBLY
+
+/** Mangle @a name into its weakly-referenced implementation */
+#define __weak_impl( name )   _w_ ## name
+
+/**
+ * Declare a weak function with inline safety wrapper
+ *
+ * @v ret	Return type of weak function
+ * @v name	Name of function to expose
+ * @v proto	Parenthesized list of arguments with types
+ * @v args	Parenthesized list of argument names
+ * @v dfl	Value to return if weak function is not available
+ */
+#define __weak_decl( ret, name, proto, args, dfl )		\
+        ret __weak_impl( name ) proto __attribute__ (( weak ));	\
+        static inline ret name proto {				\
+                if ( __weak_impl( name ) )			\
+                        return __weak_impl( name ) args;	\
+                return dfl;					\
+        }
+
+#endif
+/** @} */
+
+/** @defgroup dbg Debugging infrastructure
+ * @{
+ */
+#ifndef ASSEMBLY
 
 /** @def DBG
  *
@@ -106,12 +267,7 @@ __asm__ ( ".equ\t" OBJECT_SYMBOL_STR ", 0" );
  * DEBUG_LEVEL will be inserted into the object file.
  *
  */
-#define DEBUG_SYMBOL PREFIX_OBJECT(debug_)
-
-#if DEBUG_SYMBOL
-#define DEBUG_SYMBOL_STR _XSTR ( DEBUG_SYMBOL )
-__asm__ ( ".equ\tDBGLVL, " DEBUG_SYMBOL_STR );
-#endif
+#define DEBUG_SYMBOL PREFIX_OBJECT ( debug_ )
 
 /** printf() for debugging
  *
@@ -131,11 +287,26 @@ extern void dbg_decolourise ( void );
 extern void dbg_hex_dump_da ( unsigned long dispaddr,
 			      const void *data, unsigned long len );
 
-/* Compatibility with existing Makefile */
 #if DEBUG_SYMBOL
-#define DBGLVL DEBUG_SYMBOL
+#define DBGLVL_MAX DEBUG_SYMBOL
+#else
+#define DBGLVL_MAX 0
+#endif
+
+/* Allow for selective disabling of enabled debug levels */
+#if DBGLVL_MAX
+int __debug_disable;
+#define DBGLVL ( DBGLVL_MAX & ~__debug_disable )
+#define DBG_DISABLE( level ) do {				\
+	__debug_disable |= ( (level) & DBGLVL_MAX );		\
+	} while ( 0 )
+#define DBG_ENABLE( level ) do {				\
+	__debug_disable &= ~( (level) & DBGLVL_MAX );		\
+	} while ( 0 )
 #else
 #define DBGLVL 0
+#define DBG_DISABLE( level ) do { } while ( 0 )
+#define DBG_ENABLE( level ) do { } while ( 0 )
 #endif
 
 #define DBGLVL_LOG	1
@@ -186,7 +357,8 @@ extern void dbg_hex_dump_da ( unsigned long dispaddr,
  * @v len		Length of data
  */
 #define DBG_HD_IF( level, data, len ) do {			\
-		DBG_HDA_IF ( level, data, data, len );		\
+		const void *_data = data;			\
+		DBG_HDA_IF ( level, _data, _data, len );	\
 	} while ( 0 )
 
 /**
@@ -278,17 +450,19 @@ extern void dbg_hex_dump_da ( unsigned long dispaddr,
 #define NDEBUG
 #endif
 
-/** Select file identifier for errno.h (if used) */
-#define ERRFILE PREFIX_OBJECT ( ERRFILE_ )
+#endif /* ASSEMBLY */
+/** @} */
+
+/** @defgroup attrs Miscellaneous attributes
+ * @{
+ */
+#ifndef ASSEMBLY
 
 /** Declare a data structure as packed. */
 #define PACKED __attribute__ (( packed ))
 
 /** Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))
-
-/** Apply standard C calling conventions */
-#define __cdecl __attribute__ (( cdecl , regparm(0) ))
 
 /**
  * Declare a function as pure - i.e. without side effects
@@ -325,6 +499,9 @@ extern void dbg_hex_dump_da ( unsigned long dispaddr,
 /** Declare a data structure to be aligned with 16-byte alignment */
 #define __aligned __attribute__ (( aligned ( 16 ) ))
 
+/** Declare a function to be always inline */
+#define __always_inline __attribute__ (( always_inline ))
+
 /**
  * Shared data.
  *
@@ -347,11 +524,127 @@ extern void dbg_hex_dump_da ( unsigned long dispaddr,
  */
 #define __shared __asm__ ( "_shared_bss" ) __aligned
 
+#endif /* ASSEMBLY */
+/** @} */
+
 /**
  * Optimisation barrier
  */
+#ifndef ASSEMBLY
 #define barrier() __asm__ __volatile__ ( "" : : : "memory" )
-
 #endif /* ASSEMBLY */
+
+/**
+ * @defgroup licences Licence declarations
+ *
+ * For reasons that are partly historical, various different files
+ * within the gPXE codebase have differing licences.
+ *
+ * @{
+ */
+
+/** Declare a file as being in the public domain
+ *
+ * This licence declaration is applicable when a file states itself to
+ * be in the public domain.
+ */
+#define FILE_LICENCE_PUBLIC_DOMAIN \
+	PROVIDE_SYMBOL ( __licence_public_domain )
+
+/** Declare a file as being under version 2 (or later) of the GNU GPL
+ *
+ * This licence declaration is applicable when a file states itself to
+ * be licensed under the GNU GPL; "either version 2 of the License, or
+ * (at your option) any later version".
+ */
+#define FILE_LICENCE_GPL2_OR_LATER \
+	PROVIDE_SYMBOL ( __licence_gpl2_or_later )
+
+/** Declare a file as being under version 2 of the GNU GPL
+ *
+ * This licence declaration is applicable when a file states itself to
+ * be licensed under version 2 of the GPL, and does not include the
+ * "or, at your option, any later version" clause.
+ */
+#define FILE_LICENCE_GPL2_ONLY \
+	PROVIDE_SYMBOL ( __licence_gpl2_only )
+
+/** Declare a file as being under any version of the GNU GPL
+ *
+ * This licence declaration is applicable when a file states itself to
+ * be licensed under the GPL, but does not specify a version.
+ *
+ * According to section 9 of the GPLv2, "If the Program does not
+ * specify a version number of this License, you may choose any
+ * version ever published by the Free Software Foundation".
+ */
+#define FILE_LICENCE_GPL_ANY \
+	PROVIDE_SYMBOL ( __licence_gpl_any )
+
+/** Declare a file as being under the three-clause BSD licence
+ *
+ * This licence declaration is applicable when a file states itself to
+ * be licensed under terms allowing redistribution in source and
+ * binary forms (with or without modification) provided that:
+ *
+ *     redistributions of source code retain the copyright notice,
+ *     list of conditions and any attached disclaimers
+ *
+ *     redistributions in binary form reproduce the copyright notice,
+ *     list of conditions and any attached disclaimers in the
+ *     documentation and/or other materials provided with the
+ *     distribution
+ *
+ *     the name of the author is not used to endorse or promote
+ *     products derived from the software without specific prior
+ *     written permission
+ *
+ * It is not necessary for the file to explicitly state that it is
+ * under a "BSD" licence; only that the licensing terms be
+ * functionally equivalent to the standard three-clause BSD licence.
+ */
+#define FILE_LICENCE_BSD3 \
+	PROVIDE_SYMBOL ( __licence_bsd3 )
+
+/** Declare a file as being under the two-clause BSD licence
+ *
+ * This licence declaration is applicable when a file states itself to
+ * be licensed under terms allowing redistribution in source and
+ * binary forms (with or without modification) provided that:
+ *
+ *     redistributions of source code retain the copyright notice,
+ *     list of conditions and any attached disclaimers
+ *
+ *     redistributions in binary form reproduce the copyright notice,
+ *     list of conditions and any attached disclaimers in the
+ *     documentation and/or other materials provided with the
+ *     distribution
+ *
+ * It is not necessary for the file to explicitly state that it is
+ * under a "BSD" licence; only that the licensing terms be
+ * functionally equivalent to the standard two-clause BSD licence.
+ */
+#define FILE_LICENCE_BSD2 \
+	PROVIDE_SYMBOL ( __licence_bsd2 )
+
+/** Declare a file as being under the one-clause MIT-style licence
+ *
+ * This licence declaration is applicable when a file states itself to
+ * be licensed under terms allowing redistribution for any purpose
+ * with or without fee, provided that the copyright notice and
+ * permission notice appear in all copies.
+ */
+#define FILE_LICENCE_MIT \
+	PROVIDE_SYMBOL ( __licence_mit )
+
+/** Declare a particular licence as applying to a file */
+#define FILE_LICENCE( _licence ) FILE_LICENCE_ ## _licence
+
+/** @} */
+
+/* This file itself is under GPLv2-or-later */
+FILE_LICENCE ( GPL2_OR_LATER );
+
+#include <bits/compiler.h>
 
 #endif /* COMPILER_H */

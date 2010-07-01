@@ -17,24 +17,30 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
-LDFLAGS	 = -T com16.ld
+CFLAGS	+= -D__MSDOS__
+# CFLAGS  += -DDEBUG
+
+LDFLAGS	 = -T dosexe.ld
 OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 	   -I. -I.. -I../libfat -I ../libinstaller
 
 SRCS     = syslinux.c \
+	   ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/setadv.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
            $(wildcard ../libfat/*.c)
-OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
-LIBOBJS	 = conio.o memcpy.o memset.o  skipatou.o atou.o malloc.o free.o \
+OBJS	 = header.o crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
+LIBOBJS	 = int2526.o conio.o memcpy.o memset.o memmove.o skipatou.o atou.o \
+	   malloc.o free.o getsetsl.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
 VPATH = .:../libfat:../libinstaller
 
-TARGETS = syslinux.com copybs.com
+TARGETS = syslinux.com
 
 all: $(TARGETS)
 
@@ -48,8 +54,8 @@ spotless: clean
 
 installer:
 
-syslinux.elf: $(OBJS) libcom.a
-	$(LD) $(LDFLAGS) -o $@ $^
+syslinux.elf: $(OBJS) dosexe.ld libcom.a
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) libcom.a
 
 libcom.a: $(LIBOBJS)
 	-rm -f $@
@@ -58,18 +64,11 @@ libcom.a: $(LIBOBJS)
 
 syslinux.com: syslinux.elf
 	$(OBJCOPY) -O binary $< $@
+	$(UPX) --lzma --ultra-brute $@ || \
+		$(UPX) --ultra-brute $@ || \
+		true
 
-%.o: %.c
-	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -c -o $@ $<
-%.i: %.c
-	$(CC) $(CFLAGS) -E -o $@ $<
-%.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
-%.o: %.S
-	$(CC) -Wp,-MT,$@,-MD,.$@.d $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
-%.s: %.S
-	$(CC) $(CFLAGS) -E -o $@ $<
 %.com: %.asm
-	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
+	$(NASM) $(NASMOPT) -f bin -o $@ -MP -MD .$@.d -l $*.lst $<
 
 -include .*.d *.tmp

@@ -9,14 +9,14 @@
 
 static inline uint64_t get_cr0(void)
 {
-  uint32_t v;
-  asm("movl %%cr0,%0" : "=r" (v));
-  return v;
+    uint32_t v;
+asm("movl %%cr0,%0":"=r"(v));
+    return v;
 }
 
 static inline void set_cr0(uint32_t v)
 {
-  asm volatile("movl %0,%%cr0" : : "r" (v));
+    asm volatile ("movl %0,%%cr0"::"r" (v));
 }
 
 #define CR0_PE	0x00000001
@@ -33,26 +33,26 @@ static inline void set_cr0(uint32_t v)
 
 int x86_init_fpu(void)
 {
-  uint32_t cr0;
-  uint16_t fsw = 0xffff;
-  uint16_t fcw = 0xffff;
+    uint32_t cr0;
+    uint16_t fsw = 0xffff;
+    uint16_t fcw = 0xffff;
 
-  cr0 = get_cr0();
-  cr0 &= ~(CR0_EM|CR0_TS);
-  cr0 |= CR0_MP;
-  set_cr0(cr0);
+    cr0 = get_cr0();
+    cr0 &= ~(CR0_EM | CR0_TS);
+    cr0 |= CR0_MP;
+    set_cr0(cr0);
 
-  asm volatile("fninit");
-  asm volatile("fnstsw %0" : "+m" (fsw));
-  if (fsw != 0)
-    return -1;
+    asm volatile ("fninit");
+    asm volatile ("fnstsw %0":"+m" (fsw));
+    if (fsw != 0)
+	return -1;
 
-  asm volatile("fnstcw %0" : "+m" (fcw));
-  if ((fcw & 0x103f) != 0x3f)
-    return -1;
+    asm volatile ("fnstcw %0":"+m" (fcw));
+    if ((fcw & 0x103f) != 0x3f)
+	return -1;
 
-  /* Techically, this could be a 386 with a 287.  We could add a check
-     for that here... */
+    /* Techically, this could be a 386 with a 287.  We could add a check
+       for that here... */
 
-  return 0;
+    return 0;
 }

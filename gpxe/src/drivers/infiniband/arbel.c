@@ -19,6 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -27,12 +29,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <byteswap.h>
+#include <gpxe/io.h>
 #include <gpxe/pci.h>
 #include <gpxe/malloc.h>
 #include <gpxe/umalloc.h>
 #include <gpxe/iobuf.h>
 #include <gpxe/netdevice.h>
 #include <gpxe/infiniband.h>
+#include <gpxe/ib_smc.h>
 #include "arbel.h"
 
 /**
@@ -484,6 +488,50 @@ arbel_cmd_map_fa ( struct arbel *arbel,
 
 /***************************************************************************
  *
+ * MAD operations
+ *
+ ***************************************************************************
+ */
+
+/**
+ * Issue management datagram
+ *
+ * @v ibdev		Infiniband device
+ * @v mad		Management datagram
+ * @ret rc		Return status code
+ */
+static int arbel_mad ( struct ib_device *ibdev, union ib_mad *mad ) {
+	struct arbel *arbel = ib_get_drvdata ( ibdev );
+	union arbelprm_mad mad_ifc;
+	int rc;
+
+	linker_assert ( sizeof ( *mad ) == sizeof ( mad_ifc.mad ),
+			mad_size_mismatch );
+
+	/* Copy in request packet */
+	memcpy ( &mad_ifc.mad, mad, sizeof ( mad_ifc.mad ) );
+
+	/* Issue MAD */
+	if ( ( rc = arbel_cmd_mad_ifc ( arbel, ibdev->port,
+					&mad_ifc ) ) != 0 ) {
+		DBGC ( arbel, "Arbel %p could not issue MAD IFC: %s\n",
+		       arbel, strerror ( rc ) );
+		return rc;
+	}
+
+	/* Copy out reply packet */
+	memcpy ( mad, &mad_ifc.mad, sizeof ( *mad ) );
+
+	if ( mad->hdr.status != 0 ) {
+		DBGC ( arbel, "Arbel %p MAD IFC status %04x\n",
+		       arbel, ntohs ( mad->hdr.status ) );
+		return -EIO;
+	}
+	return 0;
+}
+
+/***************************************************************************
+ *
  * Completion queue operations
  *
  ***************************************************************************
@@ -807,7 +855,6 @@ static int arbel_create_qp ( struct ib_device *ibdev,
 		     ( virt_to_bus ( arbel_qp->recv.wqe ) >> 6 ) );
 	MLX_FILL_1 ( &qpctx, 43, qpc_eec_data.rcv_db_record_index,
 		     arbel_qp->recv.doorbell_idx );
-	MLX_FILL_1 ( &qpctx, 44, qpc_eec_data.q_key, qp->qkey );
 	if ( ( rc = arbel_cmd_rst2init_qpee ( arbel, qp->qpn, &qpctx )) != 0 ){
 		DBGC ( arbel, "Arbel %p RST2INIT_QPEE failed: %s\n",
 		       arbel, strerror ( rc ) );
@@ -860,24 +907,17 @@ static int arbel_create_qp ( struct ib_device *ibdev,
  *
  * @v ibdev		Infiniband device
  * @v qp		Queue pair
- * @v mod_list		Modification list
  * @ret rc		Return status code
  */
 static int arbel_modify_qp ( struct ib_device *ibdev,
-			     struct ib_queue_pair *qp,
-			     unsigned long mod_list ) {
+			     struct ib_queue_pair *qp ) {
 	struct arbel *arbel = ib_get_drvdata ( ibdev );
 	struct arbelprm_qp_ee_state_transitions qpctx;
-	unsigned long optparammask = 0;
 	int rc;
-
-	/* Construct optparammask */
-	if ( mod_list & IB_MODIFY_QKEY )
-		optparammask |= ARBEL_QPEE_OPT_PARAM_QKEY;
 
 	/* Issue RTS2RTS_QP */
 	memset ( &qpctx, 0, sizeof ( qpctx ) );
-	MLX_FILL_1 ( &qpctx, 0, opt_param_mask, optparammask );
+	MLX_FILL_1 ( &qpctx, 0, opt_param_mask, ARBEL_QPEE_OPT_PARAM_QKEY );
 	MLX_FILL_1 ( &qpctx, 44, qpc_eec_data.q_key, qp->qkey );
 	if ( ( rc = arbel_cmd_rts2rts_qp ( arbel, qp->qpn, &qpctx ) ) != 0 ){
 		DBGC ( arbel, "Arbel %p RTS2RTS_QP failed: %s\n",
@@ -947,7 +987,7 @@ static void arbel_ring_doorbell ( struct arbel *arbel,
 				  union arbelprm_doorbell_register *db_reg,
 				  unsigned int offset ) {
 
-	DBGC2 ( arbel, "Arbel %p ringing doorbell %08lx:%08lx at %lx\n",
+	DBGC2 ( arbel, "Arbel %p ringing doorbell %08x:%08x at %lx\n",
 		arbel, db_reg->dword[0], db_reg->dword[1],
 		virt_to_phys ( arbel->uar + offset ) );
 
@@ -1006,7 +1046,7 @@ static int arbel_post_send ( struct ib_device *ibdev,
 		     ud_address_vector.pd, ARBEL_GLOBAL_PD,
 		     ud_address_vector.port_number, ibdev->port );
 	MLX_FILL_2 ( &wqe->ud, 1,
-		     ud_address_vector.rlid, av->dlid,
+		     ud_address_vector.rlid, av->lid,
 		     ud_address_vector.g, av->gid_present );
 	MLX_FILL_2 ( &wqe->ud, 2,
 		     ud_address_vector.max_stat_rate,
@@ -1015,7 +1055,7 @@ static int arbel_post_send ( struct ib_device *ibdev,
 	MLX_FILL_1 ( &wqe->ud, 3, ud_address_vector.sl, av->sl );
 	gid = ( av->gid_present ? &av->gid : &arbel_no_gid );
 	memcpy ( &wqe->ud.u.dwords[4], gid, sizeof ( *gid ) );
-	MLX_FILL_1 ( &wqe->ud, 8, destination_qp, av->dest_qp );
+	MLX_FILL_1 ( &wqe->ud, 8, destination_qp, av->qpn );
 	MLX_FILL_1 ( &wqe->ud, 9, q_key, av->qkey );
 	MLX_FILL_1 ( &wqe->data[0], 0, byte_count, iob_len ( iobuf ) );
 	MLX_FILL_1 ( &wqe->data[0], 1, l_key, arbel->reserved_lkey );
@@ -1106,17 +1146,12 @@ static int arbel_post_recv ( struct ib_device *ibdev,
  * @v ibdev		Infiniband device
  * @v cq		Completion queue
  * @v cqe		Hardware completion queue entry
- * @v complete_send	Send completion handler
- * @v complete_recv	Receive completion handler
  * @ret rc		Return status code
  */
 static int arbel_complete ( struct ib_device *ibdev,
 			    struct ib_completion_queue *cq,
-			    union arbelprm_completion_entry *cqe,
-			    ib_completer_t complete_send,
-			    ib_completer_t complete_recv ) {
+			    union arbelprm_completion_entry *cqe ) {
 	struct arbel *arbel = ib_get_drvdata ( ibdev );
-	struct ib_completion completion;
 	struct ib_work_queue *wq;
 	struct ib_queue_pair *qp;
 	struct arbel_queue_pair *arbel_qp;
@@ -1124,16 +1159,17 @@ static int arbel_complete ( struct ib_device *ibdev,
 	struct arbel_recv_work_queue *arbel_recv_wq;
 	struct arbelprm_recv_wqe *recv_wqe;
 	struct io_buffer *iobuf;
-	ib_completer_t complete;
+	struct ib_address_vector av;
+	struct ib_global_route_header *grh;
 	unsigned int opcode;
 	unsigned long qpn;
 	int is_send;
 	unsigned long wqe_adr;
 	unsigned int wqe_idx;
+	size_t len;
 	int rc = 0;
 
 	/* Parse completion */
-	memset ( &completion, 0, sizeof ( completion ) );
 	qpn = MLX_GET ( &cqe->normal, my_qpn );
 	is_send = MLX_GET ( &cqe->normal, s );
 	wqe_adr = ( MLX_GET ( &cqe->normal, wqe_adr ) << 6 );
@@ -1141,9 +1177,8 @@ static int arbel_complete ( struct ib_device *ibdev,
 	if ( opcode >= ARBEL_OPCODE_RECV_ERROR ) {
 		/* "s" field is not valid for error opcodes */
 		is_send = ( opcode == ARBEL_OPCODE_SEND_ERROR );
-		completion.syndrome = MLX_GET ( &cqe->error, syndrome );
-		DBGC ( arbel, "Arbel %p CPN %lx syndrome %x vendor %lx\n",
-		       arbel, cq->cqn, completion.syndrome,
+		DBGC ( arbel, "Arbel %p CPN %lx syndrome %x vendor %x\n",
+		       arbel, cq->cqn, MLX_GET ( &cqe->error, syndrome ),
 		       MLX_GET ( &cqe->error, vendor_code ) );
 		rc = -EIO;
 		/* Don't return immediately; propagate error to completer */
@@ -1181,9 +1216,12 @@ static int arbel_complete ( struct ib_device *ibdev,
 	}
 	wq->iobufs[wqe_idx] = NULL;
 
-	/* Fill in length for received packets */
-	if ( ! is_send ) {
-		completion.len = MLX_GET ( &cqe->normal, byte_cnt );
+	if ( is_send ) {
+		/* Hand off to completion handler */
+		ib_complete_send ( ibdev, qp, iobuf, rc );
+	} else {
+		/* Set received length */
+		len = MLX_GET ( &cqe->normal, byte_cnt );
 		recv_wqe = &arbel_recv_wq->wqe[wqe_idx].recv;
 		assert ( MLX_GET ( &recv_wqe->data[0], local_address_l ) ==
 			 virt_to_bus ( iobuf->data ) );
@@ -1192,17 +1230,21 @@ static int arbel_complete ( struct ib_device *ibdev,
 		MLX_FILL_1 ( &recv_wqe->data[0], 0, byte_count, 0 );
 		MLX_FILL_1 ( &recv_wqe->data[0], 1,
 			     l_key, ARBEL_INVALID_LKEY );
-		if ( completion.len > iob_tailroom ( iobuf ) ) {
-			DBGC ( arbel, "Arbel %p CQN %lx QPN %lx IDX %x "
-			       "overlength received packet length %zd\n",
-			       arbel, cq->cqn, qpn, wqe_idx, completion.len );
-			return -EIO;
-		}
+		assert ( len <= iob_tailroom ( iobuf ) );
+		iob_put ( iobuf, len );
+		assert ( iob_len ( iobuf ) >= sizeof ( *grh ) );
+		grh = iobuf->data;
+		iob_pull ( iobuf, sizeof ( *grh ) );
+		/* Construct address vector */
+		memset ( &av, 0, sizeof ( av ) );
+		av.qpn = MLX_GET ( &cqe->normal, rqpn );
+		av.lid = MLX_GET ( &cqe->normal, rlid );
+		av.sl = MLX_GET ( &cqe->normal, sl );
+		av.gid_present = MLX_GET ( &cqe->normal, g );
+		memcpy ( &av.gid, &grh->sgid, sizeof ( av.gid ) );
+		/* Hand off to completion handler */
+		ib_complete_recv ( ibdev, qp, &av, iobuf, rc );
 	}
-
-	/* Pass off to caller's completion handler */
-	complete = ( is_send ? complete_send : complete_recv );
-	complete ( ibdev, qp, &completion, iobuf );
 
 	return rc;
 }			     
@@ -1212,13 +1254,9 @@ static int arbel_complete ( struct ib_device *ibdev,
  *
  * @v ibdev		Infiniband device
  * @v cq		Completion queue
- * @v complete_send	Send completion handler
- * @v complete_recv	Receive completion handler
  */
 static void arbel_poll_cq ( struct ib_device *ibdev,
-			    struct ib_completion_queue *cq,
-			    ib_completer_t complete_send,
-			    ib_completer_t complete_recv ) {
+			    struct ib_completion_queue *cq ) {
 	struct arbel *arbel = ib_get_drvdata ( ibdev );
 	struct arbel_completion_queue *arbel_cq = ib_cq_get_drvdata ( cq );
 	struct arbelprm_cq_ci_db_record *ci_db_rec;
@@ -1236,8 +1274,7 @@ static void arbel_poll_cq ( struct ib_device *ibdev,
 		}
 
 		/* Handle completion */
-		if ( ( rc = arbel_complete ( ibdev, cq, cqe, complete_send,
-					     complete_recv ) ) != 0 ) {
+		if ( ( rc = arbel_complete ( ibdev, cq, cqe ) ) != 0 ) {
 			DBGC ( arbel, "Arbel %p failed to complete: %s\n",
 			       arbel, strerror ( rc ) );
 			DBGC_HD ( arbel, cqe, sizeof ( *cqe ) );
@@ -1397,6 +1434,9 @@ static void arbel_event_port_state_change ( struct arbel *arbel,
 		return;
 	}
 
+	/* Update MAD parameters */
+	ib_smc_update ( arbel->ibdev[port], arbel_mad );
+
 	/* Notify Infiniband core of link state change */
 	ib_link_state_changed ( arbel->ibdev[port] );
 }
@@ -1447,7 +1487,7 @@ static void arbel_poll_eq ( struct ib_device *ibdev ) {
 
 		/* Ring doorbell */
 		MLX_FILL_1 ( &db_reg.ci, 0, ci, arbel_eq->next_idx );
-		DBGCP ( arbel, "Ringing doorbell %08lx with %08lx\n",
+		DBGCP ( arbel, "Ringing doorbell %08lx with %08x\n",
 			virt_to_phys ( arbel_eq->doorbell ),
 			db_reg.dword[0] );
 		writel ( db_reg.dword[0], arbel_eq->doorbell );
@@ -1485,6 +1525,9 @@ static int arbel_open ( struct ib_device *ibdev ) {
 		       arbel, strerror ( rc ) );
 		return rc;
 	}
+
+	/* Update MAD parameters */
+	ib_smc_update ( ibdev, arbel_mad );
 
 	return 0;
 }
@@ -1601,51 +1644,6 @@ static void arbel_mcast_detach ( struct ib_device *ibdev,
 	}
 }
 
-/***************************************************************************
- *
- * MAD operations
- *
- ***************************************************************************
- */
-
-/**
- * Issue management datagram
- *
- * @v ibdev		Infiniband device
- * @v mad		Management datagram
- * @v len		Length of management datagram
- * @ret rc		Return status code
- */
-static int arbel_mad ( struct ib_device *ibdev, struct ib_mad_hdr *mad,
-		       size_t len ) {
-	struct arbel *arbel = ib_get_drvdata ( ibdev );
-	union arbelprm_mad mad_ifc;
-	int rc;
-
-	/* Copy in request packet */
-	memset ( &mad_ifc, 0, sizeof ( mad_ifc ) );
-	assert ( len <= sizeof ( mad_ifc.mad ) );
-	memcpy ( &mad_ifc.mad, mad, len );
-
-	/* Issue MAD */
-	if ( ( rc = arbel_cmd_mad_ifc ( arbel, ibdev->port,
-					&mad_ifc ) ) != 0 ) {
-		DBGC ( arbel, "Arbel %p could not issue MAD IFC: %s\n",
-		       arbel, strerror ( rc ) );
-		return rc;
-	}
-
-	/* Copy out reply packet */
-	memcpy ( mad, &mad_ifc.mad, len );
-
-	if ( mad->status != 0 ) {
-		DBGC ( arbel, "Arbel %p MAD IFC status %04x\n",
-		       arbel, ntohs ( mad->status ) );
-		return -EIO;
-	}
-	return 0;
-}
-
 /** Arbel Infiniband operations */
 static struct ib_device_operations arbel_ib_operations = {
 	.create_cq	= arbel_create_cq,
@@ -1661,7 +1659,6 @@ static struct ib_device_operations arbel_ib_operations = {
 	.close		= arbel_close,
 	.mcast_attach	= arbel_mcast_attach,
 	.mcast_detach	= arbel_mcast_detach,
-	.mad		= arbel_mad,
 };
 
 /***************************************************************************
@@ -1694,7 +1691,7 @@ static int arbel_start_firmware ( struct arbel *arbel ) {
 		       arbel, strerror ( rc ) );
 		goto err_query_fw;
 	}
-	DBGC ( arbel, "Arbel %p firmware version %ld.%ld.%ld\n", arbel,
+	DBGC ( arbel, "Arbel %p firmware version %d.%d.%d\n", arbel,
 	       MLX_GET ( &fw, fw_rev_major ), MLX_GET ( &fw, fw_rev_minor ),
 	       MLX_GET ( &fw, fw_rev_subminor ) );
 	fw_pages = MLX_GET ( &fw, fw_pages );
@@ -2172,6 +2169,10 @@ static int arbel_probe ( struct pci_device *pci,
 	if ( ( rc = arbel_create_eq ( arbel ) ) != 0 )
 		goto err_create_eq;
 
+	/* Update MAD parameters */
+	for ( i = 0 ; i < ARBEL_NUM_PORTS ; i++ )
+		ib_smc_update ( arbel->ibdev[i], arbel_mad );
+
 	/* Register Infiniband devices */
 	for ( i = 0 ; i < ARBEL_NUM_PORTS ; i++ ) {
 		if ( ( rc = register_ibdev ( arbel->ibdev[i] ) ) != 0 ) {
@@ -2234,8 +2235,8 @@ static void arbel_remove ( struct pci_device *pci ) {
 }
 
 static struct pci_device_id arbel_nics[] = {
-	PCI_ROM ( 0x15b3, 0x6282, "mt25218", "MT25218 HCA driver" ),
-	PCI_ROM ( 0x15b3, 0x6274, "mt25204", "MT25204 HCA driver" ),
+	PCI_ROM ( 0x15b3, 0x6282, "mt25218", "MT25218 HCA driver", 0 ),
+	PCI_ROM ( 0x15b3, 0x6274, "mt25204", "MT25204 HCA driver", 0 ),
 };
 
 struct pci_driver arbel_driver __pci_driver = {

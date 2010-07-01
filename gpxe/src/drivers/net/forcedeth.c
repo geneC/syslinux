@@ -43,6 +43,8 @@
 *    Indent Options: indent -kr -i8
 ***************************************************************************/
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /* to get some global routines like printf */
 #include "etherboot.h"
 /* to get the interface to the body of the program */
@@ -371,13 +373,9 @@ enum {
 #define PHY_1000	0x2
 #define PHY_HALF	0x100
 
-/* FIXME: MII defines that should be added to <linux/mii.h> */
-#define MII_1000BT_CR	0x09
-#define MII_1000BT_SR	0x0a
-#define ADVERTISE_1000FULL	0x0200
-#define ADVERTISE_1000HALF	0x0100
-#define LPA_1000FULL	0x0800
-#define LPA_1000HALF	0x0400
+
+/* Bit to know if MAC addr is stored in correct order */
+#define MAC_ADDR_CORRECT	0x01
 
 /* Big endian: should work, but is untested */
 struct ring_desc {
@@ -452,7 +450,7 @@ static int reg_delay(int offset, u32 mask,
 		delaymax -= delay;
 		if (delaymax < 0) {
 			if (msg)
-				printf(msg);
+				printf("%s", msg);
 			return 1;
 		}
 	} while ((readl(base + offset) & mask) != target);
@@ -460,26 +458,6 @@ static int reg_delay(int offset, u32 mask,
 }
 
 #define MII_READ	(-1)
-#define MII_PHYSID1         0x02	/* PHYS ID 1                   */
-#define MII_PHYSID2         0x03	/* PHYS ID 2                   */
-#define MII_BMCR            0x00	/* Basic mode control register */
-#define MII_BMSR            0x01	/* Basic mode status register  */
-#define MII_ADVERTISE       0x04	/* Advertisement control reg   */
-#define MII_LPA             0x05	/* Link partner ability reg    */
-
-#define BMSR_ANEGCOMPLETE       0x0020	/* Auto-negotiation complete   */
-
-/* Link partner ability register. */
-#define LPA_SLCT                0x001f	/* Same as advertise selector  */
-#define LPA_10HALF              0x0020	/* Can do 10mbps half-duplex   */
-#define LPA_10FULL              0x0040	/* Can do 10mbps full-duplex   */
-#define LPA_100HALF             0x0080	/* Can do 100mbps half-duplex  */
-#define LPA_100FULL             0x0100	/* Can do 100mbps full-duplex  */
-#define LPA_100BASE4            0x0200	/* Can do 100mbps 4k packets   */
-#define LPA_RESV                0x1c00	/* Unused...                   */
-#define LPA_RFAULT              0x2000	/* Link partner faulted        */
-#define LPA_LPACK               0x4000	/* Link partner acked us       */
-#define LPA_NPAGE               0x8000	/* Next page bit               */
 
 /* mii_rw: read/write a register on the PHY.
  *
@@ -581,7 +559,7 @@ static int phy_init(struct nic *nic)
 	if (mii_status & PHY_GIGABIT) {
 		np->gigabit = PHY_GIGABIT;
 		mii_control_1000 =
-		    mii_rw(nic, np->phyaddr, MII_1000BT_CR, MII_READ);
+		    mii_rw(nic, np->phyaddr, MII_CTRL1000, MII_READ);
 		mii_control_1000 &= ~ADVERTISE_1000HALF;
 		if (phyinterface & PHY_RGMII)
 			mii_control_1000 |= ADVERTISE_1000FULL;
@@ -589,7 +567,7 @@ static int phy_init(struct nic *nic)
 			mii_control_1000 &= ~ADVERTISE_1000FULL;
 
 		if (mii_rw
-		    (nic, np->phyaddr, MII_1000BT_CR, mii_control_1000)) {
+		    (nic, np->phyaddr, MII_CTRL1000, mii_control_1000)) {
 			printf("phy init failed.\n");
 			return PHY_ERROR;
 		}
@@ -783,9 +761,9 @@ static int update_linkspeed(struct nic *nic)
 	retval = 1;
 	if (np->gigabit == PHY_GIGABIT) {
 		control_1000 =
-		    mii_rw(nic, np->phyaddr, MII_1000BT_CR, MII_READ);
+		    mii_rw(nic, np->phyaddr, MII_CTRL1000, MII_READ);
 		status_1000 =
-		    mii_rw(nic, np->phyaddr, MII_1000BT_SR, MII_READ);
+		    mii_rw(nic, np->phyaddr, MII_STAT1000, MII_READ);
 
 		if ((control_1000 & ADVERTISE_1000FULL) &&
 		    (status_1000 & LPA_1000FULL)) {
@@ -1241,6 +1219,9 @@ static int forcedeth_probe ( struct nic *nic, struct pci_device *pci ) {
 	int sz;
 	u8 *base;
 	int i;
+	struct pci_device_id *ids = pci->driver->ids;
+	int id_count = pci->driver->id_count;
+	unsigned int flags = 0;
 
 	if (pci->ioaddr == 0)
 		return 0;
@@ -1280,12 +1261,31 @@ static int forcedeth_probe ( struct nic *nic, struct pci_device *pci ) {
 	np->orig_mac[0] = readl(base + NvRegMacAddrA);
 	np->orig_mac[1] = readl(base + NvRegMacAddrB);
 
-	nic->node_addr[0] = (np->orig_mac[1] >> 8) & 0xff;
-	nic->node_addr[1] = (np->orig_mac[1] >> 0) & 0xff;
-	nic->node_addr[2] = (np->orig_mac[0] >> 24) & 0xff;
-	nic->node_addr[3] = (np->orig_mac[0] >> 16) & 0xff;
-	nic->node_addr[4] = (np->orig_mac[0] >> 8) & 0xff;
-	nic->node_addr[5] = (np->orig_mac[0] >> 0) & 0xff;
+	/* lookup the flags from pci_device_id */
+	for(i = 0; i < id_count; i++) {
+		if(pci->vendor == ids[i].vendor &&
+		   pci->device == ids[i].device) {
+			flags = ids[i].driver_data;
+			break;
+		   }
+	}
+
+	/* read MAC address */
+	if(flags & MAC_ADDR_CORRECT) {
+		nic->node_addr[0] = (np->orig_mac[0] >>  0) & 0xff;
+		nic->node_addr[1] = (np->orig_mac[0] >>  8) & 0xff;
+		nic->node_addr[2] = (np->orig_mac[0] >> 16) & 0xff;
+		nic->node_addr[3] = (np->orig_mac[0] >> 24) & 0xff;
+		nic->node_addr[4] = (np->orig_mac[1] >>  0) & 0xff;
+		nic->node_addr[5] = (np->orig_mac[1] >>  8) & 0xff;
+	} else {
+		nic->node_addr[0] = (np->orig_mac[1] >>  8) & 0xff;
+		nic->node_addr[1] = (np->orig_mac[1] >>  0) & 0xff;
+		nic->node_addr[2] = (np->orig_mac[0] >> 24) & 0xff;
+		nic->node_addr[3] = (np->orig_mac[0] >> 16) & 0xff;
+		nic->node_addr[4] = (np->orig_mac[0] >>  8) & 0xff;
+		nic->node_addr[5] = (np->orig_mac[0] >>  0) & 0xff;
+	}
 #ifdef LINUX
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/*
@@ -1321,6 +1321,7 @@ static int forcedeth_probe ( struct nic *nic, struct pci_device *pci ) {
 
   	switch (pci->device) {
   	case 0x01C3:		// nforce
+	case 0x054C:
  		// DEV_IRQMASK_1|DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER,
  		np->irqmask = NVREG_IRQMASK_WANTED_2 | NVREG_IRQ_TIMER;
 		//              np->need_linktimer = 1;
@@ -1412,18 +1413,21 @@ static int forcedeth_probe ( struct nic *nic, struct pci_device *pci ) {
 }
 
 static struct pci_device_id forcedeth_nics[] = {
-PCI_ROM(0x10de, 0x01C3, "nforce", "nForce NVENET_1 Ethernet Controller"),
-PCI_ROM(0x10de, 0x0066, "nforce2", "nForce NVENET_2 Ethernet Controller"),
-PCI_ROM(0x10de, 0x00D6, "nforce3", "nForce NVENET_3 Ethernet Controller"),
-PCI_ROM(0x10de, 0x0086, "nforce4", "nForce NVENET_4 Ethernet Controller"),
-PCI_ROM(0x10de, 0x008c, "nforce5", "nForce NVENET_5 Ethernet Controller"),
-PCI_ROM(0x10de, 0x00e6, "nforce6", "nForce NVENET_6 Ethernet Controller"),
-PCI_ROM(0x10de, 0x00df, "nforce7", "nForce NVENET_7 Ethernet Controller"),
-PCI_ROM(0x10de, 0x0056, "nforce8", "nForce NVENET_8 Ethernet Controller"),
-PCI_ROM(0x10de, 0x0057, "nforce9", "nForce NVENET_9 Ethernet Controller"),
-PCI_ROM(0x10de, 0x0037, "nforce10", "nForce NVENET_10 Ethernet Controller"),
-PCI_ROM(0x10de, 0x0038, "nforce11", "nForce NVENET_11 Ethernet Controller"),
-PCI_ROM(0x10de, 0x0373, "nforce15", "nForce NVENET_15 Ethernet Controller")
+PCI_ROM(0x10de, 0x01C3, "nforce", "nForce NVENET_1 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0066, "nforce2", "nForce NVENET_2 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x00D6, "nforce3", "nForce NVENET_3 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0086, "nforce4", "nForce NVENET_4 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x008c, "nforce5", "nForce NVENET_5 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x00e6, "nforce6", "nForce NVENET_6 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x00df, "nforce7", "nForce NVENET_7 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0056, "nforce8", "nForce NVENET_8 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0057, "nforce9", "nForce NVENET_9 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0037, "nforce10", "nForce NVENET_10 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0038, "nforce11", "nForce NVENET_11 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0373, "nforce15", "nForce NVENET_15 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0269, "nforce16", "nForce NVENET_16 Ethernet Controller", 0),
+PCI_ROM(0x10de, 0x0760, "nforce17", "nForce NVENET_17 Ethernet Controller", MAC_ADDR_CORRECT),
+PCI_ROM(0x10de, 0x054c, "nforce67", "nForce NVENET_67 Ethernet Controller", MAC_ADDR_CORRECT),
 };
 
 PCI_DRIVER ( forcedeth_driver, forcedeth_nics, PCI_NO_CLASS );

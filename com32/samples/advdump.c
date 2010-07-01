@@ -23,31 +23,31 @@
 
 int main(void)
 {
-  uint8_t *p, *ep;
-  size_t s = syslinux_adv_size();
-  char buf[256];
+    uint8_t *p, *ep;
+    size_t s = syslinux_adv_size();
+    char buf[256];
 
-  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+    openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  p = syslinux_adv_ptr();
+    p = syslinux_adv_ptr();
 
-  printf("ADV size: %zd bytes at %p\n", s, p);
+    printf("ADV size: %zd bytes at %p\n", s, p);
 
-  ep = p+s;			/* Need at least opcode+len */
-  while (p < ep-1 && *p) {
-    int t = *p++;
-    int l = *p++;
+    ep = p + s;			/* Need at least opcode+len */
+    while (p < ep - 1 && *p) {
+	int t = *p++;
+	int l = *p++;
 
-    if (p+l > ep)
-      break;
+	if (p + l > ep)
+	    break;
 
-    memcpy(buf, p, l);
-    buf[l] = '\0';
+	memcpy(buf, p, l);
+	buf[l] = '\0';
 
-    printf("ADV %3d: \"%s\"\n", t, buf);
+	printf("ADV %3d: \"%s\"\n", t, buf);
 
-    p += l;
-  }
+	p += l;
+    }
 
-  return 0;
+    return 0;
 }

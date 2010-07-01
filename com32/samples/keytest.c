@@ -27,55 +27,55 @@
 
 static void cooked_keys(void)
 {
-  int key;
+    int key;
 
-  printf("[cooked]");
+    printf("[cooked]");
 
-  for(;;) {
-    key = get_key(stdin, 0);
+    for (;;) {
+	key = get_key(stdin, 0);
 
-    if ( key == 0x03 ) {
-      printf("[done]\n");
-      exit(0);
-    } else if ( key == '?' )
-      return;
+	if (key == 0x03) {
+	    printf("[done]\n");
+	    exit(0);
+	} else if (key == '?')
+	    return;
 
-    if ( key >= 0x20 && key < 0x100 ) {
-      putchar(key);
-    } else {
-      printf("[%04x]", key);
+	if (key >= 0x20 && key < 0x100) {
+	    putchar(key);
+	} else {
+	    printf("[%04x]", key);
+	}
     }
-  }
 }
 
 static void raw_keys(void)
 {
-  int key;
+    int key;
 
-  printf("[raw]");
+    printf("[raw]");
 
-  for(;;) {
-    key = getc(stdin);
+    for (;;) {
+	key = getc(stdin);
 
-    if ( key == 0x03 ) {
-      printf("[done]\n");
-      exit(0);
-    } else if ( key == '!' )
-      return;
+	if (key == 0x03) {
+	    printf("[done]\n");
+	    exit(0);
+	} else if (key == '!')
+	    return;
 
-    printf("<%02x>", key);
-  }
+	printf("<%02x>", key);
+    }
 }
 
 int main(void)
 {
-  console_ansi_raw();
+    console_ansi_raw();
 
-  printf("CLK_TCK = %d\n", (int)CLK_TCK);
-  printf("Press keys, end with Ctrl-C...\n");
+    printf("CLK_TCK = %d\n", (int)CLK_TCK);
+    printf("Press keys, end with Ctrl-C...\n");
 
-  for (;;) {
-    cooked_keys();
-    raw_keys();
-  }
+    for (;;) {
+	cooked_keys();
+	raw_keys();
+    }
 }

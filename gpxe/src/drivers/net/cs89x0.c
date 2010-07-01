@@ -20,6 +20,8 @@
    -- quote from email
 **/
 
+FILE_LICENCE ( GPL2_ONLY );
+
 /* cs89x0.c: A Crystal Semiconductor CS89[02]0 driver for etherboot. */
 /*
   Permission is granted to distribute the enclosed cs89x0.[ch] driver
@@ -419,8 +421,8 @@ retry:
 	      ETH_ALEN/2);
 	outw(((t >> 8)&0xFF)|(t << 8), eth_nic_base + TX_FRAME_PORT);
 	outsw(eth_nic_base + TX_FRAME_PORT, p, (s+1)/2);
-	for (sr = sr/2 - (s+1)/2 - ETH_ALEN - 1; sr-- > 0;
-	     outw(0, eth_nic_base + TX_FRAME_PORT));
+	for (sr = sr/2 - (s+1)/2 - ETH_ALEN - 1; sr > 0; sr--)
+		outw(0, eth_nic_base + TX_FRAME_PORT);
 
 	/* wait for transfer to succeed */
 	for (tmo = currticks()+5*TICKS_PER_SEC;

@@ -40,13 +40,13 @@ struct syslinux_serial_console_info __syslinux_serial_console_info;
 
 void __constructor __syslinux_get_serial_console_info(void)
 {
-  static com32sys_t reg;
+    static com32sys_t reg;
 
-  memset(&reg, 0, sizeof reg);
-  reg.eax.w[0] = 0x000b;
-  __intcall(0x22, &reg, &reg);
+    memset(&reg, 0, sizeof reg);
+    reg.eax.w[0] = 0x000b;
+    __intcall(0x22, &reg, &reg);
 
-  __syslinux_serial_console_info.iobase  = reg.edx.w[0];
-  __syslinux_serial_console_info.divisor = reg.ecx.w[0];
-  __syslinux_serial_console_info.flowctl = reg.ebx.w[0];
+    __syslinux_serial_console_info.iobase = reg.edx.w[0];
+    __syslinux_serial_console_info.divisor = reg.ecx.w[0];
+    __syslinux_serial_console_info.flowctl = reg.ebx.w[0];
 }

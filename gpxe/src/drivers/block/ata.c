@@ -16,11 +16,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 #include <byteswap.h>
 #include <gpxe/blockdev.h>
+#include <gpxe/process.h>
 #include <gpxe/ata.h>
 
 /** @file
@@ -43,13 +47,34 @@ block_to_ata ( struct block_device *blockdev ) {
  */
 static inline __attribute__ (( always_inline )) int
 ata_command ( struct ata_device *ata, struct ata_command *command ) {
+	int rc;
+
 	DBG ( "ATA cmd %02x dev %02x LBA%s %llx count %04x\n",
 	      command->cb.cmd_stat, command->cb.device,
 	      ( command->cb.lba48 ? "48" : "" ),
 	      ( unsigned long long ) command->cb.lba.native,
 	      command->cb.count.native );
 
-	return ata->command ( ata, command );	
+	/* Flag command as in-progress */
+	command->rc = -EINPROGRESS;
+
+	/* Issue ATA command */
+	if ( ( rc = ata->command ( ata, command ) ) != 0 ) {
+		/* Something went wrong with the issuing mechanism */
+		DBG ( "ATA could not issue command: %s\n", strerror ( rc ) );
+		return rc;
+	}
+
+	/* Wait for command to complete */
+	while ( command->rc == -EINPROGRESS )
+		step();
+	if ( ( rc = command->rc ) != 0 ) {
+		/* Something went wrong with the command execution */
+		DBG ( "ATA command failed: %s\n", strerror ( rc ) );
+		return rc;
+	}
+
+	return 0;
 }
 
 /**
@@ -139,6 +164,11 @@ static int ata_identify ( struct block_device *blockdev ) {
 	return 0;
 }
 
+static struct block_device_operations ata_operations = {
+	.read	= ata_read,
+	.write	= ata_write
+};
+
 /**
  * Initialise ATA device
  *
@@ -153,7 +183,6 @@ static int ata_identify ( struct block_device *blockdev ) {
  */
 int init_atadev ( struct ata_device *ata ) {
 	/** Fill in read and write methods, and get device capacity */
-	ata->blockdev.read = ata_read;
-	ata->blockdev.write = ata_write;
+	ata->blockdev.op = &ata_operations;
 	return ata_identify ( &ata->blockdev );
 }

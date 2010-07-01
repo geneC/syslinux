@@ -41,12 +41,12 @@ __extern size_t __syslinux_adv_size;
 
 static inline void *syslinux_adv_ptr(void)
 {
-  return __syslinux_adv_ptr;
+    return __syslinux_adv_ptr;
 }
 
 static inline size_t syslinux_adv_size(void)
 {
-  return __syslinux_adv_size;
+    return __syslinux_adv_size;
 }
 
 __extern int syslinux_adv_write(void);

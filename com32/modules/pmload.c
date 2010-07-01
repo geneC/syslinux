@@ -61,170 +61,170 @@
 
 static inline void error(const char *msg)
 {
-  fputs(msg, stderr);
+    fputs(msg, stderr);
 }
 
 int boot_raw(void *ptr, size_t len, addr_t where, char **argv)
 {
-  struct syslinux_movelist *ml = NULL;
-  struct syslinux_memmap *mmap = NULL, *amap = NULL;
-  struct syslinux_pm_regs regs;
-  int argc;
-  addr_t argsize;
-  char **argp;
-  addr_t lstart, llen;
-  char *stack_frame = NULL;
-  addr_t stack_frame_size;
-  addr_t stack_pointer;
-  uint32_t *spp;
-  char *sfp;
-  addr_t sfa;
+    struct syslinux_movelist *ml = NULL;
+    struct syslinux_memmap *mmap = NULL, *amap = NULL;
+    struct syslinux_pm_regs regs;
+    int argc;
+    addr_t argsize;
+    char **argp;
+    addr_t lstart, llen;
+    char *stack_frame = NULL;
+    addr_t stack_frame_size;
+    addr_t stack_pointer;
+    uint32_t *spp;
+    char *sfp;
+    addr_t sfa;
 
-  memset(&regs, 0, sizeof regs);
+    memset(&regs, 0, sizeof regs);
 
-  mmap = syslinux_memory_map();
-  amap = syslinux_dup_memmap(mmap);
-  if (!mmap || !amap)
-    goto bail;
+    mmap = syslinux_memory_map();
+    amap = syslinux_dup_memmap(mmap);
+    if (!mmap || !amap)
+	goto bail;
 
 #if DEBUG
-  dprintf("Initial memory map:\n");
-  syslinux_dump_memmap(stdout, mmap);
+    dprintf("Initial memory map:\n");
+    syslinux_dump_memmap(stdout, mmap);
 #endif
 
-  dprintf("Segment at 0x%08x len 0x%08x\n", where, len);
+    dprintf("Segment at 0x%08x len 0x%08x\n", where, len);
 
-  if (syslinux_memmap_type(amap, where, len) != SMT_FREE) {
-    printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
+    if (syslinux_memmap_type(amap, where, len) != SMT_FREE) {
+	printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
 	       where, len);
-    goto bail;		/* Memory region unavailable */
-  }
+	goto bail;		/* Memory region unavailable */
+    }
 
-  /* Mark this region as allocated in the available map */
-  if (syslinux_add_memmap(&amap, where, len, SMT_ALLOC))
-    goto bail;
+    /* Mark this region as allocated in the available map */
+    if (syslinux_add_memmap(&amap, where, len, SMT_ALLOC))
+	goto bail;
 
-  /* Data present region.  Create a move entry for it. */
-  if (syslinux_add_movelist(&ml, where, (addr_t)ptr, len))
-    goto bail;
+    /* Data present region.  Create a move entry for it. */
+    if (syslinux_add_movelist(&ml, where, (addr_t) ptr, len))
+	goto bail;
 
-  /* Create the invocation record (initial stack frame) */
+    /* Create the invocation record (initial stack frame) */
 
-  argsize = argc = 0;
-  for (argp = argv; *argp; argp++) {
-    dprintf("argv[%2d] = \"%s\"\n", argc, *argp);
-    argc++;
-    argsize += strlen(*argp)+1;
-  }
+    argsize = argc = 0;
+    for (argp = argv; *argp; argp++) {
+	dprintf("argv[%2d] = \"%s\"\n", argc, *argp);
+	argc++;
+	argsize += strlen(*argp) + 1;
+    }
 
-  /* We need the argument strings, argument pointers,
-     argc, plus four zero-word terminators. */
-  stack_frame_size = argsize + argc*sizeof(char *) + 5*sizeof(long);
-  stack_frame_size = (stack_frame_size+15) & ~15;
-  stack_frame = calloc(stack_frame_size, 1);
-  if (!stack_frame)
-    goto bail;
-
-#if DEBUG
-  dprintf("Right before syslinux_memmap_largest()...\n");
-  syslinux_dump_memmap(stdout, amap);
-#endif
-
-  if (syslinux_memmap_largest(amap, SMT_FREE, &lstart, &llen))
-    goto bail;			/* NO free memory?! */
-
-  if (llen < stack_frame_size+MIN_STACK+16)
-    goto bail;			/* Insufficient memory  */
-
-  /* Initial stack pointer address */
-  stack_pointer = (lstart+llen-stack_frame_size) & ~15;
-
-  dprintf("Stack frame at 0x%08x len 0x%08x\n",
-	  stack_pointer, stack_frame_size);
-
-  /* Create the stack frame.  sfp is the pointer in current memory for
-     the next argument string, sfa is the address in its final resting place.
-     spp is the pointer into the argument array in current memory. */
-  spp = (uint32_t *)stack_frame;
-  sfp = stack_frame + argc*sizeof(char *) + 5*sizeof(long);
-  sfa = stack_pointer + argc*sizeof(char *) + 5*sizeof(long);
-
-  *spp++ = argc;
-  for (argp = argv; *argp; argp++) {
-    int bytes = strlen(*argp) + 1; /* Including final null */
-    *spp++ = sfa;
-    memcpy(sfp, *argp, bytes);
-    sfp += bytes;
-    sfa += bytes;
-  }
-  /* Zero fields are aready taken care of by calloc() */
-
-  /* ... and we'll want to move it into the right place... */
-#if DEBUG
-  if (syslinux_memmap_type(amap, stack_pointer, stack_frame_size)
-      != SMT_FREE) {
-    dprintf("Stack frame area not free (how did that happen?)!\n");
-    goto bail;		/* Memory region unavailable */
-  }
-#endif
-
-  if (syslinux_add_memmap(&amap, stack_pointer, stack_frame_size, SMT_ALLOC))
-    goto bail;
-
-  if (syslinux_add_movelist(&ml, stack_pointer, (addr_t)stack_frame,
-			    stack_frame_size))
-    goto bail;
-
-  memset(&regs, 0, sizeof regs);
-  regs.eip = where;
-  regs.esp = stack_pointer;
+    /* We need the argument strings, argument pointers,
+       argc, plus four zero-word terminators. */
+    stack_frame_size = argsize + argc * sizeof(char *) + 5 * sizeof(long);
+    stack_frame_size = (stack_frame_size + 15) & ~15;
+    stack_frame = calloc(stack_frame_size, 1);
+    if (!stack_frame)
+	goto bail;
 
 #if DEBUG
-  dprintf("Final memory map:\n");
-  syslinux_dump_memmap(stdout, mmap);
-
-  dprintf("Final available map:\n");
-  syslinux_dump_memmap(stdout, amap);
-
-  dprintf("Movelist:\n");
-  syslinux_dump_movelist(stdout, ml);
+    dprintf("Right before syslinux_memmap_largest()...\n");
+    syslinux_dump_memmap(stdout, amap);
 #endif
 
-  /* This should not return... */
-  fputs("Booting...\n", stdout);
-  syslinux_shuffle_boot_pm(ml, mmap, 0, &regs);
+    if (syslinux_memmap_largest(amap, SMT_FREE, &lstart, &llen))
+	goto bail;		/* NO free memory?! */
 
- bail:
-  if (stack_frame)
-    free(stack_frame);
-  syslinux_free_memmap(amap);
-  syslinux_free_memmap(mmap);
-  syslinux_free_movelist(ml);
+    if (llen < stack_frame_size + MIN_STACK + 16)
+	goto bail;		/* Insufficient memory  */
 
-  return -1;
+    /* Initial stack pointer address */
+    stack_pointer = (lstart + llen - stack_frame_size) & ~15;
+
+    dprintf("Stack frame at 0x%08x len 0x%08x\n",
+	    stack_pointer, stack_frame_size);
+
+    /* Create the stack frame.  sfp is the pointer in current memory for
+       the next argument string, sfa is the address in its final resting place.
+       spp is the pointer into the argument array in current memory. */
+    spp = (uint32_t *) stack_frame;
+    sfp = stack_frame + argc * sizeof(char *) + 5 * sizeof(long);
+    sfa = stack_pointer + argc * sizeof(char *) + 5 * sizeof(long);
+
+    *spp++ = argc;
+    for (argp = argv; *argp; argp++) {
+	int bytes = strlen(*argp) + 1;	/* Including final null */
+	*spp++ = sfa;
+	memcpy(sfp, *argp, bytes);
+	sfp += bytes;
+	sfa += bytes;
+    }
+    /* Zero fields are aready taken care of by calloc() */
+
+    /* ... and we'll want to move it into the right place... */
+#if DEBUG
+    if (syslinux_memmap_type(amap, stack_pointer, stack_frame_size)
+	!= SMT_FREE) {
+	dprintf("Stack frame area not free (how did that happen?)!\n");
+	goto bail;		/* Memory region unavailable */
+    }
+#endif
+
+    if (syslinux_add_memmap(&amap, stack_pointer, stack_frame_size, SMT_ALLOC))
+	goto bail;
+
+    if (syslinux_add_movelist(&ml, stack_pointer, (addr_t) stack_frame,
+			      stack_frame_size))
+	goto bail;
+
+    memset(&regs, 0, sizeof regs);
+    regs.eip = where;
+    regs.esp = stack_pointer;
+
+#if DEBUG
+    dprintf("Final memory map:\n");
+    syslinux_dump_memmap(stdout, mmap);
+
+    dprintf("Final available map:\n");
+    syslinux_dump_memmap(stdout, amap);
+
+    dprintf("Movelist:\n");
+    syslinux_dump_movelist(stdout, ml);
+#endif
+
+    /* This should not return... */
+    fputs("Booting...\n", stdout);
+    syslinux_shuffle_boot_pm(ml, mmap, 0, &regs);
+
+bail:
+    if (stack_frame)
+	free(stack_frame);
+    syslinux_free_memmap(amap);
+    syslinux_free_memmap(mmap);
+    syslinux_free_movelist(ml);
+
+    return -1;
 }
 
 int main(int argc, char *argv[])
 {
-  void *data;
-  size_t data_len;
-  addr_t where;
+    void *data;
+    size_t data_len;
+    addr_t where;
 
-  openconsole(&dev_null_r, &dev_stdcon_w);
+    openconsole(&dev_null_r, &dev_stdcon_w);
 
-  if (argc < 3) {
-    error("Usage: pmload.c32 bin_file address arguments...\n");
+    if (argc < 3) {
+	error("Usage: pmload.c32 bin_file address arguments...\n");
+	return 1;
+    }
+
+    where = strtoul(argv[2], NULL, 0);
+
+    if (loadfile(argv[1], &data, &data_len)) {
+	error("Unable to load file\n");
+	return 1;
+    }
+
+    boot_raw(data, data_len, where, &argv[1]);
+    error("Failed to boot, probably insufficient memory\n");
     return 1;
-  }
-
-  where = strtoul(argv[2], NULL, 0);
-
-  if (loadfile(argv[1], &data, &data_len)) {
-    error("Unable to load file\n");
-    return 1;
-  }
-
-  boot_raw(data, data_len, where, &argv[1]);
-  error("Failed to boot, probably insufficient memory\n");
-  return 1;
 }

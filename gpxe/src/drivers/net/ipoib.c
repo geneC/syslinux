@@ -16,16 +16,21 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <byteswap.h>
 #include <errno.h>
+#include <gpxe/errortab.h>
 #include <gpxe/if_arp.h>
 #include <gpxe/iobuf.h>
 #include <gpxe/netdevice.h>
 #include <gpxe/infiniband.h>
+#include <gpxe/ib_pathrec.h>
+#include <gpxe/ib_mcast.h>
 #include <gpxe/ipoib.h>
 
 /** @file
@@ -33,38 +38,14 @@
  * IP over Infiniband
  */
 
-/** IPoIB MTU */
-#define IPOIB_MTU 2048
+/** Number of IPoIB send work queue entries */
+#define IPOIB_NUM_SEND_WQES 2
 
-/** Number of IPoIB data send work queue entries */
-#define IPOIB_DATA_NUM_SEND_WQES 2
+/** Number of IPoIB receive work queue entries */
+#define IPOIB_NUM_RECV_WQES 4
 
-/** Number of IPoIB data receive work queue entries */
-#define IPOIB_DATA_NUM_RECV_WQES 4
-
-/** Number of IPoIB data completion entries */
-#define IPOIB_DATA_NUM_CQES 8
-
-/** Number of IPoIB metadata send work queue entries */
-#define IPOIB_META_NUM_SEND_WQES 2
-
-/** Number of IPoIB metadata receive work queue entries */
-#define IPOIB_META_NUM_RECV_WQES 2
-
-/** Number of IPoIB metadata completion entries */
-#define IPOIB_META_NUM_CQES 8
-
-/** An IPoIB queue set */
-struct ipoib_queue_set {
-	/** Completion queue */
-	struct ib_completion_queue *cq;
-	/** Queue pair */
-	struct ib_queue_pair *qp;
-	/** Receive work queue fill level */
-	unsigned int recv_fill;
-	/** Receive work queue maximum fill level */
-	unsigned int recv_max_fill;
-};
+/** Number of IPoIB completion entries */
+#define IPOIB_NUM_CQES 8
 
 /** An IPoIB device */
 struct ipoib_device {
@@ -72,67 +53,127 @@ struct ipoib_device {
 	struct net_device *netdev;
 	/** Underlying Infiniband device */
 	struct ib_device *ibdev;
-	/** Data queue set */
-	struct ipoib_queue_set data;
-	/** Data queue set */
-	struct ipoib_queue_set meta;
-	/** Broadcast GID */
-	struct ib_gid broadcast_gid;
-	/** Broadcast LID */
-	unsigned int broadcast_lid;
-	/** Data queue key */
-	unsigned long data_qkey;
-	/** Attached to multicast group
+	/** Completion queue */
+	struct ib_completion_queue *cq;
+	/** Queue pair */
+	struct ib_queue_pair *qp;
+	/** Broadcast MAC */
+	struct ipoib_mac broadcast;
+	/** Joined to IPv4 broadcast multicast group
 	 *
-	 * This flag indicates whether or not we have attached our
-	 * data queue pair to the broadcast multicast GID.
+	 * This flag indicates whether or not we have initiated the
+	 * join to the IPv4 broadcast multicast group.
 	 */
-	int broadcast_attached;
+	int broadcast_joined;
+	/** IPv4 broadcast multicast group membership */
+	struct ib_mc_membership broadcast_membership;
 };
+
+/** Broadcast IPoIB address */
+static struct ipoib_mac ipoib_broadcast = {
+	.flags__qpn = htonl ( IB_QPN_BROADCAST ),
+	.gid.u.bytes = 	{ 0xff, 0x12, 0x40, 0x1b, 0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff },
+};
+
+/** Link status for "broadcast join in progress" */
+#define EINPROGRESS_JOINING ( EINPROGRESS | EUNIQ_01 )
+
+/** Human-readable message for the link status */
+struct errortab ipoib_errors[] __errortab = {
+	{ EINPROGRESS_JOINING, "Joining" },
+};
+
+/****************************************************************************
+ *
+ * IPoIB peer cache
+ *
+ ****************************************************************************
+ */
 
 /**
- * IPoIB path cache entry
+ * IPoIB peer address
  *
- * This serves a similar role to the ARP cache for Ethernet.  (ARP
- * *is* used on IPoIB; we have two caches to maintain.)
+ * The IPoIB link-layer header is only four bytes long and so does not
+ * have sufficient room to store IPoIB MAC address(es).  We therefore
+ * maintain a cache of MAC addresses identified by a single-byte key,
+ * and abuse the spare two bytes within the link-layer header to
+ * communicate these MAC addresses between the link-layer code and the
+ * netdevice driver.
  */
-struct ipoib_cached_path {
-	/** Destination GID */
-	struct ib_gid gid;
-	/** Destination LID */
-	unsigned int dlid;
-	/** Service level */
-	unsigned int sl;
-	/** Rate */
-	unsigned int rate;
+struct ipoib_peer {
+	/** Key */
+	uint8_t key;
+	/** MAC address */
+	struct ipoib_mac mac;
 };
 
-/** Number of IPoIB path cache entries */
-#define IPOIB_NUM_CACHED_PATHS 2
+/** Number of IPoIB peer cache entries
+ *
+ * Must be a power of two.
+ */
+#define IPOIB_NUM_CACHED_PEERS 4
 
-/** IPoIB path cache */
-static struct ipoib_cached_path ipoib_path_cache[IPOIB_NUM_CACHED_PATHS];
+/** IPoIB peer address cache */
+static struct ipoib_peer ipoib_peer_cache[IPOIB_NUM_CACHED_PEERS];
 
-/** Oldest IPoIB path cache entry index */
-static unsigned int ipoib_path_cache_idx = 0;
+/** Oldest IPoIB peer cache entry index */
+static unsigned int ipoib_peer_cache_idx = 1;
 
-/** TID half used to identify get path record replies */
-#define IPOIB_TID_GET_PATH_REC 0x11111111UL
+/**
+ * Look up cached peer by key
+ *
+ * @v key		Peer cache key
+ * @ret peer		Peer cache entry, or NULL
+ */
+static struct ipoib_peer * ipoib_lookup_peer_by_key ( unsigned int key ) {
+	struct ipoib_peer *peer;
+	unsigned int i;
 
-/** TID half used to identify multicast member record replies */
-#define IPOIB_TID_MC_MEMBER_REC 0x22222222UL
+	for ( i = 0 ; i < IPOIB_NUM_CACHED_PEERS ; i++ ) {
+		peer = &ipoib_peer_cache[i];
+		if ( peer->key == key )
+			return peer;
+	}
 
-/** IPoIB metadata TID */
-static uint32_t ipoib_meta_tid = 0;
+	if ( key != 0 ) {
+		DBG ( "IPoIB warning: peer cache lost track of key %x while "
+		      "still in use\n", key );
+	}
+	return NULL;
+}
 
-/** IPv4 broadcast GID */
-static const struct ib_gid ipv4_broadcast_gid = {
-	{ { 0xff, 0x12, 0x40, 0x1b, 0x00, 0x00, 0x00, 0x00,
-	    0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff } }
-};
+/**
+ * Store GID and QPN in peer cache
+ *
+ * @v mac		Peer MAC address
+ * @ret peer		Peer cache entry
+ */
+static struct ipoib_peer * ipoib_cache_peer ( const struct ipoib_mac *mac ) {
+	struct ipoib_peer *peer;
+	unsigned int key;
+	unsigned int i;
 
-/** Maximum time we will wait for the broadcast join to succeed */
-#define IPOIB_JOIN_MAX_DELAY_MS 1000
+	/* Look for existing cache entry */
+	for ( i = 0 ; i < IPOIB_NUM_CACHED_PEERS ; i++ ) {
+		peer = &ipoib_peer_cache[i];
+		if ( memcmp ( &peer->mac, mac, sizeof ( peer->mac ) ) == 0 )
+			return peer;
+	}
+
+	/* No entry found: create a new one */
+	key = ipoib_peer_cache_idx++;
+	peer = &ipoib_peer_cache[ key % IPOIB_NUM_CACHED_PEERS ];
+	if ( peer->key )
+		DBG ( "IPoIB peer %x evicted from cache\n", peer->key );
+
+	memset ( peer, 0, sizeof ( *peer ) );
+	peer->key = key;
+	memcpy ( &peer->mac, mac, sizeof ( peer->mac ) );
+	DBG ( "IPoIB peer %x has MAC %s\n",
+	      peer->key, ipoib_ntoa ( &peer->mac ) );
+	return peer;
+}
 
 /****************************************************************************
  *
@@ -141,37 +182,34 @@ static const struct ib_gid ipv4_broadcast_gid = {
  ****************************************************************************
  */
 
-/** Broadcast QPN used in IPoIB MAC addresses
- *
- * This is a guaranteed invalid real QPN
- */
-#define IPOIB_BROADCAST_QPN 0xffffffffUL
-
-/** Broadcast IPoIB address */
-static struct ipoib_mac ipoib_broadcast = {
-	.qpn = ntohl ( IPOIB_BROADCAST_QPN ),
-};
-
 /**
  * Add IPoIB link-layer header
  *
- * @v iobuf		I/O buffer
  * @v netdev		Network device
- * @v net_protocol	Network-layer protocol
+ * @v iobuf		I/O buffer
  * @v ll_dest		Link-layer destination address
+ * @v ll_source		Source link-layer address
+ * @v net_proto		Network-layer protocol, in network-byte order
+ * @ret rc		Return status code
  */
-static int ipoib_push ( struct io_buffer *iobuf,
-			struct net_device *netdev __unused,
-			struct net_protocol *net_protocol,
-			const void *ll_dest ) {
+static int ipoib_push ( struct net_device *netdev __unused,
+			struct io_buffer *iobuf, const void *ll_dest,
+			const void *ll_source __unused, uint16_t net_proto ) {
 	struct ipoib_hdr *ipoib_hdr =
 		iob_push ( iobuf, sizeof ( *ipoib_hdr ) );
+	const struct ipoib_mac *dest_mac = ll_dest;
+	const struct ipoib_mac *src_mac = ll_source;
+	struct ipoib_peer *dest;
+	struct ipoib_peer *src;
+
+	/* Add link-layer addresses to cache */
+	dest = ipoib_cache_peer ( dest_mac );
+	src = ipoib_cache_peer ( src_mac );
 
 	/* Build IPoIB header */
-	memcpy ( &ipoib_hdr->pseudo.peer, ll_dest,
-		 sizeof ( ipoib_hdr->pseudo.peer ) );
-	ipoib_hdr->real.proto = net_protocol->net_proto;
-	ipoib_hdr->real.reserved = 0;
+	ipoib_hdr->proto = net_proto;
+	ipoib_hdr->u.peer.dest = dest->key;
+	ipoib_hdr->u.peer.src = src->key;
 
 	return 0;
 }
@@ -179,16 +217,20 @@ static int ipoib_push ( struct io_buffer *iobuf,
 /**
  * Remove IPoIB link-layer header
  *
- * @v iobuf		I/O buffer
  * @v netdev		Network device
- * @v net_proto		Network-layer protocol, in network-byte order
- * @v ll_source		Source link-layer address
+ * @v iobuf		I/O buffer
+ * @ret ll_dest		Link-layer destination address
+ * @ret ll_source	Source link-layer address
+ * @ret net_proto	Network-layer protocol, in network-byte order
  * @ret rc		Return status code
  */
-static int ipoib_pull ( struct io_buffer *iobuf,
-			struct net_device *netdev __unused,
-			uint16_t *net_proto, const void **ll_source ) {
+static int ipoib_pull ( struct net_device *netdev,
+			struct io_buffer *iobuf, const void **ll_dest,
+			const void **ll_source, uint16_t *net_proto ) {
+	struct ipoib_device *ipoib = netdev->priv;
 	struct ipoib_hdr *ipoib_hdr = iobuf->data;
+	struct ipoib_peer *dest;
+	struct ipoib_peer *source;
 
 	/* Sanity check */
 	if ( iob_len ( iobuf ) < sizeof ( *ipoib_hdr ) ) {
@@ -200,15 +242,37 @@ static int ipoib_pull ( struct io_buffer *iobuf,
 	/* Strip off IPoIB header */
 	iob_pull ( iobuf, sizeof ( *ipoib_hdr ) );
 
+	/* Identify source and destination addresses, and clear
+	 * reserved word in IPoIB header
+	 */
+	dest = ipoib_lookup_peer_by_key ( ipoib_hdr->u.peer.dest );
+	source = ipoib_lookup_peer_by_key ( ipoib_hdr->u.peer.src );
+	ipoib_hdr->u.reserved = 0;
+
 	/* Fill in required fields */
-	*net_proto = ipoib_hdr->real.proto;
-	*ll_source = &ipoib_hdr->pseudo.peer;
+	*ll_dest = ( dest ? &dest->mac : &ipoib->broadcast );
+	*ll_source = ( source ? &source->mac : &ipoib->broadcast );
+	*net_proto = ipoib_hdr->proto;
 
 	return 0;
 }
 
 /**
- * Transcribe IPoIB address
+ * Initialise IPoIB link-layer address
+ *
+ * @v hw_addr		Hardware address
+ * @v ll_addr		Link-layer address
+ */
+static void ipoib_init_addr ( const void *hw_addr, void *ll_addr ) {
+	const struct ib_gid_half *guid = hw_addr;
+	struct ipoib_mac *mac = ll_addr;
+
+	memset ( mac, 0, sizeof ( *mac ) );
+	memcpy ( &mac->gid.u.half[1], guid, sizeof ( mac->gid.u.half[1] ) );
+}
+
+/**
+ * Transcribe IPoIB link-layer address
  *
  * @v ll_addr	Link-layer address
  * @ret string	Link-layer address in human-readable format
@@ -217,25 +281,117 @@ const char * ipoib_ntoa ( const void *ll_addr ) {
 	static char buf[45];
 	const struct ipoib_mac *mac = ll_addr;
 
-	snprintf ( buf, sizeof ( buf ), "%08lx:%08lx:%08lx:%08lx:%08lx",
-		   htonl ( mac->qpn ), htonl ( mac->gid.u.dwords[0] ),
+	snprintf ( buf, sizeof ( buf ), "%08x:%08x:%08x:%08x:%08x",
+		   htonl ( mac->flags__qpn ), htonl ( mac->gid.u.dwords[0] ),
 		   htonl ( mac->gid.u.dwords[1] ),
 		   htonl ( mac->gid.u.dwords[2] ),
 		   htonl ( mac->gid.u.dwords[3] ) );
 	return buf;
 }
 
+/**
+ * Hash multicast address
+ *
+ * @v af		Address family
+ * @v net_addr		Network-layer address
+ * @v ll_addr		Link-layer address to fill in
+ * @ret rc		Return status code
+ */
+static int ipoib_mc_hash ( unsigned int af __unused,
+			   const void *net_addr __unused,
+			   void *ll_addr __unused ) {
+
+	return -ENOTSUP;
+}
+
+/**
+ * Generate Mellanox Ethernet-compatible compressed link-layer address
+ *
+ * @v ll_addr		Link-layer address
+ * @v eth_addr		Ethernet-compatible address to fill in
+ */
+static int ipoib_mlx_eth_addr ( const struct ib_gid_half *guid,
+				uint8_t *eth_addr ) {
+	eth_addr[0] = ( ( guid->u.bytes[3] == 2 ) ? 0x00 : 0x02 );
+	eth_addr[1] = guid->u.bytes[1];
+	eth_addr[2] = guid->u.bytes[2];
+	eth_addr[3] = guid->u.bytes[5];
+	eth_addr[4] = guid->u.bytes[6];
+	eth_addr[5] = guid->u.bytes[7];
+	return 0;
+}
+
+/** An IPoIB Ethernet-compatible compressed link-layer address generator */
+struct ipoib_eth_addr_handler {
+	/** GUID byte 1 */
+	uint8_t byte1;
+	/** GUID byte 2 */
+	uint8_t byte2;
+	/** Handler */
+	int ( * eth_addr ) ( const struct ib_gid_half *guid,
+			     uint8_t *eth_addr );
+};
+
+/** IPoIB Ethernet-compatible compressed link-layer address generators */
+static struct ipoib_eth_addr_handler ipoib_eth_addr_handlers[] = {
+	{ 0x02, 0xc9, ipoib_mlx_eth_addr },
+};
+
+/**
+ * Generate Ethernet-compatible compressed link-layer address
+ *
+ * @v ll_addr		Link-layer address
+ * @v eth_addr		Ethernet-compatible address to fill in
+ */
+static int ipoib_eth_addr ( const void *ll_addr, void *eth_addr ) {
+	const struct ipoib_mac *ipoib_addr = ll_addr;
+	const struct ib_gid_half *guid = &ipoib_addr->gid.u.half[1];
+	struct ipoib_eth_addr_handler *handler;
+	unsigned int i;
+
+	for ( i = 0 ; i < ( sizeof ( ipoib_eth_addr_handlers ) /
+			    sizeof ( ipoib_eth_addr_handlers[0] ) ) ; i++ ) {
+		handler = &ipoib_eth_addr_handlers[i];
+		if ( ( handler->byte1 == guid->u.bytes[1] ) &&
+		     ( handler->byte2 == guid->u.bytes[2] ) ) {
+			return handler->eth_addr ( guid, eth_addr );
+		}
+	}
+	return -ENOTSUP;
+}
+
 /** IPoIB protocol */
 struct ll_protocol ipoib_protocol __ll_protocol = {
 	.name		= "IPoIB",
 	.ll_proto	= htons ( ARPHRD_INFINIBAND ),
+	.hw_addr_len	= sizeof ( struct ib_gid_half ),
 	.ll_addr_len	= IPOIB_ALEN,
 	.ll_header_len	= IPOIB_HLEN,
-	.ll_broadcast	= ( uint8_t * ) &ipoib_broadcast,
 	.push		= ipoib_push,
 	.pull		= ipoib_pull,
+	.init_addr	= ipoib_init_addr,
 	.ntoa		= ipoib_ntoa,
+	.mc_hash	= ipoib_mc_hash,
+	.eth_addr	= ipoib_eth_addr,
 };
+
+/**
+ * Allocate IPoIB device
+ *
+ * @v priv_size		Size of driver private data
+ * @ret netdev		Network device, or NULL
+ */
+struct net_device * alloc_ipoibdev ( size_t priv_size ) {
+	struct net_device *netdev;
+
+	netdev = alloc_netdev ( priv_size );
+	if ( netdev ) {
+		netdev->ll_protocol = &ipoib_protocol;
+		netdev->ll_broadcast = ( uint8_t * ) &ipoib_broadcast;
+		netdev->max_pkt_len = IB_MAX_PAYLOAD_SIZE;
+	}
+	return netdev;
+}
 
 /****************************************************************************
  *
@@ -243,210 +399,6 @@ struct ll_protocol ipoib_protocol __ll_protocol = {
  *
  ****************************************************************************
  */
-
-/**
- * Destroy queue set
- *
- * @v ipoib		IPoIB device
- * @v qset		Queue set
- */
-static void ipoib_destroy_qset ( struct ipoib_device *ipoib,
-				 struct ipoib_queue_set *qset ) {
-	struct ib_device *ibdev = ipoib->ibdev;
-
-	if ( qset->qp )
-		ib_destroy_qp ( ibdev, qset->qp );
-	if ( qset->cq )
-		ib_destroy_cq ( ibdev, qset->cq );
-	memset ( qset, 0, sizeof ( *qset ) );
-}
-
-/**
- * Create queue set
- *
- * @v ipoib		IPoIB device
- * @v qset		Queue set
- * @ret rc		Return status code
- */
-static int ipoib_create_qset ( struct ipoib_device *ipoib,
-			       struct ipoib_queue_set *qset,
-			       unsigned int num_cqes,
-			       unsigned int num_send_wqes,
-			       unsigned int num_recv_wqes,
-			       unsigned long qkey ) {
-	struct ib_device *ibdev = ipoib->ibdev;
-	int rc;
-
-	/* Sanity check */
-	assert ( qset->cq == NULL );
-	assert ( qset->qp == NULL );
-
-	/* Store queue parameters */
-	qset->recv_max_fill = num_recv_wqes;
-
-	/* Allocate completion queue */
-	qset->cq = ib_create_cq ( ibdev, num_cqes );
-	if ( ! qset->cq ) {
-		DBGC ( ipoib, "IPoIB %p could not allocate completion queue\n",
-		       ipoib );
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	/* Allocate queue pair */
-	qset->qp = ib_create_qp ( ibdev, num_send_wqes, qset->cq,
-				  num_recv_wqes, qset->cq, qkey );
-	if ( ! qset->qp ) {
-		DBGC ( ipoib, "IPoIB %p could not allocate queue pair\n",
-		       ipoib );
-		rc = -ENOMEM;
-		goto err;
-	}
-	ib_qp_set_ownerdata ( qset->qp, ipoib->netdev );
-
-	return 0;
-
- err:
-	ipoib_destroy_qset ( ipoib, qset );
-	return rc;
-}
-
-/**
- * Find path cache entry by GID
- *
- * @v gid		GID
- * @ret entry		Path cache entry, or NULL
- */
-static struct ipoib_cached_path *
-ipoib_find_cached_path ( struct ib_gid *gid ) {
-	struct ipoib_cached_path *path;
-	unsigned int i;
-
-	for ( i = 0 ; i < IPOIB_NUM_CACHED_PATHS ; i++ ) {
-		path = &ipoib_path_cache[i];
-		if ( memcmp ( &path->gid, gid, sizeof ( *gid ) ) == 0 )
-			return path;
-	}
-	DBG ( "IPoIB %08lx:%08lx:%08lx:%08lx cache miss\n",
-	      htonl ( gid->u.dwords[0] ), htonl ( gid->u.dwords[1] ),
-	      htonl ( gid->u.dwords[2] ), htonl ( gid->u.dwords[3] ) );
-	return NULL;
-}
-
-/**
- * Transmit path record request
- *
- * @v ipoib		IPoIB device
- * @v gid		Destination GID
- * @ret rc		Return status code
- */
-static int ipoib_get_path_record ( struct ipoib_device *ipoib,
-				   struct ib_gid *gid ) {
-	struct ib_device *ibdev = ipoib->ibdev;
-	struct io_buffer *iobuf;
-	struct ib_mad_path_record *path_record;
-	struct ib_address_vector av;
-	int rc;
-
-	/* Allocate I/O buffer */
-	iobuf = alloc_iob ( sizeof ( *path_record ) );
-	if ( ! iobuf )
-		return -ENOMEM;
-	iob_put ( iobuf, sizeof ( *path_record ) );
-	path_record = iobuf->data;
-	memset ( path_record, 0, sizeof ( *path_record ) );
-
-	/* Construct path record request */
-	path_record->mad_hdr.base_version = IB_MGMT_BASE_VERSION;
-	path_record->mad_hdr.mgmt_class = IB_MGMT_CLASS_SUBN_ADM;
-	path_record->mad_hdr.class_version = 2;
-	path_record->mad_hdr.method = IB_MGMT_METHOD_GET;
-	path_record->mad_hdr.attr_id = htons ( IB_SA_ATTR_PATH_REC );
-	path_record->mad_hdr.tid[0] = IPOIB_TID_GET_PATH_REC;
-	path_record->mad_hdr.tid[1] = ipoib_meta_tid++;
-	path_record->sa_hdr.comp_mask[1] =
-		htonl ( IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID );
-	memcpy ( &path_record->dgid, gid, sizeof ( path_record->dgid ) );
-	memcpy ( &path_record->sgid, &ibdev->port_gid,
-		 sizeof ( path_record->sgid ) );
-
-	/* Construct address vector */
-	memset ( &av, 0, sizeof ( av ) );
-	av.dlid = ibdev->sm_lid;
-	av.dest_qp = IB_SA_QPN;
-	av.qkey = IB_GLOBAL_QKEY;
-
-	/* Post send request */
-	if ( ( rc = ib_post_send ( ibdev, ipoib->meta.qp, &av,
-				   iobuf ) ) != 0 ) {
-		DBGC ( ipoib, "IPoIB %p could not send get path record: %s\n",
-		       ipoib, strerror ( rc ) );
-		free_iob ( iobuf );
-		return rc;
-	}
-
-	return 0;
-}
-
-/**
- * Transmit multicast group membership request
- *
- * @v ipoib		IPoIB device
- * @v gid		Multicast GID
- * @v join		Join (rather than leave) group
- * @ret rc		Return status code
- */
-static int ipoib_mc_member_record ( struct ipoib_device *ipoib,
-				    struct ib_gid *gid, int join ) {
-	struct ib_device *ibdev = ipoib->ibdev;
-	struct io_buffer *iobuf;
-	struct ib_mad_mc_member_record *mc_member_record;
-	struct ib_address_vector av;
-	int rc;
-
-	/* Allocate I/O buffer */
-	iobuf = alloc_iob ( sizeof ( *mc_member_record ) );
-	if ( ! iobuf )
-		return -ENOMEM;
-	iob_put ( iobuf, sizeof ( *mc_member_record ) );
-	mc_member_record = iobuf->data;
-	memset ( mc_member_record, 0, sizeof ( *mc_member_record ) );
-
-	/* Construct path record request */
-	mc_member_record->mad_hdr.base_version = IB_MGMT_BASE_VERSION;
-	mc_member_record->mad_hdr.mgmt_class = IB_MGMT_CLASS_SUBN_ADM;
-	mc_member_record->mad_hdr.class_version = 2;
-	mc_member_record->mad_hdr.method = 
-		( join ? IB_MGMT_METHOD_SET : IB_MGMT_METHOD_DELETE );
-	mc_member_record->mad_hdr.attr_id = htons ( IB_SA_ATTR_MC_MEMBER_REC );
-	mc_member_record->mad_hdr.tid[0] = IPOIB_TID_MC_MEMBER_REC;
-	mc_member_record->mad_hdr.tid[1] = ipoib_meta_tid++;
-	mc_member_record->sa_hdr.comp_mask[1] =
-		htonl ( IB_SA_MCMEMBER_REC_MGID | IB_SA_MCMEMBER_REC_PORT_GID |
-			IB_SA_MCMEMBER_REC_JOIN_STATE );
-	mc_member_record->scope__join_state = 1;
-	memcpy ( &mc_member_record->mgid, gid,
-		 sizeof ( mc_member_record->mgid ) );
-	memcpy ( &mc_member_record->port_gid, &ibdev->port_gid,
-		 sizeof ( mc_member_record->port_gid ) );
-
-	/* Construct address vector */
-	memset ( &av, 0, sizeof ( av ) );
-	av.dlid = ibdev->sm_lid;
-	av.dest_qp = IB_SA_QPN;
-	av.qkey = IB_GLOBAL_QKEY;
-
-	/* Post send request */
-	if ( ( rc = ib_post_send ( ibdev, ipoib->meta.qp, &av,
-				   iobuf ) ) != 0 ) {
-		DBGC ( ipoib, "IPoIB %p could not send get path record: %s\n",
-		       ipoib, strerror ( rc ) );
-		free_iob ( iobuf );
-		return rc;
-	}
-
-	return 0;
-}
 
 /**
  * Transmit packet via IPoIB network device
@@ -459,284 +411,110 @@ static int ipoib_transmit ( struct net_device *netdev,
 			    struct io_buffer *iobuf ) {
 	struct ipoib_device *ipoib = netdev->priv;
 	struct ib_device *ibdev = ipoib->ibdev;
-	struct ipoib_pseudo_hdr *ipoib_pshdr = iobuf->data;
+	struct ipoib_hdr *ipoib_hdr;
+	struct ipoib_peer *dest;
 	struct ib_address_vector av;
-	struct ib_gid *gid;
-	struct ipoib_cached_path *path;
 	int rc;
 
 	/* Sanity check */
-	if ( iob_len ( iobuf ) < sizeof ( *ipoib_pshdr ) ) {
+	if ( iob_len ( iobuf ) < sizeof ( *ipoib_hdr ) ) {
 		DBGC ( ipoib, "IPoIB %p buffer too short\n", ipoib );
 		return -EINVAL;
 	}
-	iob_pull ( iobuf, ( sizeof ( *ipoib_pshdr ) ) );
+	ipoib_hdr = iobuf->data;
 
 	/* Attempting transmission while link is down will put the
 	 * queue pair into an error state, so don't try it.
 	 */
-	if ( ! ibdev->link_up )
+	if ( ! ib_link_ok ( ibdev ) )
 		return -ENETUNREACH;
+
+	/* Identify destination address */
+	dest = ipoib_lookup_peer_by_key ( ipoib_hdr->u.peer.dest );
+	if ( ! dest )
+		return -ENXIO;
+	ipoib_hdr->u.reserved = 0;
 
 	/* Construct address vector */
 	memset ( &av, 0, sizeof ( av ) );
-	av.qkey = IB_GLOBAL_QKEY;
+	av.qpn = ( ntohl ( dest->mac.flags__qpn ) & IB_QPN_MASK );
 	av.gid_present = 1;
-	if ( ipoib_pshdr->peer.qpn == htonl ( IPOIB_BROADCAST_QPN ) ) {
-		/* Broadcast address */
-		av.dest_qp = IB_BROADCAST_QPN;
-		av.dlid = ipoib->broadcast_lid;
-		gid = &ipoib->broadcast_gid;
-	} else {
-		/* Unicast - look in path cache */
-		path = ipoib_find_cached_path ( &ipoib_pshdr->peer.gid );
-		if ( ! path ) {
-			/* No path entry - get path record */
-			rc = ipoib_get_path_record ( ipoib,
-						     &ipoib_pshdr->peer.gid );
-			netdev_tx_complete ( netdev, iobuf );
-			return rc;
-		}
-		av.dest_qp = ntohl ( ipoib_pshdr->peer.qpn );
-		av.dlid = path->dlid;
-		av.rate = path->rate;
-		av.sl = path->sl;
-		gid = &ipoib_pshdr->peer.gid;
+	memcpy ( &av.gid, &dest->mac.gid, sizeof ( av.gid ) );
+	if ( ( rc = ib_resolve_path ( ibdev, &av ) ) != 0 ) {
+		/* Path not resolved yet */
+		return rc;
 	}
-	memcpy ( &av.gid, gid, sizeof ( av.gid ) );
 
-	return ib_post_send ( ibdev, ipoib->data.qp, &av, iobuf );
+	return ib_post_send ( ibdev, ipoib->qp, &av, iobuf );
 }
 
 /**
- * Handle IPoIB data send completion
+ * Handle IPoIB send completion
  *
  * @v ibdev		Infiniband device
  * @v qp		Queue pair
- * @v completion	Completion
  * @v iobuf		I/O buffer
+ * @v rc		Completion status code
  */
-static void ipoib_data_complete_send ( struct ib_device *ibdev __unused,
-				       struct ib_queue_pair *qp,
-				       struct ib_completion *completion,
-				       struct io_buffer *iobuf ) {
-	struct net_device *netdev = ib_qp_get_ownerdata ( qp );
+static void ipoib_complete_send ( struct ib_device *ibdev __unused,
+				  struct ib_queue_pair *qp,
+				  struct io_buffer *iobuf, int rc ) {
+	struct ipoib_device *ipoib = ib_qp_get_ownerdata ( qp );
 
-	netdev_tx_complete_err ( netdev, iobuf,
-				 ( completion->syndrome ? -EIO : 0 ) );
+	netdev_tx_complete_err ( ipoib->netdev, iobuf, rc );
 }
 
 /**
- * Handle IPoIB data receive completion
+ * Handle IPoIB receive completion
  *
  * @v ibdev		Infiniband device
  * @v qp		Queue pair
- * @v completion	Completion
+ * @v av		Address vector, or NULL
  * @v iobuf		I/O buffer
+ * @v rc		Completion status code
  */
-static void ipoib_data_complete_recv ( struct ib_device *ibdev __unused,
-				       struct ib_queue_pair *qp,
-				       struct ib_completion *completion,
-				       struct io_buffer *iobuf ) {
-	struct net_device *netdev = ib_qp_get_ownerdata ( qp );
-	struct ipoib_device *ipoib = netdev->priv;
-	struct ipoib_pseudo_hdr *ipoib_pshdr;
+static void ipoib_complete_recv ( struct ib_device *ibdev __unused,
+				  struct ib_queue_pair *qp,
+				  struct ib_address_vector *av,
+				  struct io_buffer *iobuf, int rc ) {
+	struct ipoib_device *ipoib = ib_qp_get_ownerdata ( qp );
+	struct net_device *netdev = ipoib->netdev;
+	struct ipoib_hdr *ipoib_hdr;
+	struct ipoib_mac ll_src;
+	struct ipoib_peer *src;
 
-	if ( completion->syndrome ) {
-		netdev_rx_err ( netdev, iobuf, -EIO );
-		goto done;
+	if ( rc != 0 ) {
+		netdev_rx_err ( netdev, iobuf, rc );
+		return;
 	}
 
-	iob_put ( iobuf, completion->len );
-	if ( iob_len ( iobuf ) < sizeof ( struct ib_global_route_header ) ) {
-		DBGC ( ipoib, "IPoIB %p received data packet too short to "
-		       "contain GRH\n", ipoib );
-		DBGC_HD ( ipoib, iobuf->data, iob_len ( iobuf ) );
-		netdev_rx_err ( netdev, iobuf, -EIO );
-		goto done;
-	}
-	iob_pull ( iobuf, sizeof ( struct ib_global_route_header ) );
-
-	if ( iob_len ( iobuf ) < sizeof ( struct ipoib_real_hdr ) ) {
-		DBGC ( ipoib, "IPoIB %p received data packet too short to "
+	/* Sanity check */
+	if ( iob_len ( iobuf ) < sizeof ( struct ipoib_hdr ) ) {
+		DBGC ( ipoib, "IPoIB %p received packet too short to "
 		       "contain IPoIB header\n", ipoib );
 		DBGC_HD ( ipoib, iobuf->data, iob_len ( iobuf ) );
 		netdev_rx_err ( netdev, iobuf, -EIO );
-		goto done;
-	}
-
-	ipoib_pshdr = iob_push ( iobuf, sizeof ( *ipoib_pshdr ) );
-	/* FIXME: fill in a MAC address for the sake of AoE! */
-
-	netdev_rx ( netdev, iobuf );
-
- done:
-	ipoib->data.recv_fill--;
-}
-
-/**
- * Handle IPoIB metadata send completion
- *
- * @v ibdev		Infiniband device
- * @v qp		Queue pair
- * @v completion	Completion
- * @v iobuf		I/O buffer
- */
-static void ipoib_meta_complete_send ( struct ib_device *ibdev __unused,
-				       struct ib_queue_pair *qp,
-				       struct ib_completion *completion,
-				       struct io_buffer *iobuf ) {
-	struct net_device *netdev = ib_qp_get_ownerdata ( qp );
-	struct ipoib_device *ipoib = netdev->priv;
-
-	if ( completion->syndrome ) {
-		DBGC ( ipoib, "IPoIB %p metadata TX completion error %x\n",
-		       ipoib, completion->syndrome );
-	}
-	free_iob ( iobuf );
-}
-
-/**
- * Handle received IPoIB path record
- *
- * @v ipoib		IPoIB device
- * @v path_record	Path record
- */
-static void ipoib_recv_path_record ( struct ipoib_device *ipoib __unused,
-				     struct ib_mad_path_record *path_record ) {
-	struct ipoib_cached_path *path;
-
-	/* Update path cache entry */
-	path = &ipoib_path_cache[ipoib_path_cache_idx];
-	memcpy ( &path->gid, &path_record->dgid, sizeof ( path->gid ) );
-	path->dlid = ntohs ( path_record->dlid );
-	path->sl = ( path_record->reserved__sl & 0x0f );
-	path->rate = ( path_record->rate_selector__rate & 0x3f );
-
-	DBG ( "IPoIB %08lx:%08lx:%08lx:%08lx dlid %x sl %x rate %x\n",
-	      htonl ( path->gid.u.dwords[0] ), htonl ( path->gid.u.dwords[1] ),
-	      htonl ( path->gid.u.dwords[2] ), htonl ( path->gid.u.dwords[3] ),
-	      path->dlid, path->sl, path->rate );
-	
-	/* Update path cache index */
-	ipoib_path_cache_idx++;
-	if ( ipoib_path_cache_idx == IPOIB_NUM_CACHED_PATHS )
-		ipoib_path_cache_idx = 0;
-}
-
-/**
- * Handle received IPoIB multicast membership record
- *
- * @v ipoib		IPoIB device
- * @v mc_member_record	Multicast membership record
- */
-static void ipoib_recv_mc_member_record ( struct ipoib_device *ipoib,
-			  struct ib_mad_mc_member_record *mc_member_record ) {
-	int joined;
-	int rc;
-
-	/* Record parameters */
-	joined = ( mc_member_record->scope__join_state & 0x0f );
-	ipoib->data_qkey = ntohl ( mc_member_record->qkey );
-	ipoib->broadcast_lid = ntohs ( mc_member_record->mlid );
-	DBGC ( ipoib, "IPoIB %p %s broadcast group: qkey %lx mlid %x\n",
-	       ipoib, ( joined ? "joined" : "left" ), ipoib->data_qkey,
-	       ipoib->broadcast_lid );
-
-	/* Update data queue pair qkey */
-	if ( ( rc = ib_modify_qp ( ipoib->ibdev, ipoib->data.qp,
-				   IB_MODIFY_QKEY, ipoib->data_qkey ) ) != 0 ){
-		DBGC ( ipoib, "IPoIB %p could not update data qkey: %s\n",
-		       ipoib, strerror ( rc ) );
 		return;
 	}
+	ipoib_hdr = iobuf->data;
+
+	/* Parse source address */
+	if ( av->gid_present ) {
+		ll_src.flags__qpn = htonl ( av->qpn );
+		memcpy ( &ll_src.gid, &av->gid, sizeof ( ll_src.gid ) );
+		src = ipoib_cache_peer ( &ll_src );
+		ipoib_hdr->u.peer.src = src->key;
+	}
+
+	/* Hand off to network layer */
+	netdev_rx ( netdev, iobuf );
 }
 
-/**
- * Handle IPoIB metadata receive completion
- *
- * @v ibdev		Infiniband device
- * @v qp		Queue pair
- * @v completion	Completion
- * @v iobuf		I/O buffer
- */
-static void ipoib_meta_complete_recv ( struct ib_device *ibdev __unused,
-				       struct ib_queue_pair *qp,
-				       struct ib_completion *completion,
-				       struct io_buffer *iobuf ) {
-	struct net_device *netdev = ib_qp_get_ownerdata ( qp );
-	struct ipoib_device *ipoib = netdev->priv;
-	union ib_mad *mad;
-
-	if ( completion->syndrome ) {
-		DBGC ( ipoib, "IPoIB %p metadata RX completion error %x\n",
-		       ipoib, completion->syndrome );
-		goto done;
-	}
-
-	iob_put ( iobuf, completion->len );
-	if ( iob_len ( iobuf ) < sizeof ( struct ib_global_route_header ) ) {
-		DBGC ( ipoib, "IPoIB %p received metadata packet too short "
-		       "to contain GRH\n", ipoib );
-		DBGC_HD ( ipoib, iobuf->data, iob_len ( iobuf ) );
-		goto done;
-	}
-	iob_pull ( iobuf, sizeof ( struct ib_global_route_header ) );
-	if ( iob_len ( iobuf ) < sizeof ( *mad ) ) {
-		DBGC ( ipoib, "IPoIB %p received metadata packet too short "
-		       "to contain reply\n", ipoib );
-		DBGC_HD ( ipoib, iobuf->data, iob_len ( iobuf ) );
-		goto done;
-	}
-	mad = iobuf->data;
-
-	if ( mad->mad_hdr.status != 0 ) {
-		DBGC ( ipoib, "IPoIB %p metadata RX err status %04x\n",
-		       ipoib, ntohs ( mad->mad_hdr.status ) );
-		goto done;
-	}
-
-	switch ( mad->mad_hdr.tid[0] ) {
-	case IPOIB_TID_GET_PATH_REC:
-		ipoib_recv_path_record ( ipoib, &mad->path_record );
-		break;
-	case IPOIB_TID_MC_MEMBER_REC:
-		ipoib_recv_mc_member_record ( ipoib, &mad->mc_member_record );
-		break;
-	default:
-		DBGC ( ipoib, "IPoIB %p unwanted response:\n",
-		       ipoib );
-		DBGC_HD ( ipoib, mad, sizeof ( *mad ) );
-		break;
-	}
-
- done:
-	ipoib->meta.recv_fill--;
-	free_iob ( iobuf );
-}
-
-/**
- * Refill IPoIB receive ring
- *
- * @v ipoib		IPoIB device
- */
-static void ipoib_refill_recv ( struct ipoib_device *ipoib,
-				struct ipoib_queue_set *qset ) {
-	struct ib_device *ibdev = ipoib->ibdev;
-	struct io_buffer *iobuf;
-	int rc;
-
-	while ( qset->recv_fill < qset->recv_max_fill ) {
-		iobuf = alloc_iob ( IPOIB_MTU );
-		if ( ! iobuf )
-			break;
-		if ( ( rc = ib_post_recv ( ibdev, qset->qp, iobuf ) ) != 0 ) {
-			free_iob ( iobuf );
-			break;
-		}
-		qset->recv_fill++;
-	}
-}
+/** IPoIB completion operations */
+static struct ib_completion_queue_operations ipoib_cq_op = {
+	.complete_send = ipoib_complete_send,
+	.complete_recv = ipoib_complete_recv,
+};
 
 /**
  * Poll IPoIB network device
@@ -747,12 +525,7 @@ static void ipoib_poll ( struct net_device *netdev ) {
 	struct ipoib_device *ipoib = netdev->priv;
 	struct ib_device *ibdev = ipoib->ibdev;
 
-	ib_poll_cq ( ibdev, ipoib->meta.cq, ipoib_meta_complete_send,
-		     ipoib_meta_complete_recv );
-	ib_poll_cq ( ibdev, ipoib->data.cq, ipoib_data_complete_send,
-		     ipoib_data_complete_recv );
-	ipoib_refill_recv ( ipoib, &ipoib->meta );
-	ipoib_refill_recv ( ipoib, &ipoib->data );
+	ib_poll_eq ( ibdev );
 }
 
 /**
@@ -767,6 +540,26 @@ static void ipoib_irq ( struct net_device *netdev __unused,
 }
 
 /**
+ * Handle IPv4 broadcast multicast group join completion
+ *
+ * @v ibdev		Infiniband device
+ * @v qp		Queue pair
+ * @v membership	Multicast group membership
+ * @v rc		Status code
+ * @v mad		Response MAD (or NULL on error)
+ */
+void ipoib_join_complete ( struct ib_device *ibdev __unused,
+			   struct ib_queue_pair *qp __unused,
+			   struct ib_mc_membership *membership, int rc,
+			   union ib_mad *mad __unused ) {
+	struct ipoib_device *ipoib = container_of ( membership,
+				   struct ipoib_device, broadcast_membership );
+
+	/* Record join status as link status */
+	netdev_link_err ( ipoib->netdev, rc );
+}
+
+/**
  * Join IPv4 broadcast multicast group
  *
  * @v ipoib		IPoIB device
@@ -775,31 +568,15 @@ static void ipoib_irq ( struct net_device *netdev __unused,
 static int ipoib_join_broadcast_group ( struct ipoib_device *ipoib ) {
 	int rc;
 
-	/* Sanity check */
-	if ( ! ipoib->data.qp )
-		return 0;
-
-	/* Attach data queue to broadcast multicast GID */
-	assert ( ipoib->broadcast_attached == 0 );
-	if ( ( rc = ib_mcast_attach ( ipoib->ibdev, ipoib->data.qp,
-				      &ipoib->broadcast_gid ) ) != 0 ){
-		DBGC ( ipoib, "IPoIB %p could not attach to broadcast GID: "
-		       "%s\n", ipoib, strerror ( rc ) );
-		return rc;
-	}
-	ipoib->broadcast_attached = 1;
-
-	/* Initiate broadcast group join */
-	if ( ( rc = ipoib_mc_member_record ( ipoib, &ipoib->broadcast_gid,
-					     1 ) ) != 0 ) {
-		DBGC ( ipoib, "IPoIB %p could not send broadcast join: %s\n",
+	if ( ( rc = ib_mcast_join ( ipoib->ibdev, ipoib->qp,
+				    &ipoib->broadcast_membership,
+				    &ipoib->broadcast.gid,
+				    ipoib_join_complete ) ) != 0 ) {
+		DBGC ( ipoib, "IPoIB %p could not join broadcast group: %s\n",
 		       ipoib, strerror ( rc ) );
 		return rc;
 	}
-
-	/* We will set link up on the network device when we receive
-	 * the broadcast join response.
-	 */
+	ipoib->broadcast_joined = 1;
 
 	return 0;
 }
@@ -811,12 +588,10 @@ static int ipoib_join_broadcast_group ( struct ipoib_device *ipoib ) {
  */
 static void ipoib_leave_broadcast_group ( struct ipoib_device *ipoib ) {
 
-	/* Detach data queue from broadcast multicast GID */
-	if ( ipoib->broadcast_attached ) {
-		assert ( ipoib->data.qp != NULL );
-		ib_mcast_detach ( ipoib->ibdev, ipoib->data.qp,
-				  &ipoib->broadcast_gid );
-		ipoib->broadcast_attached = 0;
+	if ( ipoib->broadcast_joined ) {
+		ib_mcast_leave ( ipoib->ibdev, ipoib->qp,
+				 &ipoib->broadcast_membership );
+		ipoib->broadcast_joined = 0;
 	}
 }
 
@@ -828,52 +603,55 @@ static void ipoib_leave_broadcast_group ( struct ipoib_device *ipoib ) {
  */
 static int ipoib_open ( struct net_device *netdev ) {
 	struct ipoib_device *ipoib = netdev->priv;
+	struct ib_device *ibdev = ipoib->ibdev;
 	struct ipoib_mac *mac = ( ( struct ipoib_mac * ) netdev->ll_addr );
 	int rc;
 
-	/* Allocate metadata queue set */
-	if ( ( rc = ipoib_create_qset ( ipoib, &ipoib->meta,
-					IPOIB_META_NUM_CQES,
-					IPOIB_META_NUM_SEND_WQES,
-					IPOIB_META_NUM_RECV_WQES,
-					IB_GLOBAL_QKEY ) ) != 0 ) {
-		DBGC ( ipoib, "IPoIB %p could not allocate metadata QP: %s\n",
+	/* Open IB device */
+	if ( ( rc = ib_open ( ibdev ) ) != 0 ) {
+		DBGC ( ipoib, "IPoIB %p could not open device: %s\n",
 		       ipoib, strerror ( rc ) );
-		goto err_create_meta_qset;
+		goto err_ib_open;
 	}
 
-	/* Allocate data queue set */
-	if ( ( rc = ipoib_create_qset ( ipoib, &ipoib->data,
-					IPOIB_DATA_NUM_CQES,
-					IPOIB_DATA_NUM_SEND_WQES,
-					IPOIB_DATA_NUM_RECV_WQES,
-					IB_GLOBAL_QKEY ) ) != 0 ) {
-		DBGC ( ipoib, "IPoIB %p could not allocate data QP: %s\n",
-		       ipoib, strerror ( rc ) );
-		goto err_create_data_qset;
+	/* Allocate completion queue */
+	ipoib->cq = ib_create_cq ( ibdev, IPOIB_NUM_CQES, &ipoib_cq_op );
+	if ( ! ipoib->cq ) {
+		DBGC ( ipoib, "IPoIB %p could not allocate completion queue\n",
+		       ipoib );
+		rc = -ENOMEM;
+		goto err_create_cq;
 	}
 
-	/* Update MAC address with data QPN */
-	mac->qpn = htonl ( ipoib->data.qp->qpn );
+	/* Allocate queue pair */
+	ipoib->qp = ib_create_qp ( ibdev, IB_QPT_UD,
+				   IPOIB_NUM_SEND_WQES, ipoib->cq,
+				   IPOIB_NUM_RECV_WQES, ipoib->cq );
+	if ( ! ipoib->qp ) {
+		DBGC ( ipoib, "IPoIB %p could not allocate queue pair\n",
+		       ipoib );
+		rc = -ENOMEM;
+		goto err_create_qp;
+	}
+	ib_qp_set_ownerdata ( ipoib->qp, ipoib );
+
+	/* Update MAC address with QPN */
+	mac->flags__qpn = htonl ( ipoib->qp->qpn );
 
 	/* Fill receive rings */
-	ipoib_refill_recv ( ipoib, &ipoib->meta );
-	ipoib_refill_recv ( ipoib, &ipoib->data );
+	ib_refill_recv ( ibdev, ipoib->qp );
 
-	/* Join broadcast group */
-	if ( ( rc = ipoib_join_broadcast_group ( ipoib ) ) != 0 ) {
-		DBGC ( ipoib, "IPoIB %p could not join broadcast group: %s\n",
-		       ipoib, strerror ( rc ) );
-		goto err_join_broadcast;
-	}
+	/* Fake a link status change to join the broadcast group */
+	ipoib_link_state_changed ( ibdev );
 
 	return 0;
 
- err_join_broadcast:
-	ipoib_destroy_qset ( ipoib, &ipoib->data );
- err_create_data_qset:
-	ipoib_destroy_qset ( ipoib, &ipoib->meta );
- err_create_meta_qset:
+	ib_destroy_qp ( ibdev, ipoib->qp );
+ err_create_qp:
+	ib_destroy_cq ( ibdev, ipoib->cq );
+ err_create_cq:
+	ib_close ( ibdev );
+ err_ib_open:
 	return rc;
 }
 
@@ -884,17 +662,21 @@ static int ipoib_open ( struct net_device *netdev ) {
  */
 static void ipoib_close ( struct net_device *netdev ) {
 	struct ipoib_device *ipoib = netdev->priv;
+	struct ib_device *ibdev = ipoib->ibdev;
 	struct ipoib_mac *mac = ( ( struct ipoib_mac * ) netdev->ll_addr );
 
 	/* Leave broadcast group */
 	ipoib_leave_broadcast_group ( ipoib );
 
-	/* Remove data QPN from MAC address */
-	mac->qpn = 0;
+	/* Remove QPN from MAC address */
+	mac->flags__qpn = 0;
 
 	/* Tear down the queues */
-	ipoib_destroy_qset ( ipoib, &ipoib->data );
-	ipoib_destroy_qset ( ipoib, &ipoib->meta );
+	ib_destroy_qp ( ibdev, ipoib->qp );
+	ib_destroy_cq ( ibdev, ipoib->cq );
+
+	/* Close IB device */
+	ib_close ( ibdev );
 }
 
 /** IPoIB network device operations */
@@ -907,38 +689,6 @@ static struct net_device_operations ipoib_operations = {
 };
 
 /**
- * Update IPoIB dynamic Infiniband parameters
- *
- * @v ipoib		IPoIB device
- *
- * The Infiniband port GID and partition key will change at runtime,
- * when the link is established (or lost).  The MAC address is based
- * on the port GID, and the broadcast GID is based on the partition
- * key.  This function recalculates these IPoIB device parameters.
- */
-static void ipoib_set_ib_params ( struct ipoib_device *ipoib ) {
-	struct ib_device *ibdev = ipoib->ibdev;
-	struct net_device *netdev = ipoib->netdev;
-	struct ipoib_mac *mac;
-
-	/* Calculate GID portion of MAC address based on port GID */
-	mac = ( ( struct ipoib_mac * ) netdev->ll_addr );
-	memcpy ( &mac->gid, &ibdev->port_gid, sizeof ( mac->gid ) );
-
-	/* Calculate broadcast GID based on partition key */
-	memcpy ( &ipoib->broadcast_gid, &ipv4_broadcast_gid,
-		 sizeof ( ipoib->broadcast_gid ) );
-	ipoib->broadcast_gid.u.words[2] = htons ( ibdev->pkey );
-
-	/* Set net device link state to reflect Infiniband link state */
-	if ( ibdev->link_up ) {
-		netdev_link_up ( netdev );
-	} else {
-		netdev_link_down ( netdev );
-	}
-}
-
-/**
  * Handle link status change
  *
  * @v ibdev		Infiniband device
@@ -946,20 +696,30 @@ static void ipoib_set_ib_params ( struct ipoib_device *ipoib ) {
 void ipoib_link_state_changed ( struct ib_device *ibdev ) {
 	struct net_device *netdev = ib_get_ownerdata ( ibdev );
 	struct ipoib_device *ipoib = netdev->priv;
+	struct ipoib_mac *mac = ( ( struct ipoib_mac * ) netdev->ll_addr );
 	int rc;
 
 	/* Leave existing broadcast group */
 	ipoib_leave_broadcast_group ( ipoib );
 
-	/* Update MAC address and broadcast GID based on new port GID
-	 * and partition key.
-	 */
-	ipoib_set_ib_params ( ipoib );
+	/* Update MAC address based on potentially-new GID prefix */
+	memcpy ( &mac->gid.u.half[0], &ibdev->gid.u.half[0],
+		 sizeof ( mac->gid.u.half[0] ) );
+
+	/* Update broadcast GID based on potentially-new partition key */
+	ipoib->broadcast.gid.u.words[2] =
+		htons ( ibdev->pkey | IB_PKEY_FULL );
+
+	/* Set net device link state to reflect Infiniband link state */
+	rc = ib_link_rc ( ibdev );
+	netdev_link_err ( netdev, ( rc ? rc : -EINPROGRESS_JOINING ) );
 
 	/* Join new broadcast group */
-	if ( ( rc = ipoib_join_broadcast_group ( ipoib ) ) != 0 ) {
+	if ( ib_link_ok ( ibdev ) &&
+	     ( ( rc = ipoib_join_broadcast_group ( ipoib ) ) != 0 ) ) {
 		DBGC ( ipoib, "IPoIB %p could not rejoin broadcast group: "
 		       "%s\n", ipoib, strerror ( rc ) );
+		netdev_link_err ( netdev, rc );
 		return;
 	}
 }
@@ -987,11 +747,14 @@ int ipoib_probe ( struct ib_device *ibdev ) {
 	ipoib->netdev = netdev;
 	ipoib->ibdev = ibdev;
 
-	/* Calculate as much of the broadcast GID and the MAC address
-	 * as we can.  We won't know either of these in full until we
-	 * have link-up.
-	 */
-	ipoib_set_ib_params ( ipoib );
+	/* Extract hardware address */
+	memcpy ( netdev->hw_addr, &ibdev->gid.u.half[1],
+		 sizeof ( ibdev->gid.u.half[1] ) );
+
+	/* Set default broadcast address */
+	memcpy ( &ipoib->broadcast, &ipoib_broadcast,
+		 sizeof ( ipoib->broadcast ) );
+	netdev->ll_broadcast = ( ( uint8_t * ) &ipoib->broadcast );
 
 	/* Register network device */
 	if ( ( rc = register_netdev ( netdev ) ) != 0 )

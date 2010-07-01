@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -35,62 +36,62 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <syslinux/align.h>
+#include <com32.h>
 
-#define ALIGN_UP(p,t)       ((t *)(((uintptr_t)(p) + (sizeof(t)-1)) & ~(sizeof(t)-1)))
-
-extern char _end[];	     /* Symbol created by linker */
-void *__mem_end = &_end;     /* Global variable for use by malloc() */
+extern char _end[];		/* Symbol created by linker */
+void *__mem_end = &_end;	/* Global variable for use by malloc() */
 
 int __parse_argv(char ***argv, const char *str)
 {
-  char argv0[] = "";
-  char *mem = __mem_end;
-  const char *p = str;
-  char *q = mem;
-  char *r;
-  char **arg;
-  int wasspace = 1;
-  int argc = 1;
+    char dummy_argv0[] = "";
+    char *mem = __mem_end;
+    const char *p = str;
+    char *q = mem;
+    char *r;
+    char **arg;
+    int wasspace = 1;
+    int argc = 1;
 
-  /* First copy the string, turning whitespace runs into nulls */
-  for ( p = str ; ; p++ ) {
-    if ( *p <= ' ' ) {
-      if ( !wasspace ) {
-	wasspace = 1;
-	*q++ = '\0';
-      }
-    } else {
-      if ( wasspace ) {
-	argc++;
-	wasspace = 0;
-      }
-      *q++ = *p;
+    /* First copy the string, turning whitespace runs into nulls */
+    for (p = str;; p++) {
+	if (*p <= ' ') {
+	    if (!wasspace) {
+		wasspace = 1;
+		*q++ = '\0';
+	    }
+	} else {
+	    if (wasspace) {
+		argc++;
+		wasspace = 0;
+	    }
+	    *q++ = *p;
+	}
+
+	/* This test is AFTER we have processed the null byte;
+	   we treat it as a whitespace character so it terminates
+	   the last argument */
+	if (!*p)
+	    break;
     }
 
-    /* This test is AFTER we have processed the null byte;
-       we treat it as a whitespace character so it terminates
-       the last argument */
-    if ( ! *p )
-      break;
-  }
+    /* Now create argv */
+    arg = (char **)ALIGN_UP_FOR(q, char *);
+    *argv = arg;
+    *arg++ = __com32.cs_name ? (char *)__com32.cs_name : dummy_argv0; /* argv[0] */
 
-  /* Now create argv */
-  arg = ALIGN_UP(q,char *);
-  *argv = arg;
-  *arg++ = argv0;		/* argv[0] */
+    q--;			/* Point q to final null */
+    if (mem < q)
+	*arg++ = mem;		/* argv[1] */
 
-  q--;				/* Point q to final null */
-  if ( mem < q )
-    *arg++ = mem;		/* argv[1] */
-
-  for ( r = mem ; r < q ; r++ ) {
-    if ( *r == '\0' ) {
-      *arg++ = r+1;
+    for (r = mem; r < q; r++) {
+	if (*r == '\0') {
+	    *arg++ = r + 1;
+	}
     }
-  }
 
-  *arg++ = NULL;		/* Null pointer at the end */
-  __mem_end = arg;		/* End of memory we used */
+    *arg++ = NULL;		/* Null pointer at the end */
+    __mem_end = arg;		/* End of memory we used */
 
-  return argc;
+    return argc;
 }

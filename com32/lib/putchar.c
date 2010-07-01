@@ -10,7 +10,7 @@
 
 int putchar(int c)
 {
-  unsigned char ch = c;
+    unsigned char ch = c;
 
-  return _fwrite(&ch, 1, stdout) == 1 ? ch : EOF;
+    return _fwrite(&ch, 1, stdout) == 1 ? ch : EOF;
 }

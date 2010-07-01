@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
 ;; Common code for running a COMBOOT image
 ;;
 
-		section .text
+		section .text16
 
 ; Parameter registers definition; this is the definition
 ; of the stack frame used by INT 21h and INT 22h.
@@ -62,7 +63,7 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
-		call close_file
+		pm_call pm_close_file
 		mov si,err_comlarge
 		call writestr
 		jmp enter_command
@@ -123,9 +124,8 @@ is_comboot_image:
 		; Now actually load the file...
 		pop si			; File handle
 		mov bx,100h		; Load at <seg>:0100h
-		mov cx,10000h >> SECTOR_SHIFT
-					; Absolute maximum # of sectors
-		call getfssec
+		mov cx,0FF00h		; Maximum number of bytes
+		pm_call getfsbytes
 		cmp ecx,65536-256-2	; Maximum size
 		ja comboot_too_large
 
@@ -138,17 +138,9 @@ is_comboot_image:
 
 		jmp comboot_seg:100h	; Run it
 
-; Proper return vector
-; Note: this gets invoked both via INT 21h and directly via INT 20h.
-; We don't need to cld explicitly here, because comboot_exit does that
-; when invoking RESET_STACK_AND_SEGS.
-comboot_return:	cli			; Don't trust anyone
-		push enter_command	; Normal return to command prompt
-		jmp comboot_exit
-
 ;
-; Set up the COMBOOT API interrupt vectors.  This is also used
-; by the COM32 code.
+; Set up the COMBOOT API interrupt vectors.  This is now done at
+; initialization time.
 ;
 comboot_setup_api:
 		mov di,DOSErrTramp	; Error trampolines
@@ -177,11 +169,24 @@ comboot_setup_api:
 		loop .loop2
 		ret
 
-		section .bss
+;
+; Restore the original state of the COMBOOT API vectors, and free
+; any low memory allocated by the comboot module.
+;
+comboot_cleanup_api:
+		pusha
+		mov si,DOSSaveVectors
+		mov di,4*20h
+		mov cx,20h
+		rep movsd		; Restore DOS-range vectors
+		popa
+		ret
+
+		section .bss16
 		alignb 4
 DOSSaveVectors	resd 32
 
-		section .data
+		section .data16
 %define comboot_err(x) (DOSErrTramp+4*((x)-20h))
 
 comboot_vectors:
@@ -218,10 +223,10 @@ comboot_vectors:
 		dw comboot_err(3Eh)	; INT 3E = DOS FPU emulation
 		dw comboot_err(3Fh)	; INT 3F = DOS overlay manager
 
-		section .text
+		section .text16
 
 ; INT 21h: generic DOS system call
-comboot_int21:	cli
+comboot_int21:	sti
 		push ds
 		push es
 		push fs
@@ -264,8 +269,7 @@ comboot_bad_int21:
 
 ; Attempted to execute invalid DOS system call
 ; The interrupt number is on the stack.
-comboot_bogus:	cli			; Don't trust anyone
-		pop dx			; Interrupt number
+comboot_bogus:	pop dx			; Interrupt number
 		pop edi			; CS:IP
 		mov cx,err_notdos
 		push comboot_bogus_tail
@@ -284,25 +288,30 @@ comboot_bogus_tail:
 		call crlf
 		jmp enter_command
 
+; Proper return vector
+; Note: this gets invoked both via INT 21h and directly via INT 20h.
+; We don't need to cld explicitly here, because comboot_exit does that
+; when invoking RESET_STACK_AND_SEGS.
+comboot_return:
+		cli			; May not have a safe stack
+		push enter_command	; Normal return to command prompt
+		; jmp comboot_exit
+
 ;
 ; Generic COMBOOT return to command line code
 ;  stack -> where to go next
 ;     CX -> message (for _msg version)
 ;
+		extern comboot_cleanup_lowmem
 comboot_exit:
 		xor cx,cx
 comboot_exit_msg:
 		pop bx			; Return address
-		RESET_STACK_AND_SEGS SI	; Contains cld
+		RESET_STACK_AND_SEGS si	; Contains sti, cld
+		pm_call comboot_cleanup_lowmem
 		call adjust_screen	; The COMBOOT program might have changed the screen
-		pusha
-		mov si,DOSSaveVectors
-		mov di,4*20h
-		mov cx,20h
-		rep movsd		; Restore DOS-range vectors
-		popa
 		jcxz .nomsg
-		mov si,KernelCName
+		mov si,KernelName
 		call writestr
 		mov si,cx
 		call writestr
@@ -384,30 +393,17 @@ comboot_getchar:
 ;
 ; INT 28h - DOS idle
 ;
-%ifdef HAVE_IDLE
 comboot_int28:
-		cli
+		sti
 		cld
-		pushad
-		xor ax,ax
-		push ds
-		push es
-		mov ds,ax
-		mov es,ax
-		DO_IDLE
-		pop es
-		pop ds
-		popad
+		call do_idle
 		iret
-%else
-comboot_int28	equ comboot_iret
-%endif
 
 ;
 ; INT 29h - DOS fast write character
 ;
 comboot_int29:
-		cli
+		sti
 		cld
 		call writechr			; Preserves registers!
 		iret
@@ -417,7 +413,7 @@ comboot_int29:
 ;           System call number in ax
 ;
 comboot_int22:
-		cli
+		sti
 		push ds
 		push es
 		push fs
@@ -462,9 +458,9 @@ comapi_get_version:
 
 		mov P_ES,ds
 		; ES:SI -> version banner
-		mov P_SI,syslinux_banner
+		mov P_SI,syslinux_banner + 2	; Skip leading CR LF
 		; ES:DI -> copyright string
-		mov P_DI,copyright_str
+		mov P_DI,copyright_str + 1	; Skip leading space
 
 comapi_nop:
 		clc
@@ -520,18 +516,12 @@ comapi_textmode:
 ; INT 22h AX=0006h	Open file
 ;
 comapi_open:
-		push ds
-		mov ds,P_ES
+		mov es,P_ES
 		mov si,P_SI
-		mov di,InitRD
-		call mangle_name
-		pop ds
-		call searchdir
-		jz comapi_err
+		pm_call pm_open_file
 		mov P_EAX,eax
-		mov P_CX,SECTOR_SIZE
+		mov P_CX,cx
 		mov P_SI,si
-		clc
 		ret
 
 ;
@@ -542,7 +532,7 @@ comapi_read:
 		mov bx,P_BX
 		mov si,P_SI
 		mov cx,P_CX
-		call getfssec
+		pm_call getfssec
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0
 .noteof:	mov P_SI,si
@@ -554,7 +544,7 @@ comapi_read:
 ;
 comapi_close:
 		mov si,P_SI
-		call close_file
+		pm_call pm_close_file
 		clc
 		ret
 
@@ -590,15 +580,22 @@ comapi_derinfo:
 		mov P_SI,ax
 		mov ax,[InitStack+2]
 		mov P_FS,ax
+		mov eax,[IPInfo.MyIP]
+		mov P_ECX,eax
+		mov P_GS,0
+		mov P_DI,IPInfo
 %else
 		; Physical medium...
 
-		mov P_CL,SECTOR_SHIFT
+		mov al,[SectorShift]
+		mov P_CL,al
 		mov al,[DriveNumber]
 		mov P_DL,al
 		mov P_FS,cs
 		mov P_SI,OrigESDI
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+		mov P_GS,cs
+		mov P_DI,Hidden
+%if IS_SYSLINUX || IS_EXTLINUX
 		mov P_ES,cs
 		mov P_BX,PartInfo
 %elif IS_ISOLINUX
@@ -642,17 +639,14 @@ comapi_cleanup:
 		test dl,3
 		setnz [KeepPXE]
 		sub bp,sp		; unload_pxe may move the stack around
-		call unload_pxe
+		pm_call unload_pxe
 		add bp,sp		; restore frame pointer...
-%elif IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+%elif IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
 %endif
-		; Reset the floppy disk subsystem
-		xor ax,ax
-		xor dx,dx
-		int 13h
+		call cleanup_hardware
 		clc
 		ret
 
@@ -667,12 +661,11 @@ comapi_chainboot:
 		mov [trackbuf+8],eax		; Total bytes
 		mov eax,7C00h
 		mov [trackbuf],eax		; Copy to
-		mov [EntryPoint],eax		; CS:IP entry point
+		push eax			; Entry point on stack
 		mov esi,P_ESI
 		mov edx,P_EBX
 		mov bx,P_DS
 		jmp replace_bootstrap_one
-
 
 ;
 ; INT 22h AX=000Eh	Get configuration file name
@@ -686,7 +679,6 @@ comapi_configfile:
 ;
 ; INT 22h AX=000Fh	Get IPAPPEND strings
 ;
-%if IS_PXELINUX
 comapi_ipappend:
 		mov P_ES,cs
 		mov P_CX,numIPAppends
@@ -694,26 +686,15 @@ comapi_ipappend:
 		clc
 		ret
 
-		section .data
-		alignb 2, db 0
-IPAppends	dw IPOption
-		dw BOOTIFStr
-numIPAppends	equ ($-IPAppends)/2
-
-%else
-comapi_ipappend equ comapi_err
-%endif
-
-		section .text
-
 ;
 ; INT 22h AX=0010h	Resolve hostname
 ;
 %if IS_PXELINUX
+                extern pxe_dns_resolv
 comapi_dnsresolv:
 		mov ds,P_ES
 		mov si,P_BX
-		call dns_resolv
+		pm_call pxe_dns_resolv
 		mov P_EAX,eax
 		clc
 		ret
@@ -721,63 +702,23 @@ comapi_dnsresolv:
 comapi_dnsresolv equ comapi_err
 %endif
 
-		section .text
+		section .text16
 
 ;
-; INT 22h AX=0011h	Maximum number of shuffle descriptors
+; INT 22h AX=0011h	Obsolete
 ;
-comapi_maxshuffle:
-		mov P_CX,trackbufsize/12
-		ret
 
 ;
-; INT 22h AX=0012h	Cleanup, shuffle and boot
+; INT 22h AX=0012h	Obsolete
 ;
-comapi_shuffle:
-		cmp P_CX,(2*trackbufsize)/12
-		ja .error
-
-		call comapi_cleanup
-
-		mov cx, P_CX
-		push cx				; On stack: descriptor count
-
-		lea cx,[ecx+ecx*2]		; CX *= 3
-
-		mov fs,P_ES
-		mov si,P_DI
-		mov di,trackbuf
-		push di				; On stack: descriptor list address
-		fs rep movsd			; Copy the list
-
-		mov eax,P_EBP
-		mov [EntryPoint],eax		; CS:IP entry point
-		mov esi,P_ESI
-		mov edx,P_EBX
-		mov bx,P_DS
-		jmp replace_bootstrap
-.error:
-		stc
-		ret
 
 ;
 ; INT 22h AX=0013h	Idle call
 ;
-;
-; *** FIX THIS ***
-; The idle call seems to have detrimental effects on some machines when
-; called from a COM32 context (WHY?) --  disable it for now.
-; *** IS THIS STILL TRUE? ***
-;
-%ifdef HAVE_IDLE
 comapi_idle:
-		DO_IDLE
+		call do_idle
 		clc
 		ret
-
-%else
-comapi_idle	equ comapi_err
-%endif
 
 ;
 ; INT 22h AX=0014h	Local boot
@@ -808,32 +749,30 @@ comapi_runkernel:
 		cmp al,VK_TYPES-1
 		ja .error
 		mov [KernelType],al
+
+		; It's not just possible, but quite likely, that ES:BX
+		; points into real_mode_seg or xfer_buf_seg, so we
+		; need to exercise some special care here... use
+		; vk_append for temporary storage.
+		push ds
+		mov ds,P_ES
+		mov si,P_BX
+		mov di,vk_append
+		call strcpy
+		pop ds
+
 		push ds
 		mov ds,P_DS
 		mov si,P_SI
 		mov di,KernelName
-		call mangle_name
+		pm_call pm_mangle_name
 		pop ds
-		call searchdir
+		pm_call pm_searchdir
 		jz comapi_err
 
 		; The kernel image was found, so we can load it...
 		mov [Kernel_SI],si
 		mov [Kernel_EAX],eax
-
-		; It's not just possible, but quite likely, that ES:BX
-		; points into real_mode_seg, so we need to exercise some
-		; special care here... use xfer_buf_seg as an intermediary
-		push ds
-		push es
-		mov ax,xfer_buf_seg
-		mov ds,P_ES
-		mov si,P_BX
-		mov es,ax
-		xor di,di
-		call strcpy
-		pop es
-		pop ds
 
 %if IS_PXELINUX
 		mov al,P_CL
@@ -844,23 +783,19 @@ comapi_runkernel:
 
 .finish:
 		; Copy the command line into its proper place
-		push ds
 		push es
-		mov ax,xfer_buf_seg
 		mov dx,real_mode_seg
-		mov ds,ax
 		mov es,dx
-		xor si,si
+		mov si,vk_append
 		mov di,cmd_line_here
 		call strcpy
-		mov byte [es:di-1],' '		; Simulate APPEND
+		mov word [es:di-1],' '	; Simulate APPEND: space plus null
 		pop es
-		pop ds
 		mov [CmdLinePtr],di
 		mov word [CmdOptPtr],zero_string
 		jmp kernel_good_saved
 
-.error		equ comapi_shuffle.error
+.error		equ comapi_usingvga.error
 
 ;
 ; INT 22h AX=0017h  Report video mode change
@@ -892,8 +827,8 @@ comapi_userfont:
 		and al,al
 		jz .done
 		mov al,[VGAFontSize]
-		mov P_ES,ds
-		mov P_BX,vgafontbuf
+		mov P_ES,aux_seg
+		mov P_BX,aux.fontbuf
 
 .done:		; CF=0 here
 		mov P_AL,al
@@ -902,12 +837,12 @@ comapi_userfont:
 ;
 ; INT 22h AX=0019h  Read disk
 ;
-%if IS_SYSLINUX || IS_MDSLINUX || IS_ISOLINUX || IS_EXTLINUX
+%if IS_SYSLINUX || IS_ISOLINUX || IS_EXTLINUX
 comapi_readdisk:
-		mov esi,P_ESI		; Enforce ESI == EDI == 0, these
-		or esi,P_EDI		; are reserved for future expansion
+		cmp P_EDI,0		; Reserved for future expansion
 		jnz .err
 		mov eax,P_EDX
+		mov edx,P_ESI
 		mov es,P_ES
 		mov bx,P_BX
 		mov bp,P_CX		; WE CANNOT use P_* after touching bp!
@@ -922,102 +857,12 @@ comapi_readdisk	equ comapi_err
 %endif
 
 ;
-; INT 22h AX=001Ah	Cleanup, shuffle and boot to flat protected mode
+; INT 22h AX=001Ah	Obsolete
 ;
-comapi_shufflepm:
-		cmp P_CX,(2*trackbufsize)/12
-		ja .error
-
-		call comapi_cleanup
-
-		mov cx, P_CX
-		push cx				; On stack: descriptor count
-
-		lea cx,[ecx+ecx*2]		; CX *= 3
-
-		mov fs,P_ES
-		mov si,P_DI
-		mov di,trackbuf
-		push di				; On stack: descriptor list address
-		fs rep movsd			; Copy the list
-
-		mov fs,P_DS
-		mov si,P_SI
-		mov edi,TrampolineBuf
-		mov al,0B8h			; MOV EAX opcode
-		mov cl,9
-.maketramp:
-		stosb				; MOV opcode
-		inc ax				; Next register opcode
-		fs movsd			; immediate value
-		loop .maketramp
-		mov byte [di-5],0E9h		; Last opcode is JMP
-		sub [di-4],edi			; Make JMP target relative
-
-		mov dword [EntryPoint],trampoline_to_pm
-		xor bx,bx			; DS on entry
-		jmp replace_bootstrap
-.error:
-		stc
-		ret
 
 ;
-; INT 22h AX=001Bh	Cleanup, shuffle and boot with register setting
+; INT 22h AX=001Bh	Obsolete
 ;
-comapi_shufflerm:
-		cmp P_CX,(2*trackbufsize)/12
-		ja .error
-
-		call comapi_cleanup
-
-		mov cx, P_CX
-		push cx				; On stack: descriptor count
-
-		lea cx,[ecx+ecx*2]		; CX *= 3
-
-		mov fs,P_ES
-		mov si,P_DI
-		mov di,trackbuf
-		push di				; On stack: descriptor list address
-		fs rep movsd			; Copy the list
-
-		mov fs,P_DS
-		mov si,P_SI
-		mov di,TrampolineBuf
-
-		; Generate segment-loading instructions
-		mov bx,0C08Eh			; MOV ES,AX
-		mov cl,6			; 6 segment registers (incl CS)
-.segtramp:
-		mov al,0B8h
-		stosb				; MOV AX,imm16 opcode
-		fs movsw			; imm16
-		mov ax,bx
-		add bh,8
-		stosw				; MOV xS,AX
-		loop .segtramp
-
-		; Clobber the MOV CS,AX instruction.
-		mov word [di-22], 9090h		; NOP NOP
-
-		; Generate GPR-loading instructions
-		mov ax,0B866h			; MOV EAX,imm32
-		mov cl,8			; 8 GPRs
-.gprtramp:
-		stosw				; MOV ExX,imm32 opcode
-		fs movsd			; imm32
-		inc ah
-		loop .gprtramp
-
-		mov al,0EAh			; JMP FAR imm16:imm16 opcode
-		stosb
-		fs movsd			; CS:IP
-
-		mov dword [EntryPoint],TrampolineBuf
-		jmp replace_bootstrap
-.error:
-		stc
-		ret
 
 ;
 ; INT 22h AX=001Ch	Get pointer to auxillary data vector
@@ -1033,7 +878,48 @@ comapi_getadv:
 ;
 comapi_writeadv	equ adv_write
 
-		section .data
+;
+; INT 22h AX=001Eh	Keyboard remapping table
+comapi_kbdtable:
+		cmp P_DX,0
+		jne .err
+		mov P_AX,1			; Version
+		mov P_CX,256			; Length
+		mov P_ES,cs
+		mov P_BX,KbdMap
+		ret
+.err:
+		stc
+		ret
+
+;
+; INT 22h AX=001Fh	Get current working directory
+;
+comapi_getcwd:
+		mov P_ES,cs
+		mov P_BX,CurrentDirName
+		clc
+		ret
+
+;
+; INT 22h AX=0023h	Query shuffler size
+;
+comapi_shufsize:
+		; +15 is padding to guarantee alignment
+		mov P_CX,__bcopyxx_len + 15
+		ret
+
+;
+; INT 22h AX=0024h	Cleanup, shuffle and boot raw
+;
+comapi_shufraw:
+		call comapi_cleanup
+		mov edi,P_EDI
+		mov esi,P_ESI
+		mov ecx,P_ECX
+		jmp shuffle_and_boot_raw
+
+		section .data16
 
 %macro		int21 2
 		db %1
@@ -1053,7 +939,7 @@ int21_table:
 		int21	 -1, comboot_bad_int21
 int21_count	equ ($-int21_table)/3
 
-		align 2, db 0
+		alignz 2
 int22_table:
 		dw comapi_err		; 0000 unimplemented syscall
 		dw comapi_get_version	; 0001 get SYSLINUX version
@@ -1068,12 +954,12 @@ int22_table:
 		dw comapi_derinfo	; 000A derivative-specific info
 		dw comapi_serialcfg	; 000B get serial port config
 		dw comapi_cleanup	; 000C perform final cleanup
-		dw comapi_chainboot	; 000D clean up then bootstrap
+		dw comapi_err		; 000D clean up then bootstrap
 		dw comapi_configfile	; 000E get name of config file
 		dw comapi_ipappend	; 000F get ipappend strings
 		dw comapi_dnsresolv	; 0010 resolve hostname
-		dw comapi_maxshuffle	; 0011 maximum shuffle descriptors
-		dw comapi_shuffle	; 0012 cleanup, shuffle and boot
+		dw comapi_err		; 0011 maximum shuffle descriptors
+		dw comapi_err		; 0012 cleanup, shuffle and boot
 		dw comapi_idle		; 0013 idle call
 		dw comapi_localboot	; 0014 local boot
 		dw comapi_features	; 0015 feature flags
@@ -1081,10 +967,17 @@ int22_table:
 		dw comapi_usingvga	; 0017 report video mode change
 		dw comapi_userfont	; 0018 query custom font
 		dw comapi_readdisk	; 0019 read disk
-		dw comapi_shufflepm	; 001A cleanup, shuffle and boot to pm
-		dw comapi_shufflerm	; 001B cleanup, shuffle and boot to rm
+		dw comapi_err		; 001A cleanup, shuffle and boot to pm
+		dw comapi_err		; 001B cleanup, shuffle and boot to rm
 		dw comapi_getadv	; 001C get pointer to ADV
 		dw comapi_writeadv	; 001D write ADV to disk
+		dw comapi_kbdtable	; 001E keyboard remapping table
+		dw comapi_getcwd	; 001F get current working directory
+		dw comapi_err		; 0020 open directory
+		dw comapi_err		; 0021 read directory
+		dw comapi_err		; 0022 close directory
+		dw comapi_shufsize	; 0023 query shuffler size
+		dw comapi_shufraw	; 0024 cleanup, shuffle and boot raw
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
@@ -1099,13 +992,19 @@ zero_string	db 0			; Empty, null-terminated string
 ; in pxe_detect_nic_type
 ;
 feature_flags:
-		db 3			; Have local boot, idle is noop
+		db 1			; Have local boot, idle is not noop
 feature_flags_len equ ($-feature_flags)
 
 err_notdos	db ': attempted DOS system call INT ',0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 
-		section .bss1
+		section .bss16
 		alignb 4
 DOSErrTramp	resd	33		; Error trampolines
+
+		global ConfigName
 ConfigName	resb	FILENAME_MAX
+%ifndef HAVE_CURRENTDIRNAME
+		global CurrentDirName
+CurrentDirName	resb	FILENAME_MAX
+%endif

@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @file
  *
@@ -35,7 +37,7 @@
  * @v key		Key
  * @v key_len		Length of key
  */
-static void hmac_reduce_key ( struct crypto_algorithm *digest,
+static void hmac_reduce_key ( struct digest_algorithm *digest,
 			      void *key, size_t *key_len ) {
 	uint8_t digest_ctx[digest->ctxsize];
 
@@ -58,7 +60,7 @@ static void hmac_reduce_key ( struct crypto_algorithm *digest,
  * will be replaced with its own digest, and key_len will be updated
  * accordingly).
  */
-void hmac_init ( struct crypto_algorithm *digest, void *digest_ctx,
+void hmac_init ( struct digest_algorithm *digest, void *digest_ctx,
 		 void *key, size_t *key_len ) {
 	unsigned char k_ipad[digest->blocksize];
 	unsigned int i;
@@ -93,7 +95,7 @@ void hmac_init ( struct crypto_algorithm *digest, void *digest_ctx,
  * will be replaced with its own digest, and key_len will be updated
  * accordingly).
  */
-void hmac_final ( struct crypto_algorithm *digest, void *digest_ctx,
+void hmac_final ( struct digest_algorithm *digest, void *digest_ctx,
 		  void *key, size_t *key_len, void *hmac ) {
 	unsigned char k_opad[digest->blocksize];
 	unsigned int i;

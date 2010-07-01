@@ -11,6 +11,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @defgroup featurecat Feature categories
  * @{
@@ -42,25 +44,29 @@
 #define DHCP_EB_FEATURE_BZIMAGE		0x18 /**< bzImage format */
 #define DHCP_EB_FEATURE_MULTIBOOT	0x19 /**< Multiboot format */
 #define DHCP_EB_FEATURE_SLAM		0x1a /**< SLAM protocol */
+#define DHCP_EB_FEATURE_SRP		0x1b /**< SRP protocol */
 #define DHCP_EB_FEATURE_NBI		0x20 /**< NBI format */
 #define DHCP_EB_FEATURE_PXE		0x21 /**< PXE format */
 #define DHCP_EB_FEATURE_ELF		0x22 /**< ELF format */
 #define DHCP_EB_FEATURE_COMBOOT		0x23 /**< COMBOOT format */
+#define DHCP_EB_FEATURE_EFI		0x24 /**< EFI format */
 
 /** @} */
 
+/** DHCP feature table */
+#define DHCP_FEATURES __table ( uint8_t, "dhcp_features" )
+
 /** Declare a feature code for DHCP */
-#define __dhcp_feature( category )					    \
-	 __table ( uint8_t, dhcp_features, category )
+#define __dhcp_feature __table_entry ( DHCP_FEATURES, 01 )
 
 /** Construct a DHCP feature table entry */
-#define DHCP_FEATURE( category, feature_opt, version )			    \
-	_DHCP_FEATURE ( category, OBJECT, feature_opt, version )
-#define _DHCP_FEATURE( category, _name, feature_opt, version )		    \
-	__DHCP_FEATURE ( category, _name, feature_opt, version )
-#define __DHCP_FEATURE( category, _name, feature_opt, version )		    \
-	uint8_t __dhcp_feature_ ## _name [] __dhcp_feature ( category ) = { \
-		feature_opt, DHCP_BYTE ( version )			    \
+#define DHCP_FEATURE( feature_opt, ... )				    \
+	_DHCP_FEATURE ( OBJECT, feature_opt, __VA_ARGS__ )
+#define _DHCP_FEATURE( _name, feature_opt, ... )			    \
+	__DHCP_FEATURE ( _name, feature_opt, __VA_ARGS__ )
+#define __DHCP_FEATURE( _name, feature_opt, ... )			    \
+	uint8_t __dhcp_feature_ ## _name [] __dhcp_feature = {		    \
+		feature_opt, DHCP_OPTION ( __VA_ARGS__ )		    \
 	};
 
 /** A named feature */
@@ -69,9 +75,11 @@ struct feature {
 	char *name;
 };
 
+/** Named feature table */
+#define FEATURES __table ( struct feature, "features" )
+
 /** Declare a named feature */
-#define __feature_name( category )					    \
-	__table ( struct feature, features, category )
+#define __feature_name( category ) __table_entry ( FEATURES, category )
 
 /** Construct a named feature */
 #define FEATURE_NAME( category, text )					    \
@@ -86,6 +94,10 @@ struct feature {
 /** Declare a feature */
 #define FEATURE( category, text, feature_opt, version )			    \
 	FEATURE_NAME ( category, text );				    \
-	DHCP_FEATURE ( category, feature_opt, version );
+	DHCP_FEATURE ( feature_opt, version );
+
+/** Declare the version number feature */
+#define FEATURE_VERSION( ... )						    \
+	DHCP_FEATURE ( DHCP_ENCAPSULATED ( DHCP_EB_VERSION ), __VA_ARGS__ )
 
 #endif /* _GPXE_FEATURES_H */

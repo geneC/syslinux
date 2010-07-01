@@ -14,17 +14,7 @@
  * TCP/IP transport-network layer interface
  */
 
-/** Registered network-layer protocols that support TCP/IP */
-static struct tcpip_net_protocol tcpip_net_protocols[0]
-	__table_start ( struct tcpip_net_protocol, tcpip_net_protocols );
-static struct tcpip_net_protocol tcpip_net_protocols_end[0]
-	__table_end ( struct tcpip_net_protocol, tcpip_net_protocols );
-
-/** Registered transport-layer protocols that support TCP/IP */
-static struct tcpip_protocol tcpip_protocols[0]
-	__table_start ( struct tcpip_protocol, tcpip_protocols );
-static struct tcpip_protocol tcpip_protocols_end[0]
-	__table_end ( struct tcpip_protocol, tcpip_protocols );
+FILE_LICENCE ( GPL2_OR_LATER );
 
 /** Process a received TCP/IP packet
  *
@@ -48,7 +38,7 @@ int tcpip_rx ( struct io_buffer *iobuf, uint8_t tcpip_proto,
 	struct tcpip_protocol *tcpip;
 
 	/* Hand off packet to the appropriate transport-layer protocol */
-	for ( tcpip = tcpip_protocols; tcpip < tcpip_protocols_end; tcpip++ ) {
+	for_each_table_entry ( tcpip, TCPIP_PROTOCOLS ) {
 		if ( tcpip->tcpip_proto == tcpip_proto ) {
 			DBG ( "TCP/IP received %s packet\n", tcpip->name );
 			return tcpip->rx ( iobuf, st_src, st_dest, pshdr_csum );
@@ -64,23 +54,23 @@ int tcpip_rx ( struct io_buffer *iobuf, uint8_t tcpip_proto,
  *
  * @v iobuf		I/O buffer
  * @v tcpip_protocol	Transport-layer protocol
+ * @v st_src		Source address, or NULL to use route default
  * @v st_dest		Destination address
  * @v netdev		Network device to use if no route found, or NULL
  * @v trans_csum	Transport-layer checksum to complete, or NULL
  * @ret rc		Return status code
  */
 int tcpip_tx ( struct io_buffer *iobuf, struct tcpip_protocol *tcpip_protocol,
-	       struct sockaddr_tcpip *st_dest, struct net_device *netdev,
-	       uint16_t *trans_csum ) {
+	       struct sockaddr_tcpip *st_src, struct sockaddr_tcpip *st_dest,
+	       struct net_device *netdev, uint16_t *trans_csum ) {
 	struct tcpip_net_protocol *tcpip_net;
 
 	/* Hand off packet to the appropriate network-layer protocol */
-	for ( tcpip_net = tcpip_net_protocols ;
-	      tcpip_net < tcpip_net_protocols_end ; tcpip_net++ ) {
+	for_each_table_entry ( tcpip_net, TCPIP_NET_PROTOCOLS ) {
 		if ( tcpip_net->sa_family == st_dest->st_family ) {
 			DBG ( "TCP/IP sending %s packet\n", tcpip_net->name );
-			return tcpip_net->tx ( iobuf, tcpip_protocol, st_dest,
-					       netdev, trans_csum );
+			return tcpip_net->tx ( iobuf, tcpip_protocol, st_src,
+					       st_dest, netdev, trans_csum );
 		}
 	}
 	

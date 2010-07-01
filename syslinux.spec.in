@@ -11,7 +11,7 @@ Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.t
 ExclusiveArch: i386 i486 i586 i686 athlon pentium4 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
 Buildroot: %{_tmppath}/%{name}-%{VERSION}-root
-BuildPrereq: nasm >= 0.98.39, perl
+BuildPrereq: nasm >= 2.03, perl
 Autoreq: 0
 %ifarch x86_64
 Requires: mtools, libc.so.6()(64bit)
@@ -93,6 +93,7 @@ rm -rf %{buildroot}
 %{_datadir}/syslinux/*.bin
 %{_datadir}/syslinux/*.0
 %{_datadir}/syslinux/memdisk
+%{_datadir}/syslinux/dosutil/*
 
 %files devel
 %{_datadir}/syslinux/com32
@@ -119,6 +120,10 @@ fi
 %postun
 
 %changelog
+* Fri Dec 18 2009 H. Peter Anvin <hpa@zytor.com>
+- Require NASM 2.03
+- Package dosutil
+
 * Thu May 29 2008 H. Peter Anvin <hpa@zytor.com>
 - Use install targets; clean up various paths.
 

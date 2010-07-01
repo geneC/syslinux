@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <gpxe/list.h>
 #include <gpxe/tables.h>
@@ -28,11 +30,6 @@
  * Device model
  *
  */
-
-static struct root_device root_devices[0]
-	__table_start ( struct root_device, root_devices );
-static struct root_device root_devices_end[0]
-	__table_end ( struct root_device, root_devices );
 
 /** Registered root devices */
 static LIST_HEAD ( devices );
@@ -77,7 +74,7 @@ static void probe_devices ( void ) {
 	struct root_device *rootdev;
 	int rc;
 
-	for ( rootdev = root_devices; rootdev < root_devices_end; rootdev++ ) {
+	for_each_table_entry ( rootdev, ROOT_DEVICES ) {
 		list_add ( &rootdev->dev.siblings, &devices );
 		INIT_LIST_HEAD ( &rootdev->dev.children );
 		if ( ( rc = rootdev_probe ( rootdev ) ) != 0 )

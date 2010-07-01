@@ -16,6 +16,8 @@
  * UDP protocol
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * A UDP connection
  *
@@ -182,13 +184,13 @@ static void udp_close ( struct udp_connection *udp, int rc ) {
  *
  * @v udp		UDP connection
  * @v iobuf		I/O buffer
- * @v src_port		Source port, or 0 to use default
+ * @v src		Source address, or NULL to use default
  * @v dest		Destination address, or NULL to use default
  * @v netdev		Network device, or NULL to use default
  * @ret rc		Return status code
  */
 static int udp_tx ( struct udp_connection *udp, struct io_buffer *iobuf,
-		    unsigned int src_port, struct sockaddr_tcpip *dest,
+		    struct sockaddr_tcpip *src, struct sockaddr_tcpip *dest,
 		    struct net_device *netdev ) {
        	struct udp_header *udphdr;
 	size_t len;
@@ -201,8 +203,8 @@ static int udp_tx ( struct udp_connection *udp, struct io_buffer *iobuf,
 	}
 
 	/* Fill in default values if not explicitly provided */
-	if ( ! src_port )
-		src_port = udp->local.st_port;
+	if ( ! src )
+		src = &udp->local;
 	if ( ! dest )
 		dest = &udp->peer;
 
@@ -210,7 +212,7 @@ static int udp_tx ( struct udp_connection *udp, struct io_buffer *iobuf,
 	udphdr = iob_push ( iobuf, sizeof ( *udphdr ) );
 	len = iob_len ( iobuf );
 	udphdr->dest = dest->st_port;
-	udphdr->src = src_port;
+	udphdr->src = src->st_port;
 	udphdr->len = htons ( len );
 	udphdr->chksum = 0;
 	udphdr->chksum = tcpip_chksum ( udphdr, len );
@@ -221,7 +223,7 @@ static int udp_tx ( struct udp_connection *udp, struct io_buffer *iobuf,
 	       ntohs ( udphdr->len ) );
 
 	/* Send it to the next layer for processing */
-	if ( ( rc = tcpip_tx ( iobuf, &udp_protocol, dest, netdev,
+	if ( ( rc = tcpip_tx ( iobuf, &udp_protocol, src, dest, netdev,
 			       &udphdr->chksum ) ) != 0 ) {
 		DBGC ( udp, "UDP %p could not transmit packet: %s\n",
 		       udp, strerror ( rc ) );
@@ -238,7 +240,7 @@ static int udp_tx ( struct udp_connection *udp, struct io_buffer *iobuf,
  * @ret udp		UDP connection, or NULL
  */
 static struct udp_connection * udp_demux ( struct sockaddr_tcpip *local ) {
-	static const struct sockaddr_tcpip empty_sockaddr;
+	static const struct sockaddr_tcpip empty_sockaddr = { .pad = { 0, } };
 	struct udp_connection *udp;
 
 	list_for_each_entry ( udp, &udp_conns, list ) {
@@ -328,8 +330,7 @@ static int udp_rx ( struct io_buffer *iobuf, struct sockaddr_tcpip *st_src,
 	memset ( &meta, 0, sizeof ( meta ) );
 	meta.src = ( struct sockaddr * ) st_src;
 	meta.dest = ( struct sockaddr * ) st_dest;
-	rc = xfer_deliver_iob_meta ( &udp->xfer, iobuf, &meta );
-	iobuf = NULL;
+	rc = xfer_deliver_iob_meta ( &udp->xfer, iob_disown ( iobuf ), &meta );
 
  done:
 	free_iob ( iobuf );
@@ -391,7 +392,7 @@ static struct io_buffer * udp_alloc_iob ( struct xfer_interface *xfer,
  *
  * @v xfer		Data transfer interface
  * @v iobuf		Datagram I/O buffer
- * @v meta		Data transfer metadata, or NULL
+ * @v meta		Data transfer metadata
  * @ret rc		Return status code
  */
 static int udp_xfer_deliver_iob ( struct xfer_interface *xfer,
@@ -399,22 +400,10 @@ static int udp_xfer_deliver_iob ( struct xfer_interface *xfer,
 				  struct xfer_metadata *meta ) {
 	struct udp_connection *udp =
 		container_of ( xfer, struct udp_connection, xfer );
-	struct sockaddr_tcpip *src;
-	struct sockaddr_tcpip *dest = NULL;
-	struct net_device *netdev = NULL;
-	unsigned int src_port = 0;
-
-	/* Apply xfer metadata */
-	if ( meta ) {
-		src = ( struct sockaddr_tcpip * ) meta->src;
-		if ( src )
-			src_port = src->st_port;
-		dest = ( struct sockaddr_tcpip * ) meta->dest;
-		netdev = meta->netdev;
-	}
 
 	/* Transmit data, if possible */
-	udp_tx ( udp, iobuf, src_port, dest, netdev );
+	udp_tx ( udp, iobuf, ( ( struct sockaddr_tcpip * ) meta->src ),
+		 ( ( struct sockaddr_tcpip * ) meta->dest ), meta->netdev );
 
 	return 0;
 }
@@ -438,12 +427,13 @@ static struct xfer_interface_operations udp_xfer_operations = {
 
 /** UDP socket opener */
 struct socket_opener udp_socket_opener __socket_opener = {
-	.semantics	= SOCK_DGRAM,
+	.semantics	= UDP_SOCK_DGRAM,
 	.family		= AF_INET,
 	.open		= udp_open,
 };
 
-char UDP_SOCK_DGRAM[1];
+/** Linkage hack */
+int udp_sock_dgram = UDP_SOCK_DGRAM;
 
 /**
  * Open UDP URI

@@ -40,42 +40,57 @@
 
 /* Returns the status code from PXE (0 on success),
    or -1 on invocation failure */
-int pxe_get_cached_info(int level, void **buf, size_t *len)
+int pxe_get_cached_info(int level, void **buf, size_t * len)
 {
-  com32sys_t regs;
-  t_PXENV_GET_CACHED_INFO *gci = __com32.cs_bounce;
-  void *bbuf, *nbuf;
+    const int max_dhcp_packet = 2048;
+    com32sys_t regs;
+    t_PXENV_GET_CACHED_INFO *gci;
+    void *bbuf, *nbuf;
+    int err;
 
-  memset(&regs, 0, sizeof regs);
-  regs.eax.w[0] = 0x0009;
-  regs.ebx.w[0] = PXENV_GET_CACHED_INFO;
-  regs.es       = SEG(gci);
-  regs.edi.w[0] = OFFS(gci);
+    gci = lmalloc(sizeof *gci + max_dhcp_packet);
+    if (!gci)
+	return -1;
 
-  bbuf = &gci[1];
+    memset(&regs, 0, sizeof regs);
+    regs.eax.w[0] = 0x0009;
+    regs.ebx.w[0] = PXENV_GET_CACHED_INFO;
+    regs.es = SEG(gci);
+    /* regs.edi.w[0] = OFFS(gci); */
 
-  gci->Status = PXENV_STATUS_FAILURE;
-  gci->PacketType = level;
-  gci->BufferSize = gci->BufferLimit = 65536-sizeof(*gci);
-  gci->Buffer.seg = SEG(bbuf);
-  gci->Buffer.offs = OFFS(bbuf);
+    bbuf = &gci[1];
 
-  __intcall(0x22, &regs, &regs);
+    gci->Status = PXENV_STATUS_FAILURE;
+    gci->PacketType = level;
+    gci->BufferSize = gci->BufferLimit = max_dhcp_packet;
+    gci->Buffer.seg = SEG(bbuf);
+    gci->Buffer.offs = OFFS(bbuf);
 
-  if (regs.eflags.l & EFLAGS_CF)
-    return -1;
+    __intcall(0x22, &regs, &regs);
 
-  if (gci->Status)
-    return gci->Status;
+    if (regs.eflags.l & EFLAGS_CF) {
+	err = -1;
+	goto exit;
+    }
 
-  nbuf = malloc(gci->BufferSize); /* malloc() does not use the bounce buffer */
-  if (!nbuf)
-    return -1;
+    if (gci->Status) {
+	err = gci->Status;
+	goto exit;
+    }
 
-  memcpy(nbuf, bbuf, gci->BufferSize);
+    nbuf = malloc(gci->BufferSize);
+    if (!nbuf) {
+	err = -1;
+	goto exit;
+    }
 
-  *buf = nbuf;
-  *len = gci->BufferSize;
+    memcpy(nbuf, bbuf, gci->BufferSize);
 
-  return 0;
+    *buf = nbuf;
+    *len = gci->BufferSize;
+    err = 0;
+
+exit:
+    lfree(gci);
+    return err;
 }

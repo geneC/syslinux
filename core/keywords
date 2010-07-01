@@ -5,6 +5,7 @@ append
 initrd
 config
 default
+ui
 display
 font
 implicit
@@ -31,6 +32,7 @@ ontimeout
 onerror
 noescape
 nocomplete
+nohalt
 f0
 f1
 f2

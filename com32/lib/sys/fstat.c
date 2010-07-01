@@ -37,27 +37,27 @@
 
 int fstat(int fd, struct stat *buf)
 {
-  struct file_info *fp = &__file_info[fd];
+    struct file_info *fp = &__file_info[fd];
 
-  if ( fd >= NFILES || !fp->iop ) {
-    errno = EBADF;
-    return -1;
-  }
-
-  if ( fp->iop->flags & __DEV_FILE ) {
-    if ( fp->i.length == (uint32_t)-1 ) {
-      /* File of unknown length, report it as a socket
-	 (it probably really is, anyway!) */
-      buf->st_mode = S_IFSOCK | 0444;
-      buf->st_size = 0;
-    } else {
-      buf->st_mode = S_IFREG | 0444;
-      buf->st_size = fp->i.length;
+    if (fd >= NFILES || !fp->iop) {
+	errno = EBADF;
+	return -1;
     }
-  } else {
-    buf->st_mode = S_IFCHR | 0666;
-    buf->st_size = 0;
-  }
 
-  return 0;
+    if (fp->iop->flags & __DEV_FILE) {
+	if (fp->i.fd.size == (uint32_t) - 1) {
+	    /* File of unknown length, report it as a socket
+	       (it probably really is, anyway!) */
+	    buf->st_mode = S_IFSOCK | 0444;
+	    buf->st_size = 0;
+	} else {
+	    buf->st_mode = S_IFREG | 0444;
+	    buf->st_size = fp->i.fd.size;
+	}
+    } else {
+	buf->st_mode = S_IFCHR | 0666;
+	buf->st_size = 0;
+    }
+
+    return 0;
 }

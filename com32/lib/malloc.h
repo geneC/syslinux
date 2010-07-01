@@ -21,9 +21,9 @@
 struct free_arena_header;
 
 struct arena_header {
-  size_t type;
-  size_t size;			/* Also gives the location of the next entry */
-  struct free_arena_header *next, *prev;
+    size_t type;
+    size_t size;		/* Also gives the location of the next entry */
+    struct free_arena_header *next, *prev;
 };
 
 #ifdef DEBUG_MALLOC
@@ -47,8 +47,9 @@ struct arena_header {
  * previous structure.
  */
 struct free_arena_header {
-  struct arena_header a;
-  struct free_arena_header *next_free, *prev_free;
+    struct arena_header a;
+    struct free_arena_header *next_free, *prev_free;
 };
 
 extern struct free_arena_header __malloc_head;
+void __inject_free_block(struct free_arena_header *ah);

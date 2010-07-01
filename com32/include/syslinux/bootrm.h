@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -35,6 +36,7 @@
 #define _SYSLINUX_BOOTRM_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <com32.h>
 #include <syslinux/movebits.h>
 
@@ -42,29 +44,30 @@
    a completely different structure from what the __intcall() and
    __farcall() interfaces use! */
 struct syslinux_rm_regs {
-  uint16_t es;			/* Offset  0 */
-  uint16_t _unused_cs;		/* Offset  2 */
-  uint16_t ss;			/* Offset  4 */
-  uint16_t ds;			/* Offset  6 */
-  uint16_t fs;			/* Offset  8 */
-  uint16_t gs;			/* Offset 10 */
+    uint16_t es;		/* Offset  0 */
+    uint16_t _unused_cs;	/* Offset  2 */
+    uint16_t ss;		/* Offset  4 */
+    uint16_t ds;		/* Offset  6 */
+    uint16_t fs;		/* Offset  8 */
+    uint16_t gs;		/* Offset 10 */
 
-  reg32_t eax;			/* Offset 12 */
-  reg32_t ecx;			/* Offset 16 */
-  reg32_t edx;			/* Offset 20 */
-  reg32_t ebx;			/* Offset 24 */
-  reg32_t esp;			/* Offset 28 */
-  reg32_t ebp;			/* Offset 32 */
-  reg32_t esi;			/* Offset 36 */
-  reg32_t edi;			/* Offset 40 */
+    reg32_t eax;		/* Offset 12 */
+    reg32_t ecx;		/* Offset 16 */
+    reg32_t edx;		/* Offset 20 */
+    reg32_t ebx;		/* Offset 24 */
+    reg32_t esp;		/* Offset 28 */
+    reg32_t ebp;		/* Offset 32 */
+    reg32_t esi;		/* Offset 36 */
+    reg32_t edi;		/* Offset 40 */
 
-  uint16_t ip;			/* Offset 44 */
-  uint16_t cs;			/* Offset 46 */
+    uint16_t ip;		/* Offset 44 */
+    uint16_t cs;		/* Offset 46 */
+
+    bool sti;			/* Offset 48 */
 };
 
 int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 			     struct syslinux_memmap *memmap,
-			     uint16_t bootflags,
-			     struct syslinux_rm_regs *regs);
+			     uint16_t bootflags, struct syslinux_rm_regs *regs);
 
 #endif /* _SYSLINUX_BOOTRM_H */

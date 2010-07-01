@@ -38,23 +38,24 @@
 #include <console.h>
 #include "file.h"
 
-extern int __vesacon_open(void);
+extern int __vesacon_open(struct file_info *);
 extern int __vesacon_close(struct file_info *);
 extern ssize_t __vesacon_write(struct file_info *, const void *, size_t);
 extern ssize_t __xserial_write(struct file_info *, const void *, size_t);
 
-static ssize_t __vesaserial_write(struct file_info *fp, const void *buf, size_t count)
+static ssize_t __vesaserial_write(struct file_info *fp, const void *buf,
+				  size_t count)
 {
-  __vesacon_write(fp, buf, count);
-  return __xserial_write(fp, buf, count);
+    __vesacon_write(fp, buf, count);
+    return __xserial_write(fp, buf, count);
 }
 
 const struct output_dev dev_vesaserial_w = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY | __DEV_OUTPUT,
-  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write      = __vesaserial_write,
-  .close      = __vesacon_close,
-  .open       = __vesacon_open,
-  .fallback   = &dev_ansiserial_w,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_TTY | __DEV_OUTPUT,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __vesaserial_write,
+    .close = __vesacon_close,
+    .open = __vesacon_open,
+    .fallback = &dev_ansiserial_w,
 };

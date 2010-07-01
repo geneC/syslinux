@@ -1,6 +1,7 @@
 /* -----------------------------------------------------------------------
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,6 +26,8 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include "adjust.h"
+
 	.code16
 	.text
 
@@ -34,7 +37,8 @@ driveno		= (stack-6)
 sectors		= (stack-8)
 secpercyl	= (stack-12)
 
-BIOS_page = 0x462
+BIOS_kbdflags	= 0x417
+BIOS_page	= 0x462
 
 	/* gas/ld has issues with doing this as absolute addresses... */
 	.section ".bootsec", "a", @nobits
@@ -53,7 +57,6 @@ _start:
 	movw	%sp, %si
 	pushw	%es		/* es:di -> $PnP header */
 	pushw	%di
-	pushw	%dx		/* dl -> drive number */
 	movw	%ax, %es
 	sti
 	cld
@@ -64,8 +67,11 @@ _start:
 	rep; movsw
 
 	ljmpw	$0, $next
-
 next:
+
+	ADJUST_DRIVE
+	pushw	%dx		/* dl -> drive number */
+
 	/* Check to see if we have EBIOS */
 	pushw	%dx		/* drive number */
 	movb	$0x41, %ah	/* %al == 0 already */

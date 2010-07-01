@@ -1,15 +1,11 @@
 #include "stddef.h"
 #include "console.h"
 #include <gpxe/process.h>
+#include <gpxe/nap.h>
 
 /** @file */
 
-#include "bios.h"
-
-static struct console_driver console_drivers[0]
-	__table_start ( struct console_driver, console );
-static struct console_driver console_drivers_end[0]
-	__table_end ( struct console_driver, console );
+FILE_LICENCE ( GPL2_OR_LATER );
 
 /**
  * Write a single character to each console device.
@@ -29,8 +25,7 @@ void putchar ( int character ) {
 	if ( character == '\n' )
 		putchar ( '\r' );
 
-	for ( console = console_drivers; console < console_drivers_end ;
-	      console++ ) {
+	for_each_table_entry ( console, CONSOLES ) {
 		if ( ( ! console->disabled ) && console->putchar )
 			console->putchar ( character );
 	}
@@ -52,8 +47,7 @@ void putchar ( int character ) {
 static struct console_driver * has_input ( void ) {
 	struct console_driver *console;
 
-	for ( console = console_drivers; console < console_drivers_end ;
-	      console++ ) {
+	for_each_table_entry ( console, CONSOLES ) {
 		if ( ( ! console->disabled ) && console->iskey ) {
 			if ( console->iskey () )
 				return console;
@@ -81,9 +75,6 @@ static struct console_driver * has_input ( void ) {
  * @endcode
  *
  * The character read will not be echoed back to any console.
- *
- * @bug We need a cleaner way to pick up cpu_nap().  It makes a
- * real-mode call, and so we don't want to use it with LinuxBIOS.
  *
  */
 int getchar ( void ) {

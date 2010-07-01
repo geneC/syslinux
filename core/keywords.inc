@@ -40,7 +40,7 @@
 
 keywd_size	equ 8	; Bytes per keyword
 
-		align 4, db 0
+		alignz 4
 
 %define FKeyN(n) (FKeyName+(((n)-1) << FILENAME_MAX_LG2))
 
@@ -50,7 +50,8 @@ keywd_table:
 		keyword include,	pc_opencmd,	pc_include
 		keyword append,		pc_append
 		keyword initrd,		pc_filename,	InitRD
-		keyword default,	pc_default
+		keyword default,	pc_default,	1
+		keyword ui,		pc_default,	2
 		keyword display,	pc_opencmd,	get_msg_file
 		keyword font,		pc_opencmd,	loadfont
 		keyword implicit,	pc_setint16,	AllowImplicit
@@ -76,6 +77,7 @@ keywd_table:
 		keyword allowoptions,	pc_setint16,	AllowOptions
 		keyword noescape,	pc_setint16,	NoEscape
 		keyword nocomplete,	pc_setint16,	NoComplete
+		keyword nohalt,		pc_setint16,	NoHalt
 		keyword f1,		pc_filename,	FKeyN(1)
 		keyword f2,		pc_filename,	FKeyN(2)
 		keyword f3,		pc_filename,	FKeyN(3)

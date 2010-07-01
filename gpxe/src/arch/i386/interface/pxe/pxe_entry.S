@@ -17,16 +17,15 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER )
+
 	.arch i386
-	.section ".text16", "awx", @progbits
-	.section ".text16.data", "aw", @progbits
-	.section ".data16", "aw", @progbits
 
 /****************************************************************************
  * !PXE structure
  ****************************************************************************
  */
-	.section ".text16.data"
+	.section ".text16.data", "aw", @progbits
 	.globl ppxe
 	.align 16
 ppxe:
@@ -44,10 +43,10 @@ ppxe:
 	.byte SegDescCnt		/* SegDescCnt */
 	.word 0				/* FirstSelector */
 pxe_segments:
-	.word 0, 0, 0, _data16_size	/* Stack */
-	.word 0, 0, 0, _data16_size	/* UNDIData */
-	.word 0, 0, 0, _text16_size	/* UNDICode */
-	.word 0, 0, 0, _text16_size	/* UNDICodeWrite */
+	.word 0, 0, 0, _data16_memsz	/* Stack */
+	.word 0, 0, 0, _data16_memsz	/* UNDIData */
+	.word 0, 0, 0, _text16_memsz	/* UNDICode */
+	.word 0, 0, 0, _text16_memsz	/* UNDICodeWrite */
 	.word 0, 0, 0, 0		/* BC_Data */
 	.word 0, 0, 0, 0		/* BC_Code */
 	.word 0, 0, 0, 0		/* BC_CodeWrite */
@@ -56,7 +55,7 @@ pxe_segments:
 	.size	ppxe, . - ppxe
 
 	/* Define undiheader=0 as a weak symbol for non-ROM builds */
-	.section ".weak"
+	.section ".weak", "a", @nobits
 	.weak	undiheader
 undiheader:
 
@@ -64,7 +63,7 @@ undiheader:
  * PXENV+ structure
  ****************************************************************************
  */
-	.section ".text16.data"
+	.section ".text16.data", "aw", @progbits
 	.globl pxenv
 	.align 16
 pxenv:
@@ -76,15 +75,15 @@ pxenv:
 	.long 0				/* PMEntry */
 	.word 0				/* PMSelector */
 	.word 0				/* StackSeg */
-	.word _data16_size		/* StackSize */
+	.word _data16_memsz		/* StackSize */
 	.word 0				/* BC_CodeSeg */
 	.word 0				/* BC_CodeSize */
 	.word 0				/* BC_DataSeg */
 	.word 0				/* BC_DataSize */
 	.word 0				/* UNDIDataSeg */
-	.word _data16_size		/* UNDIDataSize */
+	.word _data16_memsz		/* UNDIDataSize */
 	.word 0				/* UNDICodeSeg */
-	.word _text16_size		/* UNDICodeSize */
+	.word _text16_memsz		/* UNDICodeSize */
 	.word ppxe, 0			/* PXEPtr */
 	.equ	pxenv_length, . - pxenv
 	.size	pxenv, . - pxenv
@@ -108,12 +107,12 @@ pxenv:
 	 * somebody at Wyse has difficulty distinguishing between the
 	 * words "may" and "must"...
 	 */
-	.section ".text16.null"
+	.section ".text16.null", "ax", @progbits
 	.code16
 pxenv_null_entry:
 	jmp	pxenv_entry
 
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 	.code16
 pxenv_entry:
 	pushl	$pxe_api_call
@@ -137,7 +136,7 @@ pxenv_entry:
  *   none
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 	.code16
 pxe_entry:
 pxe_entry_sp:
@@ -181,12 +180,13 @@ pxe_entry_common:
  * Returns:
  *   %ax : 0x564e
  *   %es:bx : Far pointer to the PXENV+ structure
+ *   %edx : Physical address of the PXENV+ structure
  *   CF cleared
  * Corrupts:
  *   none
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 	.code16
 	.globl	pxe_int_1a
 pxe_int_1a:
@@ -194,17 +194,23 @@ pxe_int_1a:
 	cmpw	$0x5650, %ax
 	jne	1f
 	/* INT 1A,5650 - PXE installation check */
-	pushw	%cs
-	popw	%es
+	xorl	%edx, %edx
+	movw	%cs, %dx
+	movw	%dx, %es
 	movw	$pxenv, %bx
+	shll	$4, %edx
+	addl	$pxenv, %edx
 	movw	$0x564e, %ax
+	pushw	%bp
+	movw	%sp, %bp
+	andb	$~0x01, 8(%bp)	/* Clear CF on return */
+	popw	%bp
 	popfw
-	clc
-	lret	$2
+	iret
 1:	/* INT 1A,other - pass through */
 	popfw
 	ljmp	*%cs:pxe_int_1a_vector
 
-	.section ".text16.data"
+	.section ".text16.data", "aw", @progbits
 	.globl	pxe_int_1a_vector
 pxe_int_1a_vector:	.long 0

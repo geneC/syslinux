@@ -44,6 +44,6 @@ spotless: clean
 	rm -f *.lss *.c32 *.com
 	rm -f *~ \#*
 
-install: all
+install:
 
 -include .*.d

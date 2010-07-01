@@ -2,7 +2,7 @@
 
 		   A suite of bootloaders for Linux
 
-       Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+	 Copyright 1994-2010 H. Peter Anvin and contributors
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -38,6 +38,10 @@ These are the options common to all versions of Syslinux:
 
 	-s	Safe, slow, stupid; uses simpler code that boots better
 	-f	Force installing
+	-r	Raid mode.  If boot fails, tell the BIOS to boot the next
+		device in the boot sequence (usually the next hard disk)
+		instead of stopping with an error message.
+		This is useful for RAID-1 booting.
 
 These are only in the Windows version:
 
@@ -52,7 +56,7 @@ In order to create a bootable Linux floppy using SYSLINUX, prepare a
 normal MS-DOS formatted floppy.  Copy one or more Linux kernel files to
 it, then execute the DOS command:
 
-        syslinux [-sfma][-d directory] a:
+        syslinux [-sfrma][-d directory] a: [bootsecfile]
 
 (or whichever drive letter is appropriate; the [] meaning optional.)
 
@@ -64,7 +68,7 @@ WinNT/2000/XP.
 
 Under Linux, execute the command:
 
-	syslinux [-sf][-d directory][-o offset] /dev/fd0
+	syslinux [-sfr][-d directory][-o offset] /dev/fd0
 
 (or, again, whichever device is the correct one.)
 
@@ -85,10 +89,6 @@ offset of the filesystem image in the file.
 For the DOS and Windows installers, the -m and -a options can be used
 on hard drives to write a Master Boot Record (MBR), and to mark the
 specific partition active.
-
-On boot time, by default, the kernel will be loaded from the image named
-LINUX on the boot floppy.  This default can be changed, see the section
-on the Syslinux config file.
 
 If the Shift or Alt keys are held down during boot, or the Caps or Scroll
 locks are set, Syslinux will display a LILO-style "boot:" prompt.  The
@@ -136,14 +136,14 @@ DEFAULT kernel options...
         it will act just as if the entries after DEFAULT had been typed
         in at the "boot:" prompt.
 
-        If no configuration file is present, or no DEFAULT entry is
-        present in the config file, the default is "linux auto".
+	If no configuration file is present, or no DEFAULT entry is
+        present in the config file, an error message is displayed and
+	the boot: prompt is shown.
 
-	NOTE: Earlier versions of Syslinux used to automatically
-	append the string "auto" to whatever the user specified using
-	the DEFAULT command.  As of version 1.54, this is no longer
-	true, as it caused problems when using a shell as a substitute
-	for "init."  You may want to include this option manually.
+UI module options...
+	Selects a specific user interface module (typically menu.c32
+	or vesamenu.c32).  The command-line interface treats this as a
+	directive that overrides the DEFAULT and PROMPT directives.
 
 APPEND options...
         Add one or more options to the kernel command line.  These are
@@ -163,11 +163,10 @@ IPAPPEND flag_val			[PXELINUX only]
 
 	... based on the input from the DHCP/BOOTP or PXE boot server.
 
-	THE USE OF THIS OPTION IS NOT RECOMMENDED.  If you have to use
-	it, it is probably an indication that your network configuration
-	is broken.  Using just "ip=dhcp" on the kernel command line
-	is a preferrable option, or, better yet, run dhcpcd/dhclient,
-	from an initrd if necessary.
+	NOTE: The use of this option is no substitute for running a
+	DHCP client in the booted system.  Without regular renewals,
+	the lease acquired by the PXE BIOS will expire, making the
+	IP address available for reuse by the DHCP server.
 
 	2: indicates that an option of the following format
 	should be generated and added to the kernel command line:
@@ -258,6 +257,12 @@ LABEL label
 	statement; this functionally appends "initrd=initrd_file" to
 	the kernel command line.
 
+	It supports multiple filenames separated by commas.
+	This is mostly useful for initramfs, which can be composed of
+	multiple separate cpio or cpio.gz archives.
+	Note: all files except the last one are zero-padded to a
+	4K page boundary.  This should not affect initramfs.
+
 IMPLICIT flag_val
         If flag_val is 0, do not load a kernel image unless it has been
         explicitly named in a LABEL statement.  The default is 1.
@@ -324,6 +329,7 @@ SERIAL port [[baudrate] flowcontrol]
 	"flowcontrol" is a combination of the following bits:
 	0x001 - Assert DTR
 	0x002 - Assert RTS
+	0x008 - Enable interrupts
 	0x010 - Wait for CTS assertion
 	0x020 - Wait for DSR assertion
 	0x040 - Wait for RI assertion
@@ -350,6 +356,17 @@ SERIAL port [[baudrate] flowcontrol]
 	NOTE: "port" values from 0 to 3 means the first four serial
 	ports detected by the BIOS.  They may or may not correspond to
 	the legacy port values 0x3F8, 0x2F8, 0x3E8, 0x2E8.
+
+	Enabling interrupts (setting the 0x008 bit) may give better
+	responsiveness without setting the NOHALT option, but could
+	potentially cause problems with buggy BIOSes.
+
+NOHALT flag_val
+	If flag_val is 1, don't halt the processor while idle.
+	Halting the processor while idle significantly reduces the
+	power consumption, but can cause poor responsiveness to the
+	serial console, especially when using scripts to drive the
+	serial console, as opposed to human interaction.
 
 CONSOLE flag_val
 	If flag_val is 0, disable output to the normal video console.
@@ -411,7 +428,7 @@ F2 filename
 F9 filename
 F10 filename
 F11 filename
-F11 filename
+F12 filename
         Displays the indicated file on the screen when a function key is
         pressed at the boot: prompt.  This can be used to implement
         pre-boot online help (presumably for the kernel command line
@@ -420,7 +437,7 @@ F11 filename
 	When using the serial console, press <Ctrl-F><digit> to get to
 	the help screens, e.g. <Ctrl-F><2> to get to the F2 screen.
 	For F10-F12, hit <Ctrl-F><A>, <Ctrl-F>B, <Ctrl-F>C.  For
-	compatiblity with earlier versions, F10 can also be entered as
+	compatibility with earlier versions, F10 can also be entered as
 	<Ctrl-F>0.
 
 Blank lines are ignored.
@@ -522,10 +539,12 @@ The command line prompt supports the following keystrokes:
 <Ctrl-V>	display the current Syslinux version
 <Ctrl-W>	erase one word
 <Ctrl-X>	force text mode
-<F1>..<F10>	help screens (if configured)
+<Tab>		list matching labels
+<F1>..<F12>	help screens (if configured)
 <Ctrl-F><digit>	equivalent to F1..F10
 <Ctrl-C>	interrupt boot in progress
 <Esc>		interrupt boot in progress
+<Ctrl-N>	display network information (PXELINUX only)
 
 
    ++++ COMBOOT IMAGES AND OTHER OPERATING SYSTEMS ++++

@@ -20,36 +20,36 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <string.h>
 #include <byteswap.h>
 #include <gpxe/crypto.h>
 #include <gpxe/md5.h>
 
-#define __md5step __attribute__ (( regparm ( 3 ) ))
-
 struct md5_step {
-	u32 __md5step ( * f ) ( u32 b, u32 c, u32 d );
+	u32 ( * f ) ( u32 b, u32 c, u32 d );
 	u8 coefficient;
 	u8 constant;
 };
 
-static u32 __md5step f1(u32 b, u32 c, u32 d)
+static u32 f1(u32 b, u32 c, u32 d)
 {
 	return ( d ^ ( b & ( c ^ d ) ) );
 }
 
-static u32 __md5step f2(u32 b, u32 c, u32 d)
+static u32 f2(u32 b, u32 c, u32 d)
 {
 	return ( c ^ ( d & ( b ^ c ) ) );
 }
 
-static u32 __md5step f3(u32 b, u32 c, u32 d)
+static u32 f3(u32 b, u32 c, u32 d)
 {
 	return ( b ^ c ^ d );
 }
 
-static u32 __md5step f4(u32 b, u32 c, u32 d)
+static u32 f4(u32 b, u32 c, u32 d)
 {
 	return ( c ^ ( b | ~d ) );
 }
@@ -167,8 +167,7 @@ static void md5_init(void *context)
 	mctx->byte_count = 0;
 }
 
-static void md5_update(void *context, const void *data, void *dst __unused,
-		       size_t len)
+static void md5_update(void *context, const void *data, size_t len)
 {
 	struct md5_ctx *mctx = context;
 	const u32 avail = sizeof(mctx->block) - (mctx->byte_count & 0x3f);
@@ -224,12 +223,12 @@ static void md5_final(void *context, void *out)
 	memset(mctx, 0, sizeof(*mctx));
 }
 
-struct crypto_algorithm md5_algorithm = {
+struct digest_algorithm md5_algorithm = {
 	.name		= "md5",
 	.ctxsize	= MD5_CTX_SIZE,
 	.blocksize	= ( MD5_BLOCK_WORDS * 4 ),
 	.digestsize	= MD5_DIGEST_SIZE,
 	.init		= md5_init,
-	.encode		= md5_update,
+	.update		= md5_update,
 	.final		= md5_final,
 };

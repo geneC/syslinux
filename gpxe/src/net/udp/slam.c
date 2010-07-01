@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -219,7 +221,7 @@ static int slam_put_value ( struct slam_request *slam,
 	 */
 	len = ( ( flsl ( value ) + 10 ) / 8 );
 	if ( len >= iob_tailroom ( iobuf ) ) {
-		DBGC2 ( slam, "SLAM %p cannot add %d-byte value\n",
+		DBGC2 ( slam, "SLAM %p cannot add %zd-byte value\n",
 			slam, len );
 		return -ENOBUFS;
 	}
@@ -380,7 +382,7 @@ static int slam_pull_value ( struct slam_request *slam,
 	len = ( *data >> 5 );
 	if ( ( len == 0 ) ||
 	     ( value && ( len > sizeof ( *value ) ) ) ) {
-		DBGC ( slam, "SLAM %p invalid value length %d bytes\n",
+		DBGC ( slam, "SLAM %p invalid value length %zd bytes\n",
 		       slam, len );
 		return -EINVAL;
 	}
@@ -614,7 +616,7 @@ static void slam_socket_close ( struct xfer_interface *socket, int rc ) {
 /** SLAM unicast socket data transfer operations */
 static struct xfer_interface_operations slam_socket_operations = {
 	.close		= slam_socket_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= unlimited_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= slam_socket_deliver,
@@ -640,7 +642,7 @@ static void slam_mc_socket_close ( struct xfer_interface *mc_socket, int rc ){
 /** SLAM multicast socket data transfer operations */
 static struct xfer_interface_operations slam_mc_socket_operations = {
 	.close		= slam_mc_socket_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= unlimited_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= slam_mc_socket_deliver,

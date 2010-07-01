@@ -15,6 +15,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <realmode.h>
 #include <biosint.h>
 
@@ -63,6 +65,8 @@ void fake_e820 ( void ) {
 			      "cmpl $0x534d4150, %%edx\n\t"
 			      "jne 99f\n\t"
 			      "pushaw\n\t"
+			      "movw %%sp, %%bp\n\t"
+			      "andb $~0x01, 22(%%bp)\n\t" /* Clear return CF */
 			      "leaw e820map(%%bx), %%si\n\t"
 			      "cs rep movsb\n\t"
 			      "popaw\n\t"
@@ -73,8 +77,7 @@ void fake_e820 ( void ) {
 			      "xorl %%ebx,%%ebx\n\t"
 			      "\n1:\n\t"
 			      "popfw\n\t"
-			      "clc\n\t"
-			      "lret $2\n\t"
+			      "iret\n\t"
 			      "\n99:\n\t"
 			      "popfw\n\t"
 			      "ljmp *%%cs:real_int15_vector\n\t" )

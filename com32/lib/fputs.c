@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-int fputs(const char *s, FILE *file)
+int fputs(const char *s, FILE * file)
 {
-  return _fwrite(s, strlen(s), file);
+    return _fwrite(s, strlen(s), file);
 }

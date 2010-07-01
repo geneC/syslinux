@@ -7,11 +7,13 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/refcnt.h>
 #include <gpxe/interface.h>
 #include <gpxe/tables.h>
+#include <gpxe/socket.h>
 
-struct sockaddr;
 struct resolv_interface;
 
 /** Name resolution interface operations */
@@ -149,9 +151,11 @@ struct resolver {
 /** Normal resolver priority */
 #define RESOLV_NORMAL 02
 
+/** Resolvers table */
+#define RESOLVERS __table ( struct resolver, "resolvers" )
+
 /** Register as a name resolver */
-#define __resolver( resolv_order ) \
-	__table ( struct resolver, resolvers, resolv_order )
+#define __resolver( resolv_order ) __table_entry ( RESOLVERS, resolv_order )
 
 extern void resolv_done ( struct resolv_interface *resolv,
 			  struct sockaddr *sa, int rc );

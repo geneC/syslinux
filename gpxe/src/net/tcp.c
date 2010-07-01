@@ -21,6 +21,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /** A TCP connection */
 struct tcp_connection {
 	/** Reference counter */
@@ -142,15 +144,15 @@ tcp_dump_state ( struct tcp_connection *tcp ) {
 static inline __attribute__ (( always_inline )) void
 tcp_dump_flags ( struct tcp_connection *tcp, unsigned int flags ) {
 	if ( flags & TCP_RST )
-		DBGC ( tcp, " RST" );
+		DBGC2 ( tcp, " RST" );
 	if ( flags & TCP_SYN )
-		DBGC ( tcp, " SYN" );
+		DBGC2 ( tcp, " SYN" );
 	if ( flags & TCP_PSH )
-		DBGC ( tcp, " PSH" );
+		DBGC2 ( tcp, " PSH" );
 	if ( flags & TCP_FIN )
-		DBGC ( tcp, " FIN" );
+		DBGC2 ( tcp, " FIN" );
 	if ( flags & TCP_ACK )
-		DBGC ( tcp, " ACK" );
+		DBGC2 ( tcp, " ACK" );
 }
 
 /***************************************************************************
@@ -397,9 +399,10 @@ static int tcp_xmit ( struct tcp_connection *tcp, int force_send ) {
 	void *payload;
 	unsigned int flags;
 	size_t len = 0;
-	size_t seq_len;
-	size_t app_win;
-	size_t max_rcv_win;
+	uint32_t seq_len;
+	uint32_t app_win;
+	uint32_t max_rcv_win;
+	int rc;
 
 	/* If retransmission timer is already running, do nothing */
 	if ( timer_running ( &tcp->timer ) )
@@ -436,7 +439,9 @@ static int tcp_xmit ( struct tcp_connection *tcp, int force_send ) {
 	/* Allocate I/O buffer */
 	iobuf = alloc_iob ( len + MAX_HDR_LEN );
 	if ( ! iobuf ) {
-		DBGC ( tcp, "TCP %p could not allocate data buffer\n", tcp );
+		DBGC ( tcp, "TCP %p could not allocate iobuf for %08x..%08x "
+		       "%08x\n", tcp, tcp->snd_seq, ( tcp->snd_seq + seq_len ),
+		       tcp->rcv_ack );
 		return -ENOMEM;
 	}
 	iob_reserve ( iobuf, MAX_HDR_LEN );
@@ -471,6 +476,8 @@ static int tcp_xmit ( struct tcp_connection *tcp, int force_send ) {
 		tsopt->tsopt.tsval = ntohl ( currticks() );
 		tsopt->tsopt.tsecr = ntohl ( tcp->ts_recent );
 	}
+	if ( ! ( flags & TCP_SYN ) )
+		flags |= TCP_PSH;
 	tcphdr = iob_push ( iobuf, sizeof ( *tcphdr ) );
 	memset ( tcphdr, 0, sizeof ( *tcphdr ) );
 	tcphdr->src = tcp->local_port;
@@ -483,16 +490,23 @@ static int tcp_xmit ( struct tcp_connection *tcp, int force_send ) {
 	tcphdr->csum = tcpip_chksum ( iobuf->data, iob_len ( iobuf ) );
 
 	/* Dump header */
-	DBGC ( tcp, "TCP %p TX %d->%d %08lx..%08lx           %08lx %4zd",
-	       tcp, ntohs ( tcphdr->src ), ntohs ( tcphdr->dest ),
-	       ntohl ( tcphdr->seq ), ( ntohl ( tcphdr->seq ) + seq_len ),
-	       ntohl ( tcphdr->ack ), len );
+	DBGC2 ( tcp, "TCP %p TX %d->%d %08x..%08x           %08x %4zd",
+		tcp, ntohs ( tcphdr->src ), ntohs ( tcphdr->dest ),
+		ntohl ( tcphdr->seq ), ( ntohl ( tcphdr->seq ) + seq_len ),
+		ntohl ( tcphdr->ack ), len );
 	tcp_dump_flags ( tcp, tcphdr->flags );
-	DBGC ( tcp, "\n" );
+	DBGC2 ( tcp, "\n" );
 
 	/* Transmit packet */
-	return tcpip_tx ( iobuf, &tcp_protocol, &tcp->peer, NULL,
-			  &tcphdr->csum );
+	if ( ( rc = tcpip_tx ( iobuf, &tcp_protocol, NULL, &tcp->peer, NULL,
+			       &tcphdr->csum ) ) != 0 ) {
+		DBGC ( tcp, "TCP %p could not transmit %08x..%08x %08x: %s\n",
+		       tcp, tcp->snd_seq, ( tcp->snd_seq + tcp->snd_sent ),
+		       tcp->rcv_ack, strerror ( rc ) );
+		return rc;
+	}
+
+	return 0;
 }
 
 /**
@@ -506,8 +520,9 @@ static void tcp_expired ( struct retry_timer *timer, int over ) {
 		container_of ( timer, struct tcp_connection, timer );
 	int graceful_close = TCP_CLOSED_GRACEFULLY ( tcp->tcp_state );
 
-	DBGC ( tcp, "TCP %p timer %s in %s\n", tcp,
-	       ( over ? "expired" : "fired" ), tcp_state ( tcp->tcp_state ) );
+	DBGC ( tcp, "TCP %p timer %s in %s for %08x..%08x %08x\n", tcp,
+	       ( over ? "expired" : "fired" ), tcp_state ( tcp->tcp_state ),
+	       tcp->snd_seq, ( tcp->snd_seq + tcp->snd_sent ), tcp->rcv_ack );
 
 	assert ( ( tcp->tcp_state == TCP_SYN_SENT ) ||
 		 ( tcp->tcp_state == TCP_SYN_RCVD ) ||
@@ -542,11 +557,14 @@ static int tcp_xmit_reset ( struct tcp_connection *tcp,
 			    struct tcp_header *in_tcphdr ) {
 	struct io_buffer *iobuf;
 	struct tcp_header *tcphdr;
+	int rc;
 
 	/* Allocate space for dataless TX buffer */
 	iobuf = alloc_iob ( MAX_HDR_LEN );
 	if ( ! iobuf ) {
-		DBGC ( tcp, "TCP %p could not allocate data buffer\n", tcp );
+		DBGC ( tcp, "TCP %p could not allocate iobuf for RST "
+		       "%08x..%08x %08x\n", tcp, ntohl ( in_tcphdr->ack ),
+		       ntohl ( in_tcphdr->ack ), ntohl ( in_tcphdr->seq ) );
 		return -ENOMEM;
 	}
 	iob_reserve ( iobuf, MAX_HDR_LEN );
@@ -564,16 +582,24 @@ static int tcp_xmit_reset ( struct tcp_connection *tcp,
 	tcphdr->csum = tcpip_chksum ( iobuf->data, iob_len ( iobuf ) );
 
 	/* Dump header */
-	DBGC ( tcp, "TCP %p TX %d->%d %08lx..%08lx           %08lx %4d",
-	       tcp, ntohs ( tcphdr->src ), ntohs ( tcphdr->dest ),
-	       ntohl ( tcphdr->seq ), ( ntohl ( tcphdr->seq ) ),
-	       ntohl ( tcphdr->ack ), 0 );
+	DBGC2 ( tcp, "TCP %p TX %d->%d %08x..%08x           %08x %4d",
+		tcp, ntohs ( tcphdr->src ), ntohs ( tcphdr->dest ),
+		ntohl ( tcphdr->seq ), ( ntohl ( tcphdr->seq ) ),
+		ntohl ( tcphdr->ack ), 0 );
 	tcp_dump_flags ( tcp, tcphdr->flags );
-	DBGC ( tcp, "\n" );
+	DBGC2 ( tcp, "\n" );
 
 	/* Transmit packet */
-	return tcpip_tx ( iobuf, &tcp_protocol, st_dest,
-			  NULL, &tcphdr->csum );
+	if ( ( rc = tcpip_tx ( iobuf, &tcp_protocol, NULL, st_dest,
+			       NULL, &tcphdr->csum ) ) != 0 ) {
+		DBGC ( tcp, "TCP %p could not transmit RST %08x..%08x %08x: "
+		       "%s\n", tcp, ntohl ( in_tcphdr->ack ),
+		       ntohl ( in_tcphdr->ack ), ntohl ( in_tcphdr->seq ),
+		       strerror ( rc ) );
+		return rc;
+	}
+
+	return 0;
 }
 
 /***************************************************************************
@@ -645,7 +671,7 @@ static void tcp_rx_opts ( struct tcp_connection *tcp, const void *data,
  * @v tcp		TCP connection
  * @v seq_len		Sequence space length to consume
  */
-static void tcp_rx_seq ( struct tcp_connection *tcp, size_t seq_len ) {
+static void tcp_rx_seq ( struct tcp_connection *tcp, uint32_t seq_len ) {
 	tcp->rcv_ack += seq_len;
 	if ( tcp->rcv_win > seq_len ) {
 		tcp->rcv_win -= seq_len;
@@ -696,20 +722,42 @@ static int tcp_rx_syn ( struct tcp_connection *tcp, uint32_t seq,
  */
 static int tcp_rx_ack ( struct tcp_connection *tcp, uint32_t ack,
 			uint32_t win ) {
-	size_t ack_len = ( ack - tcp->snd_seq );
+	uint32_t ack_len = ( ack - tcp->snd_seq );
 	size_t len;
 	unsigned int acked_flags;
 
-	/* Ignore duplicate or out-of-range ACK */
+	/* Check for out-of-range or old duplicate ACKs */
 	if ( ack_len > tcp->snd_sent ) {
-		DBGC ( tcp, "TCP %p received ACK for [%08lx,%08lx), "
-		       "sent only [%08lx,%08lx)\n", tcp, tcp->snd_seq,
+		DBGC ( tcp, "TCP %p received ACK for %08x..%08x, "
+		       "sent only %08x..%08x\n", tcp, tcp->snd_seq,
 		       ( tcp->snd_seq + ack_len ), tcp->snd_seq,
 		       ( tcp->snd_seq + tcp->snd_sent ) );
-		return -EINVAL;
+
+		if ( TCP_HAS_BEEN_ESTABLISHED ( tcp->tcp_state ) ) {
+			/* Just ignore what might be old duplicate ACKs */
+			return 0;
+		} else {
+			/* Send RST if an out-of-range ACK is received
+			 * on a not-yet-established connection, as per
+			 * RFC 793.
+			 */
+			return -EINVAL;
+		}
 	}
 
-	/* Acknowledge any flags being sent */
+	/* Ignore ACKs that don't actually acknowledge any new data.
+	 * (In particular, do not stop the retransmission timer; this
+	 * avoids creating a sorceror's apprentice syndrome when a
+	 * duplicate ACK is received and we still have data in our
+	 * transmit queue.)
+	 */
+	if ( ack_len == 0 )
+		return 0;
+
+	/* Stop the retransmission timer */
+	stop_timer ( &tcp->timer );
+
+	/* Determine acknowledged flags and data length */
 	len = ack_len;
 	acked_flags = ( TCP_FLAGS_SENDING ( tcp->tcp_state ) &
 			( TCP_SYN | TCP_FIN ) );
@@ -720,9 +768,6 @@ static int tcp_rx_ack ( struct tcp_connection *tcp, uint32_t ack,
 	tcp->snd_seq = ack;
 	tcp->snd_sent = 0;
 	tcp->snd_win = win;
-
-	/* Stop the retransmission timer */
-	stop_timer ( &tcp->timer );
 
 	/* Remove any acknowledged data from transmit queue */
 	tcp_process_queue ( tcp, len, NULL, 1 );
@@ -750,8 +795,8 @@ static int tcp_rx_ack ( struct tcp_connection *tcp, uint32_t ack,
  */
 static int tcp_rx_data ( struct tcp_connection *tcp, uint32_t seq,
 			 struct io_buffer *iobuf ) {
-	size_t already_rcvd;
-	size_t len;
+	uint32_t already_rcvd;
+	uint32_t len;
 	int rc;
 
 	/* Ignore duplicate or out-of-order data */
@@ -765,8 +810,11 @@ static int tcp_rx_data ( struct tcp_connection *tcp, uint32_t seq,
 	len -= already_rcvd;
 
 	/* Deliver data to application */
-	if ( ( rc = xfer_deliver_iob ( &tcp->xfer, iobuf ) ) != 0 )
+	if ( ( rc = xfer_deliver_iob ( &tcp->xfer, iobuf ) ) != 0 ) {
+		DBGC ( tcp, "TCP %p could not deliver %08x..%08x: %s\n",
+		       tcp, seq, ( seq + len ), strerror ( rc ) );
 		return rc;
+	}
 
 	/* Acknowledge new data */
 	tcp_rx_seq ( tcp, len );
@@ -824,6 +872,7 @@ static int tcp_rx_rst ( struct tcp_connection *tcp, uint32_t seq ) {
 	tcp_dump_state ( tcp );
 	tcp_close ( tcp, -ECONNRESET );
 
+	DBGC ( tcp, "TCP %p connection reset by peer\n", tcp );
 	return -ECONNRESET;
 }
 
@@ -894,13 +943,13 @@ static int tcp_rx ( struct io_buffer *iobuf,
 	len = iob_len ( iobuf );
 
 	/* Dump header */
-	DBGC ( tcp, "TCP %p RX %d<-%d           %08lx %08lx..%08lx %4zd",
-	       tcp, ntohs ( tcphdr->dest ), ntohs ( tcphdr->src ),
-	       ntohl ( tcphdr->ack ), ntohl ( tcphdr->seq ),
-	       ( ntohl ( tcphdr->seq ) + len +
-		 ( ( tcphdr->flags & ( TCP_SYN | TCP_FIN ) ) ? 1 : 0 ) ), len);
+	DBGC2 ( tcp, "TCP %p RX %d<-%d           %08x %08x..%08zx %4zd",
+		tcp, ntohs ( tcphdr->dest ), ntohs ( tcphdr->src ),
+		ntohl ( tcphdr->ack ), ntohl ( tcphdr->seq ),
+		( ntohl ( tcphdr->seq ) + len +
+		  ( ( tcphdr->flags & ( TCP_SYN | TCP_FIN ) ) ? 1 : 0 )), len);
 	tcp_dump_flags ( tcp, tcphdr->flags );
-	DBGC ( tcp, "\n" );
+	DBGC2 ( tcp, "\n" );
 
 	/* If no connection was found, send RST */
 	if ( ! tcp ) {
@@ -1033,7 +1082,7 @@ static size_t tcp_xfer_window ( struct xfer_interface *xfer ) {
  *
  * @v xfer		Data transfer interface
  * @v iobuf		Datagram I/O buffer
- * @v meta		Data transfer metadata, or NULL
+ * @v meta		Data transfer metadata
  * @ret rc		Return status code
  */
 static int tcp_xfer_deliver_iob ( struct xfer_interface *xfer,
@@ -1070,12 +1119,13 @@ static struct xfer_interface_operations tcp_xfer_operations = {
 
 /** TCP socket opener */
 struct socket_opener tcp_socket_opener __socket_opener = {
-	.semantics	= SOCK_STREAM,
+	.semantics	= TCP_SOCK_STREAM,
 	.family		= AF_INET,
 	.open		= tcp_open,
 };
 
-char TCP_SOCK_STREAM[1];
+/** Linkage hack */
+int tcp_sock_stream = TCP_SOCK_STREAM;
 
 /**
  * Open TCP URI

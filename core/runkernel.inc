@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -19,11 +20,6 @@
 ;
 ; Hook macros, that may or may not be defined
 ;
-%ifndef HAVE_SPECIAL_APPEND
-%macro SPECIAL_APPEND 0
-%endmacro
-%endif
-
 %ifndef HAVE_UNLOAD_PREP
 %macro UNLOAD_PREP 0
 %endmacro
@@ -46,11 +42,6 @@
 ;
 is_linux_kernel:
 		push si				; <A> file pointer
-		mov si,loading_msg
-                call writestr
-                mov si,KernelCName		; Print kernel name part of
-                call writestr                  ; "Loading" message
-
 
 ;
 ; Now start transferring the kernel
@@ -63,11 +54,11 @@ is_linux_kernel:
 ; do something funky.  It should fit in the first 32K (loading 64K won't
 ; work since we might have funny stuff up near the end of memory).
 ;
-		call dot_pause			; Check for abort key
-		mov cx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
+		call abort_check		; Check for abort key
+		mov cx,8000h			; Half a moby (32K)
 		xor bx,bx
                 pop si                          ; <A> file pointer
-		call getfssec
+		pm_call getfsbytes
 		cmp cx,1024
 		jb kernel_corrupt
                 cmp word [es:bs_bootsign],0AA55h
@@ -86,13 +77,11 @@ construct_cmdline:
                 mov si,boot_image		; BOOT_IMAGE=
                 mov cx,boot_image_len
                 rep movsb
-                mov si,KernelCName		; Unmangled kernel name
-                mov cx,[KernelCNameLen]
-                rep movsb
-                mov al,' '                      ; Space
-                stosb
+                mov si,KernelName		; Unmangled kernel name
+		call strcpy
+		mov byte [es:di-1],' '		; Follow by space
 
-		SPECIAL_APPEND			; Module-specific hook
+		call do_ip_append		; Handle IPAppend
 
                 mov si,[CmdOptPtr]              ; Options from user input
 		call strcpy
@@ -102,83 +91,106 @@ construct_cmdline:
 ; interested in.  The original version of this code automatically assumed
 ; the first option was BOOT_IMAGE=, but that is no longer certain.
 ;
-		mov si,cmd_line_here
-		xor ax,ax
-                mov [InitRDPtr],ax		; No initrd= option (yet)
-                push es				; Set DS <- real_mode_seg
-                pop ds
-get_next_opt:   lodsb
+parse_cmdline:
+		mov di,cmd_line_here
+.skipspace:	mov al,[es:di]
+		inc di
+.skipspace_loaded:
 		and al,al
 		jz cmdline_end
 		cmp al,' '
-		jbe get_next_opt
-		dec si
-                mov eax,[si]
-                cmp eax,'vga='
-		je is_vga_cmd
-                cmp eax,'mem='
-		je is_mem_cmd
-%if IS_PXELINUX
-		cmp eax,'keep'			; Is it "keeppxe"?
-		jne .notkeep
-		cmp dword [si+3],'ppxe'
-		jne .notkeep
-		cmp byte [si+7],' '		; Must be whitespace or EOS
-		ja .notkeep
-		or byte [cs:KeepPXE],1
-.notkeep:
-%endif
-                push es                         ; <B> ES -> real_mode_seg
-                push cs
-                pop es                          ; Set ES <- normal DS
-                mov di,initrd_cmd
-		mov cx,initrd_cmd_len
-		repe cmpsb
-                jne .not_initrd
+		jbe .skipspace
+		dec di
 
+		; ES:DI now points to the beginning of an option
+		mov si,options_list
+.next_opt:
+		movzx cx,byte [si]
+		jcxz .skip_opt
+		push di
+		inc si
+		repe cmpsb
+		jne .no_match
+
+		; This either needs to have been an option with parameter,
+		; or be followed by EOL/whitespace
+		mov ax,[es:di-1]		; AL = last chr; AH = following
+		cmp al,'='
+		je .is_match
+		cmp ah,' '
+		ja .no_match
+.is_match:
+		pop ax				; Drop option pointer on stack
+		call [si]
+.skip_opt:
+		mov al,[es:di]
+		inc di
 		cmp al,' '
-		jbe .noramdisk
-		mov [cs:InitRDPtr],si
-		jmp .not_initrd
-.noramdisk:
-		xor ax,ax
-		mov [cs:InitRDPtr],ax
-.not_initrd:	pop es                          ; <B> ES -> real_mode_seg
-skip_this_opt:  lodsb                           ; Load from command line
-                cmp al,' '
-                ja skip_this_opt
-                dec si
-                jmp short get_next_opt
-is_vga_cmd:
-                add si,4
-                mov eax,[si-1]
-                mov bx,-1
-                cmp eax,'=nor'			; vga=normal
-                je vc0
+		ja .skip_opt
+		jmp .skipspace_loaded
+.no_match:
+		pop di
+		add si,cx			; Skip remaining bytes
+		inc si				; Skip function pointer
+		inc si
+		jmp .next_opt
+
+opt_vga:
+		mov ax,[es:di-1]
+		mov bx,-1
+		cmp ax,'=n'			; vga=normal
+		je .vc0
 		dec bx				; bx <- -2
-                cmp eax,'=ext'			; vga=ext
-                je vc0
-                dec bx				; bx <- -3
-                cmp eax,'=ask'			; vga=ask
-                je vc0
-                call parseint                   ; vga=<number>
-		jc skip_this_opt		; Not an integer
-vc0:		mov [bs_vidmode],bx		; Set video mode
-		jmp short skip_this_opt
-is_mem_cmd:
-                add si,4
-                call parseint
-		jc skip_this_opt		; Not an integer
+		cmp ax,'=e'			; vga=ext
+		je .vc0
+		dec bx				; bx <- -3
+		cmp ax,'=a'			; vga=ask
+		je .vc0
+		mov bx,0x0f04			; bx <- 0x0f04 (current mode)
+		cmp ax,'=c'			; vga=current
+		je .vc0
+		call parseint_esdi		; vga=<number>
+		jc .skip			; Not an integer
+.vc0:		mov [es:bs_vidmode],bx		; Set video mode
+.skip:
+		ret
+
+opt_mem:
+		call parseint_esdi
+		jc .skip
 %if HIGHMEM_SLOP != 0
 		sub ebx,HIGHMEM_SLOP
 %endif
-		mov [cs:MyHighMemSize],ebx
-		jmp short skip_this_opt
+		mov [MyHighMemSize],ebx
+.skip:
+		ret
+
+opt_quiet:
+		mov byte [QuietBoot],QUIET_FLAG
+		ret
+
+%if IS_PXELINUX
+opt_keeppxe:
+		or byte [KeepPXE],1		; KeepPXE set by command line
+		ret
+%endif
+
+opt_initrd:
+		mov ax,di
+		cmp byte [es:di],' '
+		ja .have_initrd
+		xor ax,ax
+.have_initrd:
+		mov [InitRDPtr],ax
+		ret
+
+;
+; After command line parsing...
+;
 cmdline_end:
-                push cs                         ; Restore standard DS
-                pop ds
-		sub si,cmd_line_here
-		mov [CmdLineLen],si		; Length including final null
+		sub di,cmd_line_here
+		mov [CmdLineLen],di		; Length including final null
+
 ;
 ; Now check if we have a large kernel, which needs to be loaded high
 ;
@@ -214,9 +226,15 @@ new_kernel:
 ; we were provided.
 ;
                 mov al,[es:su_loadflags]
+		or al,[QuietBoot]		; Set QUIET_FLAG if needed
+		mov [es:su_loadflags],al
 		mov [LoadFlags],al
 
 any_kernel:
+		mov si,loading_msg
+                call writestr_qchk
+                mov si,KernelName		; Print kernel name part of
+                call writestr_qchk		; "Loading" message
 
 ;
 ; Load the kernel.  We always load it at 100000h even if we're supposed to
@@ -241,8 +259,8 @@ read_kernel:
                 shl si,9			; Convert to bytes
                 mov ecx,8000h			; 32K
 		sub ecx,esi			; Number of bytes to copy
-		add esi,(real_mode_seg << 4)	; Pointer to source
-                mov edi,100000h                 ; Copy to address 100000h
+		add esi,core_real_mode		; Pointer to source
+                mov edi,free_high_memory	; Copy to free high memory
 
                 call bcopy			; Transfer to high memory
 
@@ -263,7 +281,8 @@ high_load_done:
                 mov es,ax
 
                 mov si,dot_msg
-                call writestr
+                call writestr_qchk
+
 ;
 ; Some older kernels (1.2 era) would have more than 4 setup sectors, but
 ; would not rely on the boot protocol to manage that.  These kernels fail
@@ -304,7 +323,7 @@ load_initrd:
                 call abort_check		; Last chance!!
 
 		mov si,ready_msg
-		call writestr
+		call writestr_qchk
 
 		UNLOAD_PREP			; Module-specific hook
 
@@ -340,7 +359,7 @@ setup_command_line:
 		; New cmdline protocol
 		; Store 32-bit (flat) pointer to command line
 		; This is the "high" location, since we have bzImage
-		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4)+cmd_line_here
+		mov dword [fs:su_cmd_line_ptr],cmd_line
 		mov word [HeapEnd],linux_stack
 		mov word [fs:su_heapend],linux_stack-512
 		jmp .setup_done
@@ -396,30 +415,30 @@ setup_move:
 		push ds				; We need DS == ES == CS here
 		pop es
 
+		mov edx,100000h
 		test byte [LoadFlags],LOAD_HIGH
 		jnz .loading_high
 
 ; Loading low: move real_mode stuff to 90000h, then move the kernel down
 		mov eax,90000h
 		stosd
-		mov eax,real_mode_seg << 4
+		mov eax,core_real_mode
 		stosd
 		movzx eax,word [CmdLineEnd]
 		stosd
 		inc cx
+		mov edx,10000h			; Revised target address
+		mov bx,9000h			; Revised real mode segment
 
-		mov eax,10000h			; Target address of low kernel
+.loading_high:
+		mov eax,edx			; Target address of kernel
 		stosd
-		mov eax,100000h			; Where currently loaded
+		mov eax,free_high_memory	; Where currently loaded
 		stosd
 		neg eax
 		add eax,[KernelEnd]
 		stosd
 		inc cx
-
-		mov bx,9000h			; Revised real mode segment
-
-.loading_high:
 
 		cmp word [InitRDPtr],0		; Did we have an initrd?
 		je .no_initrd
@@ -433,14 +452,15 @@ setup_move:
 		inc cx
 
 .no_initrd:
+		push dword run_linux_kernel
 		push cx				; Length of descriptor list
-		push word trackbuf
 
-		mov dword [EntryPoint],run_linux_kernel
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
-		jmp replace_bootstrap
 
+		test byte [QuietBoot],QUIET_FLAG
+		jz replace_bootstrap
+		jmp replace_bootstrap_noclearmode
 
 run_linux_kernel:
 ;
@@ -524,7 +544,7 @@ parse_load_initrd:
 
 		push di
 		mov di,InitRD		; Target buffer for mangled name
-		call mangle_name
+		pm_call pm_mangle_name
 		pop di
 		call loadinitrd
 
@@ -536,10 +556,16 @@ parse_load_initrd:
 		je .get_chunk
 
 		; Compute the initrd target location
+		; Note: we round to a page boundary twice here.  The first
+		; time it is to make sure we don't use any fractional page
+		; which may be valid RAM but which will be ignored by the
+		; kernel (and therefore is inaccessible.)  The second time
+		; it is to make sure we start out on page boundary.
 		mov edx,[cs:InitRDEnd]
 		sub edx,[cs:InitRDStart]
 		mov [su_ramdisklen],edx
 		mov eax,[cs:MyHighMemSize]
+		and ax,0F000h		; Round to a page boundary
 		sub eax,edx
 		and ax,0F000h		; Round to a page boundary
 		mov [su_ramdiskat],eax
@@ -563,25 +589,21 @@ loadinitrd:
 		mov ds,ax
 		mov es,ax
 		push edi
-                mov si,InitRD
-                mov di,InitRDCName
-                call unmangle_name              ; Create human-readable name
-                sub di,InitRDCName
-                mov [InitRDCNameLen],di
                 mov di,InitRD
-                call searchdir                  ; Look for it in directory
+                pm_call pm_searchdir                  ; Look for it in directory
 		pop edi
 		jz .notthere
 
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
-		call writestr
-                mov si,InitRDCName		; Write ramdisk name
-                call writestr
+		call writestr_qchk
+                mov si,InitRD			; Write ramdisk name
+                call writestr_qchk
                 mov si,dotdot_msg		; Write dots
-                call writestr
+                call writestr_qchk
 		pop si
 
+.li_skip_echo:
 		mov dx,3
 		mov bx,dot_pause
 		call load_high
@@ -594,12 +616,21 @@ loadinitrd:
 .notthere:
                 mov si,err_noinitrd
                 call writestr
-                mov si,InitRDCName
+                mov si,InitRD
                 call writestr
                 mov si,crlf_msg
                 jmp abort_load
 
-		section .data
+;
+; writestr_qchk: writestr, except allows output to be suppressed
+;		assumes CS == DS
+;
+writestr_qchk:
+		test byte [QuietBoot],QUIET_FLAG
+		jz writestr
+		ret
+
+		section .data16
 crlfloading_msg	db CR, LF
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
@@ -615,11 +646,24 @@ boot_image_len  equ $-boot_image
 ;
 ; Command line options we'd like to take a look at
 ;
-; mem= and vga= are handled as normal 32-bit integer values
-initrd_cmd	db 'initrd='
-initrd_cmd_len	equ $-initrd_cmd
+%macro cmd_opt	2
+%strlen cmd_opt_len	%1
+	db cmd_opt_len
+	db %1
+	dw %2
+%endmacro
+options_list:
+		cmd_opt "vga=", opt_vga
+		cmd_opt "mem=", opt_mem
+		cmd_opt "quiet", opt_quiet
+str_initrd	equ $+1			; Pointer to "initrd=" in memory
+		cmd_opt "initrd=", opt_initrd
+%if IS_PXELINUX
+		cmd_opt "keeppxe", opt_keeppxe
+%endif
+		db 0
 
-		section .bss
+		section .bss16
 		alignb 4
 MyHighMemSize	resd 1			; Possibly adjusted highmem size
 RamdiskMax	resd 1			; Highest address for ramdisk
@@ -631,6 +675,10 @@ InitRDEnd	resd 1			; End of initrd (pre-relocation)
 CmdLineLen	resw 1			; Length of command line including null
 CmdLineEnd	resw 1			; End of the command line in real_mode_seg
 SetupSecs	resw 1			; Number of setup sectors (+bootsect)
-InitRDPtr	resw 1			; Pointer to initrd= option in command line
 KernelVersion	resw 1			; Kernel protocol version
+;
+; These are derived from the command-line parser
+;
+InitRDPtr	resw 1			; Pointer to initrd= option in command line
 LoadFlags	resb 1			; Loadflags from kernel
+QuietBoot	resb 1			; Set if a quiet boot is requested

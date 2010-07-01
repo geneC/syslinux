@@ -40,10 +40,10 @@
 __extern int openconsole(const struct input_dev *, const struct output_dev *);
 
 /* Standard line-oriented console */
-extern const struct input_dev  dev_stdcon_r;
+extern const struct input_dev dev_stdcon_r;
 extern const struct output_dev dev_stdcon_w;
 /* Raw character-oriented console */
-extern const struct input_dev  dev_rawcon_r;
+extern const struct input_dev dev_rawcon_r;
 extern const struct output_dev dev_rawcon_w;
 
 /* These are output-only consoles; combine with one of the input methods */

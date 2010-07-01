@@ -41,15 +41,16 @@ struct input_dev;
 struct output_dev;
 
 __extern int opendev(const struct input_dev *, const struct output_dev *, int);
+__extern int openmem(const void *, size_t, int);
 
 /* Common generic devices */
 
 /* Null device */
-extern const struct input_dev  dev_null_r;
+extern const struct input_dev dev_null_r;
 extern const struct output_dev dev_null_w;
 
 /* Error device */
-extern const struct input_dev  dev_error_r;
+extern const struct input_dev dev_error_r;
 extern const struct output_dev dev_error_w;
 
 #endif /* _DEV_H */

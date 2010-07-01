@@ -27,63 +27,62 @@ void *sys_bounce;		/* Dummy */
 extern void parse_mem(void);
 extern uint32_t dos_mem, low_mem, high_mem;
 
-void __attribute__((noreturn)) die(void)
+void __attribute__ ((noreturn)) die(void)
 {
-  abort();
+    abort();
 }
 
-void printranges(void) {
-  int i;
+void printranges(void)
+{
+    int i;
 
-  for ( i = 0 ; i < nranges ; i++ ) {
-    printf("%016llx %016llx %d %x\n",
-	   ranges[i].start,
-	   ranges[i+1].start - ranges[i].start,
-	   ranges[i].type, ranges[i].extattr);
-  }
+    for (i = 0; i < nranges; i++) {
+	printf("%016llx %016llx %d\n",
+	       ranges[i].start,
+	       ranges[i + 1].start - ranges[i].start, ranges[i].type);
+    }
 }
 
 int main(void)
 {
-  uint64_t start, len;
-  uint32_t type, extattr;
-  char line[BUFSIZ], *p;
+    uint64_t start, len;
+    uint32_t type;
+    char line[BUFSIZ], *p;
 
-  e820map_init();
-  printranges();
+    e820map_init();
+    printranges();
 
-  while ( fgets(line, BUFSIZ, stdin) ) {
-    p = strchr(line, ':');
-    p = p ? p+1 : line;
-    extattr = 1;
-    if ( sscanf(p, " %llx %llx %d %x", &start, &len, &type, &extattr) >= 3 ) {
-      putchar('\n');
-      printf("%016llx %016llx %d %x <-\n", start, len, type, extattr);
-      putchar('\n');
-      insertrange(start, len, type, extattr);
-      printranges();
+    while (fgets(line, BUFSIZ, stdin)) {
+	p = strchr(line, ':');
+	p = p ? p + 1 : line;
+	if (sscanf(p, " %llx %llx %d", &start, &len, &type) == 3) {
+	    putchar('\n');
+	    printf("%016llx %016llx %d <-\n", start, len, type);
+	    putchar('\n');
+	    insertrange(start, len, type);
+	    printranges();
+	}
     }
-  }
 
-  parse_mem();
+    parse_mem();
 
-  putchar('\n');
-  printf("DOS  mem = %#10x (%u K)\n", dos_mem, dos_mem >> 10);
-  printf("Low  mem = %#10x (%u K)\n", low_mem, low_mem >> 10);
-  printf("High mem = %#10x (%u K)\n", high_mem, high_mem >> 10);
-  putchar('\n');
+    putchar('\n');
+    printf("DOS  mem = %#10x (%u K)\n", dos_mem, dos_mem >> 10);
+    printf("Low  mem = %#10x (%u K)\n", low_mem, low_mem >> 10);
+    printf("High mem = %#10x (%u K)\n", high_mem, high_mem >> 10);
+    putchar('\n');
 
-  /* Now, steal a chunk (2K) of DOS memory and make sure it registered OK */
-  insertrange(dos_mem-2048, 2048, 2, 1); /* Type 2 = reserved */
+    /* Now, steal a chunk (2K) of DOS memory and make sure it registered OK */
+    insertrange(dos_mem - 2048, 2048, 2, 1);	/* Type 2 = reserved */
 
-  printranges();
-  parse_mem();
+    printranges();
+    parse_mem();
 
-  putchar('\n');
-  printf("DOS  mem = %#10x (%u K)\n", dos_mem, dos_mem >> 10);
-  printf("Low  mem = %#10x (%u K)\n", low_mem, low_mem >> 10);
-  printf("High mem = %#10x (%u K)\n", high_mem, high_mem >> 10);
-  putchar('\n');
+    putchar('\n');
+    printf("DOS  mem = %#10x (%u K)\n", dos_mem, dos_mem >> 10);
+    printf("Low  mem = %#10x (%u K)\n", low_mem, low_mem >> 10);
+    printf("High mem = %#10x (%u K)\n", high_mem, high_mem >> 10);
+    putchar('\n');
 
-  return 0;
+    return 0;
 }

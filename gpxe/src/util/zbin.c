@@ -6,6 +6,8 @@
 #include "nrv2b.c"
 FILE *infile, *outfile;
 
+#define DEBUG 0
+
 struct input_file {
 	void *buf;
 	size_t len;
@@ -36,7 +38,7 @@ struct zinfo_pack {
 	uint32_t align;
 };
 
-struct zinfo_subtract {
+struct zinfo_add {
 	char type[4];
 	uint32_t offset;
 	uint32_t divisor;
@@ -47,13 +49,17 @@ union zinfo_record {
 	struct zinfo_common common;
 	struct zinfo_copy copy;
 	struct zinfo_pack pack;
-	struct zinfo_subtract subtract;
+	struct zinfo_add add;
 };
 
 struct zinfo_file {
 	union zinfo_record *zinfo;
 	unsigned int num_entries;
 };
+
+static unsigned long align ( unsigned long value, unsigned long align ) {
+	return ( ( value + align - 1 ) & ~( align - 1 ) );
+}
 
 static int read_file ( const char *filename, void **buf, size_t *len ) {
 	FILE *file;
@@ -75,13 +81,13 @@ static int read_file ( const char *filename, void **buf, size_t *len ) {
 	*len = stat.st_size;
 	*buf = malloc ( *len );
 	if ( ! *buf ) {
-		fprintf ( stderr, "Could not malloc() %d bytes for %s: %s\n",
+		fprintf ( stderr, "Could not malloc() %zd bytes for %s: %s\n",
 			  *len, filename, strerror ( errno ) );
 		goto err;
 	}
 
 	if ( fread ( *buf, 1, *len, file ) != *len ) {
-		fprintf ( stderr, "Could not read %d bytes from %s: %s\n",
+		fprintf ( stderr, "Could not read %zd bytes from %s: %s\n",
 			  *len, filename, strerror ( errno ) );
 		goto err;
 	}
@@ -109,7 +115,7 @@ static int read_zinfo_file ( const char *filename,
 		return -1;
 
 	if ( ( len % sizeof ( *(zinfo->zinfo) ) ) != 0 ) {
-		fprintf ( stderr, ".zinfo file %s has invalid length %d\n",
+		fprintf ( stderr, ".zinfo file %s has invalid length %zd\n",
 			  filename, len );
 		return -1;
 	}
@@ -124,7 +130,7 @@ static int alloc_output_file ( size_t max_len, struct output_file *output ) {
 	output->max_len = ( max_len );
 	output->buf = malloc ( max_len );
 	if ( ! output->buf ) {
-		fprintf ( stderr, "Could not allocate %d bytes for output\n",
+		fprintf ( stderr, "Could not allocate %zd bytes for output\n",
 			  max_len );
 		return -1;
 	}
@@ -138,17 +144,22 @@ static int process_zinfo_copy ( struct input_file *input,
 	struct zinfo_copy *copy = &zinfo->copy;
 	size_t offset = copy->offset;
 	size_t len = copy->len;
-	unsigned int align = copy->align;
 
 	if ( ( offset + len ) > input->len ) {
 		fprintf ( stderr, "Input buffer overrun on copy\n" );
 		return -1;
 	}
 
-	output->len = ( ( output->len + align - 1 ) & ~( align - 1 ) );
+	output->len = align ( output->len, copy->align );
 	if ( ( output->len + len ) > output->max_len ) {
 		fprintf ( stderr, "Output buffer overrun on copy\n" );
 		return -1;
+	}
+
+	if ( DEBUG ) {
+		fprintf ( stderr, "COPY [%#zx,%#zx) to [%#zx,%#zx)\n",
+			  offset, ( offset + len ), output->len,
+			  ( output->len + len ) );
 	}
 
 	memcpy ( ( output->buf + output->len ),
@@ -163,7 +174,6 @@ static int process_zinfo_pack ( struct input_file *input,
 	struct zinfo_pack *pack = &zinfo->pack;
 	size_t offset = pack->offset;
 	size_t len = pack->len;
-	unsigned int align = pack->align;
 	unsigned long packed_len;
 
 	if ( ( offset + len ) > input->len ) {
@@ -171,7 +181,7 @@ static int process_zinfo_pack ( struct input_file *input,
 		return -1;
 	}
 
-	output->len = ( ( output->len + align - 1 ) & ~( align - 1 ) );
+	output->len = align ( output->len, pack->align );
 	if ( output->len > output->max_len ) {
 		fprintf ( stderr, "Output buffer overrun on pack\n" );
 		return -1;
@@ -184,6 +194,12 @@ static int process_zinfo_pack ( struct input_file *input,
 		return -1;
 	}
 
+	if ( DEBUG ) {
+		fprintf ( stderr, "PACK [%#zx,%#zx) to [%#zx,%#zx)\n",
+			  offset, ( offset + len ), output->len,
+			  ( size_t )( output->len + packed_len ) );
+	}
+
 	output->len += packed_len;
 	if ( output->len > output->max_len ) {
 		fprintf ( stderr, "Output buffer overrun on pack\n" );
@@ -193,61 +209,102 @@ static int process_zinfo_pack ( struct input_file *input,
 	return 0;
 }
 
-static int process_zinfo_subtract ( struct input_file *input,
-				    struct output_file *output,
-				    struct zinfo_subtract *subtract,
-				    size_t datasize ) {
-	size_t offset = subtract->offset;
+static int process_zinfo_add ( struct input_file *input,
+			       struct output_file *output,
+			       struct zinfo_add *add,
+			       size_t datasize ) {
+	size_t offset = add->offset;
 	void *target;
-	long delta;
+	signed long addend;
+	unsigned long size;
+	signed long val;
+	unsigned long mask;
 
 	if ( ( offset + datasize ) > output->len ) {
-		fprintf ( stderr, "Subtract at %#zx outside output buffer\n",
+		fprintf ( stderr, "Add at %#zx outside output buffer\n",
 			  offset );
 		return -1;
 	}
 
 	target = ( output->buf + offset );
-	delta = ( ( output->len / subtract->divisor ) -
-		  ( input->len / subtract->divisor ) );
+	size = ( align ( output->len, add->divisor ) / add->divisor );
 
 	switch ( datasize ) {
-	case 1: {
-		uint8_t *byte = target;
-		*byte += delta;
-		break; }
-	case 2: {
-		uint16_t *word = target;
-		*word += delta;
-		break; }
-	case 4: {
-		uint32_t *dword = target;
-		*dword += delta;
-		break; }
+	case 1:
+		addend = *( ( int8_t * ) target );
+		break;
+	case 2:
+		addend = *( ( int16_t * ) target );
+		break;
+	case 4:
+		addend = *( ( int32_t * ) target );
+		break;
 	default:
-		fprintf ( stderr, "Unsupported subtract datasize %d\n",
+		fprintf ( stderr, "Unsupported add datasize %zd\n",
 			  datasize );
 		return -1;
 	}
+
+	val = size + addend;
+
+	/* The result of 1UL << ( 8 * sizeof(unsigned long) ) is undefined */
+	mask = ( ( datasize < sizeof ( mask ) ) ?
+		 ( ( 1UL << ( 8 * datasize ) ) - 1 ) : ~0UL );
+
+	if ( val < 0 ) {
+		fprintf ( stderr, "Add %s%#x+%#lx at %#zx %sflows field\n",
+			  ( ( addend < 0 ) ? "-" : "" ), abs ( addend ), size,
+			  offset, ( ( addend < 0 ) ? "under" : "over" ) );
+		return -1;
+	}
+
+	if ( val & ~mask ) {
+		fprintf ( stderr, "Add %s%#x+%#lx at %#zx overflows %zd-byte "
+			  "field (%d bytes too big)\n",
+			  ( ( addend < 0 ) ? "-" : "" ), abs ( addend ), size,
+			  offset, datasize,
+			  ( int )( ( val - mask - 1 ) * add->divisor ) );
+		return -1;
+	}
+
+	switch ( datasize ) {
+	case 1:
+		*( ( uint8_t * ) target ) = val;
+		break;
+	case 2:
+		*( ( uint16_t * ) target ) = val;
+		break;
+	case 4:
+		*( ( uint32_t * ) target ) = val;
+		break;
+	}
+
+	if ( DEBUG ) {
+		fprintf ( stderr, "ADDx [%#zx,%#zx) (%s%#x+(%#zx/%#x)) = "
+			  "%#lx\n", offset, ( offset + datasize ),
+			  ( ( addend < 0 ) ? "-" : "" ), abs ( addend ),
+			  output->len, add->divisor, val );
+	}
+
 	return 0;
 }
 
-static int process_zinfo_subb ( struct input_file *input,
+static int process_zinfo_addb ( struct input_file *input,
 				struct output_file *output,
 				union zinfo_record *zinfo ) {
-	return process_zinfo_subtract ( input, output, &zinfo->subtract, 1 );
+	return process_zinfo_add ( input, output, &zinfo->add, 1 );
 }
 
-static int process_zinfo_subw ( struct input_file *input,
+static int process_zinfo_addw ( struct input_file *input,
 				struct output_file *output,
 				union zinfo_record *zinfo ) {
-	return process_zinfo_subtract ( input, output, &zinfo->subtract, 2 );
+	return process_zinfo_add ( input, output, &zinfo->add, 2 );
 }
 
-static int process_zinfo_subl ( struct input_file *input,
+static int process_zinfo_addl ( struct input_file *input,
 				struct output_file *output,
 				union zinfo_record *zinfo ) {
-	return process_zinfo_subtract ( input, output, &zinfo->subtract, 4 );
+	return process_zinfo_add ( input, output, &zinfo->add, 4 );
 }
 
 struct zinfo_processor {
@@ -260,9 +317,9 @@ struct zinfo_processor {
 static struct zinfo_processor zinfo_processors[] = {
 	{ "COPY", process_zinfo_copy },
 	{ "PACK", process_zinfo_pack },
-	{ "SUBB", process_zinfo_subb },
-	{ "SUBW", process_zinfo_subw },
-	{ "SUBL", process_zinfo_subl },
+	{ "ADDB", process_zinfo_addb },
+	{ "ADDW", process_zinfo_addw },
+	{ "ADDL", process_zinfo_addl },
 };
 
 static int process_zinfo ( struct input_file *input,
@@ -287,7 +344,7 @@ static int process_zinfo ( struct input_file *input,
 
 static int write_output_file ( struct output_file *output ) {
 	if ( fwrite ( output->buf, 1, output->len, stdout ) != output->len ) {
-		fprintf ( stderr, "Could not write %d bytes of output: %s\n",
+		fprintf ( stderr, "Could not write %zd bytes of output: %s\n",
 			  output->len, strerror ( errno ) );
 		return -1;
 	}

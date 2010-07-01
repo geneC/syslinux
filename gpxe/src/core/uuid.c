@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdio.h>
 #include <byteswap.h>
@@ -36,7 +38,7 @@
 char * uuid_ntoa ( union uuid *uuid ) {
 	static char buf[37]; /* "00000000-0000-0000-0000-000000000000" */
 
-	sprintf ( buf, "%08lx-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
+	sprintf ( buf, "%08x-%04x-%04x-%04x-%02x%02x%02x%02x%02x%02x",
 		  be32_to_cpu ( uuid->canonical.a ),
 		  be16_to_cpu ( uuid->canonical.b ),
 		  be16_to_cpu ( uuid->canonical.c ),

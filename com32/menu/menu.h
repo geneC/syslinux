@@ -28,6 +28,9 @@
 #include <stdbool.h>
 #include "refstr.h"
 
+/* #define DEBUG 1 */
+#include <dprintf.h>
+
 #ifndef CLK_TCK
 # define CLK_TCK sysconf(_SC_CLK_TCK)
 #endif
@@ -37,132 +40,140 @@ struct menu;
 /* Note: the _UNRES variants must always be immediately after their
    "normal" versions. */
 enum menu_action {
-  MA_NONE,			/* Undefined value */
-  MA_CMD,			/* Execute a command */
-  MA_DISABLED,			/* Disabled menu entry */
-  MA_SUBMENU,			/* This is a submenu entry */
-  MA_GOTO,			/* Go to another menu */
-  MA_GOTO_UNRES,		/* Unresolved go to */
-  MA_QUIT,			/* Quit to CLI */
-  MA_EXIT,			/* Exit to higher-level menu */
-  MA_EXIT_UNRES,		/* Unresolved exit */
+    MA_NONE,			/* Undefined value */
+    MA_CMD,			/* Execute a command */
+    MA_DISABLED,		/* Disabled menu entry */
+    MA_SUBMENU,			/* This is a submenu entry */
+    MA_GOTO,			/* Go to another menu */
+    MA_GOTO_UNRES,		/* Unresolved go to */
+    MA_QUIT,			/* Quit to CLI */
+    MA_EXIT,			/* Exit to higher-level menu */
+    MA_EXIT_UNRES,		/* Unresolved exit */
+    MA_HELP,			/* Show help text */
 };
 
 struct menu_entry {
-  int entry;			/* Entry number inside menu */
-  const char *displayname;
-  const char *label;
-  const char *passwd;
-  char *helptext;
-  const char *cmdline;
-  struct menu *submenu;
-  struct menu_entry *next;	/* Linked list of all labels across menus */
-  enum menu_action action;
-  unsigned char hotkey;
+    struct menu *menu;		/* Parent menu */
+    const char *displayname;
+    const char *label;
+    const char *passwd;
+    char *helptext;
+    const char *cmdline;
+    const char *background;
+    struct menu *submenu;
+    struct menu_entry *next;	/* Linked list of all labels across menus */
+    int entry;			/* Entry number inside menu */
+    enum menu_action action;
+    unsigned char hotkey;
+    bool immediate;		/* Hotkey action does not require Enter */
+    bool save;			/* Save this entry if selected */
 };
 
 static inline bool is_disabled(struct menu_entry *me)
 {
-  return me->action == MA_DISABLED;
+    return me->action == MA_DISABLED;
 }
 
 enum kernel_type {
-  /* Meta-types for internal use */
-  KT_NONE,
-  KT_LOCALBOOT,
+    /* Meta-types for internal use */
+    KT_NONE,
+    KT_LOCALBOOT,
 
-  /* The ones we can pass off to SYSLINUX, in order */
-  KT_KERNEL,			/* Undefined type */
-  KT_LINUX,			/* Linux kernel */
-  KT_BOOT,			/* Bootstrap program */
-  KT_BSS,			/* Boot sector with patch */
-  KT_PXE,			/* PXE NBP */
-  KT_FDIMAGE,			/* Floppy disk image */
-  KT_COMBOOT,			/* COMBOOT image */
-  KT_COM32,			/* COM32 image */
-  KT_CONFIG,			/* Configuration file */
+    /* The ones we can pass off to SYSLINUX, in order */
+    KT_KERNEL,			/* Undefined type */
+    KT_LINUX,			/* Linux kernel */
+    KT_BOOT,			/* Bootstrap program */
+    KT_BSS,			/* Boot sector with patch */
+    KT_PXE,			/* PXE NBP */
+    KT_FDIMAGE,			/* Floppy disk image */
+    KT_COMBOOT,			/* COMBOOT image */
+    KT_COM32,			/* COM32 image */
+    KT_CONFIG,			/* Configuration file */
 };
 
-extern const char * const kernel_types[];
+extern const char *const kernel_types[];
 
 /* Configurable integer parameters */
 enum parameter_number {
-  P_WIDTH,
-  P_MARGIN,
-  P_PASSWD_MARGIN,
-  P_MENU_ROWS,
-  P_TABMSG_ROW,
-  P_CMDLINE_ROW,
-  P_END_ROW,
-  P_PASSWD_ROW,
-  P_TIMEOUT_ROW,
-  P_HELPMSG_ROW,
-  P_HELPMSGEND_ROW,
-  P_HSHIFT,
-  P_VSHIFT,
-  P_HIDDEN_ROW,
+    P_WIDTH,
+    P_MARGIN,
+    P_PASSWD_MARGIN,
+    P_MENU_ROWS,
+    P_TABMSG_ROW,
+    P_CMDLINE_ROW,
+    P_END_ROW,
+    P_PASSWD_ROW,
+    P_TIMEOUT_ROW,
+    P_HELPMSG_ROW,
+    P_HELPMSGEND_ROW,
+    P_HSHIFT,
+    P_VSHIFT,
+    P_HIDDEN_ROW,
 
-  NPARAMS
+    NPARAMS
 };
 
 /* Configurable messages */
 enum message_number {
-  MSG_TITLE,
-  MSG_AUTOBOOT,
-  MSG_TAB,
-  MSG_NOTAB,
-  MSG_PASSPROMPT,
+    MSG_TITLE,
+    MSG_AUTOBOOT,
+    MSG_TAB,
+    MSG_NOTAB,
+    MSG_PASSPROMPT,
 
-  MSG_COUNT
+    MSG_COUNT
 };
 
 struct messages {
-  const char *name;		/* Message configuration name */
-  const char *defmsg;		/* Default message text */
+    const char *name;		/* Message configuration name */
+    const char *defmsg;		/* Default message text */
 };
 
 struct menu_parameter {
-  const char *name;
-  int value;
+    const char *name;
+    int value;
 };
 
 extern const struct menu_parameter mparm[NPARAMS];
 
 struct fkey_help {
-  const char *textname;
-  const char *background;
+    const char *textname;
+    const char *background;
 };
 
 struct menu {
-  struct menu *next;		/* Linked list of all menus */
-  const char *label;		/* Goto label for this menu */
-  struct menu *parent;
-  struct menu_entry *parent_entry; /* Entry for self in parent */
+    struct menu *next;		/* Linked list of all menus */
+    const char *label;		/* Goto label for this menu */
+    struct menu *parent;
+    struct menu_entry *parent_entry;	/* Entry for self in parent */
 
-  struct menu_entry **menu_entries;
-  struct menu_entry *menu_hotkeys[256];
+    struct menu_entry **menu_entries;
+    struct menu_entry *menu_hotkeys[256];
 
-  const char *messages[MSG_COUNT];
-  int mparm[NPARAMS];
+    const char *messages[MSG_COUNT];
+    int mparm[NPARAMS];
 
-  int nentries;
-  int nentries_space;
-  int defentry;
-  int allowedit;
-  int timeout;
+    int nentries;
+    int nentries_space;
+    int defentry;
+    int timeout;
 
-  int curentry;
-  int curtop;
+    bool allowedit;
+    bool immediate;		/* MENU IMMEDIATE default for this menu */
+    bool save;			/* MENU SAVE default for this menu */
 
-  const char *title;
-  const char *ontimeout;
-  const char *onerror;
-  const char *menu_master_passwd;
-  const char *menu_background;
+    int curentry;
+    int curtop;
 
-  struct color_table *color_table;
+    const char *title;
+    const char *ontimeout;
+    const char *onerror;
+    const char *menu_master_passwd;
+    const char *menu_background;
 
-  struct fkey_help fkeyhelp[12];
+    struct color_table *color_table;
+
+    struct fkey_help fkeyhelp[12];
 };
 
 extern struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
@@ -173,24 +184,24 @@ extern struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 /* These are global parameters regardless of which menu we're displaying */
 extern int shiftkey;
 extern int hiddenmenu;
+extern int clearmenu;
 extern long long totaltimeout;
 
 void parse_configs(char **argv);
 int draw_background(const char *filename);
+void set_resolution(int x, int y);
+void start_console(void);
+void local_cursor_enable(bool);
 
 static inline int my_isspace(char c)
 {
-  return (unsigned char)c <= ' ';
+    return (unsigned char)c <= ' ';
 }
 
 int my_isxdigit(char c);
 unsigned int hexval(char c);
 unsigned int hexval2(const char *p);
 uint32_t parse_argb(char **p);
-
-int menu_main(int argc, char *argv[]);
-void console_prepare(void);
-void console_cleanup(void);
 
 extern const int message_base_color, menu_color_table_size;
 int mygetkey(clock_t timeout);

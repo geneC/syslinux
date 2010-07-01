@@ -43,21 +43,21 @@
 
 #define INCREMENTAL_CHUNK 1024*1024
 
-int loadfile(const char *filename, void **ptr, size_t *len)
+int loadfile(const char *filename, void **ptr, size_t * len)
 {
-  FILE *f;
-  int rv, e;
+    FILE *f;
+    int rv, e;
 
-  f = fopen(filename, "r");
-  if ( !f )
-    return -1;
+    f = fopen(filename, "r");
+    if (!f)
+	return -1;
 
-  rv = floadfile(f, ptr, len, NULL, 0);
-  e = errno;
+    rv = floadfile(f, ptr, len, NULL, 0);
+    e = errno;
 
-  fclose(f);
+    fclose(f);
 
-  if (rv)
-    errno = e;
-  return rv;
+    if (rv)
+	errno = e;
+    return rv;
 }

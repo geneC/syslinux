@@ -4,6 +4,14 @@ cc="$1"
 
 for prefix in \
     mingw- \
+    i386-pc-mingw32- \
+    i486-pc-mingw32- \
+    i586-pc-mingw32- \
+    i686-pc-mingw32- \
+    i386-pc-mingw32msvc- \
+    i486-pc-mingw32msvc- \
+    i586-pc-mingw32msvc- \
+    i686-pc-mingw32msvc- \
     i386-mingw32- \
     i486-mingw32- \
     i586-mingw32- \

@@ -20,26 +20,25 @@
 #include <consoles.h>
 #include "menu.h"
 
-void console_prepare(void)
-{
-  /* Nothing special to do */
-}
-
-void console_cleanup(void)
-{
-  /* Nothing special to do */
-}
-
 int draw_background(const char *arg)
 {
-  /* Nothing to do... */
-  (void)arg;
-  return 0;
+    /* Nothing to do... */
+    (void)arg;
+    return 0;
 }
 
-int main(int argc, char *argv[])
+void set_resolution(int x, int y)
 {
-  console_ansi_raw();
+    (void)x;
+    (void)y;
+}
 
-  return menu_main(argc, argv);
+void local_cursor_enable(bool enabled)
+{
+    (void)enabled;
+}
+
+void start_console(void)
+{
+    console_ansi_raw();
 }

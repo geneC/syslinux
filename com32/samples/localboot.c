@@ -3,7 +3,7 @@
 
 int main(int argc, char *argv[])
 {
-  syslinux_local_boot(argc > 1 ? atoi(argv[1]) : 0);
+    syslinux_local_boot(argc > 1 ? atoi(argv[1]) : 0);
 
-  return 0;
+    return 0;
 }

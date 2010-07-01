@@ -16,10 +16,13 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <errno.h>
@@ -33,11 +36,6 @@
  * Command execution
  *
  */
-
-static struct command commands[0]
-	__table_start ( struct command, commands );
-static struct command commands_end[0]
-	__table_end ( struct command, commands );
 
 /* Avoid dragging in getopt.o unless a command really uses it */
 int optind;
@@ -78,7 +76,7 @@ int execv ( const char *command, char * const argv[] ) {
 	reset_getopt();
 
 	/* Hand off to command implementation */
-	for ( cmd = commands ; cmd < commands_end ; cmd++ ) {
+	for_each_table_entry ( cmd, COMMANDS ) {
 		if ( strcmp ( command, cmd->name ) == 0 )
 			return cmd->exec ( argc, ( char ** ) argv );
 	}
@@ -173,7 +171,7 @@ static int split_args ( char *args, char * argv[] ) {
 
 	while ( 1 ) {
 		/* Skip over any whitespace / convert to NUL */
-		while ( *args == ' ' ) {
+		while ( isspace ( *args ) ) {
 			if ( argv )
 				*args = '\0';
 			args++;
@@ -186,7 +184,7 @@ static int split_args ( char *args, char * argv[] ) {
 			argv[argc] = args;
 		argc++;
 		/* Skip to start of next whitespace, if any */
-		while ( *args && ( *args != ' ' ) ) {
+		while ( *args && ! isspace ( *args ) ) {
 			args++;
 		}
 	}

@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
@@ -125,6 +127,8 @@ static int iscsi_open_connection ( struct iscsi_session *iscsi ) {
 	/* Enter security negotiation phase */
 	iscsi->status = ( ISCSI_STATUS_SECURITY_NEGOTIATION_PHASE |
 			  ISCSI_STATUS_STRINGS_SECURITY );
+	if ( iscsi->target_username )
+		iscsi->status |= ISCSI_STATUS_AUTH_REVERSE_REQUIRED;
 
 	/* Assign fresh initiator task tag */
 	iscsi->itt++;
@@ -152,9 +156,6 @@ static void iscsi_close_connection ( struct iscsi_session *iscsi, int rc ) {
 	/* Clear connection status */
 	iscsi->status = 0;
 
-	/* Deauthenticate target */
-	iscsi->target_auth_ok = 0;
-
 	/* Reset TX and RX state machines */
 	iscsi->tx_state = ISCSI_TX_IDLE;
 	iscsi->rx_state = ISCSI_RX_BHS;
@@ -181,9 +182,10 @@ static void iscsi_close_connection ( struct iscsi_session *iscsi, int rc ) {
 static void iscsi_scsi_done ( struct iscsi_session *iscsi, int rc ) {
 
 	assert ( iscsi->tx_state == ISCSI_TX_IDLE );
+	assert ( iscsi->command != NULL );
 
+	iscsi->command->rc = rc;
 	iscsi->command = NULL;
-	iscsi->rc = rc;
 }
 
 /****************************************************************************
@@ -634,15 +636,12 @@ static int iscsi_handle_targetaddress_value ( struct iscsi_session *iscsi,
 static int iscsi_handle_authmethod_value ( struct iscsi_session *iscsi,
 					   const char *value ) {
 
-	/* Mark target as authenticated if no authentication required */
-	if ( ! iscsi->target_username )
-		iscsi->target_auth_ok = 1;
-
 	/* If server requests CHAP, send the CHAP_A string */
 	if ( strcmp ( value, "CHAP" ) == 0 ) {
 		DBGC ( iscsi, "iSCSI %p initiating CHAP authentication\n",
 		       iscsi );
-		iscsi->status |= ISCSI_STATUS_STRINGS_CHAP_ALGORITHM;
+		iscsi->status |= ( ISCSI_STATUS_STRINGS_CHAP_ALGORITHM |
+				   ISCSI_STATUS_AUTH_FORWARD_REQUIRED );
 	}
 
 	return 0;
@@ -858,7 +857,7 @@ static int iscsi_handle_chap_r_value ( struct iscsi_session *iscsi,
 	assert ( i == iscsi->chap.response_len );
 
 	/* Mark session as authenticated */
-	iscsi->target_auth_ok = 1;
+	iscsi->status |= ISCSI_STATUS_AUTH_REVERSE_OK;
 
 	return 0;
 }
@@ -1064,14 +1063,16 @@ static int iscsi_rx_login_response ( struct iscsi_session *iscsi,
 
 	/* Handle login transitions */
 	if ( response->flags & ISCSI_LOGIN_FLAG_TRANSITION ) {
+		iscsi->status &= ~( ISCSI_STATUS_PHASE_MASK |
+				    ISCSI_STATUS_STRINGS_MASK );
 		switch ( response->flags & ISCSI_LOGIN_NSG_MASK ) {
 		case ISCSI_LOGIN_NSG_OPERATIONAL_NEGOTIATION:
-			iscsi->status =
+			iscsi->status |=
 				( ISCSI_STATUS_OPERATIONAL_NEGOTIATION_PHASE |
 				  ISCSI_STATUS_STRINGS_OPERATIONAL );
 			break;
 		case ISCSI_LOGIN_NSG_FULL_FEATURE_PHASE:
-			iscsi->status = ISCSI_STATUS_FULL_FEATURE_PHASE;
+			iscsi->status |= ISCSI_STATUS_FULL_FEATURE_PHASE;
 			break;
 		default:
 			DBGC ( iscsi, "iSCSI %p got invalid response flags "
@@ -1090,7 +1091,8 @@ static int iscsi_rx_login_response ( struct iscsi_session *iscsi,
 	}
 
 	/* Check that target authentication was successful (if required) */
-	if ( ! iscsi->target_auth_ok ) {
+	if ( ( iscsi->status & ISCSI_STATUS_AUTH_REVERSE_REQUIRED ) &&
+	     ! ( iscsi->status & ISCSI_STATUS_AUTH_REVERSE_OK ) ) {
 		DBGC ( iscsi, "iSCSI %p nefarious target tried to bypass "
 		       "authentication\n", iscsi );
 		return -EPROTO;
@@ -1305,7 +1307,7 @@ static int iscsi_rx_bhs ( struct iscsi_session *iscsi, const void *data,
 			  size_t len, size_t remaining __unused ) {
 	memcpy ( &iscsi->rx_bhs.bytes[iscsi->rx_offset], data, len );
 	if ( ( iscsi->rx_offset + len ) >= sizeof ( iscsi->rx_bhs ) ) {
-		DBGC2 ( iscsi, "iSCSI %p received PDU opcode %#x len %#lx\n",
+		DBGC2 ( iscsi, "iSCSI %p received PDU opcode %#x len %#x\n",
 			iscsi, iscsi->rx_bhs.common.opcode,
 			ISCSI_DATA_LEN ( iscsi->rx_bhs.common.lengths ) );
 	}
@@ -1515,7 +1517,7 @@ static int iscsi_vredirect ( struct xfer_interface *socket, int type,
 		va_end ( tmp );
 	}
 
-	return xfer_vopen ( socket, type, args );
+	return xfer_vreopen ( socket, type, args );
 }
 			     
 
@@ -1549,37 +1551,24 @@ static int iscsi_command ( struct scsi_device *scsi,
 		container_of ( scsi->backend, struct iscsi_session, refcnt );
 	int rc;
 
+	/* Abort immediately if we have a recorded permanent failure */
+	if ( iscsi->instant_rc )
+		return iscsi->instant_rc;
+
 	/* Record SCSI command */
 	iscsi->command = command;
-
-	/* Abort immediately if we have a recorded permanent failure */
-	if ( iscsi->instant_rc ) {
-		rc = iscsi->instant_rc;
-		goto done;
-	}
 
 	/* Issue command or open connection as appropriate */
 	if ( iscsi->status ) {
 		iscsi_start_command ( iscsi );
 	} else {
-		if ( ( rc = iscsi_open_connection ( iscsi ) ) != 0 )
-			goto done;
+		if ( ( rc = iscsi_open_connection ( iscsi ) ) != 0 ) {
+			iscsi->command = NULL;
+			return rc;
+		}
 	}
 
-	/* Wait for command to complete */
-	iscsi->rc = -EINPROGRESS;
-	while ( iscsi->rc == -EINPROGRESS )
-		step();
-	rc = iscsi->rc;
-
- done:
-	iscsi->command = NULL;
-	return rc;
-}
-
-static int iscsi_detached_command ( struct scsi_device *scsi __unused,
-				    struct scsi_command *command __unused ) {
-	return -ENODEV;
+	return 0;
 }
 
 /**
@@ -1594,7 +1583,7 @@ void iscsi_detach ( struct scsi_device *scsi ) {
 	xfer_nullify ( &iscsi->socket );
 	iscsi_close_connection ( iscsi, 0 );
 	process_del ( &iscsi->process );
-	scsi->command = iscsi_detached_command;
+	scsi->command = scsi_detached_command;
 	ref_put ( scsi->backend );
 	scsi->backend = NULL;
 }
@@ -1615,42 +1604,6 @@ enum iscsi_root_path_component {
 	RP_TARGETNAME,
 	NUM_RP_COMPONENTS
 };
-
-/**
- * Parse iSCSI LUN
- *
- * @v iscsi		iSCSI session
- * @v lun_string	LUN string representation (as per RFC4173)
- * @ret rc		Return status code
- */
-static int iscsi_parse_lun ( struct iscsi_session *iscsi,
-			     const char *lun_string ) {
-	union {
-		uint64_t u64;
-		uint16_t u16[4];
-	} lun;
-	char *p;
-	int i;
-
-	memset ( &lun, 0, sizeof ( lun ) );
-	if ( lun_string ) {
-		p = ( char * ) lun_string;
-		
-		for ( i = 0 ; i < 4 ; i++ ) {
-			lun.u16[i] = htons ( strtoul ( p, &p, 16 ) );
-			if ( *p == '\0' )
-				break;
-			if ( *p != '-' )
-				return -EINVAL;
-			p++;
-		}
-		if ( *p )
-			return -EINVAL;
-	}
-
-	iscsi->lun = lun.u64;
-	return 0;
-}
 
 /**
  * Parse iSCSI root path
@@ -1690,7 +1643,7 @@ static int iscsi_parse_root_path ( struct iscsi_session *iscsi,
 	iscsi->target_port = strtoul ( rp_comp[RP_PORT], NULL, 10 );
 	if ( ! iscsi->target_port )
 		iscsi->target_port = ISCSI_PORT;
-	if ( ( rc = iscsi_parse_lun ( iscsi, rp_comp[RP_LUN] ) ) != 0 ) {
+	if ( ( rc = scsi_parse_lun ( rp_comp[RP_LUN], &iscsi->lun ) ) != 0 ) {
 		DBGC ( iscsi, "iSCSI %p invalid LUN \"%s\"\n",
 		       iscsi, rp_comp[RP_LUN] );
 		return rc;
@@ -1810,7 +1763,6 @@ int iscsi_attach ( struct scsi_device *scsi, const char *root_path ) {
 	/* Attach parent interface, mortalise self, and return */
 	scsi->backend = ref_get ( &iscsi->refcnt );
 	scsi->command = iscsi_command;
-	scsi->lun = iscsi->lun;
 	ref_put ( &iscsi->refcnt );
 	return 0;
 	

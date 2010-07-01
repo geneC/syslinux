@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
 ;; Command line parser code
 ;;
 
-		section .text
+		section .text16
 
 ; -------------------------------------------------------------------------
 ;  getcommand:	Get a keyword from the current "getc" file and match it
@@ -28,6 +29,9 @@
 ;               returns with CF = 0.  On EOF, this function returns
 ;		with CF = 1.
 ; -------------------------------------------------------------------------
+
+getcommand.skipline:
+		call skipline
 
 getcommand:
 .find:
@@ -77,7 +81,7 @@ getcommand:
 		mov si,trackbuf
 		call writestr
 		call crlf
-		jmp short .skipline
+		jmp .skipline
 
 		; No parameter
 .noparm:
@@ -86,8 +90,7 @@ getcommand:
 		mov si,trackbuf
 		call writestr
 		call crlf
-		mov al,10		; Already at EOL
-		jmp short .skipline
+		jmp .find
 
 .found_keywd:	lodsw			; Load argument into ax
 		call [si]
@@ -97,13 +100,13 @@ getcommand:
 .eof:		stc
 		ret
 
-.skipline:	cmp al,10		; Search for LF
-		je .find
+skipline:	cmp al,10		; Search for LF
+		je .end
 		call getc
-		jc .eof
-		jmp short .skipline
+		jnc skipline
+.end:		ret
 
-		section .data
+		section .data16
 err_badcfg      db 'Unknown keyword in configuration file: ',0
 err_noparm      db 'Missing parameter in configuration file. Keyword: ',0
 
@@ -114,18 +117,13 @@ VKernelBuf:	resb vk_size		; "Current" vkernel
 AppendBuf       resb max_cmd_len+1	; append=
 Ontimeout	resb max_cmd_len+1	; ontimeout
 Onerror		resb max_cmd_len+1	; onerror
+		; This could be in .uibss but that makes PXELINUX overflow
+		section .bss16
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb MAX_FKEYS*FILENAME_MAX	; File names for F-key help
-KernelCNameLen	resw 1			; Length of unmangled kernel name
-InitRDCNameLen	resw 1			; Length of unmangled initrd name
-%if IS_SYSLINUX
-KernelName      resb FILENAME_MAX+1	; Mangled name for kernel
-KernelCName     resb FILENAME_MAX+2	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX+2	; Unmangled initrd name
-%else
+                global KernelName
 KernelName      resb FILENAME_MAX	; Mangled name for kernel
-KernelCName     resb FILENAME_MAX	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX	; Unmangled initrd name
-%endif
 MNameBuf        resb FILENAME_MAX
 InitRD          resb FILENAME_MAX
+
+		section .text16

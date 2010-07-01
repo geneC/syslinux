@@ -22,7 +22,7 @@
 ; Boot a specified local disk.  AX specifies the BIOS disk number; or
 ; -1 in case we should execute INT 18h ("next device.")
 ;
-		section .text
+		section .text16
 
 local_boot:
 		call vgaclearmode
@@ -31,6 +31,7 @@ local_boot:
 		mov gs,dx
 		mov si,localboot_msg
 		call writestr
+		call cleanup_hardware
 		cmp ax,-1
 		je .int18
 
@@ -67,9 +68,9 @@ local_boot:
 		int 18h				; Hope this does the right thing...
 		jmp kaboom			; If we returned, oh boy...
 
-		section .data
+		section .data16
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
 
-		section .text
+		section .text16
 
 %endif ; HAS_LOCALBOOT

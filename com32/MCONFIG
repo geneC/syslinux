@@ -1,6 +1,7 @@
 ## -*- makefile -*- -------------------------------------------------------
-##   
-##   Copyright 2008 H. Peter Anvin - All Rights Reserved
+##
+##   Copyright 2008-2009 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -16,49 +17,77 @@
 
 include $(topdir)/MCONFIG
 
-GCCOPT := $(call gcc_ok,-std=gnu99,) \
-	  $(call gcc_ok,-m32,) \
-	  $(call gcc_ok,-fno-stack-protector,) \
-	  -mregparm=3 -DREGPARM=3 -march=i386 -Os
+GCCOPT := $(call gcc_ok,-std=gnu99,)
+GCCOPT += $(call gcc_ok,-m32,)
+GCCOPT += $(call gcc_ok,-fno-stack-protector,)
+GCCOPT += $(call gcc_ok,-fwrapv,)
+GCCOPT += $(call gcc_ok,-freg-struct-return,)
+GCCOPT += -mregparm=3 -DREGPARM=3 -march=i386 -Os
+GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
+GCCOPT += $(call gcc_ok,-fno-exceptions,)
+GCCOPT += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
+GCCOPT += $(call gcc_ok,-fno-strict-aliasing,)
+GCCOPT += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
+GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
+GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
+GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
+GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
+GCCOPT += $(call gcc_ok,-incoming-stack-boundary=2,)
 
-com32 = $(topdir)/com32
+com32  := $(topdir)/com32
+RELOCS := $(com32)/tools/relocs
 
-CFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
+ifneq ($(NOGPL),1)
+GPLLIB     = $(com32)/gpllib/libcom32gpl.a
+GPLINCLUDE = -I$(com32)/gplinclude
+else
+GPLLIB     =
+GPLINCLUDE =
+endif
+
+CFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
-	     -I$(com32)/libutil/include -I$(com32)/include
-SFLAGS     = $(GCCOPT) -D__COM32__ -march=i386
-LDFLAGS    = -m elf_i386 -T $(com32)/lib/com32.ld
+	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
+SFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
+	     -fomit-frame-pointer -D__COM32__ \
+	     -nostdinc -iwithprefix include \
+	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
+
+COM32LD	   = $(com32)/lib/com32.ld
+LDFLAGS    = -m elf_i386 --emit-relocs -T $(COM32LD)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
-LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
+LNXCFLAGS  = -I$(com32)/libutil/include $(GCCWARN) -O -g \
+	     -D_GNU_SOURCE -D_FORTIFY_SOURCE=0 -Wno-error
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
-C_LIBS	   = $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
+C_LIBS	   = $(com32)/libutil/libutil_com.a $(GPLLIB) \
+	     $(com32)/lib/libcom32.a $(LIBGCC)
 C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .lo .o .elf .c32 .lnx
 
 .PRECIOUS: %.o
 %.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(SFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.o
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.elf
-%.elf: %.o $(LIBS) $(C_LIBS)
-	$(LD) $(LDFLAGS) -o $@ $^
+%.elf: %.o $(LIBS) $(C_LIBS) $(COM32LD)
+	$(LD) $(LDFLAGS) -o $@ $(filter-out $(COM32LD),$^)
 
 .PRECIOUS: %.lo
 %.lo: %.S
-	$(CC) $(LNXSFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(LNXSFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.lo
 %.lo: %.c
-	$(CC) $(LNXCFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(LNXCFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.lnx
 %.lnx: %.lo $(LNXLIBS) $(C_LNXLIBS)
@@ -66,3 +95,4 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
+	$(RELOCS) $< >> $@ || ( rm -f $@ ; false )

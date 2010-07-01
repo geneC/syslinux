@@ -1,7 +1,9 @@
 #ifndef _GPXE_MD5_H
 #define _GPXE_MD5_H
 
-struct crypto_algorithm;
+FILE_LICENCE ( GPL2_OR_LATER );
+
+struct digest_algorithm;
 
 #include <stdint.h>
 
@@ -17,6 +19,6 @@ struct md5_ctx {
 
 #define MD5_CTX_SIZE sizeof ( struct md5_ctx )
 
-extern struct crypto_algorithm md5_algorithm;
+extern struct digest_algorithm md5_algorithm;
 
 #endif /* _GPXE_MD5_H */

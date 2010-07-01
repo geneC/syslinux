@@ -8,15 +8,15 @@
 
 char *strncpy(char *dst, const char *src, size_t n)
 {
-  char *q = dst;
-  const char *p = src;
-  char ch;
+    char *q = dst;
+    const char *p = src;
+    char ch;
 
-  while ( n-- ) {
-    *q++ = ch = *p++;
-    if ( !ch )
-      break;
-  }
+    while (n--) {
+	*q++ = ch = *p++;
+	if (!ch)
+	    break;
+    }
 
-  return dst;
+    return dst;
 }

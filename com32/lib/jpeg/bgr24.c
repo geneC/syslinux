@@ -69,7 +69,7 @@ static unsigned char clamp(int i)
  *  | 1 |
  *  `---'
  */
-static void YCrCB_to_BGR24_1x1(struct jdec_private *priv)
+static void YCrCB_to_BGR24_1x1(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p;
@@ -85,15 +85,14 @@ static void YCrCB_to_BGR24_1x1(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = priv->bytes_per_row[0] - 8*3;
-  for (i=0; i<8; i++) {
-
-    for (j=0;j<8;j++) {
+  for (i = sy; i > 0; i--) {
+    for (j = sx; j > 0; j--) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
        int r, g , b;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        cb = *Cb++ - 128;
        cr = *Cr++ - 128;
        add_r = FIX(1.40200) * cr + ONE_HALF;
@@ -107,6 +106,7 @@ static void YCrCB_to_BGR24_1x1(struct jdec_private *priv)
        r = (y + add_r) >> SCALEBITS;
        *p++ = clamp(r);
 
+       Y++;
     }
 
     p += offset_to_next_row;
@@ -125,7 +125,7 @@ static void YCrCB_to_BGR24_1x1(struct jdec_private *priv)
  *  | 1 | 2 |
  *  `-------'
  */
-static void YCrCB_to_BGR24_2x1(struct jdec_private *priv)
+static void YCrCB_to_BGR24_2x1(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p;
@@ -141,9 +141,8 @@ static void YCrCB_to_BGR24_2x1(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = priv->bytes_per_row[0] - 16*3;
-  for (i=0; i<8; i++) {
-
-    for (j=0; j<8; j++) {
+  for (i = sy; i > 0; i--) {
+    for (j = sx; j > 0; j -= 2) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
@@ -155,7 +154,7 @@ static void YCrCB_to_BGR24_2x1(struct jdec_private *priv)
        add_g = - FIX(0.34414) * cb - FIX(0.71414) * cr + ONE_HALF;
        add_b = FIX(1.77200) * cb + ONE_HALF;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        b = (y + add_b) >> SCALEBITS;
        *p++ = clamp(b);
        g = (y + add_g) >> SCALEBITS;
@@ -163,14 +162,17 @@ static void YCrCB_to_BGR24_2x1(struct jdec_private *priv)
        r = (y + add_r) >> SCALEBITS;
        *p++ = clamp(r);
 
-       y  = (*Y++) << SCALEBITS;
-       b = (y + add_b) >> SCALEBITS;
-       *p++ = clamp(b);
-       g = (y + add_g) >> SCALEBITS;
-       *p++ = clamp(g);
-       r = (y + add_r) >> SCALEBITS;
-       *p++ = clamp(r);
+       if (j > 1) {
+	   y  = Y[1] << SCALEBITS;
+	   b = (y + add_b) >> SCALEBITS;
+	   *p++ = clamp(b);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p++ = clamp(g);
+	   r = (y + add_r) >> SCALEBITS;
+	   *p++ = clamp(r);
+       }
 
+       Y += 2;
     }
 
     p += offset_to_next_row;
@@ -190,7 +192,7 @@ static void YCrCB_to_BGR24_2x1(struct jdec_private *priv)
  *  | 2 |
  *  `---'
  */
-static void YCrCB_to_BGR24_1x2(struct jdec_private *priv)
+static void YCrCB_to_BGR24_1x2(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p, *p2;
@@ -207,9 +209,8 @@ static void YCrCB_to_BGR24_1x2(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = 2*priv->bytes_per_row[0] - 8*3;
-  for (i=0; i<8; i++) {
-
-    for (j=0; j<8; j++) {
+  for (i = sy; i > 0; i -= 2) {
+    for (j = sx; j > 0 ; j--) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
@@ -221,7 +222,7 @@ static void YCrCB_to_BGR24_1x2(struct jdec_private *priv)
        add_g = - FIX(0.34414) * cb - FIX(0.71414) * cr + ONE_HALF;
        add_b = FIX(1.77200) * cb + ONE_HALF;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        b = (y + add_b) >> SCALEBITS;
        *p++ = clamp(b);
        g = (y + add_g) >> SCALEBITS;
@@ -229,14 +230,17 @@ static void YCrCB_to_BGR24_1x2(struct jdec_private *priv)
        r = (y + add_r) >> SCALEBITS;
        *p++ = clamp(r);
 
-       y  = (Y[8-1]) << SCALEBITS;
-       b = (y + add_b) >> SCALEBITS;
-       *p2++ = clamp(b);
-       g = (y + add_g) >> SCALEBITS;
-       *p2++ = clamp(g);
-       r = (y + add_r) >> SCALEBITS;
-       *p2++ = clamp(r);
+       if (i > 1) {
+	   y  = Y[8] << SCALEBITS;
+	   b = (y + add_b) >> SCALEBITS;
+	   *p2++ = clamp(b);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p2++ = clamp(g);
+	   r = (y + add_r) >> SCALEBITS;
+	   *p2++ = clamp(r);
+       }
 
+       Y++;
     }
     Y += 8;
     p += offset_to_next_row;
@@ -258,7 +262,7 @@ static void YCrCB_to_BGR24_1x2(struct jdec_private *priv)
  *  | 3 | 4 |
  *  `-------'
  */
-static void YCrCB_to_BGR24_2x2(struct jdec_private *priv)
+static void YCrCB_to_BGR24_2x2(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *Y, *Cb, *Cr;
   unsigned char *p, *p2;
@@ -275,9 +279,8 @@ static void YCrCB_to_BGR24_2x2(struct jdec_private *priv)
   Cb = priv->Cb;
   Cr = priv->Cr;
   offset_to_next_row = 2*priv->bytes_per_row[0] - 16*3;
-  for (i=0; i<8; i++) {
-
-    for (j=0;j<8;j++) {
+  for (i = sy; i > 0; i -= 2) {
+    for (j = sx; j > 0; j -= 2) {
 
        int y, cb, cr;
        int add_r, add_g, add_b;
@@ -289,7 +292,7 @@ static void YCrCB_to_BGR24_2x2(struct jdec_private *priv)
        add_g = - FIX(0.34414) * cb - FIX(0.71414) * cr + ONE_HALF;
        add_b = FIX(1.77200) * cb + ONE_HALF;
 
-       y  = (*Y++) << SCALEBITS;
+       y  = Y[0] << SCALEBITS;
        b = (y + add_b) >> SCALEBITS;
        *p++ = clamp(b);
        g = (y + add_g) >> SCALEBITS;
@@ -297,29 +300,37 @@ static void YCrCB_to_BGR24_2x2(struct jdec_private *priv)
        r = (y + add_r) >> SCALEBITS;
        *p++ = clamp(r);
 
-       y  = (*Y++) << SCALEBITS;
-       b = (y + add_b) >> SCALEBITS;
-       *p++ = clamp(b);
-       g = (y + add_g) >> SCALEBITS;
-       *p++ = clamp(g);
-       r = (y + add_r) >> SCALEBITS;
-       *p++ = clamp(r);
+       if (j > 1) {
+	   y  = Y[1] << SCALEBITS;
+	   b = (y + add_b) >> SCALEBITS;
+	   *p++ = clamp(b);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p++ = clamp(g);
+	   r = (y + add_r) >> SCALEBITS;
+	   *p++ = clamp(r);
+       }
 
-       y  = (Y[16-2]) << SCALEBITS;
-       b = (y + add_b) >> SCALEBITS;
-       *p2++ = clamp(b);
-       g = (y + add_g) >> SCALEBITS;
-       *p2++ = clamp(g);
-       r = (y + add_r) >> SCALEBITS;
-       *p2++ = clamp(r);
+       if (i > 1) {
+	   y  = Y[16+0] << SCALEBITS;
+	   b = (y + add_b) >> SCALEBITS;
+	   *p2++ = clamp(b);
+	   g = (y + add_g) >> SCALEBITS;
+	   *p2++ = clamp(g);
+	   r = (y + add_r) >> SCALEBITS;
+	   *p2++ = clamp(r);
 
-       y  = (Y[16-1]) << SCALEBITS;
-       b = (y + add_b) >> SCALEBITS;
-       *p2++ = clamp(b);
-       g = (y + add_g) >> SCALEBITS;
-       *p2++ = clamp(g);
-       r = (y + add_r) >> SCALEBITS;
-       *p2++ = clamp(r);
+	   if (j > 1) {
+	       y  = Y[16+1] << SCALEBITS;
+	       b = (y + add_b) >> SCALEBITS;
+	       *p2++ = clamp(b);
+	       g = (y + add_g) >> SCALEBITS;
+	       *p2++ = clamp(g);
+	       r = (y + add_r) >> SCALEBITS;
+	       *p2++ = clamp(r);
+	   }
+       }
+
+       Y += 2;
     }
     Y  += 16;
     p  += offset_to_next_row;
@@ -336,12 +347,12 @@ static int initialize_bgr24(struct jdec_private *priv,
 			    unsigned int *bytes_per_blocklines,
 			    unsigned int *bytes_per_mcu)
 {
-  if (priv->components[0] == NULL)
-    priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 3);
   if (!priv->bytes_per_row[0])
     priv->bytes_per_row[0] = priv->width * 3;
+  if (!priv->components[0])
+    priv->components[0] = malloc(priv->height * priv->bytes_per_row[0]);
 
-  bytes_per_blocklines[0] = priv->bytes_per_row[0];
+  bytes_per_blocklines[0] = priv->bytes_per_row[0] << 3;
   bytes_per_mcu[0] = 3*8;
 
   return !priv->components[0];

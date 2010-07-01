@@ -1,3 +1,5 @@
+FILE_LICENCE ( GPL2_OR_LATER )
+
 	.text
 	.arch i386
 	.section ".prefix", "awx", @progbits
@@ -63,10 +65,10 @@ max_sector:
 max_head:
 	.byte	0
 load_length:
-	.long	_load_size_sect
+	.long	0
 	
-	.section ".zinfo.fixup", "a"	/* Compressor fixup information */
-	.ascii	"SUBL"
+	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
+	.ascii	"ADDL"
 	.long	load_length
 	.long	512
 	.long	0
@@ -82,6 +84,7 @@ load_failed:
 	.byte 0x55, 0xaa
 
 start_image:
+	/* Install gPXE */
 	call	install
 
 	/* Set up real-mode stack */
@@ -97,7 +100,10 @@ start_image:
 	pushl	$main
 	pushw	%cs
 	call	prot_call
-	popl	%eax /* discard */
+	popl	%ecx /* discard */
+
+	/* Uninstall gPXE */
+	call	uninstall
 
 	/* Boot next device */
 	int $0x18

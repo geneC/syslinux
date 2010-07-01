@@ -16,10 +16,12 @@
  * your option) any later version.
  */
 
+FILE_LICENCE ( GPL2_ONLY );
+
 #include <stdint.h>
 #include <gpxe/device.h>
 #include <gpxe/tables.h>
-#include <pci_io.h>
+#include <gpxe/pci_io.h>
 #include "pci_ids.h"
 
 /*
@@ -41,6 +43,7 @@
 #define  PCI_COMMAND_WAIT 	0x80	/* Enable address/data stepping */
 #define  PCI_COMMAND_SERR	0x100	/* Enable SERR */
 #define  PCI_COMMAND_FAST_BACK	0x200	/* Enable back-to-back writes */
+#define  PCI_COMMAND_INTX_DISABLE 0x400 /* INTx Emulation Disable */
 
 
 #define PCI_VENDOR_ID           0x00    /* 16 bits */
@@ -233,6 +236,33 @@
 #define PCI_MSI_DATA_32		8	/* 16 bits of data for 32-bit devices */
 #define PCI_MSI_DATA_64		12	/* 16 bits of data for 64-bit devices */
 
+/* Advanced Error Reporting */
+
+#define PCI_ERR_UNCOR_STATUS	4	/* Uncorrectable Error Status */
+#define  PCI_ERR_UNC_TRAIN	0x00000001	/* Training */
+#define  PCI_ERR_UNC_DLP	0x00000010	/* Data Link Protocol */
+#define  PCI_ERR_UNC_POISON_TLP	0x00001000	/* Poisoned TLP */
+#define  PCI_ERR_UNC_FCP	0x00002000	/* Flow Control Protocol */
+#define  PCI_ERR_UNC_COMP_TIME	0x00004000	/* Completion Timeout */
+#define  PCI_ERR_UNC_COMP_ABORT	0x00008000	/* Completer Abort */
+#define  PCI_ERR_UNC_UNX_COMP	0x00010000	/* Unexpected Completion */
+#define  PCI_ERR_UNC_RX_OVER	0x00020000	/* Receiver Overflow */
+#define  PCI_ERR_UNC_MALF_TLP	0x00040000	/* Malformed TLP */
+#define  PCI_ERR_UNC_ECRC	0x00080000	/* ECRC Error Status */
+#define  PCI_ERR_UNC_UNSUP	0x00100000	/* Unsupported Request */
+#define PCI_ERR_UNCOR_MASK	8	/* Uncorrectable Error Mask */
+	/* Same bits as above */
+#define PCI_ERR_UNCOR_SEVER	12	/* Uncorrectable Error Severity */
+	/* Same bits as above */
+#define PCI_ERR_COR_STATUS	16	/* Correctable Error Status */
+#define  PCI_ERR_COR_RCVR	0x00000001	/* Receiver Error Status */
+#define  PCI_ERR_COR_BAD_TLP	0x00000040	/* Bad TLP Status */
+#define  PCI_ERR_COR_BAD_DLLP	0x00000080	/* Bad DLLP Status */
+#define  PCI_ERR_COR_REP_ROLL	0x00000100	/* REPLAY_NUM Rollover */
+#define  PCI_ERR_COR_REP_TIMER	0x00001000	/* Replay Timer Timeout */
+#define PCI_ERR_COR_MASK	20	/* Correctable Error Mask */
+	/* Same bits as above */
+
 /** A PCI device ID list entry */
 struct pci_device_id {
 	/** Name */
@@ -241,6 +271,8 @@ struct pci_device_id {
 	uint16_t vendor;
 	/** PCI device ID */
 	uint16_t device;
+	/** Arbitrary driver data */
+	unsigned long driver_data;
 };
 
 /** Match-anything ID */
@@ -308,12 +340,16 @@ struct pci_driver {
 	void ( * remove ) ( struct pci_device *pci );
 };
 
+/** PCI driver table */
+#define PCI_DRIVERS __table ( struct pci_driver, "pci_drivers" )
+
 /** Declare a PCI driver */
-#define __pci_driver __table ( struct pci_driver, pci_drivers, 01 )
+#define __pci_driver __table_entry ( PCI_DRIVERS, 01 )
 
 #define PCI_DEVFN( slot, func )		( ( (slot) << 3 ) | (func) )
 #define PCI_SLOT( devfn )		( ( (devfn) >> 3 ) & 0x1f )
 #define PCI_FUNC( devfn )		( (devfn) & 0x07 )
+#define PCI_BUS( busdevfn )		( (busdevfn) >> 8 )
 #define PCI_BUSDEVFN( bus, devfn )	( ( (bus) << 8 ) | (devfn) )
 
 #define PCI_BASE_CLASS( class )		( (class) >> 16 )
@@ -324,12 +360,18 @@ struct pci_driver {
  * PCI_ROM is used to build up entries in a struct pci_id array.  It
  * is also parsed by parserom.pl to generate Makefile rules and files
  * for rom-o-matic.
+ *
+ * PCI_ID can be used to generate entries without creating a
+ * corresponding ROM in the build process.
  */
-#define PCI_ROM( _vendor, _device, _name, _description ) {	\
-	.vendor = _vendor,					\
-	.device = _device,					\
-	.name = _name,						\
+#define PCI_ID( _vendor, _device, _name, _description, _data ) {	\
+	.vendor = _vendor,						\
+	.device = _device,						\
+	.name = _name,							\
+	.driver_data = _data						\
 }
+#define PCI_ROM( _vendor, _device, _name, _description, _data ) \
+	PCI_ID( _vendor, _device, _name, _description, _data )
 
 extern void adjust_pci_device ( struct pci_device *pci );
 extern unsigned long pci_bar_start ( struct pci_device *pci,

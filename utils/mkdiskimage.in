@@ -2,6 +2,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 2002-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -53,6 +54,19 @@ sub get_random() {
 
     # This sucks but is better than nothing...
     return ($$+time()) & 0xffffffff;
+}
+
+sub get_hex_data() {
+    my $mbr = '';
+    my $line, $byte;
+    while ( $line = <DATA> ) {
+	chomp $line;
+	last if ($line eq '*');
+	foreach $byte ( split(/\s+/, $line) ) {
+	    $mbr .= chr(hex($byte));
+	}
+    }
+    return $mbr;
 }
 
 $is_linux = is_linux();
@@ -130,6 +144,7 @@ if ( $file eq '' || $c < 1 || $h < 1 || $h > 256 || $s < 1 || $s > 63 ) {
     print STDERR "    -z    use zipdisk geometry (h=64 s=32)\n";
     print STDERR "    -4    use partition entry 4 (standard for zipdisks)\n";
     print STDERR "    -i    specify the MBR ID\n";
+    print STDERR "    -s    output a sparse file (don't allocate all blocks)\n";
     exit 1;
 }
 
@@ -157,13 +172,7 @@ if ( $opt{'d'} ) {
 }
 
 # Print the MBR and partition table
-$mbr = '';
-while ( $line = <DATA> ) {
-    chomp $line;
-    foreach $byte ( split(/\s+/, $line) ) {
-	$mbr .= chr(hex($byte));
-    }
-}
+$mbr = get_hex_data();
 if ( length($mbr) > 440 ) {
     die "$0: Bad MBR code\n";
 }
@@ -208,13 +217,16 @@ print OUTPUT "\x55\xaa";
 $totalsize = $c*$h*$s;
 $tracks    = $c*$h;
 
-$track = "\0" x (512*$s);
+# If -s is given, try to simply use truncate...
+unless ($opt{'s'} && truncate(OUTPUT, $totalsize)) {
+    $track = "\0" x (512*$s);
 
-# Print fractional track
-print OUTPUT "\0" x (512 * ($s-1));
+    # Print fractional track
+    print OUTPUT "\0" x (512 * ($s-1));
 
-for ( $i = 1 ; $i < $tracks ; $i++ ) {
-    print OUTPUT $track;
+    for ( $i = 1 ; $i < $tracks ; $i++ ) {
+	print OUTPUT $track;
+    }
 }
 
 # Print mtools temp file

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include <io.h>
+#include <gpxe/io.h>
 #include <console.h>
 
 void pause ( void ) {
@@ -36,7 +36,8 @@ static void dbg_hex_dump_da_row ( unsigned long dispaddr, const void *data,
 			printf ( "   " );
 			continue;
 		}
-		printf ( " %02x", bytes[i] );
+		printf ( "%c%02x",
+			 ( ( ( i % 16 ) == 8 ) ? '-' : ' ' ), bytes[i] );
 	}
 	printf ( " : " );
 	for ( i = offset ; i < ( offset + 16 ) ; i++ ) {
@@ -106,12 +107,12 @@ int check_region ( void *region, size_t len ) {
 					 virt_to_phys ( region + len ) );
 			}
 			in_corruption = 1;
-			printf ( "--- offset %#lx ", offset );
+			printf ( "--- offset %#x ", offset );
 		} else if ( ( in_corruption != 0 ) &&
 			    ( test == GUARD_SYMBOL ) ) {
 			/* End of corruption */
 			in_corruption = 0;
-			printf ( "to offset %#lx", offset );
+			printf ( "to offset %#x", offset );
 		}
 
 	}

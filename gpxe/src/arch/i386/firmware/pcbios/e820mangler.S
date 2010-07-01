@@ -15,12 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-	
+
+FILE_LICENCE ( GPL2_OR_LATER )
+
 	.text
 	.arch i386
-	.section ".text16", "ax", @progbits
-	.section ".data16", "aw", @progbits
-	.section ".text16.data", "aw", @progbits
 	.code16
 
 #define SMAP 0x534d4150
@@ -62,11 +61,11 @@
  *
  ****************************************************************************
  */
-	.section ".data16"
+	.section ".data16", "aw", @progbits
 	.align 16
 	.globl hidemem_base
 	.globl hidemem_umalloc
-	.globl hidemem_text
+	.globl hidemem_textdata
 memory_windows:
 base_memory_window:	.long 0x00000000, 0x00000000 /* Start of memory */
 
@@ -76,7 +75,7 @@ ext_memory_window:	.long 0x000a0000, 0x00000000 /* 640kB mark */
 hidemem_umalloc:	.long 0xffffffff, 0xffffffff /* Changes at runtime */
 			.long 0xffffffff, 0xffffffff /* Changes at runtime */
 
-hidemem_text:		.long 0xffffffff, 0xffffffff /* Changes at runtime */
+hidemem_textdata:	.long 0xffffffff, 0xffffffff /* Changes at runtime */
 			.long 0xffffffff, 0xffffffff /* Changes at runtime */
 
 			.long 0xffffffff, 0xffffffff /* End of memory */
@@ -94,7 +93,7 @@ memory_windows_end:
  *  %ecx:%ebx	Length of windowed region
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 window_region:
 	/* Convert (start,len) to (start, end) */
 	addl	%eax, %ebx
@@ -132,7 +131,7 @@ window_region:
  *  %ax		Modified memory above 1M in 1kB blocks
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 patch_1m:
 	pushal
 	/* Convert to (start,len) format and call truncate */
@@ -162,7 +161,7 @@ patch_1m:
  *  %bx		Modified memory above 16M in 64kB blocks
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 patch_16m:
 	pushal
 	/* Convert to (start,len) format and call truncate */
@@ -193,7 +192,7 @@ patch_16m:
  *  %bx		Modified memory above 16MB, in 64kB blocks
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 patch_1m_16m:
 	call	patch_1m
 	call	patch_16m
@@ -219,7 +218,7 @@ patch_1m_16m:
  *
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 get_underlying_e820:
 
 	/* If the requested region is in the cache, return it */
@@ -238,6 +237,7 @@ get_underlying_e820:
 	popw	%di
 	incw	%bx
 	movl	%edx, %eax
+	clc
 	ret
 2:	
 	/* If the requested region is earlier than the cached region,
@@ -268,8 +268,10 @@ get_underlying_e820:
 	pushl	%ebx
 	pushl	%ecx
 	pushl	%edx
+	pushl	%esi	/* Some implementations corrupt %esi, so we	*/
+	pushl	%edi	/* preserve %esi, %edi and %ebp to be paranoid	*/
+	pushl	%ebp
 	pushw	%es
-	pushw	%di
 	pushw	%ds
 	popw	%es
 	movw	$underlying_e820_cache, %di
@@ -280,8 +282,10 @@ get_underlying_e820:
 	stc
 	pushfw
 	lcall	*%cs:int15_vector
-	popw	%di
 	popw	%es
+	popl	%ebp
+	popl	%edi
+	popl	%esi
 	/* Check for error return from underlying e820 call */
 	jc	2f /* CF set: error */
 	cmpl	$SMAP, %eax
@@ -304,22 +308,22 @@ get_underlying_e820:
 	jmp	get_underlying_e820
 	.size	get_underlying_e820, . - get_underlying_e820
 
-	.section ".data16"
+	.section ".data16", "aw", @progbits
 underlying_e820_index:
 	.word	0xffff /* Initialise to an invalid value */
 	.size underlying_e820_index, . - underlying_e820_index
 
-	.section ".bss16"
+	.section ".bss16", "aw", @nobits
 underlying_e820_ebx:
 	.long	0
 	.size underlying_e820_ebx, . - underlying_e820_ebx
 
-	.section ".bss16"
+	.section ".bss16", "aw", @nobits
 underlying_e820_cache:
 	.space	E820MAXSIZE
 	.size underlying_e820_cache, . - underlying_e820_cache
 
-	.section ".bss16"
+	.section ".bss16", "aw", @nobits
 underlying_e820_cache_size:
 	.long	0
 	.size	underlying_e820_cache_size, . - underlying_e820_cache_size
@@ -338,7 +342,7 @@ underlying_e820_cache_size:
  *
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 get_windowed_e820:
 
 	/* Preserve registers */
@@ -413,7 +417,7 @@ get_windowed_e820:
  *
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 get_nonempty_e820:
 
 	/* Record entry parameters */
@@ -458,7 +462,7 @@ get_nonempty_e820:
  *
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 get_mangled_e820:
 
 	/* Get a nonempty region */
@@ -489,29 +493,42 @@ get_mangled_e820:
 	.size get_mangled_e820, . - get_mangled_e820
 
 /****************************************************************************
+ * Set/clear CF on the stack as appropriate, assumes stack is as it should
+ * be immediately before IRET
+ ****************************************************************************
+ */
+patch_cf:
+	pushw	%bp
+	movw	%sp, %bp
+	setc	8(%bp)	/* Set/reset CF; clears PF, AF, ZF, SF */
+	popw	%bp
+	ret
+
+/****************************************************************************
  * INT 15,e820 handler
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 int15_e820:
 	pushw	%ds
 	pushw	%cs:rm_ds
 	popw	%ds
 	call	get_mangled_e820
 	popw	%ds
-	lret	$2
+	call	patch_cf
+	iret
 	.size int15_e820, . - int15_e820
 	
 /****************************************************************************
  * INT 15,e801 handler
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 int15_e801:
 	/* Call previous handler */
 	pushfw
 	lcall	*%cs:int15_vector
-	pushfw
+	call	patch_cf
 	/* Edit result */
 	pushw	%ds
 	pushw	%cs:rm_ds
@@ -523,37 +540,33 @@ int15_e801:
 	xchgw	%ax, %cx
 	xchgw	%bx, %dx
 	popw	%ds
-	/* Restore flags returned by previous handler and return */
-	popfw
-	lret	$2
+	iret
 	.size int15_e801, . - int15_e801
 	
 /****************************************************************************
  * INT 15,88 handler
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 int15_88:
 	/* Call previous handler */
 	pushfw
 	lcall	*%cs:int15_vector
-	pushfw
+	call	patch_cf
 	/* Edit result */
 	pushw	%ds
 	pushw	%cs:rm_ds
 	popw	%ds
 	call	patch_1m
 	popw	%ds
-	/* Restore flags returned by previous handler and return */
-	popfw
-	lret	$2
+	iret
 	.size int15_88, . - int15_88
 		
 /****************************************************************************
  * INT 15 handler
  ****************************************************************************
  */
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 	.globl int15
 int15:
 	/* See if we want to intercept this call */
@@ -576,7 +589,7 @@ int15:
 	ljmp	*%cs:int15_vector
 	.size int15, . - int15
 	
-	.section ".text16.data"
+	.section ".text16.data", "aw", @progbits
 	.globl int15_vector
 int15_vector:
 	.long 0

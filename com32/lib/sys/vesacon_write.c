@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -39,6 +40,7 @@
 #include <colortbl.h>
 #include <console.h>
 #include <klibc/compiler.h>
+#include <syslinux/config.h>
 #include "ansi.h"
 #include "file.h"
 #include "vesa/video.h"
@@ -46,127 +48,147 @@
 static void vesacon_erase(const struct term_state *, int, int, int, int);
 static void vesacon_write_char(int, int, uint8_t, const struct term_state *);
 static void vesacon_showcursor(const struct term_state *);
+static void vesacon_setcursor(int x, int y, bool visible);
 static void vesacon_scroll_up(const struct term_state *);
 
 static struct term_state ts;
 static struct ansi_ops op = {
-  .erase	= vesacon_erase,
-  .write_char	= vesacon_write_char,
-  .showcursor   = vesacon_showcursor,
-  .set_cursor   = __vesacon_set_cursor,	/* in drawtxt.c */
-  .scroll_up    = vesacon_scroll_up,
-  .beep		= __ansicon_beep,
+    .erase = vesacon_erase,
+    .write_char = vesacon_write_char,
+    .showcursor = vesacon_showcursor,
+    .set_cursor = vesacon_setcursor,
+    .scroll_up = vesacon_scroll_up,
+    .beep = __ansicon_beep,
 };
 
-static struct term_info ti =
-  {
-    .cols = TEXT_PIXEL_COLS/FONT_WIDTH,
+static struct term_info ti = {
     .disabled = 0,
     .ts = &ts,
     .op = &op
-  };
+};
 
-/* Reference counter to the screen, to keep track of if we need reinitialization. */
+/* Reference counter to the screen, to keep track of if we need
+   reinitialization. */
 static int vesacon_counter = 0;
+
+static struct {
+    int x, y;
+} vesacon_resolution = {
+    .x = DEFAULT_VESA_X_SIZE,
+    .y = DEFAULT_VESA_Y_SIZE,
+};
+
+/* Set desired resolution - requires a full close/open cycle */
+void vesacon_set_resolution(int x, int y)
+{
+    vesacon_resolution.x = x;
+    vesacon_resolution.y = y;
+}
 
 /* Common setup */
 int __vesacon_open(struct file_info *fp)
 {
-  static com32sys_t ireg;	/* Auto-initalized to all zero */
-  com32sys_t oreg;
+    (void)fp;
 
-  (void)fp;
+    if (!vesacon_counter) {
+	/* Are we disabled? */
+	if (syslinux_serial_console_info()->flowctl & 0x8000) {
+	    ti.disabled = 1;
+	    ti.rows = 25;
+	    ti.cols = 80;
+	} else {
+	    /* Switch mode */
+	    if (__vesacon_init(vesacon_resolution.x, vesacon_resolution.y)) {
+		vesacon_counter = -1;
+		return EAGAIN;
+	    }
 
-  if (!vesacon_counter) {
-    /* Are we disabled? */
-    ireg.eax.w[0] = 0x000b;
-    __intcall(0x22, &ireg, &oreg);
-
-    if ( (signed char)oreg.ebx.b[1] < 0 ) {
-      ti.disabled = 1;
-    } else {
-      /* Switch mode */
-      if (__vesacon_init()) {
-	vesacon_counter = -1;
+	    /* Initial state */
+	    __ansi_init(&ti);
+	    ti.rows = __vesacon_text_rows;
+	    ti.cols = __vesacon_text_cols;
+	}
+    } else if (vesacon_counter == -1) {
 	return EAGAIN;
-      }
-
-      /* Initial state */
-      __ansi_init(&ti);
-      ti.rows = __vesacon_text_rows;
     }
-  } else if (vesacon_counter == -1) {
-    return EAGAIN;
-  }
 
-  fp->o.rows = ti.rows;
-  fp->o.cols = ti.cols;
+    fp->o.rows = ti.rows;
+    fp->o.cols = ti.cols;
 
-  vesacon_counter++;
-  return 0;
+    vesacon_counter++;
+    return 0;
 }
 
 int __vesacon_close(struct file_info *fp)
 {
-  (void)fp;
+    (void)fp;
 
-  vesacon_counter--;
-  return 0;
+    vesacon_counter--;
+    return 0;
 }
 
 /* Erase a region of the screen */
 static void vesacon_erase(const struct term_state *st,
 			  int x0, int y0, int x1, int y1)
 {
-  __vesacon_erase(x0, y0, x1, y1, st->cindex);
+    __vesacon_erase(x0, y0, x1, y1, st->cindex);
 }
 
 /* Draw text on the screen */
 static void vesacon_write_char(int x, int y, uint8_t ch,
 			       const struct term_state *st)
 {
-  __vesacon_write_char(x, y, ch, st->cindex);
+    __vesacon_write_char(x, y, ch, st->cindex);
 }
 
 /* Show or hide the cursor */
+static bool cursor_enabled = true;
+void vesacon_cursor_enable(bool enabled)
+{
+    cursor_enabled = enabled;
+}
 static void vesacon_showcursor(const struct term_state *st)
 {
-  __vesacon_set_cursor(st->xy.x, st->xy.y, st->cursor);
+    vesacon_setcursor(st->xy.x, st->xy.y, st->cursor);
+}
+static void vesacon_setcursor(int x, int y, bool visible)
+{
+    __vesacon_set_cursor(x, y, visible && cursor_enabled);
 }
 
 static void vesacon_scroll_up(const struct term_state *st)
 {
-  __vesacon_scroll_up(1, st->cindex);
+    __vesacon_scroll_up(1, st->cindex);
 }
 
 ssize_t __vesacon_write(struct file_info *fp, const void *buf, size_t count)
 {
-  const unsigned char *bufp = buf;
-  size_t n = 0;
+    const unsigned char *bufp = buf;
+    size_t n = 0;
 
-  (void)fp;
+    (void)fp;
 
-  if ( ti.disabled )
-    return n;			/* Nothing to do */
+    if (ti.disabled)
+	return count;		/* Nothing to do */
 
-  /* This only updates the shadow text buffer... */
-  while ( count-- ) {
-    __ansi_putchar(&ti, *bufp++);
-    n++;
-  }
+    /* This only updates the shadow text buffer... */
+    while (count--) {
+	__ansi_putchar(&ti, *bufp++);
+	n++;
+    }
 
-  /* This actually draws it */
-  __vesacon_doit();
+    /* This actually draws it */
+    __vesacon_doit();
 
-  return n;
+    return n;
 }
 
 const struct output_dev dev_vesacon_w = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY | __DEV_OUTPUT,
-  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write      = __vesacon_write,
-  .close      = __vesacon_close,
-  .open       = __vesacon_open,
-  .fallback   = &dev_ansicon_w,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_TTY | __DEV_OUTPUT,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __vesacon_write,
+    .close = __vesacon_close,
+    .open = __vesacon_open,
+    .fallback = &dev_ansicon_w,
 };

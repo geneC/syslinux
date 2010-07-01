@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @file
  *
@@ -41,6 +43,7 @@
 #include <gpxe/process.h>
 #include <gpxe/linebuf.h>
 #include <gpxe/features.h>
+#include <gpxe/base64.h>
 #include <gpxe/http.h>
 
 FEATURE ( FEATURE_PROTOCOL, "HTTP", DHCP_EB_FEATURE_HTTP, 1 );
@@ -137,11 +140,15 @@ static void http_done ( struct http_request *http, int rc ) {
 static int http_response_to_rc ( unsigned int response ) {
 	switch ( response ) {
 	case 200:
+	case 301:
+	case 302:
 		return 0;
 	case 404:
 		return -ENOENT;
 	case 403:
 		return -EPERM;
+	case 401:
+		return -EACCES;
 	default:
 		return -EIO;
 	}
@@ -174,6 +181,28 @@ static int http_rx_response ( struct http_request *http, char *response ) {
 
 	/* Move to received headers */
 	http->rx_state = HTTP_RX_HEADER;
+	return 0;
+}
+
+/**
+ * Handle HTTP Location header
+ *
+ * @v http		HTTP request
+ * @v value		HTTP header value
+ * @ret rc		Return status code
+ */
+static int http_rx_location ( struct http_request *http, const char *value ) {
+	int rc;
+
+	/* Redirect to new location */
+	DBGC ( http, "HTTP %p redirecting to %s\n", http, value );
+	if ( ( rc = xfer_redirect ( &http->xfer, LOCATION_URI_STRING,
+				    value ) ) != 0 ) {
+		DBGC ( http, "HTTP %p could not redirect: %s\n",
+		       http, strerror ( rc ) );
+		return rc;
+	}
+
 	return 0;
 }
 
@@ -219,6 +248,10 @@ struct http_header_handler {
 
 /** List of HTTP header handlers */
 static struct http_header_handler http_header_handlers[] = {
+	{
+		.header = "Location",
+		.rx = http_rx_location,
+	},
 	{
 		.header = "Content-Length",
 		.rx = http_rx_content_length,
@@ -318,7 +351,7 @@ static int http_rx_data ( struct http_request *http,
  *
  * @v socket		Transport layer interface
  * @v iobuf		I/O buffer
- * @v meta		Data transfer metadata, or NULL
+ * @v meta		Data transfer metadata
  * @ret rc		Return status code
  */
 static int http_socket_deliver_iob ( struct xfer_interface *socket,
@@ -340,8 +373,7 @@ static int http_socket_deliver_iob ( struct xfer_interface *socket,
 			/* Once we're into the data phase, just fill
 			 * the data buffer
 			 */
-			rc = http_rx_data ( http, iobuf );
-			iobuf = NULL;
+			rc = http_rx_data ( http, iob_disown ( iobuf ) );
 			goto done;
 		case HTTP_RX_RESPONSE:
 		case HTTP_RX_HEADER:
@@ -385,21 +417,52 @@ static int http_socket_deliver_iob ( struct xfer_interface *socket,
 static void http_step ( struct process *process ) {
 	struct http_request *http =
 		container_of ( process, struct http_request, process );
-	const char *path = http->uri->path;
 	const char *host = http->uri->host;
-	const char *query = http->uri->query;
+	const char *user = http->uri->user;
+	const char *password =
+		( http->uri->password ? http->uri->password : "" );
+	size_t user_pw_len = ( user ? ( strlen ( user ) + 1 /* ":" */ +
+					strlen ( password ) ) : 0 );
+	size_t user_pw_base64_len = base64_encoded_len ( user_pw_len );
+	char user_pw[ user_pw_len + 1 /* NUL */ ];
+	char user_pw_base64[ user_pw_base64_len + 1 /* NUL */ ];
 	int rc;
+	int request_len = unparse_uri ( NULL, 0, http->uri,
+					URI_PATH_BIT | URI_QUERY_BIT );
 
 	if ( xfer_window ( &http->socket ) ) {
+		char request[request_len + 1];
+
+		/* Construct path?query request */
+		unparse_uri ( request, sizeof ( request ), http->uri,
+			      URI_PATH_BIT | URI_QUERY_BIT );
+
+		/* We want to execute only once */
 		process_del ( &http->process );
+
+		/* Construct authorisation, if applicable */
+		if ( user ) {
+			/* Make "user:password" string from decoded fields */
+			snprintf ( user_pw, sizeof ( user_pw ), "%s:%s",
+				   user, password );
+
+			/* Base64-encode the "user:password" string */
+			base64_encode ( user_pw, user_pw_base64 );
+		}
+
+		/* Send GET request */
 		if ( ( rc = xfer_printf ( &http->socket,
-					  "GET %s%s%s HTTP/1.0\r\n"
+					  "GET %s%s HTTP/1.0\r\n"
 					  "User-Agent: gPXE/" VERSION "\r\n"
+					  "%s%s%s"
 					  "Host: %s\r\n"
 					  "\r\n",
-					  ( path ? path : "/" ),
-					  ( query ? "?" : "" ),
-					  ( query ? query : "" ),
+					  http->uri->path ? "" : "/",
+					  request,
+					  ( user ?
+					    "Authorization: Basic " : "" ),
+					  ( user ? user_pw_base64 : "" ),
+					  ( user ? "\r\n" : "" ),
 					  host ) ) != 0 ) {
 			http_done ( http, rc );
 		}
@@ -425,7 +488,7 @@ static void http_socket_close ( struct xfer_interface *socket, int rc ) {
 /** HTTP socket operations */
 static struct xfer_interface_operations http_socket_operations = {
 	.close		= http_socket_close,
-	.vredirect	= xfer_vopen,
+	.vredirect	= xfer_vreopen,
 	.window		= unlimited_xfer_window,
 	.alloc_iob	= default_xfer_alloc_iob,
 	.deliver_iob	= http_socket_deliver_iob,

@@ -550,7 +550,7 @@ static void velocity_transmit(struct nic *nic, const char *dest,	/* Destination 
 		vptr->td_rings[entry].tdesc0.pktsize = pktlen;
 		vptr->td_rings[entry].td_buf[0].pa_low = virt_to_bus(ptxb);
 		vptr->td_rings[entry].td_buf[0].pa_high &=
-		    cpu_to_le32(0xffff0000L);
+		    cpu_to_le32(0xffff0000UL);
 		vptr->td_rings[entry].td_buf[0].bufsize =
 		    vptr->td_rings[entry].tdesc0.pktsize;
 		vptr->td_rings[entry].tdesc1.CMDZ = 2;
@@ -1234,7 +1234,7 @@ static int velocity_open(struct nic *nic, struct pci_device *pci __unused)
 
 	/* Tx Descriptor needs 64 bytes alignment; */
 	TxPhyAddr = virt_to_bus(vptr->TxDescArrays);
-	printf("Unaligned Address : %lX\n", TxPhyAddr);
+	printf("Unaligned Address : %X\n", TxPhyAddr);
 	diff = 64 - (TxPhyAddr - ((TxPhyAddr >> 6) << 6));
 	TxPhyAddr += diff;
 	vptr->td_rings = (struct tx_desc *) (vptr->TxDescArrays + diff);
@@ -1930,7 +1930,7 @@ int pci_set_power_state(struct pci_device *dev, int state)
 }
 
 static struct pci_device_id velocity_nics[] = {
-	PCI_ROM(0x1106, 0x3119, "via-velocity", "VIA Networking Velocity Family Gigabit Ethernet Adapter"),
+	PCI_ROM(0x1106, 0x3119, "via-velocity", "VIA Networking Velocity Family Gigabit Ethernet Adapter", 0),
 };
 
 PCI_DRIVER ( velocity_driver, velocity_nics, PCI_NO_CLASS );

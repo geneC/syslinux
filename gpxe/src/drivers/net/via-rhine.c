@@ -784,7 +784,7 @@ ReadMII (int byMIIIndex, int ioaddr)
     char byMIIAdrbak;
     char byMIICRbak;
     char byMIItemp;
-    tick_t ct;
+    unsigned long ct;
 
     byMIIAdrbak = inb (byMIIAD);
     byMIICRbak = inb (byMIICR);
@@ -800,7 +800,7 @@ ReadMII (int byMIIIndex, int ioaddr)
     byMIItemp = byMIItemp & 0x40;
 
     ct = currticks();
-    while (byMIItemp != 0 && ct + 2*USECS_IN_MSEC < currticks())
+    while (byMIItemp != 0 && ct + 2*1000 < currticks())
     {
 	byMIItemp = inb (byMIICR);
 	byMIItemp = byMIItemp & 0x40;
@@ -825,7 +825,7 @@ WriteMII (char byMIISetByte, char byMIISetBit, char byMIIOP, int ioaddr)
     char byMIIAdrbak;
     char byMIICRbak;
     char byMIItemp;
-    tick_t ct;
+    unsigned long ct;
 
 
     byMIIAdrbak = inb (byMIIAD);
@@ -842,7 +842,7 @@ WriteMII (char byMIISetByte, char byMIISetBit, char byMIIOP, int ioaddr)
     byMIItemp = byMIItemp & 0x40;
 
     ct = currticks();
-    while (byMIItemp != 0 && ct + 2*USECS_IN_MSEC < currticks())
+    while (byMIItemp != 0 && ct + 2*1000 < currticks())
     {
 	byMIItemp = inb (byMIICR);
 	byMIItemp = byMIItemp & 0x40;
@@ -872,7 +872,7 @@ WriteMII (char byMIISetByte, char byMIISetBit, char byMIIOP, int ioaddr)
     byMIItemp = byMIItemp & 0x20;
 
     ct = currticks();
-    while (byMIItemp != 0 && ct + 2*USECS_IN_MSEC < currticks())
+    while (byMIItemp != 0 && ct + 2*1000 < currticks())
     {
 	byMIItemp = inb (byMIICR);
 	byMIItemp = byMIItemp & 0x20;
@@ -1008,7 +1008,7 @@ rhine_probe1 (struct nic *nic, struct pci_device *pci, int ioaddr, int chip_id, 
     unsigned char mode3_reg;
 
     if (rhine_debug > 0 && did_version++ == 0)
-	printf (version);
+	printf ("%s",version);
 
     // get revision id.
     pci_read_config_byte(pci, PCI_REVISION, &revision_id);
@@ -1194,40 +1194,44 @@ rhine_reset (struct nic *nic)
     int ioaddr = tp->ioaddr;
     int i, j;
     int FDXFlag, CRbak;
-    int rx_ring_tmp, rx_ring_tmp1;
-    int tx_ring_tmp, tx_ring_tmp1;
-    int rx_bufs_tmp, rx_bufs_tmp1;
-    int tx_bufs_tmp, tx_bufs_tmp1;
+    void *rx_ring_tmp;
+    void *tx_ring_tmp;
+    void *rx_bufs_tmp;
+    void *tx_bufs_tmp;
+    unsigned long rx_ring_tmp1;
+    unsigned long tx_ring_tmp1;
+    unsigned long rx_bufs_tmp1;
+    unsigned long tx_bufs_tmp1;
 
     /* printf ("rhine_reset\n"); */
     /* Soft reset the chip. */
     /*outb(CmdReset, ioaddr + ChipCmd); */
 
-    tx_bufs_tmp = (int) rhine_buffers.txbuf;
-    tx_ring_tmp = (int) rhine_buffers.txdesc;
-    rx_bufs_tmp = (int) rhine_buffers.rxbuf;
-    rx_ring_tmp = (int) rhine_buffers.rxdesc;
+    tx_bufs_tmp = rhine_buffers.txbuf;
+    tx_ring_tmp = rhine_buffers.txdesc;
+    rx_bufs_tmp = rhine_buffers.rxbuf;
+    rx_ring_tmp = rhine_buffers.rxdesc;
 
     /* tune RD TD 32 byte alignment */
-    rx_ring_tmp1 = (int) virt_to_bus ((char *) rx_ring_tmp);
+    rx_ring_tmp1 = virt_to_bus ( rx_ring_tmp );
     j = (rx_ring_tmp1 + 32) & (~0x1f);
     /* printf ("txring[%d]", j); */
     tp->rx_ring = (struct rhine_rx_desc *) bus_to_virt (j);
 
-    tx_ring_tmp1 = (int) virt_to_bus ((char *) tx_ring_tmp);
+    tx_ring_tmp1 = virt_to_bus ( tx_ring_tmp );
     j = (tx_ring_tmp1 + 32) & (~0x1f);
     tp->tx_ring = (struct rhine_tx_desc *) bus_to_virt (j);
     /* printf ("rxring[%X]", j); */
 
 
-    tx_bufs_tmp1 = (int) virt_to_bus ((char *) tx_bufs_tmp);
+    tx_bufs_tmp1 = virt_to_bus ( tx_bufs_tmp );
     j = (int) (tx_bufs_tmp1 + 32) & (~0x1f);
-    tx_bufs_tmp = (int) bus_to_virt (j);
+    tx_bufs_tmp = bus_to_virt (j);
     /* printf ("txb[%X]", j); */
 
-    rx_bufs_tmp1 = (int) virt_to_bus ((char *) rx_bufs_tmp);
+    rx_bufs_tmp1 = virt_to_bus ( rx_bufs_tmp );
     j = (int) (rx_bufs_tmp1 + 32) & (~0x1f);
-    rx_bufs_tmp = (int) bus_to_virt (j);
+    rx_bufs_tmp = bus_to_virt (j);
     /* printf ("rxb[%X][%X]", rx_bufs_tmp1, j); */
 
     for (i = 0; i < RX_RING_SIZE; i++)
@@ -1346,7 +1350,7 @@ rhine_transmit (struct nic *nic,
     unsigned char CR1bak;
     unsigned char CR0bak;
     unsigned int nstype;
-    tick_t ct;
+    unsigned long ct;
 
 
     /*printf ("rhine_transmit\n"); */
@@ -1390,7 +1394,7 @@ rhine_transmit (struct nic *nic,
 	ct = currticks();
         /* Wait until transmit is finished or timeout*/
         while((tp->tx_ring[entry].tx_status.bits.own_bit !=0) &&
-		ct + 10*USECS_IN_MSEC < currticks())
+		ct + 10*1000 < currticks())
         ;
 
         if(tp->tx_ring[entry].tx_status.bits.terr == 0)
@@ -1420,11 +1424,11 @@ static struct nic_operations rhine_operations = {
 };
 
 static struct pci_device_id rhine_nics[] = {
-PCI_ROM(0x1106, 0x3065, "dlink-530tx",     "VIA 6102"),
-PCI_ROM(0x1106, 0x3106, "via-rhine-6105",  "VIA 6105"),
-PCI_ROM(0x1106, 0x3043, "dlink-530tx-old", "VIA 3043"),		/* Rhine-I 86c100a */
-PCI_ROM(0x1106, 0x3053, "via6105m",        "VIA 6105M"),	
-PCI_ROM(0x1106, 0x6100, "via-rhine-old",   "VIA 86C100A"),	/* Rhine-II */
+PCI_ROM(0x1106, 0x3065, "dlink-530tx",     "VIA 6102", 0),
+PCI_ROM(0x1106, 0x3106, "via-rhine-6105",  "VIA 6105", 0),
+PCI_ROM(0x1106, 0x3043, "dlink-530tx-old", "VIA 3043", 0),		/* Rhine-I 86c100a */
+PCI_ROM(0x1106, 0x3053, "via6105m",        "VIA 6105M", 0),
+PCI_ROM(0x1106, 0x6100, "via-rhine-old",   "VIA 86C100A", 0),	/* Rhine-II */
 };
 
 PCI_DRIVER ( rhine_driver, rhine_nics, PCI_NO_CLASS );

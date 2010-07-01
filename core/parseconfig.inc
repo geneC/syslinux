@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -16,11 +17,14 @@
 ;; Configuration file operations
 ;;
 
-		section .text
+		section .text16
 ;
-; "default" command
+; "default" or "ui" command, with level (1 = default, 2 = ui)
 ;
-pc_default:	mov di,default_cmd
+pc_default:	cmp ax,[DefaultLevel]
+		jb skipline			; == call skipline + ret
+		mov [DefaultLevel],ax
+		mov di,default_cmd
 		call getline
 		mov byte [di-1],0		; null-terminate
 		ret
@@ -79,24 +83,15 @@ pc_ipappend:	call getint
 %endif
 
 ;
-; "localboot" command (PXELINUX, ISOLINUX)
+; "localboot" command
 ;
 %if HAS_LOCALBOOT
 
 pc_localboot:	call getint
 		cmp byte [VKernel],0		; ("label" section only)
 		je .err
-		mov di,VKernelBuf+vk_rname
-		xor ax,ax
-		mov cx,FILENAME_MAX
-		rep stosb			; Null kernel name
-%if IS_PXELINUX
-		; PXELINUX uses the first 4 bytes of vk_rname for the
-		; mangled IP address
-		mov [VKernelBuf+vk_rname+5], bx	; Return type
-%else
-		mov [VKernelBuf+vk_rname+1], bx	; Return type
-%endif
+		mov [VKernelBuf+vk_rname],bx
+		mov byte [VKernelBuf+vk_type],VK_LOCALBOOT
 .err:		ret
 
 %endif ; HAS_LOCALBOOT
@@ -109,7 +104,7 @@ pc_kernel:	cmp byte [VKernel],0
 		mov [VKernelBuf+vk_type],al
 		call pc_getline
 		mov di,VKernelBuf+vk_rname
-		call mangle_name
+		pm_call pm_mangle_name
 .err:		ret
 
 ;
@@ -152,8 +147,8 @@ pc_setint16:
 pc_filecmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
-		call mangle_name
-		call searchdir
+		pm_call pm_mangle_name
+		pm_call pm_searchdir
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
@@ -165,8 +160,8 @@ pc_filecmd:	push ax				; Function to tailcall
 pc_opencmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
-		call mangle_name
-		call open
+		pm_call pm_mangle_name
+		call core_open
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
@@ -183,9 +178,8 @@ pc_include:	inc word [IncludeLevel]
 pc_serial:	call getint
 		jc .err
 		push bx				; Serial port #
-		xor ax,ax
-		mov [FlowControl],ax		; Default to no flow control
-		mov [FlowIgnore],al
+		xor eax,eax
+		mov [FlowControl],eax		; Default to no flow control
 		call skipspace
 		jc .nobaud
 		call ungetc
@@ -205,7 +199,7 @@ pc_serial:	call getint
 		shl bh,4
 		mov [FlowIgnore],bh
 		mov bh,bl
-		and bx,0F003h			; Valid bits
+		and bx,0F00Bh			; Valid bits
 		mov [FlowControl],bx
 		pop ebx				; Baud rate
 		jmp short .parse_baud
@@ -230,46 +224,48 @@ pc_serial:	call getint
 		;
 		; Begin code to actually set up the serial port
 		;
+		call sirq_cleanup_nowipe	; Cleanup existing IRQ handler
+
 		lea dx,[di+3]			; DX -> LCR
 		mov al,83h			; Enable DLAB
-		call slow_out
+		slow_out dx,al
 
 		pop ax				; Divisor
 		mov dx,di			; DX -> LS
-		call slow_out
+		slow_out dx,al
 
 		inc dx				; DX -> MS
 		mov al,ah
-		call slow_out
+		slow_out dx,al
 
 		mov al,03h			; Disable DLAB
 		inc dx				; DX -> LCR
 		inc dx
-		call slow_out
+		slow_out dx,al
 
-		in al,dx			; Read back LCR (detect missing hw)
-		cmp al,03h			; If nothing here we'll read 00 or FF
-		jne .err			; Assume serial port busted
-		dec dx
-		dec dx				; DX -> IER
-		xor al,al			; IRQ disable
-		call slow_out
-
-		inc dx				; DX -> FCR/IIR
+		in al,dx		; Read back LCR (detect missing hw)
+		cmp al,03h		; If nothing here we'll read 00 or FF
+		jne .err		; Assume serial port busted
+		dec dx				; DX -> IIR/FCR
 		mov al,01h
-		call slow_out			; Enable FIFOs if present
+		slow_out dx,al			; Enable FIFOs if present
 		in al,dx
 		cmp al,0C0h			; FIFOs enabled and usable?
 		jae .fifo_ok
 		xor ax,ax			; Disable FIFO if unusable
-		call slow_out
+		slow_out dx,al
 .fifo_ok:
 
 		inc dx
 		inc dx				; DX -> MCR
-		in al,dx
-		or al,[FlowOutput]		; Assert bits
-		call slow_out
+		mov al,[FlowOutput]		; Assert bits
+		slow_out dx,al
+
+		; Enable interrupts if requested
+		test al,8
+		jz .noirq
+		call sirq_install
+.noirq:
 
 		; Show some life
 		cmp byte [SerialNotice],0
@@ -288,12 +284,12 @@ pc_serial:	call getint
 		ret
 
 ;
-; Store mangled filename command
+; Store mangled filename command (F-keys, "initrd")
 ;
 pc_filename:	push ax
 		call pc_getline
 		pop di
-		call mangle_name		; Mangle file name
+		pm_call pm_mangle_name		; Mangle file name
 		ret
 
 ;
@@ -316,15 +312,14 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		loop .loop
 .done:
 		mov byte [VKernel],1		; We've seen a "label" statement
-		mov si,VKernelBuf+vk_vname	; By default, rname == vname
+		mov si,VKernelBuf+vk_vname	; By default, rname == mangled vname
 		mov di,VKernelBuf+vk_rname
-		mov cx,FILENAME_MAX
+		pm_call pm_mangle_name
+		mov si,AppendBuf		; Default append==global append
+		mov di,VKernelBuf+vk_append
+		mov cx,[AppendLen]
+		mov [VKernelBuf+vk_appendlen],cx
 		rep movsb
-                mov si,AppendBuf		; Default append==global append
-                mov di,VKernelBuf+vk_append
-                mov cx,[AppendLen]
-                mov [VKernelBuf+vk_appendlen],cx
-                rep movsb
 %if IS_PXELINUX					; PXELINUX only
 		mov al,[IPAppend]		; Default ipappend==global ipappend
 		mov [VKernelBuf+vk_ipappend],al
@@ -341,7 +336,7 @@ pc_say:		call pc_getline			; "say" command
 ;
 ; "text" command; ignore everything until we get an "endtext" line
 ;
-pc_text:	call pc_getline			; Ignore rest of line
+pc_text:	call skipline			; Ignore rest of line
 .loop:
 		call pc_getline
 		jc .eof
@@ -409,14 +404,13 @@ commit_vk:
 		; append statement
 		cmp byte [InitRD+NULLOFFSET],NULLFILE
 		je .noinitrd
-		
-		mov si,initrd_cmd
-		mov cx,initrd_cmd_len
+
+		mov si,str_initrd
+		mov cx,7	; "initrd="
 		rep movsb
 		mov si,InitRD
-		call unmangle_name
-		mov al,' '
-		stosb
+		call strcpy
+		mov byte [es:di-1],' '
 
 		; For better compression, clean up the append field
 .noinitrd:
@@ -429,10 +423,10 @@ commit_vk:
 		rep stosb
 
 		; Pack into high memory
-		mov si,VKernelBuf
+		mov esi,VKernelBuf
 		mov edi,[VKernelEnd]
-		mov cx,vk_size
-		call rllpack
+		mov ecx,vk_size
+		pm_call rllpack
 		mov [VKernelEnd],edi
 .nolabel:
 		ret
@@ -441,11 +435,11 @@ commit_vk:
 		call writestr
 		ret
 
-		section .data
+		section .data16
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
 SerialNotice	db 1			; Only print this once
 
-		section .bss
+		section .bss16
 		alignb 4
 VKernelEnd	resd 1			; Lowest high memory address used
 
@@ -454,7 +448,7 @@ VKernelEnd	resd 1			; Lowest high memory address used
 HighMemRsvd	equ VKernelEnd
 					; by vkernels
 		section .config
-		align 4, db 0
+		alignz 4
 KbdTimeout      dd 0                    ; Keyboard timeout (if any)
 TotalTimeout	dd 0			; Total timeout (if any)
 AppendLen       dw 0                    ; Bytes in append= command
@@ -467,7 +461,7 @@ NoComplete	dw 0			; No label completion on TAB key
 AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level
-SerialPort	dw 0			; Serial port base (or 0 for no serial port)
+DefaultLevel	dw 0			; The current level of default
 VKernel		db 0			; Have we seen any "label" statements?
 
 %if IS_PXELINUX
@@ -479,5 +473,3 @@ IPAppend	db 0			; Default IPAPPEND option
 command_line	resb max_cmd_len+2	; Command line buffer
 		alignb 4
 default_cmd	resb max_cmd_len+1	; "default" command line
-
-%include "rllpack.inc"

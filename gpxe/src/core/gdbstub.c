@@ -54,10 +54,6 @@ struct gdbstub {
 	int len;                         /* length of payload */
 };
 
-/* Transports */
-static struct gdb_transport gdb_transport_start[0] __table_start ( struct gdb_transport, gdb_transports );
-static struct gdb_transport gdb_transport_end[0] __table_end ( struct gdb_transport, gdb_transports );
-
 /* Packet parser states */
 static void gdbstub_state_new ( struct gdbstub *stub, char ch );
 static void gdbstub_state_data ( struct gdbstub *stub, char ch );
@@ -348,12 +344,10 @@ static void gdbstub_state_cksum2 ( struct gdbstub *stub, char ch ) {
 static void gdbstub_state_wait_ack ( struct gdbstub *stub, char ch ) {
 	if ( ch == '+' ) {
 		stub->parse = gdbstub_state_new;
-	} else if ( ch == '-' ) {
-		gdbstub_tx_packet ( stub ); /* retransmit */
-	} else if ( ch == '$' ) {
-		/* GDB is reconnecting, drop our packet and listen to GDB */
-		stub->trans->send ( "-", 1 );
-		stub->parse = gdbstub_state_new;
+	} else {
+		/* This retransmit is very aggressive but necessary to keep
+		 * in sync with GDB. */
+		gdbstub_tx_packet ( stub );
 	}
 }
 
@@ -387,7 +381,8 @@ void gdbstub_handler ( int signo, gdbreg_t *regs ) {
 
 struct gdb_transport *find_gdb_transport ( const char *name ) {
 	struct gdb_transport *trans;
-	for ( trans = gdb_transport_start; trans < gdb_transport_end; trans++ ) {
+
+	for_each_table_entry ( trans, GDB_TRANSPORTS ) {
 		if ( strcmp ( trans->name, name ) == 0 ) {
 			return trans;
 		}

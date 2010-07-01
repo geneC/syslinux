@@ -37,11 +37,11 @@
 
 __noreturn syslinux_reboot(int warm)
 {
-  uint16_t * const reboot_flag = (uint16_t *)0x472;
+    uint16_t *const reboot_flag = (uint16_t *) 0x472;
 
-  *reboot_flag = warm ? 0x1234 : 0;
-  __farcall(0xf000, 0xfff0, &__com32_zero_regs, NULL);
+    *reboot_flag = warm ? 0x1234 : 0;
+    __farcall(0xf000, 0xfff0, &__com32_zero_regs, NULL);
 
-  while(1)
-    asm volatile("hlt");
+    while (1)
+	asm volatile ("hlt");
 }

@@ -26,13 +26,13 @@
 #define LIBFAT_SECTOR_SIZE	512
 #define LIBFAT_SECTOR_MASK	511
 
-typedef uint32_t libfat_sector_t;
+typedef uint64_t libfat_sector_t;
 struct libfat_filesystem;
 
 struct libfat_direntry {
-  libfat_sector_t sector;
-  int offset;
-  unsigned char entry[32];
+    libfat_sector_t sector;
+    int offset;
+    unsigned char entry[32];
 };
 
 /*
@@ -45,9 +45,9 @@ struct libfat_direntry {
  *
  * A return value of != secsize is treated as error.
  */
-struct libfat_filesystem *
-libfat_open(int (*readfunc)(intptr_t, void *, size_t, libfat_sector_t),
-	    intptr_t readptr);
+struct libfat_filesystem
+    *libfat_open(int (*readfunc) (intptr_t, void *, size_t, libfat_sector_t),
+		 intptr_t readptr);
 
 void libfat_close(struct libfat_filesystem *);
 
@@ -63,7 +63,7 @@ libfat_sector_t libfat_clustertosector(const struct libfat_filesystem *fs,
  * Returns 0 on end of file and -1 on error.
  */
 libfat_sector_t libfat_nextsector(struct libfat_filesystem *fs,
-                                  libfat_sector_t s);
+				  libfat_sector_t s);
 
 /*
  * Flush all cached sectors for this filesystem.
@@ -73,7 +73,7 @@ void libfat_flush(struct libfat_filesystem *fs);
 /*
  * Get a pointer to a specific sector.
  */
-void * libfat_get_sector(struct libfat_filesystem *fs, libfat_sector_t n);
+void *libfat_get_sector(struct libfat_filesystem *fs, libfat_sector_t n);
 
 /*
  * Search a FAT directory for a particular pre-mangled filename.

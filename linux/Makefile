@@ -17,12 +17,17 @@
 topdir = ..
 include $(topdir)/MCONFIG
 
-OPTFLAGS = -g -Os
+OPTFLAGS = -g -O0 -Dalloca=malloc
 INCLUDES = -I. -I.. -I../libinstaller
-CFLAGS	 = -W -Wall -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -s
+CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
+LDFLAGS	 = 
 
 SRCS     = syslinux.c \
+	   ../libinstaller/syslxopt.c \
+	   ../libinstaller/syslxcom.c \
+	   ../libinstaller/setadv.c \
+	   ../libinstaller/advio.c \
+           ../libinstaller/fat.c \
            ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c
@@ -52,10 +57,10 @@ syslinux-nomtools: syslinux
 	ln -f $< $@
 
 %.o: %.c
-	$(CC) -Wp,-MT,$@,-MMD,.$@.d $(CFLAGS) -c -o $@ $<
+	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 %.i: %.c
-	$(CC) $(CFLAGS) -E -o $@ $<
+	$(CC) $(UMAKEDEPS) $(CFLAGS) -E -o $@ $<
 %.s: %.c
-	$(CC) $(CFLAGS) -S -o $@ $<
+	$(CC) $(UMAKEDEPS) $(CFLAGS) -S -o $@ $<
 
 -include .*.d *.tmp

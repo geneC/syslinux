@@ -42,67 +42,67 @@
 
 #define INCREMENTAL_CHUNK 1024*1024
 
-int floadfile(FILE *f, void **ptr, size_t *len, const void *prefix,
+int floadfile(FILE * f, void **ptr, size_t * len, const void *prefix,
 	      size_t prefix_len)
 {
-  struct stat st;
-  void *data, *dp;
-  size_t alen, clen, rlen, xlen;
+    struct stat st;
+    void *data, *dp;
+    size_t alen, clen, rlen, xlen;
 
-  clen = alen = 0;
-  data = NULL;
+    clen = alen = 0;
+    data = NULL;
 
-  if ( fstat(fileno(f), &st) )
-    goto err;
-
-  if (!S_ISREG(st.st_mode)) {
-    /* Not a regular file, we can't assume we know the file size */
-    if (prefix_len) {
-      clen = alen = prefix_len;
-      data = malloc(prefix_len);
-      if (!data)
+    if (fstat(fileno(f), &st))
 	goto err;
 
-      memcpy(data, prefix, prefix_len);
+    if (!S_ISREG(st.st_mode)) {
+	/* Not a regular file, we can't assume we know the file size */
+	if (prefix_len) {
+	    clen = alen = prefix_len;
+	    data = malloc(prefix_len);
+	    if (!data)
+		goto err;
+
+	    memcpy(data, prefix, prefix_len);
+	}
+
+	do {
+	    alen += INCREMENTAL_CHUNK;
+	    dp = realloc(data, alen);
+	    if (!dp)
+		goto err;
+	    data = dp;
+
+	    rlen = fread((char *)data + clen, 1, alen - clen, f);
+	    clen += rlen;
+	} while (clen == alen);
+
+	*len = clen;
+	xlen = (clen + LOADFILE_ZERO_PAD - 1) & ~(LOADFILE_ZERO_PAD - 1);
+	dp = realloc(data, xlen);
+	if (dp)
+	    data = dp;
+	*ptr = data;
+    } else {
+	*len = clen = st.st_size + prefix_len - ftell(f);
+	xlen = (clen + LOADFILE_ZERO_PAD - 1) & ~(LOADFILE_ZERO_PAD - 1);
+
+	*ptr = data = malloc(xlen);
+	if (!data)
+	    return -1;
+
+	memcpy(data, prefix, prefix_len);
+
+	if ((off_t) fread((char *)data + prefix_len, 1, clen - prefix_len, f)
+	    != clen - prefix_len)
+	    goto err;
     }
 
-    do {
-      alen += INCREMENTAL_CHUNK;
-      dp = realloc(data, alen);
-      if (!dp)
-	goto err;
-      data = dp;
+    memset((char *)data + clen, 0, xlen - clen);
+    return 0;
 
-      rlen = fread((char *)data+clen, 1, alen-clen, f);
-      clen += rlen;
-    } while (clen == alen);
-
-    *len = clen;
-    xlen = (clen + LOADFILE_ZERO_PAD-1) & ~(LOADFILE_ZERO_PAD-1);
-    dp = realloc(data, xlen);
-    if (dp)
-      data = dp;
-    *ptr = data;
-  } else {
-    *len = clen = st.st_size + prefix_len - ftell(f);
-    xlen = (clen + LOADFILE_ZERO_PAD-1) & ~(LOADFILE_ZERO_PAD-1);
-
-    *ptr = data = malloc(xlen);
-    if ( !data )
-      return -1;
-
-    memcpy(data, prefix, prefix_len);
-
-    if ( (off_t)fread((char *)data+prefix_len, 1, clen-prefix_len, f)
-	 != clen-prefix_len )
-      goto err;
-  }
-
-  memset((char *)data + clen, 0, xlen-clen);
-  return 0;
-
- err:
-  if (data)
-    free(data);
-  return -1;
+err:
+    if (data)
+	free(data);
+    return -1;
 }

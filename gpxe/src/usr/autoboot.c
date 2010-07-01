@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -23,14 +25,12 @@
 #include <gpxe/dhcp.h>
 #include <gpxe/settings.h>
 #include <gpxe/image.h>
-#include <gpxe/embedded.h>
+#include <gpxe/sanboot.h>
 #include <gpxe/uri.h>
 #include <usr/ifmgmt.h>
 #include <usr/route.h>
 #include <usr/dhcpmgmt.h>
 #include <usr/imgmgmt.h>
-#include <usr/iscsiboot.h>
-#include <usr/aoeboot.h>
 #include <usr/autoboot.h>
 
 /** @file
@@ -38,9 +38,6 @@
  * Automatic booting
  *
  */
-
-/** Time to wait for link-up */
-#define LINK_WAIT_MS 15000
 
 /** Shutdown flags for exit */
 int shutdown_exit_flags = 0;
@@ -55,49 +52,25 @@ static struct net_device * find_boot_netdev ( void ) {
 }
 
 /**
- * Boot embedded image
- *
- * @ret rc		Return status code
- */
-static int boot_embedded_image ( void ) {
-	struct image *image;
-	int rc;
-
-	image = embedded_image();
-	if ( !image )
-		return ENOENT;
-
-	if ( ( rc = imgload ( image ) ) != 0 ) {
-		printf ( "Could not load embedded image: %s\n",
-			 strerror ( rc ) );
-	} else if ( ( rc = imgexec ( image ) ) != 0 ) {
-		printf ( "Could not boot embedded image: %s\n",
-			 strerror ( rc ) );
-	}
-	image_put ( image );
-	return rc;
-}
-
-/**
  * Boot using next-server and filename
  *
  * @v filename		Boot filename
  * @ret rc		Return status code
  */
-static int boot_next_server_and_filename ( struct in_addr next_server,
-					   const char *filename ) {
+int boot_next_server_and_filename ( struct in_addr next_server,
+				    const char *filename ) {
 	struct uri *uri;
 	struct image *image;
-	char buf[ 23 /* tftp://xxx.xxx.xxx.xxx/ */ + strlen(filename) + 1 ];
+	char buf[ 23 /* tftp://xxx.xxx.xxx.xxx/ */ +
+		  ( 3 * strlen(filename) ) /* completely URI-encoded */
+		  + 1 /* NUL */ ];
 	int filename_is_absolute;
 	int rc;
 
 	/* Construct URI */
 	uri = parse_uri ( filename );
-	if ( ! uri ) {
-		printf ( "Out of memory\n" );
+	if ( ! uri )
 		return -ENOMEM;
-	}
 	filename_is_absolute = uri_is_absolute ( uri );
 	uri_put ( uri );
 	if ( ! filename_is_absolute ) {
@@ -107,27 +80,22 @@ static int boot_next_server_and_filename ( struct in_addr next_server,
 		 * between filenames with and without initial slashes,
 		 * which is significant for TFTP.
 		 */
-		snprintf ( buf, sizeof ( buf ), "tftp://%s/%s",
-			   inet_ntoa ( next_server ), filename );
+		snprintf ( buf, sizeof ( buf ), "tftp://%s/",
+			   inet_ntoa ( next_server ) );
+		uri_encode ( filename, buf + strlen ( buf ),
+			     sizeof ( buf ) - strlen ( buf ), URI_PATH );
 		filename = buf;
 	}
 
 	image = alloc_image();
-	if ( ! image ) {
-		printf ( "Out of memory\n" );
+	if ( ! image )
 		return -ENOMEM;
-	}
 	if ( ( rc = imgfetch ( image, filename,
 			       register_and_autoload_image ) ) != 0 ) {
-		printf ( "Could not load %s: %s\n",
-			 filename, strerror ( rc ) );
 		goto done;
 	}
-	if ( ( rc = imgexec ( image ) ) != 0 ) {
-		printf ( "Could not boot %s: %s\n",
-			 filename, strerror ( rc ) );
+	if ( ( rc = imgexec ( image ) ) != 0 )
 		goto done;
-	}
 
  done:
 	image_put ( image );
@@ -141,12 +109,14 @@ static int boot_next_server_and_filename ( struct in_addr next_server,
  * @ret rc		Return status code
  */
 int boot_root_path ( const char *root_path ) {
+	struct sanboot_protocol *sanboot;
 
 	/* Quick hack */
-	if ( strncmp ( root_path, "iscsi:", 6 ) == 0 ) {
-		return iscsiboot ( root_path );
-	} else if ( strncmp ( root_path, "aoe:", 4 ) == 0 ) {
-		return aoeboot ( root_path );
+	for_each_table_entry ( sanboot, SANBOOT_PROTOCOLS ) {
+		if ( strncmp ( root_path, sanboot->prefix,
+			       strlen ( sanboot->prefix ) ) == 0 ) {
+			return sanboot->boot ( root_path );
+		}
 	}
 
 	return -ENOTSUP;
@@ -159,8 +129,15 @@ int boot_root_path ( const char *root_path ) {
  * @ret rc		Return status code
  */
 static int netboot ( struct net_device *netdev ) {
+	struct setting vendor_class_id_setting
+		= { .tag = DHCP_VENDOR_CLASS_ID };
+	struct setting pxe_discovery_control_setting
+		= { .tag = DHCP_PXE_DISCOVERY_CONTROL };
+	struct setting pxe_boot_menu_setting
+		= { .tag = DHCP_PXE_BOOT_MENU };
 	char buf[256];
 	struct in_addr next_server;
+	unsigned int pxe_discovery_control;
 	int rc;
 
 	/* Open device and display device status */
@@ -168,37 +145,48 @@ static int netboot ( struct net_device *netdev ) {
 		return rc;
 	ifstat ( netdev );
 
-	/* Wait for link-up */
-	printf ( "Waiting for link-up on %s...", netdev->name );
-	if ( ( rc = iflinkwait ( netdev, LINK_WAIT_MS ) ) != 0 ) {
-		printf ( " no link detected\n" );
-		return rc;
-	}
-	printf ( " ok\n" );
-
 	/* Configure device via DHCP */
 	if ( ( rc = dhcp ( netdev ) ) != 0 )
 		return rc;
 	route();
 
-	/* Try to boot an embedded image if we have one */
-	rc = boot_embedded_image ();
-	if ( rc != ENOENT )
-		return rc;
+	/* Try PXE menu boot, if applicable */
+	fetch_string_setting ( NULL, &vendor_class_id_setting,
+			       buf, sizeof ( buf ) );
+	pxe_discovery_control =
+		fetch_uintz_setting ( NULL, &pxe_discovery_control_setting );
+	if ( ( strcmp ( buf, "PXEClient" ) == 0 ) && pxe_menu_boot != NULL &&
+	     setting_exists ( NULL, &pxe_boot_menu_setting ) &&
+	     ( ! ( ( pxe_discovery_control & PXEBS_SKIP ) &&
+		   setting_exists ( NULL, &filename_setting ) ) ) ) {
+		printf ( "Booting from PXE menu\n" );
+		return pxe_menu_boot ( netdev );
+	}
 
 	/* Try to download and boot whatever we are given as a filename */
 	fetch_ipv4_setting ( NULL, &next_server_setting, &next_server );
 	fetch_string_setting ( NULL, &filename_setting, buf, sizeof ( buf ) );
 	if ( buf[0] ) {
 		printf ( "Booting from filename \"%s\"\n", buf );
-		return boot_next_server_and_filename ( next_server, buf );
+		if ( ( rc = boot_next_server_and_filename ( next_server,
+							    buf ) ) != 0 ) {
+			printf ( "Could not boot from filename \"%s\": %s\n",
+				 buf, strerror ( rc ) );
+			return rc;
+		}
+		return 0;
 	}
 	
 	/* No filename; try the root path */
 	fetch_string_setting ( NULL, &root_path_setting, buf, sizeof ( buf ) );
 	if ( buf[0] ) {
 		printf ( "Booting from root path \"%s\"\n", buf );
-		return boot_root_path ( buf );
+		if ( ( rc = boot_root_path ( buf ) ) != 0 ) {
+			printf ( "Could not boot from root path \"%s\": %s\n",
+				 buf, strerror ( rc ) );
+			return rc;
+		}
+		return 0;
 	}
 
 	printf ( "No filename or root path specified\n" );

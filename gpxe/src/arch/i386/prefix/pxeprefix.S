@@ -1,150 +1,221 @@
+FILE_LICENCE ( GPL2_OR_LATER )
+
 #define PXENV_UNDI_SHUTDOWN		0x0005
 #define	PXENV_UNDI_GET_NIC_TYPE		0x0012
+#define PXENV_UNDI_GET_IFACE_INFO	0x0013
 #define	PXENV_STOP_UNDI			0x0015
 #define PXENV_UNLOAD_STACK		0x0070
-	
+
+#define PXE_HACK_EB54			0x0001
+
 	.text
 	.arch i386
 	.org 0
-	.section ".prefix", "ax", @progbits
-	.section ".prefix.data", "aw", @progbits
 	.code16
 
 #include <undi.h>
+
+#define STACK_MAGIC ( 'L' + ( 'R' << 8 ) + ( 'E' << 16 ) + ( 'T' << 24 ) )
+#define EB_MAGIC_1 ( 'E' + ( 't' << 8 ) + ( 'h' << 16 ) + ( 'e' << 24 ) )
+#define EB_MAGIC_2 ( 'r' + ( 'b' << 8 ) + ( 'o' << 16 ) + ( 'o' << 24 ) )
 
 /*****************************************************************************
  * Entry point:	set operating context, print welcome message
  *****************************************************************************
  */
-	.section ".prefix"
-	/* Set up our non-stack segment registers */
+	.section ".prefix", "ax", @progbits
 	jmp	$0x7c0, $1f
-1:	pushfl
-	/* %ax here is the default return type... */
-	movw	$5, %ax			/* Keep PXE+UNDI */
+1:
+	/* Preserve registers for possible return to PXE */
+	pushfl
 	pushal
-	pushw	%ds
-	pushw	%es
-	pushw	%fs
 	pushw	%gs
+	pushw	%fs
+	pushw	%es
+	pushw	%ds
+
+	/* Store magic word on PXE stack and remember PXE %ss:esp */
+	pushl	$STACK_MAGIC
+	movw	%ss, %cs:pxe_ss
+	movl	%esp, %cs:pxe_esp
+
+	/* Set up segments */
 	movw	%cs, %ax
 	movw	%ax, %ds
-	
 	movw	$0x40, %ax		/* BIOS data segment access */
 	movw	%ax, %fs
-
-	pushw	%fs:0x13
-	/* Record PXENV+ and !PXE nominal addresses */
-	movw	%es, pxenv_segment
-	movw	%bx, pxenv_offset
-	movw	%sp, %bp
-	movw	%ss, return_stack_segment
-	movl	%esp, return_stack_offset
-	movl	50(%bp), %eax
-	movl	%eax, ppxe_segoff	/* !PXE address */
 	/* Set up stack just below 0x7c00 */
 	xorw	%ax, %ax
 	movw	%ax, %ss
-	movw	$0x7c00, %sp
+	movl	$0x7c00, %esp
 	/* Clear direction flag, for the sake of sanity */
 	cld
 	/* Print welcome message */
 	movw	$10f, %si
 	xorw	%di, %di
 	call	print_message
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	"PXE->EB:"
 	.previous
 
 /*****************************************************************************
- * Verify PXENV+ structure and record parameters of interest
+ * Find us a usable !PXE or PXENV+ entry point
  *****************************************************************************
  */
-detect_pxenv:
-	/* Signature check */
-	les	pxenv_segoff, %bx
-	cmpl	$0x4e455850, %es:(%bx)	/* 'PXEN' signature */
-	jne	no_pxenv
-	cmpw	$0x2b56, %es:4(%bx)	/* 'V+' signature */
-	jne	no_pxenv
+detect_pxe:
+	/* Plan A: !PXE pointer from the stack */
+	lgsl	pxe_esp, %ebp		/* %gs:%bp -> original stack */
+	lesw	%gs:52(%bp), %bx
+	call	is_valid_ppxe
+	je	have_ppxe
+
+	/* Plan B: PXENV+ pointer from initial ES:BX */
+	movw	%gs:32(%bp),%bx
+	movw	%gs:8(%bp),%es
+	call	is_valid_pxenv
+	je	have_pxenv
+
+	/* Plan C: PXENV+ structure via INT 1Ah */
+	movw	$0x5650, %ax
+	int	$0x1a
+	jc	1f
+	cmpw	$0x564e, %ax
+	jne	1f
+	call	is_valid_pxenv
+	je	have_pxenv
+1:
+	/* Plan D: scan base memory for !PXE */
+	call	memory_scan_ppxe
+	je	have_ppxe
+
+	/* Plan E: scan base memory for PXENV+ */
+	call	memory_scan_pxenv
+	jne	stack_not_found
+	
+have_pxenv:
+	movw	%bx, pxenv_offset
+	movw	%es, pxenv_segment
+
+	cmpw	$0x201, %es:6(%bx)	/* API version >= 2.01 */
+	jb	1f
+	cmpb	$0x2c, %es:8(%bx)	/* ... and structure long enough */
+	jb	2f
+
+	lesw	%es:0x28(%bx), %bx	/* Find !PXE from PXENV+ */
+	call	is_valid_ppxe
+	je	have_ppxe
+2:
+	call	memory_scan_ppxe	/* We are *supposed* to have !PXE... */
+	je	have_ppxe
+1:
+	lesw	pxenv_segoff, %bx	/* Nope, we're stuck with PXENV+ */
+
 	/* Record entry point and UNDI segments */
 	pushl	%es:0x0a(%bx)		/* Entry point */
-	popl	entry_segoff
 	pushw	%es:0x24(%bx)		/* UNDI code segment */
 	pushw	%es:0x26(%bx)		/* UNDI code size */
-	popl	undi_code_segoff
 	pushw	%es:0x20(%bx)		/* UNDI data segment */
 	pushw	%es:0x22(%bx)		/* UNDI data size */
-	popl	undi_data_segoff
+
 	/* Print "PXENV+ at <address>" */
 	movw	$10f, %si
-	call	print_message
-	call	print_segoff
-	movb	$',', %al
-	call	print_character
-	jmp	99f
-	.section ".prefix.data"
+	jmp	check_have_stack
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	" PXENV+ at "
 	.previous
 
-no_pxenv:
-	xorl	%eax, %eax
-	movl	%eax, pxenv_segoff
-	
-99:
-	
-/*****************************************************************************
- * Verify !PXE structure and record parameters of interest
- *****************************************************************************
- */
-detect_ppxe:
-	/* Signature check */
-	les	ppxe_segoff, %bx
-	cmpl	$0x45585021, %es:(%bx)	/* '!PXE' signature */
-	jne	no_ppxe
-	/* Record structure address, entry point, and UNDI segments */
-	pushw	%es
-	popw	ppxe_segment
+have_ppxe:
 	movw	%bx, ppxe_offset
+	movw	%es, ppxe_segment
+	
 	pushl	%es:0x10(%bx)		/* Entry point */
-	popl	entry_segoff
 	pushw	%es:0x30(%bx)		/* UNDI code segment */
 	pushw	%es:0x36(%bx)		/* UNDI code size */
-	popl	undi_code_segoff
 	pushw	%es:0x28(%bx)		/* UNDI data segment */
 	pushw	%es:0x2e(%bx)		/* UNDI data size */
-	popl	undi_data_segoff
+
 	/* Print "!PXE at <address>" */
 	movw	$10f, %si
-	call	print_message
-	call	print_segoff
-	movb	$',', %al
-	call	print_character
-	jmp	99f
-	.section ".prefix.data"
+	jmp	check_have_stack
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	" !PXE at "
 	.previous
 
-no_ppxe:
-	xorl	%eax, %eax
-	movl	%eax, ppxe_segoff
+is_valid_ppxe:
+	cmpl	$0x45585021, %es:(%bx)
+	jne	1f
+	movzbw	%es:4(%bx), %cx
+	cmpw	$0x58, %cx
+	jae	is_valid_checksum
+1:
+	ret
+	
+is_valid_pxenv:
+	cmpl	$0x4e455850, %es:(%bx)
+	jne	1b
+	cmpw	$0x2b56, %es:4(%bx)
+	jne	1b
+	movzbw	%es:8(%bx), %cx
+	cmpw	$0x28, %cx
+	jb	1b
+	
+is_valid_checksum:
+	pushw	%ax
+	movw	%bx, %si
+	xorw	%ax, %ax
+2:
+	es lodsb
+	addb	%al, %ah
+	loopw	2b
+	popw	%ax
+	ret
 
-99:
+memory_scan_ppxe:
+	movw	$is_valid_ppxe, %dx
+	jmp	memory_scan_common
 
+memory_scan_pxenv:
+	movw	$is_valid_pxenv, %dx
+
+memory_scan_common:
+	movw	%fs:(0x13), %ax
+	shlw	$6, %ax
+	decw	%ax
+1:	incw	%ax
+	cmpw	$( 0xa000 - 1 ), %ax
+	ja	2f
+	movw	%ax, %es
+	xorw	%bx, %bx
+	call	*%dx
+	jne	1b
+2:	ret
+	
 /*****************************************************************************
  * Sanity check: we must have an entry point
  *****************************************************************************
  */
 check_have_stack:
+	/* Save common values pushed onto the stack */
+	popl	undi_data_segoff
+	popl	undi_code_segoff
+	popl	entry_segoff
+
+	/* Print have !PXE/PXENV+ message; structure pointer in %es:%bx */
+	call	print_message
+	call	print_segoff
+	movb	$( ',' ), %al
+	call	print_character
+
 	/* Check for entry point */
 	movl	entry_segoff, %eax
 	testl	%eax, %eax
 	jnz	99f
 	/* No entry point: print message and skip everything else */
+stack_not_found:
 	movw	$10f, %si
 	call	print_message
 	jmp	finished
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	" No PXE stack found!\n"
 	.previous
 99:	
@@ -182,7 +253,7 @@ print_structure_information:
 	call	print_message
 	les	entry_segoff, %bx
 	call	print_segoff
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	" entry point at "
 	.previous
 	/* Print UNDI code segment */
@@ -190,7 +261,7 @@ print_structure_information:
 	call	print_message
 	les	undi_code_segoff, %bx
 	call	print_segoff
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	"\n         UNDI code segment "
 	.previous
 	/* Print UNDI data segment */
@@ -198,7 +269,7 @@ print_structure_information:
 	call	print_message
 	les	undi_data_segoff, %bx
 	call	print_segoff
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	", data segment "
 	.previous
 	/* Print UNDI memory usage */
@@ -206,13 +277,13 @@ print_structure_information:
 	call	print_message
 	movw	undi_fbms_start, %ax
 	call	print_word
-	movb	$'-', %al
+	movb	$( '-' ), %al
 	call	print_character
 	movw	undi_fbms_end, %ax
 	call	print_word
 	movw	$20f, %si
 	call	print_message
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	" ("
 20:	.asciz	"kB)\n"
 	.previous
@@ -243,10 +314,8 @@ pci_physical_device:
 	movw	$10f, %si
 	call	print_message
 	call	print_pci_busdevfn
-	movb	$0x0a, %al
-	call	print_character
 	jmp	99f
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	"         UNDI device is PCI "
 	.previous
 
@@ -254,17 +323,52 @@ no_physical_device:
 	/* No device found, or device type not understood */
 	movw	$10f, %si
 	call	print_message
-	.section ".prefix.data"
-10:	.asciz	"         Unable to determine UNDI physical device\n"
+	.section ".prefix.data", "aw", @progbits
+10:	.asciz	"         Unable to determine UNDI physical device"
 	.previous
 
 99:
 
 /*****************************************************************************
+ * Determine interface type
+ *****************************************************************************
+ */
+get_iface_type:
+	/* Issue PXENV_UNDI_GET_IFACE_INFO */
+	movw	$PXENV_UNDI_GET_IFACE_INFO, %bx
+	call	pxe_call
+	jnc	1f
+	call	print_pxe_error
+	jmp	99f
+1:	/* Print interface type */
+	movw	$10f, %si
+	call	print_message
+	leaw	( pxe_parameter_structure + 0x02 ), %si
+	call	print_message
+	.section ".prefix.data", "aw", @progbits
+10:	.asciz	", type "
+	.previous
+	/* Check for "Etherboot" interface type */
+	cmpl	$EB_MAGIC_1, ( pxe_parameter_structure + 0x02 )
+	jne	99f
+	cmpl	$EB_MAGIC_2, ( pxe_parameter_structure + 0x06 )
+	jne	99f
+	movw	$10f, %si
+	call	print_message
+	.section ".prefix.data", "aw", @progbits
+10:	.asciz	" (workaround enabled)"
+	.previous
+	/* Flag Etherboot workarounds as required */
+	orw	$PXE_HACK_EB54, pxe_hacks
+
+99:	movb	$0x0a, %al
+	call	print_character
+
+/*****************************************************************************
  * Leave NIC in a safe state
  *****************************************************************************
  */
-#ifndef PXELOADER_KEEP_UNDI
+#ifndef PXELOADER_KEEP_PXE
 shutdown_nic:
 	/* Issue PXENV_UNDI_SHUTDOWN */
 	movw	$PXENV_UNDI_SHUTDOWN, %bx
@@ -272,12 +376,15 @@ shutdown_nic:
 	jnc	1f
 	call	print_pxe_error
 1:
-
-/*****************************************************************************
- * Unload PXE base code
- *****************************************************************************
- */
 unload_base_code:
+	/* Etherboot treats PXENV_UNLOAD_STACK as PXENV_STOP_UNDI, so
+	 * we must not issue this call if the underlying stack is
+	 * Etherboot and we were not intending to issue a PXENV_STOP_UNDI.
+	 */
+#ifdef PXELOADER_KEEP_UNDI
+	testw	$PXE_HACK_EB54, pxe_hacks
+	jnz	99f
+#endif /* PXELOADER_KEEP_UNDI */
 	/* Issue PXENV_UNLOAD_STACK */
 	movw	$PXENV_UNLOAD_STACK, %bx
 	call	pxe_call
@@ -289,12 +396,14 @@ unload_base_code:
 	movw	%fs:(0x13), %bx
 	call	free_basemem
 99:
+	andw	$~( UNDI_FL_INITIALIZED | UNDI_FL_KEEP_ALL ), flags
+#endif /* PXELOADER_KEEP_PXE */
 
 /*****************************************************************************
  * Unload UNDI driver
  *****************************************************************************
  */
-
+#ifndef PXELOADER_KEEP_UNDI
 unload_undi:
 	/* Issue PXENV_STOP_UNDI */
 	movw	$PXENV_STOP_UNDI, %bx
@@ -309,6 +418,7 @@ unload_undi:
 	/* Clear UNDI_FL_STARTED */
 	andw	$~UNDI_FL_STARTED, flags
 99:	
+#endif /* PXELOADER_KEEP_UNDI */
 
 /*****************************************************************************
  * Print remaining free base memory
@@ -321,19 +431,18 @@ print_free_basemem:
 	call	print_word
 	movw	$20f, %si
 	call	print_message
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	"         "
 20:	.asciz	"kB free base memory after PXE unload\n"
 	.previous
-#endif /* PXELOADER_KEEP_UNDI */
 	
 /*****************************************************************************
  * Exit point
  *****************************************************************************
  */	
 finished:
-	jmp	run_etherboot
-	
+	jmp	run_gpxe
+
 /*****************************************************************************
  * Subroutine: print segment:offset address
  *
@@ -350,7 +459,7 @@ print_segoff:
 	/* Print "<segment>:offset" */
 	movw	%es, %ax
 	call	print_hex_word
-	movb	$':', %al
+	movb	$( ':' ), %al
 	call	print_character
 	movw	%bx, %ax
 	call	print_hex_word
@@ -488,7 +597,9 @@ pxe_call:
 	testw	%ax, %ax
 	jz	1f
 	stc
-1:	/* Restore registers and return */
+1:	/* Clear direction flag, for the sake of sanity */
+	cld
+	/* Restore registers and return */
 	popw	%es
 	popw	%di
 	ret
@@ -517,7 +628,7 @@ print_pxe_error:
 	call	print_message
 	popw	%si
 	ret
-	.section ".prefix.data"
+	.section ".prefix.data", "aw", @progbits
 10:	.asciz	"         UNDI API call "
 20:	.asciz	" failed: status code "
 30:	.asciz	"\n"
@@ -527,8 +638,12 @@ print_pxe_error:
  * PXE data structures
  *****************************************************************************
  */
+	.section ".prefix.data"
 
-pxe_parameter_structure: .fill 20
+pxe_esp:		.long 0
+pxe_ss:			.word 0
+
+pxe_parameter_structure: .fill 64
 
 undi_code_segoff:
 undi_code_size:		.word 0
@@ -537,6 +652,8 @@ undi_code_segment:	.word 0
 undi_data_segoff:
 undi_data_size:		.word 0
 undi_data_segment:	.word 0
+
+pxe_hacks:		.word 0
 
 /* The following fields are part of a struct undi_device */
 
@@ -554,12 +671,6 @@ entry_segoff:
 entry_offset:		.word 0
 entry_segment:		.word 0
 
-return_stack_segoff:
-return_stack_offset:	.long 0
-return_stack_segment:	.word 0
-
-return_type:		.word 0		/* Default: unload PXE and boot next */
-
 undi_fbms_start:	.word 0
 undi_fbms_end:		.word 0
 
@@ -569,16 +680,18 @@ isapnp_read_port:	.word UNDI_NO_ISAPNP_READ_PORT
 
 pci_vendor:		.word 0
 pci_device:		.word 0
-flags:			.word UNDI_FL_STARTED
+flags:
+	.word ( UNDI_FL_INITIALIZED | UNDI_FL_STARTED | UNDI_FL_KEEP_ALL )
 
 	.equ undi_device_size, ( . - undi_device )
 
 /*****************************************************************************
- * Run Etherboot main code
+ * Run gPXE main code
  *****************************************************************************
- */	
-run_etherboot:
-	/* Install Etherboot */
+ */
+	.section ".prefix"
+run_gpxe:
+	/* Install gPXE */
 	call	install
 
 	/* Set up real-mode stack */
@@ -594,6 +707,10 @@ run_etherboot:
 	rep movsb
 #endif
 
+	/* Retrieve PXE %ss:esp */
+	movw	pxe_ss,	%di
+	movl	pxe_esp, %ebp
+
 	/* Jump to .text16 segment with %ds pointing to .data16 */
 	movw	%bx, %ds
 	pushw	%ax
@@ -601,33 +718,44 @@ run_etherboot:
 	lret
 	.section ".text16", "ax", @progbits
 1:
+	/* Update the exit hook */
+	movw	%cs,pxe_exit_hook+2
+	push	%ax
+	mov	$2f,%ax
+	mov	%ax,pxe_exit_hook
+	pop	%ax
+
 	/* Run main program */
 	pushl	$main
 	pushw	%cs
 	call	prot_call
-	popl	%eax /* discard */
+	popl	%ecx /* discard */
 
-#ifdef PXELOADER_KEEP_UNDI
-	/* Boot next device */
-	movw	$0x40, %ax
-	movw	%ax, %fs
-	movw	$preloaded_undi,%bx
-	
-	cli
-	movw	%ss:return_type-undi_device(%bx),%ax
-	lssl	%ss:return_stack_segoff-undi_device(%bx), %esp
-	movw	%sp,%bp
-	movw	%ax,38(%bp)	/* Overwrite return AX value */
-	popw	%fs:0x13	/* 0 */
-	popw	%gs		/* 2 */
-	popw	%fs		/* 4 */
-	popw	%es		/* 6 */
-	popw	%ds		/* 8 */
-	popal			/* 10, 14, 18, 22, 26, 30, 34, 38 */
-	popfl			/* 42 */
-	lret			/* 46 */
-#else
+	/* Uninstall gPXE */
+	call	uninstall
+
+	/* Restore PXE stack */
+	movw	%di, %ss
+	movl	%ebp, %esp
+
+	/* Jump to hook if applicable */
+	ljmpw	*pxe_exit_hook
+
+2:	/* Check PXE stack magic */
+	popl	%eax
+	cmpl	$STACK_MAGIC, %eax
+	jne	1f
+
+	/* PXE stack OK: return to caller */
+	popw	%ds
+	popw	%es
+	popw	%fs
+	popw	%gs
+	popal
+	popfl
+	xorw	%ax, %ax	/* Return success */
+	lret
+
+1:	/* PXE stack corrupt or removed: use INT 18 */
 	int	$0x18
-#endif
-
 	.previous

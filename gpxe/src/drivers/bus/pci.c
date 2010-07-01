@@ -19,6 +19,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,11 +35,6 @@
  * PCI bus
  *
  */
-
-static struct pci_driver pci_drivers[0]
-	__table_start ( struct pci_driver, pci_drivers );
-static struct pci_driver pci_drivers_end[0]
-	__table_end ( struct pci_driver, pci_drivers );
 
 static void pcibus_remove ( struct root_device *rootdev );
 
@@ -67,7 +64,7 @@ static unsigned long pci_bar ( struct pci_device *pci, unsigned int reg ) {
 			if ( sizeof ( unsigned long ) > sizeof ( uint32_t ) ) {
 				return ( ( ( uint64_t ) high << 32 ) | low );
 			} else {
-				DBG ( "Unhandled 64-bit BAR %08lx%08lx\n",
+				DBG ( "Unhandled 64-bit BAR %08x%08x\n",
 				      high, low );
 				return PCI_BASE_ADDRESS_MEM_TYPE_64;
 			}
@@ -148,7 +145,8 @@ void adjust_pci_device ( struct pci_device *pci ) {
 	unsigned char pci_latency;
 
 	pci_read_config_word ( pci, PCI_COMMAND, &pci_command );
-	new_command = pci_command | PCI_COMMAND_MASTER | PCI_COMMAND_IO;
+	new_command = ( pci_command | PCI_COMMAND_MASTER |
+			PCI_COMMAND_MEM | PCI_COMMAND_IO );
 	if ( pci_command != new_command ) {
 		DBG ( "PCI BIOS has not enabled device %02x:%02x.%x! "
 		      "Updating PCI command %04x->%04x\n", pci->bus,
@@ -187,7 +185,7 @@ static int pci_probe ( struct pci_device *pci ) {
 	      PCI_FUNC ( pci->devfn ), pci->vendor, pci->device,
 	      pci->membase, pci->ioaddr, pci->irq );
 
-	for ( driver = pci_drivers ; driver < pci_drivers_end ; driver++ ) {
+	for_each_table_entry ( driver, PCI_DRIVERS ) {
 		for ( i = 0 ; i < driver->id_count ; i++ ) {
 			id = &driver->ids[i];
 			if ( ( id->vendor != PCI_ANY_ID ) &&

@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -42,114 +43,107 @@
 typedef uint8_t guid_t[16];
 
 struct SDIHeader {
-  uint32_t Signature;
-  char     Version[4];
-  uint64_t MDBtype;
-  uint64_t BootCodeOffset;
-  uint64_t BootCodeSize;
-  uint64_t VendorID;
-  uint64_t DeviceID;
-  guid_t   DeviceModel;
-  uint64_t DeviceRole;
-  uint64_t Reserved1;
-  guid_t   RuntimeGUID;
-  uint64_t RuntimeOEMrev;
-  uint64_t Reserved2;
-  uint64_t PageAlignment;   /* BLOB alignment value in pages */
-  uint64_t Reserved3[48];
-  uint64_t Checksum;
+    uint32_t Signature;
+    char Version[4];
+    uint64_t MDBtype;
+    uint64_t BootCodeOffset;
+    uint64_t BootCodeSize;
+    uint64_t VendorID;
+    uint64_t DeviceID;
+    guid_t DeviceModel;
+    uint64_t DeviceRole;
+    uint64_t Reserved1;
+    guid_t RuntimeGUID;
+    uint64_t RuntimeOEMrev;
+    uint64_t Reserved2;
+    uint64_t PageAlignment;	/* BLOB alignment value in pages */
+    uint64_t Reserved3[48];
+    uint64_t Checksum;
 };
 
-#define SDI_LOAD_ADDR	(16 << 20) /* 16 MB */
+#define SDI_LOAD_ADDR	(16 << 20)	/* 16 MB */
 #define SDI_SIGNATURE	('$' + ('S' << 8) + ('D' << 16) + ('I' << 24))
 
 static inline void error(const char *msg)
 {
-  fputs(msg, stderr);
+    fputs(msg, stderr);
 }
 
 static int boot_sdi(void *ptr, size_t len)
 {
-  const struct SDIHeader *hdr = ptr;
-  struct syslinux_memmap *mmap = NULL, *amap = NULL;
-  struct syslinux_rm_regs regs;
-  struct syslinux_movelist *ml = NULL;
-  char *boot_blob;
+    const struct SDIHeader *hdr = ptr;
+    struct syslinux_memmap *mmap = NULL, *amap = NULL;
+    struct syslinux_rm_regs regs;
+    struct syslinux_movelist *ml = NULL;
 
-  /* **** Basic sanity checking **** */
-  if (hdr->Signature != SDI_SIGNATURE) {
-    fputs("No $SDI signature in file\n", stdout);
-    goto bail;
-  }
-  if (memcmp(hdr->Version, "0001", 4)) {
-    int i;
-    fputs("Warning: unknown SDI version: ", stdout);
-    for (i = 0; i < 4; i++)
-      putchar(hdr->Version[i]);
-    putchar('\n');
-    /* Then try anyway... */
-  }
+    /* **** Basic sanity checking **** */
+    if (hdr->Signature != SDI_SIGNATURE) {
+	fputs("No $SDI signature in file\n", stdout);
+	goto bail;
+    }
+    if (memcmp(hdr->Version, "0001", 4)) {
+	int i;
+	fputs("Warning: unknown SDI version: ", stdout);
+	for (i = 0; i < 4; i++)
+	    putchar(hdr->Version[i]);
+	putchar('\n');
+	/* Then try anyway... */
+    }
 
-  /* **** Setup **** */
-  mmap = syslinux_memory_map();
-  amap = syslinux_dup_memmap(mmap);
-  if (!mmap || !amap)
-    goto bail;
+    /* **** Setup **** */
+    mmap = syslinux_memory_map();
+    amap = syslinux_dup_memmap(mmap);
+    if (!mmap || !amap)
+	goto bail;
 
-  /* **** Map the BOOT BLOB to 0x7c00 **** */
-  if (!hdr->BootCodeOffset) {
-    fputs("No BOOT BLOB in image\n", stdout);
-    goto bail;
-  }
-  if (!hdr->BootCodeSize) {
-    fputs("BOOT BLOB is empty\n", stdout);
-    goto bail;
-  }
-  if (len < hdr->BootCodeOffset + hdr->BootCodeSize) {
-    fputs("BOOT BLOB extends beyond file\n", stdout);
-    goto bail;
-  }
+    /* **** Map the BOOT BLOB to 0x7c00 **** */
+    if (!hdr->BootCodeOffset) {
+	fputs("No BOOT BLOB in image\n", stdout);
+	goto bail;
+    }
+    if (!hdr->BootCodeSize) {
+	fputs("BOOT BLOB is empty\n", stdout);
+	goto bail;
+    }
+    if (len < hdr->BootCodeOffset + hdr->BootCodeSize) {
+	fputs("BOOT BLOB extends beyond file\n", stdout);
+	goto bail;
+    }
 
-  if (syslinux_memmap_type(amap, 0x7c00, hdr->BootCodeSize) != SMT_FREE) {
-    fputs("BOOT BLOB too large for memory\n", stdout);
-    goto bail;
-  }
-  if (syslinux_add_memmap(&amap, 0x7c00, hdr->BootCodeSize, SMT_ALLOC))
-    goto bail;
+    if (syslinux_memmap_type(amap, 0x7c00, hdr->BootCodeSize) != SMT_FREE) {
+	fputs("BOOT BLOB too large for memory\n", stdout);
+	goto bail;
+    }
+    if (syslinux_add_memmap(&amap, 0x7c00, hdr->BootCodeSize, SMT_ALLOC))
+	goto bail;
+    if (syslinux_add_movelist(&ml, 0x7c00, (addr_t) ptr + hdr->BootCodeOffset,
+			      hdr->BootCodeSize))
+	goto bail;
 
-  /* The shuffle library doesn't handle duplication well... */
-  boot_blob = malloc(hdr->BootCodeSize);
-  if (!boot_blob)
-    goto bail;
-  memcpy(boot_blob, (char *)ptr + hdr->BootCodeOffset, hdr->BootCodeSize);
+    /* **** Map the entire image to SDI_LOAD_ADDR **** */
+    if (syslinux_memmap_type(amap, SDI_LOAD_ADDR, len) != SMT_FREE) {
+	fputs("Image too large for memory\n", stdout);
+	goto bail;
+    }
+    if (syslinux_add_memmap(&amap, SDI_LOAD_ADDR, len, SMT_ALLOC))
+	goto bail;
+    if (syslinux_add_movelist(&ml, SDI_LOAD_ADDR, (addr_t) ptr, len))
+	goto bail;
 
-  if (syslinux_add_movelist(&ml, 0x7c00, (addr_t)boot_blob, hdr->BootCodeSize))
-    goto bail;
+    /* **** Set up registers **** */
+    memset(&regs, 0, sizeof regs);
+    regs.ip = 0x7c00;
+    regs.esp.l = 0x7c00;
+    regs.edx.l = SDI_LOAD_ADDR | 0x41;
 
-  /* **** Map the entire image to SDI_LOAD_ADDR **** */
-  if (syslinux_memmap_type(amap, SDI_LOAD_ADDR, len) != SMT_FREE) {
-    fputs("Image too large for memory\n", stdout);
-    goto bail;
-  }
-  if (syslinux_add_memmap(&amap, SDI_LOAD_ADDR, len, SMT_ALLOC))
-    goto bail;
-  if (syslinux_add_movelist(&ml, SDI_LOAD_ADDR, (addr_t)ptr, len))
-    goto bail;
+    fputs("Booting...\n", stdout);
+    syslinux_shuffle_boot_rm(ml, mmap, 0, &regs);
 
-  /* **** Set up registers **** */
-  memset(&regs, 0, sizeof regs);
-  regs.ip    = 0x7c00;
-  regs.esp.l = 0x7c00;
-  regs.edx.l = SDI_LOAD_ADDR | 0x41;
-
-  fputs("Booting...\n", stdout);
-  syslinux_shuffle_boot_rm(ml, mmap, 0, &regs);
-
- bail:
-  syslinux_free_memmap(amap);
-  syslinux_free_memmap(mmap);
-  syslinux_free_movelist(ml);
-  return -1;
+bail:
+    syslinux_free_memmap(amap);
+    syslinux_free_memmap(mmap);
+    syslinux_free_movelist(ml);
+    return -1;
 }
 
 /*
@@ -158,42 +152,42 @@ static int boot_sdi(void *ptr, size_t len)
  */
 int has_valid_header(unsigned char *header)
 {
-  unsigned char checksum;
-  unsigned int i;
+    unsigned char checksum;
+    unsigned int i;
 
-  checksum = 0;
-  for (i = 0; i < sizeof(struct SDIHeader); i++)
-    checksum += header[i];
-  return (!checksum);
+    checksum = 0;
+    for (i = 0; i < sizeof(struct SDIHeader); i++)
+	checksum += header[i];
+    return (!checksum);
 }
 
 int main(int argc, char *argv[])
 {
-  void *data;
-  size_t data_len;
+    void *data;
+    size_t data_len;
 
-  openconsole(&dev_null_r, &dev_stdcon_w);
+    openconsole(&dev_null_r, &dev_stdcon_w);
 
-  if (argc != 2) {
-    error("Usage: sdi.c32 sdi_file\n");
+    if (argc != 2) {
+	error("Usage: sdi.c32 sdi_file\n");
+	return 1;
+    }
+
+    fputs("Loading ", stdout);
+    fputs(argv[1], stdout);
+    fputs("... ", stdout);
+    if (zloadfile(argv[1], &data, &data_len)) {
+	error("failed!\n");
+	return 1;
+    }
+    fputs("ok\n", stdout);
+
+    if (!has_valid_header(data)) {
+	error("SDI header is corrupted\n");
+	return 1;
+    }
+
+    boot_sdi(data, data_len);
+    error("Invalid SDI file or insufficient memory\n");
     return 1;
-  }
-
-  fputs("Loading ", stdout);
-  fputs(argv[1], stdout);
-  fputs("... ", stdout);
-  if (zloadfile(argv[1], &data, &data_len)) {
-    error("failed!\n");
-    return 1;
-  }
-  fputs("ok\n", stdout);
-
-  if (!has_valid_header(data)) {
-    error("SDI header is corrupted\n");
-    return 1;
-  }
-
-  boot_sdi(data, data_len);
-  error("Invalid SDI file or insufficient memory\n");
-  return 1;
 }

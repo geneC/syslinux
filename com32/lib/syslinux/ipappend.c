@@ -40,19 +40,19 @@ static const char *syslinux_ipappend_string_list[32];
 
 void __constructor __syslinux_get_ipappend_strings(void)
 {
-  static com32sys_t reg;
-  int i;
+    static com32sys_t reg;
+    int i;
 
-  reg.eax.w[0] = 0x000f;
-  __intcall(0x22, &reg, &reg);
+    reg.eax.w[0] = 0x000f;
+    __intcall(0x22, &reg, &reg);
 
-  if (!(reg.eflags.l & EFLAGS_CF)) {
-    __syslinux_ipappend_strings.count = reg.ecx.w[0];
-    __syslinux_ipappend_strings.ptr =
-      syslinux_ipappend_string_list;
-    for (i = 0; i < reg.ecx.w[0]; i++) {
-      syslinux_ipappend_string_list[i] =
-	MK_PTR(reg.es, *(uint16_t *)MK_PTR(reg.es, reg.ebx.w[0]+i*2));
+    if (!(reg.eflags.l & EFLAGS_CF)) {
+	__syslinux_ipappend_strings.count = reg.ecx.w[0];
+	__syslinux_ipappend_strings.ptr = syslinux_ipappend_string_list;
+	for (i = 0; i < reg.ecx.w[0]; i++) {
+	    syslinux_ipappend_string_list[i] =
+		MK_PTR(reg.es,
+		       *(uint16_t *) MK_PTR(reg.es, reg.ebx.w[0] + i * 2));
+	}
     }
-  }
 }

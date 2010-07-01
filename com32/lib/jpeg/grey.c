@@ -40,12 +40,12 @@
 #include "tinyjpeg-internal.h"
 
 /**
- *  YCrCb -> Grey (1x1)
+ *  YCrCb -> Grey (1x1, 1x2)
  *  .---.
  *  | 1 |
  *  `---'
  */
-static void YCrCB_to_Grey_1x1(struct jdec_private *priv)
+static void YCrCB_to_Grey_1xN(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *y;
   unsigned char *p;
@@ -56,73 +56,20 @@ static void YCrCB_to_Grey_1x1(struct jdec_private *priv)
   y = priv->Y;
   offset_to_next_row = priv->bytes_per_row[0];
 
-  for (i=0; i<8; i++) {
-     memcpy(p, y, 8);
-     y+=8;
-     p += offset_to_next_row;
-  }
-}
-
-/**
- *  YCrCb -> Grey (2x1)
- *  .-------.
- *  | 1 | 2 |
- *  `-------'
- */
-static void YCrCB_to_Grey_2x1(struct jdec_private *priv)
-{
-  const unsigned char *y;
-  unsigned char *p;
-  unsigned int i;
-  int offset_to_next_row;
-
-  p = priv->plane[0];
-  y = priv->Y;
-  offset_to_next_row = priv->bytes_per_row[0];
-
-  for (i=0; i<8; i++) {
-     memcpy(p, y, 16);
-     y += 16;
-     p += offset_to_next_row;
-  }
-}
-
-
-/**
- *  YCrCb -> Grey (1x2)
- *  .---.
- *  | 1 |
- *  |---|
- *  | 2 |
- *  `---'
- */
-static void YCrCB_to_Grey_1x2(struct jdec_private *priv)
-{
-  const unsigned char *y;
-  unsigned char *p;
-  unsigned int i;
-  int offset_to_next_row;
-
-  p = priv->plane[0];
-  y = priv->Y;
-  offset_to_next_row = priv->bytes_per_row[0];
-
-  for (i=0; i<16; i++) {
-     memcpy(p, y, 8);
+  for (i = sy; i > 0; i--) {
+     memcpy(p, y, sx);
      y += 8;
      p += offset_to_next_row;
   }
 }
 
 /**
- *  YCrCb -> Grey (2x2)
+ *  YCrCb -> Grey (2x1, 2x2)
  *  .-------.
  *  | 1 | 2 |
- *  |---+---|
- *  | 3 | 4 |
  *  `-------'
  */
-static void YCrCB_to_Grey_2x2(struct jdec_private *priv)
+static void YCrCB_to_Grey_2xN(struct jdec_private *priv, int sx, int sy)
 {
   const unsigned char *y;
   unsigned char *p;
@@ -133,8 +80,8 @@ static void YCrCB_to_Grey_2x2(struct jdec_private *priv)
   y = priv->Y;
   offset_to_next_row = priv->bytes_per_row[0];
 
-  for (i=0; i<16; i++) {
-     memcpy(p, y, 16);
+  for (i = sy; i > 0; i--) {
+     memcpy(p, y, sx);
      y += 16;
      p += offset_to_next_row;
   }
@@ -144,13 +91,13 @@ static int initialize_grey(struct jdec_private *priv,
 			   unsigned int *bytes_per_blocklines,
 			   unsigned int *bytes_per_mcu)
 {
-  if (priv->components[0] == NULL)
-    priv->components[0] = (uint8_t *)malloc(priv->width * priv->height * 3);
   if (!priv->bytes_per_row[0])
-    priv->bytes_per_row[0] = priv->width * 3;
+    priv->bytes_per_row[0] = priv->width;
+  if (!priv->components[0])
+    priv->components[0] = malloc(priv->height * priv->bytes_per_row[0]);
 
-  bytes_per_blocklines[0] = priv->bytes_per_row[0];
-  bytes_per_mcu[0] = 3*8;
+  bytes_per_blocklines[0] = priv->bytes_per_row[0] << 3;
+  bytes_per_mcu[0] = 8;
 
   return !priv->components[0];
 }
@@ -158,10 +105,10 @@ static int initialize_grey(struct jdec_private *priv,
 static const struct tinyjpeg_colorspace format_grey =
   {
     {
-      YCrCB_to_Grey_1x1,
-      YCrCB_to_Grey_1x2,
-      YCrCB_to_Grey_2x1,
-      YCrCB_to_Grey_2x2,
+      YCrCB_to_Grey_1xN,
+      YCrCB_to_Grey_1xN,
+      YCrCB_to_Grey_2xN,
+      YCrCB_to_Grey_2xN,
     },
     tinyjpeg_decode_mcu_1comp_table,
     initialize_grey

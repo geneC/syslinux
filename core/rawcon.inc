@@ -8,6 +8,7 @@ writechr_full:
 %else
 writechr:
 %endif
+		pushfd
 		push ds
 		push cs
 		pop ds
@@ -16,7 +17,6 @@ writechr:
 		call vgaclearmode
 .videook:
 		call write_serial	; write to serial port if needed
-		pushfd
 		test byte [DisplayCon],01h	; Write to screen?
 		jz .nothing
 
@@ -51,8 +51,8 @@ writechr:
 		int 10h
 .ret:		popad
 .nothing:
-		popfd
 		pop ds
+		popfd
 		ret
 .scroll:	dec dh
 		mov bh,[BIOS_page]

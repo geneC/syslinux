@@ -21,6 +21,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /* Unique IP datagram identification number */
 static uint16_t next_ident = 0;
 
@@ -38,7 +40,7 @@ static LIST_HEAD ( frag_buffers );
  * @v netdev		Network device
  * @v address		IPv4 address
  * @v netmask		Subnet mask
- * @v gateway		Gateway address (or @c INADDR_NONE for no gateway)
+ * @v gateway		Gateway address (if any)
  * @ret miniroute	Routing table entry, or NULL
  */
 static struct ipv4_miniroute * __malloc
@@ -48,7 +50,7 @@ add_ipv4_miniroute ( struct net_device *netdev, struct in_addr address,
 
 	DBG ( "IPv4 add %s", inet_ntoa ( address ) );
 	DBG ( "/%s ", inet_ntoa ( netmask ) );
-	if ( gateway.s_addr != INADDR_NONE )
+	if ( gateway.s_addr )
 		DBG ( "gw %s ", inet_ntoa ( gateway ) );
 	DBG ( "via %s\n", netdev->name );
 
@@ -68,7 +70,7 @@ add_ipv4_miniroute ( struct net_device *netdev, struct in_addr address,
 	/* Add to end of list if we have a gateway, otherwise
 	 * to start of list.
 	 */
-	if ( gateway.s_addr != INADDR_NONE ) {
+	if ( gateway.s_addr ) {
 		list_add_tail ( &miniroute->list, &ipv4_miniroutes );
 	} else {
 		list_add ( &miniroute->list, &ipv4_miniroutes );
@@ -86,7 +88,7 @@ static void del_ipv4_miniroute ( struct ipv4_miniroute *miniroute ) {
 
 	DBG ( "IPv4 del %s", inet_ntoa ( miniroute->address ) );
 	DBG ( "/%s ", inet_ntoa ( miniroute->netmask ) );
-	if ( miniroute->gateway.s_addr != INADDR_NONE )
+	if ( miniroute->gateway.s_addr )
 		DBG ( "gw %s ", inet_ntoa ( miniroute->gateway ) );
 	DBG ( "via %s\n", miniroute->netdev->name );
 
@@ -116,9 +118,11 @@ static struct ipv4_miniroute * ipv4_route ( struct in_addr *dest ) {
 
 	/* Find first usable route in routing table */
 	list_for_each_entry ( miniroute, &ipv4_miniroutes, list ) {
+		if ( ! ( miniroute->netdev->state & NETDEV_OPEN ) )
+			continue;
 		local = ( ( ( dest->s_addr ^ miniroute->address.s_addr )
 			    & miniroute->netmask.s_addr ) == 0 );
-		has_gw = ( miniroute->gateway.s_addr != INADDR_NONE );
+		has_gw = ( miniroute->gateway.s_addr );
 		if ( local || has_gw ) {
 			if ( ! local )
 				*dest = miniroute->gateway;
@@ -188,7 +192,7 @@ static struct io_buffer * ipv4_reassemble ( struct io_buffer * iobuf ) {
 				free_iob ( iobuf );
 
 				/** Check if the fragment series is over */
-				if ( !iphdr->frags & IP_MASK_MOREFRAGS ) {
+				if ( ! ( iphdr->frags & IP_MASK_MOREFRAGS ) ) {
 					iobuf = fragbuf->frag_iob;
 					free_fragbuf ( fragbuf );
 					return iobuf;
@@ -266,25 +270,14 @@ static uint16_t ipv4_pshdr_chksum ( struct io_buffer *iobuf, uint16_t csum ) {
 static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
 			  struct net_device *netdev, uint8_t *ll_dest ) {
 	struct ll_protocol *ll_protocol = netdev->ll_protocol;
-	uint8_t *dest_bytes = ( ( uint8_t * ) &dest );
 
 	if ( dest.s_addr == INADDR_BROADCAST ) {
 		/* Broadcast address */
-		memcpy ( ll_dest, ll_protocol->ll_broadcast,
+		memcpy ( ll_dest, netdev->ll_broadcast,
 			 ll_protocol->ll_addr_len );
 		return 0;
 	} else if ( IN_MULTICAST ( ntohl ( dest.s_addr ) ) ) {
-		/* Special case: IPv4 multicast over Ethernet.	This
-		 * code may need to be generalised once we find out
-		 * what happens for other link layers.
-		 */
-		ll_dest[0] = 0x01;
-		ll_dest[1] = 0x00;
-		ll_dest[2] = 0x5e;
-		ll_dest[3] = dest_bytes[1] & 0x7f;
-		ll_dest[4] = dest_bytes[2];
-		ll_dest[5] = dest_bytes[3];
-		return 0;
+		return ll_protocol->mc_hash ( AF_INET, &dest, ll_dest );
 	} else {
 		/* Unicast address: resolve via ARP */
 		return arp_resolve ( netdev, &ipv4_protocol, &dest,
@@ -297,6 +290,7 @@ static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
  *
  * @v iobuf		I/O buffer
  * @v tcpip		Transport-layer protocol
+ * @v st_src		Source network-layer address
  * @v st_dest		Destination network-layer address
  * @v netdev		Network device to use if no route found, or NULL
  * @v trans_csum	Transport-layer checksum to complete, or NULL
@@ -306,10 +300,12 @@ static int ipv4_ll_addr ( struct in_addr dest, struct in_addr src,
  */
 static int ipv4_tx ( struct io_buffer *iobuf,
 		     struct tcpip_protocol *tcpip_protocol,
+		     struct sockaddr_tcpip *st_src,
 		     struct sockaddr_tcpip *st_dest,
 		     struct net_device *netdev,
 		     uint16_t *trans_csum ) {
 	struct iphdr *iphdr = iob_push ( iobuf, sizeof ( *iphdr ) );
+	struct sockaddr_in *sin_src = ( ( struct sockaddr_in * ) st_src );
 	struct sockaddr_in *sin_dest = ( ( struct sockaddr_in * ) st_dest );
 	struct ipv4_miniroute *miniroute;
 	struct in_addr next_hop;
@@ -328,7 +324,11 @@ static int ipv4_tx ( struct io_buffer *iobuf,
 
 	/* Use routing table to identify next hop and transmitting netdev */
 	next_hop = iphdr->dest;
-	if ( ( miniroute = ipv4_route ( &next_hop ) ) ) {
+	if ( sin_src )
+		iphdr->src = sin_src->sin_addr;
+	if ( ( next_hop.s_addr != INADDR_BROADCAST ) &&
+	     ( ! IN_MULTICAST ( ntohl ( next_hop.s_addr ) ) ) &&
+	     ( ( miniroute = ipv4_route ( &next_hop ) ) != NULL ) ) {
 		iphdr->src = miniroute->address;
 		netdev = miniroute->netdev;
 	}
@@ -588,7 +588,7 @@ static int ipv4_create_routes ( void ) {
 	struct settings *settings;
 	struct in_addr address = { 0 };
 	struct in_addr netmask = { 0 };
-	struct in_addr gateway = { INADDR_NONE };
+	struct in_addr gateway = { 0 };
 
 	/* Delete all existing routes */
 	list_for_each_entry_safe ( miniroute, tmp, &ipv4_miniroutes, list )
@@ -602,20 +602,19 @@ static int ipv4_create_routes ( void ) {
 		fetch_ipv4_setting ( settings, &ip_setting, &address );
 		if ( ! address.s_addr )
 			continue;
-		/* Calculate default netmask */
-		if ( IN_CLASSA ( ntohl ( address.s_addr ) ) ) {
-			netmask.s_addr = htonl ( IN_CLASSA_NET );
-		} else if ( IN_CLASSB ( ntohl ( address.s_addr ) ) ) {
-			netmask.s_addr = htonl ( IN_CLASSB_NET );
-		} else if ( IN_CLASSC ( ntohl ( address.s_addr ) ) ) {
-			netmask.s_addr = htonl ( IN_CLASSC_NET );
-		} else {
-			netmask.s_addr = 0;
-		}
-		/* Override with subnet mask, if present */
+		/* Get subnet mask */
 		fetch_ipv4_setting ( settings, &netmask_setting, &netmask );
+		/* Calculate default netmask, if necessary */
+		if ( ! netmask.s_addr ) {
+			if ( IN_CLASSA ( ntohl ( address.s_addr ) ) ) {
+				netmask.s_addr = htonl ( IN_CLASSA_NET );
+			} else if ( IN_CLASSB ( ntohl ( address.s_addr ) ) ) {
+				netmask.s_addr = htonl ( IN_CLASSB_NET );
+			} else if ( IN_CLASSC ( ntohl ( address.s_addr ) ) ) {
+				netmask.s_addr = htonl ( IN_CLASSC_NET );
+			}
+		}
 		/* Get default gateway, if present */
-		gateway.s_addr = INADDR_NONE;
 		fetch_ipv4_setting ( settings, &gateway_setting, &gateway );
 		/* Configure route */
 		miniroute = add_ipv4_miniroute ( netdev, address,
@@ -631,3 +630,6 @@ static int ipv4_create_routes ( void ) {
 struct settings_applicator ipv4_settings_applicator __settings_applicator = {
 	.apply = ipv4_create_routes,
 };
+
+/* Drag in ICMP */
+REQUIRE_OBJECT ( icmp );

@@ -38,7 +38,7 @@ slight modifications.
 4. EXTLINUX now supports symbolic links.  However, extremely long
    symbolic links might hit the pathname limit.  Also, please note
    that absolute symbolic links are interpreted from the root *of the
-   filesystem*, which might be different from now the running system
+   filesystem*, which might be different from how the running system
    would interpret it (e.g. in the case of a separate /boot
    partition.)  Therefore, use relative symbolic links if at all
    possible.
@@ -97,9 +97,9 @@ preferred way to boot is:
 - Install the MBR on *each disk*, and mark the RAID-1 partition
   active.
 
-- Run "extlinux -i /boot" to install extlinux.  This will install it on
-  all the drives in the RAID-1 set, which means you can boot any
-  combination of drives in any order.
+- Run "extlinux --raid --install /boot" to install extlinux.  This
+  will install it on all the drives in the RAID-1 set, which means
+  you can boot any combination of drives in any order.
 
 
 

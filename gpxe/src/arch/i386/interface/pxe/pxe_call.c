@@ -16,7 +16,10 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/uaccess.h>
+#include <gpxe/init.h>
 #include <registers.h>
 #include <biosint.h>
 #include <pxe.h>
@@ -33,6 +36,9 @@ extern struct segoff __text16 ( pxe_int_1a_vector );
 
 /** INT 1A handler */
 extern void pxe_int_1a ( void );
+
+/** INT 1A hooked flag */
+static int int_1a_hooked = 0;
 
 /** A function pointer to hold any PXE API call
  *
@@ -98,6 +104,7 @@ union pxenv_call {
 	PXENV_EXIT_t ( * get_file_size ) ( struct s_PXENV_GET_FILE_SIZE * );
 	PXENV_EXIT_t ( * file_exec ) ( struct s_PXENV_FILE_EXEC * );
 	PXENV_EXIT_t ( * file_api_check ) ( struct s_PXENV_FILE_API_CHECK * );
+	PXENV_EXIT_t ( * file_exit_hook ) ( struct s_PXENV_FILE_EXIT_HOOK * );
 };
 
 /**
@@ -119,7 +126,7 @@ static PXENV_EXIT_t pxenv_unknown ( struct s_PXENV_UNKNOWN *pxenv_unknown ) {
  * @v es:di		Address of PXE parameter block
  * @ret ax		PXE exit code
  */
-__cdecl void pxe_api_call ( struct i386_all_regs *ix86 ) {
+__asmcall void pxe_api_call ( struct i386_all_regs *ix86 ) {
 	int opcode = ix86->regs.bx;
 	userptr_t parameters = real_to_user ( ix86->segs.es, ix86->regs.di );
 	size_t param_len;
@@ -304,6 +311,10 @@ __cdecl void pxe_api_call ( struct i386_all_regs *ix86 ) {
 		pxenv_call.file_api_check = pxenv_file_api_check;
 		param_len = sizeof ( pxenv_any.file_api_check );
 		break;
+	case PXENV_FILE_EXIT_HOOK:
+		pxenv_call.file_exit_hook = pxenv_file_exit_hook;
+		param_len = sizeof ( pxenv_any.file_exit_hook );
+		break;
 	default:
 		DBG ( "PXENV_UNKNOWN_%hx", opcode );
 		pxenv_call.unknown = pxenv_unknown;
@@ -334,12 +345,24 @@ __cdecl void pxe_api_call ( struct i386_all_regs *ix86 ) {
 }
 
 /**
+ * Dispatch weak PXE API call with PXE stack available
+ *
+ * @v ix86		Registers for PXE call
+ * @ret present		Zero (PXE stack present)
+ */
+int _pxe_api_call_weak ( struct i386_all_regs *ix86 )
+{
+	pxe_api_call ( ix86 );
+	return 0;
+}
+
+/**
  * Dispatch PXE loader call
  *
  * @v es:di		Address of PXE parameter block
  * @ret ax		PXE exit code
  */
-__cdecl void pxe_loader_call ( struct i386_all_regs *ix86 ) {
+__asmcall void pxe_loader_call ( struct i386_all_regs *ix86 ) {
 	userptr_t uparams = real_to_user ( ix86->segs.es, ix86->regs.di );
 	struct s_UNDI_LOADER params;
 	PXENV_EXIT_t ret;
@@ -359,25 +382,6 @@ __cdecl void pxe_loader_call ( struct i386_all_regs *ix86 ) {
 	/* Copy modified parameter block back to caller and return */
 	copy_to_user ( uparams, 0, &params, sizeof ( params ) );
 	ix86->regs.ax = ret;
-}
-
-/**
- * Hook INT 1A for PXE
- *
- */
-void pxe_hook_int1a ( void ) {
-	hook_bios_interrupt ( 0x1a, ( unsigned int ) pxe_int_1a,
-			      &pxe_int_1a_vector );
-}
-
-/**
- * Unhook INT 1A for PXE
- *
- * @ret rc		Return status code
- */
-int pxe_unhook_int1a ( void ) {
-	return unhook_bios_interrupt ( 0x1a, ( unsigned int ) pxe_int_1a,
-				       &pxe_int_1a_vector );
 }
 
 /**
@@ -401,7 +405,7 @@ static uint8_t pxe_checksum ( void *data, size_t size ) {
  * Initialise !PXE and PXENV+ structures
  *
  */
-void pxe_init_structures ( void ) {
+static void pxe_init_structures ( void ) {
 	uint32_t rm_cs_phys = ( rm_cs << 4 );
 	uint32_t rm_ds_phys = ( rm_ds << 4 );
 
@@ -427,28 +431,79 @@ void pxe_init_structures ( void ) {
 	pxenv.Checksum -= pxe_checksum ( &pxenv, sizeof ( pxenv ) );
 }
 
+/** PXE structure initialiser */
+struct init_fn pxe_init_fn __init_fn ( INIT_NORMAL ) = {
+	.initialise = pxe_init_structures,
+};
+
+/**
+ * Activate PXE stack
+ *
+ * @v netdev		Net device to use as PXE net device
+ */
+void pxe_activate ( struct net_device *netdev ) {
+
+	/* Ensure INT 1A is hooked */
+	if ( ! int_1a_hooked ) {
+		hook_bios_interrupt ( 0x1a, ( unsigned int ) pxe_int_1a,
+				      &pxe_int_1a_vector );
+		int_1a_hooked = 1;
+	}
+
+	/* Set PXE network device */
+	pxe_set_netdev ( netdev );
+}
+
+/**
+ * Deactivate PXE stack
+ *
+ * @ret rc		Return status code
+ */
+int pxe_deactivate ( void ) {
+	int rc;
+
+	/* Clear PXE network device */
+	pxe_set_netdev ( NULL );
+
+	/* Ensure INT 1A is unhooked, if possible */
+	if ( int_1a_hooked ) {
+		if ( ( rc = unhook_bios_interrupt ( 0x1a,
+						    (unsigned int) pxe_int_1a,
+						    &pxe_int_1a_vector ))!= 0){
+			DBG ( "Could not unhook INT 1A: %s\n",
+			      strerror ( rc ) );
+			return rc;
+		}
+		int_1a_hooked = 0;
+	}
+
+	return 0;
+}
+
 /**
  * Start PXE NBP at 0000:7c00
  *
  * @ret rc		Return status code
  */
 int pxe_start_nbp ( void ) {
-	int discard_b, discard_c;
+	int discard_b, discard_c, discard_d, discard_D;
 	uint16_t rc;
 
 	/* Far call to PXE NBP */
-	__asm__ __volatile__ ( REAL_CODE ( "pushw %%cx\n\t"
-					   "pushw %%ax\n\t"
-					   "movw %%cx, %%es\n\t"
+	__asm__ __volatile__ ( REAL_CODE ( "movw %%cx, %%es\n\t"
+					   "pushw %%es\n\t"
+					   "pushw %%di\n\t"
 					   "sti\n\t"
 					   "lcall $0, $0x7c00\n\t"
 					   "addw $4, %%sp\n\t" )
 			       : "=a" ( rc ), "=b" ( discard_b ),
-			         "=c" ( discard_c )
-			       :  "a" ( __from_text16 ( &ppxe ) ),
-			          "b" ( __from_text16 ( &pxenv ) ),
-			          "c" ( rm_cs )
-			       : "edx", "esi", "edi", "ebp", "memory" );
+				 "=c" ( discard_c ), "=d" ( discard_d ),
+				 "=D" ( discard_D )
+			       : "a" ( 0 ), "b" ( __from_text16 ( &pxenv ) ),
+			         "c" ( rm_cs ),
+			         "d" ( virt_to_phys ( &pxenv ) ),
+				 "D" ( __from_text16 ( &ppxe ) )
+			       : "esi", "ebp", "memory" );
 
 	return rc;
 }

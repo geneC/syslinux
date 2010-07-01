@@ -41,62 +41,61 @@
  * buffer address, but doesn't *have* to be.
  */
 
-static const void *
-format_pxf_bgra32(void *ptr, const uint32_t *p, size_t n)
+static const void *format_pxf_bgra32(void *ptr, const uint32_t * p, size_t n)
 {
-  (void)ptr; (void)n;
-  return p;			/* No conversion needed! */
+    (void)ptr;
+    (void)n;
+    return p;			/* No conversion needed! */
 }
 
-static const void *
-format_pxf_bgr24(void *ptr, const uint32_t *p, size_t n)
+static const void *format_pxf_bgr24(void *ptr, const uint32_t * p, size_t n)
 {
-  char *q = ptr;
+    char *q = ptr;
 
-  while (n--) {
-    *(uint32_t *)q = *p++;
-    q += 3;
-  }
-  return ptr;
+    while (n--) {
+	*(uint32_t *) q = *p++;
+	q += 3;
+    }
+    return ptr;
 }
 
-static const void *
-format_pxf_le_rgb16_565(void *ptr, const uint32_t *p, size_t n)
+static const void *format_pxf_le_rgb16_565(void *ptr, const uint32_t * p,
+					   size_t n)
 {
-  uint32_t bgra;
-  uint16_t *q = ptr;
+    uint32_t bgra;
+    uint16_t *q = ptr;
 
-  while (n--) {
-    bgra = *p++;
-    *q++ =
-      ((bgra >> 3) & 0x1f) +
-      ((bgra >> (2+8-5)) & (0x3f << 5)) +
-      ((bgra >> (3+16-11)) & (0x1f << 11));
-  }
-  return ptr;
+    while (n--) {
+	bgra = *p++;
+	*q++ =
+	    ((bgra >> 3) & 0x1f) +
+	    ((bgra >> (2 + 8 - 5)) & (0x3f << 5)) +
+	    ((bgra >> (3 + 16 - 11)) & (0x1f << 11));
+    }
+    return ptr;
 }
 
-static const void *
-format_pxf_le_rgb15_555(void *ptr, const uint32_t *p, size_t n)
+static const void *format_pxf_le_rgb15_555(void *ptr, const uint32_t * p,
+					   size_t n)
 {
-  uint32_t bgra;
-  uint16_t *q = ptr;
+    uint32_t bgra;
+    uint16_t *q = ptr;
 
-  while (n--) {
-    bgra = *p++;
-    *q++ =
-      ((bgra >> 3) & 0x1f) +
-      ((bgra >> (2+8-5)) & (0x1f << 5)) +
-      ((bgra >> (3+16-10)) & (0x1f << 10));
-  }
-  return ptr;
+    while (n--) {
+	bgra = *p++;
+	*q++ =
+	    ((bgra >> 3) & 0x1f) +
+	    ((bgra >> (2 + 8 - 5)) & (0x1f << 5)) +
+	    ((bgra >> (3 + 16 - 10)) & (0x1f << 10));
+    }
+    return ptr;
 }
 
 __vesacon_format_pixels_t __vesacon_format_pixels;
 
 const __vesacon_format_pixels_t __vesacon_format_pixels_list[PXF_NONE] = {
-  [PXF_BGRA32]       = format_pxf_bgra32,
-  [PXF_BGR24]        = format_pxf_bgr24,
-  [PXF_LE_RGB16_565] = format_pxf_le_rgb16_565,
-  [PXF_LE_RGB15_555] = format_pxf_le_rgb15_555,
+    [PXF_BGRA32] = format_pxf_bgra32,
+    [PXF_BGR24] = format_pxf_bgr24,
+    [PXF_LE_RGB16_565] = format_pxf_le_rgb16_565,
+    [PXF_LE_RGB15_555] = format_pxf_le_rgb15_555,
 };

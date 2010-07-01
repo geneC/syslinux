@@ -46,6 +46,8 @@
 
 */
 
+FILE_LICENCE ( GPL_ANY );
+
 /* Revision History */
 
 /*
@@ -61,7 +63,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <io.h>
+#include <string.h>
+#include <gpxe/io.h>
 #include <errno.h>
 #include <byteswap.h>
 #include <unistd.h>
@@ -201,7 +204,7 @@ static int natsemi_probe (struct pci_device *pci,
 	last = prev_bytes[1] >> 7;
 	for ( i = 0 ; i < ETH_ALEN ; i++ ) {
 		last1 = ll_addr_encoded[i] >> 7;
-	 	netdev->ll_addr[i] = ll_addr_encoded[i] << 1 | last;
+		netdev->hw_addr[i] = ll_addr_encoded[i] << 1 | last;
 		last = last1;
 	}
 
@@ -267,7 +270,7 @@ static void natsemi_reset (struct net_device *netdev)
         wcsr = inl (np->ioaddr + WOLCmd) & WCSR_RESET_SAVE;
 
         /* RFCR */
-        rfcr = readl (np->ioaddr + RxFilterAddr) & RFCR_RESET_SAVE;
+        rfcr = inl (np->ioaddr + RxFilterAddr) & RFCR_RESET_SAVE;
 
         /* PMATCH */
         for (i = 0; i < 3; i++) {
@@ -357,7 +360,7 @@ static int natsemi_open (struct net_device *netdev)
 	}
 	outl (virt_to_bus (&np->tx[0]),np->ioaddr + TxRingPtr);
 
-	DBG ("Natsemi Tx descriptor loaded with: %#08lx\n",
+	DBG ("Natsemi Tx descriptor loaded with: %#08x\n",
 	     inl (np->ioaddr + TxRingPtr));
 
 	/* Setup RX ring
@@ -376,7 +379,7 @@ static int natsemi_open (struct net_device *netdev)
 	}
 	outl (virt_to_bus (&np->rx[0]), np->ioaddr + RxRingPtr);
 
-	DBG ("Natsemi Rx descriptor loaded with: %#08lx\n",
+	DBG ("Natsemi Rx descriptor loaded with: %#08x\n",
 	      inl (np->ioaddr + RxRingPtr));		
 
 	/* Setup RX Filter 
@@ -400,7 +403,7 @@ static int natsemi_open (struct net_device *netdev)
 	outl (tx_config, np->ioaddr + TxConfig);
 	outl (rx_config, np->ioaddr + RxConfig);
 
-	DBG ("Tx config register = %#08lx Rx config register = %#08lx\n", 
+	DBG ("Tx config register = %#08x Rx config register = %#08x\n", 
                inl (np->ioaddr + TxConfig),
 	       inl (np->ioaddr + RxConfig));
 
@@ -551,7 +554,7 @@ static void natsemi_poll (struct net_device *netdev)
 			netdev_rx_err (netdev, NULL, -EINVAL);
 
 			DBG ("natsemi_poll: Corrupted packet received!"
-			     " Status = %#08lx\n",
+			     " Status = %#08x\n",
 			      np->rx[np->rx_cur].cmdsts);
 
 		} else 	{
@@ -595,7 +598,7 @@ static void natsemi_irq (struct net_device *netdev, int enable)
 }
 
 static struct pci_device_id natsemi_nics[] = {
-	PCI_ROM(0x100b, 0x0020, "dp83815", "DP83815"),
+	PCI_ROM(0x100b, 0x0020, "dp83815", "DP83815", 0),
 };
 
 struct pci_driver natsemi_driver __pci_driver = {

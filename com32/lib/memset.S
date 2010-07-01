@@ -47,7 +47,7 @@ memset:
 	movzwl	%dx,%eax
 	shll	$16,%edx
 	orl	%edx,%eax
-	
+
 	/* Initial alignment */
 	movl	%edi,%edx
 	shrl	$1,%edx

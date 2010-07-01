@@ -8,14 +8,14 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/uaccess.h>
 
-/** A block device */
-struct block_device {
-	/** Block size */
-	size_t blksize;
-	/** Total number of blocks */
-	uint64_t blocks;
+struct block_device;
+
+/** Block device operations */
+struct block_device_operations {
 	/**
 	 * Read block
 	 *
@@ -38,6 +38,16 @@ struct block_device {
 	 */
 	int ( * write ) ( struct block_device *blockdev, uint64_t block,
 			  unsigned long count, userptr_t buffer );
+};
+
+/** A block device */
+struct block_device {
+	/** Block device operations */
+	struct block_device_operations *op;
+	/** Block size */
+	size_t blksize;
+	/** Total number of blocks */
+	uint64_t blocks;
 };
 
 #endif /* _GPXE_BLOCKDEV_H */

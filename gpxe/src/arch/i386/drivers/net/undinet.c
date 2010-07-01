@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <string.h>
 #include <pxe.h>
 #include <realmode.h>
@@ -23,12 +25,14 @@
 #include <biosint.h>
 #include <pnpbios.h>
 #include <basemem_packet.h>
+#include <gpxe/io.h>
 #include <gpxe/iobuf.h>
 #include <gpxe/netdevice.h>
 #include <gpxe/if_ether.h>
 #include <gpxe/ethernet.h>
 #include <undi.h>
 #include <undinet.h>
+#include <pxeparent.h>
 
 
 /** @file
@@ -59,179 +63,8 @@ struct undi_nic {
 
 static void undinet_close ( struct net_device *netdev );
 
-/*****************************************************************************
- *
- * UNDI API call
- *
- *****************************************************************************
- */
-
-/**
- * Name UNDI API call
- *
- * @v function		API call number
- * @ret name		API call name
- */
-static inline __attribute__ (( always_inline )) const char *
-undinet_function_name ( unsigned int function ) {
-	switch ( function ) {
-	case PXENV_START_UNDI:
-		return "PXENV_START_UNDI";
-	case PXENV_STOP_UNDI:
-		return "PXENV_STOP_UNDI";
-	case PXENV_UNDI_STARTUP:
-		return "PXENV_UNDI_STARTUP";
-	case PXENV_UNDI_CLEANUP:
-		return "PXENV_UNDI_CLEANUP";
-	case PXENV_UNDI_INITIALIZE:
-		return "PXENV_UNDI_INITIALIZE";
-	case PXENV_UNDI_RESET_ADAPTER:
-		return "PXENV_UNDI_RESET_ADAPTER";
-	case PXENV_UNDI_SHUTDOWN:
-		return "PXENV_UNDI_SHUTDOWN";
-	case PXENV_UNDI_OPEN:
-		return "PXENV_UNDI_OPEN";
-	case PXENV_UNDI_CLOSE:
-		return "PXENV_UNDI_CLOSE";
-	case PXENV_UNDI_TRANSMIT:
-		return "PXENV_UNDI_TRANSMIT";
-	case PXENV_UNDI_SET_MCAST_ADDRESS:
-		return "PXENV_UNDI_SET_MCAST_ADDRESS";
-	case PXENV_UNDI_SET_STATION_ADDRESS:
-		return "PXENV_UNDI_SET_STATION_ADDRESS";
-	case PXENV_UNDI_SET_PACKET_FILTER:
-		return "PXENV_UNDI_SET_PACKET_FILTER";
-	case PXENV_UNDI_GET_INFORMATION:
-		return "PXENV_UNDI_GET_INFORMATION";
-	case PXENV_UNDI_GET_STATISTICS:
-		return "PXENV_UNDI_GET_STATISTICS";
-	case PXENV_UNDI_CLEAR_STATISTICS:
-		return "PXENV_UNDI_CLEAR_STATISTICS";
-	case PXENV_UNDI_INITIATE_DIAGS:
-		return "PXENV_UNDI_INITIATE_DIAGS";
-	case PXENV_UNDI_FORCE_INTERRUPT:
-		return "PXENV_UNDI_FORCE_INTERRUPT";
-	case PXENV_UNDI_GET_MCAST_ADDRESS:
-		return "PXENV_UNDI_GET_MCAST_ADDRESS";
-	case PXENV_UNDI_GET_NIC_TYPE:
-		return "PXENV_UNDI_GET_NIC_TYPE";
-	case PXENV_UNDI_GET_IFACE_INFO:
-		return "PXENV_UNDI_GET_IFACE_INFO";
-	/*
-	 * Duplicate case value; this is a bug in the PXE specification.
-	 *
-	 *	case PXENV_UNDI_GET_STATE:
-	 *		return "PXENV_UNDI_GET_STATE";
-	 */
-	case PXENV_UNDI_ISR:
-		return "PXENV_UNDI_ISR";
-	default:
-		return "UNKNOWN API CALL";
-	}
-}
-
-/**
- * UNDI parameter block
- *
- * Used as the paramter block for all UNDI API calls.  Resides in base
- * memory.
- */
-static union u_PXENV_ANY __bss16 ( undinet_params );
-#define undinet_params __use_data16 ( undinet_params )
-
-/** UNDI entry point
- *
- * Used as the indirection vector for all UNDI API calls.  Resides in
- * base memory.
- */
-SEGOFF16_t __bss16 ( undinet_entry_point );
-#define undinet_entry_point __use_data16 ( undinet_entry_point )
-
-/**
- * Issue UNDI API call
- *
- * @v undinic		UNDI NIC
- * @v function		API call number
- * @v params		UNDI parameter block
- * @v params_len	Length of UNDI parameter block
- * @ret rc		Return status code
- */
-static int undinet_call ( struct undi_nic *undinic, unsigned int function,
-			  void *params, size_t params_len ) {
-	PXENV_EXIT_t exit;
-	int discard_b, discard_D;
-	int rc;
-
-	/* Copy parameter block and entry point */
-	assert ( params_len <= sizeof ( undinet_params ) );
-	memcpy ( &undinet_params, params, params_len );
-
-	/* Call real-mode entry point.  This calling convention will
-	 * work with both the !PXE and the PXENV+ entry points.
-	 */
-	__asm__ __volatile__ ( REAL_CODE ( "pushw %%es\n\t"
-					   "pushw %%di\n\t"
-					   "pushw %%bx\n\t"
-					   "lcall *%c3\n\t"
-					   "addw $6, %%sp\n\t" )
-			       : "=a" ( exit ), "=b" ( discard_b ),
-			         "=D" ( discard_D )
-			       : "p" ( __from_data16 ( &undinet_entry_point )),
-			         "b" ( function ),
-			         "D" ( __from_data16 ( &undinet_params ) )
-			       : "ecx", "edx", "esi", "ebp" );
-
-	/* UNDI API calls may rudely change the status of A20 and not
-	 * bother to restore it afterwards.  Intel is known to be
-	 * guilty of this.
-	 *
-	 * Note that we will return to this point even if A20 gets
-	 * screwed up by the UNDI driver, because Etherboot always
-	 * resides in an even megabyte of RAM.
-	 */	
-	gateA20_set();
-
-	/* Determine return status code based on PXENV_EXIT and
-	 * PXENV_STATUS
-	 */
-	if ( exit == PXENV_EXIT_SUCCESS ) {
-		rc = 0;
-	} else {
-		rc = -undinet_params.Status;
-		/* Paranoia; don't return success for the combination
-		 * of PXENV_EXIT_FAILURE but PXENV_STATUS_SUCCESS
-		 */
-		if ( rc == 0 )
-			rc = -EIO;
-	}
-
-	/* If anything goes wrong, print as much debug information as
-	 * it's possible to give.
-	 */
-	if ( rc != 0 ) {
-		SEGOFF16_t rm_params = {
-			.segment = rm_ds,
-			.offset = __from_data16 ( &undinet_params ),
-		};
-
-		DBGC ( undinic, "UNDINIC %p %s failed: %s\n", undinic,
-		       undinet_function_name ( function ), strerror ( rc ) );
-		DBGC ( undinic, "UNDINIC %p parameters at %04x:%04x length "
-		       "%#02zx, entry point at %04x:%04x\n", undinic,
-		       rm_params.segment, rm_params.offset, params_len,
-		       undinet_entry_point.segment,
-		       undinet_entry_point.offset );
-		DBGC ( undinic, "UNDINIC %p parameters provided:\n", undinic );
-		DBGC_HDA ( undinic, rm_params, params, params_len );
-		DBGC ( undinic, "UNDINIC %p parameters returned:\n", undinic );
-		DBGC_HDA ( undinic, rm_params, &undinet_params, params_len );
-	}
-
-	/* Copy parameter block back */
-	memcpy ( params, &undinet_params, params_len );
-
-	return rc;
-}
+/** Address of UNDI entry point */
+static SEGOFF16_t undinet_entry;
 
 /*****************************************************************************
  *
@@ -334,7 +167,6 @@ static struct s_PXENV_UNDI_TBD __data16 ( undinet_tbd );
  */
 static int undinet_transmit ( struct net_device *netdev,
 			      struct io_buffer *iobuf ) {
-	struct undi_nic *undinic = netdev->priv;
 	struct s_PXENV_UNDI_TRANSMIT undi_transmit;
 	size_t len = iob_len ( iobuf );
 	int rc;
@@ -367,9 +199,9 @@ static int undinet_transmit ( struct net_device *netdev,
 	undinet_tbd.Xmit.offset = __from_data16 ( basemem_packet );
 
 	/* Issue PXE API call */
-	if ( ( rc = undinet_call ( undinic, PXENV_UNDI_TRANSMIT,
-				   &undi_transmit,
-				   sizeof ( undi_transmit ) ) ) != 0 )
+	if ( ( rc = pxeparent_call ( undinet_entry, PXENV_UNDI_TRANSMIT,
+				     &undi_transmit,
+				     sizeof ( undi_transmit ) ) ) != 0 )
 		goto done;
 
 	/* Free I/O buffer */
@@ -439,8 +271,9 @@ static void undinet_poll ( struct net_device *netdev ) {
 
 	/* Run through the ISR loop */
 	while ( 1 ) {
-		if ( ( rc = undinet_call ( undinic, PXENV_UNDI_ISR, &undi_isr,
-					   sizeof ( undi_isr ) ) ) != 0 )
+		if ( ( rc = pxeparent_call ( undinet_entry, PXENV_UNDI_ISR,
+					     &undi_isr,
+					     sizeof ( undi_isr ) ) ) != 0 )
 			break;
 		switch ( undi_isr.FuncFlag ) {
 		case PXENV_UNDI_ISR_OUT_TRANSMIT:
@@ -481,8 +314,7 @@ static void undinet_poll ( struct net_device *netdev ) {
 					 undi_isr.Frame.offset, frag_len );
 			if ( iob_len ( iobuf ) == len ) {
 				/* Whole packet received; deliver it */
-				netdev_rx ( netdev, iobuf );
-				iobuf = NULL;
+				netdev_rx ( netdev, iob_disown ( iobuf ) );
 				/* Etherboot 5.4 fails to return all packets
 				 * under mild load; pretend it retriggered.
 				 */
@@ -537,8 +369,8 @@ static int undinet_open ( struct net_device *netdev ) {
 	 */
 	memcpy ( undi_set_address.StationAddress, netdev->ll_addr,
 		 sizeof ( undi_set_address.StationAddress ) );
-	undinet_call ( undinic, PXENV_UNDI_SET_STATION_ADDRESS,
-		       &undi_set_address, sizeof ( undi_set_address ) );
+	pxeparent_call ( undinet_entry, PXENV_UNDI_SET_STATION_ADDRESS,
+			 &undi_set_address, sizeof ( undi_set_address ) );
 
 	/* Open NIC.  We ask for promiscuous operation, since it's the
 	 * only way to ask for all multicast addresses.  On any
@@ -547,14 +379,14 @@ static int undinet_open ( struct net_device *netdev ) {
 	 */
 	memset ( &undi_open, 0, sizeof ( undi_open ) );
 	undi_open.PktFilter = ( FLTR_DIRECTED | FLTR_BRDCST | FLTR_PRMSCS );
-	if ( ( rc = undinet_call ( undinic, PXENV_UNDI_OPEN, &undi_open,
-				   sizeof ( undi_open ) ) ) != 0 )
+	if ( ( rc = pxeparent_call ( undinet_entry, PXENV_UNDI_OPEN,
+				     &undi_open, sizeof ( undi_open ) ) ) != 0 )
 		goto err;
 
 	DBGC ( undinic, "UNDINIC %p opened\n", undinic );
 	return 0;
 
-err:
+ err:
 	undinet_close ( netdev );
 	return rc;
 }
@@ -573,8 +405,9 @@ static void undinet_close ( struct net_device *netdev ) {
 	/* Ensure ISR has exited cleanly */
 	while ( undinic->isr_processing ) {
 		undi_isr.FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
-		if ( ( rc = undinet_call ( undinic, PXENV_UNDI_ISR, &undi_isr,
-					   sizeof ( undi_isr ) ) ) != 0 )
+		if ( ( rc = pxeparent_call ( undinet_entry, PXENV_UNDI_ISR,
+					     &undi_isr,
+					     sizeof ( undi_isr ) ) ) != 0 )
 			break;
 		switch ( undi_isr.FuncFlag ) {
 		case PXENV_UNDI_ISR_OUT_TRANSMIT:
@@ -589,16 +422,12 @@ static void undinet_close ( struct net_device *netdev ) {
 	}
 
 	/* Close NIC */
-	undinet_call ( undinic, PXENV_UNDI_CLOSE, &undi_close,
-		       sizeof ( undi_close ) );
+	pxeparent_call ( undinet_entry, PXENV_UNDI_CLOSE,
+			 &undi_close, sizeof ( undi_close ) );
 
 	/* Disable interrupt and unhook ISR */
 	disable_irq ( undinic->irq );
 	undinet_unhook_isr ( undinic->irq );
-#if 0
-	enable_irq ( undinic->irq );
-	send_eoi ( undinic->irq );
-#endif
 
 	DBGC ( undinic, "UNDINIC %p closed\n", undinic );
 }
@@ -642,9 +471,7 @@ int undinet_probe ( struct undi_device *undi ) {
 	struct s_PXENV_UNDI_GET_IFACE_INFO undi_iface;
 	struct s_PXENV_UNDI_SHUTDOWN undi_shutdown;
 	struct s_PXENV_UNDI_CLEANUP undi_cleanup;
-#if 0
 	struct s_PXENV_STOP_UNDI stop_undi;
-#endif
 	int rc;
 
 	/* Allocate net device */
@@ -656,7 +483,7 @@ int undinet_probe ( struct undi_device *undi ) {
 	undi_set_drvdata ( undi, netdev );
 	netdev->dev = &undi->dev;
 	memset ( undinic, 0, sizeof ( *undinic ) );
-	undinet_entry_point = undi->entry;
+	undinet_entry = undi->entry;
 	DBGC ( undinic, "UNDINIC %p using UNDI %p\n", undinic, undi );
 
 	/* Hook in UNDI stack */
@@ -667,31 +494,35 @@ int undinet_probe ( struct undi_device *undi ) {
 		start_undi.DX = undi->isapnp_read_port;
 		start_undi.ES = BIOS_SEG;
 		start_undi.DI = find_pnp_bios();
-		if ( ( rc = undinet_call ( undinic, PXENV_START_UNDI,
-					   &start_undi,
-					   sizeof ( start_undi ) ) ) != 0 )
+		if ( ( rc = pxeparent_call ( undinet_entry, PXENV_START_UNDI,
+					     &start_undi,
+					     sizeof ( start_undi ) ) ) != 0 )
 			goto err_start_undi;
-		/* Bring up UNDI stack */
-		memset ( &undi_startup, 0, sizeof ( undi_startup ) );
-		if ( ( rc = undinet_call ( undinic, PXENV_UNDI_STARTUP,
-					   &undi_startup,
-					   sizeof ( undi_startup ) ) ) != 0 )
-		  goto err_undi_startup;
-
-		memset ( &undi_initialize, 0, sizeof ( undi_initialize ) );
-		if ( ( rc = undinet_call ( undinic, PXENV_UNDI_INITIALIZE,
-					   &undi_initialize,
-					   sizeof ( undi_initialize ) ) ) != 0 )
-		  goto err_undi_initialize;
 	}
 	undi->flags |= UNDI_FL_STARTED;
 
+	/* Bring up UNDI stack */
+	if ( ! ( undi->flags & UNDI_FL_INITIALIZED ) ) {
+		memset ( &undi_startup, 0, sizeof ( undi_startup ) );
+		if ( ( rc = pxeparent_call ( undinet_entry, PXENV_UNDI_STARTUP,
+					     &undi_startup,
+					     sizeof ( undi_startup ) ) ) != 0 )
+			goto err_undi_startup;
+		memset ( &undi_initialize, 0, sizeof ( undi_initialize ) );
+		if ( ( rc = pxeparent_call ( undinet_entry,
+					     PXENV_UNDI_INITIALIZE,
+					     &undi_initialize,
+					     sizeof ( undi_initialize ))) != 0 )
+			goto err_undi_initialize;
+	}
+	undi->flags |= UNDI_FL_INITIALIZED;
+
 	/* Get device information */
 	memset ( &undi_info, 0, sizeof ( undi_info ) );
-	if ( ( rc = undinet_call ( undinic, PXENV_UNDI_GET_INFORMATION,
-				   &undi_info, sizeof ( undi_info ) ) ) != 0 )
+	if ( ( rc = pxeparent_call ( undinet_entry, PXENV_UNDI_GET_INFORMATION,
+				     &undi_info, sizeof ( undi_info ) ) ) != 0 )
 		goto err_undi_get_information;
-	memcpy ( netdev->ll_addr, undi_info.PermNodeAddress, ETH_ALEN );
+	memcpy ( netdev->hw_addr, undi_info.PermNodeAddress, ETH_ALEN );
 	undinic->irq = undi_info.IntNumber;
 	if ( undinic->irq > IRQ_MAX ) {
 		DBGC ( undinic, "UNDINIC %p invalid IRQ %d\n",
@@ -699,16 +530,17 @@ int undinet_probe ( struct undi_device *undi ) {
 		goto err_bad_irq;
 	}
 	DBGC ( undinic, "UNDINIC %p is %s on IRQ %d\n",
-	       undinic, eth_ntoa ( netdev->ll_addr ), undinic->irq );
+	       undinic, eth_ntoa ( netdev->hw_addr ), undinic->irq );
 
 	/* Get interface information */
 	memset ( &undi_iface, 0, sizeof ( undi_iface ) );
-	if ( ( rc = undinet_call ( undinic, PXENV_UNDI_GET_IFACE_INFO,
-				   &undi_iface,
-				   sizeof ( undi_iface ) ) ) != 0 )
+	if ( ( rc = pxeparent_call ( undinet_entry, PXENV_UNDI_GET_IFACE_INFO,
+				     &undi_iface,
+				     sizeof ( undi_iface ) ) ) != 0 )
 		goto err_undi_get_iface_info;
-	DBGC ( undinic, "UNDINIC %p has type %s and link speed %ld\n",
-	       undinic, undi_iface.IfaceType, undi_iface.LinkSpeed );
+	DBGC ( undinic, "UNDINIC %p has type %s, speed %d, flags %08x\n",
+	       undinic, undi_iface.IfaceType, undi_iface.LinkSpeed,
+	       undi_iface.ServiceFlags );
 	if ( strncmp ( ( ( char * ) undi_iface.IfaceType ), "Etherboot",
 		       sizeof ( undi_iface.IfaceType ) ) == 0 ) {
 		DBGC ( undinic, "UNDINIC %p Etherboot 5.4 workaround enabled\n",
@@ -731,21 +563,20 @@ int undinet_probe ( struct undi_device *undi ) {
  err_bad_irq:
  err_undi_get_information:
  err_undi_initialize:
-
 	/* Shut down UNDI stack */
 	memset ( &undi_shutdown, 0, sizeof ( undi_shutdown ) );
-	undinet_call ( undinic, PXENV_UNDI_SHUTDOWN, &undi_shutdown,
-		       sizeof ( undi_shutdown ) );
+	pxeparent_call ( undinet_entry, PXENV_UNDI_SHUTDOWN, &undi_shutdown,
+			 sizeof ( undi_shutdown ) );
 	memset ( &undi_cleanup, 0, sizeof ( undi_cleanup ) );
-	undinet_call ( undinic, PXENV_UNDI_CLEANUP, &undi_cleanup,
-		       sizeof ( undi_cleanup ) );
+	pxeparent_call ( undinet_entry, PXENV_UNDI_CLEANUP, &undi_cleanup,
+			 sizeof ( undi_cleanup ) );
+	undi->flags &= ~UNDI_FL_INITIALIZED;
  err_undi_startup:
-#if 0
 	/* Unhook UNDI stack */
 	memset ( &stop_undi, 0, sizeof ( stop_undi ) );
-	undinet_call ( undinic, PXENV_STOP_UNDI, &stop_undi,
-		       sizeof ( stop_undi ) );
-#endif
+	pxeparent_call ( undinet_entry, PXENV_STOP_UNDI, &stop_undi,
+			 sizeof ( stop_undi ) );
+	undi->flags &= ~UNDI_FL_STARTED;
  err_start_undi:
 	netdev_nullify ( netdev );
 	netdev_put ( netdev );
@@ -761,33 +592,36 @@ int undinet_probe ( struct undi_device *undi ) {
 void undinet_remove ( struct undi_device *undi ) {
 	struct net_device *netdev = undi_get_drvdata ( undi );
 	struct undi_nic *undinic = netdev->priv;
-#if 0
 	struct s_PXENV_UNDI_SHUTDOWN undi_shutdown;
 	struct s_PXENV_UNDI_CLEANUP undi_cleanup;
 	struct s_PXENV_STOP_UNDI stop_undi;
-#endif
 
 	/* Unregister net device */
 	unregister_netdev ( netdev );
 
-	/* Shut down UNDI stack */
-#if 0
-	memset ( &undi_shutdown, 0, sizeof ( undi_shutdown ) );
-	undinet_call ( undinic, PXENV_UNDI_SHUTDOWN, &undi_shutdown,
-		       sizeof ( undi_shutdown ) );
-	memset ( &undi_cleanup, 0, sizeof ( undi_cleanup ) );
-	undinet_call ( undinic, PXENV_UNDI_CLEANUP, &undi_cleanup,
-		       sizeof ( undi_cleanup ) );
+	/* If we are preparing for an OS boot, or if we cannot exit
+	 * via the PXE stack, then shut down the PXE stack.
+	 */
+	if ( ! ( undi->flags & UNDI_FL_KEEP_ALL ) ) {
 
-	/* Unhook UNDI stack */
-	memset ( &stop_undi, 0, sizeof ( stop_undi ) );
-	undinet_call ( undinic, PXENV_STOP_UNDI, &stop_undi,
-		       sizeof ( stop_undi ) );
-	undi->flags &= ~UNDI_FL_STARTED;
-#endif
+		/* Shut down UNDI stack */
+		memset ( &undi_shutdown, 0, sizeof ( undi_shutdown ) );
+		pxeparent_call ( undinet_entry, PXENV_UNDI_SHUTDOWN,
+				 &undi_shutdown, sizeof ( undi_shutdown ) );
+		memset ( &undi_cleanup, 0, sizeof ( undi_cleanup ) );
+		pxeparent_call ( undinet_entry, PXENV_UNDI_CLEANUP,
+				 &undi_cleanup, sizeof ( undi_cleanup ) );
+		undi->flags &= ~UNDI_FL_INITIALIZED;
+
+		/* Unhook UNDI stack */
+		memset ( &stop_undi, 0, sizeof ( stop_undi ) );
+		pxeparent_call ( undinet_entry, PXENV_STOP_UNDI, &stop_undi,
+				 sizeof ( stop_undi ) );
+		undi->flags &= ~UNDI_FL_STARTED;
+	}
 
 	/* Clear entry point */
-	memset ( &undinet_entry_point, 0, sizeof ( undinet_entry_point ) );
+	memset ( &undinet_entry, 0, sizeof ( undinet_entry ) );
 
 	/* Free network device */
 	netdev_nullify ( netdev );

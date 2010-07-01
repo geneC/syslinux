@@ -40,6 +40,8 @@
 *
 ****************************************************************************/
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /* to get some global routines like printf */
 #include "etherboot.h"
 /* to get the interface to the body of the program */
@@ -56,13 +58,6 @@
 /* Condensed operations for readability. */
 #define virt_to_le32desc(addr)  cpu_to_le32(virt_to_bus(addr))
 #define le32desc_to_virt(addr)  bus_to_virt(le32_to_cpu(addr))
-
-/* May need to be moved to mii.h */
-struct mii_if_info {
-	int phy_id;
-	int advertising;
-	unsigned int full_duplex:1;	/* is full duplex? */
-};
 
 /* Set the mtu */
 static int mtu = 1514;
@@ -689,9 +684,25 @@ static int sundance_probe ( struct nic *nic, struct pci_device *pci ) {
 	}
 
 	/* Reset the chip to erase previous misconfiguration */
-	DBG ( "ASIC Control is %#lx\n", inl(BASE + ASICCtrl) );
+	DBG ( "ASIC Control is %#x\n", inl(BASE + ASICCtrl) );
 	outw(0x007f, BASE + ASICCtrl + 2);
-	DBG ( "ASIC Control is now %#lx.\n", inl(BASE + ASICCtrl) );
+
+	/*
+	* wait for reset to complete
+	* this is heavily inspired by the linux sundance driver
+	* according to the linux driver it can take up to 1ms for the reset
+	* to complete
+	*/
+	i = 0;
+	while(inl(BASE + ASICCtrl) & (ResetBusy << 16)) {
+		if(i++ >= 10) {
+			DBG("sundance: NIC reset did not complete.\n");
+			break;
+		}
+		udelay(100);
+	}
+
+	DBG ( "ASIC Control is now %#x.\n", inl(BASE + ASICCtrl) );
 
 	sundance_reset(nic);
 	if (sdc->an_enable) {
@@ -867,8 +878,9 @@ static void set_rx_mode(struct nic *nic __unused)
 }
 
 static struct pci_device_id sundance_nics[] = {
-	PCI_ROM(0x13f0, 0x0201, "sundance", "ST201 Sundance 'Alta' based Adaptor"),
-	PCI_ROM(0x1186, 0x1002, "dfe530txs", "D-Link DFE530TXS (Sundance ST201 Alta)"),
+	PCI_ROM(0x13f0, 0x0201, "sundance", "ST201 Sundance 'Alta' based Adaptor", 0),
+	PCI_ROM(0x1186, 0x1002, "dfe530txs", "D-Link DFE530TXS (Sundance ST201 Alta)", 0),
+	PCI_ROM(0x13f0, 0x0200, "ip100a", "IC+ IP100A", 0),
 };
 
 PCI_DRIVER ( sundance_driver, sundance_nics, PCI_NO_CLASS );

@@ -17,11 +17,11 @@
 topdir = ../..
 include ../MCONFIG
 
-all:	hello.c32 cat.c32 resolv.c32 serialinfo.c32 \
+all:	hello.c32 resolv.c32 serialinfo.c32 \
 	localboot.c32 \
 	fancyhello.c32 fancyhello.lnx \
 	keytest.c32 keytest.lnx \
-	advdump.c32
+	advdump.c32 entrydump.c32
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp

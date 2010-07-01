@@ -62,6 +62,9 @@ linux_fdctab	resb 12
 cmd_line_here	equ $			; F800 Should be out of the way
 		endstruc
 
+		global cmd_line
+cmd_line	equ core_real_mode + cmd_line_here
+
 ;
 ; Old kernel command line signature
 ;
@@ -85,6 +88,8 @@ HEADER_ID       equ 'HdrS'		; HdrS (in littleendian hex)
 ; Flags for the su_loadflags field
 ;
 LOAD_HIGH	equ 01h			; Large kernel, load high
+QUIET_FLAG	equ 20h			; Quiet the kernel
+KEEP_SEGMENTS	equ 40h			; Don't reload segments
 CAN_USE_HEAP    equ 80h                 ; Boot loader reports heap size
 
 ;
@@ -98,6 +103,7 @@ extlinux_id	equ 034h		; 3 = SYSLINUX family; 4 = EXTLINUX
 ;
 ; Types of vkernels
 ;
+VK_LOCALBOOT	equ -1			; localboot (no actual kernel loaded)
 VK_KERNEL	equ 0			; Choose by filename
 VK_LINUX	equ 1			; Linux kernel image
 VK_BOOT		equ 2			; Boot sector

@@ -34,60 +34,65 @@
 #include <errno.h>
 #include <string.h>
 #include <com32.h>
+#include <syslinux/pmapi.h>
 #include <minmax.h>
 #include "file.h"
 
 int __file_get_block(struct file_info *fp)
 {
-  com32sys_t ireg, oreg;
+    ssize_t bytes_read;
 
-  memset(&ireg, 0, sizeof ireg);
-  ireg.eax.w[0] = 0x0007;	/* Read file */
-  ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
-  ireg.es = SEG(__com32.cs_bounce);
-  ireg.esi.w[0] = fp->i.filedes;
-  ireg.ecx.w[0] = MAXBLOCK >> fp->i.blocklg2;
-
-  __intcall(0x22, &ireg, &oreg);
-
-  if ( oreg.eflags.l & EFLAGS_CF ) {
-    errno = EIO;
-    return -1;
-  }
-
-  fp->i.filedes = oreg.esi.w[0];
-  fp->i.nbytes = oreg.ecx.l;
-  fp->i.datap = fp->i.buf;
-  memcpy(fp->i.buf, __com32.cs_bounce, fp->i.nbytes);
-
-  return 0;
+    bytes_read = __com32.cs_pm->read_file(&fp->i.fd.handle, fp->i.buf,
+					  MAXBLOCK >> fp->i.fd.blocklg2);
+    if (!bytes_read) {
+	errno = EIO;
+	return -1;
+    }
+    
+    fp->i.nbytes = bytes_read;
+    fp->i.datap  = fp->i.buf;
+    return 0;
 }
 
-ssize_t __file_read(struct file_info *fp, void *buf, size_t count)
+ssize_t __file_read(struct file_info * fp, void *buf, size_t count)
 {
-  char *bufp = buf;
-  ssize_t n = 0;
-  size_t ncopy;
+    char *bufp = buf;
+    ssize_t n = 0;
+    size_t ncopy;
 
-  while ( count ) {
-    if ( fp->i.nbytes == 0 ) {
-      if ( fp->i.offset >= fp->i.length || !fp->i.filedes )
-	return n;		/* As good as it gets... */
+    while (count) {
+	if (fp->i.nbytes == 0) {
+	    if (fp->i.offset >= fp->i.fd.size || !fp->i.fd.handle)
+		return n;	/* As good as it gets... */
 
-      if ( __file_get_block(fp) )
-	return n ? n : -1;
+	    if (count > MAXBLOCK) {
+		/* Large transfer: copy directly, without buffering */
+		ncopy = __com32.cs_pm->read_file(&fp->i.fd.handle, bufp,
+						 count >> fp->i.fd.blocklg2);
+		if (!ncopy) {
+		    errno = EIO;
+		    return n ? n : -1;
+		}
+
+		goto got_data;
+	    } else {
+		if (__file_get_block(fp))
+		    return n ? n : -1;
+	    }
+	}
+
+	ncopy = min(count, fp->i.nbytes);
+	memcpy(bufp, fp->i.datap, ncopy);
+
+	fp->i.datap += ncopy;
+	fp->i.offset += ncopy;
+	fp->i.nbytes -= ncopy;
+
+    got_data:
+	n += ncopy;
+	bufp += ncopy;
+	count -= ncopy;
     }
 
-    ncopy = min(count, fp->i.nbytes);
-    memcpy(bufp, fp->i.datap, ncopy);
-
-    n += ncopy;
-    bufp += ncopy;
-    count -= ncopy;
-    fp->i.datap += ncopy;
-    fp->i.offset += ncopy;
-    fp->i.nbytes -= ncopy;
-  }
-
-  return n;
+    return n;
 }

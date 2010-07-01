@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -48,10 +49,12 @@ no_config_file:
 ; Check whether or not we are supposed to display the boot prompt.
 ;
 check_for_key:
-		cmp word [ForcePrompt],0	; Force prompt?
-		jnz enter_command
 		test byte [KbdFlags],5Bh	; Shift Alt Caps Scroll
-		jz auto_boot			; If neither, default boot
+		jnz enter_command
+		cmp word [ForcePrompt],0	; Force prompt?
+		jz auto_boot
+		cmp word [DefaultLevel],1	; Active UI statement?
+		ja auto_boot
 
 enter_command:
 		cmp word [NoEscape],0		; If NOESCAPE, no prompt,
@@ -158,8 +161,8 @@ display_labels:
 
 		push cx				; save command line size
 
-		mov di,VKernelBuf
-		call rllunpack
+		mov edi,VKernelBuf
+		pm_call rllunpack
 		; ESI updated on return
 
 		sub di,cx			; Return to beginning of buf
@@ -231,7 +234,7 @@ show_help:	; AX = func key # (0 = F1, 9 = F10, 11 = F12)
 		xchg di,ax
 		cmp byte [di+NULLOFFSET],NULLFILE
 		je short fk_nofile		; Undefined F-key
-		call open
+		call core_open
 		jz short fk_nofile		; File not found
 		call crlf
 		call get_msg_file
@@ -289,11 +292,26 @@ show_network_info:
 ; Jump here to run the default command line
 ;
 auto_boot:
+		cmp word [DefaultLevel],0	; No UI or DEFAULT?
+		jne .have_default
+		mov si,no_default_msg
+		call writestr
+		cmp word [NoEscape],0		; NOESCAPE but no DEFAULT?
+		jne kaboom			; If so, we're stuck!
+		jmp enter_command
+
+.have_default:
 		mov si,default_cmd
 		mov di,command_line
 		mov cx,(max_cmd_len+4) >> 2
 		rep movsd
 		jmp short load_kernel
+
+		section .data16
+no_default_msg	db 'No DEFAULT or UI configuration directive found!'
+		db CR, LF, 0
+
+		section .text16
 
 ;
 ; Jump here when the command line is completed
@@ -312,11 +330,11 @@ load_kernel:					; Load the kernel now
 		mov si,command_line
                 mov di,KernelName
                 push si
-		call mangle_name
+		pm_call pm_mangle_name
                 pop si
 ;
 ; Fast-forward to first option (we start over from the beginning, since
-; mangle_name doesn't necessarily return a consistent ending state.)
+; pm_mangle_name doesn't necessarily return a consistent ending state.)
 ;
 clin_non_wsp:   lodsb
                 cmp al,' '
@@ -347,8 +365,8 @@ vk_check:
 		cmp esi,[VKernelEnd]
 		jbe .not_vk
 
-		mov di,VKernelBuf
-		call rllunpack
+		mov edi,VKernelBuf
+		pm_call rllunpack
 		; ESI updated on return
 
 		sub di,cx			; Return to beginning of buf
@@ -379,6 +397,7 @@ vk_check:
 		mov si,VKernelBuf+vk_append
 		mov cx,[VKernelBuf+vk_appendlen]
 		rep movsb
+		mov byte [es:di],cl		; Null-terminate
 		mov [CmdLinePtr],di		; Where to add rest of cmd
 		pop es
 		mov di,KernelName
@@ -393,26 +412,18 @@ vk_check:
 %endif
 		xor bx,bx			; Try only one version
 
-		mov al, [VKernelBuf+vk_type]
-		mov [KernelType], al
+		mov al,[VKernelBuf+vk_type]
+		mov [KernelType],al
 
 %if HAS_LOCALBOOT
 		; Is this a "localboot" pseudo-kernel?
-%if IS_PXELINUX
-		cmp byte [VKernelBuf+vk_rname+4], 0
-%else
-		cmp byte [VKernelBuf+vk_rname], 0
+		cmp al,VK_LOCALBOOT		; al == KernelType
+		mov ax,[VKernelBuf+vk_rname]	; Possible localboot type
+		je local_boot
 %endif
-		jne get_kernel		; No, it's real, go get it
-
-		mov ax, [VKernelBuf+vk_rname+1]
-		jmp local_boot
-%else
 		jmp get_kernel
-%endif
 
 .not_vk:
-
 ;
 ; Not a "virtual kernel" - check that's OK and construct the command line
 ;
@@ -427,6 +438,7 @@ vk_check:
                 mov di,cmd_line_here
                 mov cx,[AppendLen]
                 rep movsb
+		mov byte [es:di],cl		; Null-terminate
                 mov [CmdLinePtr],di
                 pop di
                 pop si
@@ -438,7 +450,9 @@ vk_check:
 ; Find the kernel on disk
 ;
 get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/extension
-		mov di,KernelName+4*IS_PXELINUX
+		mov di,KernelName
+		cmp byte [di],' '
+		jbe bad_kernel			; Missing kernel name
 		xor al,al
 		mov cx,FILENAME_MAX-5		; Need 4 chars + null
 		repne scasb			; Scan for final null
@@ -448,7 +462,7 @@ get_kernel:     mov byte [KernelName+FILENAME_MAX],0	; Zero-terminate filename/e
 		mov bx,exten_table
 .search_loop:	push bx
                 mov di,KernelName		; Search on disk
-                call searchdir
+                pm_call pm_searchdir
 		pop bx
                 jnz kernel_good
 		mov eax,[bx]			; Try a different extension
@@ -469,13 +483,9 @@ bad_kernel:
 		and cx,cx
 		jnz on_error
 .really:
-		mov si,KernelName
-                mov di,KernelCName
-		push di
-                call unmangle_name              ; Get human form
 		mov si,err_notfound		; Complain about missing kernel
 		call writestr
-		pop si				; KernelCName
+		mov si,KernelName
                 call writestr
                 mov si,crlf_msg
                 jmp abort_load                  ; Ask user for clue
@@ -526,16 +536,16 @@ kernel_corrupt: mov si,err_notkernel
 ;
 getchar_timeout:
 		call vgashowcursor
-		RESET_IDLE
+		call reset_idle
 
 .loop:
-		push word [BIOS_timer]
+		push word [__jiffies]
 		call pollchar
 		jnz .got_char
+		call do_idle
 		pop ax
-		cmp ax,[BIOS_timer]		; Has the timer advanced?
+		cmp ax,[__jiffies]		; Has the timer advanced?
 		je .loop
-		DO_IDLE
 
 		dec dword [ThisKbdTo]
 		jz .timeout
@@ -575,12 +585,12 @@ getchar_timeout:
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
-		section .bss
+		section .bss16
 		alignb 4
 Kernel_EAX	resd 1
 Kernel_SI	resw 1
 
-		section .text
+		section .text16
 kernel_good_saved:
 		; Alternate entry point for which the return from
 		; searchdir is stored in memory.  This is used for
@@ -590,12 +600,15 @@ kernel_good_saved:
 
 kernel_good:
 		pushad
-
-		mov si,KernelName
-		mov di,KernelCName
-		call unmangle_name
-		sub di,KernelCName
-		mov [KernelCNameLen],di
+		;
+		; Common initialization for all kernel types
+		;
+		xor ax,ax
+		mov [InitRDPtr],ax
+		mov [QuietBoot],al
+%if IS_PXELINUX
+		mov [KeepPXE],al
+%endif
 
 		; Default memory limit, can be overridden by image loaders
 		mov eax,[HighMemRsvd]
@@ -605,7 +618,7 @@ kernel_good:
 
 		push di
 		push ax
-		mov di,KernelName+4*IS_PXELINUX
+		mov di,KernelName
 		xor al,al
 		mov cx,FILENAME_MAX
 		repne scasb
@@ -651,11 +664,10 @@ is_unknown_filetype:
 		jmp is_linux_kernel
 
 is_config_file:
-		pusha
-		mov si,KernelCName		; Save the config file name, for posterity
-		mov di,ConfigName
-		call strcpy
-		popa
+		push si
+		call make_plain_cmdline
+		pm_call pm_is_config_file
+		pop si
 		call openfd
 		call reset_config
 		jmp load_config_file
@@ -666,7 +678,7 @@ is_bad_image:
 		call writestr
 		jmp enter_command
 
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		; ok
 %else
 is_bss_sector	equ is_bad_image
@@ -677,7 +689,7 @@ is_bss_sector	equ is_bad_image
 is_disk_image	equ is_bad_image
 %endif
 
-		section .data
+		section .data16
 boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
 err_badimage	db 'Invalid image type for this media type!', CR, LF, 0
@@ -685,7 +697,7 @@ err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
 
 
-		align 2, db 0
+		alignz 2
 kerneltype_table:
 		dw is_unknown_filetype	; VK_KERNEL
 		dw is_linux_kernel	; VK_LINUX
@@ -697,7 +709,7 @@ kerneltype_table:
 		dw is_com32_image	; VK_COM32
 		dw is_config_file	; VK_CONFIG
 
-		section .bss
+		section .bss16
 		alignb 4
 ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
 ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
@@ -707,7 +719,7 @@ KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
 
-		section .text
+		section .text16
 ;
 ; Linux kernel loading code is common.
 ;

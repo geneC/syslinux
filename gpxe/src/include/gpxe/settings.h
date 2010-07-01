@@ -7,11 +7,12 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <gpxe/tables.h>
 #include <gpxe/list.h>
 #include <gpxe/refcnt.h>
-#include <gpxe/dhcpopts.h>
 
 struct settings;
 struct in_addr;
@@ -36,8 +37,11 @@ struct setting {
 	unsigned int tag;
 };
 
+/** Configuration setting table */
+#define SETTINGS __table ( struct setting, "settings" )
+
 /** Declare a configuration setting */
-#define	__setting __table ( struct setting, settings, 01 )
+#define __setting __table_entry ( SETTINGS, 01 )
 
 /** Settings block operations */
 struct settings_operations {
@@ -64,6 +68,11 @@ struct settings_operations {
 	 */
 	int ( * fetch ) ( struct settings *settings, struct setting *setting,
 			  void *data, size_t len );
+	/** Clear settings block
+	 *
+	 * @v settings		Settings block
+	 */
+	void ( * clear ) ( struct settings *settings );
 };
 
 /** A settings block */
@@ -72,6 +81,14 @@ struct settings {
 	struct refcnt *refcnt;
 	/** Name */
 	const char *name;
+	/** Tag magic
+	 *
+	 * This value will be ORed in to any numerical tags
+	 * constructed by parse_setting_name(), and can be used to
+	 * avoid e.g. attempting to retrieve the subnet mask from
+	 * SMBIOS, or the system UUID from DHCP.
+	 */
+	unsigned int tag_magic;
 	/** Parent settings block */
 	struct settings *parent;
 	/** Sibling settings blocks */
@@ -115,9 +132,11 @@ struct setting_type {
 			   char *buf, size_t len );
 };
 
+/** Configuration setting type table */
+#define SETTING_TYPES __table ( struct setting_type, "setting_types" )
+
 /** Declare a configuration setting type */
-#define	__setting_type \
-	__table ( struct setting_type, setting_types, 01 )
+#define __setting_type __table_entry ( SETTING_TYPES, 01 )
 
 /**
  * A settings applicator
@@ -131,28 +150,32 @@ struct settings_applicator {
 	int ( * apply ) ( void );
 };
 
+/** Settings applicator table */
+#define SETTINGS_APPLICATORS \
+	__table ( struct settings_applicator, "settings_applicators" )
+
 /** Declare a settings applicator */
-#define __settings_applicator \
-	__table ( struct settings_applicator, settings_applicators, 01 )
+#define __settings_applicator __table_entry ( SETTINGS_APPLICATORS, 01 )
 
 /**
- * A simple settings block
+ * A generic settings block
  *
  */
-struct simple_settings {
+struct generic_settings {
 	/** Settings block */
 	struct settings settings;
-	/** DHCP options */
-	struct dhcp_options dhcpopts;
+	/** List of generic settings */
+	struct list_head list;
 };
 
-extern struct settings_operations simple_settings_operations;
-extern int simple_settings_store ( struct settings *settings,
-				   struct setting *setting,
-				   const void *data, size_t len );
-extern int simple_settings_fetch ( struct settings *settings,
-				   struct setting *setting,
-				   void *data, size_t len );
+extern struct settings_operations generic_settings_operations;
+extern int generic_settings_store ( struct settings *settings,
+				    struct setting *setting,
+				    const void *data, size_t len );
+extern int generic_settings_fetch ( struct settings *settings,
+				    struct setting *setting,
+				    void *data, size_t len );
+extern void generic_settings_clear ( struct settings *settings );
 
 extern int register_settings ( struct settings *settings,
 			       struct settings *parent );
@@ -167,6 +190,9 @@ extern int fetch_setting_len ( struct settings *settings,
 extern int fetch_string_setting ( struct settings *settings,
 				  struct setting *setting,
 				  char *data, size_t len );
+extern int fetch_string_setting_copy ( struct settings *settings,
+				       struct setting *setting,
+				       char **data );
 extern int fetch_ipv4_setting ( struct settings *settings,
 				struct setting *setting, struct in_addr *inp );
 extern int fetch_int_setting ( struct settings *settings,
@@ -180,10 +206,9 @@ extern unsigned long fetch_uintz_setting ( struct settings *settings,
 					   struct setting *setting );
 extern int fetch_uuid_setting ( struct settings *settings,
 				struct setting *setting, union uuid *uuid );
+extern void clear_settings ( struct settings *settings );
 extern int setting_cmp ( struct setting *a, struct setting *b );
 
-extern struct settings * find_child_settings ( struct settings *parent,
-					       const char *name );
 extern struct settings * find_settings ( const char *name );
 
 extern int storef_setting ( struct settings *settings,
@@ -207,16 +232,18 @@ extern struct setting ip_setting __setting;
 extern struct setting netmask_setting __setting;
 extern struct setting gateway_setting __setting;
 extern struct setting dns_setting __setting;
+extern struct setting domain_setting __setting;
 extern struct setting hostname_setting __setting;
 extern struct setting filename_setting __setting;
 extern struct setting root_path_setting __setting;
 extern struct setting username_setting __setting;
 extern struct setting password_setting __setting;
 extern struct setting priority_setting __setting;
-extern struct setting bios_drive_setting __setting;
 extern struct setting uuid_setting __setting;
 extern struct setting next_server_setting __setting;
 extern struct setting mac_setting __setting;
+extern struct setting busid_setting __setting;
+extern struct setting user_class_setting __setting;
 
 /**
  * Initialise a settings block
@@ -225,30 +252,34 @@ extern struct setting mac_setting __setting;
  * @v op		Settings block operations
  * @v refcnt		Containing object reference counter, or NULL
  * @v name		Settings block name
+ * @v tag_magic		Tag magic
  */
 static inline void settings_init ( struct settings *settings,
 				   struct settings_operations *op,
 				   struct refcnt *refcnt,
-				   const char *name ) {
+				   const char *name,
+				   unsigned int tag_magic ) {
 	INIT_LIST_HEAD ( &settings->siblings );
 	INIT_LIST_HEAD ( &settings->children );
 	settings->op = op;
 	settings->refcnt = refcnt;
 	settings->name = name;
+	settings->tag_magic = tag_magic;
 }
 
 /**
  * Initialise a settings block
  *
- * @v simple		Simple settings block
+ * @v generics		Generic settings block
  * @v refcnt		Containing object reference counter, or NULL
  * @v name		Settings block name
  */
-static inline void simple_settings_init ( struct simple_settings *simple,
-					  struct refcnt *refcnt,
-					  const char *name ) {
-	settings_init ( &simple->settings, &simple_settings_operations,
-			refcnt, name );
+static inline void generic_settings_init ( struct generic_settings *generics,
+					   struct refcnt *refcnt,
+					   const char *name ) {
+	settings_init ( &generics->settings, &generic_settings_operations,
+			refcnt, name, 0 );
+	INIT_LIST_HEAD ( &generics->list );
 }
 
 /**
@@ -287,6 +318,18 @@ static inline int fetchf_setting ( struct settings *settings,
  */
 static inline int delete_named_setting ( const char *name ) {
 	return storef_named_setting ( name, NULL );
+}
+
+/**
+ * Check existence of setting
+ *
+ * @v settings		Settings block, or NULL to search all blocks
+ * @v setting		Setting to fetch
+ * @ret exists		Setting exists
+ */
+static inline int setting_exists ( struct settings *settings,
+				   struct setting *setting ) {
+	return ( fetch_setting_len ( settings, setting ) >= 0 );
 }
 
 #endif /* _GPXE_SETTINGS_H */

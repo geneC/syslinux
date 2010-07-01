@@ -7,27 +7,15 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
-#include <gpxe/netdevice.h>
 
-extern struct ll_protocol ethernet_protocol;
-
+extern void eth_init_addr ( const void *hw_addr, void *ll_addr );
 extern const char * eth_ntoa ( const void *ll_addr );
-
-/**
- * Allocate Ethernet device
- *
- * @v priv_size		Size of driver private data
- * @ret netdev		Network device, or NULL
- */
-static inline struct net_device * alloc_etherdev ( size_t priv_size ) {
-	struct net_device *netdev;
-
-	netdev = alloc_netdev ( priv_size );
-	if ( netdev ) {
-		netdev->ll_protocol = &ethernet_protocol;
-	}
-	return netdev;
-}
+extern int eth_mc_hash ( unsigned int af, const void *net_addr,
+			 void *ll_addr );
+extern int eth_eth_addr ( const void *ll_addr, void *eth_addr );
+extern struct net_device * alloc_etherdev ( size_t priv_size );
 
 #endif /* _GPXE_ETHERNET_H */

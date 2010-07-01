@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +44,7 @@
  * eventually be freed by a call to chap_finish().
  */
 int chap_init ( struct chap_response *chap,
-		struct crypto_algorithm *digest ) {
+		struct digest_algorithm *digest ) {
 	size_t state_len;
 	void *state;
 

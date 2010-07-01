@@ -1,3 +1,5 @@
+FILE_LICENCE ( GPL2_OR_LATER )
+
 #define PXENV_UNDI_ISR 0x0014
 #define PXENV_UNDI_ISR_IN_START 1
 #define PXENV_UNDI_ISR_OUT_OURS 0
@@ -10,11 +12,9 @@
 	
 	.text
 	.arch i386
-	.section ".text16", "ax", @progbits
-	.section ".data16", "aw", @progbits
 	.code16
 
-	.section ".text16"
+	.section ".text16", "ax", @progbits
 	.globl undiisr
 undiisr:
 	
@@ -31,7 +31,7 @@ undiisr:
 	movw	%ax, %ds
 
 	/* Check that we have an UNDI entry point */
-	cmpw	$0, undinet_entry_point
+	cmpw	$0, pxeparent_entry_point
 	je	chain
 	
 	/* Issue UNDI API call */
@@ -42,7 +42,7 @@ undiisr:
 	pushw	%es
 	pushw	%di
 	pushw	%bx
-	lcall	*undinet_entry_point
+	lcall	*pxeparent_entry_point
 	cli	/* Just in case */
 	addw	$6, %sp
 	cmpw	$PXENV_UNDI_ISR_OUT_OURS, funcflag
@@ -75,7 +75,7 @@ exit:	/* Restore registers and return */
 	popw	%ds
 	iret
 
-	.section ".data16"
+	.section ".data16", "aw", @progbits
 undinet_params:
 status:			.word	0
 funcflag:		.word	0

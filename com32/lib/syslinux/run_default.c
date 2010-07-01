@@ -31,11 +31,11 @@
 
 __noreturn syslinux_run_default(void)
 {
-  static com32sys_t ireg;
+    static com32sys_t ireg;
 
-  ireg.eax.w[0] = 0x0004;
-  __intcall(0x22, &ireg, NULL);
+    ireg.eax.w[0] = 0x0004;
+    __intcall(0x22, &ireg, NULL);
 
-  /* Should not return even on failure */
-  for(;;);
+    /* Should not return even on failure */
+    for (;;) ;
 }

@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <gpxe/socket.h>
 #include <gpxe/scsi.h>
@@ -247,7 +249,7 @@ struct iscsi_bhs_scsi_command {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** SCSI Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Expected data transfer length */
@@ -342,7 +344,7 @@ struct iscsi_bhs_data_in {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Target Transfer Tag */
@@ -390,7 +392,7 @@ struct iscsi_bhs_data_out {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Target Transfer Tag */
@@ -426,7 +428,7 @@ struct iscsi_bhs_r2t {
 	/** Segment lengths */
 	union iscsi_segment_lengths lengths;
 	/** Logical Unit Number */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Initiator Task Tag */
 	uint32_t itt;
 	/** Target Transfer Tag */
@@ -505,7 +507,7 @@ struct iscsi_session {
 	/** Target IQN */
 	char *target_iqn;
 	/** Logical Unit Number (LUN) */
-	uint64_t lun;
+	struct scsi_lun lun;
 	/** Target socket address (recorded only for iBFT) */
 	struct sockaddr target_sockaddr;
 
@@ -530,8 +532,6 @@ struct iscsi_session {
 	char *target_username;
 	/** Target password (if any) */
 	char *target_password;
-	/** Target has authenticated acceptably */
-	int target_auth_ok;
 	/** CHAP challenge (for target auth only)
 	 *
 	 * This is a block of random data; the first byte is used as
@@ -614,11 +614,6 @@ struct iscsi_session {
 	 * Set to NULL when command is complete.
 	 */
 	struct scsi_command *command;
-	/** SCSI command return code
-	 *
-	 * Set to -EINPROGRESS while command is processing.
-	 */
-	int rc;
 	/** Instant return code
 	 *
 	 * Set to a non-zero value if all requests should return
@@ -663,6 +658,15 @@ struct iscsi_session {
 
 /** Mask for all iSCSI "needs to send" flags */
 #define ISCSI_STATUS_STRINGS_MASK 0xff00
+
+/** Target has requested forward (initiator) authentication */
+#define ISCSI_STATUS_AUTH_FORWARD_REQUIRED 0x00010000
+
+/** Initiator requires target (reverse) authentication */
+#define ISCSI_STATUS_AUTH_REVERSE_REQUIRED 0x00020000
+
+/** Target authenticated itself correctly */
+#define ISCSI_STATUS_AUTH_REVERSE_OK 0x00040000
 
 /** Maximum number of retries at connecting */
 #define ISCSI_MAX_RETRIES 2

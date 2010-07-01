@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 /**
  * @file
  *
@@ -139,10 +141,11 @@ static void multiboot_build_memmap ( struct image *image,
 /**
  * Add command line in base memory
  *
+ * @v imgname		Image name
  * @v cmdline		Command line
  * @ret physaddr	Physical address of command line
  */
-physaddr_t multiboot_add_cmdline ( const char *cmdline ) {
+physaddr_t multiboot_add_cmdline ( const char *imgname, const char *cmdline ) {
 	char *mb_cmdline;
 
 	if ( ! cmdline )
@@ -153,7 +156,7 @@ physaddr_t multiboot_add_cmdline ( const char *cmdline ) {
 	mb_cmdline_offset +=
 		( snprintf ( mb_cmdline,
 			     ( sizeof ( mb_cmdlines ) - mb_cmdline_offset ),
-			     "%s", cmdline ) + 1 );
+			     "%s %s", imgname, cmdline ) + 1 );
 
 	/* Truncate to terminating NUL in buffer if necessary */
 	if ( mb_cmdline_offset > sizeof ( mb_cmdlines ) )
@@ -208,8 +211,8 @@ multiboot_build_module_list ( struct image *image,
 			  ( ( count - insert ) * sizeof ( *module ) ) );
 		module->mod_start = start;
 		module->mod_end = end;
-		module->string =
-			multiboot_add_cmdline ( module_image->cmdline );
+		module->string = multiboot_add_cmdline ( module_image->name,
+						       module_image->cmdline );
 		module->reserved = 0;
 		
 		/* We promise to page-align modules */
@@ -220,7 +223,7 @@ multiboot_build_module_list ( struct image *image,
 
 	/* Dump module configuration */
 	for ( i = 0 ; i < count ; i++ ) {
-		DBGC ( image, "MULTIBOOT %p module %d is [%lx,%lx)\n",
+		DBGC ( image, "MULTIBOOT %p module %d is [%x,%x)\n",
 		       image, i, modules[i].mod_start,
 		       modules[i].mod_end );
 	}
@@ -264,10 +267,8 @@ static int multiboot_exec ( struct image *image ) {
 	memset ( &mbinfo, 0, sizeof ( mbinfo ) );
 	mbinfo.flags = ( MBI_FLAG_LOADER | MBI_FLAG_MEM | MBI_FLAG_MMAP |
 			 MBI_FLAG_CMDLINE | MBI_FLAG_MODS );
-	multiboot_build_memmap ( image, &mbinfo, mbmemmap,
-				 ( sizeof(mbmemmap) / sizeof(mbmemmap[0]) ) );
 	mb_cmdline_offset = 0;
-	mbinfo.cmdline = multiboot_add_cmdline ( image->cmdline );
+	mbinfo.cmdline = multiboot_add_cmdline ( image->name, image->cmdline );
 	mbinfo.mods_count = multiboot_build_module_list ( image, mbmodules,
 				( sizeof(mbmodules) / sizeof(mbmodules[0]) ) );
 	mbinfo.mods_addr = virt_to_phys ( mbmodules );
@@ -279,14 +280,22 @@ static int multiboot_exec ( struct image *image ) {
 	 */
 	shutdown ( SHUTDOWN_BOOT );
 
+	/* Build memory map after unhiding bootloader memory regions as part of
+	 * shutting everything down.
+	 */
+	multiboot_build_memmap ( image, &mbinfo, mbmemmap,
+				 ( sizeof(mbmemmap) / sizeof(mbmemmap[0]) ) );
+
 	/* Jump to OS with flat physical addressing */
 	DBGC ( image, "MULTIBOOT %p starting execution at %lx\n",
 	       image, entry );
-	__asm__ __volatile__ ( PHYS_CODE ( "call *%%edi\n\t" )
+	__asm__ __volatile__ ( PHYS_CODE ( "pushl %%ebp\n\t"
+					   "call *%%edi\n\t"
+					   "popl %%ebp\n\t" )
 			       : : "a" ( MULTIBOOT_BOOTLOADER_MAGIC ),
 			           "b" ( virt_to_phys ( &mbinfo ) ),
 			           "D" ( entry )
-			       : "ecx", "edx", "esi", "ebp", "memory" );
+			       : "ecx", "edx", "esi", "memory" );
 
 	DBGC ( image, "MULTIBOOT %p returned\n", image );
 
@@ -358,6 +367,13 @@ static int multiboot_load_raw ( struct image *image,
 	userptr_t buffer;
 	int rc;
 
+	/* Sanity check */
+	if ( ! ( hdr->mb.flags & MB_FLAG_RAW ) ) {
+		DBGC ( image, "MULTIBOOT %p is not flagged as a raw image\n",
+		       image );
+		return -EINVAL;
+	}
+
 	/* Verify and prepare segment */
 	offset = ( hdr->offset - hdr->mb.header_addr + hdr->mb.load_addr );
 	filesz = ( hdr->mb.load_end_addr ?
@@ -416,7 +432,7 @@ static int multiboot_load ( struct image *image ) {
 		       image );
 		return rc;
 	}
-	DBGC ( image, "MULTIBOOT %p found header with flags %08lx\n",
+	DBGC ( image, "MULTIBOOT %p found header with flags %08x\n",
 	       image, hdr.mb.flags );
 
 	/* This is a multiboot image, valid or otherwise */
@@ -425,19 +441,19 @@ static int multiboot_load ( struct image *image ) {
 
 	/* Abort if we detect flags that we cannot support */
 	if ( hdr.mb.flags & MB_UNSUPPORTED_FLAGS ) {
-		DBGC ( image, "MULTIBOOT %p flags %08lx not supported\n",
+		DBGC ( image, "MULTIBOOT %p flags %08x not supported\n",
 		       image, ( hdr.mb.flags & MB_UNSUPPORTED_FLAGS ) );
 		return -ENOTSUP;
 	}
 
-	/* Load the actual image */
-	if ( hdr.mb.flags & MB_FLAG_RAW ) {
-		if ( ( rc = multiboot_load_raw ( image, &hdr ) ) != 0 )
-			return rc;
-	} else {
-		if ( ( rc = multiboot_load_elf ( image ) ) != 0 )
-			return rc;
-	}
+	/* There is technically a bit MB_FLAG_RAW to indicate whether
+	 * this is an ELF or a raw image.  In practice, grub will use
+	 * the ELF header if present, and Solaris relies on this
+	 * behaviour.
+	 */
+	if ( ( ( rc = multiboot_load_elf ( image ) ) != 0 ) &&
+	     ( ( rc = multiboot_load_raw ( image, &hdr ) ) != 0 ) )
+		return rc;
 
 	return 0;
 }

@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
@@ -64,8 +66,14 @@ static void aoe_free ( struct refcnt *refcnt ) {
 static void aoe_done ( struct aoe_session *aoe, int rc ) {
 
 	/* Record overall command status */
-	aoe->command->cb.cmd_stat = aoe->status;
-	aoe->command = NULL;
+	if ( aoe->command ) {
+		aoe->command->cb.cmd_stat = aoe->status;
+		aoe->command->rc = rc;
+		aoe->command = NULL;
+	}
+
+	/* Stop retransmission timer */
+	stop_timer ( &aoe->timer );
 
 	/* Mark operation as complete */
 	aoe->rc = rc;
@@ -84,9 +92,11 @@ static int aoe_send_command ( struct aoe_session *aoe ) {
 	struct ata_command *command = aoe->command;
 	struct io_buffer *iobuf;
 	struct aoehdr *aoehdr;
-	struct aoecmd *aoecmd;
+	union aoecmd *aoecmd;
+	struct aoeata *aoeata;
 	unsigned int count;
 	unsigned int data_out_len;
+	unsigned int aoecmdlen;
 
 	/* Fail immediately if we have no netdev to send on */
 	if ( ! aoe->netdev ) {
@@ -94,46 +104,81 @@ static int aoe_send_command ( struct aoe_session *aoe ) {
 		return -ENETUNREACH;
 	}
 
+	/* If we are transmitting anything that requires a response,
+         * start the retransmission timer.  Do this before attempting
+         * to allocate the I/O buffer, in case allocation itself
+         * fails.
+         */
+	start_timer ( &aoe->timer );
+
 	/* Calculate count and data_out_len for this subcommand */
-	count = command->cb.count.native;
-	if ( count > AOE_MAX_COUNT )
-		count = AOE_MAX_COUNT;
-	data_out_len = ( command->data_out ? ( count * ATA_SECTOR_SIZE ) : 0 );
+	switch ( aoe->aoe_cmd_type ) {
+	case AOE_CMD_ATA:
+		count = command->cb.count.native;
+		if ( count > AOE_MAX_COUNT )
+			count = AOE_MAX_COUNT;
+		data_out_len = ( command->data_out ?
+				 ( count * ATA_SECTOR_SIZE ) : 0 );
+		aoecmdlen = sizeof ( aoecmd->ata );
+		break;
+	case AOE_CMD_CONFIG:
+		count = 0;
+		data_out_len = 0;
+		aoecmdlen = sizeof ( aoecmd->cfg );
+		break;
+	default:
+		return -ENOTSUP;
+	}
 
 	/* Create outgoing I/O buffer */
-	iobuf = alloc_iob ( ETH_HLEN + sizeof ( *aoehdr ) + sizeof ( *aoecmd ) +
-			  data_out_len );
+	iobuf = alloc_iob ( ETH_HLEN + sizeof ( *aoehdr ) +
+			    aoecmdlen + data_out_len );
+
 	if ( ! iobuf )
 		return -ENOMEM;
 	iob_reserve ( iobuf, ETH_HLEN );
 	aoehdr = iob_put ( iobuf, sizeof ( *aoehdr ) );
-	aoecmd = iob_put ( iobuf, sizeof ( *aoecmd ) );
-	memset ( aoehdr, 0, ( sizeof ( *aoehdr ) + sizeof ( *aoecmd ) ) );
+	aoecmd = iob_put ( iobuf, aoecmdlen );
+	memset ( aoehdr, 0, ( sizeof ( *aoehdr ) + aoecmdlen ) );
 
 	/* Fill AoE header */
 	aoehdr->ver_flags = AOE_VERSION;
 	aoehdr->major = htons ( aoe->major );
 	aoehdr->minor = aoe->minor;
+	aoehdr->command = aoe->aoe_cmd_type;
 	aoehdr->tag = htonl ( ++aoe->tag );
 
-	/* Fill AoE command */
-	linker_assert ( AOE_FL_DEV_HEAD	== ATA_DEV_SLAVE, __fix_ata_h__ );
-	aoecmd->aflags = ( ( command->cb.lba48 ? AOE_FL_EXTENDED : 0 ) |
-			   ( command->cb.device & ATA_DEV_SLAVE ) |
-			   ( data_out_len ? AOE_FL_WRITE : 0 ) );
-	aoecmd->err_feat = command->cb.err_feat.bytes.cur;
-	aoecmd->count = count;
-	aoecmd->cmd_stat = command->cb.cmd_stat;
-	aoecmd->lba.u64 = cpu_to_le64 ( command->cb.lba.native );
-	if ( ! command->cb.lba48 )
-		aoecmd->lba.bytes[3] |= ( command->cb.device & ATA_DEV_MASK );
+	/* Fill AoE payload */
+	switch ( aoe->aoe_cmd_type ) {
+	case AOE_CMD_ATA:
+		/* Fill AoE command */
+		aoeata = &aoecmd->ata;
+		linker_assert ( AOE_FL_DEV_HEAD	== ATA_DEV_SLAVE,
+				__fix_ata_h__ );
+		aoeata->aflags = ( ( command->cb.lba48 ? AOE_FL_EXTENDED : 0 )|
+				   ( command->cb.device & ATA_DEV_SLAVE ) |
+				   ( data_out_len ? AOE_FL_WRITE : 0 ) );
+		aoeata->err_feat = command->cb.err_feat.bytes.cur;
+		aoeata->count = count;
+		aoeata->cmd_stat = command->cb.cmd_stat;
+		aoeata->lba.u64 = cpu_to_le64 ( command->cb.lba.native );
+		if ( ! command->cb.lba48 )
+			aoeata->lba.bytes[3] |=
+				( command->cb.device & ATA_DEV_MASK );
 
-	/* Fill data payload */
-	copy_from_user ( iob_put ( iobuf, data_out_len ), command->data_out,
-			 aoe->command_offset, data_out_len );
+		/* Fill data payload */
+		copy_from_user ( iob_put ( iobuf, data_out_len ),
+				 command->data_out, aoe->command_offset,
+				 data_out_len );
+		break;
+	case AOE_CMD_CONFIG:
+		/* Nothing to do */
+		break;
+	default:
+		assert ( 0 );
+	}
 
 	/* Send packet */
-	start_timer ( &aoe->timer );
 	return net_tx ( iobuf, aoe->netdev, &aoe_protocol, aoe->target );
 }
 
@@ -155,38 +200,46 @@ static void aoe_timer_expired ( struct retry_timer *timer, int fail ) {
 }
 
 /**
- * Handle AoE response
+ * Handle AoE configuration command response
  *
  * @v aoe		AoE session
- * @v aoehdr		AoE header
+ * @v ll_source		Link-layer source address
  * @ret rc		Return status code
  */
-static int aoe_rx_response ( struct aoe_session *aoe, struct aoehdr *aoehdr,
-			     unsigned int len ) {
-	struct aoecmd *aoecmd = aoehdr->arg.command;
+static int aoe_rx_cfg ( struct aoe_session *aoe, const void *ll_source ) {
+
+	/* Record target MAC address */
+	memcpy ( aoe->target, ll_source, sizeof ( aoe->target ) );
+	DBGC ( aoe, "AoE %p target MAC address %s\n",
+	       aoe, eth_ntoa ( aoe->target ) );
+
+	/* Mark config request as complete */
+	aoe_done ( aoe, 0 );
+
+	return 0;
+}
+
+/**
+ * Handle AoE ATA command response
+ *
+ * @v aoe		AoE session
+ * @v aoeata		AoE ATA command
+ * @v len		Length of AoE ATA command
+ * @ret rc		Return status code
+ */
+static int aoe_rx_ata ( struct aoe_session *aoe, struct aoeata *aoeata,
+			size_t len ) {
 	struct ata_command *command = aoe->command;
 	unsigned int rx_data_len;
 	unsigned int count;
 	unsigned int data_len;
-	
+
 	/* Sanity check */
-	if ( len < ( sizeof ( *aoehdr ) + sizeof ( *aoecmd ) ) ) {
+	if ( len < sizeof ( *aoeata ) ) {
 		/* Ignore packet; allow timer to trigger retransmit */
 		return -EINVAL;
 	}
-	rx_data_len = ( len - sizeof ( *aoehdr ) - sizeof ( *aoecmd ) );
-
-	/* Stop retry timer.  After this point, every code path must
-	 * either terminate the AoE operation via aoe_done(), or
-	 * transmit a new packet.
-	 */
-	stop_timer ( &aoe->timer );
-
-	/* Check for fatal errors */
-	if ( aoehdr->ver_flags & AOE_FL_ERROR ) {
-		aoe_done ( aoe, -EIO );
-		return 0;
-	}
+	rx_data_len = ( len - sizeof ( *aoeata ) );
 
 	/* Calculate count and data_len for this subcommand */
 	count = command->cb.count.native;
@@ -195,14 +248,14 @@ static int aoe_rx_response ( struct aoe_session *aoe, struct aoehdr *aoehdr,
 	data_len = count * ATA_SECTOR_SIZE;
 
 	/* Merge into overall ATA status */
-	aoe->status |= aoecmd->cmd_stat;
+	aoe->status |= aoeata->cmd_stat;
 
 	/* Copy data payload */
 	if ( command->data_in ) {
 		if ( rx_data_len > data_len )
 			rx_data_len = data_len;
 		copy_to_user ( command->data_in, aoe->command_offset,
-			       aoecmd->data, rx_data_len );
+			       aoeata->data, rx_data_len );
 	}
 
 	/* Update ATA command and offset */
@@ -217,6 +270,7 @@ static int aoe_rx_response ( struct aoe_session *aoe, struct aoehdr *aoehdr,
 	}
 
 	/* Transmit next portion of request */
+	stop_timer ( &aoe->timer );
 	aoe_send_command ( aoe );
 
 	return 0;
@@ -231,15 +285,15 @@ static int aoe_rx_response ( struct aoe_session *aoe, struct aoehdr *aoehdr,
  * @ret rc		Return status code
  *
  */
-static int aoe_rx ( struct io_buffer *iobuf, struct net_device *netdev __unused,
+static int aoe_rx ( struct io_buffer *iobuf,
+		    struct net_device *netdev __unused,
 		    const void *ll_source ) {
 	struct aoehdr *aoehdr = iobuf->data;
-	unsigned int len = iob_len ( iobuf );
 	struct aoe_session *aoe;
 	int rc = 0;
 
 	/* Sanity checks */
-	if ( len < sizeof ( *aoehdr ) ) {
+	if ( iob_len ( iobuf ) < sizeof ( *aoehdr ) ) {
 		rc = -EINVAL;
 		goto done;
 	}
@@ -251,6 +305,7 @@ static int aoe_rx ( struct io_buffer *iobuf, struct net_device *netdev __unused,
 		/* Ignore AoE requests that we happen to see */
 		goto done;
 	}
+	iob_pull ( iobuf, sizeof ( *aoehdr ) );
 
 	/* Demultiplex amongst active AoE sessions */
 	list_for_each_entry ( aoe, &aoe_sessions, list ) {
@@ -260,8 +315,22 @@ static int aoe_rx ( struct io_buffer *iobuf, struct net_device *netdev __unused,
 			continue;
 		if ( ntohl ( aoehdr->tag ) != aoe->tag )
 			continue;
-		memcpy ( aoe->target, ll_source, sizeof ( aoe->target ) );
-		rc = aoe_rx_response ( aoe, aoehdr, len );
+		if ( aoehdr->ver_flags & AOE_FL_ERROR ) {
+			aoe_done ( aoe, -EIO );
+			break;
+		}
+		switch ( aoehdr->command ) {
+		case AOE_CMD_ATA:
+			rc = aoe_rx_ata ( aoe, iobuf->data, iob_len ( iobuf ));
+			break;
+		case AOE_CMD_CONFIG:
+			rc = aoe_rx_cfg ( aoe, ll_source );
+			break;
+		default:
+			DBGC ( aoe, "AoE %p ignoring command %02x\n",
+			       aoe, aoehdr->command );
+			break;
+		}
 		break;
 	}
 
@@ -288,11 +357,30 @@ static int aoe_command ( struct ata_device *ata,
 			 struct ata_command *command ) {
 	struct aoe_session *aoe =
 		container_of ( ata->backend, struct aoe_session, refcnt );
-	int rc;
 
 	aoe->command = command;
 	aoe->status = 0;
 	aoe->command_offset = 0;
+	aoe->aoe_cmd_type = AOE_CMD_ATA;
+
+	aoe_send_command ( aoe );
+
+	return 0;
+}
+
+/**
+ * Issue AoE config query for AoE target discovery
+ *
+ * @v aoe		AoE session
+ * @ret rc		Return status code
+ */
+static int aoe_discover ( struct aoe_session *aoe ) {
+	int rc;
+
+	aoe->status = 0;
+	aoe->aoe_cmd_type = AOE_CMD_CONFIG;
+	aoe->command = NULL;
+
 	aoe_send_command ( aoe );
 
 	aoe->rc = -EINPROGRESS;
@@ -352,8 +440,7 @@ int aoe_attach ( struct ata_device *ata, struct net_device *netdev,
 		return -ENOMEM;
 	aoe->refcnt.free = aoe_free;
 	aoe->netdev = netdev_get ( netdev );
-	memcpy ( aoe->target, ethernet_protocol.ll_broadcast,
-		 sizeof ( aoe->target ) );
+	memcpy ( aoe->target, netdev->ll_broadcast, sizeof ( aoe->target ) );
 	aoe->tag = AOE_TAG_MAGIC;
 	aoe->timer.expired = aoe_timer_expired;
 
@@ -367,6 +454,15 @@ int aoe_attach ( struct ata_device *ata, struct net_device *netdev,
 	ata->backend = ref_get ( &aoe->refcnt );
 	ata->command = aoe_command;
 	list_add ( &aoe->list, &aoe_sessions );
+
+	/* Send discovery packet to find the target MAC address.
+	 * Ideally, this ought to be done asynchronously, but the
+	 * block device interface does not yet support asynchronous
+	 * operation.
+	 */
+	if ( ( rc = aoe_discover( aoe ) ) != 0 )
+	       goto err;
+
 	return 0;
 
  err:

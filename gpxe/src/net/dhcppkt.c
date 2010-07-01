@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,6 +31,12 @@
 /** @file
  *
  * DHCP packets
+ *
+ */
+
+/****************************************************************************
+ *
+ * DHCP packet raw interface
  *
  */
 
@@ -149,6 +157,8 @@ int dhcppkt_store ( struct dhcp_packet *dhcppkt, unsigned int tag,
 		memset ( field_data, 0, field->len );
 		memcpy ( dhcp_packet_field ( dhcppkt->dhcphdr, field ),
 			 data, len );
+		/* Erase any equivalent option from the options block */
+		dhcpopt_store ( &dhcppkt->options, tag, NULL, 0 );
 		return 0;
 	}
 
@@ -175,14 +185,16 @@ int dhcppkt_fetch ( struct dhcp_packet *dhcppkt, unsigned int tag,
 		    void *data, size_t len ) {
 	struct dhcp_packet_field *field;
 	void *field_data;
-	size_t field_len;
+	size_t field_len = 0;
 	
-	/* If this is a special field, return it */
+	/* Identify special field, if any */
 	if ( ( field = find_dhcp_packet_field ( tag ) ) != NULL ) {
 		field_data = dhcp_packet_field ( dhcppkt->dhcphdr, field );
 		field_len = field->used_len ( field_data, field->len );
-		if ( ! field_len )
-			return -ENOENT;
+	}
+
+	/* Return special field, if it exists and is populated */
+	if ( field_len ) {
 		if ( len > field_len )
 			len = field_len;
 		memcpy ( data, field_data, len );
@@ -193,21 +205,79 @@ int dhcppkt_fetch ( struct dhcp_packet *dhcppkt, unsigned int tag,
 	return dhcpopt_fetch ( &dhcppkt->options, tag, data, len );
 }
 
-/**
- * Initialise prepopulated DHCP packet
+/****************************************************************************
  *
- * @v dhcppkt		Uninitialised DHCP packet
- * @v data		Memory for DHCP packet data
- * @v max_len		Length of memory for DHCP packet data
+ * DHCP packet settings interface
  *
- * The memory content must already be filled with valid DHCP options.
- * A zeroed block counts as a block of valid DHCP options.
  */
-void dhcppkt_init ( struct dhcp_packet *dhcppkt, void *data, size_t len ) {
+
+/**
+ * Store value of DHCP setting
+ *
+ * @v settings		Settings block
+ * @v setting		Setting to store
+ * @v data		Setting data, or NULL to clear setting
+ * @v len		Length of setting data
+ * @ret rc		Return status code
+ */
+static int dhcppkt_settings_store ( struct settings *settings,
+				    struct setting *setting,
+				    const void *data, size_t len ) {
+	struct dhcp_packet *dhcppkt =
+		container_of ( settings, struct dhcp_packet, settings );
+
+	return dhcppkt_store ( dhcppkt, setting->tag, data, len );
+}
+
+/**
+ * Fetch value of DHCP setting
+ *
+ * @v settings		Settings block, or NULL to search all blocks
+ * @v setting		Setting to fetch
+ * @v data		Buffer to fill with setting data
+ * @v len		Length of buffer
+ * @ret len		Length of setting data, or negative error
+ */
+static int dhcppkt_settings_fetch ( struct settings *settings,
+				    struct setting *setting,
+				    void *data, size_t len ) {
+	struct dhcp_packet *dhcppkt =
+		container_of ( settings, struct dhcp_packet, settings );
+
+	return dhcppkt_fetch ( dhcppkt, setting->tag, data, len );
+}
+
+/** DHCP settings operations */
+static struct settings_operations dhcppkt_settings_operations = {
+	.store = dhcppkt_settings_store,
+	.fetch = dhcppkt_settings_fetch,
+};
+
+/****************************************************************************
+ *
+ * Constructor
+ *
+ */
+
+/**
+ * Initialise DHCP packet
+ *
+ * @v dhcppkt		DHCP packet structure to fill in
+ * @v data		DHCP packet raw data
+ * @v max_len		Length of raw data buffer
+ *
+ * Initialise a DHCP packet structure from a data buffer containing a
+ * DHCP packet.
+ */
+void dhcppkt_init ( struct dhcp_packet *dhcppkt, struct dhcphdr *data,
+		    size_t len ) {
 	dhcppkt->dhcphdr = data;
 	dhcppkt->max_len = len;
 	dhcpopt_init ( &dhcppkt->options, &dhcppkt->dhcphdr->options,
 		       ( len - offsetof ( struct dhcphdr, options ) ) );
 	dhcppkt->len = ( offsetof ( struct dhcphdr, options ) +
 			 dhcppkt->options.len );
+	settings_init ( &dhcppkt->settings,
+			&dhcppkt_settings_operations, &dhcppkt->refcnt,
+			DHCP_SETTINGS_NAME, 0 );
 }

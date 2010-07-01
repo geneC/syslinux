@@ -8,6 +8,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/tables.h>
 #include <gpxe/list.h>
 #include <gpxe/uaccess.h>
@@ -46,6 +48,21 @@ struct image {
 		userptr_t user;
 		unsigned long ul;
 	} priv;
+
+	/** Replacement image
+	 *
+	 * An image wishing to replace itself with another image (in a
+	 * style similar to a Unix exec() call) should return from its
+	 * exec() method with the replacement image set to point to
+	 * the new image.  The new image must already be in a suitable
+	 * state for execution (i.e. loaded).
+	 *
+	 * If an image unregisters itself as a result of being
+	 * executed, it must make sure that its replacement image (if
+	 * any) is registered, otherwise the replacement is likely to
+	 * be freed before it can be executed.
+	 */
+	struct image *replacement;
 };
 
 /** Image is loaded */
@@ -79,6 +96,10 @@ struct image_type {
 	 *
 	 * @v image		Loaded image
 	 * @ret rc		Return status code
+	 *
+	 * Note that the image may be invalidated by the act of
+	 * execution, i.e. an image is allowed to choose to unregister
+	 * (and so potentially free) itself.
 	 */
 	int ( * exec ) ( struct image *image );
 };
@@ -104,15 +125,26 @@ struct image_type {
  */
 #define PROBE_PXE 03
 
+/** Executable or loadable image type table */
+#define IMAGE_TYPES __table ( struct image_type, "image_types" )
+
 /** An executable or loadable image type */
-#define __image_type( probe_order ) \
-	 __table ( struct image_type, image_types, probe_order )
+#define __image_type( probe_order ) __table_entry ( IMAGE_TYPES, probe_order )
 
 extern struct list_head images;
 
 /** Iterate over all registered images */
 #define for_each_image( image ) \
 	list_for_each_entry ( (image), &images, list )
+
+/**
+ * Test for existence of images
+ *
+ * @ret existence	Some images exist
+ */
+static inline int have_images ( void ) {
+	return ( ! list_empty ( &images ) );
+}
 
 extern struct image * alloc_image ( void );
 extern int image_set_uri ( struct image *image, struct uri *uri );

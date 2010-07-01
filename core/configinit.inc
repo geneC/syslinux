@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -16,7 +17,7 @@
 ;; Initialize the configuration section
 ;;
 
-		section .text
+		section .text16
 
 reset_config:
 		call highmemsize
@@ -37,11 +38,6 @@ reset_config:
 %endif
 %endif
 
-		mov si,linuxauto_cmd		; Default command: "linux auto"
-		mov di,default_cmd
-                mov cx,linuxauto_len
-		rep movsb
-
 		mov di,KbdMap			; Default keymap 1:1
 		xor al,al
 		inc ch				; CX <- 256
@@ -53,7 +49,3 @@ mkkeymap:	stosb
 		mov [VKernelEnd],eax
 
 		ret
-
-		section .data
-linuxauto_cmd	db 'linux auto',0
-linuxauto_len   equ $-linuxauto_cmd

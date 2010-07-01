@@ -16,12 +16,12 @@
 ;; Some final tidying before jumping to a kernel or bootsector
 ;;
 
-		section .text
+		section .text16
 ;
 ; cleanup_hardware:
 ;
 ;	Shut down anything transient.  *No segment assumptions*.
-;	Can trash any registers.
+;	Preserves all registers.
 ;
 cleanup_hardware:
 		pushad
@@ -50,5 +50,11 @@ cleanup_hardware:
 .no_vmware:
 %endif
 
+		call comboot_cleanup_api
+
+		call timer_cleanup
+
 		popad
-		ret
+
+		; If we enabled serial port interrupts, clean them up now
+		jmp sirq_cleanup

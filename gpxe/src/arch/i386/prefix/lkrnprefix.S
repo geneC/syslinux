@@ -34,6 +34,8 @@
 
 */
 
+FILE_LICENCE ( GPL_ANY )
+
 #define	SETUPSECS 4		/* Minimal nr of setup-sectors */
 #define PREFIXSIZE ((SETUPSECS+1)*512)
 #define PREFIXPGH (PREFIXSIZE / 16 )
@@ -92,10 +94,10 @@ setup_sects:
 root_flags: 
 	.word	0
 syssize: 
-	.long	_load_size_pgh - PREFIXPGH
+	.long	-PREFIXPGH
 
-	.section ".zinfo.fixup", "a"	/* Compressor fixup information */
-	.ascii	"SUBL"
+	.section ".zinfo.fixup", "a", @progbits	/* Compressor fixups */
+	.ascii	"ADDL"
 	.long	syssize
 	.long	16
 	.long	0
@@ -189,6 +191,7 @@ run_gpxe:
 	movw	%ax, %ss
 	movw	$0x7c00, %sp
 
+	/* Install gPXE */
 	call	install
 
 	/* Set up real-mode stack */
@@ -204,7 +207,10 @@ run_gpxe:
 	pushl	$main
 	pushw	%cs
 	call	prot_call
-	popl	%eax /* discard */
+	popl	%ecx /* discard */
+
+	/* Uninstall gPXE */
+	call	uninstall
 
 	/* Boot next device */
 	int $0x18

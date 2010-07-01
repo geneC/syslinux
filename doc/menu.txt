@@ -28,27 +28,44 @@ configuration file for SYSLINUX, EXTLINUX and ISOLINUX, and the same
 directory as pxelinux.0 for PXELINUX), and put the following options
 in your configuration file:
 
-DEFAULT menu.c32
-PROMPT 0
+UI menu.c32
 
 
-There are a few menu additions to the command line, all starting with
-the keywords MENU or TEXT; like the rest of the Syslinux config file
-language, it is case insensitive:
+There are a few menu additions to the configuration file, all starting
+with the keywords MENU or TEXT; like the rest of the Syslinux config
+file language, it is case insensitive:
+
 
 MENU TITLE title
 
 	Give the menu a title.  The title is presented at the top of
 	the menu.
 
+
 MENU HIDDEN
 
 	Do not display the actual menu unless the user presses a key.
 	All that is displayed is a timeout message.
 
+
+MENU CLEAR
+
+	Clear the screen when exiting the menu, instead of leaving the
+	menu displayed.  For vesamenu, this means the graphical
+	background is still displayed without the menu itself for as
+	long as the screen remains in graphics mode.
+
+
+MENU SHIFTKEY
+
+	Exit the menu system immediately unless either the Shift or Alt
+	key is pressed, or Caps Lock or Scroll Lock is set.
+
+
 MENU SEPARATOR
 
 	Insert an empty line in the menu.
+
 
 MENU LABEL label
 
@@ -84,6 +101,7 @@ MENU INDENT count
 
 	(Only valid after a LABEL statement.)
 	Will add "count" spaces in front of the displayed menu entry.
+
 
 MENU DISABLE
 
@@ -142,8 +160,9 @@ MENU HIDE
 MENU DEFAULT
 
 	(Only valid after a LABEL statement.)
-	Indicates that this entry should be the default.  If no
-	default is specified, use the first one.
+
+	Indicates that this entry should be the default for this
+	particular submenu.  See also the DEFAULT directive below.
 
 
 TEXT HELP
@@ -162,14 +181,20 @@ MENU PASSWD passwd
 	(Only valid after a LABEL statement.)
 
 	Sets a password on this menu entry.  "passwd" can be either a
-	cleartext password, a SHA-1 encrypted password (starting with
-	$4$), or and MD5 encrypted password (starting with $1$).
+	cleartext password or a password encrypted with one of the
+	following algorithms:
+
+	MD5		(Signature: $1$)
+	SHA-1		(Signature: $4$)
+	SHA-2-256	(Signature: $5$)
+	SHA-2-512	(Signature: $6$)
 
 	Use the included Perl scripts "sha1pass" or "md5pass" to
 	encrypt passwords.  MD5 passwords are compatible with most
 	Unix password file utilities; SHA-1 passwords are probably
-	unique to Syslinux.  Obviously, if you don't encrypt your
-	passwords they will not be very secure at all.
+	unique to Syslinux; SHA-2 passwords are compatible with very
+	recent Linux distributions.  Obviously, if you don't encrypt
+	your passwords they will not be very secure at all.
 
 	If you are using passwords, you want to make sure you also use
 	the settings "NOESCAPE 1", "PROMPT 0", and either set
@@ -186,12 +211,24 @@ MENU MASTER PASSWD passwd
 	work.
 
 
+MENU RESOLUTION height width
+
+	Requests a specific screen resolution when in graphics mode.
+	The default is "640 480" corresponding to a resolution of
+	640x480 pixels, which all VGA-compatible monitors should be
+	able to display.
+
+	If the selected resolution is unavailable, the text mode menu
+	is displayed instead.
+
+
 MENU BACKGROUND background
 
 	For vesamenu.c32, sets the background image.  The background
 	can either be a color (see MENU COLOR) or the name of an image
-	file, which should be 640x480 pixels and either in PNG or JPEG
-	format.
+	file, which should be the size of the screen (normally 640x480
+	pixels, but see MENU RESOLUTION) and either in PNG, JPEG or
+	LSS16 format.
 
 
 MENU BEGIN [tagname]
@@ -239,7 +276,51 @@ MENU START
 	(Only valid inside MENU BEGIN ... MENU END)
 
 	Indicates that the menu system should start at the menu being
-	defined instead of at the top-level menu.
+	defined instead of at the top-level menu.  See also the
+	DEFAULT directive below.
+
+
+DEFAULT label
+
+	Set the global default.  If "label" points into a submenu,
+	that menu becomes the start menu; in other words, this
+	directive has the same effect as both MENU DEFAULT and MENU
+	START.
+
+	For backwards compatibility with earlier versions of Syslinux,
+	this directive is ignored unless the configuration file also
+	contains a UI directive.
+
+	Note: the CLI accepts options after the label, or even a
+	non-label.  The menu system does not support that.
+
+
+MENU SAVE
+MENU NOSAVE
+
+	Remember the last entry selected and make that the default for
+	the next boot.  A password-protected menu entry is *not*
+	saved.  This requires the ADV data storage mechanism, which is
+	currently only implemented for EXTLINUX, although the other
+	Syslinux derivatives will accept the command (and ignore it.)
+
+	NOTE: MENU SAVE stores the LABEL tag of the selected entry;
+	this mechanism therefore relies on LABEL tags being unique.
+	On the other hand, it handles changes in the configuration
+	file gracefully.
+
+	NOTE: In software RAID-1 setups MENU SAVE only stores the
+	default label on the actual boot disk.  This may lead to
+	inconsistent reads from the array, or unexpectedly change the
+	default label after array resynchronization or disk failure.
+
+	The MENU SAVE information can be fully cleared with
+	"extlinux --reset-adv <bootdir>".
+
+	A MENU SAVE or MENU NOSAVE at the top of a (sub)menu affects
+	all entries underneath that (sub)menu except those that in
+	turn have MENU SAVE or MENU NOSAVE declared.  This can be used
+	to only save certain entires when selected.
 
 
 INCLUDE filename [tagname]
@@ -416,21 +497,30 @@ MENU VSHIFT 0
 	screen (25 for text mode, 28 for VESA graphics mode.)
 
 
-F1 textfile background
+F1 textfile [background]
 ...
-F12 textfile background
+F12 textfile [background]
 
 	Displays full-screen help (also available at the command line.)
 	The same control code sequences as in the command line
 	interface are supported, although some are ignored.
 
-	Additionally, a second argument allows a different background
-	image (see MENU BACKGROUND for supported formats) to be displayed.
+	Additionally, a optional second argument allows a different
+	background image (see MENU BACKGROUND for supported formats)
+	to be displayed.
+
+
+MENU HELP textfile [background]
+
+	Creates a menu entry which, when selected, displays
+	full-screen help in the same way as the F-key help.
 
 
 The menu system honours the TIMEOUT command; if TIMEOUT is specified
 it will execute the ONTIMEOUT command if one exists, otherwise it will
-pick the default menu option.
+pick the default menu option.  WARNING: the timeout action will bypass
+password protection even if one is set for the specified or default
+entry!
 
 Normally, the user can press [Tab] to edit the menu entry, and [Esc]
 to return to the Syslinux command line.  However, if the configuration

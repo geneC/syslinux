@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stdint.h>
 #include <errno.h>
 #include <realmode.h>
@@ -158,7 +160,7 @@ static int meme820 ( struct memory_map *memmap ) {
 	uint32_t smap;
 	size_t size;
 	unsigned int flags;
-	unsigned int discard_d, discard_D;
+	unsigned int discard_D;
 
 	/* Clear the E820 buffer.  Do this once before starting,
 	 * rather than on each call; some BIOSes rely on the contents
@@ -167,18 +169,24 @@ static int meme820 ( struct memory_map *memmap ) {
 	memset ( &e820buf, 0, sizeof ( e820buf ) );
 
 	do {
-		__asm__ __volatile__ ( REAL_CODE ( "stc\n\t"
+		/* Some BIOSes corrupt %esi for fun. Guard against
+		 * this by telling gcc that all non-output registers
+		 * may be corrupted.
+		 */
+		__asm__ __volatile__ ( REAL_CODE ( "pushl %%ebp\n\t"
+						   "stc\n\t"
 						   "int $0x15\n\t"
 						   "pushfw\n\t"
-						   "popw %w0\n\t" )
-				       : "=r" ( flags ), "=a" ( smap ),
-					 "=b" ( next ), "=D" ( discard_D ),
-					 "=c" ( size ), "=d" ( discard_d )
+						   "popw %%dx\n\t"
+						   "popl %%ebp\n\t" )
+				       : "=a" ( smap ), "=b" ( next ),
+					 "=c" ( size ), "=d" ( flags ),
+					 "=D" ( discard_D )
 				       : "a" ( 0xe820 ), "b" ( next ),
 					 "D" ( __from_data16 ( &e820buf ) ),
 					 "c" ( sizeof ( e820buf ) ),
 					 "d" ( SMAP )
-				       : "memory" );
+				       : "esi", "memory" );
 
 		if ( smap != SMAP ) {
 			DBG ( "INT 15,e820 failed SMAP signature check\n" );
@@ -195,6 +203,13 @@ static int meme820 ( struct memory_map *memmap ) {
 			break;
 		}
 
+		/* If first region is not RAM, assume map is invalid */
+		if ( ( memmap->count == 0 ) &&
+		     ( e820buf.type != E820_TYPE_RAM ) ) {
+		       DBG ( "INT 15,e820 failed, first entry not RAM\n" );
+		       return -EINVAL;
+		}
+
 		DBG ( "INT 15,e820 region [%llx,%llx) type %d",
 		      e820buf.start, ( e820buf.start + e820buf.len ),
 		      ( int ) e820buf.type );
@@ -204,7 +219,7 @@ static int meme820 ( struct memory_map *memmap ) {
 			if ( e820buf.attrs & E820_ATTR_NONVOLATILE )
 				DBG ( ", non-volatile" );
 			if ( e820buf.attrs & E820_ATTR_UNKNOWN )
-				DBG ( ", other [%08lx]", e820buf.attrs );
+				DBG ( ", other [%08x]", e820buf.attrs );
 			DBG ( ")" );
 		}
 		DBG ( "\n" );

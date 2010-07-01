@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
@@ -37,12 +39,6 @@
 /** List of registered images */
 struct list_head images = LIST_HEAD_INIT ( images );
 
-/** List of image types */
-static struct image_type image_types[0]
-	__table_start ( struct image_type, image_types );
-static struct image_type image_types_end[0]
-	__table_end ( struct image_type, image_types );
-
 /**
  * Free executable/loadable image
  *
@@ -53,6 +49,7 @@ static void free_image ( struct refcnt *refcnt ) {
 
 	uri_put ( image->uri );
 	ufree ( image->data );
+	image_put ( image->replacement );
 	free ( image );
 	DBGC ( image, "IMAGE %p freed\n", image );
 }
@@ -142,9 +139,9 @@ int register_image ( struct image *image ) {
  * @v image		Executable/loadable image
  */
 void unregister_image ( struct image *image ) {
+	DBGC ( image, "IMAGE %p unregistered\n", image );
 	list_del ( &image->list );
 	image_put ( image );
-	DBGC ( image, "IMAGE %p unregistered\n", image );
 }
 
 /**
@@ -218,7 +215,7 @@ int image_autoload ( struct image *image ) {
 		return image_load ( image );
 
 	/* Otherwise probe for a suitable type */
-	for ( type = image_types ; type < image_types_end ; type++ ) {
+	for_each_table_entry ( type, IMAGE_TYPES ) {
 		DBGC ( image, "IMAGE %p trying type %s\n", image, type->name );
 		rc = image_load_type ( image, type );
 		if ( image->type == NULL )
@@ -237,6 +234,7 @@ int image_autoload ( struct image *image ) {
  * @ret rc		Return status code
  */
 int image_exec ( struct image *image ) {
+	struct image *replacement;
 	struct uri *old_cwuri;
 	int rc;
 
@@ -257,17 +255,38 @@ int image_exec ( struct image *image ) {
 	old_cwuri = uri_get ( cwuri );
 	churi ( image->uri );
 
+	/* Take out a temporary reference to the image.  This allows
+	 * the image to unregister itself if necessary, without
+	 * automatically freeing itself.
+	 */
+	image_get ( image );
+
 	/* Try executing the image */
 	if ( ( rc = image->type->exec ( image ) ) != 0 ) {
 		DBGC ( image, "IMAGE %p could not execute: %s\n",
 		       image, strerror ( rc ) );
-		goto done;
+		/* Do not return yet; we still have clean-up to do */
 	}
 
- done:
+	/* Pick up replacement image before we drop the original
+	 * image's temporary reference.
+	 */
+	replacement = image->replacement;
+
+	/* Drop temporary reference to the original image */
+	image_put ( image );
+
 	/* Reset current working directory */
 	churi ( old_cwuri );
 	uri_put ( old_cwuri );
+
+	/* Tail-recurse into replacement image, if one exists */
+	if ( replacement ) {
+		DBGC ( image, "IMAGE %p replacing self with IMAGE %p\n",
+		       image, replacement );
+		if ( ( rc = image_exec ( replacement ) ) != 0 )
+			return rc;
+	}
 
 	return rc;
 }

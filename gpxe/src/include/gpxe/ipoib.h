@@ -6,6 +6,8 @@
  * IP over Infiniband
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/infiniband.h>
 
 /** IPoIB MAC address length */
@@ -15,65 +17,45 @@
 struct ipoib_mac {
 	/** Queue pair number
 	 *
-	 * MSB must be zero; QPNs are only 24-bit.
+	 * MSB indicates support for IPoIB "connected mode".  Lower 24
+	 * bits are the QPN.
 	 */
-	uint32_t qpn;
+	uint32_t flags__qpn;
 	/** Port GID */
 	struct ib_gid gid;
 } __attribute__ (( packed ));
 
 /** IPoIB link-layer header length */
-#define IPOIB_HLEN 24
+#define IPOIB_HLEN 4
 
-/**
- * IPoIB link-layer header pseudo portion
- *
- * This part doesn't actually exist on the wire, but it provides a
- * convenient way to fit into the typical network device model.
- */
-struct ipoib_pseudo_hdr {
-	/** Peer address */
-	struct ipoib_mac peer;
-} __attribute__ (( packed ));
-
-/** IPoIB link-layer header real portion */
-struct ipoib_real_hdr {
+/** IPoIB link-layer header */
+struct ipoib_hdr {
 	/** Network-layer protocol */
 	uint16_t proto;
 	/** Reserved, must be zero */
-	uint16_t reserved;
+	union {
+		/** Reserved, must be zero */
+		uint16_t reserved;
+		/** Peer addresses
+		 *
+		 * We use these fields internally to represent the
+		 * peer addresses using a lookup key.  There simply
+		 * isn't enough room in the IPoIB header to store
+		 * literal source or destination MAC addresses.
+		 */
+		struct {
+			/** Destination address key */
+			uint8_t dest;
+			/** Source address key */
+			uint8_t src;
+		} __attribute__ (( packed )) peer;
+	} __attribute__ (( packed )) u;
 } __attribute__ (( packed ));
-
-/** An IPoIB link-layer header */
-struct ipoib_hdr {
-	/** Pseudo portion */
-	struct ipoib_pseudo_hdr pseudo;
-	/** Real portion */
-	struct ipoib_real_hdr real;
-} __attribute__ (( packed ));
-
-extern struct ll_protocol ipoib_protocol;
 
 extern const char * ipoib_ntoa ( const void *ll_addr );
-
-/**
- * Allocate IPoIB device
- *
- * @v priv_size		Size of driver private data
- * @ret netdev		Network device, or NULL
- */
-static inline struct net_device * alloc_ipoibdev ( size_t priv_size ) {
-	struct net_device *netdev;
-
-	netdev = alloc_netdev ( priv_size );
-	if ( netdev ) {
-		netdev->ll_protocol = &ipoib_protocol;
-	}
-	return netdev;
-}
-
 extern void ipoib_link_state_changed ( struct ib_device *ibdev );
 extern int ipoib_probe ( struct ib_device *ibdev );
 extern void ipoib_remove ( struct ib_device *ibdev );
+extern struct net_device * alloc_ipoibdev ( size_t priv_size );
 
 #endif /* _GPXE_IPOIB_H */

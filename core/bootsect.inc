@@ -1,6 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
-;;   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
+;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -24,45 +25,43 @@
 ; Load a boot sector
 ;
 is_bootsector:
-%if IS_SYSLINUX || IS_MDSLINUX
+%if IS_SYSLINUX
 		; Transfer zero bytes
-		mov byte [CopySuper],0
+		push word 0
 		jmp short load_bootsec
 
 is_bss_sector:
 		; Transfer the superblock
-		mov byte [CopySuper],superblock_len
+SuperSize	equ $+1
+		push word superblock_len_fat16
 %endif
 load_bootsec:
-		mov edi, 100000h
+		mov edi,free_high_memory
 		mov [trackbuf+4],edi	; Copy from this address
-		push edi		; Save load address
 		xor dx,dx		; No padding
 		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
 
-		sub edi,100000h
+		sub edi,free_high_memory
 		mov [trackbuf+8],edi	; Save length
 
 		mov eax,7C00h		; Entry point
 		mov [trackbuf],eax	; Copy to this address
-		mov [EntryPoint],eax	; Jump to this address when done
 
-%if IS_SYSLINUX || IS_MDSLINUX
-		movzx ecx,byte [CopySuper]
-		jcxz .not_bss
+%if IS_SYSLINUX
+		xor ecx,ecx
+		pop cx
 
 		; For a BSS boot sector we have to patch.
 		mov esi,superblock
-		mov edi,100000h+(superblock-bootsec)
+		mov edi,free_high_memory+(superblock-bootsec)
 		call bcopy
-
-.not_bss:
 %endif
+		push eax		; Save entry point
 
 		xor edx,edx
 		xor esi,esi
-%if IS_SYSLINUX || IS_MDSLINUX || IS_EXTLINUX
+%if IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
@@ -75,55 +74,78 @@ load_bootsec:
 		xor ax,ax
 		rep movsw
 		pop si			; DS:SI points to partition info
+		xor bx,bx
 %elif IS_ISOLINUX
 		mov dl,[DriveNumber]
-%elif IS_PXELINUX
-		mov byte [KeepPXE],1	; Chainloading another NBP
-		call reset_pxe
-%endif
 		xor bx,bx
+%elif IS_PXELINUX
+		mov byte [KeepPXE],03h	; Chainloading + keep PXE
+		pm_call reset_pxe
+		lfs si,[InitStack]
+		; Put restore DS, EDX and ESI to the true initial values
+		mov bx,[fs:si+6]
+		mov edx,[fs:si+28]
+		mov esi,[fs:si+12]
+%endif
 
 ;
 ; replace_bootstrap for the special case where we have exactly one
-; descriptor, and it's the first entry in the trackbuf
+; descriptor, based in low memory.  We will generate a second descriptor
+; to clear remaining FBM.
 ;
 
 replace_bootstrap_one:
-		push word 1			; Length of descriptor list
-		push word trackbuf		; Address of descriptor list
+		mov eax,[trackbuf]		; Base address
+		add eax,[trackbuf+8]		; Length
+		movzx ecx,word [BIOS_fbm]
+		shl ecx,10			; Free Base Memory
+		sub ecx,eax
+		mov [trackbuf+12],eax
+		or dword [trackbuf+16],-1	; Zero memory
+		mov [trackbuf+20],ecx
+		push word 2			; Length of descriptor list
 		; Fall through
 
 ;
 ; Entrypoint for "shut down and replace bootstrap" -- also invoked by
-; the COMBOOT API.  This routine expects two words on the stack:
-; address of the copy list (versus DS) and count.  Additionally,
-; the values of ESI and EDX are passed on to the new bootstrap;
-; the value of BX becomes the new DS.
+; the COMBOOT API.  This routine expects the entry point (CS, IP) and the
+; count of the descriptor sequence on the stack; the shuffle
+; descriptors start at the first byte of the trackbuf.
+;
+; The registers EDX and ESI are passed on to the called program,
+; and BX is passed on as DS.
 ;
 replace_bootstrap:
 		;
 		; Prepare for shutting down
 		;
 		call vgaclearmode
+
+;
+; We jump here when loading a kernel image, so that we don't reset
+; the screen mode in "quiet" mode
+;
+replace_bootstrap_noclearmode:
 		call cleanup_hardware
 
 		;
 		; Set up initial stack frame (not used by PXE if keeppxe is
 		; set - we use the PXE stack then.)
-		; AFTER THIS POINT ONLY .earlybss IS AVAILABLE, NOT .bss
 		;
 		xor ax,ax
 		mov ds,ax
 		mov es,ax
 
 %if IS_PXELINUX
-		test byte [KeepPXE],01h
-		jz .stdstack
+		cmp byte [KeepPXE],0
+		je .stdstack
 		les di,[InitStack]	; Reset stack to PXE original
 		jmp .stackok
 %endif
 .stdstack:
-		mov di,7C00h-44
+		; StackBuf is guaranteed to have 44 bytes free immediately
+		; above it, and it will not interfere with our existing stack.
+		mov di,StackBuf
 		push di
 		mov cx,22		; 44 bytes
 		rep stosw
@@ -147,12 +169,69 @@ replace_bootstrap:
 		mov [es:di+8],ax	; New DI
 		mov [es:di+4],bx	; New ES
 %endif
-		pop bx			; Copy from...
-		pop ax			; Copy list count
+		pop ax			; List length
+
+		push di
+		push es
+
+		push ds
+		pop es
+
+		mov ebx,trackbuf
+		imul di,ax,12
+		add di,bx		; DI <- end of list
+		push di
+
+		; Terminating entry...
+		lea eax,[replace_stub]	; Entrypoint
+		push ax
+		stosd
+		xor ax,ax		; EAX[31:16] == 0 already
+		stosd			; 16-bit mode
+		stosd			; End of list
+
+		; Copy the stub
+		pop di
+		mov si,__replacestub_lma
+		mov cx,__replacestub_dwords
+		rep movsd
+
+		xor ecx,ecx
+		pop cx			; ECX <- length of list
+
+		pop word [replace_stub.ss]
+		pop word [replace_stub.esp]
+		pop dword [replace_stub.csip]
 
 		cli
-		mov cx,es
-		mov ss,cx
-		movzx esp,di
+		mov ss,[replace_stub.ss]
+		mov esp,[replace_stub.esp]
 
-		jmp shuffle_and_boot
+		mov edi,trackbuf
+		mov esi,edi
+
+		jmp shuffle_and_boot_raw
+
+		; This stub gets run after the shuffle.  It is copied
+		; below 0x7c00 in order to properly handle the case
+		; of bootstrap replacement.
+		section .replacestub
+replace_stub:
+		mov cr0,eax
+		jmp 0:.next
+.next:
+		mov ax,strict word 0
+.ss		equ $-2
+		mov ss,ax
+		mov esp,strict dword 0
+.esp		equ $-4
+		pop gs
+		pop fs
+		pop es
+		pop ds
+		popad
+		popfd
+		jmp 0:0
+.csip		equ $-4
+
+		section .text16

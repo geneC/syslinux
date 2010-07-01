@@ -7,6 +7,8 @@
  *
  */
 
+FILE_LICENCE ( GPL2_OR_LATER );
+
 #include <gpxe/tables.h>
 
 struct net_device;
@@ -26,9 +28,12 @@ struct arp_net_protocol {
 			  const void *net_addr );
 };
 
+/** ARP protocol table */
+#define ARP_NET_PROTOCOLS \
+	__table ( struct arp_net_protocol, "arp_net_protocols" )
+
 /** Declare an ARP protocol */
-#define __arp_net_protocol \
-	__table ( struct arp_net_protocol, arp_net_protocols, 01 )
+#define __arp_net_protocol __table_entry ( ARP_NET_PROTOCOLS, 01 )
 
 extern struct net_protocol arp_protocol;
 

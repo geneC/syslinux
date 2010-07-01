@@ -42,17 +42,18 @@ extern int __ansicon_close(struct file_info *);
 extern ssize_t __ansicon_write(struct file_info *, const void *, size_t);
 extern ssize_t __xserial_write(struct file_info *, const void *, size_t);
 
-static ssize_t __ansiserial_write(struct file_info *fp, const void *buf, size_t count)
+static ssize_t __ansiserial_write(struct file_info *fp, const void *buf,
+				  size_t count)
 {
-  __ansicon_write(fp, buf, count);
-  return __xserial_write(fp, buf, count);
+    __ansicon_write(fp, buf, count);
+    return __xserial_write(fp, buf, count);
 }
 
 const struct output_dev dev_ansiserial_w = {
-  .dev_magic  = __DEV_MAGIC,
-  .flags      = __DEV_TTY | __DEV_OUTPUT,
-  .fileflags  = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
-  .write      = __ansiserial_write,
-  .close      = __ansicon_close,
-  .open       = __ansicon_open,
+    .dev_magic = __DEV_MAGIC,
+    .flags = __DEV_TTY | __DEV_OUTPUT,
+    .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
+    .write = __ansiserial_write,
+    .close = __ansicon_close,
+    .open = __ansicon_open,
 };
