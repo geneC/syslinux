@@ -76,10 +76,11 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
 		break;
-	    if (retry--)
-		continue;
 
 	    dprintf("CHS: error AX = %04x\n", oreg.eax.w[0]);
+
+	    if (retry--)
+		continue;
 
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
@@ -179,10 +180,11 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
 		break;
-	    if (retry--)
-		continue;
 
 	    dprintf("EDD: error AX = %04x\n", oreg.eax.w[0]);
+
+	    if (retry--)
+		continue;
 
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
