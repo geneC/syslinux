@@ -14,6 +14,7 @@ Changes in 4.01:
 	  already has booted a CDROM or USB drive (Gert Hulselmans).
 	* Correct a severe memory overwrite bug (mainly related to the
 	  menu system.)
+	* lua.c32: Lua script interpreter, currently experimental.
 
 Changes in 4.00:
 	* Major code base changes; all filesystem rewritten in C.
