@@ -246,7 +246,8 @@ int main(int argc, char *argv[])
     syslinux_reset_adv(syslinux_adv);
 
     /* This command may fail legitimately */
-    system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
+    status = system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
+    (void)status;		/* Keep _FORTIFY_SOURCE happy */
 
     mtp = popen("mcopy -D o -D O -o - s:/ldlinux.sys", "w");
     if (!mtp ||
@@ -323,7 +324,8 @@ int main(int argc, char *argv[])
 
 	/* This command may fail legitimately */
 	sprintf(command, "mattrib -h -r -s %s 2>/dev/null", target_file);
-	system(command);
+	status = system(command);
+	(void)status;		/* Keep _FORTIFY_SOURCE happy */
 
 	sprintf(command, "mmove -D o -D O s:/ldlinux.sys %s", target_file);
 	status = system(command);

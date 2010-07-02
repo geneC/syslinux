@@ -514,7 +514,9 @@ main(int argc, char *argv[])
         if (fseek(fp, 440, SEEK_SET))
             err(1, "%s: seek error - 4", argv[0]);
 
-	fread(&id, 4, 1, fp);
+	if (fread(&id, 1, 4, fp) != 4)
+	    err(1, "%s: read error", argv[0]);
+
         id = lendian_int(id);
         if (!id)
         {
