@@ -12,8 +12,8 @@ Changes in 4.01:
 	  Helmut Hullen for invaluable debugging support.
 	* ifplop.c32: new module which detects if the PLoP Boot Loader
 	  already has booted a CDROM or USB drive (Gert Hulselmans).
-	* Correct a severe memory overwrite bug (mainly related to the
-	  menu system.)
+	* Correct a severe memory overwrite bug, triggered primarily
+	  when selecting a very long command line in the menu system.
 	* lua.c32: Lua script interpreter, currently experimental.
 	* PXELINUX: new option IPAPPEND 4 to append the system UUID to
 	  the kernel command line.
