@@ -13,6 +13,7 @@
  */
 int generic_load_config(void)
 {
+    char confignamebuf[FILENAME_MAX];
     static const char *search_directories[] = {
 	NULL,			/* CurrentDirName */
 	"/boot/syslinux", 
@@ -36,9 +37,11 @@ int generic_load_config(void)
 	const char *sd = search_directories[i];
 	for (j = 0; filenames[j]; j++) {
 	    memset(&regs, 0, sizeof regs);
-	    snprintf(ConfigName, FILENAME_MAX, "%s%s%s",
+	    snprintf(confignamebuf, sizeof confignamebuf,
+		     "%s%s%s",
 		     sd, (*sd && sd[strlen(sd)-1] == '/') ? "" : "/",
 		     filenames[j]);
+	    realpath(ConfigName, confignamebuf, FILENAME_MAX);
 	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
 	    dprintf("Config search: %s\n", ConfigName);
 	    call16(core_open, &regs, &regs);
