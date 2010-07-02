@@ -44,6 +44,7 @@
 #include <sys/stat.h>
 #include <elf.h>
 #include <console.h>
+#include <dprintf.h>
 
 #include <syslinux/loadfile.h>
 #include <syslinux/movebits.h>
@@ -51,13 +52,6 @@
 
 /* If we don't have this much memory for the stack, signal failure */
 #define MIN_STACK	512
-
-#define DEBUG 0
-#if DEBUG
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
 
 static inline void error(const char *msg)
 {
