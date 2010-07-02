@@ -12,6 +12,8 @@ Changes in 4.01:
 	  Helmut Hullen for invaluable debugging support.
 	* ifplop.c32: new module which detects if the PLoP Boot Loader
 	  already has booted a CDROM or USB drive (Gert Hulselmans).
+	* Correct a severe memory overwrite bug (mainly related to the
+	  menu system.)
 
 Changes in 4.00:
 	* Major code base changes; all filesystem rewritten in C.
