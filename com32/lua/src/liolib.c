@@ -312,7 +312,7 @@ static int read_line (lua_State *L, FILE *f) {
   }
 }
 
-
+#if 0				/* Not used */
 static int read_chars (lua_State *L, FILE *f, size_t n) {
   size_t rlen;  /* how much to read */
   size_t nr;  /* number of chars actually read */
@@ -329,7 +329,7 @@ static int read_chars (lua_State *L, FILE *f, size_t n) {
   luaL_pushresult(&b);  /* close buffer */
   return (n == 0 || lua_objlen(L, -1) > 0);
 }
-
+#endif
 
 #if 0
 static int g_read (lua_State *L, FILE *f, int first) {
