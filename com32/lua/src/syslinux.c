@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <syslinux/boot.h>
 
 #define lnetlib_c       /* Define the library */
 
