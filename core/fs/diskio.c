@@ -127,7 +127,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     char *tptr;
     size_t chunk, freeseg;
     int sector_shift = disk->sector_shift;
-    com32sys_t ireg, oreg;
+    com32sys_t ireg, oreg, reset;
     size_t done = 0;
     size_t bytes;
     int retry;
@@ -138,6 +138,10 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     ireg.edx.b[0] = disk->disk_number;
     ireg.ds       = SEG(&pkt);
     ireg.esi.w[0] = OFFS(&pkt);
+
+    memset(&reset, 0, sizeof reset);
+
+    ireg.edx.b[0] = disk->disk_number;
 
     lba += disk->part_start;
     while (count) {
@@ -185,6 +189,14 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 
 	    if (retry--)
 		continue;
+
+	    /*
+	     * Some systems seem to get "stuck" in an error state when
+	     * using EBIOS.  Doesn't happen when using CBIOS, which is
+	     * good, since some other systems get timeout failures
+	     * waiting for the floppy disk to spin up.
+	     */
+	    __intcall(0x13, &reset, NULL);
 
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
