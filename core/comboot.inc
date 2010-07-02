@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -753,11 +753,11 @@ comapi_runkernel:
 		; It's not just possible, but quite likely, that ES:BX
 		; points into real_mode_seg or xfer_buf_seg, so we
 		; need to exercise some special care here... use
-		; vk_append for temporary storage.
+		; VKernelBuf for temporary storage.
 		push ds
 		mov ds,P_ES
 		mov si,P_BX
-		mov di,vk_append
+		mov di,VKernelBuf
 		call strcpy
 		pop ds
 
@@ -786,7 +786,7 @@ comapi_runkernel:
 		push es
 		mov dx,real_mode_seg
 		mov es,dx
-		mov si,vk_append
+		mov si,VKernelBuf
 		mov di,cmd_line_here
 		call strcpy
 		mov word [es:di-1],' '	; Simulate APPEND: space plus null
