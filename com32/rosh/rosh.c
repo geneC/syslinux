@@ -38,7 +38,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b063"
+#define APP_VER		"beta-b064"
 
 void rosh_version(void)
 {
@@ -784,6 +784,7 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
     char scrbuf[ROSH_SBUF_SZ];
     int inc;
     int i, numln;		/* Index, Number of lines */
+    int elpl;		/* Extra lines per line read */
 
     (void)cols;
 
@@ -799,10 +800,15 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 		bufeol = buf + buflen;
 		i = numln;
 	    } else {
-		i += ((bufeol2 - bufeol) / cols);
-		bufeol = bufeol2 + 1;
+		elpl = ((bufeol2 - bufeol - 1) / cols);
+		i += elpl;
+		ROSH_DEBUG2("  %d/%d  ", elpl, i+1);
+		/* If this will not push too much, use it */
+		if (i < numln)
+			bufeol = bufeol2 + 1;
 	    }
 	}
+	ROSH_DEBUG2("\n");
 	bufcnt = bufeol - bufp;
 	printf("--(%d/%d @%d)\n", bufcnt, buflen, bufpos);
 	memcpy(scrbuf, bufp, bufcnt);
