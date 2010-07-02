@@ -179,6 +179,14 @@ IPAPPEND flag_val			[PXELINUX only]
 	This allows an initrd program to determine from which
 	interface the system booted.
 
+	4: indicates that an option of the following format
+	should be generated and added to the kernel command line:
+
+		SYSUUID=<system uuid>
+
+	... in lower case hexadecimal in the format normally used for
+	UUIDs (same as for the configuration file; see pxelinux.txt.)
+
 LABEL label
     KERNEL image
     APPEND options...

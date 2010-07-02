@@ -8,7 +8,7 @@ char LocalDomain[256];
 
 int over_load;
 uint8_t uuid_type;
-char uuid[17];
+uint8_t uuid[16];
 
 static void parse_dhcp_options(const void *, int, uint8_t);
 
@@ -113,7 +113,6 @@ static void uuid_client_identifier(const void *data, int opt_len)
     have_uuid = true;
     uuid_type = type;
     memcpy(uuid, data+1, 16);
-    uuid[16] = 0;
 }
 
 static void pxelinux_configfile(const void *data, int opt_len)

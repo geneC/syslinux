@@ -16,7 +16,9 @@ uint8_t MAC_len;                   /* MAC address len */
 uint8_t MAC_type;                  /* MAC address type */
 
 char __bss16 BOOTIFStr[7+3*(MAC_MAX+1)];
-#define MAC_str (BOOTIFStr+7)
+#define MAC_str (BOOTIFStr+7)	/* The actual hardware address */
+char __bss16 SYSUUIDStr[8+32+5];
+#define UUID_str (SYSUUIDStr+8)	/* The actual UUID */
 
 char boot_file[256];		   /* From DHCP */
 char path_prefix[256];		   /* From DHCP */
@@ -1062,7 +1064,6 @@ static int pxe_load_config(void)
     const char *default_str = "default";
     char *config_file;
     char *last;
-    char *p;
     int tries = 8;
 
     get_prefix();
@@ -1079,22 +1080,7 @@ static int pxe_load_config(void)
 
     /* Try loading by UUID */
     if (have_uuid) {
-	static const uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
-	char *src = uuid;
-	const uint8_t *uuid_ptr = uuid_dashes;
-
-	p = config_file;
-        while (*uuid_ptr) {
-	    int len = *uuid_ptr;
-
-            lchexbytes(p, src, len);
-            p += len * 2;
-            src += len;
-            uuid_ptr++;
-            *p++ = '-';
-        }
-        /* Remove last dash and zero-terminate */
-	*--p = '\0';
+	strcpy(config_file, UUID_str);
 	if (try_load(ConfigName))
             return 0;
     }
@@ -1125,7 +1111,7 @@ static int pxe_load_config(void)
 }
 
 /*
- * Generate the botif string, and the hardware-based config string
+ * Generate the bootif string.
  */
 static void make_bootif_string(void)
 {
@@ -1137,6 +1123,35 @@ static void make_bootif_string(void)
     src = MAC;
     for (i = MAC_len; i; i--)
 	dst += sprintf(dst, "-%02x", *src++);
+}
+/*
+ * Generate the SYSUUID string, if we have one...
+ */
+static void make_sysuuid_string(void)
+{
+    static const uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
+    const uint8_t *src = uuid;
+    const uint8_t *uuid_ptr = uuid_dashes;
+    char *dst;
+
+    SYSUUIDStr[0] = '\0';	/* If nothing there... */
+
+    /* Try loading by UUID */
+    if (have_uuid) {
+	dst = stpcpy(SYSUUIDStr, "SYSUUID=");
+
+        while (*uuid_ptr) {
+	    int len = *uuid_ptr;
+
+            lchexbytes(dst, src, len);
+            dst += len * 2;
+            src += len;
+            uuid_ptr++;
+            *dst++ = '-';
+        }
+        /* Remove last dash and zero-terminate */
+	*--dst = '\0';
+    }
 }
 
 /*
@@ -1172,7 +1187,23 @@ static void ip_init(void)
 
     ip = ntohl(ip);
     printf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
-    printf("%s\n", IPOption);
+}
+
+/*
+ * Print the IPAPPEND strings, in order
+ */
+extern const uint16_t IPAppends[];
+extern const char numIPAppends[];
+
+static void print_ipappend(void)
+{
+    size_t i;
+
+    for (i = 0; i < (size_t)numIPAppends; i++) {
+	const char *p = (const char *)(size_t)IPAppends[i];
+	if (*p)
+	    printf("%s\n", p);
+    }
 }
 
 /*
@@ -1468,7 +1499,9 @@ static void network_init(void)
     printf("\n");
 
     make_bootif_string();
+    make_sysuuid_string();
     ip_init();
+    print_ipappend();
 
     /*
      * Check to see if we got any PXELINUX-specific DHCP options; in particular,

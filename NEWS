@@ -15,6 +15,10 @@ Changes in 4.01:
 	* Correct a severe memory overwrite bug (mainly related to the
 	  menu system.)
 	* lua.c32: Lua script interpreter, currently experimental.
+	* PXELINUX: new option IPAPPEND 4 to append the system UUID to
+	  the kernel command line.
+	* PXELINUX: display BOOTIF and SYSUUID at startup time, and
+	  when Ctrl-N is pressed on the command line.
 
 Changes in 4.00:
 	* Major code base changes; all filesystem rewritten in C.

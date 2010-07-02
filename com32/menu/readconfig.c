@@ -343,7 +343,8 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	    if (ld->ipappend) {
 		ipappend = syslinux_ipappend_strings();
 		for (i = 0; i < ipappend->count; i++) {
-		    if ((ld->ipappend & (1U << i)) && ipappend->ptr[i])
+		    if ((ld->ipappend & (1U << i)) && ipappend->ptr[i] &&
+			ipappend->ptr[i][0])
 			ipp += sprintf(ipp, " %s", ipappend->ptr[i]);
 		}
 	    }

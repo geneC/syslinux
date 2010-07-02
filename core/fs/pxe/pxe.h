@@ -209,7 +209,7 @@ extern far_ptr_t InitStack;
 
 extern bool have_uuid;
 extern uint8_t uuid_type;
-extern char uuid[];
+extern uint8_t uuid[];
 
 extern uint16_t BIOS_fbm;
 extern const uint8_t TimeoutTable[];
