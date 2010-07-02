@@ -350,12 +350,13 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
     char *file, *oldfile;
     int fd = -1, dirfd = -1;
     int modbytes;
+    int r1, r2;
 
-    asprintf(&file, "%s%sldlinux.sys",
-	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
-    asprintf(&oldfile, "%s%sextlinux.sys",
-	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
-    if (!file || !oldfile) {
+    r1 = asprintf(&file, "%s%sldlinux.sys",
+		  path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
+    r2 = asprintf(&oldfile, "%s%sextlinux.sys",
+		  path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
+    if (r1 < 0 || !file || r2 < 0 || !oldfile) {
 	perror(program);
 	return 1;
     }

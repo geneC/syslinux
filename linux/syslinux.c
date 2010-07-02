@@ -261,11 +261,11 @@ int main(int argc, char *argv[])
     /* Note: subdir is guaranteed to start and end in / */
     if (opt.directory && opt.directory[0]) {
 	int len = strlen(opt.directory);
-	asprintf(&subdir, "%s%s%s",
-		 opt.directory[0] == '/' ? "" : "/",
-		 opt.directory,
-		 opt.directory[len-1] == '/' ? "" : "/");
-	if (!subdir) {
+	int rv = asprintf(&subdir, "%s%s%s",
+			  opt.directory[0] == '/' ? "" : "/",
+			  opt.directory,
+			  opt.directory[len-1] == '/' ? "" : "/");
+	if (rv < 0 || !subdir) {
 	    perror(program);
 	    exit(1);
 	}

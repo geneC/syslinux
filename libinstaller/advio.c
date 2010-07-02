@@ -45,11 +45,12 @@ int read_adv(const char *path, const char *cfg)
     int fd = -1;
     struct stat st;
     int err = 0;
+    int rv;
 
-    asprintf(&file, "%s%s%s",
-	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/", cfg);
+    rv = asprintf(&file, "%s%s%s", path,
+		  path[0] && path[strlen(path) - 1] == '/' ? "" : "/", cfg);
 
-    if (!file) {
+    if (rv < 0 || !file) {
 	perror(program);
 	return -1;
     }
@@ -97,11 +98,12 @@ int write_adv(const char *path, const char *cfg)
     int fd = -1;
     struct stat st, xst;
     int err = 0;
+    int rv;
 
-    err = asprintf(&file, "%s%s%s",
-	path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/", cfg);
+    rv = asprintf(&file, "%s%s%s", path,
+		  path[0] && path[strlen(path) - 1] == '/' ? "" : "/", cfg);
 
-    if (!file) {
+    if (rv < 0 || !file) {
 	perror(program);
 	return -1;
     }
