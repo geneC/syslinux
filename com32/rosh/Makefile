@@ -30,6 +30,8 @@ ifndef DATE
 DATE    := $(shell sh $(topdir)/gen-id.sh $(VERSION) $(HEXDATE))
 endif
 
+CFLAGS		+= -DDATE='"$(DATE)"'
+LNXCFLAGS	+= -DDATE='"$(DATE)"'
 
 rosh.o:	rosh.h
 
