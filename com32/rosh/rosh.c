@@ -775,12 +775,11 @@ void rosh_dir(const char *cmdstr)
 /* Page through a buffer string
  *	buf	Buffer to page through
  */
-void rosh_more_buf(char *buf, int buflen, int rows, int cols)
+void rosh_more_buf(char *buf, int buflen, int rows, int cols, char *scrbuf)
 {
     char *bufp, *bufeol, *bufeol2;	/* Pointer to current and next
 					   end-of-line position in buffer */
     int bufpos, bufcnt;		/* current position, count characters */
-    char scrbuf[ROSH_SBUF_SZ];
     int inc;
     int i, numln;		/* Index, Number of lines */
     int elpl;		/* Extra lines per line read */
@@ -800,13 +799,15 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 		i = numln;
 	    } else {
 		elpl = ((bufeol2 - bufeol - 1) / cols);
+		if (elpl < 0)
+		    elpl = 0;
 		i += elpl;
 		ROSH_DEBUG2("  %d/%d  ", elpl, i+1);
 		/* If this will not push too much, use it */
 		/* but if it's the first line, use it */
 		/* //HERE: We should probably snip the line off */
 		if ((i < numln) || ((i == elpl) && (i >= numln)))
-			bufeol = bufeol2 + 1;
+		    bufeol = bufeol2 + 1;
 	    }
 	}
 	ROSH_DEBUG2("\n");
@@ -836,7 +837,7 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 /* Page through a single file using the open file stream
  *	fd	File Descriptor
  */
-void rosh_more_fd(int fd, int rows, int cols)
+void rosh_more_fd(int fd, int rows, int cols, char *scrbuf)
 {
     struct stat fdstat;
     int status;
@@ -858,7 +859,7 @@ void rosh_more_fd(int fd, int rows, int cols)
 			      ((int)fdstat.st_size - bufpos), f);
 	    }
 	    fclose(f);
-	    rosh_more_buf(buf, bufpos, rows, cols);
+	    rosh_more_buf(buf, bufpos, rows, cols, scrbuf);
 	}
     } else {
     }
@@ -875,6 +876,7 @@ void rosh_more(const char *cmdstr)
     char filestr[ROSH_PATH_SZ];
     int cmdpos;
     int rows, cols;
+    char *scrbuf;
 
     ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* Initialization */
@@ -890,6 +892,9 @@ void rosh_more(const char *cmdstr)
 	    cols = 75;
     }
     ROSH_DEBUG("\tUSE ROWS='%d'\tCOLS='%d'\n", rows, cols);
+    scrbuf = calloc(rows, cols + 1);
+    if (!scrbuf)
+	return;
 
     /* skip the first word */
     cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
@@ -902,7 +907,7 @@ void rosh_more(const char *cmdstr)
 	    printf("--File = '%s'\n", filestr);
 	    fd = open(filestr, O_RDONLY);
 	    if (fd != -1) {
-		rosh_more_fd(fd, rows, cols);
+		rosh_more_fd(fd, rows, cols, scrbuf);
 		close(fd);
 	    } else {
 		rosh_error(errno, "more", filestr);
@@ -912,6 +917,7 @@ void rosh_more(const char *cmdstr)
 	}
 	rosh_console_std();
     }
+    free(scrbuf);
 }				/* rosh_more */
 
 /* Page a file with rewind
