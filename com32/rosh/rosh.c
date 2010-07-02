@@ -775,7 +775,6 @@ void rosh_dir(const char *cmdstr)
 /* Page through a buffer string
  *	buf	Buffer to page through
  */
-//HERE: minor pagination issue; sometimes prints 1 less than rows
 void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 {
     char *bufp, *bufeol, *bufeol2;	/* Pointer to current and next
@@ -804,7 +803,9 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 		i += elpl;
 		ROSH_DEBUG2("  %d/%d  ", elpl, i+1);
 		/* If this will not push too much, use it */
-		if (i < numln)
+		/* but if it's the first line, use it */
+		/* //HERE: We should probably snip the line off */
+		if ((i < numln) || ((i == elpl) && (i >= numln)))
 			bufeol = bufeol2 + 1;
 	    }
 	}
