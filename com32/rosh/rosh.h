@@ -32,6 +32,7 @@
 #include <stdbool.h>		/* macro: true false */
 #include <string.h>		/* strcpy() strlen() memcpy() strchr() */
 #include <sys/types.h>
+#include <limits.h>
 #include <sys/stat.h>		/* fstat() */
 #include <fcntl.h>		/* open(); open mode macros */
 #include <dirent.h>		/* fdopendir() opendir() readdir() closedir() DIR */
@@ -41,7 +42,8 @@
 #include <ctype.h>		/* isspace() */
 
 #include <getkey.h>
-#include <consoles.h>
+#include <consoles.h>		/* console_ansi_raw() console_ansi_std() */
+#include <sys/ioctl.h>
 
 #ifdef DO_DEBUG
 # define ROSH_DEBUG	printf
@@ -102,15 +104,24 @@ static inline int getscreensize(int fd, int *rows, int *cols)
 {
     char *str;
     int rv;
-    *rows = 0;
-    *cols = 0;
+    struct winsize ws;
+    if (rows)
+	*rows = 0;
+    if (cols)
+	*cols = 0;
+    str = NULL;
     if (fd == 1) {
-	if (rows) {
+	ioctl(0, TIOCGWINSZ, &ws);
+/*	if (rows)
+	    *rows = ws.ws_row;
+	if (cols)
+	    *cols = ws.ws_col;*/
+	if (rows && !*rows) {
 	    str = getenv("LINES");
 	    if (str)
 		*rows = atoi(str);
 	}
-	if (cols) {
+	if (cols && !*cols) {
 	    str = getenv("COLUMNS");
 	    if (str)
 		*cols = atoi(str);
