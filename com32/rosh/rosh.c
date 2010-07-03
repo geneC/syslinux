@@ -877,13 +877,15 @@ void rosh_more(const char *cmdstr)
     int cmdpos;
     int rows, cols;
     char *scrbuf;
+    int ret;
 
     ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* Initialization */
     filestr[0] = 0;
     cmdpos = 0;
-    if (getscreensize(1, &rows, &cols)) {
-	ROSH_DEBUG("getscreensize() fail; fall back\n");
+    ret = getscreensize(1, &rows, &cols);
+    if (ret) {
+	ROSH_DEBUG("getscreensize() fail(%d); fall back\n", ret);
 	ROSH_DEBUG("\tROWS='%d'\tCOLS='%d'\n", rows, cols);
 	/* If either fail, go under normal size, just in case */
 	if (!rows)
@@ -892,7 +894,8 @@ void rosh_more(const char *cmdstr)
 	    cols = 75;
     }
     ROSH_DEBUG("\tUSE ROWS='%d'\tCOLS='%d'\n", rows, cols);
-    scrbuf = calloc(rows, cols + 1);
+    /* 32 bit align beginning of row and over allocate */
+    scrbuf = malloc(rows * ((cols+3)&(INT_MAX - 3)));
     if (!scrbuf)
 	return;
 
