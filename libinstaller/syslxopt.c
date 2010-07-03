@@ -43,6 +43,7 @@ struct sys_options opt = {
     .install_mbr = 0,
     .activate_partition = 0,
     .force = 0,
+    .bootsecfile = NULL,
 };
 
 const struct option long_options[] = {
@@ -88,6 +89,13 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "Usage: %s [options] directory\n",
 	    program);
 	break;
+
+    case MODE_SYSLINUX_DOSWIN:
+	/* For fs installation under Windows (syslinux.exe) */
+	fprintf(stderr,
+	    "Usage: %s [options] <drive>: [bootsecfile]\n",
+	    program);
+	break;
     }
 
     fprintf(stderr,
@@ -113,7 +121,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "\n"
 	    "  The -z option is useful for USB devices which are considered\n"
 	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n",
-	    mode == MODE_SYSLINUX ? "  " : "-o");
+	    mode == MODE_SYSLINUX  ? "  " : "-o");
 
     exit(rv);
 }
@@ -211,6 +219,7 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 
     switch (mode) {
     case MODE_SYSLINUX:
+    case MODE_SYSLINUX_DOSWIN:
 	opt.device = argv[optind++];
 	break;
     case MODE_EXTLINUX:
@@ -219,6 +228,9 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	break;
     }
 
+    if (argv[optind] && (mode == MODE_SYSLINUX_DOSWIN))
+	/* Allow for the boot-sector argument */
+	opt.bootsecfile = argv[optind++];
     if (argv[optind])
 	usage(EX_USAGE, mode);	/* Excess arguments */
 }
