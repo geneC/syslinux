@@ -43,7 +43,6 @@
 
 #include <getkey.h>
 #include <consoles.h>		/* console_ansi_raw() console_ansi_std() */
-#include <sys/ioctl.h>
 
 #ifdef DO_DEBUG
 # define ROSH_DEBUG	printf
@@ -93,6 +92,7 @@ int stat(const char *pathname, struct stat *buf)
 
 #else
 #  include <termios.h>
+#  include <sys/ioctl.h>
 #  define ROSH_IS_COM32	0
 
 static inline char *syslinux_config_file(void)
