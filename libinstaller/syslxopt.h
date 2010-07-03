@@ -14,6 +14,9 @@ struct sys_options {
     const char *device;
     unsigned int offset;
     const char *menu_save;
+    int force;
+    int install_mbr;
+    int activate_partition;
 };
 
 enum long_only_opt {

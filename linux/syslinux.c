@@ -273,7 +273,7 @@ int main(int argc, char *argv[])
 	subdir = "/";
     }
 
-    if (!opt.device)
+    if (!opt.device || opt.install_mbr || opt.activate_partition || opt.force)
 	usage(EX_USAGE, MODE_SYSLINUX);
 
     /*
