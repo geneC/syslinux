@@ -10,4 +10,7 @@ void *malloc(size_t);
 void *calloc(size_t, size_t);
 void free(void *);
 
+extern unsigned long int strtoul(const char *nptr,
+                                  char **endptr, int base);
+
 #endif

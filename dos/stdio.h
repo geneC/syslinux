@@ -16,6 +16,8 @@ int printf(const char *fmt, ...);
 #define stdout	1
 #define stderr	2
 
+#define EOF (-1)
+
 #define fprintf(x, y, ...) printf(y, ## __VA_ARGS__)
 
 #endif /* STDIO_H */

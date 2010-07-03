@@ -21,4 +21,6 @@ static inline int memcmp(const void *__m1, const void *__m2, unsigned int __n)
     return rv;
 }
 
+extern char *strchr(const char *s, int c);
+
 #endif /* _STRING_H */

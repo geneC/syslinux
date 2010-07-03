@@ -108,7 +108,10 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "  --raid       -r  Fall back to the next device on boot failure\n"
 	    "  --once=...   %s  Execute a command once upon boot\n"
 	    "  --clear-once -O  Clear the boot-once command\n"
-	    "  --reset-adv      Reset auxilliary data\n"
+	    "  --reset-adv      Reset auxilliary data\n",
+	    mode == MODE_SYSLINUX  ? "  " : "-o");
+    /* Have to chop this roughly in half for the DOS installer for some reason */
+    fprintf(stderr,
 	    "  --menu-save= -M  Set the label to select as default on the next boot\n"
 	    "  --mbr        -m  Install an MBR (DOS/Win32 installers only)\n"
 	    "  --active     -a  Mark partition as active (DOS/Win32 installers only)\n"
@@ -120,8 +123,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "  which includes zipdisks and LS-120 superfloppies.\n"
 	    "\n"
 	    "  The -z option is useful for USB devices which are considered\n"
-	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n",
-	    mode == MODE_SYSLINUX  ? "  " : "-o");
+	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n");
 
     exit(rv);
 }

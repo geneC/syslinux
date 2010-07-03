@@ -18,15 +18,18 @@
  */
 
 #include <errno.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdarg.h>
+//#include <stdarg.h>
 #include "mystuff.h"
 
 #include "syslinux.h"
 #include "libfat.h"
 #include "setadv.h"
+#include "sysexits.h"
+#include "syslxopt.h"
 
 const char *program = "syslinux";	/* Name of program */
 uint16_t dos_version;
@@ -43,12 +46,6 @@ void pause(void)
 # define dprintf(...) ((void)0)
 # define pause() ((void)0)
 #endif
-
-void __attribute__ ((noreturn)) usage(void)
-{
-    puts("Usage: syslinux [-sfmar][-d directory] <drive>: [bootsecfile]\n");
-    exit(1);
-}
 
 void unlock_device(int);
 
@@ -617,7 +614,7 @@ int main(int argc, char *argv[])
 	if (**argp == '-') {
 	    opt = *argp + 1;
 	    if (!*opt)
-		usage();
+		usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
 
 	    while (*opt) {
 		switch (*opt) {
@@ -641,13 +638,13 @@ int main(int argc, char *argv[])
 			subdir = *++argp;
 		    break;
 		default:
-		    usage();
+		    usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
 		}
 		opt++;
 	    }
 	} else {
 	    if (bootsecfile)
-		usage();
+		usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
 	    else if (device)
 		bootsecfile = *argp;
 	    else
@@ -656,7 +653,7 @@ int main(int argc, char *argv[])
     }
 
     if (!device)
-	usage();
+	usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
 
     /*
      * Create an ADV in memory... this should be smarter.
@@ -668,7 +665,7 @@ int main(int argc, char *argv[])
      */
     dev_fd = (device[0] & ~0x20) - 0x40;
     if (dev_fd < 1 || dev_fd > 26 || device[1] != ':' || device[2])
-	usage();
+	usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
 
     set_lock_device(dev_fd);
 

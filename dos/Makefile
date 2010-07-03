@@ -28,6 +28,7 @@ INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 SRCS     = syslinux.c \
 	   ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/setadv.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
@@ -35,8 +36,8 @@ SRCS     = syslinux.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = header.o crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = int2526.o conio.o memcpy.o memset.o memmove.o skipatou.o atou.o \
-	   malloc.o free.o getsetsl.o \
-	   argv.o printf.o __divdi3.o __udivmoddi4.o
+	   malloc.o free.o getopt_long.o getsetsl.o strchr.o strtoul.o \
+	   strntoumax.o argv.o printf.o __divdi3.o __udivmoddi4.o
 
 VPATH = .:../libfat:../libinstaller
 
