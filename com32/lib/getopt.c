@@ -9,64 +9,89 @@
 #include <string.h>
 
 char *optarg;
-int optind = 1;
-int opterr, optopt;
-static const char *__optptr;
+int optind, opterr, optopt;
+static struct getopt_private_state {
+	const char *optptr;
+	const char *last_optstring;
+	char *const *last_argv;
+} pvt;
 
 int getopt(int argc, char *const *argv, const char *optstring)
 {
-    const char *carg = argv[optind];
-    const char *osptr;
-    int opt;
+	const char *carg;
+	const char *osptr;
+	int opt;
 
-    /* We don't actually need argc */
-    (void)argc;
+	/* getopt() relies on a number of different global state
+	   variables, which can make this really confusing if there is
+	   more than one use of getopt() in the same program.  This
+	   attempts to detect that situation by detecting if the
+	   "optstring" or "argv" argument have changed since last time
+	   we were called; if so, reinitialize the query state. */
 
-    /* First, eliminate all non-option cases */
-
-    if (!carg || carg[0] != '-' || !carg[1]) {
-	return -1;
-    }
-
-    if (carg[1] == '-' && !carg[2]) {
-	optind++;
-	return -1;
-    }
-
-    if ((uintptr_t) (__optptr - carg) > (uintptr_t) strlen(carg))
-	__optptr = carg + 1;	/* Someone frobbed optind, change to new opt. */
-
-    opt = *__optptr++;
-
-    if (opt != ':' && (osptr = strchr(optstring, opt))) {
-	if (osptr[1] == ':') {
-	    if (*__optptr) {
-		/* Argument-taking option with attached argument */
-		optarg = (char *)__optptr;
-		optind++;
-	    } else {
-		/* Argument-taking option with non-attached argument */
-		if (argv[optind + 1]) {
-		    optarg = (char *)argv[optind + 1];
-		    optind += 2;
-		} else {
-		    /* Missing argument */
-		    return (optstring[0] == ':') ? ':' : '?';
-		}
-	    }
-	    return opt;
-	} else {
-	    /* Non-argument-taking option */
-	    /* __optptr will remember the exact position to resume at */
-	    if (!*__optptr)
-		optind++;
-	    return opt;
+	if (optstring != pvt.last_optstring || argv != pvt.last_argv ||
+	    optind < 1 || optind > argc) {
+		/* optind doesn't match the current query */
+		pvt.last_optstring = optstring;
+		pvt.last_argv = argv;
+		optind = 1;
+		pvt.optptr = NULL;
 	}
-    } else {
-	/* Unknown option */
-	optopt = opt;
-	if (!*__optptr)
-	    optind++;
-	return '?';
-    }
+
+	carg = argv[optind];
+
+	/* First, eliminate all non-option cases */
+
+	if (!carg || carg[0] != '-' || !carg[1]) {
+		return -1;
+	}
+
+	if (carg[1] == '-' && !carg[2]) {
+		optind++;
+		return -1;
+	}
+
+	if ((uintptr_t) (pvt.optptr - carg) > (uintptr_t) strlen(carg)) {
+		/* Someone frobbed optind, change to new opt. */
+		pvt.optptr = carg + 1;
+	}
+
+	opt = *pvt.optptr++;
+
+	if (opt != ':' && (osptr = strchr(optstring, opt))) {
+		if (osptr[1] == ':') {
+			if (*pvt.optptr) {
+				/* Argument-taking option with attached
+				   argument */
+				optarg = (char *)pvt.optptr;
+				optind++;
+			} else {
+				/* Argument-taking option with non-attached
+				   argument */
+				if (argv[optind + 1]) {
+					optarg = (char *)argv[optind+1];
+					optind += 2;
+				} else {
+					/* Missing argument */
+					optind++;
+					return (optstring[0] == ':')
+						? ':' : '?';
+				}
+			}
+			return opt;
+		} else {
+			/* Non-argument-taking option */
+			/* pvt.optptr will remember the exact position to
+			   resume at */
+			if (!*pvt.optptr)
+				optind++;
+			return opt;
+		}
+	} else {
+		/* Unknown option */
+		optopt = opt;
+		if (!*pvt.optptr)
+			optind++;
+		return '?';
+	}
 }
