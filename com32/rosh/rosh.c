@@ -38,7 +38,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b064"
+#define APP_VER		"beta-b067"
 
 void rosh_version(void)
 {
