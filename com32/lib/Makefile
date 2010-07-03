@@ -11,7 +11,8 @@ LIBOBJS = \
 	abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
 	fclose.o putchar.o setjmp.o					\
-	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o getopt.o	\
+	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o 		\
+	getopt.o getopt_long.o						\
 	lrand48.o malloc.o stack.o memccpy.o memchr.o memcmp.o		\
 	memcpy.o mempcpy.o memmem.o memmove.o memset.o memswap.o	\
 	exit.o onexit.o	\
