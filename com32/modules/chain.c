@@ -78,7 +78,11 @@
  *
  * grub=<loader>
  *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
- *	used with GRUB stage2 files.
+ *	used with GRUB Legacy stage2 files.
+ *
+ * grubcfg=<filename>
+ *	set an alternative config filename in stage2 of Grub Legacy,
+ *	only applicable in combination with "grub=<loader>".
  *
  * grldr=<loader>
  *	pass the partition number to GRUB4DOS,
@@ -125,6 +129,7 @@ static struct options {
     bool cmldr;
     bool grub;
     bool grldr;
+    const char *grubcfg;
     bool swap;
     bool hide;
     bool sethidden;
@@ -1276,7 +1281,8 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
          msdos=<loader>     Load MS-DOS IO.SYS\n\
          pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
-         grub=<loader>      Load GRUB stage2\n\
+         grub=<loader>      Load GRUB Legacy stage2\n\
+         grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
          grldr=<loader>     Load GRUB4DOS grldr\n\
          seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
          swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
@@ -1349,6 +1355,8 @@ int main(int argc, char *argv[])
 	    opt.seg = 0x800;	/* stage2 wants this address */
 	    opt.loadfile = argv[i] + 5;
 	    opt.grub = true;
+	} else if (!strncmp(argv[i], "grubcfg=", 8)) {
+	    opt.grubcfg = argv[i] + 8;
 	} else if (!strncmp(argv[i], "grldr=", 6)) {
 	    opt.loadfile = argv[i] + 6;
 	    opt.grldr = true;
@@ -1390,6 +1398,11 @@ int main(int argc, char *argv[])
 	    usage();
 	    goto bail;
 	}
+    }
+
+    if (opt.grubcfg && !opt.grub) {
+	error("grubcfg=<filename> must be used together with grub=<loader>.\n");
+	goto bail;
     }
 
     if (opt.seg) {
@@ -1583,15 +1596,105 @@ int main(int argc, char *argv[])
 	}
 
 	if (opt.grub) {
-	    regs.ip = 0x200;	/* jump 0x200 bytes into the loadfile */
+	    /* Layout of stage2 file (from byte 0x0 to 0x270) */
+	    struct grub_stage2_patch_area {
+		/* 0x0 to 0x205 */
+		char unknown[0x206];
+		/* 0x206: compatibility version number major */
+		uint8_t compat_version_major;
+		/* 0x207: compatibility version number minor */
+		uint8_t compat_version_minor;
 
-	    /* GRUB's stage2 wants the partition number in the install_partition
-	     * variable, located at memory address 0x8208.
-	     * We only need to change the value of memory address 0x820a too:
-	     *   -1:   whole drive (default)
+		/* 0x208: install_partition variable */
+		struct {
+		    /* 0x208: sub-partition in sub-partition part2 */
+		    uint8_t part3;
+		    /* 0x209: sub-partition in top-level partition */
+		    uint8_t part2;
+		    /* 0x20a: top-level partiton number */
+		    uint8_t part1;
+		    /* 0x20b: BIOS drive number (must be 0) */
+		    uint8_t drive;
+		} __attribute__ ((packed)) install_partition;
+
+		/* 0x20c: deprecated (historical reason only) */
+		uint32_t saved_entryno;
+		/* 0x210: stage2_ID: will always be STAGE2_ID_STAGE2 = 0 in stage2 */
+		uint8_t stage2_id;
+		/* 0x211: force LBA */
+		uint8_t force_lba;
+		/* 0x212: version string (will probably be 0.97) */
+		char version_string[5];
+		/* 0x217: config filename */
+		char config_file[89];
+		/* 0x270: start of code (after jump from 0x200) */
+		char codestart[1];
+	    } __attribute__ ((packed));
+
+	    if (data[ndata].size < sizeof(struct grub_stage2_patch_area)) {
+		error
+		    ("The file specified by grub=<loader> is to small to be stage2 of GRUB Legacy.\n");
+		goto bail;
+	    }
+
+	    struct grub_stage2_patch_area *stage2 = data[ndata].data;
+
+	    /*
+	     * Check the compatibility version number to see if we loaded a real
+	     * stage2 file or a stage2 file that we support.
+	     */
+	    if (stage2->compat_version_major != 3
+		|| stage2->compat_version_minor != 2) {
+		error
+		    ("The file specified by grub=<loader> is not a supported stage2 GRUB Legacy binary\n");
+		goto bail;
+	    }
+
+	    /* jump 0x200 bytes into the loadfile */
+	    regs.ip = 0x200;
+
+	    /*
+	     * GRUB Legacy wants the partition number in the install_partition
+	     * variable, located at offset 0x208 of stage2.
+	     * When GRUB Legacy is loaded, it is located at memory address 0x8208.
+	     *
+	     * It looks very similar to the "boot information format" of the
+	     * Multiboot specification:
+	     *   http://www.gnu.org/software/grub/manual/multiboot/multiboot.html#Boot-information-format
+	     *
+	     *   0x208 = part3: sub-partition in sub-partition part2
+	     *   0x209 = part2: sub-partition in top-level partition
+	     *   0x20a = part1: top-level partition number
+	     *   0x20b = drive: BIOS drive number (must be 0)
+	     *
+	     * GRUB Legacy doesn't store the BIOS drive number at 0x20b, but at
+	     * another location.
+	     *
+	     * Partition numbers always start from zero.
+	     * Unused partition bytes must be set to 0xFF. 
+	     *
+	     * We only care about top-level partition, so we only need to change
+	     * "part1" to the appropriate value:
+	     *   -1:   whole drive (default) (-1 = 0xFF)
 	     *   0-3:  primary partitions
-	     *   4-*:  logical partitions */
-	    ((uint8_t*) data[ndata].data)[0x20a] = (uint8_t)(whichpart - 1);
+	     *   4-*:  logical partitions
+	     */
+	    stage2->install_partition.part1 = whichpart - 1;
+
+	    /*
+	     * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
+	     * config filename. The filename passed via grubcfg= will overwrite
+	     * the default config filename "/boot/grub/menu.lst".
+	     */
+	    if (opt.grubcfg) {
+		if (strlen(opt.grubcfg) > sizeof(stage2->config_file) - 1) {
+		    error
+			("The config filename length can't exceed 88 characters.\n");
+		    goto bail;
+		}
+
+		strcpy((char *)stage2->config_file, opt.grubcfg);
+	    }
 	}
 
 	ndata++;
