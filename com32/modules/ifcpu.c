@@ -61,18 +61,6 @@ static void usage(void)
  "if you want to match many cpu features, just separate them with a single space.\n");
 }
 
-static unsigned char sleep(unsigned int msec)
-{
-    unsigned long micro = 1000 * msec;
-    com32sys_t inreg, outreg;
-
-    REG_AH(inreg) = 0x86;
-    REG_CX(inreg) = (micro >> 16);
-    REG_DX(inreg) = (micro & 0xFFFF);
-    __intcall(0x15, &inreg, &outreg);
-    return REG_AH(outreg);
-}
-
 /* XXX: this really should be librarized */
 static void boot_args(char **args)
 {
@@ -172,7 +160,7 @@ int main(int argc, char *argv[])
 	       hardware_matches ? *args[0] : *args[1]);
 	printf("Sleeping 5sec before booting\n");
 	if (!dryrun)
-	    sleep(5000);
+	    sleep(5);
     }
 
     if (!dryrun)
