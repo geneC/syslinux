@@ -24,9 +24,11 @@ static const luaL_Reg lualibs[] = {
 #if !defined LUA_NUMBER_INTEGRAL
   {LUA_MATHLIBNAME, luaopen_math},
 #endif
+  {LUA_PCILIBNAME, luaopen_pci},
   {LUA_DBLIBNAME, luaopen_debug},
   {LUA_DMILIBNAME, luaopen_dmi},
   {LUA_SYSLINUXLIBNAME, luaopen_syslinux},
+  {LUA_VESALIBNAME, luaopen_vesa},
   {NULL, NULL}
 };
 
