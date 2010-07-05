@@ -280,8 +280,16 @@ static int sl_boot_linux(lua_State * L)
     return 0;
 }
 
-/* sleep for msec milliseconds */
+/* sleep for sec seconds */
 static int sl_sleep(lua_State * L)
+{
+    unsigned int sec = luaL_checkint(L, 1);
+    sleep(sec);
+    return 0;
+}
+
+/* sleep for msec milliseconds */
+static int sl_msleep(lua_State * L)
 {
     unsigned int msec = luaL_checkint(L, 1);
     msleep(msec);
@@ -404,6 +412,7 @@ static const luaL_reg syslinuxlib[] = {
     {"boot_linux", sl_boot_linux},
     {"run_kernel_image", sl_run_kernel_image},
     {"sleep", sl_sleep},
+    {"msleep", sl_msleep},
     {"loadfile", sl_loadfile},
     {"filesize", sl_filesize},
     {"filename", sl_filename},

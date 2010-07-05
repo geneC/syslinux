@@ -18,7 +18,7 @@ vesa.setmode()
 
 printf("Hello World! - VESA mode")
 
-syslinux.sleep(1000)
+syslinux.sleep(1)
 
 -- some text to display "typing style"
 textline=[[
@@ -39,17 +39,17 @@ while ( true ) do
 
 vesa.load_background("/PXE-RRZE_small.jpg")
 
-syslinux.sleep(1000)
+syslinux.sleep(1)
 
 for i = 1, #textline do
     local c = textline:sub(i,i)
     printf("%s", c)
-    syslinux.sleep(200)
+    syslinux.msleep(200)
 end
 
-syslinux.sleep(10000)
+syslinux.sleep(10)
 
 vesa.load_background("/sample2.jpg")
-syslinux.sleep(10000)
+syslinux.sleep(10)
 
 end
