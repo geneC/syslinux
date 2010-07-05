@@ -38,7 +38,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b067"
+#define APP_VER		"beta-b068"
 
 void rosh_version(void)
 {
@@ -806,7 +806,7 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols, char *scrbuf)
 		/* If this will not push too much, use it */
 		/* but if it's the first line, use it */
 		/* //HERE: We should probably snip the line off */
-		if ((i < numln) || ((i == elpl) && (i >= numln)))
+		if ((i < numln) || (i == elpl))
 		    bufeol = bufeol2 + 1;
 	    }
 	}
