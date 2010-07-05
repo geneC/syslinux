@@ -11,6 +11,10 @@ Changes in 4.02:
 	  isolinux-specific names.  Thus, "syslinux.cfg" is now a
 	  generic name, whereas "isolinux.cfg" or "extlinux.conf" is
 	  specific to different derivative.
+	* chain.c32: support setting alternate config filename for stage2
+	  of GRUB Legacy (Gert Hulselmans)
+	* whichsys.c32: execute specific command, based on Syslinux
+	  bootloader variant (Gert Hulselmans)
 
 Changes in 4.01:
 	* ISOLINUX: fix initialization on systems which don't zero
