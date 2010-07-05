@@ -25,10 +25,6 @@
 #include <com32.h>
 #include <consoles.h>
 
-#define REG_AH(x) ((x).eax.b[1])
-#define REG_CX(x) ((x).ecx.w[0])
-#define REG_DX(x) ((x).edx.w[0])
-
 static inline void error(const char *msg)
 {
     fputs(msg, stderr);
