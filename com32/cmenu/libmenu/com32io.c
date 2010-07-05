@@ -27,17 +27,6 @@ void getpos(char *row, char *col, char page)
     *col = REG_DL(outreg);
 }
 
-unsigned char sleep(unsigned int msec)
-{
-    unsigned long micro = 1000 * msec;
-
-    REG_AH(inreg) = 0x86;
-    REG_CX(inreg) = (micro >> 16);
-    REG_DX(inreg) = (micro & 0xFFFF);
-    __intcall(0x15, &inreg, &outreg);
-    return REG_AH(outreg);
-}
-
 char inputc(char *scancode)
 {
     syslinux_idle();		/* So syslinux can perform periodic activity */

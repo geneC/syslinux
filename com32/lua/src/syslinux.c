@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <syslinux/boot.h>
 
 #define lnetlib_c		/* Define the library */
@@ -209,7 +210,7 @@ static int sl_boot_linux(lua_State * L)
 
     /* DEBUG
        printf("Command line: %s\n", newcmdline);
-       sleep(1000);
+       msleep(1000);
      */
 
     /* Look for specific command-line arguments we care about */
@@ -269,7 +270,7 @@ static int sl_boot_linux(lua_State * L)
 	printf("Loading extra file failed\n");
 
     /* DEBUG
-       sleep(10000);
+       msleep(10000);
      */
 
     ret = syslinux_boot_linux(kernel_data, kernel_len, initramfs, newcmdline);
@@ -283,7 +284,7 @@ static int sl_boot_linux(lua_State * L)
 static int sl_sleep(lua_State * L)
 {
     unsigned int msec = luaL_checkint(L, 1);
-    sleep(msec);
+    msleep(msec);
     return 0;
 }
 

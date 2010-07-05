@@ -43,8 +43,6 @@ LIBLUA_OBJS += dmi.o
 
 LIBLUA_OBJS += pci.o
 LIBLUA_OBJS += vesa.o
-# For function sleep() -- XXX: FIX THIS
-LIBLUA_OBJS += ../../cmenu/libmenu/com32io.o
 
 CFLAGS += -DLUA_ANSI
 
