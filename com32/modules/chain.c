@@ -1629,7 +1629,7 @@ int main(int argc, char *argv[])
 		char config_file[89];
 		/* 0x270: start of code (after jump from 0x200) */
 		char codestart[1];
-	    } __attribute__ ((packed));
+	    } __attribute__ ((packed)) *stage2;
 
 	    if (data[ndata].size < sizeof(struct grub_stage2_patch_area)) {
 		error
@@ -1637,7 +1637,7 @@ int main(int argc, char *argv[])
 		goto bail;
 	    }
 
-	    struct grub_stage2_patch_area *stage2 = data[ndata].data;
+	    stage2 = data[ndata].data;
 
 	    /*
 	     * Check the compatibility version number to see if we loaded a real
