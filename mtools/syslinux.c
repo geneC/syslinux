@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -18,8 +19,7 @@
  * We need device write permission anyway.
  */
 
-#define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
-#define _BSD_SOURCE
+#define _GNU_SOURCE
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -54,6 +54,12 @@ void __attribute__ ((noreturn)) usage(void)
 void __attribute__ ((noreturn)) die(const char *msg)
 {
     fprintf(stderr, "%s: %s\n", program, msg);
+    exit(1);
+}
+
+void __attribute__ ((noreturn)) die_err(const char *msg)
+{
+    fprintf(stderr, "%s: %s: %s\n", program, msg, strerror(errno));
     exit(1);
 }
 
@@ -131,7 +137,8 @@ int main(int argc, char *argv[])
     struct stat st;
     int status;
     char **argp, *opt;
-    char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
+    const char *tmpdir;
+    char *mtools_conf;
     const char *subdir = NULL;
     int mtc_fd;
     FILE *mtc, *mtp;
@@ -188,12 +195,27 @@ int main(int argc, char *argv[])
 	usage();
 
     /*
+     * Temp directory of choice...
+     */
+    tmpdir = getenv("TMPDIR");
+#ifdef P_tmpdir
+    if (!tmpdir)
+	tmpdir = P_tmpdir;
+#endif
+#ifdef _PATH_TMP
+    if (!tmpdir)
+	tmpdir = _PATH_TMP;
+#endif
+    if (!tmpdir)
+	tmpdir = "/tmp";
+
+    /*
      * First make sure we can open the device at all, and that we have
      * read/write permission.
      */
     dev_fd = open(device, O_RDWR);
     if (dev_fd < 0 || fstat(dev_fd, &st) < 0) {
-	perror(device);
+	die_err(device);
 	exit(1);
     }
 
@@ -216,11 +238,14 @@ int main(int argc, char *argv[])
     /*
      * Create an mtools configuration file
      */
+    if (asprintf(&mtools_conf, "%s//syslinux-mtools-XXXXXX", tmpdir) < 0 ||
+	!mtools_conf)
+	die_err(tmpdir);
+
     mtc_fd = mkstemp(mtools_conf);
-    if (mtc_fd < 0 || !(mtc = fdopen(mtc_fd, "w"))) {
-	perror(program);
-	exit(1);
-    }
+    if (mtc_fd < 0 || !(mtc = fdopen(mtc_fd, "w")))
+	die_err(mtools_conf);
+
     fprintf(mtc,
 	    /* These are needed for some flash memories */
 	    "MTOOLS_SKIP_CHECK=1\n"
@@ -230,7 +255,8 @@ int main(int argc, char *argv[])
 	    "  offset=%llu\n",
 	    (unsigned long)mypid,
 	    dev_fd, (unsigned long long)filesystem_offset);
-    fclose(mtc);
+    if (ferror(mtc) || fclose(mtc))
+	die_err(mtools_conf);
 
     /*
      * Run mtools to create the LDLINUX.SYS file
