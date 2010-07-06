@@ -198,16 +198,15 @@ int main(int argc, char *argv[])
      * Temp directory of choice...
      */
     tmpdir = getenv("TMPDIR");
+    if (!tmpdir) {
 #ifdef P_tmpdir
-    if (!tmpdir)
 	tmpdir = P_tmpdir;
-#endif
-#ifdef _PATH_TMP
-    if (!tmpdir)
+#elif defined(_PATH_TMP)
 	tmpdir = _PATH_TMP;
-#endif
-    if (!tmpdir)
+#else
 	tmpdir = "/tmp";
+#endif
+    }
 
     /*
      * First make sure we can open the device at all, and that we have
