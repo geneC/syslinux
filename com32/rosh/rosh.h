@@ -90,14 +90,37 @@ int stat(const char *pathname, struct stat *buf)
     return ret;
 }
 
+int rosh_get_env_ver(char *dest, size_t n)
+{
+    const struct syslinux_version *slv = syslinux_version();
+    strncpy(dest, slv->version_string, n);
+    return 0;
+}
+
 #else
 #  include <termios.h>
 #  include <sys/ioctl.h>
+#  include <sys/utsname.h>
 #  define ROSH_IS_COM32	0
 
 static inline char *syslinux_config_file(void)
 {
     return "";
+}
+
+int rosh_get_env_ver(char *dest, size_t n)
+{
+    int ret, len;
+    struct utsname env;
+    ret= uname(&env);
+    if (ret >= 0) {
+	strncpy(dest, env.sysname, n);
+	len = strlen(dest);
+	strncpy(dest + len, " ", (n - len));
+	len = strlen(dest);
+	strncpy(dest + len, env.release, (n - len));
+    }
+    return ret;
 }
 
 static inline int getscreensize(int fd, int *rows, int *cols)

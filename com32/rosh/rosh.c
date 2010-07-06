@@ -40,9 +40,16 @@
 #define APP_YEAR	"2010"
 #define APP_VER		"beta-b068"
 
-void rosh_version(void)
+void rosh_version(int vtype)
 {
+    char env[256];
+    env[0] = 0;
     printf("%s v %s; (c) %s %s.\n\tFrom Syslinux %s, %s\n", APP_LONGNAME, APP_VER, APP_YEAR, APP_AUTHOR, VERSION_STR, DATE);
+    switch (vtype) {
+    case 1:
+	rosh_get_env_ver(env, 256);
+	printf("\tRunning on %s\n", env);
+    }
 }
 
 void print_beta(void)
@@ -124,7 +131,7 @@ void rosh_help(int type, const char *cmdstr)
     case 2:
 	istr += rosh_search_nonsp(cmdstr, rosh_search_sp(cmdstr, 0));
 	if ((cmdstr == NULL) || (strcmp(istr, "") == 0)) {
-	    rosh_version();
+	    rosh_version(0);
 	    puts(rosh_help_str2);
 	} else {
 	    switch (istr[0]) {
@@ -138,7 +145,7 @@ void rosh_help(int type, const char *cmdstr)
 	break;
     case 1:
     default:
-	rosh_version();
+	rosh_version(0);
 	puts(rosh_help_str1);
     }
 }
@@ -1125,7 +1132,7 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
     case 'v':
     case 'V':
 	if (strncasecmp("version", tstr, tlen) == 0)
-	    rosh_version();
+	    rosh_version(1);
 	else
 	    rosh_help(1, NULL);
 	break;
@@ -1184,7 +1191,7 @@ int main(int argc, char *argv[])
     if (argc != 1) {
 	rv = rosh_argcat(cmdstr, argc, argv, 1);
     } else {
-	rosh_version();
+	rosh_version(0);
 	print_beta();
 	cmdstr[0] = '\0';
     }
