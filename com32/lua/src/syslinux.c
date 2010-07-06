@@ -38,7 +38,6 @@
 #include "syslinux/boot.h"
 #include "syslinux/loadfile.h"
 #include "syslinux/linux.h"
-#include "../../cmenu/libmenu/com32io.h"
 
 int __parse_argv(char ***argv, const char *str);
 
