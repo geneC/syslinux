@@ -32,17 +32,17 @@
  * debugging enabled; Comment to remove.
  */
 #include "rosh.h"
+#include "../../version.h"
 
 #define APP_LONGNAME	"Read-Only Shell"
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b062"
+#define APP_VER		"beta-b063"
 
 void rosh_version(void)
 {
-    printf("%s v %s; (c) %s %s.\n", APP_LONGNAME, APP_VER, APP_YEAR,
-	   APP_AUTHOR);
+    printf("%s v %s; (c) %s %s.\n\tFrom Syslinux %s, %s\n", APP_LONGNAME, APP_VER, APP_YEAR, APP_AUTHOR, VERSION_STR, DATE);
 }
 
 void print_beta(void)
