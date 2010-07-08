@@ -15,6 +15,13 @@ Changes in 4.02:
 	  stage2 of GRUB Legacy (Gert Hulselmans).
 	* whichsys.c32: execute specific command, based on Syslinux
 	  bootloader variant (Gert Hulselmans).
+	* lua.c32: a lot of new bindings added to the "syslinux"
+	  namespace (Marcel Ritter, Geert Stappers).
+	* btrfs: print a comprehensive error message if compressed or
+	  encrypted files are encountered (neither is currently
+	  supported.)
+	* SYSLINUX: mtools installer: honor TMPDIR, error out on disk
+	  full.
 
 Changes in 4.01:
 	* ISOLINUX: fix initialization on systems which don't zero
