@@ -16,7 +16,7 @@ Changes in 4.02:
 	* whichsys.c32: execute specific command, based on Syslinux
 	  bootloader variant (Gert Hulselmans).
 	* lua.c32: a lot of new bindings added to the "syslinux"
-	  namespace (Marcel Ritter, Geert Stappers).
+	  namespace (Marcel Ritter, Gert Hulselmans).
 	* btrfs: print a comprehensive error message if compressed or
 	  encrypted files are encountered (neither is currently
 	  supported.)
