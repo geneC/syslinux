@@ -38,7 +38,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b068"
+#define APP_VER		"beta-b069"
 
 void rosh_version(int vtype)
 {
@@ -358,6 +358,22 @@ void rosh_cfg(void)
 {
     printf("CFG:     '%s'\n", syslinux_config_file());
 }				/* rosh_cfg */
+
+/* Echo a string back to the screen
+ *	cmdstr	command string to process
+ */
+void rosh_echo(const char *cmdstr)
+{
+    int bpos = 0;
+    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
+    bpos = rosh_search_nonsp(cmdstr, rosh_search_sp(cmdstr, 0));
+    if (bpos > 1) {
+	ROSH_DEBUG("  bpos=%d\n", bpos);
+	printf("'%s'\n", cmdstr + bpos);
+    } else {
+	puts("");
+    }
+}				/* rosh_echo */
 
 /* Process optstr to optarr
  *	optstr	option string to process
@@ -1008,11 +1024,28 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
     case 'E':
     case 'q':
     case 'Q':
-	if ((strncasecmp("exit", tstr, tlen) == 0) ||
-	    (strncasecmp("quit", tstr, tlen) == 0))
-	    do_exit = true;
-	else
+	switch (cmdstr[1]) {
+	case 0:
+	case 'x':
+	case 'X':
+	case 'u':
+	case 'U':
+	    if ((strncasecmp("exit", tstr, tlen) == 0) ||
+		(strncasecmp("quit", tstr, tlen) == 0))
+		do_exit = true;
+	    else
+		rosh_help(1, NULL);
+	    break;
+	case 'c':
+	case 'C':
+	    if (strncasecmp("echo", tstr, tlen) == 0)
+		rosh_echo(cmdstr);
+	    else
+		rosh_help(1, NULL);
+	    break;
+	default:
 	    rosh_help(1, NULL);
+	}
 	break;
     case 'c':
     case 'C':			/* run 'cd' 'cat' 'cfg' */
