@@ -601,6 +601,7 @@ int main(int argc, char *argv[])
     int patch_sectors;
 
     ldlinux_seg = (size_t) __payload_sseg + data_segment();
+printf("SHAO seg: 0x%04x\n", ldlinux_seg);
 
     dprintf("argv = %p\n", argv);
     for (i = 0; i <= argc; i++)
@@ -757,6 +758,7 @@ int main(int argc, char *argv[])
 	}
     }
 
+printf("Foo: %p\n", syslinux_ldlinux);
     /*
      * Patch ldlinux.sys and the boot sector
      */
