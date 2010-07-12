@@ -182,25 +182,27 @@ void boot_entry(menu_t *menu_ptr, char *arg);
 int main(int argc, char **argv)
 {
   int menu_index;
-  enum syslinux_filesystem syslinux_id;
-  com32sys_t r;
+  const union syslinux_derivative_info *sdi;
 
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
-
-  syslinux_id = syslinux_version()->filesystem;
 
   lowmem_buf = __com32.cs_bounce;
   lowmem_buf_size = __com32.cs_bounce_size;
 
-  r.eax.l = 0x0a;	// Get Derivative-Specific Information
-  r.ecx.l = 9;
-  __intcall(0x22, &r, &r);
-  gfx_config.sector_shift = (uint8_t) r.ecx.l;
-  gfx_config.boot_drive = (uint8_t) r.edx.l;
+  sdi = syslinux_derivative_info();
 
-  if(syslinux_id == SYSLINUX_FS_PXELINUX) {
+  gfx_config.sector_shift = sdi->disk.sector_shift;
+  gfx_config.boot_drive = sdi->disk.drive_number;
+
+  if(sdi->c.filesystem == SYSLINUX_FS_PXELINUX) {
     gfx_config.sector_shift = 11;
     gfx_config.boot_drive = 0;
+  }
+
+  gfx_config.media_type = gfx_config.boot_drive < 0x80 ? 1 : 0;
+
+  if(sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
+    gfx_config.media_type = sdi->iso.cd_mode ? 0 : 2;
   }
 
   gfx_config.bootloader = 1;

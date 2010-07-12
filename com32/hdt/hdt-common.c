@@ -70,31 +70,27 @@ void detect_parameters(const int argc, const char *argv[],
 	if (!strncmp(argv[i], "quiet", 5)) {
 	    quiet = true;
 	} else if (!strncmp(argv[i], "modules_pcimap=", 15)) {
-	    strncpy(hardware->modules_pcimap_path, argv[i] + 15,
+	    strlcpy(hardware->modules_pcimap_path, argv[i] + 15,
 		    sizeof(hardware->modules_pcimap_path));
 	    convert_isolinux_filename(hardware->modules_pcimap_path, hardware);
 	} else if (!strncmp(argv[i], "pciids=", 7)) {
-	    strncpy(hardware->pciids_path, argv[i] + 7,
+	    strlcpy(hardware->pciids_path, argv[i] + 7,
 		    sizeof(hardware->pciids_path));
 	    convert_isolinux_filename(hardware->pciids_path, hardware);
 	} else if (!strncmp(argv[i], "modules_alias=", 14)) {
-	    strncpy(hardware->modules_alias_path, argv[i] + 14,
+	    strlcpy(hardware->modules_alias_path, argv[i] + 14,
 		    sizeof(hardware->modules_alias_path));
 	    convert_isolinux_filename(hardware->modules_alias_path, hardware);
 	} else if (!strncmp(argv[i], "memtest=", 8)) {
-	    strncpy(hardware->memtest_label, argv[i] + 8,
+	    strlcpy(hardware->memtest_label, argv[i] + 8,
 		    sizeof(hardware->memtest_label));
 	    convert_isolinux_filename(hardware->memtest_label, hardware);
-	} else if (!strncmp(argv[i], "reboot=", 7)) {
-	    strncpy(hardware->reboot_label, argv[i] + 7,
-		    sizeof(hardware->reboot_label));
-	    convert_isolinux_filename(hardware->reboot_label, hardware);
 	} else if (!strncmp(argv[i], "vesa", 4)) {
 	    vesamode = true;
 	    max_console_lines = MAX_CLI_LINES;
 	    /* If the user defines a background image */
 	    if (!strncmp(argv[i], "vesa=", 5)) {
-		strncpy(hardware->vesa_background, argv[i] + 5,
+		strlcpy(hardware->vesa_background, argv[i] + 5,
 			sizeof(hardware->vesa_background));
 	    }
 	} else if (!strncmp(argv[i], "novesa", 6)) {
@@ -191,15 +187,13 @@ void init_hardware(struct s_hardware *hardware)
     memset(hardware->modules_alias_path, 0,
 	   sizeof hardware->modules_alias_path);
     memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
-    memset(hardware->reboot_label, 0, sizeof hardware->reboot_label);
     memset(hardware->auto_label, 0, sizeof hardware->auto_label);
     memset(hardware->vesa_background, 0, sizeof hardware->vesa_background);
     strcat(hardware->pciids_path, "pci.ids");
     strcat(hardware->modules_pcimap_path, "modules.pcimap");
     strcat(hardware->modules_alias_path, "modules.alias");
     strcat(hardware->memtest_label, "memtest");
-    strcat(hardware->reboot_label, "reboot.c32");
-    strncpy(hardware->vesa_background, CLI_DEFAULT_BACKGROUND,
+    strlcpy(hardware->vesa_background, CLI_DEFAULT_BACKGROUND,
 	    sizeof(hardware->vesa_background));
 }
 
@@ -277,11 +271,11 @@ int detect_vesa(struct s_hardware *hardware)
 
     mode_ptr = GET_PTR(gi->video_mode_ptr);
     oem_ptr = GET_PTR(gi->oem_vendor_name_ptr);
-    strncpy(hardware->vesa.vendor, oem_ptr, sizeof(hardware->vesa.vendor));
+    strlcpy(hardware->vesa.vendor, oem_ptr, sizeof(hardware->vesa.vendor));
     oem_ptr = GET_PTR(gi->oem_product_name_ptr);
-    strncpy(hardware->vesa.product, oem_ptr, sizeof(hardware->vesa.product));
+    strlcpy(hardware->vesa.product, oem_ptr, sizeof(hardware->vesa.product));
     oem_ptr = GET_PTR(gi->oem_product_rev_ptr);
-    strncpy(hardware->vesa.product_revision, oem_ptr,
+    strlcpy(hardware->vesa.product_revision, oem_ptr,
 	    sizeof(hardware->vesa.product_revision));
 
     hardware->vesa.major_version = (gi->version >> 8) & 0xff;
@@ -533,13 +527,13 @@ void cpu_detect(struct s_hardware *hardware)
     /* Old processors doesn't manage the identify commands 
      * Let's use the dmi value in that case */
     if (strlen(remove_spaces(hardware->cpu.model)) == 0)
-	strncpy(hardware->cpu.model, hardware->dmi.processor.version,
+	strlcpy(hardware->cpu.model, hardware->dmi.processor.version,
 		sizeof(hardware->cpu.model));
 
     /* Some CPUs like to put many spaces in the model name
      * That makes some weird display in console/menu
      * Let's remove that mulitple spaces */
-    strncpy(hardware->cpu.model,del_multi_spaces(hardware->cpu.model),sizeof(hardware->cpu.model));
+    strlcpy(hardware->cpu.model,del_multi_spaces(hardware->cpu.model),sizeof(hardware->cpu.model));
     hardware->cpu_detection = true;
 }
 
@@ -631,7 +625,7 @@ char *del_multi_spaces(char *p)
 
 	    /* Let's copy to the current position
 	     * the content from the second space*/
-	    strncpy(p, p + 1, strlen(p + 1));
+	    strlcpy(p, p + 1, strlen(p + 1));
 
 	    /* The string is 1 char smaller */
 	    *(p + strlen(p) - 1) = '\0';

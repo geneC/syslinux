@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <syslinux/config.h>
+#include <syslinux/reboot.h>
 
 #include "hdt-menu.h"
 #include "hdt-cli.h"
@@ -246,11 +247,9 @@ void main_show_hdt(int argc __unused, char **argv __unused,
 static void do_reboot(int argc __unused, char **argv __unused,
 		      struct s_hardware *hardware)
 {
-    /* Use specific syslinux call if needed */
-    if (issyslinux())
-	return runsyslinuxcmd(hardware->reboot_label);
-    else
-	return csprint(hardware->reboot_label, 0x07);
+    (void) hardware;
+    /* Let's call the internal rebooting call */
+    syslinux_reboot(1);
 }
 
 /* Default hdt mode */

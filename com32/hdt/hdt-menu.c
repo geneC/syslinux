@@ -28,6 +28,7 @@
 
 #include <unistd.h>
 #include <memory.h>
+#include <syslinux/reboot.h>
 #include "hdt-menu.h"
 
 int start_menu_mode(struct s_hardware *hardware, char *version_string)
@@ -63,6 +64,10 @@ int start_menu_mode(struct s_hardware *hardware, char *version_string)
 	    if (!strncmp
 		(curr->data, HDT_SWITCH_TO_CLI, sizeof(HDT_SWITCH_TO_CLI))) {
 		return HDT_RETURN_TO_CLI;
+	    }
+	    if (!strncmp
+		(curr->data, HDT_REBOOT, sizeof(HDT_REBOOT))) {
+		syslinux_reboot(1);
 	    }
 	    strcpy(cmd, curr->data);
 
@@ -284,7 +289,7 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 	     HDT_SWITCH_TO_CLI, 0);
     add_item("<A>bout", "About Menu", OPT_SUBMENU, NULL,
 	     hdt_menu->about_menu.menu);
-    add_item("<R>eboot", "Reboot", OPT_RUN, hardware->reboot_label, 0);
+    add_item("<R>eboot", "Reboot", OPT_RUN, HDT_REBOOT, 0);
     add_item("E<x>it", "Exit", OPT_EXITMENU, NULL, 0);
     hdt_menu->main_menu.items_count++;
 

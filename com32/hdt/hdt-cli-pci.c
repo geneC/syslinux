@@ -206,8 +206,8 @@ static void show_pci_devices(int argc __unused, char **argv __unused,
 			 pci_device->product,
 			 pci_device->sub_vendor, pci_device->sub_product);
 
-	    more_printf(first_line);
-	    more_printf(second_line);
+	    more_printf("%s", first_line);
+	    more_printf("%s", second_line);
 	    more_printf("\n");
 	} else if (nopciids == true) {
 	    if (nomodulesfile == true) {

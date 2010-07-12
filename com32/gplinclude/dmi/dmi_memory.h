@@ -66,12 +66,12 @@ void dmi_memory_device_size(uint16_t code, char *size);
 const char *dmi_memory_device_form_factor(uint8_t code);
 void dmi_memory_device_set(uint8_t code, char *set);
 const char *dmi_memory_device_type(uint8_t code);
-void dmi_memory_device_type_detail(uint16_t code, char *type_detail);
+void dmi_memory_device_type_detail(uint16_t code, char *type_detail, int sizeof_type_detail);
 void dmi_memory_device_speed(uint16_t code, char *speed);
 
-void dmi_memory_module_connections(uint8_t, char *);
+void dmi_memory_module_connections(uint8_t, char *, int);
 void dmi_memory_module_speed(uint8_t, char *);
-void dmi_memory_module_types(uint16_t, const char *, char *);
-void dmi_memory_module_size(uint8_t, char *);
+void dmi_memory_module_types(uint16_t, const char *, char *, int);
+void dmi_memory_module_size(uint8_t, char *, int);
 void dmi_memory_module_error(uint8_t, const char *, char *);
 #endif

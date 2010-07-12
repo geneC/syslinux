@@ -73,11 +73,11 @@ static void dmi_on_board_devices(struct dmi_header *h, s_dmi * dmi)
 	 && i <
 	 sizeof dmi->base_board.devices_information /
 	 sizeof *dmi->base_board.devices_information; i++) {
-	strncpy(dmi->base_board.devices_information[i].type,
+	strlcpy(dmi->base_board.devices_information[i].type,
 		dmi_on_board_devices_type(p[2 * i] & 0x7F),
 		sizeof dmi->base_board.devices_information[i].type);
 	dmi->base_board.devices_information[i].status = p[2 * i] & 0x80;
-	strncpy(dmi->base_board.devices_information[i].description,
+	strlcpy(dmi->base_board.devices_information[i].description,
 		dmi_string(h, p[2 * i + 1]),
 		sizeof dmi->base_board.devices_information[i].description);
     }
@@ -103,7 +103,7 @@ static const char *dmi_system_reset_boot_option(uint8_t code)
 static void dmi_system_reset_count(uint16_t code, char *array)
 {
     if (code == 0xFFFF)
-	strncpy(array, "Unknown", sizeof array);
+	strlcpy(array, "Unknown", sizeof array);
     else
 	snprintf(array, sizeof array, "%u", code);
 }
@@ -111,7 +111,7 @@ static void dmi_system_reset_count(uint16_t code, char *array)
 static void dmi_system_reset_timer(uint16_t code, char *array)
 {
     if (code == 0xFFFF)
-	strncpy(array, "Unknown", sizeof array);
+	strlcpy(array, "Unknown", sizeof array);
     else
 	snprintf(array, sizeof array, "%u min", code);
 }
@@ -179,22 +179,22 @@ static void dmi_system_boot_status(uint8_t code, char *array)
     };
 
     if (code <= 8)
-	strncpy(array, status[code], SYSTEM_BOOT_STATUS_SIZE);
+	strlcpy(array, status[code], SYSTEM_BOOT_STATUS_SIZE);
     if (code >= 128 && code <= 191)
-	strncpy(array, "OEM-specific", SYSTEM_BOOT_STATUS_SIZE);
+	strlcpy(array, "OEM-specific", SYSTEM_BOOT_STATUS_SIZE);
     if (code >= 192)
-	strncpy(array, "Product-specific", SYSTEM_BOOT_STATUS_SIZE);
+	strlcpy(array, "Product-specific", SYSTEM_BOOT_STATUS_SIZE);
 }
 
 void dmi_bios_runtime_size(uint32_t code, s_dmi * dmi)
 {
     if (code & 0x000003FF) {
 	dmi->bios.runtime_size = code;
-	strncpy(dmi->bios.runtime_size_unit, "bytes",
+	strlcpy(dmi->bios.runtime_size_unit, "bytes",
 		sizeof(dmi->bios.runtime_size_unit));
     } else {
 	dmi->bios.runtime_size = code >> 10;
-	strncpy(dmi->bios.runtime_size_unit, "KB",
+	strlcpy(dmi->bios.runtime_size_unit, "KB",
 		sizeof(dmi->bios.runtime_size_unit));
 
     }
@@ -279,10 +279,10 @@ void dmi_system_wake_up_type(uint8_t code, s_dmi * dmi)
     };
 
     if (code <= 0x08) {
-	strncpy(dmi->system.wakeup_type, type[code],
+	strlcpy(dmi->system.wakeup_type, type[code],
 		sizeof(dmi->system.wakeup_type));
     } else {
-	strncpy(dmi->system.wakeup_type, out_of_spec,
+	strlcpy(dmi->system.wakeup_type, out_of_spec,
 		sizeof(dmi->system.wakeup_type));
     }
     return;
@@ -516,6 +516,8 @@ int dmi_iterate(s_dmi * dmi)
     int found = 0;
 
     /* Cleaning structures */
+    memset(dmi, 0, sizeof(s_dmi));
+
     memset(&dmi->base_board, 0, sizeof(s_base_board));
     memset(&dmi->battery, 0, sizeof(s_battery));
     memset(&dmi->bios, 0, sizeof(s_bios));
@@ -579,16 +581,16 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	if (h->length < 0x12)
 	    break;
 	dmi->bios.filled = true;
-	strncpy(dmi->bios.vendor, dmi_string(h, data[0x04]),
+	strlcpy(dmi->bios.vendor, dmi_string(h, data[0x04]),
 		sizeof(dmi->bios.vendor));
-	strncpy(dmi->bios.version, dmi_string(h, data[0x05]),
+	strlcpy(dmi->bios.version, dmi_string(h, data[0x05]),
 		sizeof(dmi->bios.version));
-	strncpy(dmi->bios.release_date, dmi_string(h, data[0x08]),
+	strlcpy(dmi->bios.release_date, dmi_string(h, data[0x08]),
 		sizeof(dmi->bios.release_date));
 	dmi->bios.address = WORD(data + 0x06);
 	dmi_bios_runtime_size((0x10000 - WORD(data + 0x06)) << 4, dmi);
 	dmi->bios.rom_size = (data[0x09] + 1) << 6;
-	strncpy(dmi->bios.rom_size_unit, "kB", sizeof(dmi->bios.rom_size_unit));
+	strlcpy(dmi->bios.rom_size_unit, "kB", sizeof(dmi->bios.rom_size_unit));
 	dmi_bios_characteristics(QWORD(data + 0x0A), dmi);
 
 	if (h->length < 0x13)
@@ -611,13 +613,13 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	if (h->length < 0x08)
 	    break;
 	dmi->system.filled = true;
-	strncpy(dmi->system.manufacturer, dmi_string(h, data[0x04]),
+	strlcpy(dmi->system.manufacturer, dmi_string(h, data[0x04]),
 		sizeof(dmi->system.manufacturer));
-	strncpy(dmi->system.product_name, dmi_string(h, data[0x05]),
+	strlcpy(dmi->system.product_name, dmi_string(h, data[0x05]),
 		sizeof(dmi->system.product_name));
-	strncpy(dmi->system.version, dmi_string(h, data[0x06]),
+	strlcpy(dmi->system.version, dmi_string(h, data[0x06]),
 		sizeof(dmi->system.version));
-	strncpy(dmi->system.serial, dmi_string(h, data[0x07]),
+	strlcpy(dmi->system.serial, dmi_string(h, data[0x07]),
 		sizeof(dmi->system.serial));
 	if (h->length < 0x19)
 	    break;
@@ -625,9 +627,9 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	dmi_system_wake_up_type(data[0x18], dmi);
 	if (h->length < 0x1B)
 	    break;
-	strncpy(dmi->system.sku_number, dmi_string(h, data[0x19]),
+	strlcpy(dmi->system.sku_number, dmi_string(h, data[0x19]),
 		sizeof(dmi->system.sku_number));
-	strncpy(dmi->system.family, dmi_string(h, data[0x1A]),
+	strlcpy(dmi->system.family, dmi_string(h, data[0x1A]),
 		sizeof(dmi->system.family));
 	break;
 
@@ -635,22 +637,22 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	if (h->length < 0x08)
 	    break;
 	dmi->base_board.filled = true;
-	strncpy(dmi->base_board.manufacturer, dmi_string(h, data[0x04]),
+	strlcpy(dmi->base_board.manufacturer, dmi_string(h, data[0x04]),
 		sizeof(dmi->base_board.manufacturer));
-	strncpy(dmi->base_board.product_name, dmi_string(h, data[0x05]),
+	strlcpy(dmi->base_board.product_name, dmi_string(h, data[0x05]),
 		sizeof(dmi->base_board.product_name));
-	strncpy(dmi->base_board.version, dmi_string(h, data[0x06]),
+	strlcpy(dmi->base_board.version, dmi_string(h, data[0x06]),
 		sizeof(dmi->base_board.version));
-	strncpy(dmi->base_board.serial, dmi_string(h, data[0x07]),
+	strlcpy(dmi->base_board.serial, dmi_string(h, data[0x07]),
 		sizeof(dmi->base_board.serial));
 	if (h->length < 0x0F)
 	    break;
-	strncpy(dmi->base_board.asset_tag, dmi_string(h, data[0x08]),
+	strlcpy(dmi->base_board.asset_tag, dmi_string(h, data[0x08]),
 		sizeof(dmi->base_board.asset_tag));
 	dmi_base_board_features(data[0x09], dmi);
-	strncpy(dmi->base_board.location, dmi_string(h, data[0x0A]),
+	strlcpy(dmi->base_board.location, dmi_string(h, data[0x0A]),
 		sizeof(dmi->base_board.location));
-	strncpy(dmi->base_board.type, dmi_string(h, data[0x0D]),
+	strlcpy(dmi->base_board.type, dmi_string(h, data[0x0D]),
 		sizeof(dmi->base_board.type));
 	if (h->length < 0x0F + data[0x0E] * sizeof(uint16_t))
 	    break;
@@ -659,29 +661,29 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	if (h->length < 0x09)
 	    break;
 	dmi->chassis.filled = true;
-	strncpy(dmi->chassis.manufacturer, dmi_string(h, data[0x04]),
+	strlcpy(dmi->chassis.manufacturer, dmi_string(h, data[0x04]),
 		sizeof(dmi->chassis.manufacturer));
-	strncpy(dmi->chassis.type, dmi_chassis_type(data[0x05] & 0x7F),
+	strlcpy(dmi->chassis.type, dmi_chassis_type(data[0x05] & 0x7F),
 		sizeof(dmi->chassis.type));
-	strncpy(dmi->chassis.lock, dmi_chassis_lock(data[0x05] >> 7),
+	strlcpy(dmi->chassis.lock, dmi_chassis_lock(data[0x05] >> 7),
 		sizeof(dmi->chassis.lock));
-	strncpy(dmi->chassis.version, dmi_string(h, data[0x06]),
+	strlcpy(dmi->chassis.version, dmi_string(h, data[0x06]),
 		sizeof(dmi->chassis.version));
-	strncpy(dmi->chassis.serial, dmi_string(h, data[0x07]),
+	strlcpy(dmi->chassis.serial, dmi_string(h, data[0x07]),
 		sizeof(dmi->chassis.serial));
-	strncpy(dmi->chassis.asset_tag, dmi_string(h, data[0x08]),
+	strlcpy(dmi->chassis.asset_tag, dmi_string(h, data[0x08]),
 		sizeof(dmi->chassis.asset_tag));
 	if (h->length < 0x0D)
 	    break;
-	strncpy(dmi->chassis.boot_up_state, dmi_chassis_state(data[0x09]),
+	strlcpy(dmi->chassis.boot_up_state, dmi_chassis_state(data[0x09]),
 		sizeof(dmi->chassis.boot_up_state));
-	strncpy(dmi->chassis.power_supply_state,
+	strlcpy(dmi->chassis.power_supply_state,
 		dmi_chassis_state(data[0x0A]),
 		sizeof(dmi->chassis.power_supply_state));
-	strncpy(dmi->chassis.thermal_state,
+	strlcpy(dmi->chassis.thermal_state,
 		dmi_chassis_state(data[0x0B]),
 		sizeof(dmi->chassis.thermal_state));
-	strncpy(dmi->chassis.security_status,
+	strlcpy(dmi->chassis.security_status,
 		dmi_chassis_security_status(data[0x0C]),
 		sizeof(dmi->chassis.security_status));
 	if (h->length < 0x11)
@@ -698,31 +700,31 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	if (h->length < 0x1A)
 	    break;
 	dmi->processor.filled = true;
-	strncpy(dmi->processor.socket_designation,
+	strlcpy(dmi->processor.socket_designation,
 		dmi_string(h, data[0x04]),
 		sizeof(dmi->processor.socket_designation));
-	strncpy(dmi->processor.type,
+	strlcpy(dmi->processor.type,
 		dmi_processor_type(data[0x05]), sizeof(dmi->processor.type));
-	strncpy(dmi->processor.manufacturer,
+	strlcpy(dmi->processor.manufacturer,
 		dmi_string(h, data[0x07]), sizeof(dmi->processor.manufacturer));
-	strncpy(dmi->processor.family,
+	strlcpy(dmi->processor.family,
 		dmi_processor_family(data[0x06],
 				     dmi->processor.manufacturer),
 		sizeof(dmi->processor.family));
 	dmi_processor_id(data[0x06], data + 8, dmi_string(h, data[0x10]), dmi);
-	strncpy(dmi->processor.version,
+	strlcpy(dmi->processor.version,
 		dmi_string(h, data[0x10]), sizeof(dmi->processor.version));
 	dmi_processor_voltage(data[0x11], dmi);
 	dmi->processor.external_clock = WORD(data + 0x12);
 	dmi->processor.max_speed = WORD(data + 0x14);
 	dmi->processor.current_speed = WORD(data + 0x16);
 	if (data[0x18] & (1 << 6))
-	    strncpy(dmi->processor.status,
+	    strlcpy(dmi->processor.status,
 		    dmi_processor_status(data[0x18] & 0x07),
 		    sizeof(dmi->processor.status));
 	else
 	    sprintf(dmi->processor.status, "Unpopulated");
-	strncpy(dmi->processor.upgrade,
+	strlcpy(dmi->processor.upgrade,
 		dmi_processor_upgrade(data[0x19]),
 		sizeof(dmi->processor.upgrade));
 	if (h->length < 0x20)
@@ -735,11 +737,11 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 			    dmi->processor.cache3);
 	if (h->length < 0x23)
 	    break;
-	strncpy(dmi->processor.serial, dmi_string(h, data[0x20]),
+	strlcpy(dmi->processor.serial, dmi_string(h, data[0x20]),
 		sizeof(dmi->processor.serial));
-	strncpy(dmi->processor.asset_tag, dmi_string(h, data[0x21]),
+	strlcpy(dmi->processor.asset_tag, dmi_string(h, data[0x21]),
 		sizeof(dmi->processor.asset_tag));
-	strncpy(dmi->processor.part_number, dmi_string(h, data[0x22]),
+	strlcpy(dmi->processor.part_number, dmi_string(h, data[0x22]),
 		sizeof(dmi->processor.part_number));
 	break;
     case 6:			/* 3.3.7 Memory Module Information */
@@ -749,13 +751,13 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	s_memory_module *module =
 	    &dmi->memory_module[dmi->memory_module_count - 1];
 	dmi->memory_module[dmi->memory_module_count - 1].filled = true;
-	strncpy(module->socket_designation, dmi_string(h, data[0x04]),
+	strlcpy(module->socket_designation, dmi_string(h, data[0x04]),
 		sizeof(module->socket_designation));
-	dmi_memory_module_connections(data[0x05], module->bank_connections);
+	dmi_memory_module_connections(data[0x05], module->bank_connections, sizeof(module->bank_connections));
 	dmi_memory_module_speed(data[0x06], module->speed);
-	dmi_memory_module_types(WORD(data + 0x07), " ", module->type);
-	dmi_memory_module_size(data[0x09], module->installed_size);
-	dmi_memory_module_size(data[0x0A], module->enabled_size);
+	dmi_memory_module_types(WORD(data + 0x07), " ", module->type, sizeof(module->type));
+	dmi_memory_module_size(data[0x09], module->installed_size, sizeof(module->installed_size));
+	dmi_memory_module_size(data[0x0A], module->enabled_size, sizeof(module->enabled_size));
 	dmi_memory_module_error(data[0x0B], "\t\t", module->error_status);
 	break;
     case 7:			/* 3.3.8 Cache Information */
@@ -764,7 +766,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	dmi->cache_count++;
 	if (dmi->cache_count > MAX_DMI_CACHE_ITEMS)
 	    break;
-	strncpy(dmi->cache[dmi->cache_count - 1].socket_designation,
+	strlcpy(dmi->cache[dmi->cache_count - 1].socket_designation,
 		dmi_string(h, data[0x04]),
 		sizeof(dmi->cache[dmi->cache_count - 1].socket_designation));
 	snprintf(dmi->cache[dmi->cache_count - 1].configuration,
@@ -774,10 +776,10 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 		 WORD(data +
 		      0x05) & 0x0008 ? "Socketed" : "Not Socketed",
 		 (WORD(data + 0x05) & 0x0007) + 1);
-	strncpy(dmi->cache[dmi->cache_count - 1].mode,
+	strlcpy(dmi->cache[dmi->cache_count - 1].mode,
 		dmi_cache_mode((WORD(data + 0x05) >> 8) & 0x0003),
 		sizeof(dmi->cache[dmi->cache_count - 1].mode));
-	strncpy(dmi->cache[dmi->cache_count - 1].location,
+	strlcpy(dmi->cache[dmi->cache_count - 1].location,
 		dmi_cache_location((WORD(data + 0x05) >> 5) & 0x0003),
 		sizeof(dmi->cache[dmi->cache_count - 1].location));
 	dmi->cache[dmi->cache_count - 1].installed_size =
@@ -791,13 +793,13 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	if (h->length < 0x13)
 	    break;
 	dmi->cache[dmi->cache_count - 1].speed = data[0x0F];	/* ns */
-	strncpy(dmi->cache[dmi->cache_count - 1].error_correction_type,
+	strlcpy(dmi->cache[dmi->cache_count - 1].error_correction_type,
 		dmi_cache_ec_type(data[0x10]),
 		sizeof(dmi->cache[dmi->cache_count - 1].error_correction_type));
-	strncpy(dmi->cache[dmi->cache_count - 1].system_type,
+	strlcpy(dmi->cache[dmi->cache_count - 1].system_type,
 		dmi_cache_type(data[0x11]),
 		sizeof(dmi->cache[dmi->cache_count - 1].system_type));
-	strncpy(dmi->cache[dmi->cache_count - 1].associativity,
+	strlcpy(dmi->cache[dmi->cache_count - 1].associativity,
 		dmi_cache_associativity(data[0x12]),
 		sizeof(dmi->cache[dmi->cache_count - 1].associativity));
 	break;
@@ -826,49 +828,49 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	dmi_memory_device_width(WORD(data + 0x08), mem->total_width);
 	dmi_memory_device_width(WORD(data + 0x0A), mem->data_width);
 	dmi_memory_device_size(WORD(data + 0x0C), mem->size);
-	strncpy(mem->form_factor,
+	strlcpy(mem->form_factor,
 		dmi_memory_device_form_factor(data[0x0E]),
 		sizeof(mem->form_factor));
 	dmi_memory_device_set(data[0x0F], mem->device_set);
-	strncpy(mem->device_locator, dmi_string(h, data[0x10]),
+	strlcpy(mem->device_locator, dmi_string(h, data[0x10]),
 		sizeof(mem->device_locator));
-	strncpy(mem->bank_locator, dmi_string(h, data[0x11]),
+	strlcpy(mem->bank_locator, dmi_string(h, data[0x11]),
 		sizeof(mem->bank_locator));
-	strncpy(mem->type, dmi_memory_device_type(data[0x12]),
+	strlcpy(mem->type, dmi_memory_device_type(data[0x12]),
 		sizeof(mem->type));
-	dmi_memory_device_type_detail(WORD(data + 0x13), mem->type_detail);
+	dmi_memory_device_type_detail(WORD(data + 0x13), mem->type_detail, sizeof(mem->type_detail));
 	if (h->length < 0x17)
 	    break;
 	dmi_memory_device_speed(WORD(data + 0x15), mem->speed);
 	if (h->length < 0x1B)
 	    break;
-	strncpy(mem->manufacturer, dmi_string(h, data[0x17]),
+	strlcpy(mem->manufacturer, dmi_string(h, data[0x17]),
 		sizeof(mem->manufacturer));
-	strncpy(mem->serial, dmi_string(h, data[0x18]), sizeof(mem->serial));
-	strncpy(mem->asset_tag, dmi_string(h, data[0x19]),
+	strlcpy(mem->serial, dmi_string(h, data[0x18]), sizeof(mem->serial));
+	strlcpy(mem->asset_tag, dmi_string(h, data[0x19]),
 		sizeof(mem->asset_tag));
-	strncpy(mem->part_number, dmi_string(h, data[0x1A]),
+	strlcpy(mem->part_number, dmi_string(h, data[0x1A]),
 		sizeof(mem->part_number));
 	break;
     case 22:			/* 3.3.23 Portable Battery */
 	if (h->length < 0x10)
 	    break;
 	dmi->battery.filled = true;
-	strncpy(dmi->battery.location, dmi_string(h, data[0x04]),
+	strlcpy(dmi->battery.location, dmi_string(h, data[0x04]),
 		sizeof(dmi->battery.location));
-	strncpy(dmi->battery.manufacturer, dmi_string(h, data[0x05]),
+	strlcpy(dmi->battery.manufacturer, dmi_string(h, data[0x05]),
 		sizeof(dmi->battery.manufacturer));
 	if (data[0x06] || h->length < 0x1A)
-	    strncpy(dmi->battery.manufacture_date,
+	    strlcpy(dmi->battery.manufacture_date,
 		    dmi_string(h, data[0x06]),
 		    sizeof(dmi->battery.manufacture_date));
 	if (data[0x07] || h->length < 0x1A)
-	    strncpy(dmi->battery.serial, dmi_string(h, data[0x07]),
+	    strlcpy(dmi->battery.serial, dmi_string(h, data[0x07]),
 		    sizeof(dmi->battery.serial));
-	strncpy(dmi->battery.name, dmi_string(h, data[0x08]),
+	strlcpy(dmi->battery.name, dmi_string(h, data[0x08]),
 		sizeof(dmi->battery.name));
 	if (data[0x09] != 0x02 || h->length < 0x1A)
-	    strncpy(dmi->battery.chemistry,
+	    strlcpy(dmi->battery.chemistry,
 		    dmi_battery_chemistry(data[0x09]),
 		    sizeof(dmi->battery.chemistry));
 	if (h->length < 0x1A)
@@ -878,7 +880,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	    dmi_battery_capacity(WORD(data + 0x0A), data[0x15],
 				 dmi->battery.design_capacity);
 	dmi_battery_voltage(WORD(data + 0x0C), dmi->battery.design_voltage);
-	strncpy(dmi->battery.sbds, dmi_string(h, data[0x0E]),
+	strlcpy(dmi->battery.sbds, dmi_string(h, data[0x0E]),
 		sizeof(dmi->battery.sbds));
 	dmi_battery_maximum_error(data[0x0F], dmi->battery.maximum_error);
 	if (h->length < 0x1A)
@@ -890,7 +892,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 		    1980 + (WORD(data + 0x12) >> 9),
 		    (WORD(data + 0x12) >> 5) & 0x0F, WORD(data + 0x12) & 0x1F);
 	if (data[0x09] == 0x02)
-	    strncpy(dmi->battery.sbds_chemistry, dmi_string(h, data[0x14]),
+	    strlcpy(dmi->battery.sbds_chemistry, dmi_string(h, data[0x14]),
 		    sizeof(dmi->battery.sbds_chemistry));
 	//      sprintf(dmi->battery.oem_info,"0x%08X",DWORD(h, data+0x16));
 	break;
@@ -902,10 +904,10 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	dmi->system.system_reset.watchdog = data[0x04] & (1 << 5);
 	if (!(data[0x04] & (1 << 5)))
 	    break;
-	strncpy(dmi->system.system_reset.boot_option,
+	strlcpy(dmi->system.system_reset.boot_option,
 		dmi_system_reset_boot_option((data[0x04] >> 1) & 0x3),
 		sizeof dmi->system.system_reset.boot_option);
-	strncpy(dmi->system.system_reset.boot_option_on_limit,
+	strlcpy(dmi->system.system_reset.boot_option_on_limit,
 		dmi_system_reset_boot_option((data[0x04] >> 3) & 0x3),
 		sizeof dmi->system.system_reset.boot_option_on_limit);
 	dmi_system_reset_count(WORD(data + 0x05),
@@ -921,16 +923,16 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	if (h->length < 0x05)
 	    break;
 	dmi->hardware_security.filled = true;
-	strncpy(dmi->hardware_security.power_on_passwd_status,
+	strlcpy(dmi->hardware_security.power_on_passwd_status,
 		dmi_hardware_security_status(data[0x04] >> 6),
 		sizeof dmi->hardware_security.power_on_passwd_status);
-	strncpy(dmi->hardware_security.keyboard_passwd_status,
+	strlcpy(dmi->hardware_security.keyboard_passwd_status,
 		dmi_hardware_security_status((data[0x04] >> 4) & 0x3),
 		sizeof dmi->hardware_security.keyboard_passwd_status);
-	strncpy(dmi->hardware_security.administrator_passwd_status,
+	strlcpy(dmi->hardware_security.administrator_passwd_status,
 		dmi_hardware_security_status((data[0x04] >> 2) & 0x3),
 		sizeof dmi->hardware_security.administrator_passwd_status);
-	strncpy(dmi->hardware_security.front_panel_reset_status,
+	strlcpy(dmi->hardware_security.front_panel_reset_status,
 		dmi_hardware_security_status(data[0x04] & 0x3),
 		sizeof dmi->hardware_security.front_panel_reset_status);
 	break;

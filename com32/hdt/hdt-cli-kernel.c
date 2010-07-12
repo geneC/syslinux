@@ -83,7 +83,7 @@ void main_show_kernel(int argc __unused, char **argv __unused,
     }
     if (found == true) {
 	strncat(buffer, "\n", 1);
-	more_printf(buffer);
+	more_printf("%s", buffer);
     }
 }
 

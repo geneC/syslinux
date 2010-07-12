@@ -30,73 +30,75 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
     case 0xfa33:
     case 0xfab8:
     case 0xfabe:
-	strncpy(buffer, "No bootloader", buffer_size - 1);
+	strlcpy(buffer, "No bootloader", buffer_size - 1);
 	break;
     case 0x0ebe:
-	strncpy(buffer, "ThinkPad", buffer_size - 1);
+	strlcpy(buffer, "ThinkPad", buffer_size - 1);
 	break;
     case 0x31c0:
-	strncpy(buffer, "Acer 3", buffer_size - 1);
+	strlcpy(buffer, "Acer 3", buffer_size - 1);
 	break;
     case 0x33c0:
-	strncpy(buffer, "Windows", buffer_size - 1);
+	strlcpy(buffer, "Windows", buffer_size - 1);
 	break;
     case 0x33ff:
-	strncpy(buffer, "HP/Gateway", buffer_size - 1);
+	strlcpy(buffer, "HP/Gateway", buffer_size - 1);
 	break;
     case 0xb800:
-	strncpy(buffer, "PloP", buffer_size - 1);
+	strlcpy(buffer, "PloP", buffer_size - 1);
 	break;
     case 0xea05:
-	strncpy(buffer, "XOSL", buffer_size - 1);
+	strlcpy(buffer, "XOSL", buffer_size - 1);
 	break;
     case 0xea1e:
-	strncpy(buffer, "Truecrypt Boot Loader", buffer_size - 1);
+	strlcpy(buffer, "Truecrypt Boot Loader", buffer_size - 1);
 	break;
     case 0xeb04:
-	strncpy(buffer, "Solaris", buffer_size - 1);
+	strlcpy(buffer, "Solaris", buffer_size - 1);
 	break;
     case 0xeb48:
-	strncpy(buffer, "Grub", buffer_size - 1);
+	strlcpy(buffer, "Grub", buffer_size - 1);
 	break;
     case 0xeb4c:
-	strncpy(buffer, "Grub2 (v1.96)", buffer_size - 1);
+	strlcpy(buffer, "Grub2 (v1.96)", buffer_size - 1);
 	break;
     case 0xeb63:
-	strncpy(buffer, "Grub2 (v1.97)", buffer_size - 1);
+	strlcpy(buffer, "Grub2 (v1.97)", buffer_size - 1);
 	break;
     case 0xeb5e:
 	/* We need more than 2 bytes */
 	if (((label >> 8) & 0xff) == 0x00)
-	    strncpy(buffer, "fbinst", buffer_size - 1);
+	    strlcpy(buffer, "fbinst", buffer_size - 1);
 	else if (((label >> 8) & 0xff) == 0x80)
-	    strncpy(buffer, "Grub4Dos", buffer_size - 1);
+	    strlcpy(buffer, "Grub4Dos", buffer_size - 1);
+	else if (((label >> 8) & 0xff) == 0x90)
+	    strlcpy(buffer, "WEE", buffer_size - 1);
 	else
-	    strncpy(buffer, "Unknown mbr", buffer_size - 1);
+	    strlcpy(buffer, "Unknown mbr", buffer_size - 1);
 	break;
     case 0xfa31:
 	/* We need more than 2 bytes */
 	if (((label >> 8) & 0xff) == 0xc9)
-	    strncpy(buffer, "Master Boot LoaDeR", buffer_size - 1);
+	    strlcpy(buffer, "Master Boot LoaDeR", buffer_size - 1);
 	else if (((label >> 8) & 0xff) == 0xc0)
-	    strncpy(buffer, "Syslinux", buffer_size - 1);
+	    strlcpy(buffer, "Syslinux", buffer_size - 1);
 	else
-	    strncpy(buffer, "Unknown mbr", buffer_size - 1);
+	    strlcpy(buffer, "Unknown mbr", buffer_size - 1);
 	break;
     case 0xfaeb:
-	strncpy(buffer, "Lilo", buffer_size - 1);
+	strlcpy(buffer, "Lilo", buffer_size - 1);
 	break;
     case 0xfc31:
-	strncpy(buffer, "Testdisk", buffer_size - 1);
+	strlcpy(buffer, "Testdisk", buffer_size - 1);
 	break;
     case 0xfc33:
-	strncpy(buffer, "GAG", buffer_size - 1);
+	strlcpy(buffer, "GAG", buffer_size - 1);
 	break;
     case 0xfceb:
-	strncpy(buffer, "BootIT NG", buffer_size - 1);
+	strlcpy(buffer, "BootIT NG", buffer_size - 1);
 	break;
     default:
-	strncpy(buffer, "Unknown mbr", buffer_size - 1);
+	strlcpy(buffer, "Unknown mbr", buffer_size - 1);
 	break;
     }
 

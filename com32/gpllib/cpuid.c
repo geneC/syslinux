@@ -423,9 +423,9 @@ void set_generic_info(struct cpuinfo_x86 *c, s_cpu * cpu)
     cpu->vendor_id = c->x86_vendor;
     cpu->model_id = c->x86_model;
     cpu->stepping = c->x86_mask;
-    strncpy(cpu->vendor, cpu_devs[c->x86_vendor]->c_vendor,
+    strlcpy(cpu->vendor, cpu_devs[c->x86_vendor]->c_vendor,
 	    sizeof(cpu->vendor));
-    strncpy(cpu->model, c->x86_model_id, sizeof(cpu->model));
+    strlcpy(cpu->model, c->x86_model_id, sizeof(cpu->model));
     cpu->num_cores = c->x86_num_cores;
     cpu->l1_data_cache_size = c->x86_l1_data_cache_size;
     cpu->l1_instruction_cache_size = c->x86_l1_instruction_cache_size;
