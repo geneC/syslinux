@@ -97,7 +97,8 @@ Changes in 4.00:
 	  instead of downwards, in order to avoid a fairly common
 	  bug on some BIOSes where probing drive 0xFF causes a
 	  failure.
-	* NASM 2.03 or later required to build.
+	* NASM 2.03 or later required to build.  2.07 or later
+          recommended.
 
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
