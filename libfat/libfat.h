@@ -26,7 +26,7 @@
 #define LIBFAT_SECTOR_SIZE	512
 #define LIBFAT_SECTOR_MASK	511
 
-typedef uint32_t libfat_sector_t;
+typedef uint64_t libfat_sector_t;
 struct libfat_filesystem;
 
 struct libfat_direntry {

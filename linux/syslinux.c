@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -46,14 +47,7 @@
 #include <sys/wait.h>
 #include <sys/mount.h>
 
-#include <sys/ioctl.h>
-#include <linux/fs.h>		/* FIGETBSZ, FIBMAP */
-#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
-#ifndef FAT_IOCTL_SET_ATTRIBUTES
-# define FAT_IOCTL_SET_ATTRIBUTES _IOW('r', 0x11, uint32_t)
-#endif
-#undef SECTOR_SIZE
-#undef SECTOR_SHIFT
+#include "linuxioctl.h"
 
 #include <paths.h>
 #ifndef _PATH_MOUNT
@@ -82,12 +76,6 @@ extern const char *program;	/* Name of program */
 
 pid_t mypid;
 char *mntpath = NULL;		/* Path on which to mount */
-
-/*
- * Image file
- */
-#define boot_image	syslinux_ldlinux
-#define boot_image_len  syslinux_ldlinux_len
 
 #if DO_DIRECT_MOUNT
 int loop_fd = -1;		/* Loop device */
@@ -231,24 +219,6 @@ void do_umount(const char *mntpath, int cookie)
 }
 
 /*
- * Make any user-specified ADV modifications
- */
-int modify_adv(void)
-{
-    int rv = 0;
-
-    if (opt.set_once) {
-	if (syslinux_setadv(ADV_BOOTONCE, strlen(opt.set_once), opt.set_once)) {
-	    fprintf(stderr, "%s: not enough space for boot-once command\n",
-		    program);
-	    rv = -1;
-	}
-    }
-
-    return rv;
-}
-
-/*
  * Modify the ADV of an existing installation
  */
 int modify_existing_adv(const char *path)
@@ -276,8 +246,8 @@ int main(int argc, char *argv[])
     char mntname[128];
     char *ldlinux_name;
     char *ldlinux_path;
-    const char *subdir;
-    uint32_t *sectors = NULL;
+    char *subdir;
+    sector_t *sectors = NULL;
     int ldlinux_sectors = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     const char *errmsg;
     int mnt_cookie;
@@ -286,12 +256,25 @@ int main(int argc, char *argv[])
 
     mypid = getpid();
     umask(077);
-    parse_options(argc, argv, 1);
+    parse_options(argc, argv, MODE_SYSLINUX);
 
-    subdir = opt.directory;
+    /* Note: subdir is guaranteed to start and end in / */
+    if (opt.directory && opt.directory[0]) {
+	int len = strlen(opt.directory);
+	int rv = asprintf(&subdir, "%s%s%s",
+			  opt.directory[0] == '/' ? "" : "/",
+			  opt.directory,
+			  opt.directory[len-1] == '/' ? "" : "/");
+	if (rv < 0 || !subdir) {
+	    perror(program);
+	    exit(1);
+	}
+    } else {
+	subdir = "/";
+    }
 
     if (!opt.device)
-	usage(EX_USAGE, 1);
+	usage(EX_USAGE, MODE_SYSLINUX);
 
     /*
      * First make sure we can open the device at all, and that we have
@@ -337,7 +320,8 @@ int main(int argc, char *argv[])
 	   Make a temp dir and pass all the gunky options to mount. */
 
 	if (chdir(_PATH_TMP)) {
-	    perror(program);
+	    fprintf(stderr, "%s: Cannot access the %s directory.\n",
+		    program, _PATH_TMP);
 	    exit(1);
 	}
 #define TMP_MODE (S_IXUSR|S_IWUSR|S_IXGRP|S_IWGRP|S_IWOTH|S_IXOTH|S_ISVTX)
@@ -379,9 +363,8 @@ int main(int argc, char *argv[])
 	die("mount failed");
     }
 
-    ldlinux_path = alloca(strlen(mntpath) +  (subdir ? strlen(subdir) + 2 : 0));
-    sprintf(ldlinux_path, "%s%s%s",
-	    mntpath, subdir ? "//" : "", subdir ? subdir : "");
+    ldlinux_path = alloca(strlen(mntpath) + strlen(subdir) + 1);
+    sprintf(ldlinux_path, "%s%s", mntpath, subdir);
 
     ldlinux_name = alloca(strlen(ldlinux_path) + 14);
     if (!ldlinux_name) {
@@ -389,7 +372,7 @@ int main(int argc, char *argv[])
 	err = 1;
 	goto umount;
     }
-    sprintf(ldlinux_name, "%s//ldlinux.sys", ldlinux_path);
+    sprintf(ldlinux_name, "%sldlinux.sys", ldlinux_path);
 
     /* update ADV only ? */
     if (opt.update_only == -1) {
@@ -399,8 +382,10 @@ int main(int argc, char *argv[])
 	    sync();
 	    rmdir(mntpath);
 	    exit(0);
-	} else
-	    usage(EX_USAGE, 0);
+	} else {
+	    fprintf(stderr, "%s: please specify --install or --update for the future\n", argv[0]);
+	    opt.update_only = 0;
+	}
     }
 
     /* Read a pre-existing ADV, if already installed */
@@ -465,7 +450,8 @@ umount:
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    i = syslinux_patch(sectors, ldlinux_sectors, opt.stupid_mode, opt.raid_mode);
+    i = syslinux_patch(sectors, ldlinux_sectors, opt.stupid_mode,
+		       opt.raid_mode, subdir, NULL);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /*

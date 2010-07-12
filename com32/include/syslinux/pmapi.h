@@ -52,6 +52,8 @@ struct com32_filedata {
 };
 
 struct com32_pmapi {
+    size_t __pmapi_size;
+
     void *(*lmalloc)(size_t);
     void (*lfree)(void *);
 
@@ -65,6 +67,13 @@ struct com32_pmapi {
 
     void (*idle)(void);
     void (*reset_idle)(void);
+
+    int (*chdir)(const char *);
+    char *(*getcwd)(char *, size_t);
+
+    /* Should be "const volatile", but gcc miscompiles that sometimes */
+    volatile uint32_t *jiffies;
+    volatile uint32_t *ms_timer;
 };
 
 #endif /* _SYSLINUX_PMAPI_H */

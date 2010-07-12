@@ -23,6 +23,7 @@
 
 #include "syslinux.h"
 #include "libfat.h"
+#include "setadv.h"
 
 #ifdef __GNUC__
 # define noreturn void __attribute__((noreturn))
@@ -384,6 +385,9 @@ int main(int argc, char *argv[])
     /* Just ignore error if the file do not exists */
     DeleteFile(ldlinux_name);
 
+    /* Initialize the ADV -- this should be smarter */
+    syslinux_reset_adv(syslinux_adv);
+
     /* Create ldlinux.sys file */
     f_handle = CreateFile(ldlinux_name, GENERIC_READ | GENERIC_WRITE,
 			  FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -397,15 +401,16 @@ int main(int argc, char *argv[])
     }
 
     /* Write ldlinux.sys file */
-    if (!WriteFile
-	(f_handle, syslinux_ldlinux, syslinux_ldlinux_len, &bytes_written,
-	 NULL)) {
+    if (!WriteFile(f_handle, syslinux_ldlinux, syslinux_ldlinux_len,
+		   &bytes_written, NULL) ||
+	bytes_written != syslinux_ldlinux_len) {
 	error("Could not write ldlinux.sys");
 	exit(1);
     }
-
-    if (bytes_written != syslinux_ldlinux_len) {
-	fprintf(stderr, "Could not write whole ldlinux.sys\n");
+    if (!WriteFile(f_handle, syslinux_adv, 2 * ADV_SIZE,
+		   &bytes_written, NULL) ||
+	bytes_written != 2 * ADV_SIZE) {
+	error("Could not write ADV to ldlinux.sys");
 	exit(1);
     }
 
@@ -416,7 +421,8 @@ int main(int argc, char *argv[])
     }
 
     /* Map the file (is there a better way to do this?) */
-    ldlinux_sectors = (syslinux_ldlinux_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    ldlinux_sectors = (syslinux_ldlinux_len + 2 * ADV_SIZE + SECTOR_SIZE - 1)
+	>> SECTOR_SHIFT;
     sectors = calloc(ldlinux_sectors, sizeof *sectors);
     fs = libfat_open(libfat_readfile, (intptr_t) d_handle);
     ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
@@ -433,7 +439,7 @@ int main(int argc, char *argv[])
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    syslinux_patch(sectors, nsectors, stupid, raid_mode);
+    syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
 
     /*
      * Rewrite the file

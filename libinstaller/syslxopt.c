@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <getopt.h>
 #include <sysexits.h>
 #include "../version.h"
@@ -38,12 +39,14 @@ struct sys_options opt = {
     .directory = NULL,
     .device = NULL,
     .offset = 0,
+    .menu_save = NULL,
 };
 
 const struct option long_options[] = {
+    {"force", 0, NULL, 'f'},	/* dummy option for compatibility */
     {"install", 0, NULL, 'i'},
     {"directory", 1, NULL, 'd'},
-    {"offset", 1, NULL, 'f'},
+    {"offset", 1, NULL, 't'},
     {"update", 0, NULL, 'U'},
     {"zipdrive", 0, NULL, 'z'},
     {"sectors", 1, NULL, 'S'},
@@ -52,26 +55,36 @@ const struct option long_options[] = {
     {"raid-mode", 0, NULL, 'r'},
     {"version", 0, NULL, 'v'},
     {"help", 0, NULL, 'h'},
-    {"once", 1, NULL, 'o'},
+    {"once", 1, NULL, OPT_ONCE},
     {"clear-once", 0, NULL, 'O'},
     {"reset-adv", 0, NULL, OPT_RESET_ADV},
+    {"menu-save", 1, NULL, 'M'},
     {0, 0, 0, 0}
 };
 
-const char short_options[] = "id:f:UuzS:H:rvho:O";
+const char short_options[] = "t:fid:UuzS:H:rvho:OM:";
 
-void __attribute__ ((noreturn)) usage(int rv, int mode)
+void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 {
-    if (mode) /* for unmounted fs installation */
+    switch (mode) {
+    case MODE_SYSLINUX:
+	/* For unmounted fs installation (syslinux) */
 	fprintf(stderr,
 	    "Usage: %s [options] device\n"
-	    "  --offset     -f Offset of the file system on the device \n"
+	    "  --offset     -t  Offset of the file system on the device \n"
 	    "  --directory  -d  Directory for installation target\n",
 	    program);
-    else /* actually extlinux can also use -d to provide directory too */
+	break;
+
+    case MODE_EXTLINUX:
+	/* Mounted fs installation (extlinux) */
+	/* Actually extlinux can also use -d to provide a directory too... */
 	fprintf(stderr,
 	    "Usage: %s [options] directory\n",
 	    program);
+	break;
+    }
+
     fprintf(stderr,
 	    "  --install    -i  Install over the current bootsector\n"
 	    "  --update     -U  Update a previous EXTLINUX installation\n"
@@ -80,9 +93,10 @@ void __attribute__ ((noreturn)) usage(int rv, int mode)
 	    "  --heads=#    -H  Force number of heads\n"
 	    "  --stupid     -s  Slow, safe and stupid mode\n"
 	    "  --raid       -r  Fall back to the next device on boot failure\n"
-	    "  --once=...   -o  Execute a command once upon boot\n"
+	    "  --once=...   %s  Execute a command once upon boot\n"
 	    "  --clear-once -O  Clear the boot-once command\n"
 	    "  --reset-adv      Reset auxilliary data\n"
+	    "  --menu-save= -M  Set the label to select as default on the next boot\n"
 	    "\n"
 	    "  Note: geometry is determined at boot time for devices which\n"
 	    "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
@@ -90,13 +104,13 @@ void __attribute__ ((noreturn)) usage(int rv, int mode)
 	    "  which includes zipdisks and LS-120 superfloppies.\n"
 	    "\n"
 	    "  The -z option is useful for USB devices which are considered\n"
-	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n"
-	    );
+	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n",
+	    mode == MODE_SYSLINUX ? "  " : "-o");
 
     exit(rv);
 }
 
-void parse_options(int argc, char *argv[], int mode)
+void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 {
     int o;
 
@@ -104,6 +118,8 @@ void parse_options(int argc, char *argv[], int mode)
     while ((o = getopt_long(argc, argv, short_options,
 			    long_options, NULL)) != EOF) {
 	switch (o) {
+	case 'f':
+	    break;
 	case 'z':
 	    opt.heads = 64;
 	    opt.sectors = 32;
@@ -143,29 +159,79 @@ void parse_options(int argc, char *argv[], int mode)
 	    usage(0, mode);
 	    break;
 	case 'o':
+	    if (mode == MODE_SYSLINUX) {
+		fprintf(stderr,	"%s: -o will change meaning in a future version, use -t or --offset\n", program);
+		goto opt_offset;
+	    }
+	    /* else fall through */
+	case OPT_ONCE:
 	    opt.set_once = optarg;
 	    break;
-	case 'f':
+	case 't':
+	opt_offset:
 	    opt.offset = strtoul(optarg, NULL, 0);
+	    break;
 	case 'O':
 	    opt.set_once = "";
 	    break;
 	case 'd':
 	    opt.directory = optarg;
+	    break;
 	case OPT_RESET_ADV:
 	    opt.reset_adv = 1;
 	    break;
+	case 'M':
+	    opt.menu_save = optarg;
+	    break;
 	case 'v':
-	    fputs(program, stderr);
-	    fputs(" " VERSION_STR
-		  "  Copyright 1994-" YEAR_STR " H. Peter Anvin \n", stderr);
+	    fprintf(stderr,
+		    "%s " VERSION_STR "  Copyright 1994-" YEAR_STR
+		    " H. Peter Anvin et al\n", program);
 	    exit(0);
 	default:
+	    fprintf(stderr, "%s: Unknown option: -%c\n", program, optopt);
 	    usage(EX_USAGE, mode);
 	}
     }
-    if (mode)
-	opt.device = argv[optind];
-    else if (!opt.directory)
-	opt.directory = argv[optind];
+
+    switch (mode) {
+    case MODE_SYSLINUX:
+	opt.device = argv[optind++];
+	break;
+    case MODE_EXTLINUX:
+	if (!opt.directory)
+	    opt.directory = argv[optind++];
+	break;
+    }
+
+    if (argv[optind])
+	usage(EX_USAGE, mode);	/* Excess arguments */
+}
+
+/*
+ * Make any user-specified ADV modifications in memory
+ */
+int modify_adv(void)
+{
+    int rv = 0;
+
+    if (opt.reset_adv)
+	syslinux_reset_adv(syslinux_adv);
+
+    if (opt.set_once) {
+	if (syslinux_setadv(ADV_BOOTONCE, strlen(opt.set_once), opt.set_once)) {
+	    fprintf(stderr, "%s: not enough space for boot-once command\n",
+		    program);
+	    rv = -1;
+	}
+    }
+    if (opt.menu_save) {
+        if (syslinux_setadv(ADV_MENUSAVE, strlen(opt.menu_save), opt.menu_save)) {
+	    fprintf(stderr, "%s: not enough space for menu-save label\n",
+		    program);
+	    rv = -1;
+        }
+    }
+
+    return rv;
 }

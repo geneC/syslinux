@@ -17,15 +17,17 @@
 topdir = ..
 include $(topdir)/MCONFIG
 
-OPTFLAGS = -g -Os
+OPTFLAGS = -g -O0 -Dalloca=malloc
 INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -s
+LDFLAGS	 = 
 
 SRCS     = syslinux.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/syslxcom.c \
 	   ../libinstaller/setadv.c \
+	   ../libinstaller/advio.c \
+           ../libinstaller/fat.c \
            ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c

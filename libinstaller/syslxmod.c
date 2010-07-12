@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,199 +21,66 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include "syslinux.h"
 #include "syslxint.h"
 
-void syslinux_make_bootsect(void *bs)
-{
-    struct boot_sector *bootsect = bs;
-    const struct boot_sector *sbs =
-	(const struct boot_sector *)syslinux_bootsect;
-
-    memcpy(&bootsect->bsHead, &sbs->bsHead, bsHeadLen);
-    memcpy(&bootsect->bsCode, &sbs->bsCode, bsCodeLen);
-}
 
 /*
- * Check to see that what we got was indeed an MS-DOS boot sector/superblock;
- * Return NULL if OK and otherwise an error message;
+ * Generate sector extents
  */
-const char *syslinux_check_bootsect(const void *bs)
+static void generate_extents(struct syslinux_extent *ex, int nptrs,
+			     const sector_t *sectp, int nsect)
 {
-    int veryold;
-    int sectorsize;
-    long long sectors, fatsectors, dsectors;
-    long long clusters;
-    int rootdirents, clustersize;
-    const struct boot_sector *sectbuf = bs;
+    uint32_t addr = 0x7c00 + 2*SECTOR_SIZE;
+    uint32_t base;
+    sector_t sect, lba;
+    unsigned int len;
 
-    veryold = 0;
+    len = lba = base = 0;
 
-    /* Must be 0xF0 or 0xF8..0xFF */
-    if (get_8(&sectbuf->bsMedia) != 0xF0 && get_8(&sectbuf->bsMedia) < 0xF8)
-	return "invalid media signature (not a FAT filesystem?)";
+    memset(ex, 0, nptrs * sizeof *ex);
 
-    sectorsize = get_16(&sectbuf->bsBytesPerSec);
-    if (sectorsize == SECTOR_SIZE)
-	;			/* ok */
-    else if (sectorsize >= 512 && sectorsize <= 4096 &&
-	     (sectorsize & (sectorsize - 1)) == 0)
-	return "unsupported sectors size";
-    else
-	return "impossible sector size";
+    while (nsect) {
+	sect = *sectp++;
 
-    clustersize = get_8(&sectbuf->bsSecPerClust);
-    if (clustersize == 0 || (clustersize & (clustersize - 1)))
-	return "impossible cluster size";
-
-    sectors = get_16(&sectbuf->bsSectors);
-    sectors = sectors ? sectors : get_32(&sectbuf->bsHugeSectors);
-
-    dsectors = sectors - get_16(&sectbuf->bsResSectors);
-
-    fatsectors = get_16(&sectbuf->bsFATsecs);
-    fatsectors = fatsectors ? fatsectors : get_32(&sectbuf->bs32.FATSz32);
-    fatsectors *= get_8(&sectbuf->bsFATs);
-    dsectors -= fatsectors;
-
-    rootdirents = get_16(&sectbuf->bsRootDirEnts);
-    dsectors -= (rootdirents + sectorsize / 32 - 1) / sectorsize;
-
-    if (dsectors < 0)
-	return "negative number of data sectors";
-
-    if (fatsectors == 0)
-	return "zero FAT sectors";
-
-    clusters = dsectors / clustersize;
-
-    if (clusters < 0xFFF5) {
-	/* FAT12 or FAT16 */
-
-	if (!get_16(&sectbuf->bsFATsecs))
-	    return "zero FAT sectors (FAT12/16)";
-
-	if (get_8(&sectbuf->bs16.BootSignature) == 0x29) {
-	    if (!memcmp(&sectbuf->bs16.FileSysType, "FAT12   ", 8)) {
-		if (clusters >= 0xFF5)
-		    return "more than 4084 clusters but claims FAT12";
-	    } else if (!memcmp(&sectbuf->bs16.FileSysType, "FAT16   ", 8)) {
-		if (clusters < 0xFF5)
-		    return "less than 4084 clusters but claims FAT16";
-	    } else if (!memcmp(&sectbuf->bs16.FileSysType, "FAT32   ", 8)) {
-		    return "less than 65525 clusters but claims FAT32";
-	    } else if (memcmp(&sectbuf->bs16.FileSysType, "FAT     ", 8)) {
-		static char fserr[] =
-		    "filesystem type \"????????\" not supported";
-		memcpy(fserr + 17, &sectbuf->bs16.FileSysType, 8);
-		return fserr;
-	    }
+	if (len && sect == lba + len &&
+	    ((addr ^ (base + len * SECTOR_SIZE)) & 0xffff0000) == 0) {
+	    /* We can add to the current extent */
+	    len++;
+	    goto next;
 	}
-    } else if (clusters < 0x0FFFFFF5) {
-	/*
-	 * FAT32...
-	 *
-	 * Moving the FileSysType and BootSignature was a lovely stroke
-	 * of M$ idiocy...
-	 */
-	if (get_8(&sectbuf->bs32.BootSignature) != 0x29 ||
-	    memcmp(&sectbuf->bs32.FileSysType, "FAT32   ", 8))
-	    return "missing FAT32 signature";
-    } else {
-	return "impossibly large number of clusters";
+
+	if (len) {
+	    set_64_sl(&ex->lba, lba);
+	    set_16_sl(&ex->len, len);
+	    ex++;
+	}
+
+	base = addr;
+	lba  = sect;
+	len  = 1;
+
+    next:
+	addr += SECTOR_SIZE;
+	nsect--;
     }
 
-    return NULL;
+    if (len) {
+	set_64_sl(&ex->lba, lba);
+	set_16_sl(&ex->len, len);
+	ex++;
+    }
 }
 
 /*
- * Special handling for the MS-DOS derivative: syslinux_ldlinux
- * is a "far" object...
+ * Form a pointer based on a 16-bit patcharea/epa field
  */
-#ifdef __MSDOS__
-
-#define __noinline __attribute__((noinline))
-
-extern uint16_t ldlinux_seg;	/* Defined in dos/syslinux.c */
-
-static inline __attribute__ ((const))
-uint16_t ds(void)
+static inline void *ptr(void *img, uint16_t *offset_p)
 {
-    uint16_t v;
-asm("movw %%ds,%0":"=rm"(v));
-    return v;
+    return (char *)img + get_16_sl(offset_p);
 }
-
-static inline void *set_fs(const void *p)
-{
-    uint16_t seg;
-
-    seg = ldlinux_seg + ((size_t) p >> 4);
-    asm volatile ("movw %0,%%fs"::"rm" (seg));
-    return (void *)((size_t) p & 0xf);
-}
-
-#if 0				/* unused */
-static __noinline uint8_t get_8_sl(const uint8_t * p)
-{
-    uint8_t v;
-
-    p = set_fs(p);
-    asm volatile ("movb %%fs:%1,%0":"=q" (v):"m"(*p));
-    return v;
-}
-#endif
-
-static __noinline uint16_t get_16_sl(const uint16_t * p)
-{
-    uint16_t v;
-
-    p = set_fs(p);
-    asm volatile ("movw %%fs:%1,%0":"=r" (v):"m"(*p));
-    return v;
-}
-
-static __noinline uint32_t get_32_sl(const uint32_t * p)
-{
-    uint32_t v;
-
-    p = set_fs(p);
-    asm volatile ("movl %%fs:%1,%0":"=r" (v):"m"(*p));
-    return v;
-}
-
-#if 0				/* unused */
-static __noinline void set_8_sl(uint8_t * p, uint8_t v)
-{
-    p = set_fs(p);
-    asm volatile ("movb %1,%%fs:%0":"=m" (*p):"qi"(v));
-}
-#endif
-
-static __noinline void set_16_sl(uint16_t * p, uint16_t v)
-{
-    p = set_fs(p);
-    asm volatile ("movw %1,%%fs:%0":"=m" (*p):"ri"(v));
-}
-
-static __noinline void set_32_sl(uint32_t * p, uint32_t v)
-{
-    p = set_fs(p);
-    asm volatile ("movl %1,%%fs:%0":"=m" (*p):"ri"(v));
-}
-
-#else
-
-/* Sane system ... */
-#define get_8_sl(x)    get_8(x)
-#define get_16_sl(x)   get_16(x)
-#define get_32_sl(x)   get_32(x)
-#define set_8_sl(x,y)  set_8(x,y)
-#define set_16_sl(x,y) set_16(x,y)
-#define set_32_sl(x,y) set_32(x,y)
-
-#endif
 
 /*
  * This patches the boot sector and the beginning of ldlinux.sys
@@ -226,67 +93,105 @@ static __noinline void set_32_sl(uint32_t * p, uint32_t v)
  * Returns the number of modified bytes in ldlinux.sys if successful,
  * otherwise -1.
  */
-int syslinux_patch(const uint32_t * sectors, int nsectors,
-		   int stupid, int raid_mode)
+#define NADV 2
+
+int syslinux_patch(const sector_t *sectp, int nsectors,
+		   int stupid, int raid_mode,
+		   const char *subdir, const char *subvol)
 {
     struct patch_area *patcharea;
+    struct ext_patch_area *epa;
+    struct syslinux_extent *ex;
     uint32_t *wp;
-    int nsect = (syslinux_ldlinux_len + 511) >> 9;
+    int nsect = ((boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT) + 2;
     uint32_t csum;
-    int i, dw, nptrs, rv;
-    struct boot_sector *sbs = (struct boot_sector *)syslinux_bootsect;
+    int i, dw, nptrs;
+    struct boot_sector *sbs = (struct boot_sector *)boot_sector;
+    uint64_t *advptrs;
 
     if (nsectors < nsect)
-	return -1;
-
-    /* Patch in options, as appropriate */
-    if (stupid) {
-	/* Access only one sector at a time */
-	set_16(&sbs->MaxTransfer, 1);
-    }
-
-    i = get_16(&sbs->bsSignature);
-    if (raid_mode)
-	set_16((uint16_t *) ((char *)sbs + i), 0x18CD);	/* INT 18h */
-    set_16(&sbs->bsSignature, 0xAA55);
-
-    /* First sector need pointer in boot sector */
-    set_32(&sbs->NextSector, *sectors++);
+	return -1;		/* The actual file is too small for content */
 
     /* Search for LDLINUX_MAGIC to find the patch area */
-    for (wp = (uint32_t *) syslinux_ldlinux; get_32_sl(wp) != LDLINUX_MAGIC;
-	 wp++) ;
+    for (wp = (uint32_t *)boot_image; get_32_sl(wp) != LDLINUX_MAGIC;
+	 wp++)
+	;
     patcharea = (struct patch_area *)wp;
+    epa = ptr(boot_image, &patcharea->epaoffset);
+
+    /* First sector need pointer in boot sector */
+    set_32(ptr(sbs, &epa->sect1ptr0), sectp[0]);
+    set_32(ptr(sbs, &epa->sect1ptr1), sectp[0] >> 32);
+    sectp++;
+
+    /* Handle RAID mode */
+    if (raid_mode) {
+	/* Patch in INT 18h = CD 18 */
+	set_16(ptr(sbs, &epa->raidpatch), 0x18CD);
+    }
 
     /* Set up the totals */
-    dw = syslinux_ldlinux_len >> 2;	/* COMPLETE dwords, excluding ADV */
-    set_16_sl(&patcharea->data_sectors, nsect);	/* Not including ADVs */
+    dw = boot_image_len >> 2;	/* COMPLETE dwords, excluding ADV */
+    set_16_sl(&patcharea->data_sectors, nsect - 2); /* Not including ADVs */
     set_16_sl(&patcharea->adv_sectors, 2);	/* ADVs need 2 sectors */
     set_32_sl(&patcharea->dwords, dw);
 
-    /* Set the sector pointers */
-    wp = (uint32_t *) ((char *)syslinux_ldlinux +
-		       get_16_sl(&patcharea->secptroffset));
-    nptrs = get_16_sl(&patcharea->secptrcnt);
-
-    nsect += 2;
-    while (--nsect) { /* the first sector is in bs->NextSector */
-	set_32_sl(wp++, *sectors++);
-	nptrs--;
+    /* Handle Stupid mode */
+    if (stupid) {
+	/* Access only one sector at a time */
+	set_16_sl(&patcharea->maxtransfer, 1);
     }
-    while (nptrs--)
-	set_32_sl(wp++, 0);
 
-    rv = (char *)wp - (char *)syslinux_ldlinux;
+    /* Set the sector extents */
+    ex = ptr(boot_image, &epa->secptroffset);
+    nptrs = get_16_sl(&epa->secptrcnt);
+
+    if (nsect > nptrs) {
+	/* Not necessarily an error in this case, but a general problem */
+	fprintf(stderr, "Insufficient extent space, build error!\n");
+	exit(1);
+    }
+
+    /* -1 for the pointer in the boot sector, -2 for the two ADVs */
+    generate_extents(ex, nptrs, sectp, nsect-1-2);
+
+    /* ADV pointers */
+    advptrs = ptr(boot_image, &epa->advptroffset);
+    set_64_sl(&advptrs[0], sectp[nsect-1-2]);
+    set_64_sl(&advptrs[1], sectp[nsect-1-1]);
+
+    /* Poke in the base directory path */
+    if (subdir) {
+	int sublen = strlen(subdir) + 1;
+	if (get_16_sl(&epa->dirlen) < sublen) {
+	    fprintf(stderr, "Subdirectory path too long... aborting install!\n");
+	    exit(1);
+	}
+	memcpy_to_sl(ptr(boot_image, &epa->diroffset), subdir, sublen);
+    }
+
+    /* Poke in the subvolume information */
+    if (subvol) {
+	int sublen = strlen(subvol) + 1;
+	if (get_16_sl(&epa->subvollen) < sublen) {
+	    fprintf(stderr, "Subvol name too long... aborting install!\n");
+	    exit(1);
+	}
+	memcpy_to_sl(ptr(boot_image, &epa->subvoloffset), subvol, sublen);
+    }
 
     /* Now produce a checksum */
     set_32_sl(&patcharea->checksum, 0);
 
     csum = LDLINUX_MAGIC;
-    for (i = 0, wp = (uint32_t *) syslinux_ldlinux; i < dw; i++, wp++)
+    for (i = 0, wp = (uint32_t *)boot_image; i < dw; i++, wp++)
 	csum -= get_32_sl(wp);	/* Negative checksum */
 
     set_32_sl(&patcharea->checksum, csum);
 
-    return rv;
+    /*
+     * Assume all bytes modified.  This can be optimized at the expense
+     * of keeping track of what the highest modified address ever was.
+     */
+    return dw << 2;
 }

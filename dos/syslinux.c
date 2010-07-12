@@ -26,6 +26,7 @@
 
 #include "syslinux.h"
 #include "libfat.h"
+#include "setadv.h"
 
 const char *program = "syslinux";	/* Name of program */
 uint16_t dos_version;
@@ -658,6 +659,11 @@ int main(int argc, char *argv[])
 	usage();
 
     /*
+     * Create an ADV in memory... this should be smarter.
+     */
+    syslinux_reset_adv(syslinux_adv);
+
+    /*
      * Figure out which drive we're talking to
      */
     dev_fd = (device[0] & ~0x20) - 0x40;
@@ -685,6 +691,7 @@ int main(int argc, char *argv[])
     set_attributes(ldlinux_name, 0);
     fd = creat(ldlinux_name, 0);	/* SYSTEM HIDDEN READONLY */
     write_ldlinux(fd);
+    write_file(fd, syslinux_adv, 2 * ADV_SIZE);
     close(fd);
     set_attributes(ldlinux_name, 0x07);	/* SYSTEM HIDDEN READONLY */
 
@@ -694,7 +701,8 @@ int main(int argc, char *argv[])
      * this is supposed to be a simple, privileged version
      * of the installer.
      */
-    ldlinux_sectors = (syslinux_ldlinux_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    ldlinux_sectors = (syslinux_ldlinux_len + 2 * ADV_SIZE
+		       + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     sectors = calloc(ldlinux_sectors, sizeof *sectors);
     lock_device(2);
     fs = libfat_open(libfat_xpread, dev_fd);
@@ -755,7 +763,7 @@ int main(int argc, char *argv[])
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
+    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /*

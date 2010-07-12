@@ -26,6 +26,11 @@ extern unsigned char syslinux_ldlinux[];
 extern const unsigned int syslinux_ldlinux_len;
 extern const int syslinux_ldlinux_mtime;
 
+#define boot_sector	syslinux_bootsect
+#define boot_sector_len syslinux_bootsect_len
+#define boot_image	syslinux_ldlinux
+#define boot_image_len	syslinux_ldlinux_len
+
 extern unsigned char syslinux_mbr[];
 extern const unsigned int syslinux_mbr_len;
 extern const int syslinux_mbr_mtime;
@@ -41,7 +46,9 @@ void syslinux_make_bootsect(void *);
 const char *syslinux_check_bootsect(const void *bs);
 
 /* This patches the boot sector and ldlinux.sys based on a sector map */
-int syslinux_patch(const uint32_t * sectors, int nsectors,
-		   int stupid, int raid_mode);
+typedef uint64_t sector_t;
+int syslinux_patch(const sector_t *sectors, int nsectors,
+		   int stupid, int raid_mode,
+		   const char *subdir, const char *subvol);
 
 #endif

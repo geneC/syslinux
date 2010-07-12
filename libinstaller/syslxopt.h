@@ -13,15 +13,23 @@ struct sys_options {
     const char *directory;
     const char *device;
     unsigned int offset;
+    const char *menu_save;
 };
 
 enum long_only_opt {
     OPT_NONE,
     OPT_RESET_ADV,
+    OPT_ONCE,
 };
 
-void __attribute__ ((noreturn)) usage(int rv, int mode);
-void parse_options(int argc, char *argv[], int mode);
+enum syslinux_mode {
+    MODE_SYSLINUX,		/* Unmounted filesystem */
+    MODE_EXTLINUX,
+};
+
+void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode);
+void parse_options(int argc, char *argv[], enum syslinux_mode mode);
+int modify_adv(void);
 
 extern struct sys_options opt;
 extern const struct option long_options[];

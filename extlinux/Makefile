@@ -24,11 +24,13 @@ CFLAGS	 = $(GCCWARN) -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
 LDFLAGS	 = # -s
 
 SRCS     = main.c \
+	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/syslxcom.c \
 	   ../libinstaller/setadv.c \
-	   ../libinstaller/extlinux_bss_bin.c \
-	   ../libinstaller/extlinux_sys_bin.c
+	   ../libinstaller/advio.c \
+	   ../libinstaller/bootsect_bin.c \
+	   ../libinstaller/ldlinux_bin.c
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S

@@ -7,7 +7,9 @@ CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = -s
 
 SRCS     = syslinux.c \
+	   ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/setadv.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   $(wildcard ../libfat/*.c)

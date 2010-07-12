@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -18,8 +19,7 @@
  * We need device write permission anyway.
  */
 
-#define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
-#define _BSD_SOURCE
+#define _GNU_SOURCE
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -37,6 +37,7 @@
 
 #include "syslinux.h"
 #include "libfat.h"
+#include "setadv.h"
 
 char *program;			/* Name of program */
 char *device;			/* Device to install to */
@@ -53,6 +54,12 @@ void __attribute__ ((noreturn)) usage(void)
 void __attribute__ ((noreturn)) die(const char *msg)
 {
     fprintf(stderr, "%s: %s\n", program, msg);
+    exit(1);
+}
+
+void __attribute__ ((noreturn)) die_err(const char *msg)
+{
+    fprintf(stderr, "%s: %s: %s\n", program, msg, strerror(errno));
     exit(1);
 }
 
@@ -130,7 +137,8 @@ int main(int argc, char *argv[])
     struct stat st;
     int status;
     char **argp, *opt;
-    char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
+    const char *tmpdir;
+    char *mtools_conf;
     const char *subdir = NULL;
     int mtc_fd;
     FILE *mtc, *mtp;
@@ -187,12 +195,26 @@ int main(int argc, char *argv[])
 	usage();
 
     /*
+     * Temp directory of choice...
+     */
+    tmpdir = getenv("TMPDIR");
+    if (!tmpdir) {
+#ifdef P_tmpdir
+	tmpdir = P_tmpdir;
+#elif defined(_PATH_TMP)
+	tmpdir = _PATH_TMP;
+#else
+	tmpdir = "/tmp";
+#endif
+    }
+
+    /*
      * First make sure we can open the device at all, and that we have
      * read/write permission.
      */
     dev_fd = open(device, O_RDWR);
     if (dev_fd < 0 || fstat(dev_fd, &st) < 0) {
-	perror(device);
+	die_err(device);
 	exit(1);
     }
 
@@ -215,11 +237,14 @@ int main(int argc, char *argv[])
     /*
      * Create an mtools configuration file
      */
+    if (asprintf(&mtools_conf, "%s//syslinux-mtools-XXXXXX", tmpdir) < 0 ||
+	!mtools_conf)
+	die_err(tmpdir);
+
     mtc_fd = mkstemp(mtools_conf);
-    if (mtc_fd < 0 || !(mtc = fdopen(mtc_fd, "w"))) {
-	perror(program);
-	exit(1);
-    }
+    if (mtc_fd < 0 || !(mtc = fdopen(mtc_fd, "w")))
+	die_err(mtools_conf);
+
     fprintf(mtc,
 	    /* These are needed for some flash memories */
 	    "MTOOLS_SKIP_CHECK=1\n"
@@ -229,7 +254,8 @@ int main(int argc, char *argv[])
 	    "  offset=%llu\n",
 	    (unsigned long)mypid,
 	    dev_fd, (unsigned long long)filesystem_offset);
-    fclose(mtc);
+    if (ferror(mtc) || fclose(mtc))
+	die_err(mtools_conf);
 
     /*
      * Run mtools to create the LDLINUX.SYS file
@@ -239,12 +265,21 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
+    /*
+     * Create a vacuous ADV in memory.  This should be smarter.
+     */
+    syslinux_reset_adv(syslinux_adv);
+
     /* This command may fail legitimately */
-    system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
+    status = system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
+    (void)status;		/* Keep _FORTIFY_SOURCE happy */
 
     mtp = popen("mcopy -D o -D O -o - s:/ldlinux.sys", "w");
-    if (!mtp || (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
-		 != syslinux_ldlinux_len) ||
+    if (!mtp ||
+	fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
+		!= syslinux_ldlinux_len ||
+	fwrite(syslinux_adv, 1, 2 * ADV_SIZE, mtp)
+		!= 2 * ADV_SIZE ||
 	(status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status))) {
 	die("failed to create ldlinux.sys");
     }
@@ -252,7 +287,8 @@ int main(int argc, char *argv[])
     /*
      * Now, use libfat to create a block map
      */
-    ldlinux_sectors = (syslinux_ldlinux_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    ldlinux_sectors = (syslinux_ldlinux_len + 2 * ADV_SIZE
+		       + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     sectors = calloc(ldlinux_sectors, sizeof *sectors);
     fs = libfat_open(libfat_xpread, dev_fd);
     ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
@@ -267,7 +303,7 @@ int main(int argc, char *argv[])
     libfat_close(fs);
 
     /* Patch ldlinux.sys and the boot sector */
-    i = syslinux_patch(sectors, nsectors, stupid, raid_mode);
+    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /* Write the now-patched first sectors of ldlinux.sys */
@@ -313,7 +349,8 @@ int main(int argc, char *argv[])
 
 	/* This command may fail legitimately */
 	sprintf(command, "mattrib -h -r -s %s 2>/dev/null", target_file);
-	system(command);
+	status = system(command);
+	(void)status;		/* Keep _FORTIFY_SOURCE happy */
 
 	sprintf(command, "mmove -D o -D O s:/ldlinux.sys %s", target_file);
 	status = system(command);

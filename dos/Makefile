@@ -26,14 +26,16 @@ INCLUDES = -include code16.h -nostdinc -iwithprefix include \
 	   -I. -I.. -I../libfat -I ../libinstaller
 
 SRCS     = syslinux.c \
+	   ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/setadv.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
            $(wildcard ../libfat/*.c)
 OBJS	 = header.o crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
-LIBOBJS	 = int2526.o conio.o memcpy.o memset.o  skipatou.o atou.o \
-	   malloc.o free.o \
+LIBOBJS	 = int2526.o conio.o memcpy.o memset.o memmove.o skipatou.o atou.o \
+	   malloc.o free.o getsetsl.o \
 	   argv.o printf.o __divdi3.o __udivmoddi4.o
 
 VPATH = .:../libfat:../libinstaller
