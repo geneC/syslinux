@@ -95,9 +95,8 @@ void start_ui(char *config_file)
 	mp("enter, config file = %s", config_file);
 
 	parse_configs(argv);
+
 	/* run the default menu if found */
-	/*
-	*/
 	if (default_menu) {
 		cmdline = default_menu->menu_entries[default_menu->defentry]->cmdline;
 		if (*cmdline == '.') {
@@ -105,12 +104,6 @@ void start_ui(char *config_file)
 		}
 		process_command(cmdline);
 	}
-
-	/* try to run a default linux kernel */
-	/*
-	if (append || globaldefault)
-		new_linux_kernel(NULL, NULL);
-	*/
 
 	/* Should never return */
 	enter_cmdline();

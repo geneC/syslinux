@@ -22,12 +22,6 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	char cmdline_buf[256], *cmdline;
 	int i;
 
-	/* to make malloc works for code in com32/lib */
-	/*
-	openconsole(&dev_null_r, &dev_stdcon_w);
-	init_memory_arena();
-	*/
-
 	mp("okernel = %s, ocmdline = %s", okernel, ocmdline);
 
 	cmdline = cmdline_buf;
