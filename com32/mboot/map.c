@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -107,15 +107,15 @@ struct multiboot_header *map_image(void *ptr, size_t len)
     Elf32_Ehdr *eh = ptr;
     Elf32_Phdr *ph;
     Elf32_Shdr *sh;
-    unsigned int i;
+    unsigned int i, mbh_offset;
     uint32_t bad_flags;
 
     /*
      * Search for the multiboot header...
      */
     mbh_len = 0;
-    for (i = 0; i < MULTIBOOT_SEARCH; i += 4) {
-	mbh = (struct multiboot_header *)((char *)ptr + i);
+    for (mbh_offset = 0; mbh_offset < MULTIBOOT_SEARCH; mbh_offset += 4) {
+	mbh = (struct multiboot_header *)((char *)ptr + mbh_offset);
 	if (mbh->magic != MULTIBOOT_MAGIC)
 	    continue;
 	if (mbh->magic + mbh->flags + mbh->checksum)
@@ -127,7 +127,7 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 	else
 	    mbh_len = 12;
 
-	if (i + mbh_len > len)
+	if (mbh_offset + mbh_len > len)
 	    mbh_len = 0;	/* Invalid... */
 	else
 	    break;		/* Found something... */
@@ -169,7 +169,7 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 
 	for (i = 0; i < eh->e_phnum; i++) {
 	    if (ph->p_type == PT_LOAD || ph->p_type == PT_PHDR) {
-		/* 
+		/*
 		 * This loads at p_paddr, which matches Grub.  However, if
 		 * e_entry falls within the p_vaddr range of this PHDR, then
 		 * adjust it to match the p_paddr range... this is how Grub
@@ -272,12 +272,23 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 	 */
 	char *data_ptr;
 	addr_t data_len, bss_len;
+	addr_t bss_addr;
 
 	regs.eip = mbh->entry_addr;
 
 	data_ptr = (char *)mbh - (mbh->header_addr - mbh->load_addr);
-	data_len = mbh->load_end_addr - mbh->load_addr;
-	bss_len = mbh->bss_end_addr - mbh->load_end_addr;
+
+	if (mbh->load_end_addr)
+	    data_len = mbh->load_end_addr - mbh->load_addr;
+	else
+	    data_len = len - mbh_offset + (mbh->header_addr - mbh->load_addr);
+
+	bss_addr = mbh->load_addr + data_len;
+
+	if (mbh->bss_end_addr)
+	    bss_len = mbh->bss_end_addr - mbh->load_end_addr;
+	else
+	    bss_len = 0;
 
 	if (syslinux_memmap_type(amap, mbh->load_addr, data_len + bss_len)
 	    != SMT_FREE) {
@@ -298,12 +309,12 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 	    }
 	if (bss_len)
 	    if (syslinux_add_memmap
-		(&mmap, mbh->load_end_addr, bss_len, SMT_ZERO)) {
+		(&mmap, bss_addr, bss_len, SMT_ZERO)) {
 		error("Failed to map a.out bss\n");
 		return NULL;
 	    }
-	if (mbh->bss_end_addr > mboot_high_water_mark)
-	    mboot_high_water_mark = mbh->bss_end_addr;
+	if (bss_addr + bss_len > mboot_high_water_mark)
+	    mboot_high_water_mark = bss_addr + bss_len;
     } else {
 	error
 	    ("Invalid Multiboot image: neither ELF header nor a.out kludge found\n");

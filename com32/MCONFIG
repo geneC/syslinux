@@ -58,7 +58,8 @@ COM32LD	   = $(com32)/lib/elf32.ld
 LDFLAGS    = -m elf_i386 -shared --hash-style=gnu -T $(COM32LD)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
-LNXCFLAGS  = -I$(com32)/libutil/include $(GCCWARN) -O -g -D_GNU_SOURCE
+LNXCFLAGS  = -I$(com32)/libutil/include $(GCCWARN) -O -g \
+	     -D_GNU_SOURCE -D_FORTIFY_SOURCE=0 -Wno-error
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 

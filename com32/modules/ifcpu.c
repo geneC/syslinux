@@ -13,34 +13,6 @@
 /*
  * ifcpu.c
  *
- * Run one command (boot_entry_1) if the booted system match some CPU features
- * and another (boot_entry_2) if it doesn't.
- * Eventually this and other features should get folded into some kind
- * of scripting engine.
- *
- * Usage:
- *
- *    label test
- *        com32 ifcpu.c32
- *        append <option> <cpu_features> -- boot_entry_1 -- boot_entry_2
- *    label boot_entry_1
- *    	  kernel vmlinuz
- *    	  append ...
- *    label boot_entry_2
- *        kernel vmlinuz_64
- *        append ...
- *
- * options could be :
- *    debug     : display some debugging messages
- *    dry-run   : just do the detection, don't boot
- *
- * cpu_features could be:
- *    64        : CPU have to be x86_64 compatible
- *    hvm       : Processor must have hardware virtualization (hvm or svm)
- *    multicore : Processor must be multi-core
- *    smp       : System have to be SMP
- *
- * if you want to match many cpu features, just separate them with a single space
  */
 
 #include <alloca.h>
@@ -48,43 +20,64 @@
 #include <stdio.h>
 #include <string.h>
 #include <cpuid.h>
+#include <unistd.h>
 #include <syslinux/boot.h>
 #include <com32.h>
 #include <consoles.h>
 
-#define REG_AH(x) ((x).eax.b[1])
-#define REG_CX(x) ((x).ecx.w[0])
-#define REG_DX(x) ((x).edx.w[0])
-
-static unsigned char sleep(unsigned int msec)
+static inline void error(const char *msg)
 {
-    unsigned long micro = 1000 * msec;
-    com32sys_t inreg, outreg;
+    fputs(msg, stderr);
+}
 
-    REG_AH(inreg) = 0x86;
-    REG_CX(inreg) = (micro >> 16);
-    REG_DX(inreg) = (micro & 0xFFFF);
-    __intcall(0x15, &inreg, &outreg);
-    return REG_AH(outreg);
+static void usage(void) 
+{
+ error("Run one command if system match some CPU features, another if it doesn't. \n"
+ "Usage: \n"
+ "   label ifcpu \n"
+ "       com32 ifcpu.c32 \n"
+ "       append <option> <cpu_features> -- boot_entry_1 -- boot_entry_2 \n"
+ "   label boot_entry_1 \n"
+ "   	  kernel vmlinuz_entry1 \n"
+ "	  append ... \n"
+ "   label boot_entry_2 \n"
+ "       kernel vmlinuz_entry2 \n"
+ "       append ... \n"
+ "\n"
+ "options could be :\n"
+ "   debug     : display some debugging messages \n"
+ "   dry-run   : just do the detection, don't boot \n"
+ "\n"
+ "cpu_features could be:\n"
+ "   64        : Processor is x86_64 compatible (lm cpu flag)\n"
+ "   hvm       : Processor features hardware virtualization (hvm or svm cpu flag)\n"
+ "   multicore : Processor must be multi-core \n"
+ "   smp       : System must be multi-processor \n"
+ "   pae       : Processor features Physical Address Extension (PAE)\n"
+ "\n"
+ "if you want to match many cpu features, just separate them with a single space.\n");
 }
 
 /* XXX: this really should be librarized */
 static void boot_args(char **args)
 {
-    int len = 0;
+    int len = 0, a = 0;
     char **pp;
     const char *p;
     char c, *q, *str;
 
     for (pp = args; *pp; pp++)
-	len += strlen(*pp);
+	len += strlen(*pp) + 1;
 
-    q = str = alloca(len + 1);
+    q = str = alloca(len);
     for (pp = args; *pp; pp++) {
 	p = *pp;
 	while ((c = *p++))
 	    *q++ = c;
+	*q++ = ' ';
+	a = 1;
     }
+    q -= a;
     *q = '\0';
 
     if (!str[0])
@@ -98,8 +91,8 @@ static void boot_args(char **args)
 int main(int argc, char *argv[])
 {
     char **args[3];
-    int i;
-    int n;
+    int i=0;
+    int n=0;
     bool hardware_matches = true;
     bool multicore = false;
     bool dryrun = false;
@@ -108,7 +101,13 @@ int main(int argc, char *argv[])
     s_cpu cpu;
     console_ansi_raw();
     detect_cpu(&cpu);
-    n = 0;
+
+    /* If no argument got passed, let's show the usage */
+    if (argc == 1) {
+	    usage();
+	    return -1;
+    }
+
     for (i = 1; i < argc; i++) {
 	if (!strcmp(argv[i], "--")) {
 	    argv[i] = NULL;
@@ -118,6 +117,11 @@ int main(int argc, char *argv[])
 		printf(" 64bit     : %s on this system\n",
 		       show_bool(cpu.flags.lm));
 	    hardware_matches = cpu.flags.lm && hardware_matches;
+	} else if (!strcmp(argv[i], "pae")) {
+	    if (debug)
+		printf(" pae       : %s on this system\n",
+		       show_bool(cpu.flags.pae));
+	    hardware_matches = cpu.flags.pae && hardware_matches;
 	} else if (!strcmp(argv[i], "hvm")) {
 	    if (debug)
 		printf(" hvm       : %s on this system\n",
@@ -153,7 +157,7 @@ int main(int argc, char *argv[])
 	       hardware_matches ? *args[0] : *args[1]);
 	printf("Sleeping 5sec before booting\n");
 	if (!dryrun)
-	    sleep(5000);
+	    sleep(5);
     }
 
     if (!dryrun)

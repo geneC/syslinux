@@ -28,17 +28,11 @@
 #include <minmax.h>
 #include <sys/stat.h>
 #include <console.h>
+#include <dprintf.h>
 
 #include <syslinux/loadfile.h>
 #include <syslinux/movebits.h>
 #include <syslinux/bootrm.h>
-
-#define DEBUG 0
-#if DEBUG
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
 
 typedef uint8_t guid_t[16];
 

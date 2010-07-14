@@ -446,7 +446,7 @@ static const char *edit_cmdline(const char *input, int top)
     int key, len, prev_len, cursor;
     int redraw = 1;		/* We enter with the menu already drawn */
 
-    strncpy(cmdline, input, MAX_CMDLINE_LEN);
+    strlcpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';
 
     len = cursor = strlen(cmdline);
@@ -920,6 +920,13 @@ static const char *run_menu(void)
 		    done = 1;
 		    clear = 1;
 		    draw_row(entry - top + 4 + VSHIFT, -1, top, 0, 0);
+		    break;
+		case MA_HELP:
+		    key = show_message_file(me->cmdline, me->background);
+		    /* If the exit was an F-key, display that help screen */
+		    show_fkey(key);
+		    done = 0;
+		    clear = 1;
 		    break;
 		default:
 		    done = 0;
