@@ -33,7 +33,6 @@ CODEPAGE = cp865
 
 # The targets to build in this directory...
 BTARGET  = kwdhash.gen \
-	   extlinux.bin extlinux.bss extlinux.sys \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
 	   isolinux.bin isolinux-debug.bin pxelinux.0
 
@@ -108,12 +107,6 @@ ldlinux.bss: ldlinux.bin
 	dd if=$< of=$@ bs=512 count=1
 
 ldlinux.sys: ldlinux.bin
-	dd if=$< of=$@ bs=512 skip=1
-
-extlinux.bss: extlinux.bin
-	dd if=$< of=$@ bs=512 count=1
-
-extlinux.sys: extlinux.bin
 	dd if=$< of=$@ bs=512 skip=1
 
 codepage.cp: ../codepage/$(CODEPAGE).cp

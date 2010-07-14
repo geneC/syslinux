@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,11 +17,25 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 #include "core.h"
 
 const com32sys_t zero_regs;	/* Common all-zero register set */
 
+static inline uint32_t eflags(void)
+{
+    uint32_t v;
+
+    asm volatile("pushfl ; popl %0" : "=rm" (v));
+    return v;
+}
+
 void call16(void (*func)(void), const com32sys_t *ireg, com32sys_t *oreg)
 {
-    core_farcall((size_t)func, ireg, oreg);
+    com32sys_t xreg = *ireg;
+
+    /* Enable interrupts if and only if they are enabled in the caller */
+    xreg.eflags.l = (xreg.eflags.l & ~EFLAGS_IF) | (eflags() & EFLAGS_IF);
+
+    core_farcall((size_t)func, &xreg, oreg);
 }

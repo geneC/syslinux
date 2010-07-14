@@ -17,24 +17,25 @@
 ; Common early-bootstrap code for harddisk-based Syslinux derivatives.
 ;
 
-		; Expanded superblock
-		section .earlybss
-		alignb 8
-SuperInfo	resq 16			; The first 16 bytes expanded 8 times
-DriveNumber	resb 1
-
 		section .init
 ;
 ; Some of the things that have to be saved very early are saved
 ; "close" to the initial stack pointer offset, in order to
 ; reduce the code size...
 ;
-StackBuf	equ STACK_TOP-44-32	; Start the stack here (grow down - 4K)
-PartInfo	equ StackBuf		; Saved partition table entry
-FloppyTable	equ PartInfo+16		; Floppy info table (must follow PartInfo)
-OrigFDCTabPtr	equ StackBuf-8		; The 2nd high dword on the stack
-OrigESDI	equ StackBuf-4		; The high dword on the stack
-StackHome	equ OrigFDCTabPtr	; The start of the canonical stack
+
+StackBuf	equ STACK_TOP-44-92	; Start the stack here (grow down - 4K)
+PartInfo	equ StackBuf
+.mbr		equ PartInfo
+.gptlen		equ PartInfo+16
+.gpt		equ PartInfo+20
+FloppyTable	equ PartInfo+76
+; Total size of PartInfo + FloppyTable == 76+16 = 92 bytes
+Hidden		equ StackBuf-20		; Partition offset
+OrigFDCTabPtr	equ StackBuf-12		; The 2nd high dword on the stack
+OrigESDI	equ StackBuf-8		; The high dword on the stack
+DriveNumber	equ StackBuf-4		; Drive number
+StackHome	equ Hidden		; The start of the canonical stack
 
 ;
 ; Primary entry point.  Tempting as though it may be, we can't put the
@@ -98,6 +99,7 @@ superblock_max	equ $-superblock
 
 		global SecPerClust
 SecPerClust	equ bxSecPerClust
+
 ;
 ; Note we don't check the constraints above now; we did that at install
 ; time (we hope!)
@@ -108,20 +110,24 @@ start:
 ;
 ; Set up the stack
 ;
-		xor ax,ax
-		mov ss,ax
-		mov sp,StackBuf		; Just below BSS
+		xor cx,cx
+		mov ss,cx
+		mov sp,StackBuf-2	; Just below BSS (-2 for alignment)
+		push dx			; Save drive number (in DL)
 		push es			; Save initial ES:DI -> $PnP pointer
 		push di
-		mov es,ax
-;
-; DS:SI may contain a partition table entry.  Preserve it for us.
-;
-		mov cx,8		; Save partition info
-		mov di,PartInfo
-		rep movsw
+		mov es,cx
 
-		mov ds,ax		; Now we can initialize DS...
+;
+; DS:SI may contain a partition table entry and possibly a GPT entry.
+; Preserve it for us.  This saves 56 bytes of the GPT entry, which is
+; currently the maximum we care about.  Total is 76 bytes.
+;
+		mov cl,(16+4+56)/2	; Save partition info
+		mov di,PartInfo
+		rep movsw		; This puts CX back to zero
+
+		mov ds,cx		; Now we can initialize DS...
 
 ;
 ; Now sautee the BIOS floppy info block to that it will support decent-
@@ -138,12 +144,12 @@ start:
 
 		; Save the old fdctab even if hard disk so the stack layout
 		; is the same.  The instructions above do not change the flags
-		mov [DriveNumber],dl	; Save drive number in DL
 		and dl,dl		; If floppy disk (00-7F), assume no
 					; partition table
 		js harddisk
 
 floppy:
+		xor ax,ax
 		mov cl,6		; 12 bytes (CX == 0)
 		; es:di -> FloppyTable already
 		; This should be safe to do now, interrupts are off...
@@ -151,26 +157,49 @@ floppy:
 		mov [bx+2],ax		; Segment 0
 		fs rep movsw		; Faster to move words
 		mov cl,[bsSecPerTrack]  ; Patch the sector count
-		mov [di-8],cl
-		; AX == 0 here
-		int 13h			; Some BIOSes need this
+		mov [di-76+8],cl
 
+		push ax			; Partition offset == 0
+		push ax
+		push ax
+		push ax
+
+		int 13h			; Some BIOSes need this
 		jmp short not_harddisk
 ;
 ; The drive number and possibly partition information was passed to us
 ; by the BIOS or previous boot loader (MBR).  Current "best practice" is to
 ; trust that rather than what the superblock contains.
 ;
-; Would it be better to zero out bsHidden if we don't have a partition table?
-;
 ; Note: di points to beyond the end of PartInfo
 ;
 harddisk:
-		test byte [di-16],7Fh	; Sanity check: "active flag" should
-		jnz no_partition	; be 00 or 80
-		mov eax,[di-8]		; Partition offset (dword)
-		mov [bsHidden],eax
-no_partition:
+		test byte [di-76],7Fh	; Sanity check: "active flag" should
+		jnz .no_partition	; be 00 or 80
+		cmp [di-76+4],cl	; Sanity check: partition type != 0
+		je .no_partition
+		cmp eax,'!GPT'		; !GPT signature?
+		jne .mbr
+		cmp byte [di-76+4],0EDh	; Synthetic GPT partition entry?
+		jne .mbr
+.gpt:					; GPT-style partition info
+		push dword [di-76+20+36]
+		push dword [di-76+20+32]
+		jmp .gotoffs
+.mbr:					; MBR-style partition info
+		push cx			; Upper half partition offset == 0
+		push cx
+		push dword [di-76+8]	; Partition offset (dword)
+		jmp .gotoffs
+.no_partition:
+;
+; No partition table given... assume that the Hidden field in the boot sector
+; tells the truth (in particular, is zero if this is an unpartitioned disk.)
+;
+		push cx
+		push cx
+		push dword [bsHidden]
+.gotoffs:
 ;
 ; Get disk drive parameters (don't trust the superblock.)  Don't do this for
 ; floppy drives -- INT 13:08 on floppy drives will (may?) return info about
@@ -211,7 +240,7 @@ eddcheck:
 		;
 		; We have EDD support...
 		;
-		mov byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
+		mov byte [getonesec.jmp+1],(getonesec_ebios-(getonesec.jmp+2))
 .noedd:
 
 ;
@@ -219,7 +248,10 @@ eddcheck:
 ; with parsing the superblock and root directory; it doesn't fit
 ; together with EBIOS support, unfortunately.
 ;
-		mov eax,[FirstSector]	; Sector start
+		mov eax,strict dword 0xdeadbeef
+Sect1Ptr0	equ $-4
+		mov edx,strict dword 0xfeedface
+Sect1Ptr1	equ $-4
 		mov bx,ldlinux_sys	; Where to load it
 		call getonesec
 
@@ -228,14 +260,345 @@ eddcheck:
 		jne kaboom
 
 		; Go for it...
-		jmp ldlinux_ent
+		jmp 0:ldlinux_ent
+
 
 ;
-; getonesec: get one disk sector
+; getonesec: load a single disk linear sector EDX:EAX into the buffer
+;	     at ES:BX.
+;
+;            This routine assumes CS == DS == SS, and trashes most registers.
+;
+; Stylistic note: use "xchg" instead of "mov" when the source is a register
+; that is dead from that point; this saves space.  However, please keep
+; the order to dst,src to keep things sane.
 ;
 getonesec:
-		mov bp,1		; One sector
-		; Fall through
+		add eax,[Hidden]		; Add partition offset
+		adc edx,[Hidden+4]
+		mov cx,retry_count
+.jmp:		jmp strict short getonesec_cbios
+
+;
+; getonesec_ebios:
+;
+; getonesec implementation for EBIOS (EDD)
+;
+getonesec_ebios:
+.retry:
+		; Form DAPA on stack
+		push edx
+		push eax
+		push es
+		push bx
+		push word 1
+		push word 16
+		mov si,sp
+		pushad
+                mov ah,42h                      ; Extended Read
+		call xint13
+		popad
+		lea sp,[si+16]			; Remove DAPA
+		jc .error
+                ret
+
+.error:
+		; Some systems seem to get "stuck" in an error state when
+		; using EBIOS.  Doesn't happen when using CBIOS, which is
+		; good, since some other systems get timeout failures
+		; waiting for the floppy disk to spin up.
+
+		pushad				; Try resetting the device
+		xor ax,ax
+		call xint13
+		popad
+		loop .retry			; CX-- and jump if not zero
+
+		; Total failure.  Try falling back to CBIOS.
+		mov byte [getonesec.jmp+1],(getonesec_cbios-(getonesec.jmp+2))
+
+;
+; getonesec_cbios:
+;
+; getlinsec implementation for legacy CBIOS
+;
+getonesec_cbios:
+.retry:
+		pushad
+
+		movzx esi,word [bsSecPerTrack]
+		movzx edi,word [bsHeads]
+		;
+		; Dividing by sectors to get (track,sector): we may have
+		; up to 2^18 tracks, so we need to use 32-bit arithmetric.
+		;
+		div esi
+		xor cx,cx
+		xchg cx,dx		; CX <- sector index (0-based)
+					; EDX <- 0
+		; eax = track #
+		div edi			; Convert track to head/cyl
+
+		cmp eax,1023		; Outside the CHS range?
+		ja kaboom
+
+		;
+		; Now we have AX = cyl, DX = head, CX = sector (0-based),
+		; SI = bsSecPerTrack, ES:BX = data target
+		;
+		shl ah,6		; Because IBM was STOOPID
+					; and thought 8 bits were enough
+					; then thought 10 bits were enough...
+		inc cx			; Sector numbers are 1-based, sigh
+		or cl,ah
+		mov ch,al
+		mov dh,dl
+		mov ax,0201h		; Read one sector
+		call xint13
+		popad
+		jc .error
+		ret
+
+.error:
+		loop .retry
+		; Fall through to disk_error
+
+;
+; kaboom: write a message and bail out.
+;
+		global kaboom
+disk_error:
+kaboom:
+		xor si,si
+		mov ss,si
+		mov sp,OrigFDCTabPtr	; Reset stack
+		mov ds,si		; Reset data segment
+		pop dword [fdctab]	; Restore FDC table
+.patch:					; When we have full code, intercept here
+		mov si,bailmsg
+		call writestr_early
+
+		xor ax,ax
+.again:		int 16h			; Wait for keypress
+					; NB: replaced by int 18h if
+					; chosen at install time..
+		int 19h			; And try once more to boot...
+.norge:		hlt			; If int 19h returned; this is the end
+		jmp short .norge
+
+;
+;
+; writestr_early: write a null-terminated string to the console
+;	    This assumes we're on page 0.  This is only used for early
+;           messages, so it should be OK.
+;
+writestr_early:
+		pushad
+.loop:		lodsb
+		and al,al
+                jz .return
+		mov ah,0Eh		; Write to screen as TTY
+		mov bx,0007h		; Attribute
+		int 10h
+		jmp short .loop
+.return:	popad
+		ret
+
+;
+; INT 13h wrapper function
+;
+xint13:
+                mov dl,[DriveNumber]
+		int 13h
+		ret
+
+;
+; Error message on failure
+;
+bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
+
+		; This fails if the boot sector overflowsg
+		zb 1FEh-($-$$)
+
+bootsignature	dw 0xAA55
+
+;
+; ===========================================================================
+;  End of boot sector
+; ===========================================================================
+;  Start of LDLINUX.SYS
+; ===========================================================================
+
+LDLINUX_SYS	equ ($-$$)+TEXT_START
+ldlinux_sys:
+
+syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
+		db CR, LF, 1Ah	; EOF if we "type" this in DOS
+
+		alignz 8
+ldlinux_magic	dd LDLINUX_MAGIC
+		dd LDLINUX_MAGIC^HEXDATE
+
+;
+; This area is patched by the installer.  It is found by looking for
+; LDLINUX_MAGIC, plus 8 bytes.
+;
+SUBVOL_MAX	equ 256
+CURRENTDIR_MAX	equ FILENAME_MAX
+
+patch_area:
+DataSectors	dw 0		; Number of sectors (not including bootsec)
+ADVSectors	dw 0		; Additional sectors for ADVs
+LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
+CheckSum	dd 0		; Checksum starting at ldlinux_sys
+				; value = LDLINUX_MAGIC - [sum of dwords]
+MaxTransfer	dw 127		; Max sectors to transfer
+EPAPtr		dw EPA - LDLINUX_SYS	; Pointer to the extended patch area
+
+;
+; Extended patch area -- this is in .data16 so it doesn't occupy space in
+; the first sector.  Use this structure for anything that isn't used by
+; the first sector itself.
+;
+		section .data16
+		alignz 2
+EPA:
+ADVSecPtr	dw ADVSec0 - LDLINUX_SYS
+CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
+CurrentDirLen	dw CURRENTDIR_MAX
+SubvolPtr	dw SubvolName-LDLINUX_SYS
+SubvolLen	dw SUBVOL_MAX
+SecPtrOffset	dw SectorPtrs-LDLINUX_SYS
+SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs)/10
+
+;
+; Boot sector patch pointers
+;
+Sect1Ptr0Ptr	dw Sect1Ptr0 - bootsec		; Pointers to Sector 1 location
+Sect1Ptr1Ptr	dw Sect1Ptr1 - bootsec
+RAIDPatchPtr	dw kaboom.again - bootsec	; Patch to INT 18h in RAID mode
+
+;
+; Base directory name and subvolume, if applicable.
+;
+%define HAVE_CURRENTDIRNAME
+		global CurrentDirName, SubvolName
+CurrentDirName	times CURRENTDIR_MAX db 0
+SubvolName	times SUBVOL_MAX db 0
+
+		section .init
+ldlinux_ent:
+;
+; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
+; instead of 0000:7C00 and the like.  We don't want to add anything
+; more to the boot sector, so it is written to not assume a fixed
+; value in CS, but we don't want to deal with that anymore from now
+; on.
+;
+		sti		; In case of broken INT 13h BIOSes
+
+;
+; Tell the user we got this far
+;
+		mov si,syslinux_banner
+		call writestr_early
+
+;
+; Checksum data thus far
+;
+		mov si,ldlinux_sys
+		mov cx,SECTOR_SIZE >> 2
+		mov edx,-LDLINUX_MAGIC
+.checksum:
+		lodsd
+		add edx,eax
+		loop .checksum
+		mov [CheckSum],edx		; Save intermediate result
+
+;
+; Tell the user if we're using EBIOS or CBIOS
+;
+print_bios:
+		mov si,cbios_name
+		cmp byte [getonesec.jmp+1],(getonesec_ebios-(getonesec.jmp+2))
+		jne .cbios
+		mov si,ebios_name
+		mov byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
+.cbios:
+		mov [BIOSName],si
+		call writestr_early
+
+		section .earlybss
+%define	HAVE_BIOSNAME 1
+BIOSName	resw 1
+
+		section .init
+;
+; Now we read the rest of LDLINUX.SYS.
+;
+load_rest:
+		lea esi,[SectorPtrs]
+		mov ebx,TEXT_START+2*SECTOR_SIZE ; Where we start loading
+		mov cx,[DataSectors]
+		dec cx				; Minus this sector
+
+.get_chunk:
+		jcxz .done
+		mov eax,[si]
+		mov edx,[si+4]
+		movzx ebp,word [si+8]
+		sub cx,bp
+		push ebx
+		shr ebx,4			; Convert to a segment
+		mov es,bx
+		xor bx,bx
+		call getlinsec
+		pop ebx
+		shl ebp,SECTOR_SHIFT
+		add ebx,ebp
+		add si,10
+		jmp .get_chunk
+
+.done:
+
+;
+; All loaded up, verify that we got what we needed.
+; Note: the checksum field is embedded in the checksum region, so
+; by the time we get to the end it should all cancel out.
+;
+verify_checksum:
+		mov si,ldlinux_sys + SECTOR_SIZE
+		mov ecx,[LDLDwords]
+		sub ecx,SECTOR_SIZE >> 2
+		mov eax,[CheckSum]
+.checksum:
+		add eax,[si]
+		add si,4
+		jnz .nowrap
+		; Handle segment wrap
+		mov dx,ds
+		add dx,1000h
+		mov ds,dx
+.nowrap:
+		dec ecx
+		jnz .checksum
+
+		and eax,eax			; Should be zero
+		jz all_read			; We're cool, go for it!
+
+;
+; Uh-oh, something went bad...
+;
+		mov si,checksumerr_msg
+		call writestr_early
+		jmp kaboom
+
+;
+; -----------------------------------------------------------------------------
+; Subroutines that have to be in the first sector
+; -----------------------------------------------------------------------------
+
+
 
 ;
 ; getlinsec: load a sequence of BP floppy sector given by the linear sector
@@ -247,17 +610,13 @@ getonesec:
 ;	     On return, BX points to the first byte after the transferred
 ;	     block.
 ;
-;            This routine assumes CS == DS, and trashes most registers.
-;
-; Stylistic note: use "xchg" instead of "mov" when the source is a register
-; that is dead from that point; this saves space.  However, please keep
-; the order to dst,src to keep things sane.
+;            This routine assumes CS == DS.
 ;
 		global getlinsec
 getlinsec:
-		add eax,[bsHidden]		; Add partition offset
-		xor edx,edx			; Zero-extend LBA (eventually allow 64 bits)
-
+		pushad
+		add eax,[Hidden]		; Add partition offset
+		adc edx,[Hidden+4]
 .jmp:		jmp strict short getlinsec_cbios
 
 ;
@@ -283,24 +642,25 @@ getlinsec_ebios:
 		push word 16
 		mov si,sp
 		pushad
-                mov dl,[DriveNumber]
+                mov ah,42h                      ; Extended Read
 		push ds
 		push ss
-		pop ds				; DS <- SS
-                mov ah,42h                      ; Extended Read
-		int 13h
+		pop ds
+		call xint13
 		pop ds
 		popad
 		lea sp,[si+16]			; Remove DAPA
 		jc .error
 		pop bp
 		add eax,edi			; Advance sector pointer
+		adc edx,0
 		sub bp,di			; Sectors left
                 shl di,SECTOR_SHIFT		; 512-byte sectors
                 add bx,di			; Advance buffer pointer
                 and bp,bp
                 jnz .loop
 
+		popad
                 ret
 
 .error:
@@ -351,9 +711,8 @@ getlinsec_cbios:
 		; eax = track #
 		div edi			; Convert track to head/cyl
 
-		; We should test this, but it doesn't fit...
-		; cmp eax,1023
-		; ja .error
+		cmp eax,1023		; Outside the CHS range?
+		ja kaboom
 
 		;
 		; Now we have AX = cyl, DX = head, CX = sector (0-based),
@@ -377,13 +736,12 @@ getlinsec_cbios:
 		or cl,ah
 		mov ch,al
 		mov dh,dl
-		mov dl,[DriveNumber]
 		xchg ax,bp		; Sector to transfer count
 		mov ah,02h		; Read sectors
 		mov bp,retry_count
 .retry:
 		pushad
-		int 13h
+		call xint13
 		popad
 		jc .error
 .resume:
@@ -397,6 +755,7 @@ getlinsec_cbios:
 		add eax,ecx
 		sub bp,cx
 		jnz .loop
+		popad
 		ret
 
 .error:
@@ -406,265 +765,13 @@ getlinsec_cbios:
 		xchg ax,bp		; Sectors transferred <- 0
 		shr word [MaxTransfer],1
 		jnz .resume
-		; Fall through to disk_error
+		jmp kaboom
 
-;
-; kaboom: write a message and bail out.
-;
-		global kaboom
-disk_error:
-kaboom:
-		xor si,si
-		mov ss,si
-		mov sp,OrigFDCTabPtr	; Reset stack
-		mov ds,si		; Reset data segment
-		pop dword [fdctab]	; Restore FDC table
-.patch:					; When we have full code, intercept here
-		mov si,bailmsg
-
-		; Write error message, this assumes screen page 0
-.loop:		lodsb
-		and al,al
-                jz .done
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; Attribute
-		int 10h
-		jmp short .loop
-.done:
-		cbw			; AH <- 0
-.again:		int 16h			; Wait for keypress
-					; NB: replaced by int 18h if
-					; chosen at install time..
-		int 19h			; And try once more to boot...
-.norge:		jmp short .norge	; If int 19h returned; this is the end
-
-;
-; Truncate BP to MaxTransfer
-;
 maxtrans:
 		cmp bp,[MaxTransfer]
 		jna .ok
 		mov bp,[MaxTransfer]
 .ok:		ret
-
-;
-; Error message on failure
-;
-bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
-
-		; This fails if the boot sector overflows
-		zb 1F8h-($-$$)
-
-FirstSector	dd 0xDEADBEEF			; Location of sector 1
-MaxTransfer	dw 0x007F			; Max transfer size
-
-; This field will be filled in 0xAA55 by the installer, but we abuse it
-; to house a pointer to the INT 16h instruction at
-; kaboom.again, which gets patched to INT 18h in RAID mode.
-bootsignature	dw kaboom.again-bootsec
-
-;
-; ===========================================================================
-;  End of boot sector
-; ===========================================================================
-;  Start of LDLINUX.SYS
-; ===========================================================================
-
-LDLINUX_SYS	equ ($-$$)+TEXT_START
-ldlinux_sys:
-
-syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
-		db CR, LF, 1Ah	; EOF if we "type" this in DOS
-
-		alignz 8
-ldlinux_magic	dd LDLINUX_MAGIC
-		dd LDLINUX_MAGIC^HEXDATE
-
-;
-; This area is patched by the installer.  It is found by looking for
-; LDLINUX_MAGIC, plus 8 bytes.
-;
-SUBVOL_MAX	equ 256
-CURRENTDIR_MAX	equ FILENAME_MAX
-
-patch_area:
-DataSectors	dw 0		; Number of sectors (not including bootsec)
-ADVSectors	dw 0		; Additional sectors for ADVs
-LDLDwords	dd 0		; Total dwords starting at ldlinux_sys,
-CheckSum	dd 0		; Checksum starting at ldlinux_sys
-				; value = LDLINUX_MAGIC - [sum of dwords]
-CurrentDirPtr	dw CurrentDirName-LDLINUX_SYS	; Current directory name string
-CurrentDirLen	dw CURRENTDIR_MAX
-SubvolPtr	dw SubvolName-LDLINUX_SYS
-SubvolLen	dw SUBVOL_MAX
-SecPtrOffset	dw SectorPtrs-LDLINUX_SYS
-SecPtrCnt	dw (SectorPtrsEnd - SectorPtrs) >> 2
-
-;
-; Installer pokes the base directory here.  This is in .data16 so it
-; isn't actually located in the first sector.
-;
-%define HAVE_CURRENTDIRNAME
-		section .data16
-		global CurrentDirName, SubvolName
-CurrentDirName	times CURRENTDIR_MAX db 0
-SubvolName	times SUBVOL_MAX db 0
-		section .init
-
-ldlinux_ent:
-;
-; Note that some BIOSes are buggy and run the boot sector at 07C0:0000
-; instead of 0000:7C00 and the like.  We don't want to add anything
-; more to the boot sector, so it is written to not assume a fixed
-; value in CS, but we don't want to deal with that anymore from now
-; on.
-;
-		jmp 0:.next
-.next:
-		sti		; In case of broken INT 13h BIOSes
-
-;
-; Tell the user we got this far
-;
-		mov si,syslinux_banner
-		call writestr_early
-
-;
-; Tell the user if we're using EBIOS or CBIOS
-;
-print_bios:
-		mov si,cbios_name
-		cmp byte [getlinsec.jmp+1],(getlinsec_ebios-(getlinsec.jmp+2))
-		jne .cbios
-		mov si,ebios_name
-.cbios:
-		mov [BIOSName],si
-		call writestr_early
-
-		section .earlybss
-%define	HAVE_BIOSNAME 1
-BIOSName	resw 1
-
-		section .init
-;
-; Now we read the rest of LDLINUX.SYS.	Don't bother loading the first
-; sector again, though.
-;
-load_rest:
-		lea esi,[SectorPtrs]
-		mov ebx,TEXT_START+2*SECTOR_SIZE ; Where we start loading
-		mov cx,[DataSectors]
-		dec cx				; Minus this sector
-
-.get_chunk:
-		jcxz .done
-		xor ebp,ebp
-		mov di,bx			; Low 64K of target address
-		lodsd				; First sector of this chunk
-
-		mov edx,eax
-
-.make_chunk:
-		inc bp
-		dec cx
-		jz .chunk_ready
-		cmp ebx,esi			; Pointer we don't have yet?
-		jae .chunk_ready
-		inc edx				; Next linear sector
-		cmp [si],edx			; Does it match
-		jnz .chunk_ready		; If not, this is it
-		add si,4			; If so, add sector to chunk
-		add di,SECTOR_SIZE		; Check for 64K segment wrap
-		jnz .make_chunk
-
-.chunk_ready:
-		push ebx
-		push es
-		shr ebx,4			; Convert to a segment
-		mov es,bx
-		xor bx,bx
-		xor edx,edx			; Zero-extend LBA
-		call getlinsecsr
-		pop es
-		pop ebx
-		shl ebp,SECTOR_SHIFT
-		add ebx,ebp
-		jmp .get_chunk
-
-.done:
-
-;
-; All loaded up, verify that we got what we needed.
-; Note: the checksum field is embedded in the checksum region, so
-; by the time we get to the end it should all cancel out.
-;
-verify_checksum:
-		mov si,ldlinux_sys
-		mov ecx,[LDLDwords]
-		mov eax,-LDLINUX_MAGIC
-		push ds
-.checksum:
-		add eax,[si]
-		add si,4
-		jnz .nowrap
-		; Handle segment wrap
-		mov dx,ds
-		add dx,1000h
-		mov ds,dx
-.nowrap:
-		dec ecx
-		jnz .checksum
-		pop ds
-
-		push eax
-		mov si,cbios_name
-		call writestr_early
-		pop eax
-		and eax,eax			; Should be zero
-		jz all_read			; We're cool, go for it!
-
-;
-; Uh-oh, something went bad...
-;
-		mov si,checksumerr_msg
-		call writestr_early
-		jmp kaboom
-
-;
-; -----------------------------------------------------------------------------
-; Subroutines that have to be in the first sector
-; -----------------------------------------------------------------------------
-
-;
-;
-; writestr_early: write a null-terminated string to the console
-;	    This assumes we're on page 0.  This is only used for early
-;           messages, so it should be OK.
-;
-writestr_early:
-		pushad
-.loop:		lodsb
-		and al,al
-                jz .return
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; Attribute
-		int 10h
-		jmp short .loop
-.return:	popad
-		ret
-
-
-;
-; getlinsecsr: save registers, call getlinsec, restore registers
-;	       Save/restore the flags, too, especially IF.
-;
-getlinsecsr:	
-		pushfd
-		pushad
-		call getlinsec
-		popad
-		popfd
-		ret
 
 ;
 ; Checksum error message
@@ -691,16 +798,22 @@ rl_checkpt	equ $				; Must be <= 8000h
 
 rl_checkpt_off	equ ($-$$)
 %ifndef DEPEND
-%if rl_checkpt_off > 3FCh			; Need one pointer in here
-%error "Sector 1 overflow"
-%endif
+ %if rl_checkpt_off > 3F6h			; Need one extent
+  %assign rl_checkpt_overflow rl_checkpt_off - 3F6h
+  %error Sector 1 overflow by rl_checkpt_overflow bytes
+ %endif
 %endif
 
-; Sector pointers
-		alignz 4
+;
+; Extent pointers... each extent contains an 8-byte LBA and an 2-byte
+; sector count.  In most cases, we will only ever need a handful of
+; extents, but we have to assume a maximally fragmented system where each
+; extent contains only one sector.
+;
+		alignz 2
 MaxInitDataSize	equ 96 << 10
 MaxLMA		equ TEXT_START+SECTOR_SIZE+MaxInitDataSize
-SectorPtrs	times MaxInitDataSize >> SECTOR_SHIFT dd 0
+SectorPtrs	zb 10*(MaxInitDataSize >> SECTOR_SHIFT)
 SectorPtrsEnd	equ $
 
 ; ----------------------------------------------------------------------------
@@ -708,18 +821,19 @@ SectorPtrsEnd	equ $
 ; ----------------------------------------------------------------------------
 
 		section .text16
-test_string	db 'test', 0			; temp add by feng 
-
 all_read:
+		; We enter here with both DS and ES scrambled...
+		xor ax,ax
+		mov ds,ax
+		mov es,ax
 ;
 ; Let the user (and programmer!) know we got this far.  This used to be
 ; in Sector 1, but makes a lot more sense here.
 ;
-		;mov si,copyright_str
-		;call writestr_early
-
-		mov si,test_string
+		mov si,copyright_str
 		call writestr_early
+
+
 ;
 ; Insane hack to expand the DOS superblock to dwords
 ;
@@ -746,21 +860,16 @@ expand_super:
 		mov eax,ROOT_FS_OPS
 		movzx dx,byte [DriveNumber]
 		; DH = 0: we are boot from disk not CDROM
-		mov ecx,[bsHidden]
-		; Reserved for upper 32 bits of partition offset...
-		; mov ebx,[bsHidden+4]
-		xor ebx,ebx
+		mov ecx,[Hidden]
+		mov ebx,[Hidden+4]
 		mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
 		movzx ebp,word [MaxTransfer]
-
-		;mov si,ebios_name
-		;call writestr_early
-
 		pm_call fs_init
-
-		;mov si,ebios_name
-		;call writestr_early
-
 		pm_call load_env32
 		popad
+
+		section .bss16
+SuperInfo	resq 16			; The first 16 bytes expanded 8 times
+
+		section .text16

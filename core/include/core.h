@@ -64,10 +64,14 @@ __noreturn _kaboom(void);
 /*
  * Basic timer function...
  */
-extern volatile uint32_t __jiffies;
+extern volatile uint32_t __jiffies, __ms_timer;
 static inline uint32_t jiffies(void)
 {
     return __jiffies;
+}
+static inline uint32_t ms_timer(void)
+{
+    return __ms_timer;
 }
 
 #endif /* CORE_H */

@@ -74,7 +74,7 @@ core_syscall:
 		mov eax,.rm_return	; Return seg:offs
 		stosd			; Save in stack frame
 		mov eax,[edi-12]	; Return flags
-		and eax,0x200cd7	; Mask (potentially) unsafe flags
+		and eax,0x200ed7	; Mask (potentially) unsafe flags
 		mov [edi-12],eax	; Primary flags entry
 		stosw			; Return flags
 
@@ -84,13 +84,15 @@ core_syscall:
 		bits 16
 		section .text16
 .rm:
+		mov ax,sp
+		add ax,9*4+4*2
+		mov [CallbackSP],ax
 		pop gs
 		pop fs
 		pop es
 		pop ds
 		popad
 		popfd
-		mov [cs:CallbackSP],sp
 		retf				; Invoke routine
 
 .rm_return:
@@ -138,6 +140,7 @@ core_syscall:
 ;
 ; Cfarcall invocation.  We copy the stack frame to the real-mode stack,
 ; followed by the return CS:IP and the CS:IP of the target function.
+; The value of IF is copied from the calling routine.
 ;
 		global core_cfarcall
 core_cfarcall:
@@ -156,11 +159,14 @@ core_cfarcall:
 		mov [word CallbackSP],di
 		sub edi,ecx		; Allocate space for stack frame
 		and edi,~3		; Round
-		sub edi,4*2		; Return pointer, return value
+		sub edi,4*3		; Return pointer, return value, EFLAGS
 		mov [word RealModeSSSP],di
 		shl ebx,4
 		add edi,ebx		; Create linear address
 
+		mov eax,[esp+5*4]	; EFLAGS from entry
+		and eax,0x202		; IF only
+		stosd
 		mov eax,[esp+7*4]	; CS:IP
 		stosd			; Save to stack frame
 		mov eax,.rm_return	; Return seg:off
@@ -179,6 +185,7 @@ core_cfarcall:
 		bits 16
 		section .text16
 .rm:
+		popfd
 		retf
 .rm_return:
 		mov sp,[cs:CallbackSP]

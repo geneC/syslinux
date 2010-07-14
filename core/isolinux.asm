@@ -101,7 +101,7 @@ ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
 		alignb 8
-bsHidden	resq 1			; Used in hybrid mode
+Hidden		resq 1			; Used in hybrid mode
 bsSecPerTrack	resw 1			; Used in hybrid mode
 bsHeads		resw 1			; Used in hybrid mode
 
@@ -242,9 +242,6 @@ _start_hybrid:
 		pop eax
 		pop ebx
 .nooffset:
-		mov [cs:bsHidden],eax
-		mov [cs:bsHidden+4],ebx
-
 		mov si,bios_cbios
 		jcxz _start_common
 		mov si,bios_ebios
@@ -253,20 +250,25 @@ _start_hybrid:
 
 _start1:
 		mov si,bios_cdrom
+		xor eax,eax
+		xor ebx,ebx
 _start_common:
 		mov [cs:InitStack],sp	; Save initial stack pointer
 		mov [cs:InitStack+2],ss
-		xor ax,ax
-		mov ss,ax
+		xor cx,cx
+		mov ss,cx
 		mov sp,StackBuf		; Set up stack
 		push es			; Save initial ES:DI -> $PnP pointer
 		push di
-		mov ds,ax
-		mov es,ax
-		mov fs,ax
-		mov gs,ax
+		mov ds,cx
+		mov es,cx
+		mov fs,cx
+		mov gs,cx
 		sti
 		cld
+
+		mov [Hidden],eax
+		mov [Hidden+4],ebx
 
 		mov [BIOSType],si
 		mov eax,[si]
@@ -779,8 +781,8 @@ getlinsec_ebios:
 		xor edx,edx
 		shld edx,eax,2
 		shl eax,2			; Convert to HDD sectors
-		add eax,[bsHidden]
-		adc edx,[bsHidden+4]
+		add eax,[Hidden]
+		adc edx,[Hidden+4]
 		shl bp,2
 
 .loop:
@@ -852,7 +854,7 @@ getlinsec_ebios:
 getlinsec_cbios:
 		xor edx,edx
 		shl eax,2			; Convert to HDD sectors
-		add eax,[bsHidden]
+		add eax,[Hidden]
 		shl bp,2
 
 .loop:
@@ -1165,8 +1167,8 @@ init_fs:
 .hybrid:
 		movzx ebp,word [MaxTransfer]
 .common:
-	        mov ecx,[bsHidden]
-	        mov ebx,[bsHidden+4]
+	        mov ecx,[Hidden]
+	        mov ebx,[Hidden+4]
                 mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
 		pm_call fs_init

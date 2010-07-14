@@ -4,7 +4,7 @@
 #  Round 1: get all the loacl and external symbols
 #######################################################
 
-for i in com32/elflink/modules/*.c32 core/extlinux.elf core/isolinux.elf core/pxelinux.elf
+for i in com32/elflink/modules/*.c32 core/isolinux.elf core/pxelinux.elf
 do
 	# module=$(echo $i | sed "s/^\(.*\).o$/\1/")
 	

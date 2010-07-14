@@ -19,6 +19,8 @@
 
 const struct com32_pmapi pm_api_vector =
 {
+    .__pmapi_size = sizeof(struct com32_pmapi),
+
     .lmalloc	= pmapi_lmalloc, /* Allocate low memory */
     .lfree	= free,		 /* Free low memory */
 
@@ -32,4 +34,10 @@ const struct com32_pmapi pm_api_vector =
 
     .idle	= __idle,
     .reset_idle	= reset_idle,
+
+    .chdir	= chdir,
+    .getcwd	= getcwd,
+
+    .jiffies	= &__jiffies,
+    .ms_timer	= &__ms_timer,
 };
