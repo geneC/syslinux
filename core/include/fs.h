@@ -94,6 +94,7 @@ struct extent {
  */
 struct inode {
     struct fs_info *fs;	 /* The filesystem this inode is associated with */
+    struct inode *parent;	/* Parent directory, if any */
     int		 refcnt;
     int          mode;   /* FILE , DIR or SYMLINK */
     uint32_t     size;
@@ -157,11 +158,8 @@ static inline struct inode *get_inode(struct inode *inode)
     inode->refcnt++;
     return inode;
 }
-static inline void put_inode(struct inode *inode)
-{
-    if (! --inode->refcnt)
-	free(inode);
-}
+
+void put_inode(struct inode *inode);
 
 static inline void malloc_error(char *obj)
 {
@@ -204,6 +202,9 @@ DIR *opendir(const char *pathname);
 struct dirent *readdir(DIR *dir);
 int closedir(DIR *dir);
 
+/* getcwd.c */
+char *getcwd(char *buf, size_t size);
+
 /*
  * Generic functions that filesystem drivers may choose to use
  */
@@ -212,6 +213,7 @@ int closedir(DIR *dir);
 void generic_mangle_name(char *, const char *);
 
 /* loadconfig.c */
+int search_config(const char *search_directores[], const char *filenames[]);
 int generic_load_config(void);
 
 /* close.c */

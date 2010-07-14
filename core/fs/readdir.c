@@ -10,13 +10,20 @@
 DIR *opendir(const char *path)
 {
     int rv;
+    struct file *file;
 
     rv = searchdir(path);
     if (rv < 0)
 	return NULL;
 
-    /* XXX: check for a directory handle here */
-    return (DIR *)handle_to_file(rv);
+    file = handle_to_file(rv);
+
+    if (file->inode->mode != DT_DIR) {
+	_close_file(file);
+	return NULL;
+    }
+
+    return (DIR *)file;
 }
 
 /*

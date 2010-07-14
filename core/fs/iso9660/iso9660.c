@@ -273,30 +273,21 @@ static int iso_readdir(struct file *file, struct dirent *dirent)
 /* Load the config file, return 1 if failed, or 0 */
 static int iso_load_config(void)
 {
-    const char *search_directories[] = {
+    static const char *search_directories[] = {
 	"/boot/isolinux", 
 	"/isolinux",
+	"/boot/syslinux", 
+	"/syslinux", 
 	"/",
 	NULL
     };
-    com32sys_t regs;
-    int i;
-    
-    for (i = 0; search_directories[i]; i++) {
-	    memset(&regs, 0, sizeof regs);
-	    snprintf(ConfigName, FILENAME_MAX, "%s/isolinux.cfg",
-		     search_directories[i]);
-	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-	    call16(core_open, &regs, &regs);
-	    if (!(regs.eflags.l & EFLAGS_ZF))
-		break;
-    }
-    if (!search_directories[i])
-	return -1;
-    
-    /* Set the current working directory */
-    chdir(search_directories[i]);
-    return 0;
+    static const char *filenames[] = {
+	"isolinux.cfg",
+	"syslinux.cfg",
+	NULL
+    };
+
+    return search_config(search_directories, filenames);
 }
 
 static int iso_fs_init(struct fs_info *fs)

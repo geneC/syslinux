@@ -35,7 +35,7 @@ struct dnsquery {
 } __attribute__ ((packed));
 
 /*
- * The DNS Resource recodes structure 
+ * The DNS Resource recodes structure
  */
 struct dnsrr {
     uint16_t type;
@@ -50,7 +50,7 @@ uint32_t dns_server[DNS_MAX_SERVERS] = {0, };
 
 
 /*
- * Turn a string in _src_ into a DNS "label set" in _dst_; returns the 
+ * Turn a string in _src_ into a DNS "label set" in _dst_; returns the
  * number of dots encountered. On return, *dst is updated.
  */
 int dns_mangle(char **dst, const char *p)
@@ -58,14 +58,14 @@ int dns_mangle(char **dst, const char *p)
     char *q = *dst;
     char *count_ptr;
     char c;
-    int dots = 0;    
+    int dots = 0;
 
     count_ptr = q;
     *q++ = 0;
 
     while (1) {
         c = *p++;
-        if (c == 0 || c == ':')
+        if (c == 0 || c == ':' || c == '/')
             break;
         if (c == '.') {
             dots++;
@@ -73,7 +73,7 @@ int dns_mangle(char **dst, const char *p)
             *q++ = 0;
             continue;
         }
-        
+
         *count_ptr += 1;
         *q++ = c;
     }
@@ -85,7 +85,7 @@ int dns_mangle(char **dst, const char *p)
     *dst = q;
     return dots;
 }
-    
+
 
 /*
  * Compare two sets of DNS labels, in _s1_ and _s2_; the one in _s2_
@@ -126,7 +126,7 @@ static void *dns_copylabel(void *dst, const void *src, const void *buf)
     uint8_t *q = dst;
     const uint8_t *p = src;
     unsigned int c0, c1;
-    
+
     while (1) {
 	c0 = p[0];
         if (c0 >= 0xc0) {
@@ -151,7 +151,7 @@ static void *dns_copylabel(void *dst, const void *src, const void *buf)
 static char *dns_skiplabel(char *label)
 {
     uint8_t c;
-    
+
     while (1) {
         c = *label++;
         if (c >= 0xc0)
@@ -184,15 +184,19 @@ uint32_t dns_resolv(const char *name)
     const uint8_t *timeout_ptr = TimeoutTable;
     uint32_t oldtime;
     uint32_t srv;
-    uint32_t *srv_ptr = dns_server;
+    uint32_t *srv_ptr;
     struct dnshdr *hd1 = (struct dnshdr *)DNSSendBuf;
-    struct dnshdr *hd2 = (struct dnshdr *)DNSRecvBuf; 
+    struct dnshdr *hd2 = (struct dnshdr *)DNSRecvBuf;
     struct dnsquery *query;
     struct dnsrr *rr;
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
-    static __lowmem struct s_PXENV_UDP_READ udp_read;
+    static __lowmem struct s_PXENV_UDP_READ  udp_read;
     uint16_t local_port;
     uint32_t result = 0;
+
+    /* Make sure we have at least one valid DNS server */
+    if (!dns_server[0])
+	return 0;
 
     /* Get a local port number */
     local_port = get_port();
@@ -204,68 +208,61 @@ uint32_t dns_resolv(const char *name)
     hd1->ancount = 0;               /* No answers */
     hd1->nscount = 0;               /* No NS */
     hd1->arcount = 0;               /* No AR */
-    
+
     p = DNSSendBuf + sizeof(struct dnshdr);
     dots = dns_mangle(&p, name);   /* store the CNAME */
-        
+
     if (!dots) {
         p--; /* Remove final null */
         /* Uncompressed DNS label set so it ends in null */
-        strcpy(p, LocalDomain); 
+        strcpy(p, LocalDomain);
     }
-    
+
     /* Fill the DNS query packet */
     query = (struct dnsquery *)p;
     query->qtype  = htons(TYPE_A);
     query->qclass = htons(CLASS_IN);
     p += sizeof(struct dnsquery);
-   
+
     /* Now send it to name server */
     timeout_ptr = TimeoutTable;
     timeout = *timeout_ptr++;
-    while (srv_ptr < dns_server + DNS_MAX_SERVERS) {
-        srv = *srv_ptr++;
-	if (!srv) 
-	    continue;  /* just move on before runing the time out */
+    srv_ptr = dns_server;
+    while (timeout) {
+	srv = *srv_ptr++;
+	if (!srv) {
+	    srv_ptr = dns_server;
+	    srv = *srv_ptr++;
+	}
+
         udp_write.status      = 0;
         udp_write.ip          = srv;
-        udp_write.gw          = ((srv ^ MyIP) & net_mask) ? gate_way : 0;
+        udp_write.gw          = gateway(srv);
         udp_write.src_port    = local_port;
         udp_write.dst_port    = DNS_PORT;
         udp_write.buffer_size = p - DNSSendBuf;
         udp_write.buffer      = FAR_PTR(DNSSendBuf);
         err = pxe_call(PXENV_UDP_WRITE, &udp_write);
-        if (err || udp_write.status != 0)
+        if (err || udp_write.status)
             continue;
-        
+
         oldtime = jiffies();
-	while (1) {
+	do {
+	    if (jiffies() - oldtime >= timeout)
+		goto again;
+
             udp_read.status      = 0;
             udp_read.src_ip      = srv;
-            udp_read.dest_ip     = MyIP;
+            udp_read.dest_ip     = IPInfo.myip;
             udp_read.s_port      = DNS_PORT;
             udp_read.d_port      = local_port;
-            udp_read.buffer_size = DNS_MAX_PACKET;
+            udp_read.buffer_size = PKTBUF_SIZE;
             udp_read.buffer      = FAR_PTR(DNSRecvBuf);
             err = pxe_call(PXENV_UDP_READ, &udp_read);
-            if (err || udp_read.status)
-                continue;
-            
-            /* Got a packet, deal with it... */
-            if (hd2->id == hd1->id)
-                break;
+	} while (err || udp_read.status || hd2->id != hd1->id);
 
-	    if (jiffies()-oldtime >= timeout) {
-		/* time out */
-		timeout = *timeout_ptr++;
-		if (!timeout)
-		    goto done;	/* All time ticks run out */
-		else 
-		    goto again;
-	    }
-        }
         if ((hd2->flags ^ 0x80) & htons(0xf80f))
-            goto badness;        
+            goto badness;
 
         ques = htons(hd2->qdcount);   /* Questions */
         reps = htons(hd2->ancount);   /* Replies   */
@@ -302,7 +299,7 @@ uint32_t dns_resolv(const char *name)
 		default:
 		    break;
 		}
-	    }		  
+	    }
 
             /* not the one we want, try next */
             p += sizeof(struct dnsrr) + rd_len;
@@ -319,13 +316,13 @@ uint32_t dns_resolv(const char *name)
          ; domain doesn't exist.  If this turns out to be a
          ; problem, we may want to add code to go through all
          ; the servers before giving up.
-         
+
          ; If the DNS server wasn't capable of recursion, and
          ; isn't capable of giving us an authoritative reply
          ; (i.e. neither AA or RA set), then at least try a
          ; different setver...
         */
-        if (hd2->flags == htons(0x480)) 
+        if (hd2->flags == htons(0x480))
             continue;
 
         break; /* failed */
@@ -339,10 +336,10 @@ done:
 
     return result;
 }
-    
-    
+
+
 /*
- * the one should be called from ASM file 
+ * the one should be called from ASM file
  */
 void pxe_dns_resolv(com32sys_t *regs)
 {

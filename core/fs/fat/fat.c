@@ -6,6 +6,7 @@
 #include <core.h>
 #include <disk.h>
 #include <fs.h>
+#include <ilog2.h>
 #include <klibc/compiler.h>
 #include "codepage.h"
 #include "fat_fs.h"
@@ -18,7 +19,6 @@ static struct inode * new_fat_inode(struct fs_info *fs)
 
     return inode;
 }
-
 
 /*
  * Check for a particular sector in the FAT cache
@@ -276,26 +276,32 @@ static void mangle_dos_name(char *mangle_buf, const char *src)
     int i;
     unsigned char c;
 
-    i = 0;
-    while (i < 11) {
-	c = *src++;
-
+    if (src[0] == '.' && (!src[1] || (src[1] == '.' && !src[2]))) {
+	/* . and .. mangle to their respective zero-padded version */
+	i = stpcpy(mangle_buf, src) - mangle_buf;
+    } else {
+	i = 0;
+	while (i < 11) {
+	    c = *src++;
+	    
 	if ((c <= ' ') || (c == '/'))
 	    break;
-
+	
 	if (c == '.') {
 	    while (i < 8)
 		mangle_buf[i++] = ' ';
 	    i = 8;
 	    continue;
 	}
-
+	
 	c = codepage.upper[c];
 	if (i == 0 && c == 0xe5)
 	    c = 0x05;		/* Special hack for the first byte only! */
-
+	
 	mangle_buf[i++] = c;
+	}
     }
+
     while (i < 11)
 	mangle_buf[i++] = ' ';
 
@@ -408,7 +414,10 @@ static inline sector_t first_sector(struct fs_info *fs,
     sector_t sector;
 
     first_clust = (dir->first_cluster_high << 16) + dir->first_cluster_low;
-    sector = ((first_clust - 2) << sbi->clust_shift) + sbi->data;
+    if (first_clust == 0)
+	sector = sbi->root;	/* first_clust == 0 means root directory */
+    else
+	sector = ((first_clust - 2) << sbi->clust_shift) + sbi->data;
 
     return sector;
 }
@@ -533,7 +542,16 @@ found:
     inode->size = de->file_size;
     PVT(inode)->start_cluster = 
 	(de->first_cluster_high << 16) + de->first_cluster_low;
-    PVT(inode)->start = PVT(inode)->here = first_sector(fs, de);
+    if (PVT(inode)->start_cluster == 0) {
+	/* Root directory */
+	int root_size = FAT_SB(fs)->root_size;
+
+	PVT(inode)->start_cluster = FAT_SB(fs)->root_cluster;
+	inode->size = root_size ? root_size << fs->sector_shift : ~0;
+	PVT(inode)->start = PVT(inode)->here = FAT_SB(fs)->root;
+    } else {
+	PVT(inode)->start = PVT(inode)->here = first_sector(fs, de);
+    }
     inode->mode = get_inode_mode(de->attr);
 
     return inode;
@@ -696,45 +714,6 @@ got:
     return 0;
 }
 
-/* Load the config file, return 1 if failed, or 0 */
-static int vfat_load_config(void)
-{
-    const char *search_directories[] = {
-	"/boot/syslinux", 
-	"/syslinux",
-	"/",
-	NULL
-    };
-    com32sys_t regs;
-    int i;
-
-    /* If installed by extlinux, try the extlinux filename */
-    if (*CurrentDirName && !generic_load_config())
-	return 0;
-
-    for (i = 0; search_directories[i]; i++) {
-	    memset(&regs, 0, sizeof regs);
-	    snprintf(ConfigName, FILENAME_MAX, "%s/syslinux.cfg",
-		     search_directories[i]);
-	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-	    call16(core_open, &regs, &regs);
-	    if (!(regs.eflags.l & EFLAGS_ZF))
-		break;
-    }
-    if (!search_directories[i])
-	return -1;
-
-    /* Set the current working directory */
-    chdir(search_directories[i]);
-    return 0;
-}
-
-static inline __constfunc uint32_t bsr(uint32_t num)
-{
-    asm("bsrl %1,%0" : "=r" (num) : "rm" (num));
-    return num;
-}
-
 /* init. the fs meta data, return the block size in bits */
 static int vfat_fs_init(struct fs_info *fs)
 {
@@ -767,7 +746,7 @@ static int vfat_fs_init(struct fs_info *fs)
     sbi->root_size = root_dir_size(fs, &fat);
     sbi->data      = sbi->root + sbi->root_size;
 
-    sbi->clust_shift      = bsr(fat.bxSecPerClust);
+    sbi->clust_shift      = ilog2(fat.bxSecPerClust);
     sbi->clust_byte_shift = sbi->clust_shift + fs->sector_shift;
     sbi->clust_mask       = fat.bxSecPerClust - 1;
     sbi->clust_size       = fat.bxSecPerClust << fs->sector_shift;
@@ -808,7 +787,7 @@ const struct fs_ops vfat_fs_ops = {
     .getfssec      = generic_getfssec,
     .close_file    = generic_close_file,
     .mangle_name   = vfat_mangle_name,
-    .load_config   = vfat_load_config,
+    .load_config   = generic_load_config,
     .readdir       = vfat_readdir,
     .iget_root     = vfat_iget_root,
     .iget          = vfat_iget,

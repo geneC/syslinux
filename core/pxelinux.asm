@@ -530,7 +530,15 @@ exten_table_end:
 KeepPXE		db 0			; Should PXE be kept around?
 
 ;
-; IP information (initialized to "unknown" values)
-		alignz 4
-                global MyIP
-MyIP		dd 0			; My IP address 
+; IP information.  Note that the field are in the same order as the
+; Linux kernel expects in the ip= option.
+;
+		section .bss16
+		alignb 4
+		global IPInfo
+IPInfo:
+.IPv4		resd 1			; IPv4 information
+.MyIP		resd 1			; My IP address 
+.ServerIP	resd 1
+.GatewayIP	resd 1
+.Netmask	resd 1

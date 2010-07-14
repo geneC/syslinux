@@ -5,20 +5,30 @@
 #include <fs.h>
 
 /*
- * Standard version of load_config for extlinux-installed filesystems
+ * Standard version of load_config for extlinux/syslinux filesystems.
+ *
+ * This searches for extlinux.conf and syslinux.cfg in the install
+ * directory, followed by a set of fallback directories.  If found,
+ * set the current working directory to match.
  */
 int generic_load_config(void)
 {
-    com32sys_t regs;
+    static const char *search_directories[] = {
+	NULL,			/* CurrentDirName */
+	"/boot/syslinux",
+	"/syslinux",
+	"/",
+	NULL
+    };
+    static const char *filenames[] = {
+	"extlinux.conf",
+	"syslinux.cfg",
+	NULL
+    };
 
-    chdir(CurrentDirName);
-    realpath(ConfigName, "extlinux.conf", FILENAME_MAX);
+    search_directories[0] = CurrentDirName;
 
-    dprintf("Config = %s\n", ConfigName);
+    dprintf("CurrentDirName: \"%s\"\n", CurrentDirName);
 
-    memset(&regs, 0, sizeof regs);
-    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
-    call16(core_open, &regs, &regs);
-
-    return (regs.eflags.l & EFLAGS_ZF) ? -1 : 0;
+    return search_config(search_directories, filenames);
 }

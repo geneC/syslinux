@@ -56,7 +56,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	t = xlba / disk->s;
 	h = t % disk->h;
 	c = t / disk->h;
-        
+
 	ireg.eax.b[0] = chunk;
 	ireg.ecx.b[1] = c;
 	ireg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
@@ -65,11 +65,20 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	ireg.es       = SEG(tptr);
 
 	retry = RETRY_COUNT;
-        
+
         for (;;) {
+	    dprintf("CHS[%02x]: %u @ %llu (%u/%u/%u) %04x:%04x %s %p\n",
+		    ireg.edx.b[0], chunk, xlba, c, h, s+1,
+		    ireg.es, ireg.ebx.w[0],
+		    (ireg.eax.b[1] & 1) ? "<-" : "->",
+		    ptr);
+
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
 		break;
+
+	    dprintf("CHS: error AX = %04x\n", oreg.eax.w[0]);
+
 	    if (retry--)
 		continue;
 
@@ -80,6 +89,11 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 		retry = RETRY_COUNT;
                 ireg.eax.b[0] = chunk;
                 continue;
+	    } else {
+		printf("CHS: Error %04x %s sector %llu (%u/%u/%u)\n",
+		       oreg.eax.w[0],
+		       is_write ? "writing" : "reading",
+		       lba, c, h, s+1);
 	    }
 	    return done;	/* Failure */
 	}
@@ -113,17 +127,21 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     char *tptr;
     size_t chunk, freeseg;
     int sector_shift = disk->sector_shift;
-    com32sys_t ireg, oreg;
+    com32sys_t ireg, oreg, reset;
     size_t done = 0;
     size_t bytes;
     int retry;
 
     memset(&ireg, 0, sizeof ireg);
-    
+
     ireg.eax.b[1] = 0x42 + is_write;
     ireg.edx.b[0] = disk->disk_number;
     ireg.ds       = SEG(&pkt);
     ireg.esi.w[0] = OFFS(&pkt);
+
+    memset(&reset, 0, sizeof reset);
+
+    ireg.edx.b[0] = disk->disk_number;
 
     lba += disk->part_start;
     while (count) {
@@ -157,11 +175,28 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    pkt.buf    = FAR_PTR(tptr);
 	    pkt.lba    = lba;
 
+	    dprintf("EDD[%02x]: %u @ %llu %04x:%04x %s %p\n",
+		    ireg.edx.b[0], pkt.blocks, pkt.lba,
+		    pkt.buf.seg, pkt.buf.offs,
+		    (ireg.eax.b[1] & 1) ? "<-" : "->",
+		    ptr);
+
 	    __intcall(0x13, &ireg, &oreg);
 	    if (!(oreg.eflags.l & EFLAGS_CF))
 		break;
+
+	    dprintf("EDD: error AX = %04x\n", oreg.eax.w[0]);
+
 	    if (retry--)
 		continue;
+
+	    /*
+	     * Some systems seem to get "stuck" in an error state when
+	     * using EBIOS.  Doesn't happen when using CBIOS, which is
+	     * good, since some other systems get timeout failures
+	     * waiting for the floppy disk to spin up.
+	     */
+	    __intcall(0x13, &reset, NULL);
 
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
@@ -172,7 +207,10 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    }
 
 	    /*** XXX: Consider falling back to CHS here?! ***/
-            printf("reading sectors error(EDD)\n");
+            printf("EDD: Error %04x %s sector %llu\n",
+		   oreg.eax.w[0],
+		   is_write ? "writing" : "reading",
+		   lba);
 	    return done;	/* Failure */
 	}
 
@@ -216,7 +254,7 @@ static inline bool is_power_of_2(uint32_t x)
 static int ilog2(uint32_t num)
 {
     int i = 0;
-    
+
     if (!is_power_of_2(num)) {
         printf("ERROR: the num must be power of 2 when conveting to log2\n");
         return 0;
@@ -241,57 +279,73 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     static struct disk disk;
     static __lowmem struct edd_disk_params edd_params;
     com32sys_t ireg, oreg;
-    bool ebios = cdrom;
-    int sector_size = cdrom ? 2048 : 512;
-    unsigned int hard_max_transfer = ebios ? 127 : 63;
+    bool ebios;
+    int sector_size;
+    unsigned int hard_max_transfer;
 
     memset(&ireg, 0, sizeof ireg);
-
-    /* Get EBIOS support */
-    ireg.eax.b[1] = 0x41;
-    ireg.ebx.w[0] = 0x55aa;
     ireg.edx.b[0] = devno;
-    ireg.eflags.b[0] = 0x3;	/* CF set */
 
-    __intcall(0x13, &ireg, &oreg);
-
-    if (cdrom || (!(oreg.eflags.l & EFLAGS_CF) &&
-		  oreg.ebx.w[0] == 0xaa55 && (oreg.ecx.b[0] & 1))) {
+    if (cdrom) {
+	/*
+	 * The query functions don't work right on some CD-ROM stacks.
+	 * Known affected systems: ThinkPad T22, T23.
+	 */
+	sector_size = 2048;
 	ebios = true;
-	hard_max_transfer = 127;
+	hard_max_transfer = 32;
+    } else {
+	sector_size = 512;
+	ebios = false;
+	hard_max_transfer = 63;
 
-	/* Query EBIOS parameters */
-	edd_params.len = sizeof edd_params;
+	/* CBIOS parameters */
+	disk.h = bsHeads;
+	disk.s = bsSecPerTrack;
 
-	ireg.eax.b[1] = 0x48;
-	ireg.ds = SEG(&edd_params);
-	ireg.esi.w[0] = OFFS(&edd_params);
-	__intcall(0x13, &ireg, &oreg);
-
-	if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.b[1] == 0) {
-	    if (edd_params.len < sizeof edd_params)
-		memset((char *)&edd_params + edd_params.len, 0,
-		       sizeof edd_params - edd_params.len);
-	    if (edd_params.sector_size >= 512 &&
-		is_power_of_2(edd_params.sector_size))
-		sector_size = edd_params.sector_size;
+	if ((int8_t)devno < 0) {
+	    /* Get hard disk geometry from BIOS */
+	    
+	    ireg.eax.b[1] = 0x08;
+	    __intcall(0x13, &ireg, &oreg);
+	    
+	    if (!(oreg.eflags.l & EFLAGS_CF)) {
+		disk.h = oreg.edx.b[1] + 1;
+		disk.s = oreg.ecx.b[0] & 63;
+	    }
 	}
-    }
 
-    /* CBIOS parameters */
-    disk.h = bsHeads;
-    disk.s = bsSecPerTrack;
+	/* Get EBIOS support */
+	ireg.eax.b[1] = 0x41;
+	ireg.ebx.w[0] = 0x55aa;
+	ireg.eflags.b[0] = 0x3;	/* CF set */
 
-    if ((int8_t)devno < 0) {
-	/* Get hard disk geometry from BIOS */
-
-	ireg.eax.b[1] = 0x08;
 	__intcall(0x13, &ireg, &oreg);
+	
+	if (!(oreg.eflags.l & EFLAGS_CF) &&
+	    oreg.ebx.w[0] == 0xaa55 && (oreg.ecx.b[0] & 1)) {
+	    ebios = true;
+	    hard_max_transfer = 127;
 
-	if (!(oreg.eflags.l & EFLAGS_CF)) {
-	    disk.h = oreg.edx.b[1] + 1;
-	    disk.s = oreg.ecx.b[0] & 63;
+	    /* Query EBIOS parameters */
+	    edd_params.len = sizeof edd_params;
+
+	    ireg.eax.b[1] = 0x48;
+	    ireg.ds = SEG(&edd_params);
+	    ireg.esi.w[0] = OFFS(&edd_params);
+	    __intcall(0x13, &ireg, &oreg);
+
+	    if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.b[1] == 0) {
+		if (edd_params.len < sizeof edd_params)
+		    memset((char *)&edd_params + edd_params.len, 0,
+			   sizeof edd_params - edd_params.len);
+
+		if (edd_params.sector_size >= 512 &&
+		    is_power_of_2(edd_params.sector_size))
+		    sector_size = edd_params.sector_size;
+	    }
 	}
+
     }
 
     disk.disk_number   = devno;
@@ -306,11 +360,15 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
 
     disk.maxtransfer   = MaxTransfer;
 
+    dprintf("disk %02x cdrom %d type %d sector %u/%u offset %llu limit %u\n",
+	    devno, cdrom, ebios, sector_size, disk.sector_shift,
+	    part_start, disk.maxtransfer);
+
     return &disk;
 }
 
 
-/* 
+/*
  * Initialize the device structure.
  *
  * NOTE: the disk cache needs to be revamped to support multiple devices...
@@ -324,9 +382,9 @@ struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
 
     dev.disk = disk_init(devno, cdrom, part_start,
 			 bsHeads, bsSecPerTrack, MaxTransfer);
-        
+
     dev.cache_data = diskcache;
     dev.cache_size = sizeof diskcache;
-    
+
     return &dev;
 }

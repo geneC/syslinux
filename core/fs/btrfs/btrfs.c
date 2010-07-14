@@ -11,6 +11,7 @@
  *
  */
 
+#include <dprintf.h>
 #include <stdio.h>
 #include <string.h>
 #include <cache.h>
@@ -54,12 +55,9 @@ static int bin_search(void *ptr, int item_size, void *cmp_item, cmp_func func,
 	return 1;
 }
 
-static int cache_ready;
+/* XXX: these should go into the filesystem instance structure */
 static struct btrfs_chunk_map chunk_map;
 static struct btrfs_super_block sb;
-/* used for small chunk read for btrfs_read */
-#define RAW_BUF_SIZE 4096
-static u8 raw_buf[RAW_BUF_SIZE];
 static u64 fs_tree;
 
 static int btrfs_comp_chunk_map(struct btrfs_chunk_map_item *m1,
@@ -127,36 +125,8 @@ static u64 logical_physical(u64 logical)
 			chunk_map.map[slot-1].logical;
 }
 
-/* raw read from disk, offset and count are bytes */
-static int raw_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
-{
-	struct disk *disk = fs->fs_dev->disk;
-	size_t max = RAW_BUF_SIZE >> disk->sector_shift;
-	size_t off, cnt, done, total;
-	sector_t sec;
-
-	total = count;
-	while (count > 0) {
-		sec = offset >> disk->sector_shift;
-		off = offset - (sec << disk->sector_shift);
-		done = disk->rdwr_sectors(disk, raw_buf, sec, max, 0);
-		if (done == 0)/* no data */
-			break;
-		cnt = (done << disk->sector_shift) - off;
-		if (cnt > count)
-			cnt = count;
-		memcpy(buf, raw_buf + off, cnt);
-		count -= cnt;
-		buf += cnt;
-		offset += cnt;
-		if (done != max)/* no enough sectors */
-			break;
-	}
-	return total - count;
-}
-
 /* cache read from disk, offset and count are bytes */
-static int cache_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
+static int btrfs_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
 {
 	const char *cd;
 	size_t block_size = fs->fs_dev->cache_block_size;
@@ -181,13 +151,6 @@ static int cache_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
 	return total - count;
 }
 
-static int btrfs_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
-{
-	if (cache_ready)
-		return cache_read(fs, buf, offset, count);
-	return raw_read(fs, buf, offset, count);
-}
-
 /* btrfs has several super block mirrors, need to calculate their location */
 static inline u64 btrfs_sb_offset(int mirror)
 {
@@ -207,9 +170,16 @@ static void btrfs_read_super_block(struct fs_info *fs)
 	u64 transid = 0;
 	struct btrfs_super_block buf;
 
+	sb.total_bytes = ~0;	/* Unknown as of yet */
+
 	/* find most recent super block */
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		offset = btrfs_sb_offset(i);
+		dprintf("btrfs super: %llu max %llu\n",
+			offset, sb.total_bytes);
+		if (offset >= sb.total_bytes)
+			break;
+
 		ret = btrfs_read(fs, (char *)&buf, offset, sizeof(buf));
 		if (ret < sizeof(buf))
 			break;
@@ -560,9 +530,18 @@ static int btrfs_next_extent(struct inode *inode, uint32_t lstart)
 	ret = search_tree(fs, fs_tree, &search_key, &path);
 	if (ret) { /* impossible */
 		printf("btrfs: search extent data error!\n");
-		return 0;
+		return -1;
 	}
 	extent_item = *(struct btrfs_file_extent_item *)path.data;
+
+	if (extent_item.encryption) {
+	    printf("btrfs: found encrypted data, cannot continue!\n");
+	    return -1;
+	}
+	if (extent_item.compression) {
+	    printf("btrfs: found compressed data, cannot continue!\n");
+	    return -1;
+	}
 
 	if (extent_item.type == BTRFS_FILE_EXTENT_INLINE) {/* inline file */
 		/* we fake a extent here, and PVT of inode will tell us */
@@ -666,16 +645,15 @@ static int btrfs_fs_init(struct fs_info *fs)
 	fs->block_shift  = BTRFS_BLOCK_SHIFT;
 	fs->block_size   = 1 << fs->block_shift;
 
+	/* Initialize the block cache */
+	cache_init(fs->fs_dev, fs->block_shift);
+
 	btrfs_read_super_block(fs);
 	if (strncmp((char *)(&sb.magic), BTRFS_MAGIC, sizeof(sb.magic)))
 		return -1;
 	btrfs_read_sys_chunk_array();
 	btrfs_read_chunk_tree(fs);
 	btrfs_get_fs_tree(fs);
-	cache_ready = 1;
-
-	/* Initialize the block cache */
-	cache_init(fs->fs_dev, fs->block_shift);
 
 	return fs->block_shift;
 }

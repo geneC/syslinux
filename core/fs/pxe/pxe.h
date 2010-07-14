@@ -32,7 +32,6 @@
 #define PKTBUF_SIZE     2048			/*  */
 
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
-#define major_ver(v)    (((v) >> 8) && 0xff)
 
 static inline bool is_hex(char c)
 {
@@ -170,13 +169,20 @@ struct pxe_pvt_inode {
 #define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))
 
 /*
+ * Network boot information
+ */
+struct ip_info {
+    uint32_t ipv4;
+    uint32_t myip;
+    uint32_t serverip;
+    uint32_t gateway;
+    uint32_t netmask;
+};
+
+/*
  * Variable externs
  */
-extern uint32_t server_ip;
-extern uint32_t MyIP;
-extern uint32_t net_mask;
-extern uint32_t gate_way;
-extern uint16_t server_port;
+extern struct ip_info IPInfo;
 
 extern uint8_t MAC[];
 extern char BOOTIFStr[];
@@ -195,7 +201,6 @@ extern char dot_quad_buf[];
 
 extern uint32_t dns_server[];
 
-extern uint16_t real_base_mem;
 extern uint16_t APIVer;
 extern far_ptr_t PXEEntry;
 extern uint8_t KeepPXE;
@@ -204,18 +209,29 @@ extern far_ptr_t InitStack;
 
 extern bool have_uuid;
 extern uint8_t uuid_type;
-extern char uuid[];
+extern uint8_t uuid[];
 
 extern uint16_t BIOS_fbm;
 extern const uint8_t TimeoutTable[];
 
+/*
+ * Compute the suitable gateway for a specific route -- too many
+ * vendor PXE stacks don't do this correctly...
+ */
+static inline uint32_t gateway(uint32_t ip)
+{
+    if ((ip ^ IPInfo.myip) & IPInfo.netmask)
+	return IPInfo.gateway;
+    else
+	return 0;
+}
 
 /*
  * functions 
  */
 
 /* pxe.c */
-int ip_ok(uint32_t);
+bool ip_ok(uint32_t);
 int pxe_call(int, void *);
 
 /* dhcp_options.c */

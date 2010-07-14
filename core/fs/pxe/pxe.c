@@ -9,17 +9,16 @@
 
 #define GPXE 1
 
-uint32_t server_ip = 0;            /* IP address of boot server */
-uint32_t net_mask = 0;             /* net_mask of this subnet */
-uint32_t gate_way = 0;             /* Default router */
-uint16_t real_base_mem;            /* Amount of DOS memory after freeing */
+static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
 uint8_t MAC[MAC_MAX];		   /* Actual MAC address */
 uint8_t MAC_len;                   /* MAC address len */
 uint8_t MAC_type;                  /* MAC address type */
 
 char __bss16 BOOTIFStr[7+3*(MAC_MAX+1)];
-#define MAC_str (BOOTIFStr+7)
+#define MAC_str (BOOTIFStr+7)	/* The actual hardware address */
+char __bss16 SYSUUIDStr[8+32+5];
+#define UUID_str (SYSUUIDStr+8)	/* The actual UUID */
 
 char boot_file[256];		   /* From DHCP */
 char path_prefix[256];		   /* From DHCP */
@@ -27,7 +26,6 @@ char dot_quad_buf[16];
 
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
-static uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
 bool have_uuid = false;
 
 /* Common receive buffer */
@@ -70,6 +68,7 @@ static struct inode *allocate_socket(struct fs_info *fs)
     } else {
 	struct pxe_pvt_inode *socket = PVT(inode);
 	socket->tftp_localport = get_port();
+	inode->mode = DT_REG;	/* No other types relevant for PXE */
     }
 
     return inode;
@@ -175,15 +174,17 @@ static int hexbyte(const char *p)
  * assignable unicast addresses in the near future.
  *
  */
-int ip_ok(uint32_t ip)
+bool ip_ok(uint32_t ip)
 {
-    if (ip == -1 ||            /* Refuse the all-one address */
-        (ip & 0xff) == 0 ||    /* Refuse network zero */
-        (ip & 0xff) == 0xff || /* Refuse loopback */
-        (ip & 0xf0) == 0xe0 )  /* Refuse class D */
-        return 0;
+    uint8_t ip_hi = (uint8_t)ip; /* First octet of the ip address */
 
-    return 1;
+    if (ip == 0xffffffff ||	/* Refuse the all-ones address */
+	ip_hi == 0 ||		/* Refuse network zero */
+	ip_hi == 127 ||		/* Refuse the loopback network */
+	(ip_hi & 240) == 224)	/* Refuse class D */
+	return false;
+
+    return true;
 }
 
 
@@ -297,7 +298,7 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
     udp_write.src_port    = socket->tftp_localport;
     udp_write.dst_port    = socket->tftp_remoteport;
     udp_write.ip          = socket->tftp_remoteip;
-    udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.gw          = gateway(udp_write.ip);
     udp_write.buffer      = FAR_PTR(&err_buf);
     udp_write.buffer_size = 4 + len + 1;
 
@@ -326,7 +327,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
     udp_write.src_port    = socket->tftp_localport;
     udp_write.dst_port    = socket->tftp_remoteport;
     udp_write.ip          = socket->tftp_remoteip;
-    udp_write.gw          = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.gw          = gateway(udp_write.ip);
     udp_write.buffer      = FAR_PTR(ack_packet_buf);
     udp_write.buffer_size = 4;
 
@@ -390,7 +391,7 @@ static enum pxe_path_type pxe_path_type(const char *str)
 		else
 		    return PXE_TFTP;
 	    } else if (p > str && p[1] == '/' && p[2] == '/') {
-		if (strncasecmp(str, "tftp://", 7))
+		if (!strncasecmp(str, "tftp://", 7))
 		    return PXE_URL_TFTP;
 		else
 		    return PXE_URL;
@@ -480,7 +481,7 @@ static void fill_buffer(struct inode *inode)
 {
     int err;
     int last_pkt;
-    const uint8_t *timeout_ptr = TimeoutTable;
+    const uint8_t *timeout_ptr;
     uint8_t timeout;
     uint16_t buffersize;
     uint32_t oldtime;
@@ -513,7 +514,7 @@ static void fill_buffer(struct inode *inode)
         udp_read.buffer      = FAR_PTR(packet_buf);
         udp_read.buffer_size = PKTBUF_SIZE;
         udp_read.src_ip      = socket->tftp_remoteip;
-        udp_read.dest_ip     = MyIP;
+        udp_read.dest_ip     = IPInfo.myip;
         udp_read.s_port      = socket->tftp_remoteport;
         udp_read.d_port      = socket->tftp_localport;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
@@ -638,7 +639,7 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
  * @param:filename, the file we wanna open
  *
  * @out: open_file_t structure, stores in file->open_file
- * @ouT: the lenght of this file, stores in file->file_len
+ * @out: the lenght of this file, stores in file->file_len
  *
  */
 static void pxe_searchdir(const char *filename, struct file *file)
@@ -660,6 +661,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
     int i = 0;
     int err;
     int buffersize;
+    int rrq_len;
     const uint8_t  *timeout_ptr;
     uint32_t timeout;
     uint32_t oldtime;
@@ -688,12 +690,12 @@ static void pxe_searchdir(const char *filename, struct file *file)
     case PXE_RELATIVE:		/* Really shouldn't happen... */
     case PXE_URL:
 	buf = stpcpy(buf, filename);
-	ip = server_ip;		/* Default server */
+	ip = IPInfo.serverip;	/* Default server */
 	break;
 
     case PXE_HOMESERVER:
 	buf = stpcpy(buf, filename+2);
-	ip = server_ip;
+	ip = IPInfo.serverip;
 	break;
 
     case PXE_TFTP:
@@ -708,8 +710,8 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	while (*np && *np != '/' && *np != ':')
 	    np++;
 	if (np > filename + 7) {
-	    if (parse_dotquad(filename, &ip) != np)
-		ip = dns_resolv(filename);
+	    if (parse_dotquad(filename + 7, &ip) != np)
+		ip = dns_resolv(filename + 7);
 	}
 	if (*np == ':') {
 	    np++;
@@ -733,6 +735,7 @@ static void pxe_searchdir(const char *filename, struct file *file)
 		*buf++ = *np++;
 	    }
 	}
+	*buf = '\0';
 	break;
     }
 
@@ -743,16 +746,13 @@ static void pxe_searchdir(const char *filename, struct file *file)
     memcpy(buf, rrq_tail, sizeof rrq_tail);
     buf += sizeof rrq_tail;
 
+    rrq_len = buf - rrq_packet_buf;
+
     inode = allocate_socket(fs);
     if (!inode)
 	return;			/* Allocation failure */
     socket = PVT(inode);
 
-    timeout_ptr = TimeoutTable;   /* Reset timeout */
-    timeout = *timeout_ptr;
-    oldtime = jiffies();
-    
-sendreq:
 #if GPXE
     if (path_type == PXE_URL) {
 	if (has_gpxe) {
@@ -777,36 +777,44 @@ sendreq:
     }
 #endif /* GPXE */
 
+    timeout_ptr = TimeoutTable;   /* Reset timeout */
+    
+sendreq:
+    timeout = *timeout_ptr++;
+    if (!timeout)
+	return;			/* No file available... */
+    oldtime = jiffies();
+
     socket->tftp_remoteip = ip;
     tid = socket->tftp_localport;   /* TID(local port No) */
     udp_write.buffer    = FAR_PTR(rrq_packet_buf);
     udp_write.ip        = ip;
-    udp_write.gw        = ((udp_write.ip ^ MyIP) & net_mask) ? gate_way : 0;
+    udp_write.gw        = gateway(udp_write.ip);
     udp_write.src_port  = tid;
     udp_write.dst_port  = server_port;
-    udp_write.buffer_size = buf - rrq_packet_buf;
-    err = pxe_call(PXENV_UDP_WRITE, &udp_write);
+    udp_write.buffer_size = rrq_len;
+    pxe_call(PXENV_UDP_WRITE, &udp_write);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
 
 wait_pkt:
     for (;;) {
         buf                  = packet_buf;
+	udp_read.status      = 0;
         udp_read.buffer      = FAR_PTR(buf);
         udp_read.buffer_size = PKTBUF_SIZE;
-        udp_read.dest_ip     = MyIP;
+        udp_read.dest_ip     = IPInfo.myip;
         udp_read.d_port      = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
-        if (err) {
+        if (err || udp_read.status) {
 	    uint32_t now = jiffies();
-	    if (now-oldtime >= timeout)
-		goto failure;
-	    continue;
-        }
-
-        /* Make sure the packet actually came from the server */
-        if (udp_read.src_ip == socket->tftp_remoteip)
-            break;
+	    if (now - oldtime >= timeout)
+		goto sendreq;
+        } else {
+	    /* Make sure the packet actually came from the server */
+	    if (udp_read.src_ip == socket->tftp_remoteip)
+		break;
+	}
     }
 
     socket->tftp_remoteport = udp_read.s_port;
@@ -817,7 +825,7 @@ wait_pkt:
     socket->tftp_blksize = TFTP_BLOCKSIZE;
     buffersize = udp_read.buffer_size - 2;  /* bytes after opcode */
     if (buffersize < 0)
-        goto failure;                     /* Garbled reply */
+        goto wait_pkt;                     /* Garbled reply */
 
     /*
      * Get the opcode type, and parse it
@@ -841,12 +849,12 @@ wait_pkt:
          */
         buffersize -= 2;
         if (buffersize < 0)
-            goto failure;
+            goto wait_pkt;
         data = packet_buf + 2;
         blk_num = *(uint16_t *)data;
         data += 2;
         if (blk_num != htons(1))
-            goto failure;
+            goto wait_pkt;
         socket->tftp_lastpkt = blk_num;
         if (buffersize > TFTP_BLOCKSIZE)
             goto err_reply;  /* Corrupt */
@@ -955,15 +963,6 @@ err_reply:
     tftp_error(inode, TFTP_EOPTNEG, "TFTP protocol error");
     printf("TFTP server sent an incomprehesible reply\n");
     kaboom();
-
-failure:
-    if (jiffies() - oldtime < timeout)
-	goto wait_pkt;
-
-    /* Otherwise, we need to try again */
-    timeout_ptr++;
-    if (*timeout_ptr)
-        goto sendreq;  /* Try again */
 }
 
 
@@ -1048,6 +1047,7 @@ static int try_load(char *config_name)
     regs.edi.w[0] = OFFS_WRT(KernelName, 0);
     call16(core_open, &regs, &regs);
     if (regs.eflags.l & EFLAGS_ZF) {
+	strcpy(ConfigName, KernelName);
         printf("\r");
         return 0;
     } else {
@@ -1064,39 +1064,23 @@ static int pxe_load_config(void)
     const char *default_str = "default";
     char *config_file;
     char *last;
-    char *p;
-    uint8_t *uuid_ptr;
     int tries = 8;
 
     get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
-	if (try_load(boot_file))
+	if (try_load(ConfigName))
 	    return 0;
     }
 
     /*
      * Have to guess config file name ...
      */
-    memcpy(ConfigName, cfgprefix, strlen(cfgprefix));
-    config_file = ConfigName + strlen(cfgprefix);
+    config_file = stpcpy(ConfigName, cfgprefix);
 
     /* Try loading by UUID */
     if (have_uuid) {
-        uuid_ptr  = uuid_dashes;
-	p = config_file;
-        while (*uuid_ptr) {
-            int len = *uuid_ptr;
-            char *src = uuid;
-
-            lchexbytes(p, src, len);
-            p += len * 2;
-            src += len;
-            uuid_ptr++;
-            *p++ = '-';
-        }
-        /* Remove last dash and zero-terminate */
-	*--p = '\0';
+	strcpy(config_file, UUID_str);
 	if (try_load(ConfigName))
             return 0;
     }
@@ -1107,7 +1091,7 @@ static int pxe_load_config(void)
         return 0;
 
     /* Nope, try hexadecimal IP prefixes... */
-    uchexbytes(config_file, (uint8_t *)&MyIP, 4);     /* Convet to hex string */
+    uchexbytes(config_file, (uint8_t *)&IPInfo.myip, 4);
     last = &config_file[8];
     while (tries) {
         *last = '\0';        /* Zero-terminate string */
@@ -1127,7 +1111,7 @@ static int pxe_load_config(void)
 }
 
 /*
- * Generate the botif string, and the hardware-based config string
+ * Generate the bootif string.
  */
 static void make_bootif_string(void)
 {
@@ -1140,6 +1124,35 @@ static void make_bootif_string(void)
     for (i = MAC_len; i; i--)
 	dst += sprintf(dst, "-%02x", *src++);
 }
+/*
+ * Generate the SYSUUID string, if we have one...
+ */
+static void make_sysuuid_string(void)
+{
+    static const uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
+    const uint8_t *src = uuid;
+    const uint8_t *uuid_ptr = uuid_dashes;
+    char *dst;
+
+    SYSUUIDStr[0] = '\0';	/* If nothing there... */
+
+    /* Try loading by UUID */
+    if (have_uuid) {
+	dst = stpcpy(SYSUUIDStr, "SYSUUID=");
+
+        while (*uuid_ptr) {
+	    int len = *uuid_ptr;
+
+            lchexbytes(dst, src, len);
+            dst += len * 2;
+            src += len;
+            uuid_ptr++;
+            *dst++ = '-';
+        }
+        /* Remove last dash and zero-terminate */
+	*--dst = '\0';
+    }
+}
 
 /*
  * Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
@@ -1151,33 +1164,46 @@ char __bss16 IPOption[3+4*16];
 static void genipopt(void)
 {
     char *p = IPOption;
+    const uint32_t *v = &IPInfo.myip;
+    int i;
 
     p = stpcpy(p, "ip=");
 
-    p += gendotquad(p, MyIP);
-    *p++ = ':';
-
-    p += gendotquad(p, server_ip);
-    *p++ = ':';
-
-    p += gendotquad(p, gate_way);
-    *p++ = ':';
-
-    gendotquad(p, net_mask);
+    for (i = 0; i < 4; i++) {
+	p += gendotquad(p, *v++);
+	*p++ = ':';
+    }
+    *--p = '\0';
 }
 
 
 /* Generate ip= option and print the ip adress */
 static void ip_init(void)
 {
-    uint32_t ip = MyIP;
+    uint32_t ip = IPInfo.myip;
 
     genipopt();
     gendotquad(dot_quad_buf, ip);
 
     ip = ntohl(ip);
     printf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
-    printf("%s\n", IPOption);
+}
+
+/*
+ * Print the IPAPPEND strings, in order
+ */
+extern const uint16_t IPAppends[];
+extern const char numIPAppends[];
+
+static void print_ipappend(void)
+{
+    size_t i;
+
+    for (i = 0; i < (size_t)numIPAppends; i++) {
+	const char *p = (const char *)(size_t)IPAppends[i];
+	if (*p)
+	    printf("%s\n", p);
+    }
 }
 
 /*
@@ -1412,7 +1438,7 @@ static void udp_init(void)
 {
     int err;
     static __lowmem struct s_PXENV_UDP_OPEN udp_open;
-    udp_open.src_ip = MyIP;
+    udp_open.src_ip = IPInfo.myip;
     err = pxe_call(PXENV_UDP_OPEN, &udp_open);
     if (err || udp_open.status) {
         printf("Failed to initialize UDP stack ");
@@ -1473,7 +1499,9 @@ static void network_init(void)
     printf("\n");
 
     make_bootif_string();
+    make_sysuuid_string();
     ip_init();
+    print_ipappend();
 
     /*
      * Check to see if we got any PXELINUX-specific DHCP options; in particular,
@@ -1627,12 +1655,17 @@ void unload_pxe(void)
 	PXENV_UNDI_SHUTDOWN, PXENV_UNLOAD_STACK, PXENV_UNDI_CLEANUP, 0
     };
 
-    uint8_t api;
+    unsigned int api;
     const uint8_t *api_ptr;
-    uint16_t flag = 0;
     int err;
     size_t int_addr;
-    static __lowmem struct s_PXENV_UNLOAD_STACK unload_stack;
+    static __lowmem union {
+	struct s_PXENV_UNDI_SHUTDOWN undi_shutdown;
+	struct s_PXENV_UNLOAD_STACK unload_stack;
+	struct s_PXENV_STOP_UNDI stop_undi;
+	struct s_PXENV_UNDI_CLEANUP undi_cleanup;
+	uint16_t Status;	/* All calls have this as the first member */
+    } unload_call;
 
     dprintf("FBM before unload = %d\n", BIOS_fbm);
 
@@ -1644,22 +1677,25 @@ void unload_pxe(void)
     if (KeepPXE || err)
 	return;
 
-    api_ptr = major_ver(APIVer) >= 2 ? new_api_unload : old_api_unload;
+    dprintf("APIVer = %04x\n", APIVer);
+
+    api_ptr = APIVer >= 0x0200 ? new_api_unload : old_api_unload;
     while((api = *api_ptr++)) {
-	memset(&unload_stack, 0, sizeof unload_stack);
-	err = pxe_call(api, &unload_stack);
-	if (err || unload_stack.Status != PXENV_STATUS_SUCCESS) {
+	dprintf("PXE call %04x\n", api);
+	memset(&unload_call, 0, sizeof unload_call);
+	err = pxe_call(api, &unload_call);
+	if (err || unload_call.Status != PXENV_STATUS_SUCCESS) {
 	    dprintf("PXE unload API call %04x failed\n", api);
 	    goto cant_free;
 	}
     }
 
-    flag = 0xff00;
-    if (real_base_mem <= BIOS_fbm) {  /* Santiy check */ 
+    api = 0xff00;
+    if (real_base_mem <= BIOS_fbm) {  /* Sanity check */ 
 	dprintf("FBM %d < real_base_mem %d\n", BIOS_fbm, real_base_mem);
 	goto cant_free;
     }
-    flag++;
+    api++;
 
     /* Check that PXE actually unhooked the INT 0x1A chain */
     int_addr = (size_t)GET_PTR(*(far_ptr_t *)(4 * 0x1a));
@@ -1670,13 +1706,14 @@ void unload_pxe(void)
 	return;
     }
 
-    dprintf("Can't free FBM, real_base_mem = %d, FBM = %d, INT 1A = %08x (%d)\n",
-	    real_base_mem, BIOS_fbm, *(uint32_t *)(4 * 0x1a), int_addr);
+    dprintf("Can't free FBM, real_base_mem = %d, "
+	    "FBM = %d, INT 1A = %08x (%d)\n",
+	    real_base_mem, BIOS_fbm,
+	    *(uint32_t *)(4 * 0x1a), int_addr);
 
 cant_free:
-	    
-    printf("Failed to free base memory error %04x-%08x\n",
-	   flag, *(uint32_t *)(4 * 0x1a));
+    printf("Failed to free base memory error %04x-%08x (%d/%dK)\n",
+	   api, *(uint32_t *)(4 * 0x1a), BIOS_fbm, real_base_mem);
     return;
 }
 

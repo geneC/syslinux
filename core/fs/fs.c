@@ -30,6 +30,18 @@ struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data)
 }
 
 /*
+ * Free a refcounted inode
+ */
+void put_inode(struct inode *inode)
+{
+    while (inode && --inode->refcnt == 0) {
+	struct inode *dead = inode;
+	inode = inode->parent;
+	free(dead);
+    }
+}
+
+/*
  * Get an empty file structure
  */
 static struct file *alloc_file(void)
@@ -193,18 +205,13 @@ int searchdir(const char *name)
     char *part, *p, echar;
     int symlink_count = MAX_SYMLINK_CNT;
 
-//   mp("enter: name = %s", name);
-
     if (!(file = alloc_file()))
 	goto err_no_close;
-//	mp("111");
     file->fs = this_fs;
 
     /* if we have ->searchdir method, call it */
     if (file->fs->fs_ops->searchdir) {
 	file->fs->fs_ops->searchdir(name, file);
-
-//	mp("this fs has searchdir(), inode = %d",file->inode);
 
 	if (file->inode)
 	    return file_to_handle(file);
@@ -215,12 +222,9 @@ int searchdir(const char *name)
     /* else, try the generic-path-lookup method */
 
     parent = get_inode(this_fs->cwd);
-//	mp("222");
     p = pathbuf = strdup(name);
     if (!pathbuf)
 	goto err;
-
-	//mp("parent->ino = %d", parent->ino);
 
     do {
     got_link:
@@ -243,7 +247,20 @@ int searchdir(const char *name)
 		p++;
 	    *p++ = '\0';
 
-	    if (part[0] != '.' || part[1] != '\0') {
+	    if (part[0] == '.' && part[1] == '.' && part[2] == '\0') {
+		if (inode->parent) {
+		    put_inode(parent);
+		    parent = get_inode(inode->parent);
+		    put_inode(inode);
+		    inode = NULL;
+		    if (!echar) {
+			/* Terminal double dots */
+			inode = parent;
+			parent = inode->parent ?
+			    get_inode(inode->parent) : NULL;
+		    }
+		}
+	    } else if (part[0] != '.' || part[1] != '\0') {
 		inode = this_fs->fs_ops->iget(part, parent);
 		if (!inode)
 		    goto err;
@@ -286,7 +303,7 @@ int searchdir(const char *name)
 		    goto got_link;
 		}
 
-		put_inode(parent);
+		inode->parent = parent;
 		parent = NULL;
 
 		if (!echar)
@@ -312,16 +329,11 @@ int searchdir(const char *name)
     file->inode  = inode;
     file->offset = 0;
 
-    dprintf("File %s -> %p (inode %p) len %u\n", name, file,
-	    inode, inode->size);
-
     return file_to_handle(file);
 
 err:
-    if (inode)
-	put_inode(inode);
-    if (parent)
-	put_inode(parent);
+    put_inode(inode);
+    put_inode(parent);
     if (pathbuf)
 	free(pathbuf);
     _close_file(file);
@@ -338,14 +350,20 @@ int open_file(const char *name, struct com32_filedata *filedata)
     mangle_name(mangled_name, name);
     rv = searchdir(mangled_name);
 
-    //mp("name = %s, rv = %d", name, rv);
+    if (rv < 0)
+	return rv;
 
-    if (rv >= 0) {
-	file = handle_to_file(rv);
-	filedata->size		= file->inode->size;
-	filedata->blocklg2	= SECTOR_SHIFT(file->fs);
-	filedata->handle	= rv;
+    file = handle_to_file(rv);
+
+    if (file->inode->mode != DT_REG) {
+	_close_file(file);
+	return -1;
     }
+
+    filedata->size	= file->inode->size;
+    filedata->blocklg2	= SECTOR_SHIFT(file->fs);
+    filedata->handle	= rv;
+
     return rv;
 }
 
@@ -409,10 +427,8 @@ void fs_init(com32sys_t *regs)
     /* ops is a ptr list for several fs_ops */
     const struct fs_ops **ops = (const struct fs_ops **)regs->eax.l;
 
-    mp("enter");
-
     /* Initialize malloc() */
-    //mem_init();
+    mem_init();
 
     /* Default name for the root directory */
     fs.cwd_name[0] = '/';
