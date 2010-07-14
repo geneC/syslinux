@@ -134,6 +134,7 @@ gfx_menu_t gfx_menu;
 
 menu_t *menu;
 menu_t *menu_default;
+static menu_t *menu_ptr, **menu_next;
 
 struct {
   uint32_t jmp_table[12];
@@ -161,7 +162,7 @@ char *get_config_file_name(void);
 char *skip_spaces(char *s);
 char *skip_nonspaces(char *s);
 void chop_line(char *s);
-int read_config_file(void);
+int read_config_file(const char *filename);
 unsigned magic_ok(unsigned char *buf, unsigned *code_size);
 unsigned find_file(unsigned char *buf, unsigned len, unsigned *gfx_file_start, unsigned *file_len, unsigned *code_size);
 int gfx_init(char *file);
@@ -219,7 +220,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  if(read_config_file()) {
+  if(read_config_file("~")) {
     printf("Error reading config file\n");
     if(argc > 2) show_message(argv[2]);
 
@@ -313,16 +314,24 @@ void chop_line(char *s)
 // return:
 //   0: ok, 1: error
 //
-int read_config_file(void)
+int read_config_file(const char *filename)
 {
   FILE *f;
   char *s, *t, buf[MAX_CONFIG_LINE_LEN];
-  unsigned u, menu_idx = 0, label_size = 0, append_size = 0;
-  menu_t *menu_ptr = NULL, **menu_next = &menu;
+  unsigned u, top_level = 0;
 
-  menu_default = calloc(1, sizeof *menu_default);
+  if(!strcmp(filename, "~")) {
+    top_level = 1;
+    filename = syslinux_config_file();
+    gfx_menu.entries = 0;
+    gfx_menu.label_size = 0;
+    gfx_menu.arg_size = 0;
+    menu_ptr = NULL;
+    menu_next = &menu;
+    menu_default = calloc(1, sizeof *menu_default);
+  }
 
-  if(!(f = fopen(syslinux_config_file(), "r"))) return 1;
+  if(!(f = fopen(filename, "r"))) return 1;
 
   while((s = fgets(buf, sizeof buf, f))) {
     chop_line(s);
@@ -340,17 +349,17 @@ int read_config_file(void)
     if(!strcasecmp(s, "default")) {
       menu_default->label = strdup(t);
       u = strlen(t);
-      if(u > label_size) label_size = u;
+      if(u > gfx_menu.label_size) gfx_menu.label_size = u;
       continue;
     }
 
     if(!strcasecmp(s, "label")) {
       menu_ptr = *menu_next = calloc(1, sizeof **menu_next);
       menu_next = &menu_ptr->next;
-      menu_idx++;
+      gfx_menu.entries++;
       menu_ptr->label = menu_ptr->menu_label = strdup(t);
       u = strlen(t);
-      if(u > label_size) label_size = u;
+      if(u > gfx_menu.label_size) gfx_menu.label_size = u;
       continue;
     }
 
@@ -377,7 +386,7 @@ int read_config_file(void)
     if(!strcasecmp(s, "append")) {
       (menu_ptr ?: menu_default)->append = strdup(t);
       u = strlen(t);
-      if(u > append_size) append_size = u;
+      if(u > gfx_menu.arg_size) gfx_menu.arg_size = u;
       continue;
     }
 
@@ -395,17 +404,32 @@ int read_config_file(void)
       if(!strcasecmp(s, "label")) {
         menu_ptr->menu_label = strdup(t);
         u = strlen(t);
-        if(u > label_size) label_size = u;
+        if(u > gfx_menu.label_size) gfx_menu.label_size = u;
         continue;
       }
+
+      if(!strcasecmp(s, "include")) {
+        goto do_include;
+      }
+    }
+
+    if (!strcasecmp(s, "include")) {
+do_include:
+      s = t;
+      t = skip_nonspaces(s);
+      if (*t) *t = 0;
+      read_config_file(s);
     }
   }
 
   fclose(f);
 
+  if (!top_level)
+    return 0;
+
   // final '\0'
-  label_size++;
-  append_size++;
+  gfx_menu.label_size++;
+  gfx_menu.arg_size++;
 
   // ensure we have a default entry
   if(!menu_default->label) menu_default->label = menu->label;
@@ -419,19 +443,16 @@ int read_config_file(void)
     }
   }
 
-  gfx_menu.entries = menu_idx;
-  gfx_menu.label_size = label_size;
-  gfx_menu.arg_size = append_size;
   gfx_menu.default_entry = menu_default->menu_label;
-  gfx_menu.label_list = calloc(menu_idx, label_size);
-  gfx_menu.arg_list = calloc(menu_idx, append_size);
+  gfx_menu.label_list = calloc(gfx_menu.entries, gfx_menu.label_size);
+  gfx_menu.arg_list = calloc(gfx_menu.entries, gfx_menu.arg_size);
 
   for(u = 0, menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next, u++) {
     if(!menu_ptr->append) menu_ptr->append = menu_default->append;
     if(!menu_ptr->ipappend) menu_ptr->ipappend = menu_default->ipappend;
 
-    if(menu_ptr->menu_label) strcpy(gfx_menu.label_list + u * label_size, menu_ptr->menu_label);
-    if(menu_ptr->append) strcpy(gfx_menu.arg_list + u * append_size, menu_ptr->append);
+    if(menu_ptr->menu_label) strcpy(gfx_menu.label_list + u * gfx_menu.label_size, menu_ptr->menu_label);
+    if(menu_ptr->append) strcpy(gfx_menu.arg_list + u * gfx_menu.arg_size, menu_ptr->append);
   }
 
   return 0;
