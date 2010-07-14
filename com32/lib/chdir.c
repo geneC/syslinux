@@ -6,12 +6,10 @@
 #include <stdio.h>
 #include <errno.h>
 
+#include <com32.h>
+#include <syslinux/pmapi.h>
+
 int chdir(const char *path)
 {
-    /* Actually implement something here... */
-
-    (void)path;
-    
-    errno = ENOSYS;
-    return -1;
+    return __com32.cs_pm->chdir(path);
 }

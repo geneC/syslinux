@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2008 Gene Cumm - All Rights Reserved
+ *   Copyright 2008-2010 Gene Cumm - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,22 +20,24 @@
 
 /*
  * ToDos:
- * Change functions to use pwdstr
- * In rosh_run() Reparse cmdstr relative to pwdstr
+ * rosh_ls(): sorted; then multiple columns
  */
 
-// #define DO_DEBUG 1
-	/* Uncomment the above line for debugging output; Comment to remove */
-// #define DO_DEBUG2 1
-	/* Uncomment the above line for super-debugging output; Must have regular debugging enabled; Comment to remove */
-
+/*#define DO_DEBUG 1
+//*/
+/* Uncomment the above line for debugging output; Comment to remove */
+/*#define DO_DEBUG2 1
+//*/
+/* Uncomment the above line for super-debugging output; Must have regular
+ * debugging enabled; Comment to remove.
+ */
 #include "rosh.h"
 
 #define APP_LONGNAME	"Read-Only Shell"
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
-#define APP_YEAR	"2008"
-#define APP_VER		"beta-b032"
+#define APP_YEAR	"2010"
+#define APP_VER		"beta-b062"
 
 void rosh_version(void)
 {
@@ -43,36 +45,12 @@ void rosh_version(void)
 	   APP_AUTHOR);
 }
 
-void rosh_help(int type)
+void print_beta(void)
 {
-    rosh_version();
-    switch (type) {
-    case 2:
-	puts(rosh_help_str2);
-	break;
-    case 1:
-    default:
-	puts(rosh_help_str1);
-    }
+    puts(rosh_beta_str);
+    ROSH_DEBUG("DO_DEBUG active\n");
+    ROSH_DEBUG2("DO_DEBUG2 active\n");
 }
-
-/* Determine if a character is whitespace
- *	inc	input character
- *	returns	0 if not whitespace
- */
-int rosh_issp(char inc)
-{
-    int rv;
-    switch (inc) {
-    case ' ':
-    case '\t':
-	rv = 1;
-	break;
-    default:
-	rv = 0;
-    }
-    return rv;
-}				/* ros_issp */
 
 /* Search a string for first non-space (' ') character, starting at ipos
  *	istr	input string to parse
@@ -85,7 +63,7 @@ int rosh_search_nonsp(const char *istr, const int ipos)
 
     curpos = ipos;
     c = istr[curpos];
-    while (rosh_issp(c) && c != 0)
+    while (c && isspace(c))
 	c = istr[++curpos];
     return curpos;
 }
@@ -102,7 +80,7 @@ int rosh_search_sp(const char *istr, const int ipos)
 
     curpos = ipos;
     c = istr[curpos];
-    while (!(rosh_issp(c)) && c != 0)
+    while (c && !(isspace(c)))
 	c = istr[++curpos];
     return curpos;
 }
@@ -134,6 +112,37 @@ int rosh_parse_sp_1(char *dest, const char *src, const int ipos)
     return epos;
 }
 
+/* Display help
+ *	type	Help type
+ *	cmdstr	Command string
+ */
+void rosh_help(int type, const char *cmdstr)
+{
+    const char *istr;
+    istr = cmdstr;
+    switch (type) {
+    case 2:
+	istr += rosh_search_nonsp(cmdstr, rosh_search_sp(cmdstr, 0));
+	if ((cmdstr == NULL) || (strcmp(istr, "") == 0)) {
+	    rosh_version();
+	    puts(rosh_help_str2);
+	} else {
+	    switch (istr[0]) {
+	    case 'l':
+		puts(rosh_help_ls_str);
+		break;
+	    default:
+		printf(rosh_help_str_adv, istr);
+	    }
+	}
+	break;
+    case 1:
+    default:
+	rosh_version();
+	puts(rosh_help_str1);
+    }
+}
+
 /* Handle most/all errors
  *	ierrno	Input Error number
  *	cmdstr	Command being executed to cause error
@@ -143,26 +152,38 @@ void rosh_error(const int ierrno, const char *cmdstr, const char *filestr)
 {
     printf("--ERROR: %s '%s': ", cmdstr, filestr);
     switch (ierrno) {
-    case EACCES:
-	printf("Access DENIED\n");
+    case 0:
+	puts("NO ERROR");
 	break;
     case ENOENT:
-	printf("not found\n");
+	puts("not found");
 	/* SYSLinux-3.72 COM32 API returns this for a
 	   directory or empty file */
 	ROSH_COM32("  (COM32) could be a directory or empty file\n");
 	break;
+    case EIO:
+	puts("I/O Error");
+	break;
+    case EBADF:
+	puts("Bad File Descriptor");
+	break;
+    case EACCES:
+	puts("Access DENIED");
+	break;
     case ENOTDIR:
-	printf("not a directory\n");
+	puts("not a directory");
 	ROSH_COM32("  (COM32) could be directory\n");
 	break;
+    case EISDIR:
+	puts("IS a directory");
+	break;
     case ENOSYS:
-	printf("not implemented");
+	puts("not implemented");
 	break;
     default:
 	printf("returns error; errno=%d\n", ierrno);
     }
-}
+}				/* rosh_error */
 
 /* Concatenate command line arguments into one string
  *	cmdstr	Output command string
@@ -221,34 +242,6 @@ void rosh_print_tc(struct termios *tio)
 */
 
 /*
- * Switches console over to raw input mode.  Allows get_key to get just
- * 1 key sequence (without delay or display)
- */
-void rosh_console_raw(void)
-{
-//      struct termios itio, ntio;
-//      tcgetattr(0, &itio);
-//      rosh_print_tc(&itio);
-/*	ntio = itio;
-	ntio.c_lflag &= ~(ICANON|ECHO);
-	tcsetattr(0, TCSAFLUSH, &ntio);*/
-    console_ansi_raw();		/* Allows get_key to get just 1 key sequence
-				   (w/o delay or display */
-//      tcgetattr(0, &ntio);
-//      rosh_print_tc(&ntio);
-}
-
-/*
- * Switches back to standard getline mode.
- */
-void rosh_console_std(void)
-{
-//      struct termios itio, ntio;
-    console_ansi_std();
-//      tcsetattr(0, TCSANOW, &itio);
-}
-
-/*
  * Attempts to get a single key from the console
  *	returns	key pressed
  */
@@ -257,37 +250,45 @@ int rosh_getkey(void)
     int inc;
 
     inc = KEY_NONE;
-//      rosh_console_raw();
-    while (inc == KEY_NONE) {
+    while (inc == KEY_NONE)
 	inc = get_key(stdin, 6000);
-    }
-//      rosh_console_std();
     return inc;
 }				/* rosh_getkey */
 
-/* Template for command functions
- *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
- *	ipwdstr	Initial PWD
+/*
+ * Qualifies a filename relative to the working directory
+ *	filestr	Filename to qualify
+ *	pwdstr	working directory
+ *	returns	qualified file name string
  */
-void rosh_1(const char *cmdstr, const char *pwdstr, const char *ipwdstr)
+void rosh_qualify_filestr(char *filestr, const char *ifilstr,
+			  const char *pwdstr)
 {
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\npwd: '%s'\n", cmdstr, pwdstr, ipwdstr);
-}				/* rosh_1 */
+    int filepos = 0;
+    if ((filestr) && (pwdstr) && (ifilstr)) {
+	if (ifilstr[0] != SEP) {
+	    strcpy(filestr, pwdstr);
+	    filepos = strlen(pwdstr);
+	    if (filestr[filepos - 1] != SEP)
+		filestr[filepos++] = SEP;
+	}
+	strcpy(filestr + filepos, ifilstr);
+	ROSH_DEBUG("--'%s'\n", filestr);
+    }
+}
 
 /* Concatenate multiple files to stdout
  *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
  */
-void rosh_cat(const char *cmdstr, const char *pwdstr)
+void rosh_cat(const char *cmdstr)
 {
     FILE *f;
-    char filestr[ROSH_PATH_SZ + 1];
+    char filestr[ROSH_PATH_SZ];
     char buf[ROSH_BUF_SZ];
     int numrd;
     int cmdpos;
 
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\n", cmdstr, pwdstr);
+    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* Initialization */
     filestr[0] = 0;
     cmdpos = 0;
@@ -306,6 +307,7 @@ void rosh_cat(const char *cmdstr, const char *pwdstr)
 	    fclose(f);
 	} else {
 	    rosh_error(errno, "cat", filestr);
+	    errno = 0;
 	}
 	cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
     }
@@ -313,15 +315,14 @@ void rosh_cat(const char *cmdstr, const char *pwdstr)
 
 /* Change PWD (Present Working Directory)
  *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
  *	ipwdstr	Initial PWD
  */
-void rosh_cd(const char *cmdstr, char *pwdstr, const char *ipwdstr)
+void rosh_cd(const char *cmdstr, const char *ipwdstr)
 {
     int rv;
-    char filestr[ROSH_PATH_SZ + 1];
+    char filestr[ROSH_PATH_SZ];
     int cmdpos;
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\n", cmdstr, pwdstr);
+    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* Initialization */
     filestr[0] = 0;
     cmdpos = 0;
@@ -329,186 +330,456 @@ void rosh_cd(const char *cmdstr, char *pwdstr, const char *ipwdstr)
     /* skip the first word */
     cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
     cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    ROSH_COM32
-	(" -- cd (Change Directory) not implemented for use with run and exit.\n");
     if (strlen(filestr) != 0)
 	rv = chdir(filestr);
     else
 	rv = chdir(ipwdstr);
     if (rv != 0) {
 	rosh_error(errno, "cd", filestr);
+	errno = 0;
     } else {
-	getcwd(pwdstr, ROSH_PATH_SZ + 1);
-	printf("  %s\n", pwdstr);
+#ifdef DO_DEBUG
+	if (getcwd(filestr, ROSH_PATH_SZ))
+	    ROSH_DEBUG("  %s\n", filestr);
+#endif /* DO_DEBUG */
     }
 }				/* rosh_cd */
 
 /* Print the syslinux config file name
- *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
  */
-void rosh_cfg(const char *cmdstr, const char *pwdstr)
+void rosh_cfg(void)
 {
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\n", cmdstr, pwdstr);
     printf("CFG:     '%s'\n", syslinux_config_file());
 }				/* rosh_cfg */
+
+/* Process optstr to optarr
+ *	optstr	option string to process
+ *	optarr	option array to populate
+ */
+void rosh_ls_arg_opt(const char *optstr, int *optarr)
+{
+    char *cpos;
+    cpos = strchr(optstr, 'l');
+    if (cpos) {
+	optarr[0] = cpos - optstr;
+    } else {
+	optarr[0] = -1;
+    }
+    cpos = strchr(optstr, 'F');
+    if (cpos) {
+	optarr[1] = cpos - optstr;
+    } else {
+	optarr[1] = -1;
+    }
+    cpos = strchr(optstr, 'i');
+    if (cpos) {
+	optarr[2] = cpos - optstr;
+    } else {
+	optarr[2] = -1;
+    }
+}				/* rosh_ls_arg_opt */
+
+/* Retrieve the size of a file argument
+ *	filestr	directory name of directory entry
+ *	de	directory entry
+ */
+int rosh_ls_de_size(const char *filestr, struct dirent *de)
+{
+    int de_size;
+    char filestr2[ROSH_PATH_SZ];
+    int fd2, file2pos;
+    struct stat fdstat;
+    int status;
+
+    filestr2[0] = 0;
+    file2pos = -1;
+    if (filestr) {
+	file2pos = strlen(filestr);
+	memcpy(filestr2, filestr, file2pos);
+	filestr2[file2pos] = '/';
+    }
+    strcpy(filestr2 + file2pos + 1, de->d_name);
+    fd2 = open(filestr2, O_RDONLY);
+    status = fstat(fd2, &fdstat);
+    fd2 = close(fd2);
+    de_size = (int)fdstat.st_size;
+    return de_size;
+}				/* rosh_ls_de_size */
+
+/* Retrieve the size and mode of a file
+ *	filestr	directory name of directory entry
+ *	de	directory entry
+ */
+int rosh_ls_de_size_mode(struct dirent *de, mode_t * st_mode)
+{
+    int de_size;
+//    char filestr2[ROSH_PATH_SZ];
+//     int file2pos;
+    struct stat fdstat;
+    int status;
+
+/*    filestr2[0] = 0;
+    file2pos = -1;*/
+    fdstat.st_size = 0;
+    fdstat.st_mode = 0;
+/*    if (filestr) {
+	file2pos = strlen(filestr);
+	memcpy(filestr2, filestr, file2pos);
+	filestr2[file2pos] = '/';
+    }
+    strcpy(filestr2 + file2pos + 1, de->d_name);*/
+    status = stat(de->d_name, &fdstat);
+    ROSH_DEBUG2("\t--stat()=%d\terr=%d\n", status, errno);
+    if (errno) {
+	rosh_error(errno, "ls:szmd.stat", de->d_name);
+	errno = 0;
+    }
+    de_size = (int)fdstat.st_size;
+    *st_mode = fdstat.st_mode;
+    return de_size;
+}				/* rosh_ls_de_size_mode */
+
+/* Returns the Inode number if fdstat contains it
+ *	fdstat	struct to extract inode from if not COM32, for now
+ */
+long rosh_ls_d_ino(struct stat *fdstat)
+{
+    long de_ino;
+#ifdef __COM32__
+    if (fdstat)
+	de_ino = -1;
+    else
+	de_ino = 0;
+#else /* __COM32__ */
+    de_ino = fdstat->st_ino;
+#endif /* __COM32__ */
+    return de_ino;
+}
+
+/* Convert a d_type to a single char in human readable format
+ *	d_type	d_type to convert
+ *	returns human readable single character; a space if other
+ */
+char rosh_d_type2char_human(unsigned char d_type)
+{
+    char ret;
+    switch (d_type) {
+    case DT_UNKNOWN:
+	ret = 'U';
+	break;			/* Unknown */
+    case DT_FIFO:
+	ret = 'F';
+	break;			/* FIFO */
+    case DT_CHR:
+	ret = 'C';
+	break;			/* Char Dev */
+    case DT_DIR:
+	ret = 'D';
+	break;			/* Directory */
+    case DT_BLK:
+	ret = 'B';
+	break;			/* Block Dev */
+    case DT_REG:
+	ret = 'R';
+	break;			/* Regular File */
+    case DT_LNK:
+	ret = 'L';
+	break;			/* Link, Symbolic */
+    case DT_SOCK:
+	ret = 'S';
+	break;			/* Socket */
+    case DT_WHT:
+	ret = 'W';
+	break;			/* UnionFS Whiteout */
+    default:
+	ret = ' ';
+    }
+    return ret;
+}				/* rosh_d_type2char_human */
+
+/* Convert a d_type to a single char by ls's prefix standards for -l
+ *	d_type	d_type to convert
+ *	returns ls style single character; a space if other
+ */
+char rosh_d_type2char_lspre(unsigned char d_type)
+{
+    char ret;
+    switch (d_type) {
+    case DT_FIFO:
+	ret = 'p';
+	break;
+    case DT_CHR:
+	ret = 'c';
+	break;
+    case DT_DIR:
+	ret = 'd';
+	break;
+    case DT_BLK:
+	ret = 'b';
+	break;
+    case DT_REG:
+	ret = '-';
+	break;
+    case DT_LNK:
+	ret = 'l';
+	break;
+    case DT_SOCK:
+	ret = 's';
+	break;
+    default:
+	ret = '?';
+    }
+    return ret;
+}				/* rosh_d_type2char_lspre */
+
+/* Convert a d_type to a single char by ls's classify (-F) suffix standards
+ *	d_type	d_type to convert
+ *	returns ls style single character; a space if other
+ */
+char rosh_d_type2char_lssuf(unsigned char d_type)
+{
+    char ret;
+    switch (d_type) {
+    case DT_FIFO:
+	ret = '|';
+	break;
+    case DT_DIR:
+	ret = '/';
+	break;
+    case DT_LNK:
+	ret = '@';
+	break;
+    case DT_SOCK:
+	ret = '=';
+	break;
+    default:
+	ret = ' ';
+    }
+    return ret;
+}				/* rosh_d_type2char_lssuf */
+
+/* Converts data in the "other" place of st_mode to a ls-style string
+ *	st_mode	Mode in other to analyze
+ *	st_mode_str	string to hold converted string
+ */
+void rosh_st_mode_am2str(mode_t st_mode, char *st_mode_str)
+{
+    st_mode_str[0] = ((st_mode & S_IROTH) ? 'r' : '-');
+    st_mode_str[1] = ((st_mode & S_IWOTH) ? 'w' : '-');
+    st_mode_str[2] = ((st_mode & S_IXOTH) ? 'x' : '-');
+}
+
+/* Converts st_mode to an ls-style string
+ *	st_mode	mode to convert
+ *	st_mode_str	string to hold converted string
+ */
+void rosh_st_mode2str(mode_t st_mode, char *st_mode_str)
+{
+    st_mode_str[0] = rosh_d_type2char_lspre(IFTODT(st_mode));
+    rosh_st_mode_am2str((st_mode & S_IRWXU) >> 6, st_mode_str + 1);
+    rosh_st_mode_am2str((st_mode & S_IRWXG) >> 3, st_mode_str + 4);
+    rosh_st_mode_am2str(st_mode & S_IRWXO, st_mode_str + 7);
+    st_mode_str[10] = 0;
+}				/* rosh_st_mode2str */
+
+/* Output a single entry
+ *	filestr	directory name to list
+ *	de	directory entry
+ *	optarr	Array of options
+ */
+void rosh_ls_arg_dir_de(struct dirent *de, const int *optarr)
+{
+    int de_size;
+    mode_t st_mode;
+    char st_mode_str[11];
+    st_mode = 0;
+    if (optarr[2] > -1)
+	printf("%10d ", (int)de->d_ino);
+    if (optarr[0] > -1) {
+	de_size = rosh_ls_de_size_mode(de, &st_mode);
+	rosh_st_mode2str(st_mode, st_mode_str);
+	ROSH_DEBUG2("%04X ", st_mode);
+	printf("%s %10d ", st_mode_str, de_size);
+    }
+    ROSH_DEBUG("'");
+    printf("%s", de->d_name);
+    ROSH_DEBUG("'");
+    if (optarr[1] > -1)
+	printf("%c", rosh_d_type2char_lssuf(de->d_type));
+    printf("\n");
+}				/* rosh_ls_arg_dir_de */
+
+/* Output listing of a regular directory
+ *	filestr	directory name to list
+ *	d	the open DIR
+ *	optarr	Array of options
+	NOTE:This is where I could use qsort
+ */
+void rosh_ls_arg_dir(const char *filestr, DIR * d, const int *optarr)
+{
+    struct dirent *de;
+    int filepos;
+
+    filepos = 0;
+    while ((de = readdir(d))) {
+	filepos++;
+	rosh_ls_arg_dir_de(de, optarr);
+    }
+    if (errno)
+	rosh_error(errno, "ls:arg_dir", filestr);
+    else if (filepos == 0)
+	ROSH_DEBUG("0 files found");
+}				/* rosh_ls_arg_dir */
 
 /* Simple directory listing for one argument (file/directory) based on
  * filestr and pwdstr
  *	ifilstr	input filename/directory name to list
  *	pwdstr	Present Working Directory string
+ *	optarr	Option Array
  */
-void rosh_dir_arg(const char *ifilstr, const char *pwdstr)
+void rosh_ls_arg(const char *filestr, const int *optarr)
 {
     struct stat fdstat;
     int status;
-    int fd;
-    char filestr[ROSH_PATH_SZ + 1];
-    int filepos;
+//     char filestr[ROSH_PATH_SZ];
+//     int filepos;
     DIR *d;
-    struct dirent *de;
-#ifdef DO_DEBUG
-    char filestr2[ROSH_PATH_SZ + 1];
-    int fd2, file2pos;
-#ifdef __COM32__
-//      int inchar;
-    char ty;
-#endif /* __COM32__ */
-#endif /* DO_DEBUG */
+    struct dirent de;
 
     /* Initialization; make filestr based on leading character of ifilstr
        and pwdstr */
-    if (ifilstr[0] == SEP) {
-	strcpy(filestr, ifilstr);
-    } else {
-	strcpy(filestr, pwdstr);
-	filepos = strlen(pwdstr);
-	if (filestr[filepos - 1] != SEP)
-	    filestr[filepos++] = SEP;
-	strcpy(filestr + filepos, ifilstr);
-	ROSH_DEBUG("--'%s'\n", filestr);
-    }
-    fd = open(filestr, O_RDONLY);
-    if (fd == -1) {
-	status = fstat(fd, &fdstat);
-        if (S_ISDIR(fdstat.st_mode)) {
-	    ROSH_DEBUG("PATH '%s' is a directory\n", ifilstr);
-	    d = fdopendir(fd);
-            de = readdir(d);
-	    while (de != NULL) {
-#ifdef DO_DEBUG
-		filestr2[0] = 0;
-		file2pos = strlen(filestr);
-		memcpy(filestr2, filestr, file2pos);
-		filestr2[file2pos] = '/';
-		strcpy(filestr2 + file2pos + 1, de->d_name);
-		fd2 = open(filestr2, O_RDONLY);
-		status = fstat(fd2, &fdstat);
-		printf("@%8d:%8d:", (int)de->d_ino, (int)fdstat.st_size);
-		fd2 = close(fd2);
-#endif /* DO_DEBUG */
-		printf("%s\n", de->d_name);
-#ifdef DO_DEBUG
-// inchar = fgetc(stdin);
-#endif /* DO_DEBUG */
-		de = readdir(d);
-	    }
-	    closedir(d);
-	} else if (S_ISREG(fdstat.st_mode)) {
-	    ROSH_DEBUG("PATH '%s' is a regular file\n", ifilstr);
-	    printf("%8d:%s\n", (int)fdstat.st_size, ifilstr);
-	} else {
-	    ROSH_DEBUG("PATH '%s' is some other file\n", ifilstr);
-	    printf("        :%s\n", ifilstr);
-	}
-    } else {
-#ifdef __COM32__
-        if (filestr[strlen(filestr) - 1] == SEP) {
-	    /* Directory */
-	    filepos = 0;
-            d = opendir(filestr);
-	    if (d != NULL) {
-		//printf("DIR:'%s'    %08x %8d\n", d->dd_name, (int)d->dd_sect, d->dd_offset);
-		de = readdir(d);
-		while (de != NULL) {
-		    filepos++;
-#ifdef DO_DEBUG
-// if (strlen(de->d_name) > 25) de->d_name[25] = 0;
-		    switch (de->d_type) {
-		    case 16:
-			ty = 'D';
-			break;
-		    case 32:
-			ty = 'F';
-			break;
-		    default:
-			ty = '*';
-		    }
-#endif /* DO_DEBUG */
-//                                      printf("%s\n", de->d_name);
-		    printf("'%s'\n", de->d_name);
-#ifdef DO_DEBUG
-// inchar = fgetc(stdin);
-// fgets(instr, ROSH_CMD_SZ, stdin);
-#endif /* DO_DEBUG */
-		    de = readdir(d);
-// if(filepos>15){      de = NULL;      printf("Force Break\n");}
-		}
-		closedir(d);
-	    } else {
-		rosh_error(0, "dir:NULL", filestr);
-	    }
-	} else {
-	    rosh_error(errno, "dir_c32", filestr);
-	}
-#else
-	rosh_error(errno, "dir", filestr);
-#endif /* __COM32__ */
-    }
-}				/* rosh_dir_arg */
+//     rosh_qualify_filestr(filestr, ifilstr, pwdstr);
+    fdstat.st_mode = 0;
+    fdstat.st_size = 0;
+    ROSH_DEBUG("\topt[0]=%d\topt[1]=%d\topt[2]=%d\n", optarr[0], optarr[1],
+	       optarr[2]);
 
-/* Simple directory listing based on cmdstr and pwdstr
+    /* Now, the real work */
+    errno = 0;
+    status = stat(filestr, &fdstat);
+    if (status == 0) {
+	if (S_ISDIR(fdstat.st_mode)) {
+	    ROSH_DEBUG("PATH '%s' is a directory\n", filestr);
+	    d = opendir(filestr);
+	    rosh_ls_arg_dir(filestr, d, optarr);
+	    closedir(d);
+	} else {
+	    de.d_ino = rosh_ls_d_ino(&fdstat);
+	    de.d_type = (IFTODT(fdstat.st_mode));
+	    strcpy(de.d_name, filestr);
+	    if (S_ISREG(fdstat.st_mode)) {
+		ROSH_DEBUG("PATH '%s' is a regular file\n", filestr);
+	    } else {
+		ROSH_DEBUG("PATH '%s' is some other file\n", filestr);
+	    }
+	    rosh_ls_arg_dir_de(&de, optarr);
+/*	    if (ifilstr[0] == SEP)
+		rosh_ls_arg_dir_de(NULL, &de, optarr);
+	    else
+		rosh_ls_arg_dir_de(pwdstr, &de, optarr);*/
+	}
+    } else {
+	rosh_error(errno, "ls", filestr);
+	errno = 0;
+    }
+    return;
+}				/* rosh_ls_arg */
+
+/* Parse options that may be present in the cmdstr
+ *	filestr	Possible option string to parse
+ *	optstr	Current options
+ *	returns 1 if filestr does not begin with '-' else 0
+ */
+int rosh_ls_parse_opt(const char *filestr, char *optstr)
+{
+    int ret;
+    if (filestr[0] == '-') {
+	ret = 0;
+	if (optstr)
+	    strcat(optstr, filestr + 1);
+    } else {
+	ret = 1;
+    }
+    ROSH_DEBUG("ParseOpt: '%s'\n\topt: '%s'\n\tret: %d\n", filestr, optstr,
+	       ret);
+    return ret;
+}				/* rosh_ls_parse_opt */
+
+/* List Directory based on cmdstr and pwdstr
  *	cmdstr	command string to process
  *	pwdstr	Present Working Directory string
  */
-void rosh_dir(const char *cmdstr, const char *pwdstr)
+void rosh_ls(const char *cmdstr)
 {
-    char filestr[ROSH_PATH_SZ + 1];
-    int cmdpos;			/* Position within cmdstr */
+    char filestr[ROSH_PATH_SZ];
+    char optstr[ROSH_OPT_SZ];	/* Options string */
+    int cmdpos, tpos;		/* Position within cmdstr, temp position */
+    int numargs;		/* number of non-option arguments */
+    int argpos;			/* number of non-option arguments processed */
+    int optarr[3];
 
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\n", cmdstr, pwdstr);
+    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* Initialization */
     filestr[0] = 0;
+    optstr[0] = 0;
     cmdpos = 0;
+    numargs = 0;
+    argpos = 0;
     /* skip the first word */
     cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
+    tpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
     /* If there are no real arguments, substitute PWD */
-    if (strlen(filestr) == 0)
-	strcpy(filestr, pwdstr);
-    while (strlen(filestr) > 0) {
-	rosh_dir_arg(filestr, pwdstr);
-	cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
+    if (strlen(filestr) == 0) {
+	strcpy(filestr, ".");
+	cmdpos = tpos;
+    } else {			/* Parse for command line options */
+	while (strlen(filestr) > 0) {
+	    numargs += rosh_ls_parse_opt(filestr, optstr);
+	    tpos = rosh_parse_sp_1(filestr, cmdstr, tpos);
+	}
+	if (numargs == 0) {
+	    strcpy(filestr, ".");
+	    cmdpos = tpos;
+	} else {
+	    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
+	}
     }
-}				/* rosh_dir */
+#ifdef DO_DEBUG
+    if (!strchr(optstr, 'l'))
+	strcat(optstr, "l");
+#endif /* DO_DEBUG */
+    rosh_ls_arg_opt(optstr, optarr);
+    ROSH_DEBUG("\tfopt: '%s'\n", optstr);
+    while (strlen(filestr) > 0) {
+	if (rosh_ls_parse_opt(filestr, NULL)) {
+	    rosh_ls_arg(filestr, optarr);
+	    argpos++;
+	}
+	if (argpos < numargs)
+	    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
+	else
+	    break;
+    }
+}				/* rosh_ls */
 
-/* List Directory; Calls rosh_dir() for now.
+/* Simple directory listing; calls rosh_ls()
  *	cmdstr	command string to process
  *	pwdstr	Present Working Directory string
  */
-void rosh_ls(const char *cmdstr, const char *pwdstr)
+void rosh_dir(const char *cmdstr)
 {
-    printf("  ls implemented as dir (for now)\n");
-    rosh_dir(cmdstr, pwdstr);
-}				/* rosh_ls */
+    ROSH_DEBUG("  dir implemented as ls\n");
+    rosh_ls(cmdstr);
+}				/* rosh_dir */
 
 /* Page through a buffer string
  *	buf	Buffer to page through
  */
+//HERE: minor pagination issue; sometimes prints 1 less than rows
 void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 {
-    char *bufp, *bufeol;	/* Pointer to current and next end-of-line
-				   position in buffer */
+    char *bufp, *bufeol, *bufeol2;	/* Pointer to current and next
+					   end-of-line position in buffer */
     int bufpos, bufcnt;		/* current position, count characters */
     char scrbuf[ROSH_SBUF_SZ];
     int inc;
@@ -520,23 +791,17 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
     bufp = buf + bufpos;
     bufeol = bufp;
     numln = rows - 1;
-    printf("--(%d)\n", buflen);
-// printf("--termIOS CONSTS: ");
-// printf("ISIG=%08X ", ISIG);
-// printf("ICANON=%08X ", ICANON);
-// printf("ECHO=%08X ", ECHO);
-// printf("=%08X", );
-// printf("\n");
+    ROSH_DEBUG("--(%d)\n", buflen);
     while (bufpos < buflen) {
 	for (i = 0; i < numln; i++) {
-	    bufeol = strchr(bufeol, '\n');
-	    if (bufeol == NULL) {
+	    bufeol2 = strchr(bufeol, '\n');
+	    if (bufeol2 == NULL) {
 		bufeol = buf + buflen;
 		i = numln;
 	    } else {
-		bufeol++;
+		i += ((bufeol2 - bufeol) / cols);
+		bufeol = bufeol2 + 1;
 	    }
-// printf("--readln\n");
 	}
 	bufcnt = bufeol - bufp;
 	printf("--(%d/%d @%d)\n", bufcnt, buflen, bufpos);
@@ -557,12 +822,8 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 	    break;
 	case ' ':
 	    numln = rows - 1;
-//              default:
 	}
     }
-/*tcgetattr(0, &tio);
-rosh_print_tc(&tio);
-printf("\n--END\n");*/
 }				/* rosh_more_buf */
 
 /* Page through a single file using the open file stream
@@ -599,18 +860,16 @@ void rosh_more_fd(int fd, int rows, int cols)
 
 /* Page through a file like the more command
  *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
  *	ipwdstr	Initial PWD
  */
-void rosh_more(const char *cmdstr, const char *pwdstr)
-	/*, const char *ipwdstr) */
+void rosh_more(const char *cmdstr)
 {
     int fd;
-    char filestr[ROSH_PATH_SZ + 1];
+    char filestr[ROSH_PATH_SZ];
     int cmdpos;
     int rows, cols;
 
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\n", cmdstr, pwdstr);
+    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* Initialization */
     filestr[0] = 0;
     cmdpos = 0;
@@ -623,7 +882,7 @@ void rosh_more(const char *cmdstr, const char *pwdstr)
 	if (!cols)
 	    cols = 75;
     }
-    ROSH_DEBUG("\tROWS='%d'\tCOLS='%d'\n", rows, cols);
+    ROSH_DEBUG("\tUSE ROWS='%d'\tCOLS='%d'\n", rows, cols);
 
     /* skip the first word */
     cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
@@ -640,6 +899,7 @@ void rosh_more(const char *cmdstr, const char *pwdstr)
 		close(fd);
 	    } else {
 		rosh_error(errno, "more", filestr);
+		errno = 0;
 	    }
 	    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
 	}
@@ -652,119 +912,149 @@ void rosh_more(const char *cmdstr, const char *pwdstr)
  *	pwdstr	Present Working Directory string
  *	ipwdstr	Initial PWD
  */
-void rosh_less(const char *cmdstr, const char *pwdstr)
+void rosh_less(const char *cmdstr)
 {
     printf("  less implemented as more (for now)\n");
-    rosh_more(cmdstr, pwdstr);
+    rosh_more(cmdstr);
 }				/* rosh_less */
 
 /* Show PWD
  *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
  */
-void rosh_pwd(const char *cmdstr, const char *pwdstr)
+void rosh_pwd(const char *cmdstr)
 {
     int istr;
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\n", cmdstr, pwdstr);
-    printf("%s\n", pwdstr);
+    char pwdstr[ROSH_PATH_SZ];
+    if (cmdstr)
+	istr = 0;
+    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
+    errno = 0;
+    if (getcwd(pwdstr, ROSH_PATH_SZ)) {
+	printf("%s\n", pwdstr);
+    } else {
+	rosh_error(errno, "pwd", "");
+	errno = 0;
+    }
     istr = htonl(*(int *)pwdstr);
-    ROSH_DEBUG("  --%08X\n", istr);
+    ROSH_DEBUG2("  --%08X\n", istr);
 }				/* rosh_pwd */
+
+/* Reboot
+ */
+void rosh_reboot(void)
+{
+//     char cmdstr[ROSH_CMD_SZ];
+//     printf
+    syslinux_reboot(0);
+}				/* rosh_reboot */
 
 /* Run a boot string, calling syslinux_run_command
  *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
- *	ipwdstr	Initial PWD
  */
-void rosh_run(const char *cmdstr, const char *pwdstr, const char *ipwdstr)
+void rosh_run(const char *cmdstr)
 {
     int cmdpos;
     char *cmdptr;
-    char istr[ROSH_CMD_SZ];	/* input command string */
 
     cmdpos = 0;
-    ROSH_DEBUG("CMD: '%s'\npwd: '%s'\n", cmdstr, pwdstr);
+    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* skip the first word */
     cmdpos = rosh_search_sp(cmdstr, cmdpos);
     /* skip spaces */
     cmdpos = rosh_search_nonsp(cmdstr, cmdpos);
     cmdptr = (char *)(cmdstr + cmdpos);
     printf("--run: '%s'\n", cmdptr);
-    /* //HERE--Reparse if pwdstr != ipwdstr; seems a little daunting as
-       detecting params vs filenames is difficult/impossible */
-    if (strcmp(pwdstr, ipwdstr) != 0) {
-	/* For now, just prompt for verification */
-	printf("  from directory '%s'? (y/N):", pwdstr);
-	fgets(istr, ROSH_CMD_SZ, stdin);
-	if ((istr[0] != 'y') && (istr[0] != 'Y')) {
-	    printf("Aborting run\n");
-	    return;
-	}
-	printf("Run anyways\n");
-    }
     syslinux_run_command(cmdptr);
 }				/* rosh_run */
 
 /* Process a single command string and call handling function
  *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
  *	ipwdstr	Initial Present Working Directory string
  *	returns	Whether to exit prompt
  */
-char rosh_command(const char *cmdstr, char *pwdstr, const char *ipwdstr)
+char rosh_command(const char *cmdstr, const char *ipwdstr)
 {
     char do_exit;
+    char tstr[ROSH_CMD_SZ];
+    int tlen;
     do_exit = false;
     ROSH_DEBUG("--cmd:'%s'\n", cmdstr);
+    tlen = rosh_parse_sp_1(tstr, cmdstr, 0);
     switch (cmdstr[0]) {
     case 'e':
     case 'E':
     case 'q':
     case 'Q':
-	do_exit = true;
+	if ((strncasecmp("exit", tstr, tlen) == 0) ||
+	    (strncasecmp("quit", tstr, tlen) == 0))
+	    do_exit = true;
+	else
+	    rosh_help(1, NULL);
 	break;
     case 'c':
     case 'C':			/* run 'cd' 'cat' 'cfg' */
 	switch (cmdstr[1]) {
 	case 'a':
 	case 'A':
-	    rosh_cat(cmdstr, pwdstr);
+	    if (strncasecmp("cat", tstr, tlen) == 0)
+		rosh_cat(cmdstr);
+	    else
+		rosh_help(1, NULL);
 	    break;
 	case 'd':
 	case 'D':
-	    rosh_cd(cmdstr, pwdstr, ipwdstr);
+	    if (strncasecmp("cd", tstr, tlen) == 0)
+		rosh_cd(cmdstr, ipwdstr);
+	    else
+		rosh_help(1, NULL);
 	    break;
 	case 'f':
 	case 'F':
-	    rosh_cfg(cmdstr, pwdstr);
+	    if (strncasecmp("cfg", tstr, tlen) == 0)
+		rosh_cfg();
+	    else
+		rosh_help(1, NULL);
 	    break;
 	default:
-	    rosh_help(1);
+	    rosh_help(1, NULL);
 	}
 	break;
     case 'd':
     case 'D':			/* run 'dir' */
-	rosh_dir(cmdstr, pwdstr);
+	if (strncasecmp("dir", tstr, tlen) == 0)
+	    rosh_dir(cmdstr);
+	else
+	    rosh_help(1, NULL);
 	break;
     case 'h':
     case 'H':
     case '?':
-	rosh_help(2);
+	if ((strncasecmp("help", tstr, tlen) == 0) || (tlen == 1))
+	    rosh_help(2, cmdstr);
+	else
+	    rosh_help(1, NULL);
 	break;
     case 'l':
     case 'L':			/* run 'ls' 'less' */
 	switch (cmdstr[1]) {
 	case 0:
+	case ' ':
 	case 's':
 	case 'S':
-	    rosh_ls(cmdstr, pwdstr);
+	    if (strncasecmp("ls", tstr, tlen) == 0)
+		rosh_ls(cmdstr);
+	    else
+		rosh_help(1, NULL);
 	    break;
 	case 'e':
 	case 'E':
-	    rosh_less(cmdstr, pwdstr);
+	    if (strncasecmp("less", tstr, tlen) == 0)
+		rosh_less(cmdstr);
+	    else
+		rosh_help(1, NULL);
 	    break;
 	default:
-	    rosh_help(1);
+	    rosh_help(1, NULL);
 	}
 	break;
     case 'm':
@@ -772,33 +1062,62 @@ char rosh_command(const char *cmdstr, char *pwdstr, const char *ipwdstr)
 	switch (cmdstr[1]) {
 	case 'a':
 	case 'A':
-	    rosh_help(2);
+	    if (strncasecmp("man", tstr, tlen) == 0)
+		rosh_help(2, cmdstr);
+	    else
+		rosh_help(1, NULL);
 	    break;
 	case 'o':
 	case 'O':
-	    rosh_more(cmdstr, pwdstr);
+	    if (strncasecmp("more", tstr, tlen) == 0)
+		rosh_more(cmdstr);
+	    else
+		rosh_help(1, NULL);
 	    break;
 	default:
-	    rosh_help(1);
+	    rosh_help(1, NULL);
 	}
 	break;
     case 'p':
     case 'P':			/* run 'pwd' */
-	rosh_pwd(cmdstr, pwdstr);
+	if (strncasecmp("pwd", tstr, tlen) == 0)
+	    rosh_pwd(cmdstr);
+	else
+	    rosh_help(1, NULL);
 	break;
     case 'r':
     case 'R':			/* run 'run' */
-	rosh_run(cmdstr, pwdstr, ipwdstr);
+	switch (cmdstr[1]) {
+	case 0:
+	case ' ':
+	case 'e':
+	case 'E':
+	    if (strncasecmp("reboot", tstr, tlen) == 0)
+		rosh_reboot();
+	    else
+		rosh_help(1, NULL);
+	    break;
+	case 'u':
+	case 'U':
+	    if (strncasecmp("run", tstr, tlen) == 0)
+		rosh_run(cmdstr);
+	    else
+		rosh_help(1, NULL);
+	    break;
+	}
 	break;
     case 'v':
     case 'V':
-	rosh_version();
+	if (strncasecmp("version", tstr, tlen) == 0)
+	    rosh_version();
+	else
+	    rosh_help(1, NULL);
 	break;
     case 0:
     case '\n':
 	break;
     default:
-	rosh_help(1);
+	rosh_help(1, NULL);
     }				/* switch(cmdstr[0]) */
     return do_exit;
 }				/* rosh_command */
@@ -812,33 +1131,28 @@ int rosh_prompt(const char *icmdstr)
 {
     int rv;
     char cmdstr[ROSH_CMD_SZ];
-    char pwdstr[ROSH_PATH_SZ + 1], ipwdstr[ROSH_PATH_SZ + 1];
-/*	int numchar;
-*/ char do_exit;
+    char ipwdstr[ROSH_PATH_SZ];
+    char do_exit;
     char *c;
 
     rv = 0;
     do_exit = false;
-    strcpy(pwdstr, "/");
-    getcwd(pwdstr, ROSH_PATH_SZ + 1);
-    strcpy(ipwdstr, pwdstr);	/* Retain the original PWD */
+    if (!getcwd(ipwdstr, ROSH_PATH_SZ))
+	strcpy(ipwdstr, "./");
     if (icmdstr[0] != '\0')
-	do_exit = rosh_command(icmdstr, pwdstr, ipwdstr);
+	do_exit = rosh_command(icmdstr, ipwdstr);
     while (!(do_exit)) {
-	console_ansi_std();
+	/* Extra preceeding newline */
 	printf("\nrosh: ");
 	/* Read a line from console */
-	fgets(cmdstr, ROSH_CMD_SZ, stdin);
-	/* remove newline from input string */
-	c = strchr(cmdstr, '\n');
-	*c = 0;
-	do_exit = rosh_command(cmdstr, pwdstr, ipwdstr);
-    }
-    if (strcmp(pwdstr, ipwdstr) != 0) {
-	/* Change directory to the original directory */
-	strcpy(cmdstr, "cd ");
-	strcpy(cmdstr + 3, ipwdstr);
-	rosh_cd(cmdstr, pwdstr, ipwdstr);
+	if (fgets(cmdstr, ROSH_CMD_SZ, stdin)) {
+	    /* remove newline from input string */
+	    c = strchr(cmdstr, '\n');
+	    *c = 0;
+	    do_exit = rosh_command(cmdstr, ipwdstr);
+	} else {
+	    do_exit = false;
+	}
     }
     return rv;
 }
@@ -850,16 +1164,15 @@ int main(int argc, char *argv[])
 
     /* Initialization */
     rv = 0;
-    console_ansi_std();
-//      console_ansi_raw();
+    rosh_console_std();
     if (argc != 1) {
 	rv = rosh_argcat(cmdstr, argc, argv, 1);
     } else {
 	rosh_version();
+	print_beta();
 	cmdstr[0] = '\0';
     }
     rv = rosh_prompt(cmdstr);
     printf("--Exiting '%s'\n", APP_NAME);
-    console_ansi_std();
     return rv;
 }

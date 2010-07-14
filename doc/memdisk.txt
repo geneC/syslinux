@@ -139,6 +139,7 @@ h) Some systems without a floppy drive have been known to have
    doesn't work, you can use the option:
 
    nopass	Hide all real drives of the same type (floppy or hard disk)
+   nopassany    Hide all real drives (floppy and hard disk)
 
 
 Some interesting things to note:
@@ -190,13 +191,14 @@ The MEMDISK info structure currently contains:
 	[ES:DI+2]	byte	MEMDISK minor version
 	[ES:DI+3]	byte	MEMDISK major version
 	[ES:DI+4]	dword	Pointer to MEMDISK data in high memory
-	[ES:DI+8]	dword	Size of MEMDISK data in 512-byte sectors
+	[ES:DI+8]	dword	Size of MEMDISK data in sectors
 	[ES:DI+12]	16:16	Far pointer to command line
 	[ES:DI+16]	16:16	Old INT 13h pointer
 	[ES:DI+20]	16:16	Old INT 15h pointer
 	[ES:DI+24]	word	Amount of DOS memory before MEMDISK loaded
 	[ES:DI+26]	byte	Boot loader ID
-	[ES:DI+27]	byte	Currently unused
+	[ES:DI+27]	byte	Sector size as a power of 2
+				(If zero, assume 512-byte sectors)
 	[ES:DI+28]	word	If nonzero, offset (vs ES) to installed DPT
 				This pointer+16 contains the original INT 1Eh
 

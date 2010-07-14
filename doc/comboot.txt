@@ -426,8 +426,12 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 	Output:	AL	31h (SYSLINUX), 34h (EXTLINUX)
 		DL	drive number
 		CL	sector size as a power of 2 (9 = 512 bytes) [3.35]
+		CH	mode [3.73]
+			1 = CBIOS mode
+			2 = EBIOS mode
 		ES:BX	pointer to partition table entry (if DL >= 80h)
 		FS:SI	pointer to initial ES:DI value [3.53]
+		GS:DI	pointer to partition offset (QWORD) [4.00]
 
 		Note: This function was broken in EXTLINUX 3.00-3.02.
 
@@ -448,6 +452,7 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		ECX	Local IP number (network byte order) [3.85]
 		ES:BX	pointer to PXENV+ or !PXE structure
 		FS:SI	pointer to original stack with invocation record
+		GS:DI	pointer to network information [4.00]
 
 		Note: DX notes the API version detected by PXELINUX,
 		which may be more conservative than the actual version
@@ -481,6 +486,13 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		[fs:si+44]	PXE return IP	<- t.o.s. when PXELINUX invoked
 		[fs:si+46]	PXE return CS
 
+		GS:DI points to a structure of the following form:
+
+		[gs:di+0]	4		- IPv4
+		[gs:di+4]	My IP
+		[gs:di+8]	Boot server IP
+		[gs:di+12]	Gateway IP
+		[gs:di+16]	Netmask
 
 	[ISOLINUX]
 	Input:	AX	000Ah
@@ -493,16 +505,13 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 			2 = Hybrid (hard disk), EBIOS mode
 		ES:BX	pointer to El Torito spec packet
 		FS:SI	pointer to initial ES:DI value [3.53]
+		GS:DI	pointer to partition offset (QWORD) [4.00]
 
 		Note: Some very broken El Torito implementations do
 		not provide the spec packet information.  If so, ES:BX
 		may point to all zeroes or to garbage.  Call INT 13h,
 		AX=4B01h to obtain the spec packet directly from the
 		BIOS if necessary.
-
-	This call gives information specific to a particular Syslinux
-	derivative.  The value returned in AL is the same as is
-	returned in DL by INT 22h AX=0001h.
 
 
 AX=000Bh [2.00]	Get Serial Console Configuration
@@ -824,8 +833,8 @@ AX=0018h [3.30]	Query custom font
 
 AX=0019h [3.50] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 	Input:	AX	0019h
-		EDX	Sector number
-		ESI	Reserved - MUST BE ZERO
+		EDX	Sector number (LSW)
+		ESI	Sector number (MSW) [4.00]
 		EDI	Reserved - MUST BE ZERO
 		CX	Sector count
 		ES:BX	Buffer address

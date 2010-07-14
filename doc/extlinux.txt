@@ -97,9 +97,9 @@ preferred way to boot is:
 - Install the MBR on *each disk*, and mark the RAID-1 partition
   active.
 
-- Run "extlinux -i /boot" to install extlinux.  This will install it on
-  all the drives in the RAID-1 set, which means you can boot any
-  combination of drives in any order.
+- Run "extlinux --raid --install /boot" to install extlinux.  This
+  will install it on all the drives in the RAID-1 set, which means
+  you can boot any combination of drives in any order.
 
 
 

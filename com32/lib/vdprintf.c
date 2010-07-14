@@ -30,7 +30,12 @@ enum serial_port_regs {
     MSR = 6,
     SCR = 7,
 };
-static const uint16_t debug_base = 0x03f8; /* I/O base address */
+
+#ifndef DEBUG_PORT
+# define DEBUG_PORT 0x03f8	/* I/O base address */
+#endif
+
+static const uint16_t debug_base = DEBUG_PORT;
 
 static void debug_putc(char c)
 {
