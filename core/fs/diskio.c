@@ -226,7 +226,8 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	     * assume that for now.
 	     */
 	    if (lba < ((disk->h * disk->s) << 10)) {
-		done = chs_rdwr_sectors(disk, buf, lba, count, is_write);
+		done = chs_rdwr_sectors(disk, buf, lba - disk->part_start,
+					count, is_write);
 		if (done == (count << sector_shift)) {
 		    /* Successful, assume this is a CHS disk */
 		    disk->rdwr_sectors = chs_rdwr_sectors;
