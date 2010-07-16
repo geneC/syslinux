@@ -23,6 +23,10 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     size_t done = 0;
     size_t bytes;
     int retry;
+    uint32_t maxtransfer = disk->maxtransfer;
+
+    if (maxtransfer > 63)
+	maxtransfer = 63;
 
     memset(&ireg, 0, sizeof ireg);
 
@@ -31,8 +35,8 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 
     while (count) {
 	chunk = count;
-	if (chunk > disk->maxtransfer)
-	    chunk = disk->maxtransfer;
+	if (chunk > maxtransfer)
+	    chunk = maxtransfer;
 
 	freeseg = (0x10000 - ((size_t)ptr & 0xffff)) >> sector_shift;
 
@@ -47,15 +51,18 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	if (chunk > freeseg)
 	    chunk = freeseg;
 
-	bytes = chunk << sector_shift;
-
-	if (tptr != ptr && is_write)
-	    memcpy(tptr, ptr, bytes);
-
 	s = xlba % disk->s;
 	t = xlba / disk->s;
 	h = t % disk->h;
 	c = t / disk->h;
+
+	if (chunk > (disk->s - s))
+	    chunk = disk->s - s;
+
+	bytes = chunk << sector_shift;
+
+	if (tptr != ptr && is_write)
+	    memcpy(tptr, ptr, bytes);
 
 	ireg.eax.b[0] = chunk;
 	ireg.ecx.b[1] = c;
@@ -67,34 +74,39 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 	retry = RETRY_COUNT;
 
         for (;;) {
-	    dprintf("CHS[%02x]: %u @ %llu (%u/%u/%u) %04x:%04x %s %p\n",
-		    ireg.edx.b[0], chunk, xlba, c, h, s+1,
-		    ireg.es, ireg.ebx.w[0],
-		    (ireg.eax.b[1] & 1) ? "<-" : "->",
-		    ptr);
+	    if (c < 1024) {
+		dprintf("CHS[%02x]: %u @ %llu (%u/%u/%u) %04x:%04x %s %p\n",
+			ireg.edx.b[0], chunk, xlba, c, h, s+1,
+			ireg.es, ireg.ebx.w[0],
+			(ireg.eax.b[1] & 1) ? "<-" : "->",
+			ptr);
 
-	    __intcall(0x13, &ireg, &oreg);
-	    if (!(oreg.eflags.l & EFLAGS_CF))
-		break;
+		__intcall(0x13, &ireg, &oreg);
+		if (!(oreg.eflags.l & EFLAGS_CF))
+		    break;
 
-	    dprintf("CHS: error AX = %04x\n", oreg.eax.w[0]);
+		dprintf("CHS: error AX = %04x\n", oreg.eax.w[0]);
 
-	    if (retry--)
-		continue;
+		if (retry--)
+		    continue;
 
-	    /* For any starting value, this will always end with ..., 1, 0 */
-	    chunk >>= 1;
-            if (chunk) {
-		disk->maxtransfer = chunk;
-		retry = RETRY_COUNT;
-                ireg.eax.b[0] = chunk;
-                continue;
-	    } else {
-		printf("CHS: Error %04x %s sector %llu (%u/%u/%u)\n",
-		       oreg.eax.w[0],
-		       is_write ? "writing" : "reading",
-		       lba, c, h, s+1);
+		/*
+		 * For any starting value, this will always end with
+		 * ..., 1, 0
+		 */
+		chunk >>= 1;
+		if (chunk) {
+		    maxtransfer = chunk;
+		    retry = RETRY_COUNT;
+		    ireg.eax.b[0] = chunk;
+		    continue;
+		}
 	    }
+
+	    printf("CHS: Error %04x %s sector %llu (%u/%u/%u)\n",
+		   oreg.eax.w[0],
+		   is_write ? "writing" : "reading",
+		   lba, c, h, s+1);
 	    return done;	/* Failure */
 	}
 
@@ -102,6 +114,9 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
 
 	if (tptr != ptr && !is_write)
 	    memcpy(ptr, tptr, bytes);
+
+	/* If we dropped maxtransfer, it eventually worked, so remember it */
+	disk->maxtransfer = maxtransfer;
 
 	ptr   += bytes;
 	xlba  += chunk;
@@ -131,6 +146,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     size_t done = 0;
     size_t bytes;
     int retry;
+    uint32_t maxtransfer = disk->maxtransfer;
 
     memset(&ireg, 0, sizeof ireg);
 
@@ -146,8 +162,8 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     lba += disk->part_start;
     while (count) {
 	chunk = count;
-	if (chunk > disk->maxtransfer)
-	    chunk = disk->maxtransfer;
+	if (chunk > maxtransfer)
+	    chunk = maxtransfer;
 
 	freeseg = (0x10000 - ((size_t)ptr & 0xffff)) >> sector_shift;
 
@@ -201,13 +217,26 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	    /* For any starting value, this will always end with ..., 1, 0 */
 	    chunk >>= 1;
 	    if (chunk) {
-		disk->maxtransfer = chunk;
+		maxtransfer = chunk;
 		retry = RETRY_COUNT;
 		continue;
 	    }
 
-	    /*** XXX: Consider falling back to CHS here?! ***/
-            printf("EDD: Error %04x %s sector %llu\n",
+	    /*
+	     * Total failure.  There are systems which identify as
+	     * EDD-capable but aren't; the known such systems return
+	     * error code AH=1 (invalid function), but let's not
+	     * assume that for now.
+	     */
+	    if (lba < ((disk->h * disk->s) << 10)) {
+		done = chs_rdwr_sectors(disk, buf, lba, count, is_write);
+		if (done == (count << sector_shift)) {
+		    /* Successful, assume this is a CHS disk */
+		    disk->rdwr_sectors = chs_rdwr_sectors;
+		    return done;
+		}
+	    }
+	    printf("EDD: Error %04x %s sector %llu\n",
 		   oreg.eax.w[0],
 		   is_write ? "writing" : "reading",
 		   lba);
@@ -219,6 +248,9 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	if (tptr != ptr && !is_write)
 	    memcpy(ptr, tptr, bytes);
 
+	/* If we dropped maxtransfer, it eventually worked, so remember it */
+	disk->maxtransfer = maxtransfer;
+
 	ptr   += bytes;
 	lba   += chunk;
 	count -= chunk;
@@ -226,6 +258,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     }
     return done;
 }
+
 struct edd_disk_params {
     uint16_t  len;
     uint16_t  flags;
