@@ -22,6 +22,8 @@ Changes in 4.02:
 	  supported.)
 	* SYSLINUX: mtools installer: honor TMPDIR, error out on disk
 	  full.
+	* Handle fallbacks from EDD to CHS, to deal with systems which
+	  announce EDD support but don't actually have it.
 
 Changes in 4.01:
 	* ISOLINUX: fix initialization on systems which don't zero
