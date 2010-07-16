@@ -6,6 +6,7 @@
 #include <core.h>
 #include <fs.h>
 #include <disk.h>
+#include <ilog2.h>
 
 #define RETRY_COUNT 6
 
@@ -289,19 +290,6 @@ struct edd_disk_params {
 static inline bool is_power_of_2(uint32_t x)
 {
     return !(x & (x-1));
-}
-
-static int ilog2(uint32_t num)
-{
-    int i = 0;
-
-    if (!is_power_of_2(num)) {
-        printf("ERROR: the num must be power of 2 when conveting to log2\n");
-        return 0;
-    }
-    while (num >>= 1)
-        i++;
-    return i;
 }
 
 void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
