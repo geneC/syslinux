@@ -146,11 +146,13 @@ int syslinux_patch(const sector_t *sectp, int nsectors,
     ex = ptr(boot_image, &epa->secptroffset);
     nptrs = get_16_sl(&epa->secptrcnt);
 
+#if 0
     if (nsect > nptrs) {
 	/* Not necessarily an error in this case, but a general problem */
 	fprintf(stderr, "Insufficient extent space, build error!\n");
 	exit(1);
     }
+#endif
 
     /* -1 for the pointer in the boot sector, -2 for the two ADVs */
     generate_extents(ex, nptrs, sectp, nsect-1-2);
