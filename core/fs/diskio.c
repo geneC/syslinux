@@ -25,9 +25,6 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     int retry;
     uint32_t maxtransfer = disk->maxtransfer;
 
-    if (maxtransfer > 63)
-	maxtransfer = 63;
-
     memset(&ireg, 0, sizeof ireg);
 
     ireg.eax.b[1] = 0x02 + is_write;
