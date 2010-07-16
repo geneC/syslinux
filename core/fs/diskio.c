@@ -25,6 +25,9 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     int retry;
     uint32_t maxtransfer = disk->maxtransfer;
 
+    if (lba + disk->part_start >= 1024*256*63)
+	return 0;		/* Impossible CHS request */
+
     memset(&ireg, 0, sizeof ireg);
 
     ireg.eax.b[1] = 0x02 + is_write;
