@@ -11,7 +11,7 @@
 
 static inline sector_t chs_max(const struct disk *disk)
 {
-    return (disk->h * disk->s) << 10;
+    return disk->t << 10;
 }
 
 static int chs_rdwr_sectors(struct disk *disk, void *buf,
@@ -393,6 +393,7 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     disk.sector_size   = sector_size;
     disk.sector_shift  = ilog2(sector_size);
     disk.part_start    = part_start;
+    disk.t             = disk.h * disk.s;
     disk.rdwr_sectors  = ebios ? edd_rdwr_sectors : chs_rdwr_sectors;
 
     if (!MaxTransfer || MaxTransfer > hard_max_transfer)
