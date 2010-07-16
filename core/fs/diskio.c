@@ -9,6 +9,11 @@
 
 #define RETRY_COUNT 6
 
+static inline sector_t chs_max(const struct disk *disk)
+{
+    return (disk->h * disk->s) << 10;
+}
+
 static int chs_rdwr_sectors(struct disk *disk, void *buf,
 			    sector_t lba, size_t count, bool is_write)
 {
@@ -25,7 +30,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     int retry;
     uint32_t maxtransfer = disk->maxtransfer;
 
-    if (lba + disk->part_start >= 1024*256*63)
+    if (lba + disk->part_start >= chs_max(disk))
 	return 0;		/* Impossible CHS request */
 
     memset(&ireg, 0, sizeof ireg);
@@ -227,15 +232,16 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 	     * EDD-capable but aren't; the known such systems return
 	     * error code AH=1 (invalid function), but let's not
 	     * assume that for now.
+	     *
+	     * Try to fall back to CHS.  If the LBA is absurd, the
+	     * chs_max() test in chs_rdwr_sectors() will catch it.
 	     */
-	    if (lba < ((disk->h * disk->s) << 10)) {
-		done = chs_rdwr_sectors(disk, buf, lba - disk->part_start,
-					count, is_write);
-		if (done == (count << sector_shift)) {
-		    /* Successful, assume this is a CHS disk */
-		    disk->rdwr_sectors = chs_rdwr_sectors;
-		    return done;
-		}
+	    done = chs_rdwr_sectors(disk, buf, lba - disk->part_start,
+				    count, is_write);
+	    if (done == (count << sector_shift)) {
+		/* Successful, assume this is a CHS disk */
+		disk->rdwr_sectors = chs_rdwr_sectors;
+		return done;
 	    }
 	    printf("EDD: Error %04x %s sector %llu\n",
 		   oreg.eax.w[0],
