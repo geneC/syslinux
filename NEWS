@@ -16,7 +16,7 @@ Changes in 4.02:
 	* whichsys.c32: execute specific command, based on Syslinux
 	  bootloader variant (Gert Hulselmans).
 	* lua.c32: a lot of new bindings added to the "syslinux"
-	  namespace (Marcel Ritter, Gert Hulselmans).
+	  namespace: VESA, PCI, DMI, kernel loading (Marcel Ritter).
 	* btrfs: print a comprehensive error message if compressed or
 	  encrypted files are encountered (neither is currently
 	  supported.)
@@ -35,7 +35,8 @@ Changes in 4.01:
 	  already has booted a CDROM or USB drive (Gert Hulselmans).
 	* Correct a severe memory overwrite bug, triggered primarily
 	  when selecting a very long command line in the menu system.
-	* lua.c32: Lua script interpreter, currently experimental.
+	* lua.c32: Lua script interpreter, currently experimental
+	  (Alexey Zaytsev, Marcel Ritter, Geert Stappers).
 	* PXELINUX: new option IPAPPEND 4 to append the system UUID to
 	  the kernel command line.
 	* PXELINUX: display BOOTIF and SYSUUID at startup time, and
