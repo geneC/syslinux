@@ -12,7 +12,7 @@
 
 static inline sector_t chs_max(const struct disk *disk)
 {
-    return disk->secpercyl << 10;
+    return (sector_t)disk->secpercyl << 10;
 }
 
 static int chs_rdwr_sectors(struct disk *disk, void *buf,
