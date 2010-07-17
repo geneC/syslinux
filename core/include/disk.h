@@ -13,14 +13,14 @@ typedef uint64_t block_t;
  * contains the I/O function.
  */
 struct disk {
-    unsigned int disk_number;  /* in BIOS style */
-    unsigned int type;         /* CHS or EDD */
-    unsigned int sector_size;  /* gener512B or 2048B */
+    unsigned int disk_number;	/* in BIOS style */
+    unsigned int sector_size;	/* gener512B or 2048B */
     unsigned int sector_shift;
+    unsigned int maxtransfer;	/* Max sectors per transfer */
     
-    unsigned int h, s;         /* CHS geometry */
-    unsigned int t;	       /* h*s */
-    uint32_t maxtransfer;      /* Max sectors per transfer */
+    unsigned int h, s;		/* CHS geometry */
+    unsigned int secpercyl;	/* h*s */
+    unsigned int _pad;
 
     sector_t part_start;   /* the start address of this partition(in sectors) */
 

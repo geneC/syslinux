@@ -12,7 +12,7 @@
 
 static inline sector_t chs_max(const struct disk *disk)
 {
-    return disk->t << 10;
+    return disk->secpercyl << 10;
 }
 
 static int chs_rdwr_sectors(struct disk *disk, void *buf,
@@ -24,7 +24,7 @@ static int chs_rdwr_sectors(struct disk *disk, void *buf,
     int sector_shift = disk->sector_shift;
     uint32_t xlba = lba + disk->part_start; /* Truncated LBA (CHS is << 2 TB) */
     uint32_t t;
-    uint16_t c, h, s;
+    uint32_t c, h, s;
     com32sys_t ireg, oreg;
     size_t done = 0;
     size_t bytes;
@@ -377,11 +377,10 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     }
 
     disk.disk_number   = devno;
-    disk.type          = ebios;
     disk.sector_size   = sector_size;
     disk.sector_shift  = ilog2(sector_size);
     disk.part_start    = part_start;
-    disk.t             = disk.h * disk.s;
+    disk.secpercyl     = disk.h * disk.s;
     disk.rdwr_sectors  = ebios ? edd_rdwr_sectors : chs_rdwr_sectors;
 
     if (!MaxTransfer || MaxTransfer > hard_max_transfer)

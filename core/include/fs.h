@@ -116,8 +116,6 @@ struct file {
     struct inode *inode;        /* The file-specific information */
 };
 
-enum dev_type {CHS, EDD};
-
 /*
  * Struct device contains:
  *     the pointer points to the disk structure,
