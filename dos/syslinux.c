@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-//#include <stdarg.h>
+#include <stdarg.h>
 #include "mystuff.h"
 
 #include "syslinux.h"
@@ -604,6 +604,7 @@ int main(int argc, char *argv[])
     int stupid = 0;
     int raid_mode = 0;
     int patch_sectors;
+    unsigned char *dp;
 
     dprintf("argv = %p\n", argv);
     for (i = 0; i <= argc; i++)
@@ -770,10 +771,10 @@ int main(int argc, char *argv[])
      * Overwrite the now-patched ldlinux.sys
      */
     /* lock_device(3); -- doesn't seem to be needed */
+    dp = syslinux_ldlinux;
     for (i = 0; i < patch_sectors; i++) {
-	unsigned char *p = syslinux_ldlinux;
-	memcpy_from_sl(sectbuf, p, SECTOR_SIZE);
-	p += SECTOR_SIZE;
+	memcpy_from_sl(sectbuf, dp, SECTOR_SIZE);
+	dp += SECTOR_SIZE;
 	write_device(dev_fd, sectbuf, 1, sectors[i]);
     }
 
