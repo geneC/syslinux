@@ -16,8 +16,11 @@
  * This COM32 module detects if the PLoP Boot Manager was used to boot a CDROM
  * drive or USB drive, by checking for the presence of the PLoP INT13h hook.
  *
- * Usage:   ifplop.c32 [<plop_detected>] -- [<plop_not_detected>]
- * Example: ifplop.c32 menu.c32 another.cfg -- plpbt.bin hiddenusb usb1=2
+ * Usage:    ifplop.c32 [<plop_detected>] -- [<plop_not_detected>]
+ * Examples: ifplop.c32 menu.c32 another.cfg -- plpbt hiddenusb usb1=2
+ *              You need to remove the ".bin" extension of the plpbt.bin file
+ *              if you use it this way.
+ *           ifplop.c32 plop_detected -- plop_not_detected
  *
  * A possible config file could be:
  *
@@ -40,8 +43,10 @@
  *      APPEND another.cfg
  *
  *  # PLoP INT13h hook wasn't found, so we boot PLoP, so it can add USB 2.0 support
+ *  # When using "LINUX plpbt.bin", you don't need to remove the .bin extension.
  *  LABEL plop_not_detected
- *      LINUX plpbt.bin hiddenusb usb1=2
+ *      LINUX plpbt.bin
+ *      APPEND hiddenusb usb1=2
  *
  * ===========================================================================
  *
@@ -51,8 +56,8 @@
  * USB stick/drive:
  *   1. PLoP can upgrade USB 1.1 speed offered by the BIOS to USB 2.0 speed
  *      if you have USB 2.0 controllers on your mobo.
- *   2. Some BIOSes only can acees the first 128GiB (137GB) on USB drives, while
- *      internal hard drives don't neseccarily suffer from this 128GiB problem.
+ *   2. Some BIOSes only can access the first 128GiB (137GB) on USB drives, while
+ *      internal hard drives don't necessarily suffer from this 128GiB problem.
  *      Using PLoPs USB capabilities, you can access the whole drive.
  *
  * When you select the "USB" entry in PLoP, it will boot your USB stick/drive
@@ -61,7 +66,7 @@
  *
  * By using ifplop.c32 you can specify which action you want to do the second
  * time your USB stick/drive is booted. So you can load another config file or
- * boot a large hard disk image or whathever you want.
+ * boot a large hard disk image or whatever you want.
  *
  * PLoP Boot Manager website: http://www.plop.at/en/bootmanager.html
  */
@@ -158,7 +163,7 @@ int main(int argc, char *argv[])
     } else {
 	fprintf(stderr,
 		"Usage:   ifplop.c32 [<plop_detected>] -- [<plop_not_detected>]\n"
-		"Example: ifplop.c32 menu.c32 another.cfg -- plpbt.bin hiddenusb usb1=2\n");
+		"Example: ifplop.c32 menu.c32 another.cfg -- plpbt hiddenusb usb1=2\n");
     }
 
     return 0;
