@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "setadv.h"
 #include "sysexits.h"
 #include "syslxopt.h"
+#include "syslxint.h"
 
 const char *program = "syslinux";	/* Name of program */
 uint16_t dos_version;
@@ -119,11 +120,9 @@ int rename(const char *oldname, const char *newname)
     return 0;
 }
 
-extern const char __payload_sseg[];
-uint16_t ldlinux_seg;
-
 ssize_t write_ldlinux(int fd)
 {
+    uint16_t ldlinux_seg = ((size_t)syslinux_ldlinux >> 4) + ds();
     uint32_t offset = 0;
     uint16_t rv;
     uint8_t err;
@@ -136,8 +135,8 @@ ssize_t write_ldlinux(int fd)
 		      "movw %6,%%ds ; "
 		      "int $0x21 ; "
 		      "popw %%ds ; " "setc %0":"=bcdm" (err), "=a"(rv)
-		      :"a"(0x4000), "b"(fd), "c"(chunk), "d"(offset & 15),
-		      "SD"((uint16_t) (ldlinux_seg + (offset >> 4))));
+		      :"a"(0x4000), "b"(fd), "c"(chunk), "d" (offset & 15),
+		      "SD" ((uint16_t)(ldlinux_seg + (offset >> 4))));
 	if (err || rv == 0)
 	    die("file write error");
 	offset += rv;
@@ -178,7 +177,7 @@ uint16_t data_segment(void)
 
 void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
-    uint16_t errnum;
+    uint16_t errnum = 0x0001;
     struct diskio dio;
 
     dprintf("write_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
@@ -187,14 +186,17 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
-
-    /* Try FAT32-aware system call first */
-    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
-		 "1:"
-		 : "=a" (errnum)
-		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		   "S" (1), "m" (dio)
-		 : "memory");
+    
+    if (dos_version >= 0x070a) {
+	/* Try FAT32-aware system call first */
+	asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		     "1:"
+		     : "=a" (errnum)
+		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		       "S" (1), "m" (dio)
+		     : "memory");
+	dprintf(" rv(7305) = %04x", errnum);
+    }
 
     /* If not supported, try the legacy system call (int2526.S) */
     if (errnum == 0x0001)
@@ -206,9 +208,9 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     }
 }
 
-void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
+void read_device(int drive, void *buf, size_t nsecs, unsigned int sector)
 {
-    uint16_t errnum;
+    uint16_t errnum = 0x0001;
     struct diskio dio;
 
     dprintf("read_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
@@ -217,13 +219,16 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
-
-    /* Try FAT32-aware system call first */
-    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
-		 "1:"
-		 : "=a" (errnum)
-		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		   "S" (0), "m" (dio));
+    
+    if (dos_version >= 0x070a) {
+	/* Try FAT32-aware system call first */
+	asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		     "1:"
+		     : "=a" (errnum)
+		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		       "S" (0), "m" (dio));
+	dprintf(" rv(7305) = %04x", errnum);
+    }
 
     /* If not supported, try the legacy system call (int2526.S) */
     if (errnum == 0x0001)
@@ -600,9 +605,6 @@ int main(int argc, char *argv[])
     int raid_mode = 0;
     int patch_sectors;
 
-    ldlinux_seg = (size_t) __payload_sseg + data_segment();
-printf("SHAO seg: 0x%04x\n", ldlinux_seg);
-
     dprintf("argv = %p\n", argv);
     for (i = 0; i <= argc; i++)
 	dprintf("argv[%d] = %p = \"%s\"\n", i, argv[i], argv[i]);
@@ -758,7 +760,6 @@ printf("SHAO seg: 0x%04x\n", ldlinux_seg);
 	}
     }
 
-printf("Foo: %p\n", syslinux_ldlinux);
     /*
      * Patch ldlinux.sys and the boot sector
      */
@@ -770,14 +771,9 @@ printf("Foo: %p\n", syslinux_ldlinux);
      */
     /* lock_device(3); -- doesn't seem to be needed */
     for (i = 0; i < patch_sectors; i++) {
-	uint16_t si, di, cx;
-	si = 0;
-	di = (size_t) sectbuf;
-	cx = SECTOR_SIZE >> 2;
-	asm volatile ("movw %3,%%fs ; fs ; rep ; movsl":"+S" (si), "+D"(di),
-		      "+c"(cx)
-		      :"abd"((uint16_t)
-			     (ldlinux_seg + (i << (SECTOR_SHIFT - 4)))));
+	unsigned char *p = syslinux_ldlinux;
+	memcpy_from_sl(sectbuf, p, SECTOR_SIZE);
+	p += SECTOR_SIZE;
 	write_device(dev_fd, sectbuf, 1, sectors[i]);
     }
 
