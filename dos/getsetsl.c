@@ -87,7 +87,7 @@ void memcpy_to_sl(void *dst, const void *src, size_t len)
     uint16_t seg;
     uint16_t off;
 
-    seg = ldlinux_seg + ((size_t)dst >> 4);
+    seg = ds() + ((size_t)dst >> 4);
     off = (size_t)dst & 15;
 
     asm volatile("pushw %%es ; "
