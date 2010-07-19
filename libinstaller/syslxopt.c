@@ -40,10 +40,14 @@ struct sys_options opt = {
     .device = NULL,
     .offset = 0,
     .menu_save = NULL,
+    .install_mbr = 0,
+    .activate_partition = 0,
+    .force = 0,
+    .bootsecfile = NULL,
 };
 
 const struct option long_options[] = {
-    {"force", 0, NULL, 'f'},	/* dummy option for compatibility */
+    {"force", 0, NULL, 'f'},	/* DOS/Win32/mtools only */
     {"install", 0, NULL, 'i'},
     {"directory", 1, NULL, 'd'},
     {"offset", 1, NULL, 't'},
@@ -59,10 +63,12 @@ const struct option long_options[] = {
     {"clear-once", 0, NULL, 'O'},
     {"reset-adv", 0, NULL, OPT_RESET_ADV},
     {"menu-save", 1, NULL, 'M'},
+    {"mbr", 0, NULL, 'm'},	/* DOS/Win32 only */
+    {"active", 0, NULL, 'a'},	/* DOS/Win32 only */
     {0, 0, 0, 0}
 };
 
-const char short_options[] = "t:fid:UuzS:H:rvho:OM:";
+const char short_options[] = "t:fid:UuzS:H:rvho:OM:ma";
 
 void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 {
@@ -83,6 +89,13 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "Usage: %s [options] directory\n",
 	    program);
 	break;
+
+    case MODE_SYSLINUX_DOSWIN:
+	/* For fs installation under Windows (syslinux.exe) */
+	fprintf(stderr,
+	    "Usage: %s [options] <drive>: [bootsecfile]\n",
+	    program);
+	break;
     }
 
     fprintf(stderr,
@@ -97,6 +110,9 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "  --clear-once -O  Clear the boot-once command\n"
 	    "  --reset-adv      Reset auxilliary data\n"
 	    "  --menu-save= -M  Set the label to select as default on the next boot\n"
+	    "  --mbr        -m  Install an MBR (DOS/Win32 installers only)\n"
+	    "  --active     -a  Mark partition as active (DOS/Win32 installers only)\n"
+	    "  --force      -f  Ignore precautions (DOS/Win32/mtools installers only)\n"
 	    "\n"
 	    "  Note: geometry is determined at boot time for devices which\n"
 	    "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
@@ -105,7 +121,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "\n"
 	    "  The -z option is useful for USB devices which are considered\n"
 	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n",
-	    mode == MODE_SYSLINUX ? "  " : "-o");
+	    mode == MODE_SYSLINUX  ? "  " : "-o");
 
     exit(rv);
 }
@@ -119,6 +135,7 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 			    long_options, NULL)) != EOF) {
 	switch (o) {
 	case 'f':
+	    opt.force = 1;
 	    break;
 	case 'z':
 	    opt.heads = 64;
@@ -183,6 +200,12 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	case 'M':
 	    opt.menu_save = optarg;
 	    break;
+	case 'm':
+	    opt.install_mbr = 1;
+	    break;
+	case 'a':
+	    opt.activate_partition = 1;
+	    break;
 	case 'v':
 	    fprintf(stderr,
 		    "%s " VERSION_STR "  Copyright 1994-" YEAR_STR
@@ -196,6 +219,7 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 
     switch (mode) {
     case MODE_SYSLINUX:
+    case MODE_SYSLINUX_DOSWIN:
 	opt.device = argv[optind++];
 	break;
     case MODE_EXTLINUX:
@@ -204,6 +228,9 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	break;
     }
 
+    if (argv[optind] && (mode == MODE_SYSLINUX_DOSWIN))
+	/* Allow for the boot-sector argument */
+	opt.bootsecfile = argv[optind++];
     if (argv[optind])
 	usage(EX_USAGE, mode);	/* Excess arguments */
 }
