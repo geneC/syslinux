@@ -38,7 +38,7 @@
 #include "syslinux/boot.h"
 #include "syslinux/loadfile.h"
 #include "syslinux/linux.h"
-#include "../../cmenu/libmenu/com32io.h"
+#include "syslinux/config.h"
 
 int __parse_argv(char ***argv, const char *str);
 
@@ -387,7 +387,7 @@ static int sl_initramfs_add_file(lua_State * L)
     if (initramfs_add_file(initramfs, file_data, file_len, file_len,
 			   "/testfile1", 0, 0755))
 
-	return 0;
+    return 0;
 }
 
 static int sl_boot_it(lua_State * L)
@@ -402,6 +402,41 @@ static int sl_boot_it(lua_State * L)
     ret = syslinux_boot_linux(kernel->data, kernel->size, initramfs, cmdline);
 
     return 0;
+}
+
+static int sl_derivative(lua_State * L)
+{
+    const struct syslinux_version *sv;
+
+    sv = syslinux_version();
+
+    switch (sv->filesystem) {
+    case SYSLINUX_FS_SYSLINUX:
+	lua_pushstring(L, "SYSLINUX");
+	break;
+    case SYSLINUX_FS_PXELINUX:
+	lua_pushstring(L, "PXELINUX");
+	break;
+    case SYSLINUX_FS_ISOLINUX:
+	lua_pushstring(L, "ISOLINUX");
+	break;
+    case SYSLINUX_FS_UNKNOWN:
+    default:
+	lua_pushstring(L, "Unknown Syslinux derivative");
+	break;
+    }
+
+    return 1;
+}
+
+static int sl_version(lua_State * L)
+{
+    const struct syslinux_version *sv;
+
+    sv = syslinux_version();
+    lua_pushstring(L, sv->version_string);
+
+    return 1;
 }
 
 static const luaL_reg syslinuxlib[] = {
@@ -420,6 +455,8 @@ static const luaL_reg syslinuxlib[] = {
     {"initramfs_load_archive", sl_initramfs_load_archive},
     {"initramfs_add_file", sl_initramfs_add_file},
     {"boot_it", sl_boot_it},
+    {"derivative", sl_derivative},
+    {"version", sl_version},
     {NULL, NULL}
 };
 
