@@ -20,13 +20,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <cpuid.h>
+#include <unistd.h>
 #include <syslinux/boot.h>
 #include <com32.h>
 #include <consoles.h>
-
-#define REG_AH(x) ((x).eax.b[1])
-#define REG_CX(x) ((x).ecx.w[0])
-#define REG_DX(x) ((x).edx.w[0])
 
 static inline void error(const char *msg)
 {
@@ -59,18 +56,6 @@ static void usage(void)
  "   pae       : Processor features Physical Address Extension (PAE)\n"
  "\n"
  "if you want to match many cpu features, just separate them with a single space.\n");
-}
-
-static unsigned char sleep(unsigned int msec)
-{
-    unsigned long micro = 1000 * msec;
-    com32sys_t inreg, outreg;
-
-    REG_AH(inreg) = 0x86;
-    REG_CX(inreg) = (micro >> 16);
-    REG_DX(inreg) = (micro & 0xFFFF);
-    __intcall(0x15, &inreg, &outreg);
-    return REG_AH(outreg);
 }
 
 /* XXX: this really should be librarized */
@@ -172,7 +157,7 @@ int main(int argc, char *argv[])
 	       hardware_matches ? *args[0] : *args[1]);
 	printf("Sleeping 5sec before booting\n");
 	if (!dryrun)
-	    sleep(5000);
+	    sleep(5);
     }
 
     if (!dryrun)

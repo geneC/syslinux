@@ -70,6 +70,10 @@ struct com32_pmapi {
 
     int (*chdir)(const char *);
     char *(*getcwd)(char *, size_t);
+
+    /* Should be "const volatile", but gcc miscompiles that sometimes */
+    volatile uint32_t *jiffies;
+    volatile uint32_t *ms_timer;
 };
 
 #endif /* _SYSLINUX_PMAPI_H */

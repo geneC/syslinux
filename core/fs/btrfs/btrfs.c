@@ -530,9 +530,18 @@ static int btrfs_next_extent(struct inode *inode, uint32_t lstart)
 	ret = search_tree(fs, fs_tree, &search_key, &path);
 	if (ret) { /* impossible */
 		printf("btrfs: search extent data error!\n");
-		return 0;
+		return -1;
 	}
 	extent_item = *(struct btrfs_file_extent_item *)path.data;
+
+	if (extent_item.encryption) {
+	    printf("btrfs: found encrypted data, cannot continue!\n");
+	    return -1;
+	}
+	if (extent_item.compression) {
+	    printf("btrfs: found compressed data, cannot continue!\n");
+	    return -1;
+	}
 
 	if (extent_item.type == BTRFS_FILE_EXTENT_INLINE) {/* inline file */
 		/* we fake a extent here, and PVT of inode will tell us */

@@ -19,6 +19,9 @@
 ;; about the BIOS_timer variable wrapping around at "midnight" and other
 ;; weird things.
 ;;
+;; This also maintains a timer variable calibrated in milliseconds
+;; (wraparound time = 49.7 days!)
+;;
 
 		section .text16
 
@@ -35,12 +38,20 @@ timer_cleanup:
 		mov [BIOS_timer_hook],eax
 		ret
 
+;
+; The specified frequency is 14.31818 MHz/12/65536; this turns out
+; to be a period of 54.92542 ms, or 0x36.ece8(187c) hexadecimal.
+;
 timer_irq:
 		inc dword [cs:__jiffies]
+		add word  [cs:__ms_timer_adj],0xece8
+		adc dword [cs:__ms_timer],0x36
 		jmp 0:0
 BIOS_timer_next	equ $-4
 
 		section .data16
 		alignz 4
-		global __jiffies
-__jiffies	dd 0			; The actual timer variable
+		global __jiffies, __ms_timer
+__jiffies	dd 0			; Clock tick timer
+__ms_timer	dd 0			; Millisecond timer
+__ms_timer_adj	dw 0			; Millisecond timer correction factor

@@ -25,6 +25,9 @@ __extern int getscreensize(int, int *, int *);
 __extern char *getcwd(char *, int);
 __extern int chdir(const char *);
 
+__extern unsigned int sleep(unsigned int);
+__extern unsigned int msleep(unsigned int);
+
 /* Standard file descriptor numbers. */
 #define STDIN_FILENO	0
 #define STDOUT_FILENO	1

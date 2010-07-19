@@ -132,7 +132,7 @@ const char *dmi_memory_device_type(uint8_t code)
     return out_of_spec;
 }
 
-void dmi_memory_device_type_detail(uint16_t code, char *type_detail)
+void dmi_memory_device_type_detail(uint16_t code, char *type_detail, int sizeof_type_detail)
 {
     /* 3.3.18.3 */
     static const char *detail[] = {
@@ -157,7 +157,7 @@ void dmi_memory_device_type_detail(uint16_t code, char *type_detail)
 
 	for (i = 1; i <= 12; i++)
 	    if (code & (1 << i))
-		snprintf(type_detail,sizeof(type_detail), "%s", detail[i - 1]);
+		snprintf(type_detail, sizeof_type_detail, "%s", detail[i - 1]);
     }
 }
 
@@ -173,7 +173,7 @@ void dmi_memory_device_speed(uint16_t code, char *speed)
  * 3.3.7 Memory Module Information (Type 6)
  */
 
-void dmi_memory_module_types(uint16_t code, const char *sep, char *type)
+void dmi_memory_module_types(uint16_t code, const char *sep, char *type, int sizeof_type)
 {
     /* 3.3.7.1 */
     static const char *types[] = {
@@ -197,11 +197,11 @@ void dmi_memory_module_types(uint16_t code, const char *sep, char *type)
 
 	for (i = 0; i <= 10; i++)
 	    if (code & (1 << i))
-		snprintf(type,sizeof(type), "%s%s%s", type, sep, types[i]);
+		snprintf(type, sizeof_type, "%s%s%s", type, sep, types[i]);
     }
 }
 
-void dmi_memory_module_connections(uint8_t code, char *connection)
+void dmi_memory_module_connections(uint8_t code, char *connection, int sizeof_connection)
 {
     if (code == 0xFF)
 	sprintf(connection, "%s", "None");
@@ -209,7 +209,7 @@ void dmi_memory_module_connections(uint8_t code, char *connection)
 	if ((code & 0xF0) != 0xF0)
 	    sprintf(connection, "%u ", code >> 4);
 	if ((code & 0x0F) != 0x0F)
-	    snprintf(connection,sizeof(connection), "%s%u", connection, code & 0x0F);
+	    snprintf(connection, sizeof_connection, "%s%u", connection, code & 0x0F);
     }
 }
 
@@ -221,7 +221,7 @@ void dmi_memory_module_speed(uint8_t code, char *speed)
 	sprintf(speed, "%u ns", code);
 }
 
-void dmi_memory_module_size(uint8_t code, char *size)
+void dmi_memory_module_size(uint8_t code, char *size, int sizeof_size)
 {
     /* 3.3.7.2 */
     switch (code & 0x7F) {
@@ -239,9 +239,9 @@ void dmi_memory_module_size(uint8_t code, char *size)
     }
 
     if (code & 0x80)
-	snprintf(size,sizeof(size),"%s %s", size, "(Double-bank Connection)");
+	snprintf(size, sizeof_size, "%s %s", size, "(Double-bank Connection)");
     else
-	snprintf(size,sizeof(size), "%s %s", size, "(Single-bank Connection)");
+	snprintf(size, sizeof_size, "%s %s", size, "(Single-bank Connection)");
 }
 
 void dmi_memory_module_error(uint8_t code, const char *prefix, char *error)

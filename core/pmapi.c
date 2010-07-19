@@ -37,4 +37,7 @@ const struct com32_pmapi pm_api_vector =
 
     .chdir	= chdir,
     .getcwd	= getcwd,
+
+    .jiffies	= &__jiffies,
+    .ms_timer	= &__ms_timer,
 };

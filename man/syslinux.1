@@ -1,11 +1,9 @@
-.TH SYSLINUX 1 "18 December 2007" "SYSLINUX"
+.TH SYSLINUX 1 "19 July 2010" "SYSLINUX"
 .SH NAME
 syslinux \- install the \s-1SYSLINUX\s+1 bootloader on a FAT filesystem
 .SH SYNOPSIS
 .B syslinux
-[\fB\-sfr\fP]
-[\fB\-d\fP \fIdirectory\fP]
-[\fB\-o\fP \fIoffset\fP]
+[\fBOPTIONS\fP]
 .I device
 .SH DESCRIPTION
 \fBSyslinux\fP is a boot loader for the Linux operating system which
@@ -17,10 +15,11 @@ In order to create a bootable Linux floppy using \fBSyslinux\fP, prepare a
 normal MS-DOS formatted floppy. Copy one or more Linux kernel files to
 it, then execute the command:
 .IP
-.B syslinux /dev/fd0
+.B syslinux \-\-install /dev/fd0
 .PP
 This will alter the boot sector on the disk and copy a file named
-LDLINUX.SYS into its root directory.
+.I ldlinux.sys
+into its root directory.
 .PP
 On boot time, by default, the kernel will be loaded from the image named
 LINUX on the boot floppy.  This default can be changed, see the section
@@ -29,52 +28,79 @@ on the \fBsyslinux\fP configuration file.
 If the Shift or Alt keys are held down during boot, or the Caps or Scroll
 locks are set, \fBsyslinux\fP will display a
 .BR lilo (8)
--style "boot:" prompt. The user can then type a kernel file name followed by
-any kernel parameters. The \fBsyslinux\fP loader does not need to know about the
-kernel file in advance; all that is required is that it is a file located in
-the root directory on the disk.
+-style "boot:" prompt. The user can then type a kernel file name
+followed by any kernel parameters. The \s-1SYSLINUX\s+1 bootloader
+does not need to know about the kernel file in advance; all that is
+required is that it is a file located in the root directory on the
+disk.
 .PP
 \fBSyslinux\fP supports the loading of initial ramdisks (initrd) and the
 bzImage kernel format.
 .SH OPTIONS
 .TP
-.B \-s
-Install a "safe, slow and stupid" version of \fBsyslinux\fP. This version may
-work on some very buggy BIOSes on which \fBsyslinux\fP would otherwise fail.
+\fB\-i\fP, \fB\-\-install\fP
+Install \s-1SYSLINUX\s+1 on a new medium, overwriting any previously
+installed bootloader.
+.TP
+\fB\-U\fP, \fB\-\-update\fP
+Install \s-1SYSLINUX\s+1 on a new medium if and only if a version of
+\s-1SYSLINUX\s+1 is already installed.
+.TP
+\fB\-s\fP, \fB\-\-stupid\fP
+Install a "safe, slow and stupid" version of \s-1SYSLINUX\s+1. This version may
+work on some very buggy BIOSes on which \s-1SYSLINUX\s+1 would otherwise fail.
 If you find a machine on which the \-s option is required to make it boot
 reliably, please send as much info about your machine as you can, and include
 the failure mode.
 .TP
-.B \-f
+\fB\-f\fP, \fB\-\-force\fP
 Force install even if it appears unsafe.
 .TP
-.B \-r
+\fB\-r\fP, \fB\-\-raid\fB
 RAID mode.  If boot fails, tell the BIOS to boot the next device in
 the boot sequence (usually the next hard disk) instead of stopping
 with an error message.  This is useful for RAID-1 booting.
 .TP
-\fB\-d\fP \fIsubdirectory\fP
+\fB\-d\fP, \fB\-\-directory\fP \fIsubdirectory\fP
 Install the \s-1SYSLINUX\s+1 control files in a subdirectory with the
 specified name (relative to the root directory on the device).
 .TP
-\fB\-o\fP \fIoffset\fP
+\fB\-t\fP, \fB\-\-offset\fP \fIoffset\fP
 Indicates that the filesystem is at an offset from the base of the
 device or file.
+.TP
+\fB\-\-once\fP \fIcommand\fP
+Declare a boot command to be tried on the first boot only.
+.TP
+\fB\-O\fP, \fB\-\-clear-once\fP
+Clear the boot-once command.
+.TP
+\fB\-H\fP, \fB\-\-heads\fP \fIhead-count\fP
+Override the detected number of heads for the geometry.
+.TP
+\fB\-S\fP, \fB\-\-sectors\fP \fIsector-count\fP
+Override the detected number of sectors for the geometry.
+.TP
+\fB\-z\fP, \fB\-\-zipdrive\fP
+Assume zipdrive geometry (\fI\-\-heads 64 \-\-sectors 32).
 .SH FILES
 .SS "Configuration file"
-All the configurable defaults in \fBsyslinux\fP can be changed by putting a
+All the configurable defaults in \s-1SYSLINUX\s+1 can be changed by putting a
 file called
 .B syslinux.cfg
-in the root directory of the boot floppy. This
+in the install directory of the boot disk. This
 is a text file in either UNIX or DOS format, containing one or more of
 the following items (case is insensitive for keywords).
+.PP
+This list is out of date.
 .PP
 In the configuration file blank lines and comment lines beginning
 with a hash mark (#) are ignored.
 .TP
 \fBdefault\fP \fIkernel\fP [ \fIoptions ...\fP ]
-Sets the default command line. If \fBsyslinux\fP boots automatically, it will act
-just as if the entries after "default" had been typed in at the "boot:" prompt.
+Sets the default command line. If \fBsyslinux\fP boots automatically,
+it will act just as if the entries after "default" had been typed in
+at the "boot:" prompt.
 .IP
 If no DEFAULT or UI statement is found, or the configuration file is missing
 entirely, \s-1SYSLINUX\s+1 drops to the boot: prompt with an error message (if

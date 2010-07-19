@@ -144,6 +144,10 @@ uint32_t generic_getfssec(struct file *file, char *buf,
 	    if (!inode->this_extent.len) {
 		/* Doesn't matter if it's contiguous... */
 		inode->this_extent = inode->next_extent;
+		if (!inode->next_extent.len) {
+		    sectors = 0; /* Failed to get anything... we're dead */
+		    break;
+		}
 	    } else if (inode->next_extent.len &&
 		inode->next_extent.pstart == next_pstart(&inode->this_extent)) {
 		/* Coalesce extents and loop */
