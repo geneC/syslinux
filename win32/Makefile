@@ -82,6 +82,7 @@ spotless: clean
 installer:
 
 $(LIB): $(LIBOBJS)
+	rm -f $@
 	$(WINAR) cq $@ $^
 	$(WINRANLIB) $@
 
