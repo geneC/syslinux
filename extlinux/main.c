@@ -809,7 +809,7 @@ int main(int argc, char *argv[])
 {
     parse_options(argc, argv, MODE_EXTLINUX);
 
-    if (!opt.directory || opt.install_mbr || opt.activate_partition || opt.force)
+    if (!opt.directory || opt.install_mbr || opt.activate_partition)
 	usage(EX_USAGE, 0);
 
     if (opt.update_only == -1) {
