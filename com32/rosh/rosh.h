@@ -135,10 +135,10 @@ static inline int getscreensize(int fd, int *rows, int *cols)
     str = NULL;
     if (fd == 1) {
 	ioctl(0, TIOCGWINSZ, &ws);
-/*	if (rows)
+	if (rows)
 	    *rows = ws.ws_row;
 	if (cols)
-	    *cols = ws.ws_col;*/
+	    *cols = ws.ws_col;
 	if (rows && !*rows) {
 	    str = getenv("LINES");
 	    if (str)
