@@ -10,8 +10,8 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stddef.h>
 #include <getopt.h>
-#include "mystuff.h"
 
 char *optarg;
 int optind, opterr, optopt;

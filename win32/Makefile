@@ -35,7 +35,7 @@ WINCFLAGS  := $(GCCWARN) -Wno-sign-compare -Os -fomit-frame-pointer \
 	      -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -Os -s
 endif
-WINCFLAGS += -I. -I.. -I../libfat -I../libinstaller
+WINCFLAGS += -I. -I.. -I../libfat -I../libinstaller -I../libinstaller/getopt
 
 WINCC      := $(WINPREFIX)gcc
 WINAR	   := $(WINPREFIX)ar
@@ -51,6 +51,7 @@ LIBSRC   = ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/setadv.c \
+	   ../libinstaller/getopt/getopt_long.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
@@ -59,7 +60,7 @@ LIBOBJS  = $(patsubst %.c,%.obj,$(notdir $(LIBSRC)))
 
 LIB	 = syslinux.lib
 
-VPATH = .:../libfat:../libinstaller
+VPATH = .:../libfat:../libinstaller:../libinstaller/getopt
 
 TARGETS = syslinux.exe
 
