@@ -16,3 +16,4 @@ syslinux_ldlinux_size	= . - syslinux_ldlinux
 	.globl	syslinux_ldlinux_len
 syslinux_ldlinux_len:
 	.long	syslinux_ldlinux_size
+	.size	syslinux_ldlinux_len, .-syslinux_ldlinux_len
