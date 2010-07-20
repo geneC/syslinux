@@ -93,7 +93,8 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
     case MODE_SYSLINUX_DOSWIN:
 	/* For fs installation under Windows (syslinux.exe) */
 	fprintf(stderr,
-	    "Usage: %s [options] <drive>: [bootsecfile]\n",
+	    "Usage: %s [options] <drive>: [bootsecfile]\n"
+	    "  --directory  -d  Directory for installation target\n",
 	    program);
 	break;
     }
@@ -123,7 +124,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "  which includes zipdisks and LS-120 superfloppies.\n"
 	    "\n"
 	    "  The -z option is useful for USB devices which are considered\n"
-	    "  hard disks by some BIOSes and zipdrives by other BIOSes.\n");
+	    "  hard disks by some BIOSes and zipdrives by other BIOSes.");
 
     exit(rv);
 }

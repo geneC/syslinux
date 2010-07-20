@@ -24,7 +24,7 @@ Changes in 4.02:
 	  full.
 	* Handle fallbacks from EDD to CHS, to deal with systems which
 	  announce EDD support but don't actually have it.
-	* SYSLINUX: the mtools and win32 installers now use the new
+	* SYSLINUX: the mtools, DOS and win32 installers now use the new
 	  command line options.
 
 Changes in 4.01:

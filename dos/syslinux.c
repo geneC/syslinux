@@ -32,7 +32,7 @@
 #include "syslxopt.h"
 #include "syslxint.h"
 
-const char *program = "syslinux";	/* Name of program */
+char *program = "syslinux.com";		/* Name of program */
 uint16_t dos_version;
 
 #ifdef DEBUG
@@ -587,22 +587,14 @@ int main(int argc, char *argv[])
     static unsigned char sectbuf[SECTOR_SIZE];
     int dev_fd, fd;
     static char ldlinux_name[] = "@:\\ldlinux.sys";
-    char **argp, *opt;
-    int force = 0;		/* -f (force) option */
     struct libfat_filesystem *fs;
     libfat_sector_t s, *secp;
     libfat_sector_t *sectors;
     int ldlinux_sectors;
     int32_t ldlinux_cluster;
     int nsectors;
-    const char *device = NULL, *bootsecfile = NULL;
     const char *errmsg;
     int i;
-    int writembr = 0;		/* -m (write MBR) option */
-    int set_active = 0;		/* -a (set partition active) option */
-    const char *subdir = NULL;
-    int stupid = 0;
-    int raid_mode = 0;
     int patch_sectors;
     unsigned char *dp;
 
@@ -610,54 +602,20 @@ int main(int argc, char *argv[])
     for (i = 0; i <= argc; i++)
 	dprintf("argv[%d] = %p = \"%s\"\n", i, argv[i], argv[i]);
 
-    (void)argc;			/* Unused */
-
     get_dos_version();
 
-    for (argp = argv + 1; *argp; argp++) {
-	if (**argp == '-') {
-	    opt = *argp + 1;
-	    if (!*opt)
-		usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
+    argv[0] = program;
+    parse_options(argc, argv, MODE_SYSLINUX_DOSWIN);
 
-	    while (*opt) {
-		switch (*opt) {
-		case 's':	/* Use "safe, slow and stupid" code */
-		    stupid = 1;
-		    break;
-		case 'r':	/* RAID mode */
-		    raid_mode = 1;
-		    break;
-		case 'f':	/* Force install */
-		    force = 1;
-		    break;
-		case 'm':	/* Write MBR */
-		    writembr = 1;
-		    break;
-		case 'a':	/* Set partition active */
-		    set_active = 1;
-		    break;
-		case 'd':
-		    if (argp[1])
-			subdir = *++argp;
-		    break;
-		default:
-		    usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
-		}
-		opt++;
-	    }
-	} else {
-	    if (bootsecfile)
-		usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
-	    else if (device)
-		bootsecfile = *argp;
-	    else
-		device = *argp;
-	}
-    }
-
-    if (!device)
+    if (!opt.device)
 	usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
+    if (opt.sectors || opt.heads || opt.reset_adv || opt.set_once
+	|| (opt.update_only > 0) || opt.menu_save || opt.offset) {
+	fprintf(stderr,
+		"At least one specified option not yet implemented"
+		" for this installer.\n");
+	exit(1);
+    }
 
     /*
      * Create an ADV in memory... this should be smarter.
@@ -667,8 +625,8 @@ int main(int argc, char *argv[])
     /*
      * Figure out which drive we're talking to
      */
-    dev_fd = (device[0] & ~0x20) - 0x40;
-    if (dev_fd < 1 || dev_fd > 26 || device[1] != ':' || device[2])
+    dev_fd = (opt.device[0] & ~0x20) - 0x40;
+    if (dev_fd < 1 || dev_fd > 26 || opt.device[1] != ':' || opt.device[2])
 	usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
 
     set_lock_device(dev_fd);
@@ -721,7 +679,7 @@ int main(int argc, char *argv[])
     /*
      * If requested, move ldlinux.sys
      */
-    if (subdir) {
+    if (opt.directory) {
 	char new_ldlinux_name[160];
 	char *cp = new_ldlinux_name + 3;
 	const char *sd;
@@ -731,7 +689,7 @@ int main(int argc, char *argv[])
 	new_ldlinux_name[1] = ':';
 	new_ldlinux_name[2] = '\\';
 
-	for (sd = subdir; *sd; sd++) {
+	for (sd = opt.directory; *sd; sd++) {
 	    char c = *sd;
 
 	    if (c == '/' || c == '\\') {
@@ -764,7 +722,7 @@ int main(int argc, char *argv[])
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
+    i = syslinux_patch(sectors, nsectors, opt.stupid_mode, opt.raid_mode, opt.directory, NULL);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /*
@@ -781,7 +739,7 @@ int main(int argc, char *argv[])
     /*
      * Muck with the MBR, if desired, while we hold the lock
      */
-    adjust_mbr(dev_fd, writembr, set_active);
+    adjust_mbr(dev_fd, opt.install_mbr, opt.activate_partition);
 
     /*
      * To finish up, write the boot sector
@@ -794,9 +752,9 @@ int main(int argc, char *argv[])
     syslinux_make_bootsect(sectbuf);
 
     /* Write new boot sector */
-    if (bootsecfile) {
+    if (opt.bootsecfile) {
 	unlock_device(0);
-	fd = creat(bootsecfile, 0x20);	/* ARCHIVE */
+	fd = creat(opt.bootsecfile, 0x20);	/* ARCHIVE */
 	write_file(fd, sectbuf, SECTOR_SIZE);
 	close(fd);
     } else {

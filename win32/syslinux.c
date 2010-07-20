@@ -252,8 +252,6 @@ int main(int argc, char *argv[])
     uint32_t ldlinux_cluster;
     int nsectors;
 
-    (void)argc;
-
     if (!checkver()) {
 	fprintf(stderr,
 		"You need to be running at least Windows NT; use syslinux.com instead.\n");
