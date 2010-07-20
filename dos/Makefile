@@ -73,4 +73,6 @@ syslinux.com: syslinux.elf
 %.com: %.asm
 	$(NASM) $(NASMOPT) -f bin -o $@ -MP -MD .$@.d -l $*.lst $<
 
+ldlinux.o: ldlinux.S ../core/ldlinux.sys
+
 -include .*.d *.tmp
