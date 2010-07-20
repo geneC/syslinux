@@ -26,6 +26,8 @@ Changes in 4.02:
 	  announce EDD support but don't actually have it.
 	* SYSLINUX: the mtools, DOS and win32 installers now use the new
 	  command line options.
+	* PXELINUX: fix the use of IP addresses in TFTP :: or tftp://
+	  host syntax.
 
 Changes in 4.01:
 	* ISOLINUX: fix initialization on systems which don't zero
