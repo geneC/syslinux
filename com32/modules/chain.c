@@ -117,9 +117,8 @@
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/config.h>
+#include <syslinux/disk.h>
 #include <syslinux/video.h>
-
-#define SECTOR 512		/* bytes/sector */
 
 static struct options {
     const char *loadfile;
@@ -146,308 +145,19 @@ static inline void error(const char *msg)
     fputs(msg, stderr);
 }
 
-/*
- * Call int 13h, but with retry on failure.  Especially floppies need this.
- */
-static int int13_retry(const com32sys_t * inreg, com32sys_t * outreg)
-{
-    int retry = 6;		/* Number of retries */
-    com32sys_t tmpregs;
-
-    if (!outreg)
-	outreg = &tmpregs;
-
-    while (retry--) {
-	__intcall(0x13, inreg, outreg);
-	if (!(outreg->eflags.l & EFLAGS_CF))
-	    return 0;		/* CF=0, OK */
-    }
-
-    return -1;			/* Error */
-}
-
-/*
- * Query disk parameters and EBIOS availability for a particular disk.
- */
-struct diskinfo {
-    int disk;
-    int ebios;			/* EBIOS supported on this disk */
-    int cbios;			/* CHS geometry is valid */
-    int head;
-    int sect;
-} disk_info;
-
-static int get_disk_params(int disk)
-{
-    static com32sys_t getparm, parm, getebios, ebios;
-
-    disk_info.disk = disk;
-    disk_info.ebios = disk_info.cbios = 0;
-
-    /* Get EBIOS support */
-    getebios.eax.w[0] = 0x4100;
-    getebios.ebx.w[0] = 0x55aa;
-    getebios.edx.b[0] = disk;
-    getebios.eflags.b[0] = 0x3;	/* CF set */
-
-    __intcall(0x13, &getebios, &ebios);
-
-    if (!(ebios.eflags.l & EFLAGS_CF) &&
-	ebios.ebx.w[0] == 0xaa55 && (ebios.ecx.b[0] & 1)) {
-	disk_info.ebios = 1;
-    }
-
-    /* Get disk parameters -- really only useful for
-       hard disks, but if we have a partitioned floppy
-       it's actually our best chance... */
-    getparm.eax.b[1] = 0x08;
-    getparm.edx.b[0] = disk;
-
-    __intcall(0x13, &getparm, &parm);
-
-    if (parm.eflags.l & EFLAGS_CF)
-	return disk_info.ebios ? 0 : -1;
-
-    disk_info.head = parm.edx.b[1] + 1;
-    disk_info.sect = parm.ecx.b[0] & 0x3f;
-    if (disk_info.sect == 0) {
-	disk_info.sect = 1;
-    } else {
-	disk_info.cbios = 1;	/* Valid geometry */
-    }
-
-    return 0;
-}
-
-/*
- * Get a disk block and return a malloc'd buffer.
- * Uses the disk number and information from disk_info.
- */
-struct ebios_dapa {
-    uint16_t len;
-    uint16_t count;
-    uint16_t off;
-    uint16_t seg;
-    uint64_t lba;
-};
-
-/* Read count sectors from drive, starting at lba.  Return a new buffer */
-static void *read_sectors(uint64_t lba, uint8_t count)
-{
-    com32sys_t inreg;
-    struct ebios_dapa *dapa = __com32.cs_bounce;
-    void *buf = (char *)__com32.cs_bounce + SECTOR;
-    void *data;
-
-    if (!count)
-	/* Silly */
-	return NULL;
-
-    memset(&inreg, 0, sizeof inreg);
-
-    if (disk_info.ebios) {
-	dapa->len = sizeof(*dapa);
-	dapa->count = count;
-	dapa->off = OFFS(buf);
-	dapa->seg = SEG(buf);
-	dapa->lba = lba;
-
-	inreg.esi.w[0] = OFFS(dapa);
-	inreg.ds = SEG(dapa);
-	inreg.edx.b[0] = disk_info.disk;
-	inreg.eax.b[1] = 0x42;	/* Extended read */
-    } else {
-	unsigned int c, h, s, t;
-
-	if (!disk_info.cbios) {
-	    /* We failed to get the geometry */
-
-	    if (lba)
-		return NULL;	/* Can only read MBR */
-
-	    s = 1;
-	    h = 0;
-	    c = 0;
-	} else {
-	    s = (lba % disk_info.sect) + 1;
-	    t = lba / disk_info.sect;	/* Track = head*cyl */
-	    h = t % disk_info.head;
-	    c = t / disk_info.head;
-	}
-
-	if (s > 63 || h > 256 || c > 1023)
-	    return NULL;
-
-	inreg.eax.b[0] = count;
-	inreg.eax.b[1] = 0x02;	/* Read */
-	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
-	inreg.edx.b[1] = h;
-	inreg.edx.b[0] = disk_info.disk;
-	inreg.ebx.w[0] = OFFS(buf);
-	inreg.es = SEG(buf);
-    }
-
-    if (int13_retry(&inreg, NULL))
-	return NULL;
-
-    data = malloc(count * SECTOR);
-    if (data)
-	memcpy(data, buf, count * SECTOR);
-    return data;
-}
-
-static int write_sector(unsigned int lba, const void *data)
-{
-    com32sys_t inreg;
-    struct ebios_dapa *dapa = __com32.cs_bounce;
-    void *buf = (char *)__com32.cs_bounce + SECTOR;
-
-    memcpy(buf, data, SECTOR);
-    memset(&inreg, 0, sizeof inreg);
-
-    if (disk_info.ebios) {
-	dapa->len = sizeof(*dapa);
-	dapa->count = 1;	/* 1 sector */
-	dapa->off = OFFS(buf);
-	dapa->seg = SEG(buf);
-	dapa->lba = lba;
-
-	inreg.esi.w[0] = OFFS(dapa);
-	inreg.ds = SEG(dapa);
-	inreg.edx.b[0] = disk_info.disk;
-	inreg.eax.w[0] = 0x4300;	/* Extended write */
-    } else {
-	unsigned int c, h, s, t;
-
-	if (!disk_info.cbios) {
-	    /* We failed to get the geometry */
-
-	    if (lba)
-		return -1;	/* Can only write MBR */
-
-	    s = 1;
-	    h = 0;
-	    c = 0;
-	} else {
-	    s = (lba % disk_info.sect) + 1;
-	    t = lba / disk_info.sect;	/* Track = head*cyl */
-	    h = t % disk_info.head;
-	    c = t / disk_info.head;
-	}
-
-	if (s > 63 || h > 256 || c > 1023)
-	    return -1;
-
-	inreg.eax.w[0] = 0x0301;	/* Write one sector */
-	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
-	inreg.edx.b[1] = h;
-	inreg.edx.b[0] = disk_info.disk;
-	inreg.ebx.w[0] = OFFS(buf);
-	inreg.es = SEG(buf);
-    }
-
-    if (int13_retry(&inreg, NULL))
-	return -1;
-
-    return 0;			/* ok */
-}
-
-static int write_verify_sector(unsigned int lba, const void *buf)
-{
-    char *rb;
-    int rv;
-
-    rv = write_sector(lba, buf);
-    if (rv)
-	return rv;		/* Write failure */
-    rb = read_sectors(lba, 1);
-    if (!rb)
-	return -1;		/* Readback failure */
-    rv = memcmp(buf, rb, SECTOR);
-    free(rb);
-    return rv ? -1 : 0;
-}
-
-/*
- * CHS (cylinder, head, sector) value extraction macros.
- * Taken from WinVBlock.  Does not expand to an lvalue
-*/
-#define     chs_head(chs) chs[0]
-#define   chs_sector(chs) (chs[1] & 0x3F)
-#define chs_cyl_high(chs) (((uint16_t)(chs[1] & 0xC0)) << 2)
-#define  chs_cyl_low(chs) ((uint16_t)chs[2])
-#define chs_cylinder(chs) (chs_cyl_high(chs) | chs_cyl_low(chs))
-typedef uint8_t chs[3];
-
-/* A DOS partition table entry */
-struct part_entry {
-    uint8_t active_flag;	/* 0x80 if "active" */
-    chs start;
-    uint8_t ostype;
-    chs end;
-    uint32_t start_lba;
-    uint32_t length;
-} __attribute__ ((packed));
-
-static void mbr_part_dump(const struct part_entry *part)
-{
-    (void)part;
-    dprintf("Partition status _____ : 0x%.2x\n"
-	    "Partition CHS start\n"
-	    "  Cylinder ___________ : 0x%.4x (%u)\n"
-	    "  Head _______________ : 0x%.2x (%u)\n"
-	    "  Sector _____________ : 0x%.2x (%u)\n"
-	    "Partition type _______ : 0x%.2x\n"
-	    "Partition CHS end\n"
-	    "  Cylinder ___________ : 0x%.4x (%u)\n"
-	    "  Head _______________ : 0x%.2x (%u)\n"
-	    "  Sector _____________ : 0x%.2x (%u)\n"
-	    "Partition LBA start __ : 0x%.8x (%u)\n"
-	    "Partition LBA count __ : 0x%.8x (%u)\n"
-	    "-------------------------------\n",
-	    part->active_flag,
-	    chs_cylinder(part->start),
-	    chs_cylinder(part->start),
-	    chs_head(part->start),
-	    chs_head(part->start),
-	    chs_sector(part->start),
-	    chs_sector(part->start),
-	    part->ostype,
-	    chs_cylinder(part->end),
-	    chs_cylinder(part->end),
-	    chs_head(part->end),
-	    chs_head(part->end),
-	    chs_sector(part->end),
-	    chs_sector(part->end),
-	    part->start_lba,
-	    part->start_lba,
-	    part->length,
-	    part->length);
-}
-
-/* A DOS MBR */
-struct mbr {
-    char code[440];
-    uint32_t disk_sig;
-    char pad[2];
-    struct part_entry table[4];
-    uint16_t sig;
-} __attribute__ ((packed));
-static const uint16_t mbr_sig_magic = 0xAA55;
+static struct disk_info diskinfo;
 
 /* Search for a specific drive, based on the MBR signature; bytes 440-443 */
 static int find_disk(uint32_t mbr_sig)
 {
     int drive;
     bool is_me;
-    struct mbr *mbr;
+    struct disk_dos_mbr *mbr;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
-	if (get_disk_params(drive))
+	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(mbr = read_sectors(0, 1)))
+	if (!(mbr = disk_read_sectors(&diskinfo, 0, 1)))
 	    continue;		/* Cannot read sector */
 	is_me = (mbr->disk_sig == mbr_sig);
 	free(mbr);
@@ -473,7 +183,7 @@ struct disk_part_iter {
     /* The partition number, as determined by our heuristic */
     int index;
     /* The DOS partition record to pass, if applicable */
-    const struct part_entry *record;
+    const struct disk_dos_part_entry *record;
     /* Function returning the next available partition */
     disk_part_iter_func next;
     /* Partition-/scheme-specific details */
@@ -507,16 +217,16 @@ struct disk_part_iter {
 
 static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
 {
-    const struct part_entry *ebr_table;
-    const struct part_entry *parent_table =
-	((const struct mbr *)part->private.ebr.parent->block)->table;
-    static const struct part_entry phony = {.start_lba = 0 };
+    const struct disk_dos_part_entry *ebr_table;
+    const struct disk_dos_part_entry *parent_table =
+	((const struct disk_dos_mbr *)part->private.ebr.parent->block)->table;
+    static const struct disk_dos_part_entry phony = {.start_lba = 0 };
     uint64_t ebr_lba;
 
     /* Don't look for a "next EBR" the first time around */
     if (part->private.ebr.parent_index >= 0)
 	/* Look at the linked list */
-	ebr_table = ((const struct mbr *)part->block)->table + 1;
+	ebr_table = ((const struct disk_dos_mbr *)part->block)->table + 1;
     /* Do we need to look for an extended partition? */
     if (part->private.ebr.parent_index < 0 || !ebr_table->start_lba) {
 	/* Start looking for an extended partition in the MBR */
@@ -536,14 +246,14 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
     /* Load next EBR */
     ebr_lba = ebr_table->start_lba + part->private.ebr.lba_extended;
     free(part->block);
-    part->block = read_sectors(ebr_lba, 1);
+    part->block = disk_read_sectors(&diskinfo, ebr_lba, 1);
     if (!part->block) {
 	error("Could not load EBR!\n");
 	goto err_ebr;
     }
-    ebr_table = ((const struct mbr *)part->block)->table;
+    ebr_table = ((const struct disk_dos_mbr *)part->block)->table;
     dprintf("next_ebr_part:\n");
-    mbr_part_dump(ebr_table);
+    disk_dos_part_dump(ebr_table);
 
     /*
      * Sanity check entry: must not extend outside the
@@ -551,9 +261,9 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
      * put crap in some entries.
      */
     {
-	const struct mbr *mbr =
-	    (const struct mbr *)part->private.ebr.parent->block;
-	const struct part_entry *extended =
+	const struct disk_dos_mbr *mbr =
+	    (const struct disk_dos_mbr *)part->private.ebr.parent->block;
+	const struct disk_dos_part_entry *extended =
 	    mbr->table + part->private.ebr.parent_index;
 
 	if (ebr_table[0].start_lba >= extended->start_lba + extended->length) {
@@ -586,7 +296,8 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 {
     struct disk_part_iter *ebr_part;
     /* Look at the partition table */
-    struct part_entry *table = ((struct mbr *)part->block)->table;
+    struct disk_dos_part_entry *table =
+	((struct disk_dos_mbr *)part->block)->table;
 
     /* Look for data partitions */
     while (++part->private.mbr_index < 4) {
@@ -620,7 +331,7 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 	return next_ebr_part(ebr_part);
     }
     dprintf("next_mbr_part:\n");
-    mbr_part_dump(table + part->private.mbr_index);
+    disk_dos_part_dump(table + part->private.mbr_index);
 
     /* Update parameters to reflect this new partition.  Re-use iterator */
     part->lba_data = table[part->private.mbr_index].start_lba;
@@ -637,226 +348,15 @@ err_alloc:
     return NULL;
 }
 
-/*
- * GUID
- * Be careful with endianness, you must adjust it yourself
- * iff you are directly using the fourth data chunk
- */
-struct guid {
-    uint32_t data1;
-    uint16_t data2;
-    uint16_t data3;
-    uint64_t data4;
-} __attribute__ ((packed));
-
-    /*
-     * This walk-map effectively reverses the little-endian
-     * portions of the GUID in the output text
-     */
-static const char guid_le_walk_map[] = {
-    3, -1, -1, -1, 0,
-    5, -1, 0,
-    3, -1, 0,
-    2, 1, 0,
-    1, 1, 1, 1, 1, 1
-};
-
-#if DEBUG
-/*
- * Fill a buffer with a textual GUID representation.
- * The buffer must be >= char[37] and will be populated
- * with an ASCII NUL C string terminator.
- * Example: 11111111-2222-3333-4444-444444444444
- * Endian:  LLLLLLLL-LLLL-LLLL-BBBB-BBBBBBBBBBBB
- */
-static void guid_to_str(char *buf, const struct guid *id)
-{
-    unsigned int i = 0;
-    const char *walker = (const char *)id;
-
-    while (i < sizeof(guid_le_walk_map)) {
-	walker += guid_le_walk_map[i];
-	if (!guid_le_walk_map[i])
-	    *buf = '-';
-	else {
-	    *buf = ((*walker & 0xF0) >> 4) + '0';
-	    if (*buf > '9')
-		*buf += 'A' - '9' - 1;
-	    buf++;
-	    *buf = (*walker & 0x0F) + '0';
-	    if (*buf > '9')
-		*buf += 'A' - '9' - 1;
-	}
-	buf++;
-	i++;
-    }
-    *buf = 0;
-}
-#endif
-
-/*
- * Create a GUID structure from a textual GUID representation.
- * The input buffer must be >= 32 hexadecimal chars and be
- * terminated with an ASCII NUL.  Returns non-zero on failure.
- * Example: 11111111-2222-3333-4444-444444444444
- * Endian:  LLLLLLLL-LLLL-LLLL-BBBB-BBBBBBBBBBBB
- */
-static int str_to_guid(const char *buf, struct guid *id)
-{
-    char guid_seq[sizeof(struct guid) * 2];
-    unsigned int i = 0;
-    char *walker = (char *)id;
-
-    while (*buf && i < sizeof(guid_seq)) {
-	switch (*buf) {
-	    /* Skip these three characters */
-	case '{':
-	case '}':
-	case '-':
-	    break;
-	default:
-	    /* Copy something useful to the temp. sequence */
-	    if ((*buf >= '0') && (*buf <= '9'))
-		guid_seq[i] = *buf - '0';
-	    else if ((*buf >= 'A') && (*buf <= 'F'))
-		guid_seq[i] = *buf - 'A' + 10;
-	    else if ((*buf >= 'a') && (*buf <= 'f'))
-		guid_seq[i] = *buf - 'a' + 10;
-	    else {
-		/* Or not */
-		error("Illegal character in GUID!\n");
-		return -1;
-	    }
-	    i++;
-	}
-	buf++;
-    }
-    /* Check for insufficient valid characters */
-    if (i < sizeof(guid_seq)) {
-	error("Too few GUID characters!\n");
-	return -1;
-    }
-    buf = guid_seq;
-    i = 0;
-    while (i < sizeof(guid_le_walk_map)) {
-	if (!guid_le_walk_map[i])
-	    i++;
-	walker += guid_le_walk_map[i];
-	*walker = *buf << 4;
-	buf++;
-	*walker |= *buf;
-	buf++;
-	i++;
-    }
-    return 0;
-}
-
-/* A GPT partition */
-struct gpt_part {
-    struct guid type;
-    struct guid uid;
-    uint64_t lba_first;
-    uint64_t lba_last;
-    uint64_t attribs;
-    char name[72];
-} __attribute__ ((packed));
-
-static void gpt_part_dump(const struct gpt_part *gpt_part)
-{
-#ifdef DEBUG
-    unsigned int i;
-    char guid_text[37];
-
-    dprintf("----------------------------------\n"
-	    "GPT part. LBA first __ : 0x%.16llx\n"
-	    "GPT part. LBA last ___ : 0x%.16llx\n"
-	    "GPT part. attribs ____ : 0x%.16llx\n"
-	    "GPT part. name _______ : '",
-	    gpt_part->lba_first, gpt_part->lba_last, gpt_part->attribs);
-    for (i = 0; i < sizeof(gpt_part->name); i++) {
-	if (gpt_part->name[i])
-	    dprintf("%c", gpt_part->name[i]);
-    }
-    dprintf("'");
-    guid_to_str(guid_text, &gpt_part->type);
-    dprintf("GPT part. type GUID __ : {%s}\n", guid_text);
-    guid_to_str(guid_text, &gpt_part->uid);
-    dprintf("GPT part. unique ID __ : {%s}\n", guid_text);
-#endif
-    (void)gpt_part;
-}
-
-/* A GPT header */
-struct gpt {
-    char sig[8];
-    union {
-	struct {
-	    uint16_t minor;
-	    uint16_t major;
-	} fields __attribute__ ((packed));
-	uint32_t uint32;
-	char raw[4];
-    } rev __attribute__ ((packed));
-    uint32_t hdr_size;
-    uint32_t chksum;
-    char reserved1[4];
-    uint64_t lba_cur;
-    uint64_t lba_alt;
-    uint64_t lba_first_usable;
-    uint64_t lba_last_usable;
-    struct guid disk_guid;
-    uint64_t lba_table;
-    uint32_t part_count;
-    uint32_t part_size;
-    uint32_t table_chksum;
-    char reserved2[1];
-} __attribute__ ((packed));
-static const char gpt_sig_magic[] = "EFI PART";
-
-#if DEBUG
-static void gpt_dump(const struct gpt *gpt)
-{
-    char guid_text[37];
-
-    printf("GPT sig ______________ : '%8.8s'\n"
-	   "GPT major revision ___ : 0x%.4x\n"
-	   "GPT minor revision ___ : 0x%.4x\n"
-	   "GPT header size ______ : 0x%.8x\n"
-	   "GPT header checksum __ : 0x%.8x\n"
-	   "GPT reserved _________ : '%4.4s'\n"
-	   "GPT LBA current ______ : 0x%.16llx\n"
-	   "GPT LBA alternative __ : 0x%.16llx\n"
-	   "GPT LBA first usable _ : 0x%.16llx\n"
-	   "GPT LBA last usable __ : 0x%.16llx\n"
-	   "GPT LBA part. table __ : 0x%.16llx\n"
-	   "GPT partition count __ : 0x%.8x\n"
-	   "GPT partition size ___ : 0x%.8x\n"
-	   "GPT part. table chksum : 0x%.8x\n",
-	   gpt->sig,
-	   gpt->rev.fields.major,
-	   gpt->rev.fields.minor,
-	   gpt->hdr_size,
-	   gpt->chksum,
-	   gpt->reserved1,
-	   gpt->lba_cur,
-	   gpt->lba_alt,
-	   gpt->lba_first_usable,
-	   gpt->lba_last_usable,
-	   gpt->lba_table, gpt->part_count, gpt->part_size, gpt->table_chksum);
-    guid_to_str(guid_text, &gpt->disk_guid);
-    printf("GPT disk GUID ________ : {%s}\n", guid_text);
-}
-#endif
-
 static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
 {
-    const struct gpt_part *gpt_part = NULL;
+    const struct disk_gpt_part_entry *gpt_part = NULL;
 
     while (++part->private.gpt.index < part->private.gpt.parts) {
 	gpt_part =
-	    (const struct gpt_part *)(part->block +
-				      (part->private.gpt.index *
-				       part->private.gpt.size));
+	    (const struct disk_gpt_part_entry *)(part->block +
+						 (part->private.gpt.index *
+						  part->private.gpt.size));
 	if (!gpt_part->lba_first)
 	    continue;
 	break;
@@ -870,7 +370,9 @@ static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
     part->private.gpt.part_label = gpt_part->name;
     /* Update our index */
     part->index++;
-    gpt_part_dump(gpt_part);
+#ifdef DEBUG
+    disk_gpt_part_dump(gpt_part);
+#endif
 
     /* In a GPT scheme, we re-use the iterator */
     return part;
@@ -884,7 +386,7 @@ err_last:
 
 static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 {
-    const struct gpt *gpt_candidate;
+    const struct disk_gpt_header *gpt_candidate;
 
     /*
      * Ignore any passed partition iterator.  The caller should
@@ -896,13 +398,13 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 	goto err_alloc_iter;
     }
     /* Read MBR */
-    part->block = read_sectors(0, 2);
+    part->block = disk_read_sectors(&diskinfo, 0, 2);
     if (!part->block) {
 	error("Could not read two sectors!\n");
 	goto err_read_mbr;
     }
     /* Check for an MBR */
-    if (((struct mbr *)part->block)->sig != mbr_sig_magic) {
+    if (((struct disk_dos_mbr *)part->block)->sig != disk_mbr_sig_magic) {
 	error("No MBR magic!\n");
 	goto err_mbr;
     }
@@ -912,8 +414,9 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
     part->private.mbr_index = -1;
     part->next = next_mbr_part;
     /* Check for a GPT disk */
-    gpt_candidate = (const struct gpt *)(part->block + SECTOR);
-    if (!memcmp(gpt_candidate->sig, gpt_sig_magic, sizeof(gpt_sig_magic))) {
+    gpt_candidate = (const struct disk_gpt_header *)(part->block + SECTOR);
+    if (!memcmp
+	(gpt_candidate->sig, disk_gpt_sig_magic, sizeof(disk_gpt_sig_magic))) {
 	/* LBA for partition table */
 	uint64_t lba_table;
 
@@ -921,7 +424,7 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 	/* TODO: Check checksum.  Possibly try alternative GPT */
 #if DEBUG
 	puts("Looks like a GPT disk.");
-	gpt_dump(gpt_candidate);
+	disk_gpt_header_dump(gpt_candidate);
 #endif
 	/* TODO: Check table checksum (maybe) */
 	/* Note relevant GPT details */
@@ -934,9 +437,10 @@ static struct disk_part_iter *get_first_partition(struct disk_part_iter *part)
 	/* Load the partition table */
 	free(part->block);
 	part->block =
-	    read_sectors(lba_table,
-			 ((part->private.gpt.size * part->private.gpt.parts) +
-			  SECTOR - 1) / SECTOR);
+	    disk_read_sectors(&diskinfo, lba_table,
+			      ((part->private.gpt.size *
+				part->private.gpt.parts) + SECTOR -
+			       1) / SECTOR);
 	if (!part->block) {
 	    error("Could not read GPT partition list!\n");
 	    goto err_gpt_table;
@@ -972,20 +476,21 @@ static int find_by_guid(const struct guid *gpt_guid,
 {
     int drive;
     bool is_me;
-    struct gpt *header;
+    struct disk_gpt_header *header;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
-	if (get_disk_params(drive))
+	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(header = read_sectors(1, 1)))
+	if (!(header = disk_read_sectors(&diskinfo, 1, 1)))
 	    continue;		/* Cannot read sector */
-	if (memcmp(&header->sig, gpt_sig_magic, sizeof(gpt_sig_magic))) {
+	if (memcmp
+	    (&header->sig, disk_gpt_sig_magic, sizeof(disk_gpt_sig_magic))) {
 	    /* Not a GPT disk */
 	    free(header);
 	    continue;
 	}
 #if DEBUG
-	gpt_dump(header);
+	disk_gpt_header_dump(header);
 #endif
 	is_me = !memcmp(&header->disk_guid, &gpt_guid, sizeof(*gpt_guid));
 	free(header);
@@ -1021,7 +526,7 @@ static int find_by_label(const char *label, struct disk_part_iter **boot_part)
     bool is_me;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
-	if (get_disk_params(drive))
+	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	/* Check for a GPT disk */
 	boot_part[0] = get_first_partition(NULL);
@@ -1035,7 +540,7 @@ static int find_by_label(const char *label, struct disk_part_iter **boot_part)
 	}
 	/* Check for a matching partition */
 	while (boot_part[0]) {
-	    char gpt_label[sizeof(((struct gpt_part *) NULL)->name)];
+	    char gpt_label[sizeof(((struct disk_gpt_part_entry *) NULL)->name)];
 	    const char *gpt_label_scanner =
 		boot_part[0]->private.gpt.part_label;
 	    int j = 0;
@@ -1188,10 +693,10 @@ enomem:
     return;
 }
 
-static int hide_unhide(struct mbr *mbr, int part)
+static int hide_unhide(struct disk_dos_mbr *mbr, int part)
 {
     int i;
-    struct part_entry *pt;
+    struct disk_dos_part_entry *pt;
     const uint16_t mask =
 	(1 << 0x01) | (1 << 0x04) | (1 << 0x06) | (1 << 0x07) | (1 << 0x0b) | (1
 									       <<
@@ -1217,7 +722,7 @@ static int hide_unhide(struct mbr *mbr, int part)
     }
 
     if (write_back)
-	return write_verify_sector(0, mbr);
+	return disk_write_verify_sector(&diskinfo, 0, mbr);
 
     return 0;			/* ok */
 }
@@ -1295,7 +800,7 @@ See syslinux/com32/modules/chain.c for more information\n";
 
 int main(int argc, char *argv[])
 {
-    struct mbr *mbr = NULL;
+    struct disk_dos_mbr *mbr = NULL;
     char *p;
     struct disk_part_iter *cur_part = NULL;
     struct syslinux_rm_regs regs;
@@ -1464,13 +969,13 @@ int main(int argc, char *argv[])
     regs.ebx.b[0] = regs.edx.b[0] = drive;
 
     /* Get the disk geometry and disk access setup */
-    if (get_disk_params(drive)) {
+    if (disk_get_params(drive, &diskinfo)) {
 	error("Cannot get disk parameters\n");
 	goto bail;
     }
 
     /* Get MBR */
-    if (!(mbr = read_sectors(0, 1))) {
+    if (!(mbr = disk_read_sectors(&diskinfo, 0, 1))) {
 	error("Cannot read Master Boot Record or sector 0\n");
 	goto bail;
     }
@@ -1704,7 +1209,10 @@ int main(int argc, char *argv[])
 	/* Actually read the boot sector */
 	if (!cur_part) {
 	    data[ndata].data = mbr;
-	} else if (!(data[ndata].data = read_sectors(cur_part->lba_data, 1))) {
+	} else
+	    if (!
+		(data[ndata].data =
+		 disk_read_sectors(&diskinfo, cur_part->lba_data, 1))) {
 	    error("Cannot read boot sector\n");
 	    goto bail;
 	}
@@ -1712,10 +1220,11 @@ int main(int argc, char *argv[])
 	data[ndata].base = load_base;
 
 	if (!opt.loadfile) {
-	    const struct mbr *br =
-		(const struct mbr *)((char *)data[ndata].data +
-				     data[ndata].size - sizeof(struct mbr));
-	    if (br->sig != mbr_sig_magic) {
+	    const struct disk_dos_mbr *br =
+		(const struct disk_dos_mbr *)((char *)data[ndata].data +
+					      data[ndata].size -
+					      sizeof(struct disk_dos_mbr));
+	    if (br->sig != disk_mbr_sig_magic) {
 		error
 		    ("Boot sector signature not found (unbootable disk/partition?)\n");
 		goto bail;
@@ -1746,16 +1255,17 @@ int main(int argc, char *argv[])
     if (cur_part) {
 	if (cur_part->next == next_gpt_part) {
 	    /* Do GPT hand-over, if applicable (as per syslinux/doc/gpt.txt) */
-	    struct part_entry *record;
+	    struct disk_dos_part_entry *record;
 	    /* Look at the GPT partition */
-	    const struct gpt_part *gp = (const struct gpt_part *)
+	    const struct disk_gpt_part_entry *gp =
+		(const struct disk_gpt_part_entry *)
 		(cur_part->block +
 		 (cur_part->private.gpt.size * cur_part->private.gpt.index));
 	    /* Note the partition length */
 	    uint64_t lba_count = gp->lba_last - gp->lba_first + 1;
 	    /* The length of the hand-over */
 	    int synth_size =
-		sizeof(struct part_entry) + sizeof(uint32_t) +
+		sizeof(struct disk_dos_part_entry) + sizeof(uint32_t) +
 		cur_part->private.gpt.size;
 	    /* Will point to the partition record length in the hand-over */
 	    uint32_t *plen;
@@ -1793,11 +1303,13 @@ int main(int argc, char *argv[])
 	    regs.esi.w[0] = 0x7be;
 
 	    dprintf("GPT handover:\n");
-	    mbr_part_dump(record);
-	    gpt_part_dump((struct gpt_part *)(plen + 1));
+	    disk_dos_part_dump(record);
+#ifdef DEBUG
+	    disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
+#endif
 	} else if (cur_part->record) {
 	    /* MBR handover protocol */
-	    static struct part_entry handover_record;
+	    static struct disk_dos_part_entry handover_record;
 
 	    handover_record = *cur_part->record;
 	    handover_record.start_lba = cur_part->lba_data;
@@ -1809,7 +1321,7 @@ int main(int argc, char *argv[])
 	    regs.esi.w[0] = 0x7be;
 
 	    dprintf("MBR handover:\n");
-	    mbr_part_dump(&handover_record);
+	    disk_dos_part_dump(&handover_record);
 	}
     }
 
