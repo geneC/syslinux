@@ -28,6 +28,7 @@ Changes in 4.02:
 	  command line options.
 	* PXELINUX: fix the use of IP addresses in TFTP :: or tftp://
 	  host syntax.
+	* SYSLINUX: experimental Win64 installer (syslinux64.exe).
 
 Changes in 4.01:
 	* ISOLINUX: fix initialization on systems which don't zero

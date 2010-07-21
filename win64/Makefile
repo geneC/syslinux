@@ -12,29 +12,19 @@
 ## -----------------------------------------------------------------------
 
 #
-# Makefile for SYSLINUX Win32
+# Makefile for SYSLINUX Win64
 #
 # This is separated out mostly so we can have a different set of Makefile
 # variables.
 #
 
 OSTYPE   = $(shell uname -msr)
-ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
-## Compiling on Cygwin
-WINPREFIX  :=
-WINCFLAGS  := -mno-cygwin $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-WINLDFLAGS := -mno-cygwin -Os -s
-else
-## Compiling on some variant of MinGW
-ifeq ($(findstring MINGW32,$(OSTYPE)),MINGW32)
-WINPREFIX  :=
-else
-WINPREFIX  := $(shell ./find-mingw32.sh gcc)
-endif
+# Don't know how to do a native compile here...
+WINPREFIX  := $(shell ./find-mingw64.sh gcc)
 WINCFLAGS  := $(GCCWARN) -Wno-sign-compare -Os -fomit-frame-pointer \
 	      -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -Os -s
-endif
+
 WINCFLAGS += -I. -I../win -I.. -I../libfat -I../libinstaller \
 	     -I../libinstaller/getopt
 
@@ -64,7 +54,7 @@ LIB	 = syslinux.lib
 
 VPATH = .:../win:../libfat:../libinstaller:../libinstaller/getopt
 
-TARGETS = syslinux.exe
+TARGETS = syslinux64.exe
 
 ifeq ($(WINCC_IS_GOOD),0)
 all: $(TARGETS)
@@ -88,7 +78,7 @@ $(LIB): $(LIBOBJS)
 	$(WINAR) cq $@ $^
 	$(WINRANLIB) $@
 
-syslinux.exe: $(OBJS) $(LIB)
+syslinux64.exe: $(OBJS) $(LIB)
 	$(WINCC) $(WINLDFLAGS) -o $@ $^
 
 

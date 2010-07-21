@@ -4,6 +4,7 @@ cc="$1"
 
 for prefix in \
     mingw- \
+    mingw32- \
     i386-pc-mingw32- \
     i486-pc-mingw32- \
     i586-pc-mingw32- \

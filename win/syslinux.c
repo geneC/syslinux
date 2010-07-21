@@ -46,12 +46,15 @@ void error(char *msg);
 #define PART_ACTIVE 0x80
 
 // The following struct should be in the ntddstor.h file, but I didn't have it.
-// TODO: Make this a conditional compilation
+// mingw32 has <ddk/ntddstor.h>, but including that file causes all kinds
+// of other failures.  mingw64 has it in <winioctl.h>.
+#ifndef __x86_64__
 typedef struct _STORAGE_DEVICE_NUMBER {
     DEVICE_TYPE DeviceType;
     ULONG DeviceNumber;
     ULONG PartitionNumber;
 } STORAGE_DEVICE_NUMBER, *PSTORAGE_DEVICE_NUMBER;
+#endif
 
 BOOL GetStorageDeviceNumberByHandle(HANDLE handle,
 				    const STORAGE_DEVICE_NUMBER * sdn)
