@@ -11,7 +11,7 @@
 
 	; fs.c
 	extern fs_init, pm_searchdir, getfssec, getfsbytes
-	extern pm_mangle_name, load_config
+	extern pm_mangle_name, pm_load_config
         extern pm_open_file, pm_close_file
 	extern SectorSize, SectorShift
 

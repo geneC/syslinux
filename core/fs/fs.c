@@ -77,7 +77,7 @@ void _close_file(struct file *file)
  * Convert between a 16-bit file handle and a file structure
  */
 
-void load_config(void)
+void pm_load_config(com32sys_t *regs)
 {
     int err;
 
@@ -85,6 +85,9 @@ void load_config(void)
 
     if (err)
 	printf("ERROR: No configuration file found\n");
+
+    regs->eflags.l &= ~(EFLAGS_ZF | EFLAGS_CF);
+    regs->eflags.l |= err ? EFLAGS_ZF : 0;
 }
 
 void pm_mangle_name(com32sys_t *regs)
