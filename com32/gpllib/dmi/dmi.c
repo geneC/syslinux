@@ -516,6 +516,8 @@ int dmi_iterate(s_dmi * dmi)
     int found = 0;
 
     /* Cleaning structures */
+    memset(dmi, 0, sizeof(s_dmi));
+
     memset(&dmi->base_board, 0, sizeof(s_base_board));
     memset(&dmi->battery, 0, sizeof(s_battery));
     memset(&dmi->bios, 0, sizeof(s_bios));
@@ -751,11 +753,11 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	dmi->memory_module[dmi->memory_module_count - 1].filled = true;
 	strlcpy(module->socket_designation, dmi_string(h, data[0x04]),
 		sizeof(module->socket_designation));
-	dmi_memory_module_connections(data[0x05], module->bank_connections);
+	dmi_memory_module_connections(data[0x05], module->bank_connections, sizeof(module->bank_connections));
 	dmi_memory_module_speed(data[0x06], module->speed);
-	dmi_memory_module_types(WORD(data + 0x07), " ", module->type);
-	dmi_memory_module_size(data[0x09], module->installed_size);
-	dmi_memory_module_size(data[0x0A], module->enabled_size);
+	dmi_memory_module_types(WORD(data + 0x07), " ", module->type, sizeof(module->type));
+	dmi_memory_module_size(data[0x09], module->installed_size, sizeof(module->installed_size));
+	dmi_memory_module_size(data[0x0A], module->enabled_size, sizeof(module->enabled_size));
 	dmi_memory_module_error(data[0x0B], "\t\t", module->error_status);
 	break;
     case 7:			/* 3.3.8 Cache Information */
@@ -836,7 +838,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 		sizeof(mem->bank_locator));
 	strlcpy(mem->type, dmi_memory_device_type(data[0x12]),
 		sizeof(mem->type));
-	dmi_memory_device_type_detail(WORD(data + 0x13), mem->type_detail);
+	dmi_memory_device_type_detail(WORD(data + 0x13), mem->type_detail, sizeof(mem->type_detail));
 	if (h->length < 0x17)
 	    break;
 	dmi_memory_device_speed(WORD(data + 0x15), mem->speed);

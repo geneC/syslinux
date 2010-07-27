@@ -50,6 +50,7 @@ int25_read_sector:
 	popl	%edi
 	popl	%ebp
 	retl
+	.size	int25_read_sector, .-int25_read_sector
 
 	.globl	int26_write_sector
 	.type	int26_write_sector, @function
@@ -74,3 +75,4 @@ int26_write_sector:
 	popl	%edi
 	popl	%ebp
 	retl
+	.size	int26_write_sector, .-int26_write_sector

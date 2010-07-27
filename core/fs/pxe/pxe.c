@@ -245,7 +245,7 @@ static const char *parse_dotquad(const char *ip_str, uint32_t *res)
     }
     p--;
 
-    *res = ip;
+    *res = htonl(ip);
     return p;
 }
 

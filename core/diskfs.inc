@@ -97,7 +97,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 ;
 ; Load configuration file
 ;
-		pm_call load_config
+		pm_call pm_load_config
 		jz no_config_file
 
 ;

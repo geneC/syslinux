@@ -75,4 +75,17 @@ static inline uint32_t ms_timer(void)
     return __ms_timer;
 }
 
+/*
+ * Helper routine to return a specific set of flags
+ */
+static inline void set_flags(com32sys_t *regs, uint32_t flags)
+{
+    uint32_t eflags;
+
+    eflags = regs->eflags.l;
+    eflags &= ~(EFLAGS_CF|EFLAGS_PF|EFLAGS_AF|EFLAGS_ZF|EFLAGS_SF|EFLAGS_OF);
+    eflags |= flags;
+    regs->eflags.l = eflags;
+}
+
 #endif /* CORE_H */

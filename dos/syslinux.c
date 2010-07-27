@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
  */
 
 #include <errno.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -27,8 +28,11 @@
 #include "syslinux.h"
 #include "libfat.h"
 #include "setadv.h"
+#include "sysexits.h"
+#include "syslxopt.h"
+#include "syslxint.h"
 
-const char *program = "syslinux";	/* Name of program */
+char *program = "syslinux.com";		/* Name of program */
 uint16_t dos_version;
 
 #ifdef DEBUG
@@ -43,12 +47,6 @@ void pause(void)
 # define dprintf(...) ((void)0)
 # define pause() ((void)0)
 #endif
-
-void __attribute__ ((noreturn)) usage(void)
-{
-    puts("Usage: syslinux [-sfmar][-d directory] <drive>: [bootsecfile]\n");
-    exit(1);
-}
 
 void unlock_device(int);
 
@@ -122,11 +120,9 @@ int rename(const char *oldname, const char *newname)
     return 0;
 }
 
-extern const char __payload_sseg[];
-uint16_t ldlinux_seg;
-
 ssize_t write_ldlinux(int fd)
 {
+    uint16_t ldlinux_seg = ((size_t)syslinux_ldlinux >> 4) + ds();
     uint32_t offset = 0;
     uint16_t rv;
     uint8_t err;
@@ -139,8 +135,8 @@ ssize_t write_ldlinux(int fd)
 		      "movw %6,%%ds ; "
 		      "int $0x21 ; "
 		      "popw %%ds ; " "setc %0":"=bcdm" (err), "=a"(rv)
-		      :"a"(0x4000), "b"(fd), "c"(chunk), "d"(offset & 15),
-		      "SD"((uint16_t) (ldlinux_seg + (offset >> 4))));
+		      :"a"(0x4000), "b"(fd), "c"(chunk), "d" (offset & 15),
+		      "SD" ((uint16_t)(ldlinux_seg + (offset >> 4))));
 	if (err || rv == 0)
 	    die("file write error");
 	offset += rv;
@@ -181,7 +177,7 @@ uint16_t data_segment(void)
 
 void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
-    uint16_t errnum;
+    uint16_t errnum = 0x0001;
     struct diskio dio;
 
     dprintf("write_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
@@ -190,14 +186,17 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
-
-    /* Try FAT32-aware system call first */
-    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
-		 "1:"
-		 : "=a" (errnum)
-		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		   "S" (1), "m" (dio)
-		 : "memory");
+    
+    if (dos_version >= 0x070a) {
+	/* Try FAT32-aware system call first */
+	asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		     "1:"
+		     : "=a" (errnum)
+		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		       "S" (1), "m" (dio)
+		     : "memory");
+	dprintf(" rv(7305) = %04x", errnum);
+    }
 
     /* If not supported, try the legacy system call (int2526.S) */
     if (errnum == 0x0001)
@@ -209,9 +208,9 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     }
 }
 
-void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
+void read_device(int drive, void *buf, size_t nsecs, unsigned int sector)
 {
-    uint16_t errnum;
+    uint16_t errnum = 0x0001;
     struct diskio dio;
 
     dprintf("read_device(%d,%p,%u,%u)\n", drive, buf, nsecs, sector);
@@ -220,13 +219,16 @@ void read_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
-
-    /* Try FAT32-aware system call first */
-    asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
-		 "1:"
-		 : "=a" (errnum)
-		 : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
-		   "S" (0), "m" (dio));
+    
+    if (dos_version >= 0x070a) {
+	/* Try FAT32-aware system call first */
+	asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
+		     "1:"
+		     : "=a" (errnum)
+		     : "a" (0x7305), "b" (&dio), "c" (-1), "d" (drive),
+		       "S" (0), "m" (dio));
+	dprintf(" rv(7305) = %04x", errnum);
+    }
 
     /* If not supported, try the legacy system call (int2526.S) */
     if (errnum == 0x0001)
@@ -585,78 +587,35 @@ int main(int argc, char *argv[])
     static unsigned char sectbuf[SECTOR_SIZE];
     int dev_fd, fd;
     static char ldlinux_name[] = "@:\\ldlinux.sys";
-    char **argp, *opt;
-    int force = 0;		/* -f (force) option */
     struct libfat_filesystem *fs;
     libfat_sector_t s, *secp;
     libfat_sector_t *sectors;
     int ldlinux_sectors;
     int32_t ldlinux_cluster;
     int nsectors;
-    const char *device = NULL, *bootsecfile = NULL;
     const char *errmsg;
     int i;
-    int writembr = 0;		/* -m (write MBR) option */
-    int set_active = 0;		/* -a (set partition active) option */
-    const char *subdir = NULL;
-    int stupid = 0;
-    int raid_mode = 0;
     int patch_sectors;
-
-    ldlinux_seg = (size_t) __payload_sseg + data_segment();
+    unsigned char *dp;
 
     dprintf("argv = %p\n", argv);
     for (i = 0; i <= argc; i++)
 	dprintf("argv[%d] = %p = \"%s\"\n", i, argv[i], argv[i]);
 
-    (void)argc;			/* Unused */
-
     get_dos_version();
 
-    for (argp = argv + 1; *argp; argp++) {
-	if (**argp == '-') {
-	    opt = *argp + 1;
-	    if (!*opt)
-		usage();
+    argv[0] = program;
+    parse_options(argc, argv, MODE_SYSLINUX_DOSWIN);
 
-	    while (*opt) {
-		switch (*opt) {
-		case 's':	/* Use "safe, slow and stupid" code */
-		    stupid = 1;
-		    break;
-		case 'r':	/* RAID mode */
-		    raid_mode = 1;
-		    break;
-		case 'f':	/* Force install */
-		    force = 1;
-		    break;
-		case 'm':	/* Write MBR */
-		    writembr = 1;
-		    break;
-		case 'a':	/* Set partition active */
-		    set_active = 1;
-		    break;
-		case 'd':
-		    if (argp[1])
-			subdir = *++argp;
-		    break;
-		default:
-		    usage();
-		}
-		opt++;
-	    }
-	} else {
-	    if (bootsecfile)
-		usage();
-	    else if (device)
-		bootsecfile = *argp;
-	    else
-		device = *argp;
-	}
+    if (!opt.device)
+	usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
+    if (opt.sectors || opt.heads || opt.reset_adv || opt.set_once
+	|| (opt.update_only > 0) || opt.menu_save || opt.offset) {
+	fprintf(stderr,
+		"At least one specified option not yet implemented"
+		" for this installer.\n");
+	exit(1);
     }
-
-    if (!device)
-	usage();
 
     /*
      * Create an ADV in memory... this should be smarter.
@@ -666,9 +625,9 @@ int main(int argc, char *argv[])
     /*
      * Figure out which drive we're talking to
      */
-    dev_fd = (device[0] & ~0x20) - 0x40;
-    if (dev_fd < 1 || dev_fd > 26 || device[1] != ':' || device[2])
-	usage();
+    dev_fd = (opt.device[0] & ~0x20) - 0x40;
+    if (dev_fd < 1 || dev_fd > 26 || opt.device[1] != ':' || opt.device[2])
+	usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
 
     set_lock_device(dev_fd);
 
@@ -720,7 +679,7 @@ int main(int argc, char *argv[])
     /*
      * If requested, move ldlinux.sys
      */
-    if (subdir) {
+    if (opt.directory) {
 	char new_ldlinux_name[160];
 	char *cp = new_ldlinux_name + 3;
 	const char *sd;
@@ -730,7 +689,7 @@ int main(int argc, char *argv[])
 	new_ldlinux_name[1] = ':';
 	new_ldlinux_name[2] = '\\';
 
-	for (sd = subdir; *sd; sd++) {
+	for (sd = opt.directory; *sd; sd++) {
 	    char c = *sd;
 
 	    if (c == '/' || c == '\\') {
@@ -763,29 +722,24 @@ int main(int argc, char *argv[])
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
+    i = syslinux_patch(sectors, nsectors, opt.stupid_mode, opt.raid_mode, opt.directory, NULL);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /*
      * Overwrite the now-patched ldlinux.sys
      */
     /* lock_device(3); -- doesn't seem to be needed */
+    dp = syslinux_ldlinux;
     for (i = 0; i < patch_sectors; i++) {
-	uint16_t si, di, cx;
-	si = 0;
-	di = (size_t) sectbuf;
-	cx = SECTOR_SIZE >> 2;
-	asm volatile ("movw %3,%%fs ; fs ; rep ; movsl":"+S" (si), "+D"(di),
-		      "+c"(cx)
-		      :"abd"((uint16_t)
-			     (ldlinux_seg + (i << (SECTOR_SHIFT - 4)))));
+	memcpy_from_sl(sectbuf, dp, SECTOR_SIZE);
+	dp += SECTOR_SIZE;
 	write_device(dev_fd, sectbuf, 1, sectors[i]);
     }
 
     /*
      * Muck with the MBR, if desired, while we hold the lock
      */
-    adjust_mbr(dev_fd, writembr, set_active);
+    adjust_mbr(dev_fd, opt.install_mbr, opt.activate_partition);
 
     /*
      * To finish up, write the boot sector
@@ -798,9 +752,9 @@ int main(int argc, char *argv[])
     syslinux_make_bootsect(sectbuf);
 
     /* Write new boot sector */
-    if (bootsecfile) {
+    if (opt.bootsecfile) {
 	unlock_device(0);
-	fd = creat(bootsecfile, 0x20);	/* ARCHIVE */
+	fd = creat(opt.bootsecfile, 0x20);	/* ARCHIVE */
 	write_file(fd, sectbuf, SECTOR_SIZE);
 	close(fd);
     } else {

@@ -23,12 +23,14 @@
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <inttypes.h>
 #include <mntent.h>
 #include <paths.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -38,18 +40,10 @@
 #include "syslinux.h"
 #include "libfat.h"
 #include "setadv.h"
+#include "syslxopt.h"
 
 char *program;			/* Name of program */
-char *device;			/* Device to install to */
 pid_t mypid;
-off_t filesystem_offset = 0;	/* Offset of filesystem */
-
-void __attribute__ ((noreturn)) usage(void)
-{
-    fprintf(stderr, "Usage: %s [-sfr][-d directory][-o offset] device\n",
-	    program);
-    exit(1);
-}
 
 void __attribute__ ((noreturn)) die(const char *msg)
 {
@@ -126,7 +120,7 @@ ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
 int libfat_xpread(intptr_t pp, void *buf, size_t secsize,
 		  libfat_sector_t sector)
 {
-    off_t offset = (off_t) sector * secsize + filesystem_offset;
+    off_t offset = (off_t) sector * secsize + opt.offset;
     return xpread(pp, buf, secsize, offset);
 }
 
@@ -136,10 +130,8 @@ int main(int argc, char *argv[])
     int dev_fd;
     struct stat st;
     int status;
-    char **argp, *opt;
     const char *tmpdir;
     char *mtools_conf;
-    const char *subdir = NULL;
     int mtc_fd;
     FILE *mtc, *mtp;
     struct libfat_filesystem *fs;
@@ -151,48 +143,23 @@ int main(int argc, char *argv[])
     int ldlinux_sectors, patch_sectors;
     int i;
 
-    int force = 0;		/* -f (force) option */
-    int stupid = 0;		/* -s (stupid) option */
-    int raid_mode = 0;		/* -r (RAID) option */
-
     (void)argc;			/* Unused */
 
     mypid = getpid();
     program = argv[0];
 
-    device = NULL;
+    parse_options(argc, argv, MODE_SYSLINUX);
 
-    for (argp = argv + 1; *argp; argp++) {
-	if (**argp == '-') {
-	    opt = *argp + 1;
-	    if (!*opt)
-		usage();
+    if (!opt.device)
+	usage(EX_USAGE, MODE_SYSLINUX);
 
-	    while (*opt) {
-		if (*opt == 's') {
-		    stupid = 1;
-		} else if (*opt == 'r') {
-		    raid_mode = 1;
-		} else if (*opt == 'f') {
-		    force = 1;	/* Force install */
-		} else if (*opt == 'd' && argp[1]) {
-		    subdir = *++argp;
-		} else if (*opt == 'o' && argp[1]) {
-		    filesystem_offset = (off_t) strtoull(*++argp, NULL, 0);	/* Byte offset */
-		} else {
-		    usage();
-		}
-		opt++;
-	    }
-	} else {
-	    if (device)
-		usage();
-	    device = *argp;
-	}
+    if (opt.sectors || opt.heads || opt.reset_adv || opt.set_once
+	|| (opt.update_only > 0) || opt.menu_save) {
+	fprintf(stderr,
+		"At least one specified option not yet implemented"
+		" for this installer.\n");
+	exit(1);
     }
-
-    if (!device)
-	usage();
 
     /*
      * Temp directory of choice...
@@ -212,20 +179,20 @@ int main(int argc, char *argv[])
      * First make sure we can open the device at all, and that we have
      * read/write permission.
      */
-    dev_fd = open(device, O_RDWR);
+    dev_fd = open(opt.device, O_RDWR);
     if (dev_fd < 0 || fstat(dev_fd, &st) < 0) {
-	die_err(device);
+	die_err(opt.device);
 	exit(1);
     }
 
-    if (!force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode)) {
+    if (!opt.force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode)) {
 	fprintf(stderr,
 		"%s: not a block device or regular file (use -f to override)\n",
-		device);
+		opt.device);
 	exit(1);
     }
 
-    xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
+    xpread(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     /*
      * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -253,7 +220,8 @@ int main(int argc, char *argv[])
 	    "  file=\"/proc/%lu/fd/%d\"\n"
 	    "  offset=%llu\n",
 	    (unsigned long)mypid,
-	    dev_fd, (unsigned long long)filesystem_offset);
+	    dev_fd, (unsigned long long)opt.offset);
+
     if (ferror(mtc) || fclose(mtc))
 	die_err(mtools_conf);
 
@@ -303,24 +271,25 @@ int main(int argc, char *argv[])
     libfat_close(fs);
 
     /* Patch ldlinux.sys and the boot sector */
-    i = syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
+    i = syslinux_patch(sectors, nsectors, opt.stupid_mode, opt.raid_mode,
+		       opt.directory, NULL);
     patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
     /* Write the now-patched first sectors of ldlinux.sys */
     for (i = 0; i < patch_sectors; i++) {
 	xpwrite(dev_fd, syslinux_ldlinux + i * SECTOR_SIZE, SECTOR_SIZE,
-		filesystem_offset + ((off_t) sectors[i] << SECTOR_SHIFT));
+		opt.offset + ((off_t) sectors[i] << SECTOR_SHIFT));
     }
 
     /* Move ldlinux.sys to the desired location */
-    if (subdir) {
+    if (opt.directory) {
 	char target_file[4096], command[5120];
 	char *cp = target_file, *ep = target_file + sizeof target_file - 16;
 	const char *sd;
 	int slash = 1;
 
 	cp += sprintf(cp, "'s:/");
-	for (sd = subdir; *sd; sd++) {
+	for (sd = opt.directory; *sd; sd++) {
 	    if (*sd == '/' || *sd == '\\') {
 		if (slash)
 		    continue;	/* Remove duplicated slashes */
@@ -384,13 +353,13 @@ int main(int argc, char *argv[])
      */
 
     /* Read the superblock again since it might have changed while mounted */
-    xpread(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
+    xpread(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     /* Copy the syslinux code into the boot sector */
     syslinux_make_bootsect(sectbuf);
 
     /* Write new boot sector */
-    xpwrite(dev_fd, sectbuf, SECTOR_SIZE, filesystem_offset);
+    xpwrite(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     close(dev_fd);
     sync();
