@@ -16,8 +16,6 @@
 ; Boot from a local disk, or invoke INT 18h.
 ;
 
-%if HAS_LOCALBOOT
-
 ;
 ; Boot a specified local disk.  AX specifies the BIOS disk number; or
 ; -1 in case we should execute INT 18h ("next device.")
@@ -73,4 +71,3 @@ localboot_msg	db 'Booting from local disk...', CR, LF, 0
 
 		section .text16
 
-%endif ; HAS_LOCALBOOT
