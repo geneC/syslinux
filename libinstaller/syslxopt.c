@@ -113,10 +113,17 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    mode == MODE_SYSLINUX  ? "  " : "-o");
     /* Have to chop this roughly in half for the DOS installer for some reason */
     fprintf(stderr,
-	    "  --menu-save= -M  Set the label to select as default on the next boot\n"
+	    "  --menu-save= -M  Set the label to select as default on the next boot\n");
+    switch (mode) {
+    case MODE_SYSLINUX_DOSWIN:
+	fprintf(stderr,
 	    "  --mbr        -m  Install an MBR (DOS/Win32 installers only)\n"
-	    "  --active     -a  Mark partition as active (DOS/Win32 installers only)\n"
-	    "  --force      -f  Ignore precautions (DOS/Win32/mtools installers only)\n"
+	    "  --active     -a  Mark partition as active (DOS/Win32 installers only)\n");
+    case MODE_SYSLINUX:
+	fprintf(stderr,
+	    "  --force      -f  Ignore precautions (DOS/Win32/mtools installers only)\n");
+    }
+    fprintf(stderr,
 	    "\n"
 	    "  Note: geometry is determined at boot time for devices which\n"
 	    "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
