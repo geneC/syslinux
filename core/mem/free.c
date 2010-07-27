@@ -136,7 +136,7 @@ static void __free_tagged(malloc_tag_t tag) {
     for (i = 0; i < NHEAP; i++) {
 	dprintf("__free_tagged(%u) heap %d\n", tag, i);
 	head = &__malloc_head[i];
-	for (fp = head ; fp != head ; fp = fp->a.next) {
+	for (fp = head->a.next ; fp != head ; fp = fp->a.next) {
 	    if (ARENA_TYPE_GET(fp->a.attrs) == ARENA_TYPE_USED &&
 		fp->a.tag == tag)
 		fp = __free_block(fp);
