@@ -126,16 +126,6 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	fprintf(stderr,
 		"  --force      -f  Ignore precautions\n");
 
-    fprintf(stderr,
-	    "\n"
-	    "  Note: geometry is determined at boot time for devices which\n"
-	    "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
-	    "  not possible for devices which are considered floppy disks,\n"
-	    "  which includes zipdisks and LS-120 superfloppies.\n"
-	    "\n"
-	    "  The -z option is useful for USB devices which are considered\n"
-	    "  hard disks by some BIOSes and zipdrives by other BIOSes.");
-
     exit(rv);
 }
 
