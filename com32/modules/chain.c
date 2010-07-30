@@ -624,8 +624,8 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 
     /* Update parameters to reflect this new partition.  Re-use iterator */
     part->lba_data = table[part->private.mbr_index].start_lba;
-    dprintf("Partition %d primary lba %u\n", part->index, part->lba_data);
-    part->index++;
+    dprintf("Partition %d primary lba %u\n", part->private.mbr_index, part->lba_data);
+    part->index = part->private.mbr_index + 1;
     part->record = table + part->private.mbr_index;
     return part;
 
@@ -869,7 +869,7 @@ static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
     part->private.gpt.part_guid = &gpt_part->uid;
     part->private.gpt.part_label = gpt_part->name;
     /* Update our index */
-    part->index++;
+    part->index = part->private.gpt.index + 1;
     gpt_part_dump(gpt_part);
 
     /* In a GPT scheme, we re-use the iterator */
