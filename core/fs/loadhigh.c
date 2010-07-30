@@ -50,6 +50,7 @@ void pm_load_high(com32sys_t *regs)
     struct file *file;
     uint32_t sector_mask;
     size_t pad;
+    uint32_t retflags = 0;
 
     bytes     = regs->eax.l;
     zero_mask = regs->edx.w[0];
@@ -57,9 +58,6 @@ void pm_load_high(com32sys_t *regs)
     limit     = (char *)(regs->ebp.l & ~zero_mask);
     file      = handle_to_file(regs->esi.w[0]);
     fs        = file->fs;
-
-    regs->eflags.l &= ~(EFLAGS_CF|EFLAGS_OF|EFLAGS_AF|
-			EFLAGS_PF|EFLAGS_ZF|EFLAGS_SF);
 
     sector_mask = SECTOR_SIZE(fs) - 1;
 
@@ -69,7 +67,7 @@ void pm_load_high(com32sys_t *regs)
 
 	if (buf + SECTOR_SIZE(fs) > limit) {
 	    /* Can't fit even one more sector in... */
-	    regs->eflags.l |= EFLAGS_OF;
+	    retflags = EFLAGS_OF;
 	    break;
 	}
 
@@ -99,7 +97,7 @@ void pm_load_high(com32sys_t *regs)
 	     */
 	    _close_file(file);
 	    regs->esi.w[0] = 0;
-	    regs->eflags.l |= EFLAGS_CF;
+	    retflags = EFLAGS_CF;
 	    break;
 	}
     }
@@ -110,4 +108,5 @@ void pm_load_high(com32sys_t *regs)
 
     regs->ebx.l = (size_t)buf;
     regs->edi.l = (size_t)buf + pad;
+    set_flags(regs, retflags);
 }

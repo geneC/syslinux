@@ -253,11 +253,6 @@ ROOT_FS_OPS:
 ;
 
 ;
-; Load configuration file
-;
-                pm_call load_config
-
-;
 ; Linux kernel loading code is common.  However, we need to define
 ; a couple of helper macros...
 ;
@@ -267,6 +262,12 @@ ROOT_FS_OPS:
 %macro	UNLOAD_PREP 0
 		pm_call unload_pxe
 %endmacro
+
+;
+; Load configuration file
+;
+                pm_call pm_load_config
+		jz no_config_file
 
 ;
 ; Now we have the config file open.  Parse the config file and
