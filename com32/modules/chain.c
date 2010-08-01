@@ -1282,6 +1282,7 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
          msdos=<loader>     Load MS-DOS IO.SYS\n\
          pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
+         drmk=<loader>      Load DRMK DELLBIO.BIN\n\
          grub=<loader>      Load GRUB Legacy stage2\n\
          grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
          grldr=<loader>     Load GRUB4DOS grldr\n\
