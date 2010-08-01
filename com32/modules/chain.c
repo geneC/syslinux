@@ -1720,10 +1720,7 @@ int main(int argc, char *argv[])
 	    /* ds:[bp+28] must be 0x0000003f */
 	    regs.ds = (tsize >> 4) + (opt.seg - 2);
 	    /* "Patch" into the extra row */
-	    if (!memcpy(data[ndata].data + tsize - 4, "\x3f\0\0\0", 4)) {
-		error("Failed to patch DRMK\n");
-		goto bail;
-	    }
+	    *(int *)(data[ndata].data + tsize - 4) = 0x0000003f;
 	}
 
 	ndata++;
