@@ -1354,7 +1354,7 @@ int main(int argc, char *argv[])
 	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.seg = 0x70;	/* DRMK wants this address */
-	    opt.loadfile = argv[i] + 6;
+	    opt.loadfile = argv[i] + 5;
 	    opt.sethidden = true;
 	    opt.drmk = true;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
@@ -1711,22 +1711,19 @@ int main(int argc, char *argv[])
 	     */
 	    int tsize = (data[ndata].size + 31) & 0xfffffff0;
 	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
-	    if (realloc(data[ndata].data, tsize)) {
+	    if (!realloc(data[ndata].data, tsize)) {
 		error("Failed to realloc for DRMK\n");
 		goto bail;
 	    }
 	    data[ndata].size = tsize;
 	    /* ds:[bp+28] must be 0x0000003f */
-	    regs.ds = (tsize >> 4) - 2;
-	    
-	    /* loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size) */
-
+	    regs.ds = (tsize >> 4) + (opt.seg - 2);
+	    /* "Patch" into the extra row */
+	    if (!memcpy(data[ndata].data + tsize - 4, "\x3f\0\0\0", 4)) {
+		error("Failed to patch DRMK\n");
+		goto bail;
+	    }
 	}
-// dl=drive	bp=0	cs=0x0070	ss=0
-// ds=0x2000 old code segment
-// bx=bytes of whole blocks(1024) loaded of file: fileSize & 0xFC00	probably just garbage remnants
-// fs,gs: zero so unlikely
-
 
 	ndata++;
     }
