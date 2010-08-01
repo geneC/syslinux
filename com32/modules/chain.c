@@ -133,6 +133,7 @@ static struct options {
     bool swap;
     bool hide;
     bool sethidden;
+    bool drmk;
 } opt;
 
 struct data_area {
@@ -1351,6 +1352,11 @@ int main(int argc, char *argv[])
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethidden = true;
+	} else if (!strncmp(argv[i], "drmk=", 5)) {
+	    opt.seg = 0x70;	/* DRMK wants this address */
+	    opt.loadfile = argv[i] + 6;
+	    opt.sethidden = true;
+	    opt.drmk = true;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.seg = 0x800;	/* stage2 wants this address */
 	    opt.loadfile = argv[i] + 5;
@@ -1696,6 +1702,31 @@ int main(int argc, char *argv[])
 		strcpy((char *)stage2->config_file, opt.grubcfg);
 	    }
 	}
+
+	if (opt.drmk) {
+	    /* DRMK entry is different */
+	    /*
+	     * A new size, aligned to 16 bytes, with one full extra row to
+	     * guarantee the needed space and ease other values.
+	     */
+	    int tsize = (data[ndata].size + 31) & 0xfffffff0;
+	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
+	    if (realloc(data[ndata].data, tsize)) {
+		error("Failed to realloc for DRMK\n");
+		goto bail;
+	    }
+	    data[ndata].size = tsize;
+	    /* ds:[bp+28] must be 0x0000003f */
+	    regs.ds = (tsize >> 4) - 2;
+	    
+	    /* loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size) */
+
+	}
+// dl=drive	bp=0	cs=0x0070	ss=0
+// ds=0x2000 old code segment
+// bx=bytes of whole blocks(1024) loaded of file: fileSize & 0xFC00	probably just garbage remnants
+// fs,gs: zero so unlikely
+
 
 	ndata++;
     }
