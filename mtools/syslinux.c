@@ -259,6 +259,9 @@ int main(int argc, char *argv[])
 		       + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     sectors = calloc(ldlinux_sectors, sizeof *sectors);
     fs = libfat_open(libfat_xpread, dev_fd);
+    if (!fs) {
+	die("failed to open FAT via libfat_open()");
+    }
     ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
     secp = sectors;
     nsectors = 0;
