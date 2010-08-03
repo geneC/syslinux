@@ -26,6 +26,8 @@
 libfat_sector_t libfat_clustertosector(const struct libfat_filesystem *fs,
 				       int32_t cluster)
 {
+    if (fs == 0)
+	return -1;
     if (cluster == 0)
 	cluster = fs->rootcluster;
 
@@ -52,6 +54,8 @@ libfat_sector_t libfat_nextsector(struct libfat_filesystem * fs,
     uint32_t clustmask = fs->clustsize - 1;
     libfat_sector_t rs;
 
+    if (fs == 0)
+	return -1;
     if (s < fs->data) {
 	if (s < fs->rootdir)
 	    return -1;

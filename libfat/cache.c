@@ -23,6 +23,8 @@ void *libfat_get_sector(struct libfat_filesystem *fs, libfat_sector_t n)
 {
     struct libfat_sector *ls;
 
+    if (fs == 0)
+	return NULL;
     for (ls = fs->sectors; ls; ls = ls->next) {
 	if (ls->n == n)
 	    return ls->data;	/* Found in cache */
@@ -55,11 +57,13 @@ void libfat_flush(struct libfat_filesystem *fs)
 {
     struct libfat_sector *ls, *lsnext;
 
-    lsnext = fs->sectors;
-    fs->sectors = NULL;
+    if (fs){
+	lsnext = fs->sectors;
+	fs->sectors = NULL;
 
-    for (ls = lsnext; ls; ls = lsnext) {
-	lsnext = ls->next;
-	free(ls);
+	for (ls = lsnext; ls; ls = lsnext) {
+	    lsnext = ls->next;
+	    free(ls);
+	}
     }
 }
