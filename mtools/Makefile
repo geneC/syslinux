@@ -16,6 +16,10 @@ SRCS     = syslinux.c \
 	   $(wildcard ../libfat/*.c)
 OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
+FIXSRCS  = fixfat.c \
+	   $(wildcard ../libfat/*.c)
+FIXOBJS	 = $(patsubst %.c,%.o,$(notdir $(FIXSRCS)))
+
 .SUFFIXES: .c .o .i .s .S
 
 VPATH = .:../libfat:../libinstaller
@@ -34,6 +38,9 @@ spotless: clean
 installer: syslinux
 
 syslinux: $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+fixfat: $(FIXOBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
 %.o: %.c
