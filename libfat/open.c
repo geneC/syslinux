@@ -94,8 +94,59 @@ libfat_open(int (*readfunc) (intptr_t, void *, size_t, libfat_sector_t),
 
     minfatsize = (minfatsize + LIBFAT_SECTOR_SIZE - 1) >> LIBFAT_SECTOR_SHIFT;
 
-    if (minfatsize > fatsize)
-	goto barf;		/* The FATs don't fit */
+    if (minfatsize > fatsize) {
+	/* 
+	 * The FATs don't fit, normally.
+	 *
+	 * It would be more useful to sanitize in-memory values to prevent
+	 * issues than abort opening;  Many FAT filesystems are usable even
+	 * though they are technically corrupt with the number of clusters
+	 * relative to the FAT size.
+	 *
+	 * Let's try to create an "Altered Mental State" of the filesystem, 
+	 * adjusting values in memory only.
+	 */
+	minfatsize = fatsize << LIBFAT_SECTOR_SHIFT;
+	switch(fs->fat_type){
+	case FAT12:
+	    /* FIXME: Is there a better way to do this without division? */
+	    fs->endcluster = (minfatsize << 1) / 3;	
+	    break;
+	case FAT16:
+	    fs->endcluster = minfatsize >> 1;
+	    break;
+	case FAT28:
+	    fs->endcluster = minfatsize >> 2;
+	    break;
+	}
+	fs->end = ((fs->endcluster - 2) << fs->clustshift) + fs->data;
+	/* This concludes the attempt to adjust values */
+
+	/* Sanity check on the AMS */
+	if (fs->data >= fs->end)
+	    goto barf;
+
+	/* Adjust based on adjusted value */
+	nclusters = (fs->end - fs->data) >> fs->clustshift;
+	fs->endcluster = nclusters + 2;
+
+	/* Check */
+	switch(fs->fat_type){
+	case FAT12:
+	    minfatsize = fs->endcluster + (fs->endcluster >> 1);
+	    break;
+	case FAT16:
+	    minfatsize = fs->endcluster << 1;
+	    break;
+	case FAT28:
+	    minfatsize = fs->endcluster << 2;
+	    break;
+	}
+
+	minfatsize = (minfatsize + LIBFAT_SECTOR_SIZE - 1) >> LIBFAT_SECTOR_SHIFT;
+	if (minfatsize > fatsize)
+	    goto barf;	/* It's hopeless and unfixable */
+    }
 
     if (fs->fat_type == FAT28)
 	fs->rootcluster = read32(&bs->u.fat32.bpb_rootclus);
