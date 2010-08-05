@@ -21,6 +21,7 @@
  * returns 0 on success
  *	1 on command line issue
  *	2 on error checking FAT boot sector
+ *	3 when the FAT needs to be fixed and can be fixed by this tool
  */
 
 #define _GNU_SOURCE
@@ -49,6 +50,7 @@
 #include "libfatint.h"
 #include "ulint.h"
 
+/* FIXME: Double documenting returns.  Recommendations? */
 /* Success */
 #define FIXFAT_RET_OK	0
 /* Bad command line option(s) */
@@ -149,8 +151,12 @@ void fixfat_usage(int usetype, FILE *outdev, const char *argv0)
 {
     switch(usetype){
     case 0:
-	fprintf(outdev, "Usage: %s [options] <FILE>\n  Test/Fix sector count"
-	    "in a FAT filesystem\n", argv0);
+	fprintf(outdev, "%s: Test/Fix sector count in a FAT filesystem\n"
+	    "Usage: %s [options] <FILE>\n"
+	    "  -h    Help\n"
+	    "  -f    Fix a FAT\n"
+	    "  -o #  Use offset into file/device\n",
+	    argv0, argv0);
     }
 }
 
