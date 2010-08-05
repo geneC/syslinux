@@ -68,7 +68,7 @@ const struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-const char short_options[] = "t:fid:UuzS:H:rvho:OM:ma";
+const char short_options[] = "t:fid:UuzsS:H:rvho:OM:ma";
 
 void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 {
