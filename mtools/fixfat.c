@@ -6,6 +6,9 @@
  *   Portions copied/derived from syslinux:mtools/syslinux.c
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
  *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
+ *   Portions copied/derived from syslinux:libinstaller/fat.c
+ *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -149,14 +152,19 @@ int libfat_xpread(intptr_t pp, void *buf, size_t secsize,
 
 void fixfat_usage(int usetype, FILE *outdev, const char *argv0)
 {
+    const char *msg0 = "%s: Test/Fix sector count in a FAT filesystem\n"
+	"Usage: %s [options] <FILE>\n"
+	"  -h    Help\n"
+	"  -f    Fix a FAT (returns an error if FAT is OK)\n"
+	"  -o #  Use offset into file/device\n";
+    const char *msg1 = "\n"
+	"   Only use -f on FATs that need the fix%s\n";
     switch(usetype){
     case 0:
-	fprintf(outdev, "%s: Test/Fix sector count in a FAT filesystem\n"
-	    "Usage: %s [options] <FILE>\n"
-	    "  -h    Help\n"
-	    "  -f    Fix a FAT\n"
-	    "  -o #  Use offset into file/device\n",
-	    argv0, argv0);
+	fprintf(outdev, msg0, argv0, argv0);
+    case 1:
+	fprintf(outdev, msg0, argv0, argv0);
+	fprintf(outdev, msg1, "");
     }
 }
 
@@ -189,6 +197,12 @@ int check_fix_fat_sector(int force, const char *fn)
     if (!bs) {
 	fprintf(stderr, "Error fetching sector 0 at offset %d: %d-%s\n",
 	    goffset, errno, strerror(errno));
+	goto abort;
+    }
+
+    if (read8(&bs->bsMedia) != 0xF0 && read8(&bs->bsMedia) < 0xF8) {
+	fprintf(stderr, "Invalid media signature (not a FAT filesystem?)\n"
+	    "  If it's a hard drive image, use -o # to the partition\n");
 	goto abort;
     }
 
@@ -351,11 +365,12 @@ abort:
 int main(int argc, char *argv[])
 {
     int opt, force = 0;
-    char *optstring = "hfo:";
+    char *optstring = "?hfo:";
     while ((opt = getopt(argc, argv, optstring)) != EOF) {
 	switch (opt) {
 	case 'h':
-	    fixfat_usage(0, stdout, argv[0]);
+	case '?':
+	    fixfat_usage(1, stdout, argv[0]);
 	    return 0;
 	    break;
 	case 'f':
