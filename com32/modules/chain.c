@@ -76,6 +76,9 @@
  *	equivalent to seg=0x70 file=<loader> sethidden,
  *	used with DOS' io.sys.
  *
+ * drmk=<loader>
+ *	Similar to msdos=<loader> but prepares the special options for the Dell Real Mode Kernel.  Currently, this is only known to work on a partition at C,H,S 0,1,1
+ *
  * grub=<loader>
  *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
  *	used with GRUB Legacy stage2 files.
@@ -1707,16 +1710,32 @@ int main(int argc, char *argv[])
 	     * We only really need 4 new, usable bytes at the end.
 	     */
 	    int tsize = (data[ndata].size + 19) & 0xfffffff0;
+	    const union syslinux_derivative_info *sdi;
+
+	    sdi = syslinux_derivative_info();
+	    /* We should lookup the Syslinux partition offset and use it */
+	    fs_lba = *sdi->disk.partoffset;
+	    dprintf("  fs_lba offset is %d\n", fs_lba);
+	    if (fs_lba > 0xffffffff) {
+		error("LBA very large; Only using lower 32 bits; DRMK may fail\n");
+	    } else if (fs_lba == 0) {
+		error("LBA is 0; DRMK may fail\n");
+	    } else if (fs_lba > 0x3f) {
+		error("LBA > 0x3f; DRMK may fail\n");
+	    }
 	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
 	    if (!realloc(data[ndata].data, tsize)) {
 		error("Failed to realloc for DRMK\n");
 		goto bail;
 	    }
 	    data[ndata].size = tsize;
-	    /* ds:[bp+28] must be 0x0000003f */
+	    /* ds:[bp+28] is a special "internal" value */
+	    /*
+	     * Currently, I (Gene Cumm) am still examining its real meaning.  For the Syslinux partition at C,H,S 0,1,1, it's equal to the number of sectors per track.  It matches the FAT header field of the number of early sectors at offset 0x1c(=28) found in these partitions.
+	     */
 	    regs.ds = (tsize >> 4) + (opt.seg - 2);
 	    /* "Patch" into tail of the new space */
-	    *(int *)(data[ndata].data + tsize - 4) = 0x0000003f;
+	    *(int *)(data[ndata].data + tsize - 4) = (int)(fs_lba & 0xffffffff);
 	}
 
 	ndata++;
