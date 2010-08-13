@@ -1,6 +1,0 @@
-This directory contains files intended to be used as sample code.
-This includes COMBOOT, COM32, and MS-DOS programs as well as LSS
-icons.
-
-For developing COM32 programs, you probably want to use the new com32
-toolkit (libcom32 and libutil), available in the com32 directory.

@@ -20,10 +20,13 @@
 #include <windows.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <getopt.h>
 
 #include "syslinux.h"
 #include "libfat.h"
 #include "setadv.h"
+#include "sysexits.h"
+#include "syslxopt.h"
 
 #ifdef __GNUC__
 # define noreturn void __attribute__((noreturn))
@@ -43,12 +46,15 @@ void error(char *msg);
 #define PART_ACTIVE 0x80
 
 // The following struct should be in the ntddstor.h file, but I didn't have it.
-// TODO: Make this a conditional compilation
+// mingw32 has <ddk/ntddstor.h>, but including that file causes all kinds
+// of other failures.  mingw64 has it in <winioctl.h>.
+#ifndef __x86_64__
 typedef struct _STORAGE_DEVICE_NUMBER {
     DEVICE_TYPE DeviceType;
     ULONG DeviceNumber;
     ULONG PartitionNumber;
 } STORAGE_DEVICE_NUMBER, *PSTORAGE_DEVICE_NUMBER;
+#endif
 
 BOOL GetStorageDeviceNumberByHandle(HANDLE handle,
 				    const STORAGE_DEVICE_NUMBER * sdn)
@@ -168,7 +174,6 @@ BOOL FixMBR(int driveNum, int partitionNum, int write_mbr, int set_active)
 /* End stuff for MBR code */
 
 const char *program;		/* Name of program */
-const char *drive;		/* Drive to install to */
 
 /*
  * Check Windows version.
@@ -229,13 +234,6 @@ int libfat_readfile(intptr_t pp, void *buf, size_t secsize,
     return secsize;
 }
 
-noreturn usage(void)
-{
-    fprintf(stderr,
-	    "Usage: syslinux.exe [-sfmar][-d directory] <drive>: [bootsecfile]\n");
-    exit(1);
-}
-
 int main(int argc, char *argv[])
 {
     HANDLE f_handle, d_handle;
@@ -245,7 +243,7 @@ int main(int argc, char *argv[])
     UINT drive_type;
 
     static unsigned char sectbuf[SECTOR_SIZE];
-    char **argp, *opt;
+    char **argp;
     static char drive_name[] = "\\\\.\\?:";
     static char drive_root[] = "?:\\";
     static char ldlinux_name[] = "?:\\ldlinux.sys";
@@ -256,16 +254,6 @@ int main(int argc, char *argv[])
     int ldlinux_sectors;
     uint32_t ldlinux_cluster;
     int nsectors;
-    const char *bootsecfile = NULL;
-    const char *subdir = NULL;
-
-    int force = 0;		/* -f (force) option */
-    int mbr = 0;		/* -m (MBR) option */
-    int setactive = 0;		/* -a (set partition active) */
-    int stupid = 0;		/* -s (stupid) option */
-    int raid_mode = 0;		/* -r (RAID) option */
-
-    (void)argc;
 
     if (!checkver()) {
 	fprintf(stderr,
@@ -274,69 +262,36 @@ int main(int argc, char *argv[])
     }
 
     program = argv[0];
-    drive = NULL;
 
-    for (argp = argv + 1; *argp; argp++) {
-	if (**argp == '-') {
-	    opt = *argp + 1;
-	    if (!*opt)
-		usage();
+    parse_options(argc, argv, MODE_SYSLINUX_DOSWIN);
 
-	    while (*opt) {
-		switch (*opt) {
-		case 's':	/* Use "safe, slow and stupid" code */
-		    stupid = 1;
-		    break;
-		case 'r':	/* RAID mode */
-		    raid_mode = 1;
-		    break;
-		case 'f':	/* Force install */
-		    force = 1;
-		    break;
-		case 'm':	/* Install MBR */
-		    mbr = 1;
-		    break;
-		case 'a':	/* Mark this partition active */
-		    setactive = 1;
-		    break;
-		case 'd':
-		    if (argp[1])
-			subdir = *++argp;
-		    break;
-		default:
-		    usage();
-		    break;
-		}
-		opt++;
-	    }
-	} else {
-	    if (bootsecfile)
-		usage();
-	    else if (drive)
-		bootsecfile = *argp;
-	    else
-		drive = *argp;
-	}
+    if (!opt.device || !isalpha(opt.device[0]) || opt.device[1] != ':'
+	|| opt.device[2])
+	usage(EX_USAGE, MODE_SYSLINUX_DOSWIN);
+
+    if (opt.sectors || opt.heads || opt.reset_adv || opt.set_once
+	|| (opt.update_only > 0) || opt.menu_save || opt.offset) {
+	fprintf(stderr,
+		"At least one specified option not yet implemented"
+		" for this installer.\n");
+	exit(1);
     }
-
-    if (!drive || !isalpha(drive[0]) || drive[1] != ':' || drive[2])
-	usage();
 
     /* Test if drive exists */
     drives = GetLogicalDrives();
-    if (!(drives & (1 << (tolower(drive[0]) - 'a')))) {
-	fprintf(stderr, "No such drive %c:\n", drive[0]);
+    if (!(drives & (1 << (tolower(opt.device[0]) - 'a')))) {
+	fprintf(stderr, "No such drive %c:\n", opt.device[0]);
 	exit(1);
     }
 
     /* Determines the drive type */
-    drive_name[4] = drive[0];
-    ldlinux_name[0] = drive[0];
-    drive_root[0] = drive[0];
+    drive_name[4] = opt.device[0];
+    ldlinux_name[0] = opt.device[0];
+    drive_root[0] = opt.device[0];
     drive_type = GetDriveType(drive_root);
 
     /* Test for removeable media */
-    if ((drive_type == DRIVE_FIXED) && (force == 0)) {
+    if ((drive_type == DRIVE_FIXED) && (opt.force == 0)) {
 	fprintf(stderr, "Not a removable drive (use -f to override) \n");
 	exit(1);
     }
@@ -439,7 +394,7 @@ int main(int argc, char *argv[])
     /*
      * Patch ldlinux.sys and the boot sector
      */
-    syslinux_patch(sectors, nsectors, stupid, raid_mode, subdir, NULL);
+    syslinux_patch(sectors, nsectors, opt.stupid_mode, opt.raid_mode, opt.directory, NULL);
 
     /*
      * Rewrite the file
@@ -453,10 +408,10 @@ int main(int argc, char *argv[])
     }
 
     /* If desired, fix the MBR */
-    if (mbr || setactive) {
+    if (opt.install_mbr || opt.activate_partition) {
 	STORAGE_DEVICE_NUMBER sdn;
 	if (GetStorageDeviceNumberByHandle(d_handle, &sdn)) {
-	    if (!FixMBR(sdn.DeviceNumber, sdn.PartitionNumber, mbr, setactive)) {
+	    if (!FixMBR(sdn.DeviceNumber, sdn.PartitionNumber, opt.install_mbr, opt.activate_partition)) {
 		fprintf(stderr,
 			"Did not successfully update the MBR; continuing...\n");
 	    }
@@ -470,17 +425,17 @@ int main(int argc, char *argv[])
     CloseHandle(f_handle);
 
     /* Move the file to the desired location */
-    if (subdir) {
-	char new_ldlinux_name[strlen(subdir) + 16];
+    if (opt.directory) {
+	char new_ldlinux_name[strlen(opt.directory) + 16];
 	char *cp = new_ldlinux_name + 3;
 	const char *sd;
 	int slash = 1;
 
-	new_ldlinux_name[0] = drive[0];
+	new_ldlinux_name[0] = opt.device[0];
 	new_ldlinux_name[1] = ':';
 	new_ldlinux_name[2] = '\\';
 
-	for (sd = subdir; *sd; sd++) {
+	for (sd = opt.directory; *sd; sd++) {
 	    char c = *sd;
 
 	    if (c == '/' || c == '\\') {
@@ -520,8 +475,8 @@ int main(int argc, char *argv[])
     syslinux_make_bootsect(sectbuf);
 
     /* Write the syslinux boot sector into the boot sector */
-    if (bootsecfile) {
-	f_handle = CreateFile(bootsecfile, GENERIC_READ | GENERIC_WRITE,
+    if (opt.bootsecfile) {
+	f_handle = CreateFile(opt.bootsecfile, GENERIC_READ | GENERIC_WRITE,
 			      FILE_SHARE_READ | FILE_SHARE_WRITE,
 			      NULL, CREATE_ALWAYS,
 			      FILE_ATTRIBUTE_ARCHIVE, NULL);

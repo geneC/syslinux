@@ -14,6 +14,10 @@ struct sys_options {
     const char *device;
     unsigned int offset;
     const char *menu_save;
+    int force;
+    int install_mbr;
+    int activate_partition;
+    const char *bootsecfile;
 };
 
 enum long_only_opt {
@@ -25,6 +29,7 @@ enum long_only_opt {
 enum syslinux_mode {
     MODE_SYSLINUX,		/* Unmounted filesystem */
     MODE_EXTLINUX,
+    MODE_SYSLINUX_DOSWIN,
 };
 
 void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode);

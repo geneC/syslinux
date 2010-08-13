@@ -15,7 +15,6 @@ static int dmi_gettable(lua_State *L)
 
   lua_newtable(L);
 
-  /* FIXME initalize *dmi */
   if ( ! dmi_iterate(&dmi) ) {
           printf("No DMI Structure found\n");
           return -1;
@@ -279,7 +278,6 @@ static int dmi_supported(lua_State *L)
 {
   s_dmi dmi;
 
-  /* FIXME initalize *dmi */
   if ( dmi_iterate(&dmi) ) {
     lua_pushboolean(L, 1);
   } else {

@@ -87,7 +87,7 @@ void memcpy_to_sl(void *dst, const void *src, size_t len)
     uint16_t seg;
     uint16_t off;
 
-    seg = ldlinux_seg + ((size_t)dst >> 4);
+    seg = ds() + ((size_t)dst >> 4);
     off = (size_t)dst & 15;
 
     asm volatile("pushw %%es ; "
@@ -95,6 +95,23 @@ void memcpy_to_sl(void *dst, const void *src, size_t len)
 		 "rep ; movsb ; "
 		 "popw %%es"
 		 : "+D" (off), "+S" (src), "+c" (len)
+		 : "r" (seg)
+		 : "memory");
+}
+
+void memcpy_from_sl(void *dst, const void *src, size_t len)
+{
+    uint16_t seg;
+    uint16_t off;
+
+    seg = ds() + ((size_t)src >> 4);
+    off = (size_t)src & 15;
+
+    asm volatile("pushw %%ds ; "
+		 "movw %3,%%ds ; "
+		 "rep ; movsb ; "
+		 "popw %%ds"
+		 : "+D" (dst), "+S" (off), "+c" (len)
 		 : "r" (seg)
 		 : "memory");
 }

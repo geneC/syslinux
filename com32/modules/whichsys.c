@@ -18,7 +18,7 @@
  *
  * Usage:    whichsys.c32 [-iso- command] [-pxe- command] [-sys- command]
  * Examples: whichsys.c32 -iso- chain.c32 hd0 -sys- chain.c32 hd1 swap
- *           whichsys.c32 -iso- config iso.cfg -sys- sys.cfg -pxe- pxe.cfg
+ *           whichsys.c32 -iso- config iso.cfg -pxe- config pxe.cfg
  *
  */
 
@@ -68,7 +68,7 @@ static void usage(void)
     static const char usage[] = "\
 Usage:    whichsys.c32 [-iso- command] [-pxe- command] [-sys- command]\n\
 Examples: whichsys.c32 -iso- chain.c32 hd0 -sys- chain.c32 hd1 swap\n\
-          whichsys.c32 -iso- config iso.cfg -sys- sys.cfg -pxe- pxe.cfg\n";
+          whichsys.c32 -iso- config iso.cfg -pxe- config pxe.cfg\n";
     fprintf(stderr, usage);
 }
 
