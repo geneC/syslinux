@@ -57,6 +57,8 @@ int open(const char *pathname, int flags, ...)
 
     fd = opendev(&__file_dev, NULL, flags);
 
+    //printf("enter, file = %s, fd = %d\n", pathname, fd);
+
     if (fd < 0)
 	return -1;
 

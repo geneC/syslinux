@@ -14,6 +14,18 @@
 ;
 ; This file should be entered with the config file open (for getc)
 ;
+%if 1
+on_error:
+no_config_file:
+enter_command:
+auto_boot:
+load_kernel:
+kernel_good_saved:
+kernel_corrupt:
+		pm_call hello
+		pm_call enter_cmdline		; Never return
+	
+%else		; comment off the original ui.inc
 load_config_file:
 		call parse_config		; Parse configuration file
 no_config_file:
@@ -585,10 +597,6 @@ getchar_timeout:
 ;
 ; Anything else is assumed to be a Linux kernel.
 ;
-		section .bss16
-		alignb 4
-Kernel_EAX	resd 1
-Kernel_SI	resw 1
 
 		section .text16
 kernel_good_saved:
@@ -689,6 +697,14 @@ is_bss_sector	equ is_bad_image
 is_disk_image	equ is_bad_image
 %endif
 
+%endif		; start of replacing ui.inc
+
+		section .bss16
+		alignb 4
+Kernel_EAX	resd 1
+Kernel_SI	resw 1
+
+
 		section .data16
 boot_prompt	db 'boot: ', 0
 wipe_char	db BS, ' ', BS, 0
@@ -697,6 +713,7 @@ err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
 
 
+%if 0
 		alignz 2
 kerneltype_table:
 		dw is_unknown_filetype	; VK_KERNEL
@@ -708,8 +725,10 @@ kerneltype_table:
 		dw is_comboot_image	; VK_COMBOOT
 		dw is_com32_image	; VK_COM32
 		dw is_config_file	; VK_CONFIG
+%endif
 
 		section .bss16
+		global CmdOptPtr
 		alignb 4
 ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
 ThisTotalTo	resd 1			; Temporary holder for TotalTimeout

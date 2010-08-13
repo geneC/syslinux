@@ -36,7 +36,7 @@ const struct com32_pmapi pm_api_vector =
     .reset_idle	= reset_idle,
 
     .chdir	= chdir,
-    .getcwd	= getcwd,
+    .getcwd	= core_getcwd,
 
     .jiffies	= &__jiffies,
     .ms_timer	= &__ms_timer,

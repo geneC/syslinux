@@ -203,7 +203,7 @@ struct dirent *readdir(DIR *dir);
 int closedir(DIR *dir);
 
 /* getcwd.c */
-char *getcwd(char *buf, size_t size);
+char *core_getcwd(char *buf, size_t size);
 
 /*
  * Generic functions that filesystem drivers may choose to use

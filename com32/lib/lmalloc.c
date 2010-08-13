@@ -31,7 +31,7 @@
 #include <string.h>
 #include <syslinux/pmapi.h>
 
-void *lmalloc(size_t size)
+void *clmalloc(size_t size)
 {
     void *p;
     p = __com32.cs_pm->lmalloc(size);

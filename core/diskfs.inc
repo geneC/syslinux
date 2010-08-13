@@ -97,13 +97,15 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 ;
 ; Load configuration file
 ;
-		pm_call load_config
-		jz no_config_file
+		;feng
+		;pm_call load_config
+		;jz no_config_file
 
 ;
 ; Now we have the config file open.  Parse the config file and
 ; run the user interface.
 ;
+		pm_call hello
 %include "ui.inc"
 
 ;

@@ -14,7 +14,6 @@
 %include "loadhigh.inc"		; Load a file into high memory
 %include "font.inc"		; VGA font stuff
 %include "graphics.inc"		; VGA graphics
-%include "highmem.inc"		; High memory sizing
 %include "strcpy.inc"           ; strcpy()
 %include "idle.inc"		; Idle handling
 %include "adv.inc"		; Auxillary Data Vector

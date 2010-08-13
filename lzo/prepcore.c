@@ -340,10 +340,12 @@ int main(int argc, char *argv[])
 	set_32((uint32_t *) (infile + soff + 4), csum);
     }
 
+	/*
     if (offset+outfile_len > get_32(&prefix->pfx_maxlma))
 	error("output too big (%lu, max %lu)",
 	      (unsigned long)offset+outfile_len,
 	      (unsigned long)get_32(&prefix->pfx_maxlma));
+	      */
 
     f = fopen(out_name, "wb");
     if (!f)

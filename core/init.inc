@@ -47,6 +47,14 @@ common_init:
 ; Now set up screen parameters
 ;
 		call adjust_screen
+		pm_call printf_init
+
+;
+; Inite the memmory subsystem
+;
+		pm_call mem_init
+		mov eax,[HighMemSize]
+		mov [VKernelEnd],eax
 
 ;
 ; CPU-dependent initialization and related checks.

@@ -41,15 +41,16 @@ NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
 CSRC	 := $(wildcard *.c */*.c */*/*.c)
 SSRC	 := $(wildcard *.S */*.S */*/*.S)
-CHDR	 := $(wildcard *.h)
+CHDR	 := $(wildcard *.h */*.h */*/*.h)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
-LIB	 = libcore.a
-LIBS	 = $(LIB) $(com32)/lib/libcomcore.a $(LIBGCC)
+LIB	 = libcom32.a
+LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32min.a
+LIBDEP   = $(filter-out -% %start%,$(LIBS))
 LIBOBJS	 = $(COBJ) $(SOBJ)
 
 NASMDEBUG = -g -F dwarf
@@ -77,7 +78,7 @@ kwdhash.gen: keywords genhash.pl
 .PRECIOUS: %.elf
 
 %.raw: %.elf
-	$(OBJCOPY) -O binary $< $(@:.bin=.raw)
+	$(OBJCOPY) -O binary -S $< $(@:.bin=.raw)
 
 %.bin: %.raw $(PREPCORE)
 	$(PREPCORE) $< $@
@@ -87,8 +88,8 @@ kwdhash.gen: keywords genhash.pl
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
-%.elf: %.o $(LIBS) syslinux.ld
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< \
+%.elf: %.o $(LIBDEP) syslinux.ld
+	$(LD) $(LDFLAGS) -s -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
 		--start-group $(LIBS) --end-group \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
