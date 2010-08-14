@@ -51,7 +51,7 @@ form:
 	  4	  1	0xED (partition type: synthetic)
 	  5	  3	CHS of partition end
 	  8	  4	Partition start LBA
-	 12	  4	Partition end LBA
+	 12	  4	Partition length in sectors
 	 16	  4	Length of the GPT entry
 	 20	varies	GPT partition entry
 
