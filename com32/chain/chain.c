@@ -518,7 +518,7 @@ int main(int argc, char *argv[])
 	    opt.loadfile = argv[i] + 5;
 	} else if (!strncmp(argv[i], "seg=", 4)) {
 	    uint32_t segval = strtoul(argv[i] + 4, NULL, 0);
-	    if (segval < 0x50 || segval > 0x9f000) {
+	    if (segval < 0x50 || segval > 0x9f00) {
 		error("Invalid segment\n");
 		goto bail;
 	    }
@@ -754,7 +754,7 @@ int main(int argc, char *argv[])
 		/* Boot info table info (integers in little endian format)
 
 		   Offset Name         Size      Meaning
-		   8     bi_pvd       4 bytes   LBA of primary volume descriptor
+		   8      bi_pvd       4 bytes   LBA of primary volume descriptor
 		   12     bi_file      4 bytes   LBA of boot file
 		   16     bi_length    4 bytes   Boot file length in bytes
 		   20     bi_csum      4 bytes   32-bit checksum
@@ -844,7 +844,7 @@ int main(int argc, char *argv[])
 
 	    if (data[ndata].size < sizeof(struct grub_stage2_patch_area)) {
 		error
-		    ("The file specified by grub=<loader> is to small to be stage2 of GRUB Legacy.\n");
+		    ("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.\n");
 		goto bail;
 	    }
 
