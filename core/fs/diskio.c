@@ -163,8 +163,6 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 
     memset(&reset, 0, sizeof reset);
 
-    ireg.edx.b[0] = disk->disk_number;
-
     lba += disk->part_start;
     while (count) {
 	chunk = count;
