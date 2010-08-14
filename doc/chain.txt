@@ -1,0 +1,100 @@
+			    chain.c32 documentation
+
+Although syslinux features simple native chainloading capability (through .bss
+and .bs options - see doc/syslinux.txt), it also provides very roboust and
+feature rich com32 module designed for such purpose - which should allow you to
+boot virtually anything.
+
+FIXME: initial move from chain.c below
+
+/*
+ * chain.c
+ *
+ * Chainload a hard disk (currently rather braindead.)
+ *
+ * Usage: chain [options]
+ *	  chain hd<disk#> [<partition>] [options]
+ *	  chain fd<disk#> [options]
+ *	  chain mbr:<id> [<partition>] [options]
+ *	  chain guid:<guid> [<partition>] [options]
+ *	  chain label:<label> [<partition>] [options]
+ *	  chain boot [<partition>] [options]
+ *
+ * For example, "chain msdos=io.sys" will load DOS from the current Syslinux
+ * filesystem.  "chain hd0 1" will boot the first partition on the first hard
+ * disk.
+ *
+ * When none of the "hdX", "fdX", "mbr:", "guid:", "label:", "boot" or "fs"
+ * options are specified, the default behaviour is equivalent to "boot".
+ * "boot" means to use the current Syslinux drive, and you can also specify
+ * a partition.
+ *
+ * The mbr: syntax means search all the hard disks until one with a
+ * specific MBR serial number (bytes 440-443) is found.
+ *
+ * Partitions 1-4 are primary, 5+ logical, 0 = boot MBR (default.)
+ *
+ * "fs" will use the current Syslinux filesystem as the boot drive/partition.
+ * When booting from PXELINUX, you will most likely wish to specify a disk.
+ *
+ * Options:
+ *
+ * file=<loader>
+ *	loads the file <loader> **from the Syslinux filesystem**
+ *	instead of loading the boot sector.
+ *
+ * seg=<segment>
+ *	loads at and jumps to <seg>:0000 instead of 0000:7C00.
+ *
+ * isolinux=<loader>
+ *	chainload another version/build of the ISOLINUX bootloader and patch
+ *	the loader with appropriate parameters in memory.
+ *	This avoids the need for the -eltorito-alt-boot parameter of mkisofs,
+ *	when you want more than one ISOLINUX per CD/DVD.
+ *
+ * ntldr=<loader>
+ *	equivalent to seg=0x2000 file=<loader> sethidden,
+ *	used with WinNT's loaders
+ *
+ * cmldr=<loader>
+ *	used with Recovery Console of Windows NT/2K/XP.
+ *	same as ntldr=<loader> & "cmdcons\0" written to
+ *	the system name field in the bootsector
+ *
+ * freedos=<loader>
+ *	equivalent to seg=0x60 file=<loader> sethidden,
+ *	used with FreeDOS' kernel.sys.
+ *
+ * msdos=<loader>
+ * pcdos=<loader>
+ *	equivalent to seg=0x70 file=<loader> sethidden,
+ *	used with DOS' io.sys.
+ *
+ * grub=<loader>
+ *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
+ *	used with GRUB Legacy stage2 files.
+ *
+ * grubcfg=<filename>
+ *	set an alternative config filename in stage2 of Grub Legacy,
+ *	only applicable in combination with "grub=<loader>".
+ *
+ * grldr=<loader>
+ *	pass the partition number to GRUB4DOS,
+ *	used with GRUB4DOS' grldr.
+ *
+ * swap
+ *	if the disk is not fd0/hd0, install a BIOS stub which swaps
+ *	the drive numbers.
+ *
+ * hide
+ *	change type of primary partitions with IDs 01, 04, 06, 07,
+ *	0b, 0c, or 0e to 1x, except for the selected partition, which
+ *	is converted the other way.
+ *
+ * sethidden
+ *	update the "hidden sectors" (partition offset) field in a
+ *	FAT/NTFS boot sector.
+ *
+ * keeppxe
+ *	keep the PXE and UNDI stacks in memory (PXELINUX only).
+ */
