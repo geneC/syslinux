@@ -14,7 +14,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * Please see doc/chain.txt for detailed documentation.
+ * Please see doc/chain.txt for the detailed documentation.
  */
 
 #include <com32.h>
@@ -410,31 +410,32 @@ bail:
 static void usage(void)
 {
     static const char usage[] = "\
-Usage:   chain.c32 [options]\n\
-         chain.c32 hd<disk#> [<partition>] [options]\n\
-         chain.c32 fd<disk#> [options]\n\
-         chain.c32 mbr:<id> [<partition>] [options]\n\
-         chain.c32 guid:<guid> [<partition>] [options]\n\
-         chain.c32 label:<label> [<partition>] [options]\n\
-         chain.c32 boot [<partition>] [options]\n\
-         chain.c32 fs [options]\n\
-Options: file=<loader>      Load and execute file, instead of boot sector\n\
-         isolinux=<loader>  Load another version of ISOLINUX\n\
-         ntldr=<loader>     Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
-         cmldr=<loader>     Load Recovery Console of Windows NT/2K/XP/2003\n\
-         freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
-         msdos=<loader>     Load MS-DOS IO.SYS\n\
-         pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
-         drmk=<loader>      Load DRMK DELLBIO.BIN\n\
-         grub=<loader>      Load GRUB Legacy stage2\n\
-         grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
-         grldr=<loader>     Load GRUB4DOS grldr\n\
-         seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
-         swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
-         hide               Hide primary partitions, except selected partition\n\
-         sethidden          Set the FAT/NTFS hidden sectors field\n\
-         keeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
-See syslinux/com32/modules/chain.c for more information\n";
+Usage:\n\
+    chain.c32 [options]\n\
+    chain.c32 {fd|hd}<disk> [<partition>] [options]\n\
+    chain.c32 mbr{:|=}<id> [<partition>] [options]\n\
+    chain.c32 guid{:|=}<guid> [<partition>] [options]\n\
+    chain.c32 label{:|=}<label> [<partition>] [options]\n\
+    chain.c32 boot{,| }[<partition>] [options]\n\
+    chain.c32 fs [options]\n\
+\nOptions:\n\
+    file=<loader>      Load and execute file, instead of boot sector\n\
+    isolinux=<loader>  Load another version of ISOLINUX\n\
+    ntldr=<loader>     Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
+    cmldr=<loader>     Load Recovery Console of Windows NT/2K/XP/2003\n\
+    freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
+    msdos=<loader>     Load MS-DOS IO.SYS\n\
+    pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
+    drmk=<loader>      Load DRMK DELLBIO.BIN\n\
+    grub=<loader>      Load GRUB Legacy stage2\n\
+    grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
+    grldr=<loader>     Load GRUB4DOS grldr\n\
+    seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
+    swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
+    hide               Hide primary partitions, except selected partition\n\
+    sethidden          Set the FAT/NTFS hidden sectors field\n\
+    keeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
+\nPlease see doc/chain.txt for the detailed documentation.\n";
     error(usage);
 }
 
@@ -637,7 +638,7 @@ int main(int argc, char *argv[])
     if (cur_part)
 	whichpart = cur_part->index;
 
-    /* If nothing was found, try fs/boot first */
+    /* If nothing was found, try fs first */
     if (!cur_part && fs_lba) {
 	cur_part = pi_begin(&diskinfo);
 	/* search for matching fs_lba, must be partition */
