@@ -39,14 +39,16 @@
 #define ADDRMIN 0x500
 
 static struct options {
+    const char *drivename;
+    const char *partition;
     const char *loadfile;
+    const char *grubcfg;
     uint16_t keeppxe;
     uint16_t seg;
     bool isolinux;
     bool cmldr;
     bool grub;
     bool grldr;
-    const char *grubcfg;
     bool swap;
     bool hide;
     bool sethidden;
@@ -439,37 +441,10 @@ Usage:\n\
     error(usage);
 }
 
-int main(int argc, char *argv[])
+static int parse_args(int argc, char *argv[])
 {
-    struct disk_dos_mbr *mbr = NULL;
-    char *p;
-    struct part_iter *cur_part = NULL;
-
-    void *sect_area = NULL;
-    void *file_area = NULL;
-    struct disk_dos_part_entry *hand_area = NULL;
-
-    struct syslinux_rm_regs regs;
-    char *drivename, *partition;
-    int hd, drive, whichpart = 0;	/* MBR by default */
     int i;
-    uint64_t fs_lba = 0;	/* Syslinux partition */
-    uint32_t file_lba = 0;
-    struct guid gpt_guid;
-    unsigned char *isolinux_bin;
-    uint32_t *checksum, *chkhead, *chktail;
-    struct data_area data[3];
-    int ndata = 0;
-    addr_t load_base;
-    static const char cmldr_signature[8] = "cmdcons";
-
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
-    drivename = "boot";
-    partition = NULL;
-
-    /* Prepare the register set */
-    memset(&regs, 0, sizeof regs);
+    char *p;
 
     for (i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "file=", 5)) {
@@ -537,14 +512,14 @@ int main(int argc, char *argv[])
 		   || !strcmp(argv[i], "boot")
 		   || !strncmp(argv[i], "boot,", 5)
 		   || !strcmp(argv[i], "fs")) {
-	    drivename = argv[i];
-	    p = strchr(drivename, ',');
+	    opt.drivename = argv[i];
+	    p = strchr(opt.drivename, ',');
 	    if (p) {
 		*p = '\0';
-		partition = p + 1;
+		opt.partition = p + 1;
 	    } else if (argv[i + 1] && argv[i + 1][0] >= '0'
 		       && argv[i + 1][0] <= '9') {
-		partition = argv[++i];
+		opt.partition = argv[++i];
 	    }
 	} else {
 	    usage();
@@ -557,6 +532,45 @@ int main(int argc, char *argv[])
 	goto bail;
     }
 
+    return 0;
+bail:
+    return -1;
+}
+
+int main(int argc, char *argv[])
+{
+    struct disk_dos_mbr *mbr = NULL;
+    struct part_iter *cur_part = NULL;
+
+    void *sect_area = NULL;
+    void *file_area = NULL;
+    struct disk_dos_part_entry *hand_area = NULL;
+
+    struct syslinux_rm_regs regs;
+    int hd, drive, whichpart = 0;	/* MBR by default */
+    uint64_t fs_lba = 0;	/* Syslinux partition */
+    uint32_t file_lba = 0;
+    struct guid gpt_guid;
+    unsigned char *isolinux_bin;
+    uint32_t *checksum, *chkhead, *chktail;
+    struct data_area data[3];
+    int ndata = 0;
+    addr_t load_base;
+    static const char cmldr_signature[8] = "cmdcons";
+
+    openconsole(&dev_null_r, &dev_stdcon_w);
+
+    /* Prepare and set default values */
+    memset(&opt, 0, sizeof(opt));
+    opt.drivename = "boot";
+
+    /* Parse arguments */
+    if(parse_args(argc, argv))
+	goto bail;
+
+    /* Prepare the register set */
+    memset(&regs, 0, sizeof regs);
+
     if (opt.seg) {
 	regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = opt.seg;
     } else {
@@ -564,36 +578,36 @@ int main(int argc, char *argv[])
     }
 
     hd = 0;
-    if (!strncmp(drivename, "mbr", 3)) {
-	drive = find_by_sig(strtoul(drivename + 4, NULL, 0));
+    if (!strncmp(opt.drivename, "mbr", 3)) {
+	drive = find_by_sig(strtoul(opt.drivename + 4, NULL, 0));
 	if (drive == -1) {
 	    error("Unable to find requested MBR signature\n");
 	    goto bail;
 	}
-    } else if (!strncmp(drivename, "guid", 4)) {
-	if (str_to_guid(drivename + 5, &gpt_guid))
+    } else if (!strncmp(opt.drivename, "guid", 4)) {
+	if (str_to_guid(opt.drivename + 5, &gpt_guid))
 	    goto bail;
 	drive = find_by_guid(&gpt_guid, &cur_part);
 	if (drive == -1) {
 	    error("Unable to find requested GPT disk/partition\n");
 	    goto bail;
 	}
-    } else if (!strncmp(drivename, "label", 5)) {
-	if (!drivename[6]) {
+    } else if (!strncmp(opt.drivename, "label", 5)) {
+	if (!opt.drivename[6]) {
 	    error("No label specified.\n");
 	    goto bail;
 	}
-	drive = find_by_label(drivename + 6, &cur_part);
+	drive = find_by_label(opt.drivename + 6, &cur_part);
 	if (drive == -1) {
 	    error("Unable to find requested partition by label\n");
 	    goto bail;
 	}
-    } else if ((drivename[0] == 'h' || drivename[0] == 'f') &&
-	       drivename[1] == 'd') {
-	hd = drivename[0] == 'h';
-	drivename += 2;
-	drive = (hd ? 0x80 : 0) | strtoul(drivename, NULL, 0);
-    } else if (!strcmp(drivename, "boot") || !strcmp(drivename, "fs")) {
+    } else if ((opt.drivename[0] == 'h' || opt.drivename[0] == 'f') &&
+	       opt.drivename[1] == 'd') {
+	hd = opt.drivename[0] == 'h';
+	opt.drivename += 2;
+	drive = (hd ? 0x80 : 0) | strtoul(opt.drivename, NULL, 0);
+    } else if (!strcmp(opt.drivename, "boot") || !strcmp(opt.drivename, "fs")) {
 	const union syslinux_derivative_info *sdi;
 
 	sdi = syslinux_derivative_info();
@@ -601,7 +615,7 @@ int main(int argc, char *argv[])
 	    drive = 0x80;	/* Boot drive not available */
 	else
 	    drive = sdi->disk.drive_number;
-	if (!strcmp(drivename, "fs")
+	if (!strcmp(opt.drivename, "fs")
 	    && (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX
 		|| sdi->c.filesystem == SYSLINUX_FS_EXTLINUX
 		|| sdi->c.filesystem == SYSLINUX_FS_ISOLINUX))
@@ -627,8 +641,8 @@ int main(int argc, char *argv[])
 	goto bail;
     }
 
-    if (partition)
-	whichpart = strtoul(partition, NULL, 0);
+    if (opt.partition)
+	whichpart = strtoul(opt.partition, NULL, 0);
 
     /* "guid:" or "label:" might have specified a partition. In such case,
      * this overrides explicit partition number specification. cur-part->index
