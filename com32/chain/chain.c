@@ -33,6 +33,11 @@
 #include <syslinux/video.h>
 #include "partiter.h"
 
+/* used in checks, whenever addresses supplied by user are sane */
+
+#define ADDRMAX 0x9F000
+#define ADDRMIN 0x500
+
 static struct options {
     const char *loadfile;
     uint16_t keeppxe;
@@ -362,6 +367,46 @@ static uint32_t get_file_lba(const char *filename)
     return lba;
 }
 
+/* Convert seg:off:ip values into numerical seg:linear_address:ip */
+
+static int soi2sli(char *ptr, uint16_t *seg, uint32_t *lin, uint16_t *ip)
+{
+    uint32_t segval = 0, offval = 0, ipval = 0, val;
+    char *p;
+    
+    segval = strtoul(ptr, &p, 0);
+    if(*p == ':')
+	offval = strtoul(p+1, &p, 0);
+    if(*p == ':')
+	ipval = strtoul(p+1, NULL, 0);
+
+    offval = (segval << 4) + offval;
+
+    if (offval < ADDRMIN || offval > ADDRMAX) {
+	error("Invalid seg:off:* address specified..\n");
+	goto bail;
+    }
+
+    val = (segval << 4) + ipval;
+
+    if (ipval > 0xFFFE || val < ADDRMIN || val > ADDRMAX) {
+	error("Invalid *:*:ip address specified.\n");
+	goto bail;
+    }
+
+    if(seg)
+	*seg = (uint16_t)segval;
+    if(lin)
+	*lin = offval;
+    if(ip)
+	*ip  = (uint16_t)ipval;
+
+    return 0;
+
+bail:
+    return -1;
+}
+
 static void usage(void)
 {
     static const char usage[] = "\
@@ -429,12 +474,8 @@ int main(int argc, char *argv[])
 	if (!strncmp(argv[i], "file=", 5)) {
 	    opt.loadfile = argv[i] + 5;
 	} else if (!strncmp(argv[i], "seg=", 4)) {
-	    uint32_t segval = strtoul(argv[i] + 4, NULL, 0);
-	    if (segval < 0x50 || segval > 0x9f00) {
-		error("Invalid segment\n");
+	    if(soi2sli(argv[i] + 4, &opt.seg, NULL, NULL))
 		goto bail;
-	    }
-	    opt.seg = segval;
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.loadfile = argv[i] + 9;
 	    opt.isolinux = true;
