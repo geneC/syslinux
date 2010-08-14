@@ -75,6 +75,7 @@ static struct itertype types[] = {
 const struct itertype * const typedos = types;
 const struct itertype * const typegpt = types+1;
 
+#ifdef DEBUG
 static int inv_type(const void *type)
 {
     int i, cnt = sizeof(types)/sizeof(types[0]);
@@ -84,6 +85,7 @@ static int inv_type(const void *type)
     }
     return -1;
 }
+#endif
 
 static int guid_is0(const struct guid *guid)
 {
@@ -101,8 +103,10 @@ static int iter_ctor(struct part_iter *iter, va_list *args)
 {
     const struct disk_info *di = va_arg(*args, const struct disk_info *);
 
+#ifdef DEBUG
     if (!di)
 	return -1;
+#endif
 
     memcpy(&iter->di, di, sizeof(struct disk_info));
 
@@ -139,8 +143,10 @@ static int iter_dos_ctor(struct part_iter *iter, va_list *args)
 
     mbr = va_arg(*args, const struct disk_dos_mbr *);
 
+#ifdef DEBUG
     if (!mbr)
 	goto out;
+#endif
 
     if (!(iter->data = malloc(sizeof(struct disk_dos_mbr))))
 	goto out;
@@ -181,8 +187,10 @@ static int iter_gpt_ctor(struct part_iter *iter, va_list *args)
     gpth = va_arg(*args, const struct disk_gpt_header *);
     gptl = va_arg(*args, const struct disk_gpt_part_entry *);
 
+#ifdef DEBUG
     if (!gpth || !gptl)
 	goto out;
+#endif
 
     siz = (uint64_t)gpth->part_count * (uint64_t)gpth->part_size;
 
@@ -349,9 +357,9 @@ static int prep_base_ebr(struct part_iter *iter)
 {
     struct disk_dos_part_entry *dp;
 
-    if (iter->sub.dos.bebr_index0 < 0)
+    if (iter->sub.dos.bebr_index0 < 0)	/* if we don't have base extended partition at all */
 	return -1;
-    else if (!iter->sub.dos.bebr_start) {
+    else if (!iter->sub.dos.bebr_start) { /* if not initialized yet */
 	dp = ((struct disk_dos_mbr *)iter->data)->table + iter->sub.dos.bebr_index0;
 
 	iter->sub.dos.bebr_start = dp->start_lba;
@@ -547,12 +555,14 @@ static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct dis
 struct part_iter *pi_next(struct part_iter **_iter)
 {
     struct part_iter *iter = *_iter;
+#ifdef DEBUG
     if (!iter)
 	return NULL;
     if (inv_type(iter->type)) {
 	error("This is not a valid iterator.\n");
 	return NULL;
     }
+#endif
     *_iter = iter->type->next(iter);
     return *_iter;
 }
@@ -571,10 +581,12 @@ struct part_iter *pi_new(const struct itertype *type, ...)
     struct part_iter *iter = NULL;
     va_list ap;
 
+#ifdef DEBUG
     if (inv_type(type)) {
 	error("Unknown iterator requested.\n");
 	return NULL;
     }
+#endif
 
     if (!(iter = malloc(sizeof(struct part_iter)))) {
 	error("Couldn't allocate memory for the iterator.\n");
@@ -614,10 +626,13 @@ void *pi_del(struct part_iter **_iter)
 	return NULL;
     iter = *_iter;
 
+#ifdef DEBUG
     if (inv_type(iter->type)) {
 	error("This is not a valid iterator.\n");
 	return NULL;
     }
+#endif
+
     iter->type->dtor(iter);
     free(iter);
     *_iter = NULL;
@@ -663,7 +678,7 @@ struct part_iter *pi_begin(const struct disk_info *di)
 	/* looks like GPT v1.0 */
 	uint64_t gpt_loff;	    /* offset to GPT partition list in sectors */
 	uint64_t gpt_lsiz;	    /* size of GPT partition list in bytes */
-#if DEBUG
+#ifdef DEBUG
 	puts("Looks like a GPT v1.0 disk.");
 	disk_gpt_header_dump(gpth);
 #endif
