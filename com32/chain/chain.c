@@ -55,6 +55,7 @@ static struct options {
     bool hide;
     bool sethidden;
     bool drmk;
+    struct syslinux_rm_regs regs;
 } opt;
 
 struct data_area {
@@ -174,15 +175,14 @@ ok:
     return drive;
 }
 
-static void do_boot(struct data_area *data, int ndata,
-		    struct syslinux_rm_regs *regs)
+static void do_boot(struct data_area *data, int ndata)
 {
     uint16_t *const bios_fbm = (uint16_t *) 0x413;
     addr_t dosmem = (addr_t)(*bios_fbm << 10);	/* Technically a low bound */
     struct syslinux_memmap *mmap;
     struct syslinux_movelist *mlist = NULL;
     addr_t endimage;
-    uint8_t driveno = regs->edx.b[0];
+    uint8_t driveno = opt.regs.edx.b[0];
     uint8_t swapdrive = driveno & 0x80;
     int i;
 
@@ -253,13 +253,13 @@ static void do_boot(struct data_area *data, int ndata,
 
 	/* Create swap stub */
 	memcpy(swapstub, swapstub_master, sizeof swapstub_master);
-	*(uint16_t *) & swapstub[0x3a] = regs->ds;
-	*(uint16_t *) & swapstub[0x3d] = regs->es;
-	*(uint32_t *) & swapstub[0x45] = regs->ecx.l;
-	*(uint32_t *) & swapstub[0x4b] = regs->esi.l;
-	*(uint32_t *) & swapstub[0x51] = regs->edi.l;
-	*(uint16_t *) & swapstub[0x56] = regs->ip;
-	*(uint16_t *) & swapstub[0x58] = regs->cs;
+	*(uint16_t *) & swapstub[0x3a] = opt.regs.ds;
+	*(uint16_t *) & swapstub[0x3d] = opt.regs.es;
+	*(uint32_t *) & swapstub[0x45] = opt.regs.ecx.l;
+	*(uint32_t *) & swapstub[0x4b] = opt.regs.esi.l;
+	*(uint32_t *) & swapstub[0x51] = opt.regs.edi.l;
+	*(uint16_t *) & swapstub[0x56] = opt.regs.ip;
+	*(uint16_t *) & swapstub[0x58] = opt.regs.cs;
 	p = &swapstub[sizeof swapstub_master];
 
 	/* Mapping table; start out with identity mapping everything */
@@ -271,11 +271,11 @@ static void do_boot(struct data_area *data, int ndata,
 	p[swapdrive] = driveno;
 
 	/* Adjust registers */
-	regs->ds = regs->cs = (uint16_t)(endimage >> 4);
-	regs->esi.l = regs->es = 0;
-	regs->ecx.l = sizeof swapstub >> 2;
-	regs->ip = 0x10;	/* Installer offset */
-	regs->ebx.b[0] = regs->edx.b[0] = swapdrive;
+	opt.regs.ds = opt.regs.cs = (uint16_t)(endimage >> 4);
+	opt.regs.esi.l = opt.regs.es = 0;
+	opt.regs.ecx.l = sizeof swapstub >> 2;
+	opt.regs.ip = 0x10;	/* Installer offset */
+	opt.regs.ebx.b[0] = opt.regs.edx.b[0] = swapdrive;	//FIXME this silently assumes DOS expectations
 
 	if (syslinux_add_movelist(&mlist, endimage, (addr_t) swapstub,
 				  sizeof swapstub))
@@ -291,7 +291,7 @@ static void do_boot(struct data_area *data, int ndata,
     syslinux_force_text_mode();
 
     fputs("Booting...\n", stdout);
-    syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, regs);
+    syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, &opt.regs);
     error("Chainboot failed!\n");
     return;
 
@@ -678,7 +678,7 @@ bail:
  * the -boot-info-table switch of mkisofs)
  * (will only work when run from ISOLINUX)
  */
-static int mangle_isolinux(struct data_area *_data)
+static int manglef_isolinux(struct data_area *_data)
 {
     const union syslinux_derivative_info *sdi;
     unsigned char *isolinux_bin;
@@ -751,16 +751,16 @@ bail:
  * 0-3:  primary partitions
  * 4-*:  logical partitions
  */
-static int mangle_grldr(const struct part_iter *_iter, struct syslinux_rm_regs *_regs)
+static int manglef_grldr(const struct part_iter *_iter)
 {
-    _regs->edx.b[1] = (uint8_t)(_iter->index - 1);
+    opt.regs.edx.b[1] = (uint8_t)(_iter->index - 1);
     return 0;
 }
 
 /*
  * Legacy grub's stage2 chainloading
  */
-static int mangle_grublegacy(const struct part_iter *_iter, struct data_area *_data, struct syslinux_rm_regs *_regs)
+static int manglef_grublegacy(const struct part_iter *_iter, struct data_area *_data)
 {
     /* Layout of stage2 file (from byte 0x0 to 0x270) */
     struct grub_stage2_patch_area {
@@ -814,7 +814,7 @@ static int mangle_grublegacy(const struct part_iter *_iter, struct data_area *_d
     }
 
     /* jump 0x200 bytes into the loadfile */
-    _regs->ip = 0x200;
+    opt.regs.ip = 0x200;
 
     /*
      * GRUB Legacy wants the partition number in the install_partition
@@ -866,7 +866,7 @@ bail:
 /*
  * Dell's DRMK chainloading.
  */
-static int mangle_drmk(struct data_area *_data, struct syslinux_rm_regs *_regs)
+static int manglef_drmk(struct data_area *_data)
 {
     /*
      * DRMK entry is different than MS-DOS/PC-DOS
@@ -875,14 +875,14 @@ static int mangle_drmk(struct data_area *_data, struct syslinux_rm_regs *_regs)
      */
 
     uint32_t tsize = (_data->size + 19) & 0xfffffff0;
-    _regs->ss = _regs->fs = _regs->gs = 0;	/* Used before initialized */
+    opt.regs.ss = opt.regs.fs = opt.regs.gs = 0;	/* Used before initialized */
     if (!realloc(_data->data, tsize)) {
 	error("Failed to realloc for DRMK.\n");
 	goto bail;
     }
     _data->size = tsize;
     /* ds:[bp+28] must be 0x0000003f */
-    _regs->ds = (uint16_t)((tsize >> 4) + (opt.seg - 2u));
+    opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.seg - 2u));
     /* "Patch" into tail of the new space */
     *(uint32_t *)((char*)_data->data + tsize - 4) = 0x0000003f;
 
@@ -899,7 +899,6 @@ int main(int argc, char *argv[])
     void *file_area = NULL;
     struct disk_dos_part_entry *hand_area = NULL;
 
-    struct syslinux_rm_regs regs;
     struct data_area data[3];
     int ndata = 0, fidx = -1, sidx = -1;
     addr_t load_base;
@@ -914,13 +913,11 @@ int main(int argc, char *argv[])
     if(parse_args(argc, argv))
 	goto bail;
 
-    /* Prepare the register set */
-    memset(&regs, 0, sizeof regs);
-
     if (opt.seg) {
-	regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = opt.seg;
+	opt.regs.es = opt.regs.cs = opt.regs.ss =
+	    opt.regs.ds = opt.regs.fs = opt.regs.gs = opt.seg;
     } else {
-	regs.esp.l = regs.ip = 0x7c00;
+	opt.regs.esp.l = opt.regs.ip = 0x7c00;
     }
 
     /* Get disk/part iterator matching user supplied options */
@@ -928,7 +925,7 @@ int main(int argc, char *argv[])
 	goto bail;
 
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    regs.ebx.b[0] = regs.edx.b[0] = (uint8_t)cur_part->di.disk;
+    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)cur_part->di.disk;
 
     /* Do hide / unhide if appropriate */
     if (opt.hide)
@@ -966,16 +963,16 @@ int main(int argc, char *argv[])
 
     /* Mangle file area */
 
-    if (opt.isolinux && mangle_isolinux(data + fidx))
+    if (opt.isolinux && manglef_isolinux(data + fidx))
 	goto bail;
 
-    if (opt.grldr && mangle_grldr(cur_part, &regs))
+    if (opt.grldr && manglef_grldr(cur_part))
 	goto bail;
 
-    if (opt.grub && mangle_grublegacy(cur_part, data + fidx, &regs))
+    if (opt.grub && manglef_grublegacy(cur_part, data + fidx))
 	goto bail;
 
-    if (opt.drmk && mangle_drmk(data + fidx, &regs))
+    if (opt.drmk && manglef_drmk(data + fidx))
 	goto bail;
 
 
@@ -1043,12 +1040,12 @@ int main(int argc, char *argv[])
 	    /* Next comes the GPT partition record copy */
 	    memcpy(plen + 1, gp, plen[0]);
 
-	    regs.eax.l = 0x54504721;	/* '!GPT' */
+	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
 	    data[ndata].base = 0x7be;
 	    data[ndata].size = synth_size;
 	    data[ndata].data = (void *)hand_area;
 	    ndata++;
-	    regs.esi.w[0] = 0x7be;
+	    opt.regs.esi.w[0] = 0x7be;
 #ifdef DEBUG
 	    dprintf("GPT handover:\n");
 	    disk_dos_part_dump(hand_area);
@@ -1070,7 +1067,7 @@ int main(int argc, char *argv[])
 	    data[ndata].size = sizeof(struct disk_dos_part_entry);
 	    data[ndata].data = (void *)hand_area;
 	    ndata++;
-	    regs.esi.w[0] = 0x7be;
+	    opt.regs.esi.w[0] = 0x7be;
 #ifdef DEBUG
 	    dprintf("MBR handover:\n");
 	    disk_dos_part_dump(hand_area);
@@ -1078,7 +1075,7 @@ int main(int argc, char *argv[])
 	}
     }
 
-    do_boot(data, ndata, &regs);
+    do_boot(data, ndata);
 
 bail:
     pi_del(&cur_part);
