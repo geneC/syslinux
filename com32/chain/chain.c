@@ -1031,7 +1031,7 @@ int main(int argc, char *argv[])
 	    disk_dos_part_dump(hand_area);
 	    disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
-	} else {
+	} else if (cur_part->type == typedos) {
 	    /* MBR handover protocol */
 	    /* Allocate the hand-over record */
 	    hand_area = malloc(sizeof(struct disk_dos_part_entry));

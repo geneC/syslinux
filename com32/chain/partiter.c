@@ -55,11 +55,13 @@ static void error(const char *msg)
 
 /* forwards */
 
+static int iter_ctor(struct part_iter *, va_list *);
 static int iter_dos_ctor(struct part_iter *, va_list *);
 static int iter_gpt_ctor(struct part_iter *, va_list *);
 static void iter_dtor(struct part_iter *);
 static struct part_iter *pi_dos_next(struct part_iter *);
 static struct part_iter *pi_gpt_next(struct part_iter *);
+static struct part_iter *pi_raw_next(struct part_iter *);
 
 static struct itertype types[] = {
    [0] = {
@@ -70,10 +72,15 @@ static struct itertype types[] = {
 	.ctor = &iter_gpt_ctor,
 	.dtor = &iter_dtor,
 	.next = &pi_gpt_next,
+}, [2] = {
+	.ctor = &iter_ctor,
+	.dtor = &iter_dtor,
+	.next = &pi_raw_next,
 }};
 
 const struct itertype * const typedos = types;
 const struct itertype * const typegpt = types+1;
+const struct itertype * const typeraw = types+2;
 
 #ifdef DEBUG
 static int inv_type(const void *type)
@@ -434,12 +441,12 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
     /* look for primary partitions */
     if (iter->sub.dos.index0 < 4 &&
 	    pi_dos_next_mbr(iter, &start_lba, &dos_part))
-        return pi_del(&iter);
+	goto out;
 
     /* look for logical partitions */
     if (iter->sub.dos.index0 >= 4 &&
 	    pi_dos_next_ebr(iter, &start_lba, &dos_part))
-	return pi_del(&iter);
+	goto out;
 
     /* dos_part and start_lba are guaranteed to be valid here */
 
@@ -452,6 +459,8 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
 #endif
 
     return iter;
+out:
+    return pi_del(&iter);
 }
 
 static void gpt_conv_label(struct part_iter *iter)
@@ -502,6 +511,11 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 
     return iter;
 out:
+    return pi_del(&iter);
+}
+
+static struct part_iter *pi_raw_next(struct part_iter *iter)
+{
     return pi_del(&iter);
 }
 
@@ -655,21 +669,21 @@ struct part_iter *pi_begin(const struct disk_info *di)
 
     /* Read MBR */
     if (!(mbr = disk_read_sectors(di, 0, 1))) {
-	error("Couldn't read MBR sector.");
+	error("Couldn't read first disk sector.\n");
 	goto out;
     }
 
     /* Check for MBR magic*/
     if (mbr->sig != disk_mbr_sig_magic) {
 	error("No MBR magic.\n");
-	goto out;
+	goto raw;
     }
 
     /* Check for GPT protective MBR */
     if (mbr->table[0].ostype == 0xEE) {
 	if (!(gpth = disk_read_sectors(di, 1, 1))) {
-	    error("Couldn't read GPT header.");
-	    goto out;
+	    error("Couldn't read potential GPT header.\n");
+	    goto raw;
 	}
     }
 
@@ -684,7 +698,7 @@ struct part_iter *pi_begin(const struct disk_info *di)
 #endif
 	/* Verify checksum, fallback to backup, then bail if invalid */
 	if (gpt_check_hdr_crc(di, &gpth))
-	    goto out;
+	    goto raw;
 
 	gpt_loff = gpth->lba_table;
 	gpt_lsiz = (uint64_t)gpth->part_size*gpth->part_count;
@@ -696,16 +710,16 @@ struct part_iter *pi_begin(const struct disk_info *di)
 	if (!gpt_loff || !gpt_lsiz || gpt_lsiz > MAXGPTPTSIZE ||
 		gpth->part_size < sizeof(struct disk_gpt_part_entry)) {
 	    error("Invalid GPT header's lba_table/part_count/part_size values.\n");
-	    goto out;
+	    goto raw;
 	}
 	if (!(gptl = disk_read_sectors(di, gpt_loff, (uint8_t)((gpt_lsiz+SECTOR-1)/SECTOR)))) {
 	    error("Couldn't read GPT partition list.\n");
-	    goto out;
+	    goto raw;
 	}
 	/* Check array checksum. */
 	if (check_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
 	    error("GPT partition list checksum invalid.\n");
-	    goto out;
+	    goto raw;
 	}
 	/* allocate iterator and exit */
 	if (!(iter = pi_new(typegpt, di, gpth, gptl)))
@@ -716,7 +730,9 @@ struct part_iter *pi_begin(const struct disk_info *di)
 	    goto out;
     }
 
-    /* we do not do first iteration ! */
+raw:
+    error("WARNING: treating disk as raw.\n");
+    iter = pi_new(typeraw, di);
 
 out:
     free(mbr);

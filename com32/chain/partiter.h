@@ -83,6 +83,7 @@ struct part_iter {
 
 extern const struct itertype * const typedos;
 extern const struct itertype * const typegpt;
+extern const struct itertype * const typeraw;
 
 struct part_iter *pi_begin(const struct disk_info *);
 struct part_iter *pi_new(const struct itertype *, ...);
