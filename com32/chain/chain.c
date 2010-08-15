@@ -178,7 +178,7 @@ static void do_boot(struct data_area *data, int ndata,
 		    struct syslinux_rm_regs *regs)
 {
     uint16_t *const bios_fbm = (uint16_t *) 0x413;
-    addr_t dosmem = *bios_fbm << 10;	/* Technically a low bound */
+    addr_t dosmem = (addr_t)(*bios_fbm << 10);	/* Technically a low bound */
     struct syslinux_memmap *mmap;
     struct syslinux_movelist *mlist = NULL;
     addr_t endimage;
@@ -249,7 +249,7 @@ static void do_boot(struct data_area *data, int ndata,
 	   installer stub to put things in the right place.
 	   Round the installer location to a 1K boundary so the only
 	   possible overlap is the identity mapping. */
-	endimage = (endimage + 1023) & ~1023;
+	endimage = (endimage + 1023u) & ~1023u;
 
 	/* Create swap stub */
 	memcpy(swapstub, swapstub_master, sizeof swapstub_master);
@@ -264,15 +264,15 @@ static void do_boot(struct data_area *data, int ndata,
 
 	/* Mapping table; start out with identity mapping everything */
 	for (i = 0; i < 256; i++)
-	    p[i] = i;
+	    p[i] = (uint8_t)i;
 
 	/* And the actual swap */
 	p[driveno] = swapdrive;
 	p[swapdrive] = driveno;
 
 	/* Adjust registers */
-	regs->ds = regs->cs = endimage >> 4;
-	regs->es = regs->esi.l = 0;
+	regs->ds = regs->cs = (uint16_t)(endimage >> 4);
+	regs->esi.l = regs->es = 0;
 	regs->ecx.l = sizeof swapstub >> 2;
 	regs->ip = 0x10;	/* Installer offset */
 	regs->ebx.b[0] = regs->edx.b[0] = swapdrive;
@@ -330,12 +330,12 @@ static void hide_unhide(const struct part_iter *_iter)
     for (i = 1; i <= 4; i++) {
 	pt = mbr->table + i - 1;
 	t = pt->ostype;
-	if ((t <= 0x1f) && ((mask >> (t & ~0x10)) & 1)) {
+	if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
 	    /* It's a hideable partition type */
 	    if (i == _iter->index)
-		t &= ~0x10;	/* unhide */
+		t &= (uint8_t)(~0x10u);	/* unhide */
 	    else
-		t |= 0x10;	/* hide */
+		t |= 0x10u;	/* hide */
 	}
 	if (t != pt->ostype) {
 	    write_back = true;
@@ -606,7 +606,7 @@ int find_dp(struct part_iter **_iter)
 	       opt.drivename[1] == 'd') {
 	hd = opt.drivename[0] == 'h' ? 0x80 : 0;
 	opt.drivename += 2;
-	drive = hd | strtoul(opt.drivename, NULL, 0);
+	drive = hd | (int)strtoul(opt.drivename, NULL, 0);
 
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
@@ -654,7 +654,7 @@ int find_dp(struct part_iter **_iter)
      * partition number (including disk).
      */
     if (!iter->index && opt.partition) {
-	partition = strtoul(opt.partition, NULL, 0);
+	partition = (int)strtoul(opt.partition, NULL, 0);
 	/* search for matching part#, including disk */
 	do {
 	    if (iter->index == partition)
@@ -726,7 +726,7 @@ static int mangle_isolinux(struct data_area *_data)
     /* Calculate checksum */
     checksum = (uint32_t *) & isolinux_bin[20];
     chkhead = (uint32_t *) & isolinux_bin[64];
-    chktail = (uint32_t *) & isolinux_bin[_data->size & ~3];
+    chktail = (uint32_t *) & isolinux_bin[_data->size & ~3u];
     *checksum = 0;
     while (chkhead < chktail)
 	*checksum += *chkhead++;
@@ -753,7 +753,7 @@ bail:
  */
 static int mangle_grldr(const struct part_iter *_iter, struct syslinux_rm_regs *_regs)
 {
-    _regs->edx.b[1] = _iter->index - 1;
+    _regs->edx.b[1] = (uint8_t)(_iter->index - 1);
     return 0;
 }
 
@@ -842,7 +842,7 @@ static int mangle_grublegacy(const struct part_iter *_iter, struct data_area *_d
      *   0-3:  primary partitions
      *   4-*:  logical partitions
      */
-    stage2->install_partition.part1 = _iter->index - 1;
+    stage2->install_partition.part1 = (uint8_t)(_iter->index - 1);
 
     /*
      * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
@@ -874,7 +874,7 @@ static int mangle_drmk(struct data_area *_data, struct syslinux_rm_regs *_regs)
      * We only really need 4 new, usable bytes at the end.
      */
 
-    int tsize = (_data->size + 19) & 0xfffffff0;
+    uint32_t tsize = (_data->size + 19) & 0xfffffff0;
     _regs->ss = _regs->fs = _regs->gs = 0;	/* Used before initialized */
     if (!realloc(_data->data, tsize)) {
 	error("Failed to realloc for DRMK.\n");
@@ -882,9 +882,9 @@ static int mangle_drmk(struct data_area *_data, struct syslinux_rm_regs *_regs)
     }
     _data->size = tsize;
     /* ds:[bp+28] must be 0x0000003f */
-    _regs->ds = (tsize >> 4) + (opt.seg - 2);
+    _regs->ds = (uint16_t)((tsize >> 4) + (opt.seg - 2u));
     /* "Patch" into tail of the new space */
-    *(int *)(_data->data + tsize - 4) = 0x0000003f;
+    *(uint32_t *)((char*)_data->data + tsize - 4) = 0x0000003f;
 
     return 0;
 bail:
@@ -920,7 +920,7 @@ int main(int argc, char *argv[])
     if (opt.seg) {
 	regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = opt.seg;
     } else {
-	regs.ip = regs.esp.l = 0x7c00;
+	regs.esp.l = regs.ip = 0x7c00;
     }
 
     /* Get disk/part iterator matching user supplied options */
@@ -928,7 +928,7 @@ int main(int argc, char *argv[])
 	goto bail;
 
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    regs.ebx.b[0] = regs.edx.b[0] = cur_part->di.disk;
+    regs.ebx.b[0] = regs.edx.b[0] = (uint8_t)cur_part->di.disk;
 
     /* Do hide / unhide if appropriate */
     if (opt.hide)
@@ -936,7 +936,7 @@ int main(int argc, char *argv[])
    
     /* Load file and bs/mbr */
 
-    load_base = opt.seg ? (opt.seg << 4) : 0x7c00;
+    load_base = opt.seg ? (uint32_t)(opt.seg << 4) : 0x7c00;
 
     if (opt.loadfile) {
 	fputs("Loading the boot file...\n", stdout);
@@ -997,7 +997,10 @@ int main(int argc, char *argv[])
      * possibly other boot loaders which use the same format.
      */
     if (cur_part->index && opt.sethidden) {
-	*(uint32_t *) ((char *)data[sidx].data + 28) = cur_part->start_lba;
+	if(cur_part->start_lba < 0x100000000)
+	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = (uint32_t)cur_part->start_lba;
+	else
+	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = ~0u;
     }
 
 
@@ -1012,7 +1015,7 @@ int main(int argc, char *argv[])
 	    /* The length of the hand-over */
 	    uint32_t synth_size =
 		sizeof(struct disk_dos_part_entry) + sizeof(uint32_t) +
-		cur_part->sub.gpt.pe_size;
+		(uint32_t)cur_part->sub.gpt.pe_size;
 	    /* Will point to the partition record length in the hand-over */
 	    uint32_t *plen;
 
@@ -1027,16 +1030,16 @@ int main(int argc, char *argv[])
 	    hand_area->active_flag = 0x80;
 	    hand_area->ostype = 0xED;
 	    /* All bits set by default */
-	    hand_area->start_lba = ~(uint32_t) 0;
-	    hand_area->length = ~(uint32_t) 0;
+	    hand_area->start_lba = ~0u;
+	    hand_area->length = ~0u;
 	    /* If these fit the precision, pass them on */
 	    if (cur_part->start_lba < hand_area->start_lba)
-		hand_area->start_lba = cur_part->start_lba;
+		hand_area->start_lba = (uint32_t)cur_part->start_lba;
 	    if (lba_count < hand_area->length)
-		hand_area->length = lba_count;
+		hand_area->length = (uint32_t)lba_count;
 	    /* Next comes the GPT partition record length */
 	    plen = (uint32_t *) (hand_area + 1);
-	    plen[0] = cur_part->sub.gpt.pe_size;
+	    plen[0] = (uint32_t)cur_part->sub.gpt.pe_size;
 	    /* Next comes the GPT partition record copy */
 	    memcpy(plen + 1, gp, plen[0]);
 
@@ -1061,7 +1064,7 @@ int main(int argc, char *argv[])
 	    }
 
 	    memcpy(hand_area, cur_part->record, sizeof(struct disk_dos_part_entry));
-	    hand_area->start_lba = cur_part->start_lba;
+	    hand_area->start_lba = (uint32_t)cur_part->start_lba;
 
 	    data[ndata].base = 0x7be;
 	    data[ndata].size = sizeof(struct disk_dos_part_entry);

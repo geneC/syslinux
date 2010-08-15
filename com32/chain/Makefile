@@ -16,7 +16,7 @@ topdir = ../..
 include ../MCONFIG
 
 OBJS = chain.o partiter.o
-#GCCWARN += -Wextra -Wconversion -pedantic -Wno-error
+GCCWARN += -Wextra -Wconversion -pedantic -Wno-error
 
 all: chain.c32
 
