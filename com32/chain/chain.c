@@ -38,6 +38,8 @@
 #define ADDRMAX 0x9F000
 #define ADDRMIN 0x500
 
+static const char cmldr_signature[8] = "cmdcons";
+
 static struct options {
     const char *drivename;
     const char *partition;
@@ -61,35 +63,37 @@ struct data_area {
     addr_t size;
 };
 
+
 static inline void error(const char *msg)
 {
     fputs(msg, stderr);
 }
 
-static struct disk_info diskinfo;
-
 /* Search for a specific drive, based on the MBR signature; bytes 440-443 */
-static int find_by_sig(uint32_t mbr_sig)
+static int find_by_sig(uint32_t mbr_sig,
+			struct part_iter **_boot_part)
 {
     struct part_iter *boot_part = NULL;
+    struct disk_info diskinfo;
     int drive;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
+	if (!(boot_part = pi_begin(&diskinfo)))
+	    continue;
 	/* Check for a MBR disk */
-	boot_part = pi_begin(&diskinfo);
 	if (boot_part->type != typedos) {
 	    pi_del(&boot_part);
 	    continue;
 	}
 	if (boot_part->sub.dos.disk_sig == mbr_sig) {
-	    pi_del(&boot_part);
 	    goto ok;
 	}
     }
     drive = -1;
 ok:
+    *_boot_part = boot_part;
     return drive;
 }
 
@@ -105,20 +109,21 @@ static int find_by_guid(const struct guid *gpt_guid,
 			struct part_iter **_boot_part)
 {
     struct part_iter *boot_part = NULL;
+    struct disk_info diskinfo;
     int drive;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
+	if (!(boot_part = pi_begin(&diskinfo)))
+	    continue;
 	/* Check for a GPT disk */
-	boot_part = pi_begin(&diskinfo);
 	if (boot_part->type != typegpt) {
 	    pi_del(&boot_part);
 	    continue;
 	}
 	/* Check for a matching GPT disk guid */
 	if(!memcmp(&boot_part->sub.gpt.disk_guid, gpt_guid, sizeof(*gpt_guid))) {
-	    pi_del(&boot_part);
 	    goto ok;
 	}
 	/* disk guid doesn't match, maybe partition guid will */
@@ -143,11 +148,14 @@ ok:
 static int find_by_label(const char *label, struct part_iter **_boot_part)
 {
     struct part_iter *boot_part = NULL;
+    struct disk_info diskinfo;
     int drive;
 
     for (drive = 0x80; drive <= 0xff; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
+	if (!(boot_part = pi_begin(&diskinfo)))
+	    continue;
 	/* Check for a GPT disk */
 	boot_part = pi_begin(&diskinfo);
 	if (!(boot_part->type == typegpt)) {
@@ -296,7 +304,7 @@ enomem:
     return;
 }
 
-static int hide_unhide(struct disk_dos_mbr *mbr, int part)
+static int hide_unhide(struct disk_dos_mbr *mbr, int part, const struct disk_info *di)
 {
     int i;
     struct disk_dos_part_entry *pt;
@@ -323,7 +331,7 @@ static int hide_unhide(struct disk_dos_mbr *mbr, int part)
     }
 
     if (write_back)
-	return disk_write_verify_sector(&diskinfo, 0, mbr);
+	return disk_write_verify_sector(di, 0, mbr);
 
     return 0;			/* ok */
 }
@@ -537,32 +545,141 @@ bail:
     return -1;
 }
 
+inline static int is_phys(uint8_t sdifs)
+{
+    return
+	sdifs == SYSLINUX_FS_SYSLINUX ||
+	sdifs == SYSLINUX_FS_EXTLINUX ||
+	sdifs == SYSLINUX_FS_ISOLINUX;
+}
+
+
+int find_dp(struct part_iter **_iter)
+{
+    struct part_iter *iter;
+    struct disk_info diskinfo;
+    struct guid gpt_guid;
+    uint64_t fs_lba;
+    int drive, hd, partition;
+    const union syslinux_derivative_info *sdi;
+
+    sdi = syslinux_derivative_info();
+
+    if (!strncmp(opt.drivename, "mbr", 3)) {
+	if (find_by_sig(strtoul(opt.drivename + 4, NULL, 0), &iter)) {
+	    error("Unable to find requested MBR signature.\n");
+	    goto bail;
+	}
+
+    } else if (!strncmp(opt.drivename, "guid", 4)) {
+	if (str_to_guid(opt.drivename + 5, &gpt_guid))
+	    goto bail;
+	if (find_by_guid(&gpt_guid, &iter)) {
+	    error("Unable to find requested GPT disk or partition by guid.\n");
+	    goto bail;
+	}
+
+    } else if (!strncmp(opt.drivename, "label", 5)) {
+	if (!opt.drivename[6]) {
+	    error("No label specified.\n");
+	    goto bail;
+	}
+	if (find_by_label(opt.drivename + 6, &iter)) {
+	    error("Unable to find requested GPT partition by label.\n");
+	    goto bail;
+	}
+
+    } else if ((opt.drivename[0] == 'h' || opt.drivename[0] == 'f') &&
+	       opt.drivename[1] == 'd') {
+	hd = opt.drivename[0] == 'h' ? 0x80 : 0;
+	opt.drivename += 2;
+	drive = hd | strtoul(opt.drivename, NULL, 0);
+
+	if (disk_get_params(drive, &diskinfo))
+	    goto bail;
+	if (!(iter = pi_begin(&diskinfo)))
+	    goto bail;
+
+    } else if (!strcmp(opt.drivename, "boot") || !strcmp(opt.drivename, "fs")) {
+	if (!is_phys(sdi->c.filesystem)) {
+	    error("When syslinux is not booted from physical disk (or its emulation),\n"
+		   "'boot' and 'fs' are meaningless.\n");
+	    goto bail;
+	}
+	/* offsets match, but in case it changes in the future */
+	if(sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
+	    drive = sdi->iso.drive_number;
+	    fs_lba = *sdi->iso.partoffset;
+	} else {
+	    drive = sdi->disk.drive_number;
+	    fs_lba = *sdi->disk.partoffset;
+	}
+
+	if (disk_get_params(drive, &diskinfo))
+	    goto bail;
+	if (!(iter = pi_begin(&diskinfo)))
+	    goto bail;
+
+	/* 'fs' => we should lookup the Syslinux partition number and use it */
+	if (!strcmp(opt.drivename, "fs")) {
+	    while (pi_next(&iter)) {
+		if (iter->start_lba == fs_lba)
+		    break;
+	    }
+	    /* broken part structure or other problems */
+	    if (!iter) {
+		error("Can't find myself on the drive I booted from.\n");
+		goto bail;
+	    }
+	}
+    } else {
+	error("Unparsable drive specification.\n");
+	goto bail;
+    }
+    /* main options done, only thing left is explicit parition specification
+     * if we're still at the disk stage with the iterator AND user supplied
+     * partition number (including disk).
+     */
+    if (!iter->index && opt.partition) {
+	partition = strtoul(opt.partition, NULL, 0);
+	/* search for matching part#, including disk */
+	do {
+	    if (iter->index == partition)
+		break;
+	} while (pi_next(&iter));
+    }
+
+    if (!(iter->di.disk & 0x80) && iter->index) {
+	error("WARNING: Partitions on floppy devices may not work.\n");
+    }
+
+    *_iter = iter;
+    return 0;
+
+bail:
+    return -1;
+}
+
+
 int main(int argc, char *argv[])
 {
-    struct disk_dos_mbr *mbr = NULL;
     struct part_iter *cur_part = NULL;
 
+    struct disk_dos_mbr *mbr_area = NULL;
     void *sect_area = NULL;
     void *file_area = NULL;
     struct disk_dos_part_entry *hand_area = NULL;
 
     struct syslinux_rm_regs regs;
-    int hd, drive, whichpart = 0;	/* MBR by default */
-    uint64_t fs_lba = 0;	/* Syslinux partition */
-    uint32_t file_lba = 0;
-    struct guid gpt_guid;
-    unsigned char *isolinux_bin;
-    uint32_t *checksum, *chkhead, *chktail;
     struct data_area data[3];
     int ndata = 0;
     addr_t load_base;
-    static const char cmldr_signature[8] = "cmdcons";
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
     /* Prepare and set default values */
     memset(&opt, 0, sizeof(opt));
-    opt.drivename = "boot";
+    opt.drivename = "boot";	/* potential FIXME: maybe we shouldn't assume boot by default */
 
     /* Parse arguments */
     if(parse_args(argc, argv))
@@ -577,123 +694,24 @@ int main(int argc, char *argv[])
 	regs.ip = regs.esp.l = 0x7c00;
     }
 
-    hd = 0;
-    if (!strncmp(opt.drivename, "mbr", 3)) {
-	drive = find_by_sig(strtoul(opt.drivename + 4, NULL, 0));
-	if (drive == -1) {
-	    error("Unable to find requested MBR signature\n");
-	    goto bail;
-	}
-    } else if (!strncmp(opt.drivename, "guid", 4)) {
-	if (str_to_guid(opt.drivename + 5, &gpt_guid))
-	    goto bail;
-	drive = find_by_guid(&gpt_guid, &cur_part);
-	if (drive == -1) {
-	    error("Unable to find requested GPT disk/partition\n");
-	    goto bail;
-	}
-    } else if (!strncmp(opt.drivename, "label", 5)) {
-	if (!opt.drivename[6]) {
-	    error("No label specified.\n");
-	    goto bail;
-	}
-	drive = find_by_label(opt.drivename + 6, &cur_part);
-	if (drive == -1) {
-	    error("Unable to find requested partition by label\n");
-	    goto bail;
-	}
-    } else if ((opt.drivename[0] == 'h' || opt.drivename[0] == 'f') &&
-	       opt.drivename[1] == 'd') {
-	hd = opt.drivename[0] == 'h';
-	opt.drivename += 2;
-	drive = (hd ? 0x80 : 0) | strtoul(opt.drivename, NULL, 0);
-    } else if (!strcmp(opt.drivename, "boot") || !strcmp(opt.drivename, "fs")) {
-	const union syslinux_derivative_info *sdi;
+    /* Get disk/part iterator matching user supplied options */
 
-	sdi = syslinux_derivative_info();
-	if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX)
-	    drive = 0x80;	/* Boot drive not available */
-	else
-	    drive = sdi->disk.drive_number;
-	if (!strcmp(opt.drivename, "fs")
-	    && (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX
-		|| sdi->c.filesystem == SYSLINUX_FS_EXTLINUX
-		|| sdi->c.filesystem == SYSLINUX_FS_ISOLINUX))
-	    /* We should lookup the Syslinux partition number and use it */
-	    fs_lba = *sdi->disk.partoffset;
-    } else {
-	error("Unparsable drive specification\n");
+    if(find_dp(&cur_part))
 	goto bail;
-    }
 
-    /* DOS kernels want the drive number in BL instead of DL.  Indulge them. */
-    regs.ebx.b[0] = regs.edx.b[0] = drive;
-
-    /* Get the disk geometry and disk access setup */
-    if (disk_get_params(drive, &diskinfo)) {
-	error("Cannot get disk parameters\n");
-	goto bail;
-    }
+    /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
+    regs.ebx.b[0] = regs.edx.b[0] = cur_part->di.disk;
 
     /* Get MBR */
-    if (!(mbr = disk_read_sectors(&diskinfo, 0, 1))) {
-	error("Cannot read Master Boot Record or sector 0\n");
+    if (!(mbr_area = disk_read_sectors(&cur_part->di, 0, 1))) {
+	error("Cannot read Master Boot Record.\n");
 	goto bail;
     }
-
-    if (opt.partition)
-	whichpart = strtoul(opt.partition, NULL, 0);
-
-    /* "guid:" or "label:" might have specified a partition. In such case,
-     * this overrides explicit partition number specification. cur-part->index
-     * can't be 0 at this stage as find_by* won't export iterator at such
-     * position.
-     */
-    if (cur_part)
-	whichpart = cur_part->index;
-
-    /* If nothing was found, try fs first */
-    if (!cur_part && fs_lba) {
-	cur_part = pi_begin(&diskinfo);
-	/* search for matching fs_lba, must be partition */
-	while (pi_next(&cur_part)) {
-	    if (cur_part->start_lba == fs_lba)
-		break;
-	}
-    }
-    /* If still nothing found, do standard search */
-    if (!cur_part) {
-	cur_part = pi_begin(&diskinfo);
-	/* search for matching part#, including disk */
-	do {
-	    if (cur_part->index == whichpart)
-		break;
-	} while (pi_next(&cur_part));
-    }
-    if (!cur_part) {
-	error("Requested disk / partition not found!\n");
-	goto bail;
-    }
-
-    whichpart = cur_part->index;
-
-    if (!(drive & 0x80) && whichpart) {
-	error("Warning: Partitions of floppy devices may not work\n");
-    }
-
-    /*
-     * GRLDR of GRUB4DOS wants the partition number in DH:
-     * -1:   whole drive (default)
-     * 0-3:  primary partitions
-     * 4-*:  logical partitions
-     */
-    if (opt.grldr)
-	regs.edx.b[1] = whichpart - 1;
 
     if (opt.hide) {
-	if (whichpart < 1 || whichpart > 4)
+	if (cur_part->index < 1 || cur_part->index > 4)
 	    error("WARNING: hide specified without a non-primary partition\n");
-	if (hide_unhide(mbr, whichpart))
+	if (hide_unhide(mbr_area, cur_part->index, &cur_part->di))
 	    error("WARNING: failed to write MBR for 'hide'\n");
     }
 
@@ -703,7 +721,7 @@ int main(int argc, char *argv[])
     if (opt.loadfile) {
 	fputs("Loading the boot file...\n", stdout);
 	if (loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size)) {
-	    error("Failed to load the boot file\n");
+	    error("Failed to load the boot file.\n");
 	    goto bail;
 	}
 	data[ndata].base = load_base;
@@ -719,6 +737,9 @@ int main(int argc, char *argv[])
 	    sdi = syslinux_derivative_info();
 
 	    if (sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
+		unsigned char *isolinux_bin;
+		uint32_t *checksum, *chkhead, *chktail;
+		uint32_t file_lba = 0;
 		/* Boot info table info (integers in little endian format)
 
 		   Offset Name         Size      Meaning
@@ -774,6 +795,18 @@ int main(int argc, char *argv[])
 	    }
 	}
 
+	/*
+	 * GRLDR of GRUB4DOS wants the partition number in DH:
+	 * -1:   whole drive (default)
+	 * 0-3:  primary partitions
+	 * 4-*:  logical partitions
+	 */
+	if (opt.grldr)
+	    regs.edx.b[1] = cur_part->index - 1;
+
+	/*
+	 * Legacy grub's stage2 chainloading
+	 */
 	if (opt.grub) {
 	    /* Layout of stage2 file (from byte 0x0 to 0x270) */
 	    struct grub_stage2_patch_area {
@@ -858,7 +891,7 @@ int main(int argc, char *argv[])
 	     *   0-3:  primary partitions
 	     *   4-*:  logical partitions
 	     */
-	    stage2->install_partition.part1 = whichpart - 1;
+	    stage2->install_partition.part1 = cur_part->index - 1;
 
 	    /*
 	     * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
@@ -876,6 +909,9 @@ int main(int argc, char *argv[])
 	    }
 	}
 
+	/*
+	 * Dell's DRMK chainloading.
+	 */
 	if (opt.drmk) {
 	    /* DRMK entry is different than MS-DOS/PC-DOS */
 	    /*
@@ -901,10 +937,10 @@ int main(int argc, char *argv[])
     if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
 	/* Actually read the boot sector */
 	if (!cur_part->index) {
-	    data[ndata].data = mbr;
+	    data[ndata].data = mbr_area;
 	} else
 	    if (!(data[ndata].data =
-		 disk_read_sectors(&diskinfo, cur_part->start_lba, 1))) {
+		 disk_read_sectors(&cur_part->di, cur_part->start_lba, 1))) {
 	    error("Cannot read boot sector\n");
 	    goto bail;
 	} else
@@ -1024,7 +1060,7 @@ int main(int argc, char *argv[])
 bail:
     pi_del(&cur_part);
     /* Free allocated areas */
-    free(mbr);
+    free(mbr_area);
     free(file_area);
     free(sect_area);
     free(hand_area);

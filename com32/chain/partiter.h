@@ -55,9 +55,9 @@ struct part_iter {
     char *record;
     uint64_t start_lba;
     int index;
+    struct disk_info di;
     /* internal */
     char *data;
-    struct disk_info di;
     union _sub {
 	struct _dos {
 	    uint32_t disk_sig;
