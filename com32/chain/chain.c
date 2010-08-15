@@ -396,7 +396,7 @@ static int soi2sli(char *ptr, uint16_t *seg, uint32_t *lin, uint16_t *ip)
 {
     uint32_t segval = 0, offval = 0, ipval = 0, val;
     char *p;
-    
+
     segval = strtoul(ptr, &p, 0);
     if(*p == ':')
 	offval = strtoul(p+1, &p, 0);
@@ -520,7 +520,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.keeppxe = 3;
 	} else if (!strcmp(argv[i], "nokeeppxe")) {
 	    opt.keeppxe = 0;
-	} else if (!strcmp(argv[i], "sethid") || 
+	} else if (!strcmp(argv[i], "sethid") ||
 		!strcmp(argv[i], "sethidden")) {
 	    opt.sethid = true;
 	} else if (!strcmp(argv[i], "nosethid") ||
@@ -933,8 +933,8 @@ int main(int argc, char *argv[])
 
     /* Do hide / unhide if appropriate */
     if (opt.hide)
-	hide_unhide(iter); 
-   
+	hide_unhide(iter);
+
     /* Load file and bs/mbr */
 
     load_base = opt.seg ? (uint32_t)(opt.seg << 4) : 0x7c00;
