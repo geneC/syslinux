@@ -669,7 +669,11 @@ int find_dp(struct part_iter **_iter)
 	error("WARNING: Partitions on floppy devices may not work.\n");
     }
 
+    /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
+    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
+
     *_iter = iter;
+
     return 0;
 
 bail:
@@ -910,7 +914,7 @@ int main(int argc, char *argv[])
 
     /* Prepare and set default values */
     memset(&opt, 0, sizeof(opt));
-    opt.drivename = "boot";	/* potential FIXME: maybe we shouldn't assume boot by default */
+    opt.drivename = "boot";	/* potential FIXME: maybe we shouldn't assume boot by default, do wonder later */
 
     /* Parse arguments */
     if(parse_args(argc, argv))
@@ -926,9 +930,6 @@ int main(int argc, char *argv[])
     /* Get disk/part iterator matching user supplied options */
     if(find_dp(&iter))
 	goto bail;
-
-    /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
 
     /* Do hide / unhide if appropriate */
     if (opt.hide)
@@ -1003,6 +1004,7 @@ int main(int argc, char *argv[])
 	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = ~0u;
     }
 
+    /* Prepare handover */
 
     if (iter->index) {
 	if (iter->type == typegpt) {
