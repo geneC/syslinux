@@ -673,6 +673,223 @@ bail:
     return -1;
 }
 
+/* Create boot info table: needed when you want to chainload
+ * another version of ISOLINUX (or another bootlaoder that needs
+ * the -boot-info-table switch of mkisofs)
+ * (will only work when run from ISOLINUX)
+ */
+static int mangle_isolinux(struct data_area *_data)
+{
+    const union syslinux_derivative_info *sdi;
+    unsigned char *isolinux_bin;
+    uint32_t *checksum, *chkhead, *chktail;
+    uint32_t file_lba = 0;
+
+    sdi = syslinux_derivative_info();
+
+    if (sdi->c.filesystem != SYSLINUX_FS_ISOLINUX) {
+	error ("The isolinux= option is only valid when run from ISOLINUX.\n");
+	goto bail;
+    }
+
+    /* Boot info table info (integers in little endian format)
+
+       Offset Name         Size      Meaning
+       8      bi_pvd       4 bytes   LBA of primary volume descriptor
+       12     bi_file      4 bytes   LBA of boot file
+       16     bi_length    4 bytes   Boot file length in bytes
+       20     bi_csum      4 bytes   32-bit checksum
+       24     bi_reserved  40 bytes  Reserved
+
+       The 32-bit checksum is the sum of all the 32-bit words in the
+       boot file starting at byte offset 64. All linear block
+       addresses (LBAs) are given in CD sectors (normally 2048 bytes).
+
+       LBA of primary volume descriptor should already be set to 16.
+       */
+
+    isolinux_bin = (unsigned char *)_data->data;
+
+    /* Get LBA address of bootfile */
+    file_lba = get_file_lba(opt.loadfile);
+
+    if (file_lba == 0) {
+	error("Failed to find LBA offset of the boot file\n");
+	goto bail;
+    }
+    /* Set it */
+    *((uint32_t *) & isolinux_bin[12]) = file_lba;
+
+    /* Set boot file length */
+    *((uint32_t *) & isolinux_bin[16]) = _data->size;
+
+    /* Calculate checksum */
+    checksum = (uint32_t *) & isolinux_bin[20];
+    chkhead = (uint32_t *) & isolinux_bin[64];
+    chktail = (uint32_t *) & isolinux_bin[_data->size & ~3];
+    *checksum = 0;
+    while (chkhead < chktail)
+	*checksum += *chkhead++;
+
+    /*
+     * Deal with possible fractional dword at the end;
+     * this *should* never happen...
+     */
+    if (_data->size & 3) {
+	uint32_t xword = 0;
+	memcpy(&xword, chkhead, _data->size & 3);
+	*checksum += xword;
+    }
+    return 0;
+bail:
+    return -1;
+}
+
+/*
+ * GRLDR of GRUB4DOS wants the partition number in DH:
+ * -1:   whole drive (default)
+ * 0-3:  primary partitions
+ * 4-*:  logical partitions
+ */
+static int mangle_grldr(const struct part_iter *_iter, struct syslinux_rm_regs *_regs)
+{
+    _regs->edx.b[1] = _iter->index - 1;
+    return 0;
+}
+
+/*
+ * Legacy grub's stage2 chainloading
+ */
+static int mangle_grublegacy(const struct part_iter *_iter, struct data_area *_data, struct syslinux_rm_regs *_regs)
+{
+    /* Layout of stage2 file (from byte 0x0 to 0x270) */
+    struct grub_stage2_patch_area {
+	/* 0x0 to 0x205 */
+	char unknown[0x206];
+	/* 0x206: compatibility version number major */
+	uint8_t compat_version_major;
+	/* 0x207: compatibility version number minor */
+	uint8_t compat_version_minor;
+
+	/* 0x208: install_partition variable */
+	struct {
+	    /* 0x208: sub-partition in sub-partition part2 */
+	    uint8_t part3;
+	    /* 0x209: sub-partition in top-level partition */
+	    uint8_t part2;
+	    /* 0x20a: top-level partiton number */
+	    uint8_t part1;
+	    /* 0x20b: BIOS drive number (must be 0) */
+	    uint8_t drive;
+	} __attribute__ ((packed)) install_partition;
+
+	/* 0x20c: deprecated (historical reason only) */
+	uint32_t saved_entryno;
+	/* 0x210: stage2_ID: will always be STAGE2_ID_STAGE2 = 0 in stage2 */
+	uint8_t stage2_id;
+	/* 0x211: force LBA */
+	uint8_t force_lba;
+	/* 0x212: version string (will probably be 0.97) */
+	char version_string[5];
+	/* 0x217: config filename */
+	char config_file[89];
+	/* 0x270: start of code (after jump from 0x200) */
+	char codestart[1];
+    } __attribute__ ((packed)) *stage2;
+
+    if (_data->size < sizeof(struct grub_stage2_patch_area)) {
+	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.\n");
+	goto bail;
+    }
+    stage2 = _data->data;
+
+    /*
+     * Check the compatibility version number to see if we loaded a real
+     * stage2 file or a stage2 file that we support.
+     */
+    if (stage2->compat_version_major != 3
+	    || stage2->compat_version_minor != 2) {
+	error("The file specified by grub=<loader> is not a supported stage2 GRUB Legacy binary.\n");
+	goto bail;
+    }
+
+    /* jump 0x200 bytes into the loadfile */
+    _regs->ip = 0x200;
+
+    /*
+     * GRUB Legacy wants the partition number in the install_partition
+     * variable, located at offset 0x208 of stage2.
+     * When GRUB Legacy is loaded, it is located at memory address 0x8208.
+     *
+     * It looks very similar to the "boot information format" of the
+     * Multiboot specification:
+     *   http://www.gnu.org/software/grub/manual/multiboot/multiboot.html#Boot-information-format
+     *
+     *   0x208 = part3: sub-partition in sub-partition part2
+     *   0x209 = part2: sub-partition in top-level partition
+     *   0x20a = part1: top-level partition number
+     *   0x20b = drive: BIOS drive number (must be 0)
+     *
+     * GRUB Legacy doesn't store the BIOS drive number at 0x20b, but at
+     * another location.
+     *
+     * Partition numbers always start from zero.
+     * Unused partition bytes must be set to 0xFF.
+     *
+     * We only care about top-level partition, so we only need to change
+     * "part1" to the appropriate value:
+     *   -1:   whole drive (default) (-1 = 0xFF)
+     *   0-3:  primary partitions
+     *   4-*:  logical partitions
+     */
+    stage2->install_partition.part1 = _iter->index - 1;
+
+    /*
+     * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
+     * config filename. The filename passed via grubcfg= will overwrite
+     * the default config filename "/boot/grub/menu.lst".
+     */
+    if (opt.grubcfg) {
+	if (strlen(opt.grubcfg) > sizeof(stage2->config_file) - 1) {
+	    error ("The config filename length can't exceed 88 characters.\n");
+	    goto bail;
+	}
+
+	strcpy((char *)stage2->config_file, opt.grubcfg);
+    }
+
+    return 0;
+bail:
+    return -1;
+}
+
+/*
+ * Dell's DRMK chainloading.
+ */
+static int mangle_drmk(struct data_area *_data, struct syslinux_rm_regs *_regs)
+{
+    /*
+     * DRMK entry is different than MS-DOS/PC-DOS
+     * A new size, aligned to 16 bytes to ease use of ds:[bp+28].
+     * We only really need 4 new, usable bytes at the end.
+     */
+
+    int tsize = (_data->size + 19) & 0xfffffff0;
+    _regs->ss = _regs->fs = _regs->gs = 0;	/* Used before initialized */
+    if (!realloc(_data->data, tsize)) {
+	error("Failed to realloc for DRMK.\n");
+	goto bail;
+    }
+    _data->size = tsize;
+    /* ds:[bp+28] must be 0x0000003f */
+    _regs->ds = (tsize >> 4) + (opt.seg - 2);
+    /* "Patch" into tail of the new space */
+    *(int *)(_data->data + tsize - 4) = 0x0000003f;
+
+    return 0;
+bail:
+    return -1;
+}
 
 int main(int argc, char *argv[])
 {
@@ -684,7 +901,7 @@ int main(int argc, char *argv[])
 
     struct syslinux_rm_regs regs;
     struct data_area data[3];
-    int ndata = 0;
+    int ndata = 0, fidx = -1, sidx = -1;
     addr_t load_base;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
@@ -707,267 +924,82 @@ int main(int argc, char *argv[])
     }
 
     /* Get disk/part iterator matching user supplied options */
-
     if(find_dp(&cur_part))
 	goto bail;
 
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
     regs.ebx.b[0] = regs.edx.b[0] = cur_part->di.disk;
 
+    /* Do hide / unhide if appropriate */
     if (opt.hide)
 	hide_unhide(cur_part); 
    
-    /* Do the actual chainloading */
+    /* Load file and bs/mbr */
+
     load_base = opt.seg ? (opt.seg << 4) : 0x7c00;
 
     if (opt.loadfile) {
 	fputs("Loading the boot file...\n", stdout);
 	if (loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size)) {
-	    error("Failed to load the boot file.\n");
+	    error("Couldn't read the boot file.\n");
 	    goto bail;
 	}
-	data[ndata].base = load_base;
 	file_area = (void *)data[ndata].data;
+	data[ndata].base = load_base;
 	load_base = 0x7c00;	/* If we also load a boot sector */
-
-	/* Create boot info table: needed when you want to chainload
-	   another version of ISOLINUX (or another bootlaoder that needs
-	   the -boot-info-table switch of mkisofs)
-	   (will only work when run from ISOLINUX) */
-	if (opt.isolinux) {
-	    const union syslinux_derivative_info *sdi;
-	    sdi = syslinux_derivative_info();
-
-	    if (sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
-		unsigned char *isolinux_bin;
-		uint32_t *checksum, *chkhead, *chktail;
-		uint32_t file_lba = 0;
-		/* Boot info table info (integers in little endian format)
-
-		   Offset Name         Size      Meaning
-		   8      bi_pvd       4 bytes   LBA of primary volume descriptor
-		   12     bi_file      4 bytes   LBA of boot file
-		   16     bi_length    4 bytes   Boot file length in bytes
-		   20     bi_csum      4 bytes   32-bit checksum
-		   24     bi_reserved  40 bytes  Reserved
-
-		   The 32-bit checksum is the sum of all the 32-bit words in the
-		   boot file starting at byte offset 64. All linear block
-		   addresses (LBAs) are given in CD sectors (normally 2048 bytes).
-
-		   LBA of primary volume descriptor should already be set to 16.
-		 */
-
-		isolinux_bin = (unsigned char *)data[ndata].data;
-
-		/* Get LBA address of bootfile */
-		file_lba = get_file_lba(opt.loadfile);
-
-		if (file_lba == 0) {
-		    error("Failed to find LBA offset of the boot file\n");
-		    goto bail;
-		}
-		/* Set it */
-		*((uint32_t *) & isolinux_bin[12]) = file_lba;
-
-		/* Set boot file length */
-		*((uint32_t *) & isolinux_bin[16]) = data[ndata].size;
-
-		/* Calculate checksum */
-		checksum = (uint32_t *) & isolinux_bin[20];
-		chkhead = (uint32_t *) & isolinux_bin[64];
-		chktail = (uint32_t *) & isolinux_bin[data[ndata].size & ~3];
-		*checksum = 0;
-		while (chkhead < chktail)
-		    *checksum += *chkhead++;
-
-		/*
-		 * Deal with possible fractional dword at the end;
-		 * this *should* never happen...
-		 */
-		if (data[ndata].size & 3) {
-		    uint32_t xword = 0;
-		    memcpy(&xword, chkhead, data[ndata].size & 3);
-		    *checksum += xword;
-		}
-	    } else {
-		error
-		    ("The isolinux= option is only valid when run from ISOLINUX\n");
-		goto bail;
-	    }
-	}
-
-	/*
-	 * GRLDR of GRUB4DOS wants the partition number in DH:
-	 * -1:   whole drive (default)
-	 * 0-3:  primary partitions
-	 * 4-*:  logical partitions
-	 */
-	if (opt.grldr)
-	    regs.edx.b[1] = cur_part->index - 1;
-
-	/*
-	 * Legacy grub's stage2 chainloading
-	 */
-	if (opt.grub) {
-	    /* Layout of stage2 file (from byte 0x0 to 0x270) */
-	    struct grub_stage2_patch_area {
-		/* 0x0 to 0x205 */
-		char unknown[0x206];
-		/* 0x206: compatibility version number major */
-		uint8_t compat_version_major;
-		/* 0x207: compatibility version number minor */
-		uint8_t compat_version_minor;
-
-		/* 0x208: install_partition variable */
-		struct {
-		    /* 0x208: sub-partition in sub-partition part2 */
-		    uint8_t part3;
-		    /* 0x209: sub-partition in top-level partition */
-		    uint8_t part2;
-		    /* 0x20a: top-level partiton number */
-		    uint8_t part1;
-		    /* 0x20b: BIOS drive number (must be 0) */
-		    uint8_t drive;
-		} __attribute__ ((packed)) install_partition;
-
-		/* 0x20c: deprecated (historical reason only) */
-		uint32_t saved_entryno;
-		/* 0x210: stage2_ID: will always be STAGE2_ID_STAGE2 = 0 in stage2 */
-		uint8_t stage2_id;
-		/* 0x211: force LBA */
-		uint8_t force_lba;
-		/* 0x212: version string (will probably be 0.97) */
-		char version_string[5];
-		/* 0x217: config filename */
-		char config_file[89];
-		/* 0x270: start of code (after jump from 0x200) */
-		char codestart[1];
-	    } __attribute__ ((packed)) *stage2;
-
-	    if (data[ndata].size < sizeof(struct grub_stage2_patch_area)) {
-		error
-		    ("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.\n");
-		goto bail;
-	    }
-
-	    stage2 = data[ndata].data;
-
-	    /*
-	     * Check the compatibility version number to see if we loaded a real
-	     * stage2 file or a stage2 file that we support.
-	     */
-	    if (stage2->compat_version_major != 3
-		|| stage2->compat_version_minor != 2) {
-		error
-		    ("The file specified by grub=<loader> is not a supported stage2 GRUB Legacy binary\n");
-		goto bail;
-	    }
-
-	    /* jump 0x200 bytes into the loadfile */
-	    regs.ip = 0x200;
-
-	    /*
-	     * GRUB Legacy wants the partition number in the install_partition
-	     * variable, located at offset 0x208 of stage2.
-	     * When GRUB Legacy is loaded, it is located at memory address 0x8208.
-	     *
-	     * It looks very similar to the "boot information format" of the
-	     * Multiboot specification:
-	     *   http://www.gnu.org/software/grub/manual/multiboot/multiboot.html#Boot-information-format
-	     *
-	     *   0x208 = part3: sub-partition in sub-partition part2
-	     *   0x209 = part2: sub-partition in top-level partition
-	     *   0x20a = part1: top-level partition number
-	     *   0x20b = drive: BIOS drive number (must be 0)
-	     *
-	     * GRUB Legacy doesn't store the BIOS drive number at 0x20b, but at
-	     * another location.
-	     *
-	     * Partition numbers always start from zero.
-	     * Unused partition bytes must be set to 0xFF.
-	     *
-	     * We only care about top-level partition, so we only need to change
-	     * "part1" to the appropriate value:
-	     *   -1:   whole drive (default) (-1 = 0xFF)
-	     *   0-3:  primary partitions
-	     *   4-*:  logical partitions
-	     */
-	    stage2->install_partition.part1 = cur_part->index - 1;
-
-	    /*
-	     * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
-	     * config filename. The filename passed via grubcfg= will overwrite
-	     * the default config filename "/boot/grub/menu.lst".
-	     */
-	    if (opt.grubcfg) {
-		if (strlen(opt.grubcfg) > sizeof(stage2->config_file) - 1) {
-		    error
-			("The config filename length can't exceed 88 characters.\n");
-		    goto bail;
-		}
-
-		strcpy((char *)stage2->config_file, opt.grubcfg);
-	    }
-	}
-
-	/*
-	 * Dell's DRMK chainloading.
-	 */
-	if (opt.drmk) {
-	    /* DRMK entry is different than MS-DOS/PC-DOS */
-	    /*
-	     * A new size, aligned to 16 bytes to ease use of ds:[bp+28].
-	     * We only really need 4 new, usable bytes at the end.
-	     */
-	    int tsize = (data[ndata].size + 19) & 0xfffffff0;
-	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
-	    if (!realloc(data[ndata].data, tsize)) {
-		error("Failed to realloc for DRMK\n");
-		goto bail;
-	    }
-	    data[ndata].size = tsize;
-	    /* ds:[bp+28] must be 0x0000003f */
-	    regs.ds = (tsize >> 4) + (opt.seg - 2);
-	    /* "Patch" into tail of the new space */
-	    *(int *)(data[ndata].data + tsize - 4) = 0x0000003f;
-	}
-
+	fidx = ndata;
 	ndata++;
     }
 
     if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
-	/* Actually read the boot sector or mbr */
 	if (!(data[ndata].data = disk_read_sectors(&cur_part->di, cur_part->start_lba, 1))) {
-	    error("Couldn't read boot sector or mbr.\n");
+	    error("Couldn't read the boot sector or mbr.\n");
 	    goto bail;
-	} else
-	    sect_area = (void *)data[ndata].data;
+	}
 
-	data[ndata].size = SECTOR;
+	sect_area = (void *)data[ndata].data;
 	data[ndata].base = load_base;
-
-	/*
-	 * To boot the Recovery Console of Windows NT/2K/XP we need to write
-	 * the string "cmdcons\0" to memory location 0000:7C03.
-	 * Memory location 0000:7C00 contains the bootsector of the partition.
-	 */
-	if (cur_part->index && opt.cmldr) {
-	    memcpy((char *)data[ndata].data + 3, cmldr_signature,
-		   sizeof cmldr_signature);
-	}
-
-	/*
-	 * Modify the hidden sectors (partition offset) copy in memory;
-	 * this modifies the field used by FAT and NTFS filesystems, and
-	 * possibly other boot loaders which use the same format.
-	 */
-	if (cur_part->index && opt.sethidden) {
-	    *(uint32_t *) ((char *)data[ndata].data + 28) = cur_part->start_lba;
-	}
-
+	data[ndata].size = SECTOR;
+	sidx = ndata;
 	ndata++;
     }
+
+    /* Mangle file area */
+
+    if (opt.isolinux && mangle_isolinux(data + fidx))
+	goto bail;
+
+    if (opt.grldr && mangle_grldr(cur_part, &regs))
+	goto bail;
+
+    if (opt.grub && mangle_grublegacy(cur_part, data + fidx, &regs))
+	goto bail;
+
+    if (opt.drmk && mangle_drmk(data + fidx, &regs))
+	goto bail;
+
+
+    /* Mangle bs/mbr area */
+
+    /*
+     * To boot the Recovery Console of Windows NT/2K/XP we need to write
+     * the string "cmdcons\0" to memory location 0000:7C03.
+     * Memory location 0000:7C00 contains the bootsector of the partition.
+     */
+    if (cur_part->index && opt.cmldr) {
+	memcpy((char *)data[sidx].data + 3, cmldr_signature,
+		sizeof cmldr_signature);
+    }
+
+    /*
+     * Modify the hidden sectors (partition offset) copy in memory;
+     * this modifies the field used by FAT and NTFS filesystems, and
+     * possibly other boot loaders which use the same format.
+     */
+    if (cur_part->index && opt.sethidden) {
+	*(uint32_t *) ((char *)data[sidx].data + 28) = cur_part->start_lba;
+    }
+
 
     if (cur_part->index) {
 	if (cur_part->type == typegpt) {
