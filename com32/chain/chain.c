@@ -53,7 +53,7 @@ static struct options {
     bool grldr;
     bool swap;
     bool hide;
-    bool sethidden;
+    bool sethid;
     bool drmk;
     struct syslinux_rm_regs regs;
 } opt;
@@ -456,7 +456,7 @@ Usage:\n\
     seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
     swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
     hide               Hide primary partitions, except selected partition\n\
-    sethidden          Set the FAT/NTFS hidden sectors field\n\
+    sethid[den]        Set the FAT/NTFS hidden sectors field\n\
     keeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
 \nPlease see doc/chain.txt for the detailed documentation.\n";
     error(usage);
@@ -479,25 +479,25 @@ static int parse_args(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.seg = 0x2000;	/* NTLDR wants this address */
 	    opt.loadfile = argv[i] + 6;
-	    opt.sethidden = true;
+	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
 	    opt.seg = 0x2000;	/* CMLDR wants this address */
 	    opt.loadfile = argv[i] + 6;
 	    opt.cmldr = true;
-	    opt.sethidden = true;
+	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.seg = 0x60;	/* FREEDOS wants this address */
 	    opt.loadfile = argv[i] + 8;
-	    opt.sethidden = true;
+	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "msdos=", 6) ||
 		   !strncmp(argv[i], "pcdos=", 6)) {
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
 	    opt.loadfile = argv[i] + 6;
-	    opt.sethidden = true;
+	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.seg = 0x70;	/* DRMK wants this address */
 	    opt.loadfile = argv[i] + 5;
-	    opt.sethidden = true;
+	    opt.sethid = true;
 	    opt.drmk = true;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.seg = 0x800;	/* stage2 wants this address */
@@ -518,10 +518,14 @@ static int parse_args(int argc, char *argv[])
 	    opt.hide = false;
 	} else if (!strcmp(argv[i], "keeppxe")) {
 	    opt.keeppxe = 3;
-	} else if (!strcmp(argv[i], "sethidden")) {
-	    opt.sethidden = true;
-	} else if (!strcmp(argv[i], "nosethidden")) {
-	    opt.sethidden = false;
+	} else if (!strcmp(argv[i], "nokeeppxe")) {
+	    opt.keeppxe = 0;
+	} else if (!strcmp(argv[i], "sethid") || 
+		!strcmp(argv[i], "sethidden")) {
+	    opt.sethid = true;
+	} else if (!strcmp(argv[i], "nosethid") ||
+		!strcmp(argv[i], "nosethidden")) {
+	    opt.sethid = false;
 	} else if (((argv[i][0] == 'h' || argv[i][0] == 'f')
 		    && argv[i][1] == 'd')
 		   || !strncmp(argv[i], "mbr:", 4)
