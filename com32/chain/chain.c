@@ -35,7 +35,7 @@
 
 /* used in checks, whenever addresses supplied by user are sane */
 
-#define ADDRMAX 0x9F000
+#define ADDRMAX 0x9EFFF
 #define ADDRMIN 0x500
 
 static const char cmldr_signature[8] = "cmdcons";
