@@ -566,7 +566,6 @@ inline static int is_phys(uint8_t sdifs)
 	sdifs == SYSLINUX_FS_ISOLINUX;
 }
 
-
 int find_dp(struct part_iter **_iter)
 {
     struct part_iter *iter;
@@ -893,7 +892,7 @@ bail:
 
 int main(int argc, char *argv[])
 {
-    struct part_iter *cur_part = NULL;
+    struct part_iter *iter = NULL;
 
     void *sect_area = NULL;
     void *file_area = NULL;
@@ -921,15 +920,15 @@ int main(int argc, char *argv[])
     }
 
     /* Get disk/part iterator matching user supplied options */
-    if(find_dp(&cur_part))
+    if(find_dp(&iter))
 	goto bail;
 
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)cur_part->di.disk;
+    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
 
     /* Do hide / unhide if appropriate */
     if (opt.hide)
-	hide_unhide(cur_part); 
+	hide_unhide(iter); 
    
     /* Load file and bs/mbr */
 
@@ -949,7 +948,7 @@ int main(int argc, char *argv[])
     }
 
     if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
-	if (!(data[ndata].data = disk_read_sectors(&cur_part->di, cur_part->start_lba, 1))) {
+	if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
 	    error("Couldn't read the boot sector or mbr.\n");
 	    goto bail;
 	}
@@ -966,10 +965,10 @@ int main(int argc, char *argv[])
     if (opt.isolinux && manglef_isolinux(data + fidx))
 	goto bail;
 
-    if (opt.grldr && manglef_grldr(cur_part))
+    if (opt.grldr && manglef_grldr(iter))
 	goto bail;
 
-    if (opt.grub && manglef_grublegacy(cur_part, data + fidx))
+    if (opt.grub && manglef_grublegacy(iter, data + fidx))
 	goto bail;
 
     if (opt.drmk && manglef_drmk(data + fidx))
@@ -983,7 +982,7 @@ int main(int argc, char *argv[])
      * the string "cmdcons\0" to memory location 0000:7C03.
      * Memory location 0000:7C00 contains the bootsector of the partition.
      */
-    if (cur_part->index && opt.cmldr) {
+    if (iter->index && opt.cmldr) {
 	memcpy((char *)data[sidx].data + 3, cmldr_signature,
 		sizeof cmldr_signature);
     }
@@ -993,26 +992,26 @@ int main(int argc, char *argv[])
      * this modifies the field used by FAT and NTFS filesystems, and
      * possibly other boot loaders which use the same format.
      */
-    if (cur_part->index && opt.sethidden) {
-	if(cur_part->start_lba < 0x100000000)
-	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = (uint32_t)cur_part->start_lba;
+    if (iter->index && opt.sethidden) {
+	if(iter->start_lba < 0x100000000)
+	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = (uint32_t)iter->start_lba;
 	else
 	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = ~0u;
     }
 
 
-    if (cur_part->index) {
-	if (cur_part->type == typegpt) {
+    if (iter->index) {
+	if (iter->type == typegpt) {
 	    /* Do GPT hand-over, if applicable (as per syslinux/doc/gpt.txt) */
 	    /* Look at the GPT partition */
 	    const struct disk_gpt_part_entry *gp =
-		(const struct disk_gpt_part_entry *)cur_part->record;
+		(const struct disk_gpt_part_entry *)iter->record;
 	    /* Note the partition length */
 	    uint64_t lba_count = gp->lba_last - gp->lba_first + 1;
 	    /* The length of the hand-over */
 	    uint32_t synth_size =
 		sizeof(struct disk_dos_part_entry) + sizeof(uint32_t) +
-		(uint32_t)cur_part->sub.gpt.pe_size;
+		(uint32_t)iter->sub.gpt.pe_size;
 	    /* Will point to the partition record length in the hand-over */
 	    uint32_t *plen;
 
@@ -1030,13 +1029,13 @@ int main(int argc, char *argv[])
 	    hand_area->start_lba = ~0u;
 	    hand_area->length = ~0u;
 	    /* If these fit the precision, pass them on */
-	    if (cur_part->start_lba < hand_area->start_lba)
-		hand_area->start_lba = (uint32_t)cur_part->start_lba;
+	    if (iter->start_lba < hand_area->start_lba)
+		hand_area->start_lba = (uint32_t)iter->start_lba;
 	    if (lba_count < hand_area->length)
 		hand_area->length = (uint32_t)lba_count;
 	    /* Next comes the GPT partition record length */
 	    plen = (uint32_t *) (hand_area + 1);
-	    plen[0] = (uint32_t)cur_part->sub.gpt.pe_size;
+	    plen[0] = (uint32_t)iter->sub.gpt.pe_size;
 	    /* Next comes the GPT partition record copy */
 	    memcpy(plen + 1, gp, plen[0]);
 
@@ -1051,7 +1050,7 @@ int main(int argc, char *argv[])
 	    disk_dos_part_dump(hand_area);
 	    disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
-	} else if (cur_part->type == typedos) {
+	} else if (iter->type == typedos) {
 	    /* MBR handover protocol */
 	    /* Allocate the hand-over record */
 	    hand_area = malloc(sizeof(struct disk_dos_part_entry));
@@ -1060,8 +1059,8 @@ int main(int argc, char *argv[])
 		goto bail;
 	    }
 
-	    memcpy(hand_area, cur_part->record, sizeof(struct disk_dos_part_entry));
-	    hand_area->start_lba = (uint32_t)cur_part->start_lba;
+	    memcpy(hand_area, iter->record, sizeof(struct disk_dos_part_entry));
+	    hand_area->start_lba = (uint32_t)iter->start_lba;
 
 	    data[ndata].base = 0x7be;
 	    data[ndata].size = sizeof(struct disk_dos_part_entry);
@@ -1078,7 +1077,7 @@ int main(int argc, char *argv[])
     do_boot(data, ndata);
 
 bail:
-    pi_del(&cur_part);
+    pi_del(&iter);
     /* Free allocated areas */
     free(file_area);
     free(sect_area);
