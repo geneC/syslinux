@@ -304,9 +304,10 @@ enomem:
     return;
 }
 
-static int hide_unhide(struct disk_dos_mbr *mbr, int part, const struct disk_info *di)
+static void hide_unhide(const struct part_iter *_iter)
 {
     int i;
+    struct disk_dos_mbr *mbr = NULL;
     struct disk_dos_part_entry *pt;
     const uint16_t mask =
 	(1 << 0x01) | (1 << 0x04) | (1 << 0x06) |
@@ -314,12 +315,24 @@ static int hide_unhide(struct disk_dos_mbr *mbr, int part, const struct disk_inf
     uint8_t t;
     bool write_back = false;
 
+    if (_iter->type != typedos) {
+	error("Option 'hide' is only meaningful for legacy partition scheme.");
+	goto out;
+    }
+    if (!(mbr = disk_read_sectors(&_iter->di, 0, 1))) {
+	error("WARNING: Couldn't read MBR to hide/unhide partitions.\n");
+	goto out;
+    }
+
+    if (_iter->index < 1 || _iter->index > 4)
+	error("WARNING: option 'hide' specified with a non-primary partition.\n");
+
     for (i = 1; i <= 4; i++) {
 	pt = mbr->table + i - 1;
 	t = pt->ostype;
 	if ((t <= 0x1f) && ((mask >> (t & ~0x10)) & 1)) {
 	    /* It's a hideable partition type */
-	    if (i == part)
+	    if (i == _iter->index)
 		t &= ~0x10;	/* unhide */
 	    else
 		t |= 0x10;	/* hide */
@@ -329,11 +342,11 @@ static int hide_unhide(struct disk_dos_mbr *mbr, int part, const struct disk_inf
 	    pt->ostype = t;
 	}
     }
+    if (write_back && disk_write_verify_sector(&_iter->di, 0, mbr))
+	error("WARNING: failed to write MBR for option 'hide'\n");
 
-    if (write_back)
-	return disk_write_verify_sector(di, 0, mbr);
-
-    return 0;			/* ok */
+out:
+    free(mbr);
 }
 
 static uint32_t get_file_lba(const char *filename)
@@ -665,7 +678,6 @@ int main(int argc, char *argv[])
 {
     struct part_iter *cur_part = NULL;
 
-    struct disk_dos_mbr *mbr_area = NULL;
     void *sect_area = NULL;
     void *file_area = NULL;
     struct disk_dos_part_entry *hand_area = NULL;
@@ -702,19 +714,9 @@ int main(int argc, char *argv[])
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
     regs.ebx.b[0] = regs.edx.b[0] = cur_part->di.disk;
 
-    /* Get MBR */
-    if (!(mbr_area = disk_read_sectors(&cur_part->di, 0, 1))) {
-	error("Cannot read Master Boot Record.\n");
-	goto bail;
-    }
-
-    if (opt.hide) {
-	if (cur_part->index < 1 || cur_part->index > 4)
-	    error("WARNING: hide specified without a non-primary partition\n");
-	if (hide_unhide(mbr_area, cur_part->index, &cur_part->di))
-	    error("WARNING: failed to write MBR for 'hide'\n");
-    }
-
+    if (opt.hide)
+	hide_unhide(cur_part); 
+   
     /* Do the actual chainloading */
     load_base = opt.seg ? (opt.seg << 4) : 0x7c00;
 
@@ -935,30 +937,16 @@ int main(int argc, char *argv[])
     }
 
     if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
-	/* Actually read the boot sector */
-	if (!cur_part->index) {
-	    data[ndata].data = mbr_area;
-	} else
-	    if (!(data[ndata].data =
-		 disk_read_sectors(&cur_part->di, cur_part->start_lba, 1))) {
-	    error("Cannot read boot sector\n");
+	/* Actually read the boot sector or mbr */
+	if (!(data[ndata].data = disk_read_sectors(&cur_part->di, cur_part->start_lba, 1))) {
+	    error("Couldn't read boot sector or mbr.\n");
 	    goto bail;
 	} else
 	    sect_area = (void *)data[ndata].data;
+
 	data[ndata].size = SECTOR;
 	data[ndata].base = load_base;
 
-	if (!opt.loadfile) {
-	    const struct disk_dos_mbr *br =
-		(const struct disk_dos_mbr *)((char *)data[ndata].data +
-					      data[ndata].size -
-					      sizeof(struct disk_dos_mbr));
-	    if (br->sig != disk_mbr_sig_magic) {
-		error
-		    ("Boot sector signature not found (unbootable disk/partition?)\n");
-		goto bail;
-	    }
-	}
 	/*
 	 * To boot the Recovery Console of Windows NT/2K/XP we need to write
 	 * the string "cmdcons\0" to memory location 0000:7C03.
@@ -1060,7 +1048,6 @@ int main(int argc, char *argv[])
 bail:
     pi_del(&cur_part);
     /* Free allocated areas */
-    free(mbr_area);
     free(file_area);
     free(sect_area);
     free(hand_area);
