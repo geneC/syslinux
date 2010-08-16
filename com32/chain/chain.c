@@ -39,6 +39,7 @@
 #define ADDRMIN 0x500
 
 static const char cmldr_signature[8] = "cmdcons";
+static int fixed_cnt;
 
 static struct options {
     uint32_t flin;
@@ -83,7 +84,7 @@ static int find_by_sig(uint32_t mbr_sig,
     struct disk_info diskinfo;
     int drive;
 
-    for (drive = 0x80; drive <= 0xff; drive++) {
+    for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	if (!(boot_part = pi_begin(&diskinfo)))
@@ -118,7 +119,7 @@ static int find_by_guid(const struct guid *gpt_guid,
     struct disk_info diskinfo;
     int drive;
 
-    for (drive = 0x80; drive <= 0xff; drive++) {
+    for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	if (!(boot_part = pi_begin(&diskinfo)))
@@ -157,7 +158,7 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
     struct disk_info diskinfo;
     int drive;
 
-    for (drive = 0x80; drive <= 0xff; drive++) {
+    for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
 	if (!(boot_part = pi_begin(&diskinfo)))
@@ -651,21 +652,25 @@ int find_dp(struct part_iter **_iter)
 		   "'boot' and 'fs' are meaningless.\n");
 	    goto bail;
 	}
+#if 0
 	/* offsets match, but in case it changes in the future */
 	if(sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
 	    drive = sdi->iso.drive_number;
 	    fs_lba = *sdi->iso.partoffset;
 	} else {
+#endif
 	    drive = sdi->disk.drive_number;
 	    fs_lba = *sdi->disk.partoffset;
+#if 0
 	}
+#endif
 
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	if (!(iter = pi_begin(&diskinfo)))
 	    goto bail;
 
-	/* 'fs' => we should lookup the Syslinux partition number and use it */
+	/* 'fs' => we should lookup the syslinux partition number and use it */
 	if (!strcmp(opt.drivename, "fs")) {
 	    while (pi_next(&iter)) {
 		if (iter->start_lba == fs_lba)
@@ -962,6 +967,10 @@ int main(int argc, char *argv[])
     }
     if(opt.regs.ip == 0x7C00 && !opt.regs.cs)
 	opt.regs.esp.l = 0x7C00;
+
+    /* Get max fixed disk number */
+
+    fixed_cnt = *(uint8_t *)(0x475);
 
     /* Get disk/part iterator matching user supplied options */
     if(find_dp(&iter))
