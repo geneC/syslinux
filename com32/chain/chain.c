@@ -41,12 +41,17 @@
 static const char cmldr_signature[8] = "cmdcons";
 
 static struct options {
+    uint32_t flin;
+    uint16_t fseg;
+    uint16_t fip;
+    uint32_t slin;
+    uint16_t sseg;
+    uint16_t sip;
     const char *drivename;
     const char *partition;
     const char *loadfile;
     const char *grubcfg;
     uint16_t keeppxe;
-    uint16_t seg;
     bool isolinux;
     bool cmldr;
     bool grub;
@@ -275,7 +280,7 @@ static void do_boot(struct data_area *data, int ndata)
 	opt.regs.esi.l = opt.regs.es = 0;
 	opt.regs.ecx.l = sizeof swapstub >> 2;
 	opt.regs.ip = 0x10;	/* Installer offset */
-	opt.regs.ebx.b[0] = opt.regs.edx.b[0] = swapdrive;	//FIXME this silently assumes DOS expectations
+	opt.regs.ebx.b[0] = opt.regs.edx.b[0] = swapdrive;
 
 	if (syslinux_add_movelist(&mlist, endimage, (addr_t) swapstub,
 				  sizeof swapstub))
@@ -465,42 +470,66 @@ Usage:\n\
 static int parse_args(int argc, char *argv[])
 {
     int i;
+    unsigned int v;
     char *p;
 
     for (i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "file=", 5)) {
 	    opt.loadfile = argv[i] + 5;
-	} else if (!strncmp(argv[i], "seg=", 4)) {
-	    if(soi2sli(argv[i] + 4, &opt.seg, NULL, NULL))
+	} else if ((v = 4, !strncmp(argv[i], "seg=", v)) ||
+		   (v = 5, !strncmp(argv[i], "fseg=", v))) {
+	    if(soi2sli(argv[i] + v, &opt.fseg, &opt.flin, &opt.fip))
 		goto bail;
+	} else if (!strncmp(argv[i], "sseg=", 5)) {
+	    if(soi2sli(argv[i] + 5, &opt.sseg, &opt.slin, &opt.sip))
+		goto bail;
+	    if(opt.slin + SECTOR - 1 > ADDRMAX) {
+		error("Option 'sseg' is invalid - address too big.\n");
+		goto bail;
+	    }
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.loadfile = argv[i] + 9;
 	    opt.isolinux = true;
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
-	    opt.seg = 0x2000;	/* NTLDR wants this address */
+	    opt.fseg = 0x2000;  /* NTLDR wants this address */
+	    opt.flin = 0x20000;
+	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
-	    opt.seg = 0x2000;	/* CMLDR wants this address */
+	    opt.fseg = 0x2000;  /* CMLDR wants this address */
+	    opt.flin = 0x20000;
+	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.cmldr = true;
 	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
-	    opt.seg = 0x60;	/* FREEDOS wants this address */
+	    opt.fseg = 0x60;    /* FREEDOS wants this address */
+	    opt.flin = 0x600;
+	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 8;
 	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "msdos=", 6) ||
 		   !strncmp(argv[i], "pcdos=", 6)) {
-	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
+	    opt.fseg = 0x70;    /* MS-DOS 2.00 .. 6.xx wants this address */
+	    opt.flin = 0x700;
+	    opt.fip = 0;
+#if 0
+	    opt.file_ip = val == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
+#endif
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethid = true;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
-	    opt.seg = 0x70;	/* DRMK wants this address */
+	    opt.fseg = 0x70;    /* DRMK wants this address */
+	    opt.flin = 0x700;
+	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 5;
 	    opt.sethid = true;
 	    opt.drmk = true;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
-	    opt.seg = 0x800;	/* stage2 wants this address */
+	    opt.fseg = 0x800;	/* stage2 wants this address */
+	    opt.flin = 0x8000;
+	    opt.fip = 0x200;
 	    opt.loadfile = argv[i] + 5;
 	    opt.grub = true;
 	} else if (!strncmp(argv[i], "grubcfg=", 8)) {
@@ -521,10 +550,10 @@ static int parse_args(int argc, char *argv[])
 	} else if (!strcmp(argv[i], "nokeeppxe")) {
 	    opt.keeppxe = 0;
 	} else if (!strcmp(argv[i], "sethid") ||
-		!strcmp(argv[i], "sethidden")) {
+		   !strcmp(argv[i], "sethidden")) {
 	    opt.sethid = true;
 	} else if (!strcmp(argv[i], "nosethid") ||
-		!strcmp(argv[i], "nosethidden")) {
+		   !strcmp(argv[i], "nosethidden")) {
 	    opt.sethid = false;
 	} else if (((argv[i][0] == 'h' || argv[i][0] == 'f')
 		    && argv[i][1] == 'd')
@@ -609,7 +638,7 @@ int find_dp(struct part_iter **_iter)
 	       opt.drivename[1] == 'd') {
 	hd = opt.drivename[0] == 'h' ? 0x80 : 0;
 	opt.drivename += 2;
-	drive = hd | (int)strtoul(opt.drivename, NULL, 0);
+	drive = hd | strtol(opt.drivename, NULL, 0);
 
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
@@ -652,12 +681,12 @@ int find_dp(struct part_iter **_iter)
 	error("Unparsable drive specification.\n");
 	goto bail;
     }
-    /* main options done, only thing left is explicit parition specification
+    /* main options done - only thing left is explicit partition specification,
      * if we're still at the disk stage with the iterator AND user supplied
      * partition number (including disk).
      */
     if (!iter->index && opt.partition) {
-	partition = (int)strtoul(opt.partition, NULL, 0);
+	partition = strtol(opt.partition, NULL, 0);
 	/* search for matching part#, including disk */
 	do {
 	    if (iter->index == partition)
@@ -820,9 +849,6 @@ static int manglef_grublegacy(const struct part_iter *_iter, struct data_area *_
 	goto bail;
     }
 
-    /* jump 0x200 bytes into the loadfile */
-    opt.regs.ip = 0x200;
-
     /*
      * GRUB Legacy wants the partition number in the install_partition
      * variable, located at offset 0x208 of stage2.
@@ -889,7 +915,7 @@ static int manglef_drmk(struct data_area *_data)
     }
     _data->size = tsize;
     /* ds:[bp+28] must be 0x0000003f */
-    opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.seg - 2u));
+    opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.fseg - 2u));
     /* "Patch" into tail of the new space */
     *(uint32_t *)((char*)_data->data + tsize - 4) = 0x0000003f;
 
@@ -902,30 +928,40 @@ int main(int argc, char *argv[])
 {
     struct part_iter *iter = NULL;
 
-    void *sect_area = NULL;
     void *file_area = NULL;
+    void *sect_area = NULL;
     struct disk_dos_part_entry *hand_area = NULL;
 
     struct data_area data[3];
     int ndata = 0, fidx = -1, sidx = -1;
-    addr_t load_base;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
-    /* Prepare and set default values */
+    /* Prepare and set defaults */
+    memset(data, 0, sizeof(data));
     memset(&opt, 0, sizeof(opt));
-    opt.drivename = "boot";	/* potential FIXME: maybe we shouldn't assume boot by default, do wonder later */
-
+    opt.flin = opt.slin = opt.fip = opt.sip = 0x7C00;
+    opt.drivename = "boot";	/*
+				 * potential FIXME: maybe
+				 * we shouldn't assume boot
+				 * by default, do wonder later
+				 */
     /* Parse arguments */
     if(parse_args(argc, argv))
 	goto bail;
 
-    if (opt.seg) {
+    /* Set initial registry values, file takes precedence */
+    if(opt.loadfile) {
 	opt.regs.es = opt.regs.cs = opt.regs.ss =
-	    opt.regs.ds = opt.regs.fs = opt.regs.gs = opt.seg;
+	   opt.regs.ds = opt.regs.fs = opt.regs.gs = opt.fseg;
+	opt.regs.ip = opt.fip;
     } else {
-	opt.regs.esp.l = opt.regs.ip = 0x7c00;
+	opt.regs.es = opt.regs.cs = opt.regs.ss =
+	    opt.regs.ds = opt.regs.fs = opt.regs.gs = opt.sseg;
+	opt.regs.ip = opt.sip;
     }
+    if(opt.regs.ip == 0x7C00 && !opt.regs.cs)
+	opt.regs.esp.l = 0x7C00;
 
     /* Get disk/part iterator matching user supplied options */
     if(find_dp(&iter))
@@ -937,29 +973,29 @@ int main(int argc, char *argv[])
 
     /* Load file and bs/mbr */
 
-    load_base = opt.seg ? (uint32_t)(opt.seg << 4) : 0x7c00;
-
     if (opt.loadfile) {
-	fputs("Loading the boot file...\n", stdout);
 	if (loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size)) {
 	    error("Couldn't read the boot file.\n");
 	    goto bail;
 	}
+	if (opt.flin + data[ndata].size - 1 > ADDRMAX) {
+	    error("Can't load the boot file at this address.\n");
+	    goto bail;
+	}
+
 	file_area = (void *)data[ndata].data;
-	data[ndata].base = load_base;
-	load_base = 0x7c00;	/* If we also load a boot sector */
+	data[ndata].base = opt.flin;
 	fidx = ndata;
 	ndata++;
     }
 
     if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
 	if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
-	    error("Couldn't read the boot sector or mbr.\n");
+	    error("Couldn't read the bs / mbr.\n");
 	    goto bail;
 	}
-
 	sect_area = (void *)data[ndata].data;
-	data[ndata].base = load_base;
+	data[ndata].base = opt.slin;
 	data[ndata].size = SECTOR;
 	sidx = ndata;
 	ndata++;
@@ -997,7 +1033,7 @@ int main(int argc, char *argv[])
      * this modifies the field used by FAT and NTFS filesystems, and
      * possibly other boot loaders which use the same format.
      */
-    if (iter->index && opt.sethidden) {
+    if (iter->index && opt.sethid) {
 	if(iter->start_lba < 0x100000000)
 	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = (uint32_t)iter->start_lba;
 	else

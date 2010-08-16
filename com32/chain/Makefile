@@ -16,12 +16,15 @@ topdir = ../..
 include ../MCONFIG
 
 OBJS = chain.o partiter.o
-GCCWARN += -Wextra -Wconversion -pedantic -Wno-error
+GCCWARN2 = -Wextra -Wconversion -pedantic -Wno-error
 
 all: chain.c32
 
 chain.elf: $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
+
+%.o: %.c
+	$(CC) $(MAKEDEPS) $(CFLAGS) $(GCCWARN2) -c -o $@ $<
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
