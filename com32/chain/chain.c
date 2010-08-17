@@ -61,6 +61,8 @@ static struct options {
     bool hide;
     bool sethid;
     bool drmk;
+    bool hand;
+    bool smap;
     struct syslinux_rm_regs regs;
 } opt;
 
@@ -70,8 +72,7 @@ struct data_area {
     addr_t size;
 };
 
-
-static inline void error(const char *msg)
+static void error(const char *msg)
 {
     fputs(msg, stderr);
 }
@@ -460,6 +461,8 @@ Usage:\n\
     grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
     grldr=<loader>     Load GRUB4DOS grldr\n\
     seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
+    smap               Map loaded boot sector / mbr\n\
+    hand               Prepare handover data\n\
     swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
     hide               Hide primary partitions, except selected partition\n\
     sethid[den]        Set the FAT/NTFS hidden sectors field\n\
@@ -538,6 +541,14 @@ static int parse_args(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "grldr=", 6)) {
 	    opt.loadfile = argv[i] + 6;
 	    opt.grldr = true;
+	} else if (!strcmp(argv[i], "smap")) {
+	    opt.smap = true;
+	} else if (!strcmp(argv[i], "nosmap")) {
+	    opt.smap = false;
+	} else if (!strcmp(argv[i], "hand")) {
+	    opt.hand = true;
+	} else if (!strcmp(argv[i], "nohand")) {
+	    opt.hand = false;
 	} else if (!strcmp(argv[i], "swap")) {
 	    opt.swap = true;
 	} else if (!strcmp(argv[i], "noswap")) {
@@ -587,12 +598,17 @@ static int parse_args(int argc, char *argv[])
 	goto bail;
     }
 
+    if (!opt.smap && !opt.loadfile) {
+	error("You have to load something.\n");
+	goto bail;
+    }
+
     return 0;
 bail:
     return -1;
 }
 
-inline static int is_phys(uint8_t sdifs)
+static int is_phys(uint8_t sdifs)
 {
     return
 	sdifs == SYSLINUX_FS_SYSLINUX ||
@@ -933,6 +949,89 @@ bail:
     return -1;
 }
 
+
+static int noov(const struct data_area *a, const struct data_area *b)
+{
+    return
+	a->base + a->size <= b->base ||
+	b->base + b->size <= a->base;
+}
+
+int setup_handover(const struct part_iter *iter,
+		   struct data_area *data)
+{
+    struct disk_dos_part_entry *ha;
+    const struct disk_gpt_part_entry *gp;
+    uint64_t lba_count;
+    uint32_t synth_size;
+    uint32_t *plen;
+
+    data->data = NULL;
+
+    if (!iter->index || !opt.hand)	/* we load mbr, or explicitly blocked */
+	return 0;
+    if (iter->type == typegpt) {
+
+	/* GPT handover protocol */
+	gp = (const struct disk_gpt_part_entry *)iter->record;
+	lba_count = gp->lba_last - gp->lba_first + 1;
+	synth_size = sizeof(struct disk_dos_part_entry) +
+	    sizeof(uint32_t) + (uint32_t)iter->sub.gpt.pe_size;
+
+	ha = malloc(synth_size);
+	if (!ha) {
+	    error("Could not build GPT hand-over record!\n");
+	    return -1;
+	}
+	memset(ha, 0, synth_size);
+	ha->active_flag = 0x80;
+	ha->ostype = 0xED;
+	/* All bits set by default */
+	ha->start_lba = ~0u;
+	ha->length = ~0u;
+	/* If these fit the precision, pass them on */
+	if (iter->start_lba < ha->start_lba)
+	    ha->start_lba = (uint32_t)iter->start_lba;
+	if (lba_count < ha->length)
+	    ha->length = (uint32_t)lba_count;
+	/* Next comes the GPT partition record length */
+	plen = (uint32_t *) (ha + 1);
+	plen[0] = (uint32_t)iter->sub.gpt.pe_size;
+	/* Next comes the GPT partition record copy */
+	memcpy(plen + 1, gp, plen[0]);
+#ifdef DEBUG
+	dprintf("GPT handover:\n");
+	disk_dos_part_dump(ha);
+	disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
+#endif
+    } else if (iter->type == typedos) {
+
+	/* MBR handover protocol */
+	synth_size = sizeof(struct disk_dos_part_entry);
+	ha = malloc(synth_size);
+	if (!ha) {
+	    error("Could not build MBR hand-over record!\n");
+	    return -1;
+	}
+	memcpy(ha, iter->record, synth_size);
+	ha->start_lba = (uint32_t)iter->start_lba;
+#ifdef DEBUG
+	dprintf("MBR handover:\n");
+	disk_dos_part_dump(ha);
+#endif
+    } else {
+
+	/* shouldn't ever happen */
+	return -1;
+    }
+
+    data->base = 0x7be;
+    data->size = synth_size;
+    data->data = (void *)ha;
+
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     struct part_iter *iter = NULL;
@@ -947,8 +1046,9 @@ int main(int argc, char *argv[])
     openconsole(&dev_null_r, &dev_stdcon_w);
 
     /* Prepare and set defaults */
-    memset(data, 0, sizeof(data));
     memset(&opt, 0, sizeof(opt));
+    opt.hand = true;	/* by def do prepare handover */
+    opt.smap = true;	/* by def map bs / mbr */
     opt.flin = opt.slin = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";	/*
 				 * potential FIXME: maybe
@@ -986,6 +1086,7 @@ int main(int argc, char *argv[])
 
     /* Load file and bs/mbr */
 
+    data[ndata].base = opt.flin;
     if (opt.loadfile) {
 	if (loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size)) {
 	    error("Couldn't read the boot file.\n");
@@ -997,21 +1098,22 @@ int main(int argc, char *argv[])
 	}
 
 	file_area = (void *)data[ndata].data;
-	data[ndata].base = opt.flin;
 	fidx = ndata;
 	ndata++;
     }
 
-    if (!opt.loadfile || data[0].base >= 0x7c00 + SECTOR) {
+    data[ndata].base = opt.slin;
+    data[ndata].size = SECTOR;
+    if (!opt.loadfile || !opt.smap || noov(data + fidx, data + ndata)) {
 	if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
 	    error("Couldn't read the bs / mbr.\n");
 	    goto bail;
 	}
 	sect_area = (void *)data[ndata].data;
-	data[ndata].base = opt.slin;
-	data[ndata].size = SECTOR;
 	sidx = ndata;
-	ndata++;
+	if(opt.smap) {
+	    ndata++;
+	}
     }
 
     /* Mangle file area */
@@ -1054,79 +1156,25 @@ int main(int argc, char *argv[])
     }
 
     /* Prepare handover */
-
-    if (iter->index) {
-	if (iter->type == typegpt) {
-	    /* Do GPT hand-over, if applicable (as per syslinux/doc/gpt.txt) */
-	    /* Look at the GPT partition */
-	    const struct disk_gpt_part_entry *gp =
-		(const struct disk_gpt_part_entry *)iter->record;
-	    /* Note the partition length */
-	    uint64_t lba_count = gp->lba_last - gp->lba_first + 1;
-	    /* The length of the hand-over */
-	    uint32_t synth_size =
-		sizeof(struct disk_dos_part_entry) + sizeof(uint32_t) +
-		(uint32_t)iter->sub.gpt.pe_size;
-	    /* Will point to the partition record length in the hand-over */
-	    uint32_t *plen;
-
-	    /* Allocate the hand-over record */
-	    hand_area = malloc(synth_size);
-	    if (!hand_area) {
-		error("Could not build GPT hand-over record!\n");
-		goto bail;
-	    }
-	    /* Synthesize the record */
-	    memset(hand_area, 0, synth_size);
-	    hand_area->active_flag = 0x80;
-	    hand_area->ostype = 0xED;
-	    /* All bits set by default */
-	    hand_area->start_lba = ~0u;
-	    hand_area->length = ~0u;
-	    /* If these fit the precision, pass them on */
-	    if (iter->start_lba < hand_area->start_lba)
-		hand_area->start_lba = (uint32_t)iter->start_lba;
-	    if (lba_count < hand_area->length)
-		hand_area->length = (uint32_t)lba_count;
-	    /* Next comes the GPT partition record length */
-	    plen = (uint32_t *) (hand_area + 1);
-	    plen[0] = (uint32_t)iter->sub.gpt.pe_size;
-	    /* Next comes the GPT partition record copy */
-	    memcpy(plen + 1, gp, plen[0]);
-
-	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
-	    data[ndata].base = 0x7be;
-	    data[ndata].size = synth_size;
-	    data[ndata].data = (void *)hand_area;
+    if (setup_handover(iter, data + ndata))
+	goto bail;
+    if(data[ndata].data) {
+	hand_area = data[ndata].data;
+	/* We have to make sure, that handover data doesn't overlap with the
+	 * file and/or the boot sector. For example, part of FreeDOS kernel
+	 * loaded at 0x600 would conflict with the handover data. Handover
+	 * is not critical, so we can let it pass with a warning.
+	 */
+	if ( ( fidx < 0 || noov(data + fidx, data + ndata)) &&
+	     ( sidx < 0 || noov(data + sidx, data + ndata)) ) {
+	    /* If all is fine, prep registers and inc ndata */
+	    opt.regs.esi.w[0] = opt.regs.ebp.w[0] = 0x7be;
+	    opt.regs.ds = 0;
+	    if(iter->type == typegpt)
+		opt.regs.eax.l = 0x54504721;	/* '!GPT' */
 	    ndata++;
-	    opt.regs.esi.w[0] = 0x7be;
-#ifdef DEBUG
-	    dprintf("GPT handover:\n");
-	    disk_dos_part_dump(hand_area);
-	    disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
-#endif
-	} else if (iter->type == typedos) {
-	    /* MBR handover protocol */
-	    /* Allocate the hand-over record */
-	    hand_area = malloc(sizeof(struct disk_dos_part_entry));
-	    if (!hand_area) {
-		error("Could not build MBR hand-over record!\n");
-		goto bail;
-	    }
-
-	    memcpy(hand_area, iter->record, sizeof(struct disk_dos_part_entry));
-	    hand_area->start_lba = (uint32_t)iter->start_lba;
-
-	    data[ndata].base = 0x7be;
-	    data[ndata].size = sizeof(struct disk_dos_part_entry);
-	    data[ndata].data = (void *)hand_area;
-	    ndata++;
-	    opt.regs.esi.w[0] = 0x7be;
-
-#ifdef DEBUG
-	    dprintf("MBR handover:\n");
-	    disk_dos_part_dump(hand_area);
-#endif
+	} else {
+	    error("WARNING: Handover ignored due to overlapping regions.\n");
 	}
     }
 
