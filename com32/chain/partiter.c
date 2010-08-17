@@ -355,8 +355,10 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 	break;
     }
 
+    /* safe */
     *lba = dp->start_lba;
     *_dp = dp;
+
     return 0;
 }
 
@@ -722,12 +724,12 @@ struct part_iter *pi_begin(const struct disk_info *di)
 	    goto raw;
 	}
 	/* allocate iterator and exit */
-	if (!(iter = pi_new(typegpt, di, gpth, gptl)))
-	    goto out;
+	iter = pi_new(typegpt, di, gpth, gptl);
+	goto out;
     } else {
 	/* looks like MBR */
-	if (!(iter = pi_new(typedos, di, mbr)))
-	    goto out;
+	iter = pi_new(typedos, di, mbr);
+	goto out;
     }
 
 raw:

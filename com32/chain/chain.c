@@ -697,6 +697,10 @@ int find_dp(struct part_iter **_iter)
 	    if (iter->index == partition)
 		break;
 	} while (pi_next(&iter));
+	if (!iter) {
+	    error("Requested disk / partition combination not found.\n");
+	    goto bail;
+	}
     }
 
     if (!(iter->di.disk & 0x80) && iter->index) {
@@ -1118,6 +1122,7 @@ int main(int argc, char *argv[])
 	    data[ndata].data = (void *)hand_area;
 	    ndata++;
 	    opt.regs.esi.w[0] = 0x7be;
+
 #ifdef DEBUG
 	    dprintf("MBR handover:\n");
 	    disk_dos_part_dump(hand_area);
@@ -1125,6 +1130,13 @@ int main(int argc, char *argv[])
 	}
     }
 
+#ifdef DEBUG
+    printf("iter dsk: %d\n", iter->di.disk);
+    printf("iter idx: %d\n", iter->index);
+    printf("iter lba: %llu\n", iter->start_lba);
+    if (hand_area)
+	printf("hand lba: %u\n", hand_area->start_lba);
+#endif
     do_boot(data, ndata);
 
 bail:

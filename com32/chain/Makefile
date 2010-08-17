@@ -16,7 +16,7 @@ topdir = ../..
 include ../MCONFIG
 
 OBJS = chain.o partiter.o
-GCCWARN2 = -Wextra -Wconversion -pedantic -Wno-error
+GCCEXTRA = -Wextra -Wconversion -pedantic -Wno-error -DDEBUG
 
 all: chain.c32
 
@@ -24,7 +24,7 @@ chain.elf: $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 %.o: %.c
-	$(CC) $(MAKEDEPS) $(CFLAGS) $(GCCWARN2) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) $(GCCEXTRA) -c -o $@ $<
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
