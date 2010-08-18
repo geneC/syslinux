@@ -103,6 +103,8 @@ int disk_get_params(int disk, struct disk_info *const diskinfo)
 
     diskinfo->head = parm.edx.b[1] + 1;
     diskinfo->sect = parm.ecx.b[0] & 0x3f;
+    diskinfo->cyl  = (parm.ecx.b[1] |
+		     ((parm.ecx.b[0] & 0xc0u) << 2)) + 1;
     if (diskinfo->sect == 0) {
 	diskinfo->sect = 1;
     } else {
@@ -161,19 +163,19 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 	    h = 0;
 	    c = 0;
 	} else {
+	    if (lba + count > diskinfo->cyl * diskinfo->head * diskinfo->sect)
+		/* beyond acceptable geometry */
+		return NULL;
 	    s = (lba % diskinfo->sect) + 1;
 	    t = lba / diskinfo->sect;	/* Track = head*cyl */
 	    h = t % diskinfo->head;
 	    c = t / diskinfo->head;
 	}
 
-	if (s > 63 || h > 256 || c > 1023)
-	    return NULL;
-
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x02;	/* Read */
 	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.ecx.b[0] = ((c >> 2) & 0xc0u) | s;
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = diskinfo->disk;
 	inreg.ebx.w[0] = OFFS(buf);
@@ -200,7 +202,7 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
  * Uses the disk number and information from diskinfo.
  * Write a sector to a disk drive, starting at lba.
  */
-int disk_write_sector(const struct disk_info *const diskinfo, unsigned int lba,
+int disk_write_sector(const struct disk_info *const diskinfo, uint64_t lba,
 		      const void *data)
 {
     com32sys_t inreg;
@@ -234,18 +236,18 @@ int disk_write_sector(const struct disk_info *const diskinfo, unsigned int lba,
 	    h = 0;
 	    c = 0;
 	} else {
+	    if (lba >= diskinfo->cyl * diskinfo->head * diskinfo->sect)
+		/* beyond acceptable geometry */
+		return -1;
 	    s = (lba % diskinfo->sect) + 1;
 	    t = lba / diskinfo->sect;	/* Track = head*cyl */
 	    h = t % diskinfo->head;
 	    c = t / diskinfo->head;
 	}
 
-	if (s > 63 || h > 256 || c > 1023)
-	    return -1;
-
 	inreg.eax.w[0] = 0x0301;	/* Write one sector */
 	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.ecx.b[0] = ((c >> 2) & 0xc0u) | s;
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = diskinfo->disk;
 	inreg.ebx.w[0] = OFFS(buf);
@@ -271,7 +273,7 @@ int disk_write_sector(const struct disk_info *const diskinfo, unsigned int lba,
  * to verify it was written correctly.
  */
 int disk_write_verify_sector(const struct disk_info *const diskinfo,
-			     unsigned int lba, const void *buf)
+			     uint64_t lba, const void *buf)
 {
     char *rb;
     int rv;
