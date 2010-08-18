@@ -55,14 +55,20 @@ static struct options {
     uint16_t keeppxe;
     bool isolinux;
     bool cmldr;
+    bool drmk;
     bool grub;
     bool grldr;
+    bool smap;
+    bool hand;
     bool swap;
     bool hide;
     bool sethid;
-    bool drmk;
-    bool hand;
-    bool smap;
+    bool setgeo;
+    bool setdrv;
+    uint8_t drvoff;
+    bool read;
+    bool write;
+    bool filebpb;
     struct syslinux_rm_regs regs;
 } opt;
 
@@ -75,6 +81,21 @@ struct data_area {
 static void error(const char *msg)
 {
     fputs(msg, stderr);
+}
+
+static int no_ov(const struct data_area *a, const struct data_area *b)
+{
+    return
+	a->base + a->size <= b->base ||
+	b->base + b->size <= a->base;
+}
+
+static int is_phys(uint8_t sdifs)
+{
+    return
+	sdifs == SYSLINUX_FS_SYSLINUX ||
+	sdifs == SYSLINUX_FS_EXTLINUX ||
+	sdifs == SYSLINUX_FS_ISOLINUX;
 }
 
 /* Search for a specific drive, based on the MBR signature; bytes 440-443 */
@@ -448,7 +469,7 @@ Usage:\n\
     chain.c32 label{:|=}<label> [<partition>] [options]\n\
     chain.c32 boot{,| }[<partition>] [options]\n\
     chain.c32 fs [options]\n\
-\nOptions:\n\
+\nOptions ('no' prefix specify defaults):\n\
     file=<loader>      Load and execute file, instead of boot sector\n\
     isolinux=<loader>  Load another version of ISOLINUX\n\
     ntldr=<loader>     Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
@@ -494,12 +515,19 @@ static int parse_args(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.loadfile = argv[i] + 9;
 	    opt.isolinux = true;
+	    opt.hand = false;
+	    opt.read = false;
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.fseg = 0x2000;  /* NTLDR wants this address */
 	    opt.flin = 0x20000;
 	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethid = true;
+	    opt.setgeo = true;
+	    opt.setdrv = true;
+	    opt.drvoff = 0x24;
+	    opt.write = true;
+	    opt.hand = false;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
 	    opt.fseg = 0x2000;  /* CMLDR wants this address */
 	    opt.flin = 0x20000;
@@ -507,40 +535,64 @@ static int parse_args(int argc, char *argv[])
 	    opt.loadfile = argv[i] + 6;
 	    opt.cmldr = true;
 	    opt.sethid = true;
+	    opt.setgeo = true;
+	    opt.setdrv = true;
+	    opt.drvoff = 0x24;
+	    opt.write = true;
+	    opt.hand = false;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.fseg = 0x60;    /* FREEDOS wants this address */
 	    opt.flin = 0x600;
 	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 8;
 	    opt.sethid = true;
-	} else if (!strncmp(argv[i], "msdos=", 6) ||
-		   !strncmp(argv[i], "pcdos=", 6)) {
+	    opt.setgeo = true;
+	    opt.write = true;
+	    opt.smap = false;
+	    opt.hand = false;
+	} else if ( (v = 6, !strncmp(argv[i], "msdos=", v) ||
+		     !strncmp(argv[i], "pcdos=", v)) ||
+		    (v = 7, !strncmp(argv[i], "msdos7=", v)) ) {
 	    opt.fseg = 0x70;    /* MS-DOS 2.00 .. 6.xx wants this address */
 	    opt.flin = 0x700;
-	    opt.fip = 0;
-#if 0
-	    opt.file_ip = val == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
-#endif
-	    opt.loadfile = argv[i] + 6;
+	    opt.fip = v == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
+	    opt.loadfile = argv[i] + v;
 	    opt.sethid = true;
+	    opt.setgeo = true;
+	    opt.write = true;
+	    /* potential FIXME: dos7 might want mapped sector */
+	    opt.smap = false;
+	    opt.hand = false;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.fseg = 0x70;    /* DRMK wants this address */
 	    opt.flin = 0x700;
 	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 5;
-	    opt.sethid = true;
 	    opt.drmk = true;
+	    opt.sethid = true;
+	    opt.setgeo = true;
+	    opt.write = true;
+	    opt.smap = false;
+	    opt.hand = false;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.fseg = 0x800;	/* stage2 wants this address */
 	    opt.flin = 0x8000;
 	    opt.fip = 0x200;
 	    opt.loadfile = argv[i] + 5;
 	    opt.grub = true;
+	    opt.hand = false;
+	    opt.read = false;
 	} else if (!strncmp(argv[i], "grubcfg=", 8)) {
 	    opt.grubcfg = argv[i] + 8;
 	} else if (!strncmp(argv[i], "grldr=", 6)) {
 	    opt.loadfile = argv[i] + 6;
 	    opt.grldr = true;
+	    opt.hand = false;
+	    opt.read = false;
+	} else if (!strcmp(argv[i], "keeppxe")) {
+	    opt.keeppxe = 3;
+	} else if (!strcmp(argv[i], "nokeeppxe")) {
+	    opt.keeppxe = 0;
 	} else if (!strcmp(argv[i], "smap")) {
 	    opt.smap = true;
 	} else if (!strcmp(argv[i], "nosmap")) {
@@ -557,16 +609,41 @@ static int parse_args(int argc, char *argv[])
 	    opt.hide = true;
 	} else if (!strcmp(argv[i], "nohide")) {
 	    opt.hide = false;
-	} else if (!strcmp(argv[i], "keeppxe")) {
-	    opt.keeppxe = 3;
-	} else if (!strcmp(argv[i], "nokeeppxe")) {
-	    opt.keeppxe = 0;
 	} else if (!strcmp(argv[i], "sethid") ||
 		   !strcmp(argv[i], "sethidden")) {
 	    opt.sethid = true;
 	} else if (!strcmp(argv[i], "nosethid") ||
 		   !strcmp(argv[i], "nosethidden")) {
 	    opt.sethid = false;
+	} else if (!strcmp(argv[i], "setgeo")) {
+	    opt.setgeo = true;
+	} else if (!strcmp(argv[i], "nosetgeo")) {
+	    opt.setgeo = false;
+	} else if (!strncmp(argv[i], "setdrv",6)) {
+	    if(!argv[i][6])
+		v = 0x24;
+	    else
+		v = strtoul(argv[i] + 7, NULL, 0);
+	    if (!(v == 0x24 || v == 0x40)) {
+		error("Invalid setdrv offset.\n");
+		goto bail;
+	    }
+	    opt.setdrv = true;
+	    opt.drvoff = (uint8_t)v;
+	} else if (!strcmp(argv[i], "nosetdrv")) {
+	    opt.setdrv = false;
+	} else if (!strcmp(argv[i], "read")) {
+	    opt.read = true;
+	} else if (!strcmp(argv[i], "noread")) {
+	    opt.read = false;
+	} else if (!strcmp(argv[i], "write")) {
+	    opt.write = true;
+	} else if (!strcmp(argv[i], "nowrite")) {
+	    opt.write = false;
+	} else if (!strcmp(argv[i], "filebpb")) {
+	    opt.filebpb = true;
+	} else if (!strcmp(argv[i], "nofilebpb")) {
+	    opt.filebpb = false;
 	} else if (((argv[i][0] == 'h' || argv[i][0] == 'f')
 		    && argv[i][1] == 'd')
 		   || !strncmp(argv[i], "mbr:", 4)
@@ -598,22 +675,19 @@ static int parse_args(int argc, char *argv[])
 	goto bail;
     }
 
-    if (!opt.smap && !opt.loadfile) {
+    if ((!opt.smap || !opt.read) && !opt.loadfile) {
 	error("You have to load something.\n");
+	goto bail;
+    }
+
+    if (opt.filebpb && !opt.loadfile) {
+	error("Option 'filebpb' requires file.\n");
 	goto bail;
     }
 
     return 0;
 bail:
     return -1;
-}
-
-static int is_phys(uint8_t sdifs)
-{
-    return
-	sdifs == SYSLINUX_FS_SYSLINUX ||
-	sdifs == SYSLINUX_FS_EXTLINUX ||
-	sdifs == SYSLINUX_FS_ISOLINUX;
 }
 
 int find_dp(struct part_iter **_iter)
@@ -659,6 +733,7 @@ int find_dp(struct part_iter **_iter)
 
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
+	/* potential FIXME: FDD vs. disk iteration */
 	if (!(iter = pi_begin(&diskinfo)))
 	    goto bail;
 
@@ -683,6 +758,7 @@ int find_dp(struct part_iter **_iter)
 
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
+	/* potential FIXME: ISO vs. disk iteration */
 	if (!(iter = pi_begin(&diskinfo)))
 	    goto bail;
 
@@ -739,7 +815,7 @@ bail:
  * the -boot-info-table switch of mkisofs)
  * (will only work when run from ISOLINUX)
  */
-static int manglef_isolinux(struct data_area *_data)
+static int manglef_isolinux(struct data_area *data)
 {
     const union syslinux_derivative_info *sdi;
     unsigned char *isolinux_bin;
@@ -769,7 +845,7 @@ static int manglef_isolinux(struct data_area *_data)
        LBA of primary volume descriptor should already be set to 16.
        */
 
-    isolinux_bin = (unsigned char *)_data->data;
+    isolinux_bin = (unsigned char *)data->data;
 
     /* Get LBA address of bootfile */
     file_lba = get_file_lba(opt.loadfile);
@@ -782,12 +858,12 @@ static int manglef_isolinux(struct data_area *_data)
     *((uint32_t *) & isolinux_bin[12]) = file_lba;
 
     /* Set boot file length */
-    *((uint32_t *) & isolinux_bin[16]) = _data->size;
+    *((uint32_t *) & isolinux_bin[16]) = data->size;
 
     /* Calculate checksum */
     checksum = (uint32_t *) & isolinux_bin[20];
     chkhead = (uint32_t *) & isolinux_bin[64];
-    chktail = (uint32_t *) & isolinux_bin[_data->size & ~3u];
+    chktail = (uint32_t *) & isolinux_bin[data->size & ~3u];
     *checksum = 0;
     while (chkhead < chktail)
 	*checksum += *chkhead++;
@@ -796,9 +872,9 @@ static int manglef_isolinux(struct data_area *_data)
      * Deal with possible fractional dword at the end;
      * this *should* never happen...
      */
-    if (_data->size & 3) {
+    if (data->size & 3) {
 	uint32_t xword = 0;
-	memcpy(&xword, chkhead, _data->size & 3);
+	memcpy(&xword, chkhead, data->size & 3);
 	*checksum += xword;
     }
     return 0;
@@ -812,16 +888,16 @@ bail:
  * 0-3:  primary partitions
  * 4-*:  logical partitions
  */
-static int manglef_grldr(const struct part_iter *_iter)
+static int manglef_grldr(const struct part_iter *iter)
 {
-    opt.regs.edx.b[1] = (uint8_t)(_iter->index - 1);
+    opt.regs.edx.b[1] = (uint8_t)(iter->index - 1);
     return 0;
 }
 
 /*
  * Legacy grub's stage2 chainloading
  */
-static int manglef_grublegacy(const struct part_iter *_iter, struct data_area *_data)
+static int manglef_grublegacy(const struct part_iter *iter, struct data_area *data)
 {
     /* Layout of stage2 file (from byte 0x0 to 0x270) */
     struct grub_stage2_patch_area {
@@ -858,11 +934,11 @@ static int manglef_grublegacy(const struct part_iter *_iter, struct data_area *_
 	char codestart[1];
     } __attribute__ ((packed)) *stage2;
 
-    if (_data->size < sizeof(struct grub_stage2_patch_area)) {
+    if (data->size < sizeof(struct grub_stage2_patch_area)) {
 	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.\n");
 	goto bail;
     }
-    stage2 = _data->data;
+    stage2 = data->data;
 
     /*
      * Check the compatibility version number to see if we loaded a real
@@ -900,7 +976,7 @@ static int manglef_grublegacy(const struct part_iter *_iter, struct data_area *_
      *   0-3:  primary partitions
      *   4-*:  logical partitions
      */
-    stage2->install_partition.part1 = (uint8_t)(_iter->index - 1);
+    stage2->install_partition.part1 = (uint8_t)(iter->index - 1);
 
     /*
      * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
@@ -924,7 +1000,7 @@ bail:
 /*
  * Dell's DRMK chainloading.
  */
-static int manglef_drmk(struct data_area *_data)
+static int manglef_drmk(struct data_area *data)
 {
     /*
      * DRMK entry is different than MS-DOS/PC-DOS
@@ -932,32 +1008,24 @@ static int manglef_drmk(struct data_area *_data)
      * We only really need 4 new, usable bytes at the end.
      */
 
-    uint32_t tsize = (_data->size + 19) & 0xfffffff0;
+    uint32_t tsize = (data->size + 19) & 0xfffffff0;
     opt.regs.ss = opt.regs.fs = opt.regs.gs = 0;	/* Used before initialized */
-    if (!realloc(_data->data, tsize)) {
+    if (!realloc(data->data, tsize)) {
 	error("Failed to realloc for DRMK.\n");
 	goto bail;
     }
-    _data->size = tsize;
+    data->size = tsize;
     /* ds:[bp+28] must be 0x0000003f */
     opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.fseg - 2u));
     /* "Patch" into tail of the new space */
-    *(uint32_t *)((char*)_data->data + tsize - 4) = 0x0000003f;
+    *(uint32_t *)((char*)data->data + tsize - 4) = 0x0000003f;
 
     return 0;
 bail:
     return -1;
 }
 
-
-static int noov(const struct data_area *a, const struct data_area *b)
-{
-    return
-	a->base + a->size <= b->base ||
-	b->base + b->size <= a->base;
-}
-
-int setup_handover(const struct part_iter *iter,
+static int setup_handover(const struct part_iter *iter,
 		   struct data_area *data)
 {
     struct disk_dos_part_entry *ha;
@@ -966,12 +1034,7 @@ int setup_handover(const struct part_iter *iter,
     uint32_t synth_size;
     uint32_t *plen;
 
-    data->data = NULL;
-
-    if (!iter->index || !opt.hand)	/* we load mbr, or explicitly blocked */
-	return 0;
     if (iter->type == typegpt) {
-
 	/* GPT handover protocol */
 	gp = (const struct disk_gpt_part_entry *)iter->record;
 	lba_count = gp->lba_last - gp->lba_first + 1;
@@ -981,7 +1044,7 @@ int setup_handover(const struct part_iter *iter,
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build GPT hand-over record!\n");
-	    return -1;
+	    goto bail;
 	}
 	memset(ha, 0, synth_size);
 	ha->active_flag = 0x80;
@@ -1005,13 +1068,12 @@ int setup_handover(const struct part_iter *iter,
 	disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
     } else if (iter->type == typedos) {
-
 	/* MBR handover protocol */
 	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build MBR hand-over record!\n");
-	    return -1;
+	    goto bail;
 	}
 	memcpy(ha, iter->record, synth_size);
 	ha->start_lba = (uint32_t)iter->start_lba;
@@ -1020,9 +1082,8 @@ int setup_handover(const struct part_iter *iter,
 	disk_dos_part_dump(ha);
 #endif
     } else {
-
 	/* shouldn't ever happen */
-	return -1;
+	goto bail;
     }
 
     data->base = 0x7be;
@@ -1030,7 +1091,72 @@ int setup_handover(const struct part_iter *iter,
     data->data = (void *)ha;
 
     return 0;
+bail:
+    return -1;
 }
+
+static int manglef_bpb(const struct part_iter *iter, struct data_area *data)
+{
+    /* BPB: hidden sectors */
+    if (opt.sethid) {
+	if(iter->start_lba < 0x100000000)
+	    *(uint32_t *) ((char *)data->data + 0x1c) = (uint32_t)iter->start_lba;
+	else
+	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
+    }
+    /* BPB: legacy geometry */
+    if (opt.setgeo && iter->di.cbios)
+	*(uint32_t *)((char *)data->data + 0x18) = ((uint32_t)iter->di.head << 16) | (uint32_t)iter->di.sect;
+
+    /* BPB: drive */
+    if (opt.setdrv)
+	*(uint8_t *)((char *)data->data + opt.drvoff) = (uint8_t)
+	    (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
+
+    return 0;
+}
+
+static int mangles_bpb(const struct part_iter *iter, struct data_area *data)
+{
+    void *cmp_buf = NULL;
+
+    if (!iter->index)
+	return 0;
+
+    if (!(cmp_buf = malloc(data->size))) {
+	error("Could not allocate sector-compare buffer.\n");
+	goto bail;
+    }
+
+    memcpy(cmp_buf, data->data, data->size);
+
+    manglef_bpb(iter, data);
+
+    if (opt.write && memcmp(cmp_buf, data->data, data->size)) {
+	if (disk_write_verify_sector(&iter->di, iter->start_lba, data->data)) {
+	    error("Cannot write updated boot sector.\n");
+	    goto bail;
+	}
+    }
+
+    free(cmp_buf);
+    return 0;
+
+bail:
+    return -1;
+}
+
+/*
+ * To boot the Recovery Console of Windows NT/2K/XP we need to write
+ * the string "cmdcons\0" to memory location 0000:7C03.
+ * Memory location 0000:7C00 contains the bootsector of the partition.
+ */
+static int mangles_cmldr(struct data_area *data)
+{
+    memcpy((char *)data->data + 3, cmldr_signature, sizeof(cmldr_signature));
+    return 0;
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -1047,6 +1173,7 @@ int main(int argc, char *argv[])
 
     /* Prepare and set defaults */
     memset(&opt, 0, sizeof(opt));
+    opt.read = true;	/* by def read bs / mbr */
     opt.hand = true;	/* by def do prepare handover */
     opt.smap = true;	/* by def map bs / mbr */
     opt.flin = opt.slin = opt.fip = opt.sip = 0x7C00;
@@ -1102,9 +1229,12 @@ int main(int argc, char *argv[])
 	ndata++;
     }
 
-    data[ndata].base = opt.slin;
+    /* This should be fine for >512 sectors as well - we're really interested only
+     * in first 512 bytes.
+     */
     data[ndata].size = SECTOR;
-    if (!opt.loadfile || !opt.smap || noov(data + fidx, data + ndata)) {
+    data[ndata].base = opt.slin;
+    if (opt.read && (!opt.loadfile || !opt.smap || no_ov(data + fidx, data + ndata))) {
 	if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
 	    error("Couldn't read the bs / mbr.\n");
 	    goto bail;
@@ -1118,55 +1248,47 @@ int main(int argc, char *argv[])
 
     /* Mangle file area */
 
-    if (opt.isolinux && manglef_isolinux(data + fidx))
-	goto bail;
+    if (fidx >= 0) {
+	if (opt.isolinux && manglef_isolinux(data + fidx))
+	    goto bail;
 
-    if (opt.grldr && manglef_grldr(iter))
-	goto bail;
+	if (opt.grldr && manglef_grldr(iter))
+	    goto bail;
 
-    if (opt.grub && manglef_grublegacy(iter, data + fidx))
-	goto bail;
+	if (opt.grub && manglef_grublegacy(iter, data + fidx))
+	    goto bail;
 
-    if (opt.drmk && manglef_drmk(data + fidx))
-	goto bail;
+	if (opt.drmk && manglef_drmk(data + fidx))
+	    goto bail;
 
+	if (opt.filebpb && manglef_bpb(iter, data + fidx))
+	    goto bail;
+    }
 
     /* Mangle bs/mbr area */
 
-    /*
-     * To boot the Recovery Console of Windows NT/2K/XP we need to write
-     * the string "cmdcons\0" to memory location 0000:7C03.
-     * Memory location 0000:7C00 contains the bootsector of the partition.
-     */
-    if (iter->index && opt.cmldr) {
-	memcpy((char *)data[sidx].data + 3, cmldr_signature,
-		sizeof cmldr_signature);
+    if (sidx >= 0) {
+	if ((opt.setdrv || (opt.setgeo && iter->di.cbios) || opt.sethid) &&
+		mangles_bpb(iter, data + sidx))
+	    goto bail;
+
+	if (opt.cmldr && mangles_cmldr(data + sidx))
+	    goto bail;
     }
 
-    /*
-     * Modify the hidden sectors (partition offset) copy in memory;
-     * this modifies the field used by FAT and NTFS filesystems, and
-     * possibly other boot loaders which use the same format.
-     */
-    if (iter->index && opt.sethid) {
-	if(iter->start_lba < 0x100000000)
-	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = (uint32_t)iter->start_lba;
-	else
-	    *(uint32_t *) ((char *)data[sidx].data + 0x1c) = ~0u;
-    }
-
-    /* Prepare handover */
-    if (setup_handover(iter, data + ndata))
-	goto bail;
-    if(data[ndata].data) {
+    /* Prepare handover (skip if not at partition) */
+    if (opt.hand && iter->index) {
+	if (setup_handover(iter, data + ndata))
+	    goto bail;
 	hand_area = data[ndata].data;
-	/* We have to make sure, that handover data doesn't overlap with the
+	/*
+	 * We have to make sure, that handover data doesn't overlap with the
 	 * file and/or the boot sector. For example, part of FreeDOS kernel
 	 * loaded at 0x600 would conflict with the handover data. Handover
 	 * is not critical, so we can let it pass with a warning.
 	 */
-	if ( ( fidx < 0 || noov(data + fidx, data + ndata)) &&
-	     ( sidx < 0 || noov(data + sidx, data + ndata)) ) {
+	if ( ( fidx < 0 || no_ov(data + fidx, data + ndata)) &&
+	     ( sidx < 0 || no_ov(data + sidx, data + ndata)) ) {
 	    /* If all is fine, prep registers and inc ndata */
 	    opt.regs.esi.w[0] = opt.regs.ebp.w[0] = 0x7be;
 	    opt.regs.ds = 0;
@@ -1185,6 +1307,7 @@ int main(int argc, char *argv[])
     if (hand_area)
 	printf("hand lba: %u\n", hand_area->start_lba);
 #endif
+
     do_boot(data, ndata);
 
 bail:
