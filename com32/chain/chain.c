@@ -26,6 +26,8 @@
 #include <minmax.h>
 #include <stdbool.h>
 #include <dprintf.h>
+#include <errno.h>
+#include <unistd.h>
 #include <syslinux/loadfile.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/config.h>
@@ -52,7 +54,6 @@ static struct options {
     const char *partition;
     const char *loadfile;
     const char *grubcfg;
-    uint16_t keeppxe;
     bool isolinux;
     bool cmldr;
     bool drmk;
@@ -69,6 +70,7 @@ static struct options {
     bool read;
     bool write;
     bool filebpb;
+    uint16_t keeppxe;
     struct syslinux_rm_regs regs;
 } opt;
 
@@ -77,6 +79,24 @@ struct data_area {
     addr_t base;
     addr_t size;
 };
+
+static void wait_key(void)
+{
+    int cnt;
+    char junk;
+
+    /* drain */
+    do {
+	errno = 0;
+	cnt = read(0, &junk, 1);
+    } while (cnt > 0 || (cnt < 0 && errno == EAGAIN));
+
+    /* wait */
+    do {
+	errno = 0;
+	cnt = read(0, &junk, 1);
+    } while (!cnt || (cnt < 0 && errno == EAGAIN));
+}
 
 static void error(const char *msg)
 {
@@ -418,7 +438,7 @@ static uint32_t get_file_lba(const char *filename)
     return lba;
 }
 
-/* Convert seg:off:ip values into numerical seg:linear_address:ip */
+/* Convert string seg:off:ip values into numerical seg:linear:ip ones */
 
 static int soi2sli(char *ptr, uint16_t *seg, uint32_t *lin, uint16_t *ip)
 {
@@ -460,7 +480,7 @@ bail:
 
 static void usage(void)
 {
-    static const char usage[] = "\
+    static const char *const usage[] = { "\
 Usage:\n\
     chain.c32 [options]\n\
     chain.c32 {fd|hd}<disk> [<partition>] [options]\n\
@@ -470,26 +490,40 @@ Usage:\n\
     chain.c32 boot{,| }[<partition>] [options]\n\
     chain.c32 fs [options]\n\
 \nOptions ('no' prefix specify defaults):\n\
-    file=<loader>      Load and execute file, instead of boot sector\n\
-    isolinux=<loader>  Load another version of ISOLINUX\n\
-    ntldr=<loader>     Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
-    cmldr=<loader>     Load Recovery Console of Windows NT/2K/XP/2003\n\
-    freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
-    msdos=<loader>     Load MS-DOS IO.SYS\n\
-    pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
-    drmk=<loader>      Load DRMK DELLBIO.BIN\n\
-    grub=<loader>      Load GRUB Legacy stage2\n\
-    grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
-    grldr=<loader>     Load GRUB4DOS grldr\n\
-    seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
-    smap               Map loaded boot sector / mbr\n\
-    hand               Prepare handover data\n\
-    swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
-    hide               Hide primary partitions, except selected partition\n\
-    sethid[den]        Set the FAT/NTFS hidden sectors field\n\
-    keeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
-\nPlease see doc/chain.txt for the detailed documentation.\n";
-    error(usage);
+    file=<loader>        Load and execute file\n\
+    isolinux=<loader>    Load another version of ISOLINUX\n\
+    ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
+    cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003\n\
+    freedos=<loader>     Load FreeDOS KERNEL.SYS\n\
+    msdos=<loader>       Load MS-DOS 2.xx - 6.xx IO.SYS\n\
+    msdos7=<loader>      Load MS-DOS 7+ IO.SYS\n\
+    pcdos=<loader>       Load PC-DOS IBMBIO.COM\n\
+    drmk=<loader>        Load DRMK DELLBIO.BIN\n\
+    grub=<loader>        Load GRUB Legacy stage2\n\
+    grubcfg=<filename>   Set alternative config filename for GRUB Legacy\n\
+    grldr=<loader>       Load GRUB4DOS grldr\n\
+", "\
+    [f]seg=<s[:o[:i]]>   Load file at <s:o>, jump to <s:i>\n\
+    sseg=<s[:o[:i]]>     Load sector at <s:o>, jump to <s:i>\n\
+    smap                 Map loaded sector into real memory\n\
+    hand                 Prepare handover data\n\
+    noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
+    nohide               Hide primary partitions, except selected partition\n\
+    nosethid[den]        Set BPB's hidden sectors field\n\
+    nosetgeo             Set BPB's sectors per track and heads fields\n\
+    nosetdrv@<offset>    Set BPB's drive unit field at <offset>\n\
+                         - offset defaults to 0x24\n\
+                         - only 0x24 and 0x40 are accepted\n\
+    read                 Load sector\n\
+    nowrite              Write adjusted sector back to disk\n\
+    nofilebpb            Treat file in memory as BPB compatible\n\
+    nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
+\nPlease see doc/chain.txt for the detailed documentation.\n"
+    };
+    error(usage[0]);
+    error("Press any key...\n");
+    wait_key();
+    error(usage[1]);
 }
 
 static int parse_args(int argc, char *argv[])
@@ -526,7 +560,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.setgeo = true;
 	    opt.setdrv = true;
 	    opt.drvoff = 0x24;
-	    opt.write = true;
+	    /* opt.write = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
 	    opt.fseg = 0x2000;  /* CMLDR wants this address */
@@ -538,7 +572,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.setgeo = true;
 	    opt.setdrv = true;
 	    opt.drvoff = 0x24;
-	    opt.write = true;
+	    /* opt.write = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.fseg = 0x60;    /* FREEDOS wants this address */
@@ -547,7 +581,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.loadfile = argv[i] + 8;
 	    opt.sethid = true;
 	    opt.setgeo = true;
-	    opt.write = true;
+	    /* opt.write = true; */
 	    opt.smap = false;
 	    opt.hand = false;
 	} else if ( (v = 6, !strncmp(argv[i], "msdos=", v) ||
@@ -559,8 +593,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.loadfile = argv[i] + v;
 	    opt.sethid = true;
 	    opt.setgeo = true;
-	    opt.write = true;
-	    /* potential FIXME: dos7 might want mapped sector */
+	    /* opt.write = true; */
 	    opt.smap = false;
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
@@ -571,7 +604,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.drmk = true;
 	    opt.sethid = true;
 	    opt.setgeo = true;
-	    opt.write = true;
+	    /* opt.write = true; */
 	    opt.smap = false;
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
@@ -622,8 +655,12 @@ static int parse_args(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "setdrv",6)) {
 	    if(!argv[i][6])
 		v = 0x24;
-	    else
+	    else if(argv[i][6] == '@' ||
+		    argv[i][6] == '=' ||
+		    argv[i][6] == ':')
 		v = strtoul(argv[i] + 7, NULL, 0);
+	    else
+		v = 0;
 	    if (!(v == 0x24 || v == 0x40)) {
 		error("Invalid setdrv offset.\n");
 		goto bail;
@@ -733,7 +770,7 @@ int find_dp(struct part_iter **_iter)
 
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
-	/* potential FIXME: FDD vs. disk iteration */
+	/* this will start iteration over FDD, possibly raw */
 	if (!(iter = pi_begin(&diskinfo)))
 	    goto bail;
 
@@ -758,7 +795,7 @@ int find_dp(struct part_iter **_iter)
 
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
-	/* potential FIXME: ISO vs. disk iteration */
+	/* this will start iteration over disk emulation, possibly raw */
 	if (!(iter = pi_begin(&diskinfo)))
 	    goto bail;
 
@@ -1025,11 +1062,44 @@ bail:
     return -1;
 }
 
+static uint32_t lba2chs(const struct disk_info *di, uint64_t lba)
+{
+    uint32_t c, h, s, t;
+
+    if (di->cbios) {
+	if (lba >= di->cyl * di->head * di->sect) {
+	    s = di->sect;
+	    h = di->head - 1;
+	    c = di->cyl - 1;
+	    goto out;
+	}
+	s = ((uint32_t)lba % di->sect) + 1;
+	t = (uint32_t)lba / di->sect;
+	h = t % di->head;
+	c = t / di->head;
+    } else
+	goto fallback;
+
+out:
+    return h | (s << 8) | ((c & 0x300) << 6) | ((c & 0xFF) << 16);
+
+fallback:
+    if(di->disk & 0x80)
+	return 0x00FFFFFE; /* 254/63/1023 */
+    else
+	/* FIXME ?
+	 * this is mostly "useful" with partitioned floppy,
+	 * maybe stick to 2.88mb ?
+	 */
+	return 0x004F1201; /* 1/18/79 */
+}
+
 static int setup_handover(const struct part_iter *iter,
 		   struct data_area *data)
 {
-    struct disk_dos_part_entry *ha;
+    const struct disk_dos_part_entry *dp;
     const struct disk_gpt_part_entry *gp;
+    struct disk_dos_part_entry *ha;
     uint64_t lba_count;
     uint32_t synth_size;
     uint32_t *plen;
@@ -1047,6 +1117,8 @@ static int setup_handover(const struct part_iter *iter,
 	    goto bail;
 	}
 	memset(ha, 0, synth_size);
+	*(uint32_t *)ha->start = lba2chs(&iter->di, gp->lba_first);
+	*(uint32_t *)ha->end = lba2chs(&iter->di, gp->lba_last);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xED;
 	/* All bits set by default */
@@ -1069,14 +1141,21 @@ static int setup_handover(const struct part_iter *iter,
 #endif
     } else if (iter->type == typedos) {
 	/* MBR handover protocol */
+	dp = (const struct disk_dos_part_entry *)iter->record;
 	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build MBR hand-over record!\n");
 	    goto bail;
 	}
-	memcpy(ha, iter->record, synth_size);
-	ha->start_lba = (uint32_t)iter->start_lba;
+
+	*(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba);
+	*(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1);
+	ha->active_flag = dp->active_flag;
+	ha->ostype = dp->ostype;
+	ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */
+	ha->length = dp->length;
+
 #ifdef DEBUG
 	dprintf("MBR handover:\n");
 	disk_dos_part_dump(ha);
@@ -1099,14 +1178,23 @@ static int manglef_bpb(const struct part_iter *iter, struct data_area *data)
 {
     /* BPB: hidden sectors */
     if (opt.sethid) {
-	if(iter->start_lba < 0x100000000)
+	if(iter->start_lba < ~0u)
 	    *(uint32_t *) ((char *)data->data + 0x1c) = (uint32_t)iter->start_lba;
 	else
+	    /* won't really help much, but ... */
 	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
     }
     /* BPB: legacy geometry */
-    if (opt.setgeo && iter->di.cbios)
-	*(uint32_t *)((char *)data->data + 0x18) = ((uint32_t)iter->di.head << 16) | (uint32_t)iter->di.sect;
+    if (opt.setgeo) {
+	if(iter->di.cbios)
+	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.sect);
+	else {
+	    if(iter->di.disk & 0x80)
+		*(uint32_t *)((char *)data->data + 0x18) = 0x00FF003F;
+	    else
+		*(uint32_t *)((char *)data->data + 0x18) = 0x00020012;
+	}
+    }
 
     /* BPB: drive */
     if (opt.setdrv)
@@ -1116,12 +1204,21 @@ static int manglef_bpb(const struct part_iter *iter, struct data_area *data)
     return 0;
 }
 
-static int mangles_bpb(const struct part_iter *iter, struct data_area *data)
+static int try_sector_bpb(const struct part_iter *iter, struct data_area *data)
 {
     void *cmp_buf = NULL;
 
+    if (!(opt.setdrv || opt.setgeo || opt.sethid))
+	return 0;
+
+#if 0
+    /* Turn this off for now. It's hard to find a reason to
+     * BPB-mangle sector 0 of whatever there is, but it's
+     * "potentially" useful (fixing fdd's sector ?).
+     */
     if (!iter->index)
 	return 0;
+#endif
 
     if (!(cmp_buf = malloc(data->size))) {
 	error("Could not allocate sector-compare buffer.\n");
@@ -1169,7 +1266,11 @@ int main(int argc, char *argv[])
     struct data_area data[3];
     int ndata = 0, fidx = -1, sidx = -1;
 
+#ifdef DEBUG
+    console_ansi_raw();
+#else
     openconsole(&dev_null_r, &dev_stdcon_w);
+#endif
 
     /* Prepare and set defaults */
     memset(&opt, 0, sizeof(opt));
@@ -1177,11 +1278,8 @@ int main(int argc, char *argv[])
     opt.hand = true;	/* by def do prepare handover */
     opt.smap = true;	/* by def map bs / mbr */
     opt.flin = opt.slin = opt.fip = opt.sip = 0x7C00;
-    opt.drivename = "boot";	/*
-				 * potential FIXME: maybe
-				 * we shouldn't assume boot
-				 * by default, do wonder later
-				 */
+    opt.drivename = "boot";
+
     /* Parse arguments */
     if(parse_args(argc, argv))
 	goto bail;
@@ -1268,8 +1366,7 @@ int main(int argc, char *argv[])
     /* Mangle bs/mbr area */
 
     if (sidx >= 0) {
-	if ((opt.setdrv || (opt.setgeo && iter->di.cbios) || opt.sethid) &&
-		mangles_bpb(iter, data + sidx))
+	if (try_sector_bpb(iter, data + sidx))
 	    goto bail;
 
 	if (opt.cmldr && mangles_cmldr(data + sidx))
@@ -1306,6 +1403,8 @@ int main(int argc, char *argv[])
     printf("iter lba: %llu\n", iter->start_lba);
     if (hand_area)
 	printf("hand lba: %u\n", hand_area->start_lba);
+    printf("Press any key to continue ...\n");
+    wait_key();
 #endif
 
     do_boot(data, ndata);
