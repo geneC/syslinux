@@ -37,19 +37,20 @@
 
 /* used in checks, whenever addresses supplied by user are sane */
 
-#define ADDRMAX 0x9EFFF
-#define ADDRMIN 0x500
+#define ADDRMAX 0x9EFFFu
+#define ADDRMIN 0x500u
 
 static const char cmldr_signature[8] = "cmdcons";
 static int fixed_cnt;
 
 static struct options {
-    uint32_t flin;
-    uint16_t fseg;
-    uint16_t fip;
-    uint32_t slin;
-    uint16_t sseg;
-    uint16_t sip;
+    unsigned int fseg;
+    unsigned int foff;
+    unsigned int fip;
+    unsigned int sseg;
+    unsigned int soff;
+    unsigned int sip;
+    unsigned int drvoff;
     const char *drivename;
     const char *partition;
     const char *loadfile;
@@ -66,7 +67,6 @@ static struct options {
     bool sethid;
     bool setgeo;
     bool setdrv;
-    uint8_t drvoff;
     bool read;
     bool write;
     bool filebpb;
@@ -438,11 +438,13 @@ static uint32_t get_file_lba(const char *filename)
     return lba;
 }
 
-/* Convert string seg:off:ip values into numerical seg:linear:ip ones */
+/* Convert string seg:off:ip values into numerical seg:off:ip ones */
 
-static int soi2sli(char *ptr, uint16_t *seg, uint32_t *lin, uint16_t *ip)
+static int soi_s2n(char *ptr, unsigned int *seg,
+			      unsigned int *off,
+			      unsigned int *ip)
 {
-    uint32_t segval = 0, offval = 0, ipval = 0, val;
+    unsigned int segval = 0, offval = 0, ipval = 0, val;
     char *p;
 
     segval = strtoul(ptr, &p, 0);
@@ -451,9 +453,9 @@ static int soi2sli(char *ptr, uint16_t *seg, uint32_t *lin, uint16_t *ip)
     if(*p == ':')
 	ipval = strtoul(p+1, NULL, 0);
 
-    offval = (segval << 4) + offval;
+    val = (segval << 4) + offval;
 
-    if (offval < ADDRMIN || offval > ADDRMAX) {
+    if (val < ADDRMIN || val > ADDRMAX) {
 	error("Invalid seg:off:* address specified..\n");
 	goto bail;
     }
@@ -461,16 +463,16 @@ static int soi2sli(char *ptr, uint16_t *seg, uint32_t *lin, uint16_t *ip)
     val = (segval << 4) + ipval;
 
     if (ipval > 0xFFFE || val < ADDRMIN || val > ADDRMAX) {
-	error("Invalid *:*:ip address specified.\n");
+	error("Invalid seg:*:ip address specified.\n");
 	goto bail;
     }
 
     if(seg)
-	*seg = (uint16_t)segval;
-    if(lin)
-	*lin = offval;
+	*seg = segval;
+    if(off)
+	*off = offval;
     if(ip)
-	*ip  = (uint16_t)ipval;
+	*ip  = ipval;
 
     return 0;
 
@@ -537,12 +539,12 @@ static int parse_args(int argc, char *argv[])
 	    opt.loadfile = argv[i] + 5;
 	} else if ((v = 4, !strncmp(argv[i], "seg=", v)) ||
 		   (v = 5, !strncmp(argv[i], "fseg=", v))) {
-	    if(soi2sli(argv[i] + v, &opt.fseg, &opt.flin, &opt.fip))
+	    if(soi_s2n(argv[i] + v, &opt.fseg, &opt.foff, &opt.fip))
 		goto bail;
 	} else if (!strncmp(argv[i], "sseg=", 5)) {
-	    if(soi2sli(argv[i] + 5, &opt.sseg, &opt.slin, &opt.sip))
+	    if(soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip))
 		goto bail;
-	    if(opt.slin + SECTOR - 1 > ADDRMAX) {
+	    if((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
 		error("Option 'sseg' is invalid - address too big.\n");
 		goto bail;
 	    }
@@ -553,7 +555,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.read = false;
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.fseg = 0x2000;  /* NTLDR wants this address */
-	    opt.flin = 0x20000;
+	    opt.foff = 0;
 	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethid = true;
@@ -564,7 +566,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
 	    opt.fseg = 0x2000;  /* CMLDR wants this address */
-	    opt.flin = 0x20000;
+	    opt.foff = 0;
 	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.cmldr = true;
@@ -576,7 +578,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.fseg = 0x60;    /* FREEDOS wants this address */
-	    opt.flin = 0x600;
+	    opt.foff = 0;
 	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 8;
 	    opt.sethid = true;
@@ -588,7 +590,7 @@ static int parse_args(int argc, char *argv[])
 		     !strncmp(argv[i], "pcdos=", v)) ||
 		    (v = 7, !strncmp(argv[i], "msdos7=", v)) ) {
 	    opt.fseg = 0x70;    /* MS-DOS 2.00 .. 6.xx wants this address */
-	    opt.flin = 0x700;
+	    opt.foff = 0;
 	    opt.fip = v == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
 	    opt.loadfile = argv[i] + v;
 	    opt.sethid = true;
@@ -598,7 +600,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.fseg = 0x70;    /* DRMK wants this address */
-	    opt.flin = 0x700;
+	    opt.foff = 0;
 	    opt.fip = 0;
 	    opt.loadfile = argv[i] + 5;
 	    opt.drmk = true;
@@ -609,7 +611,7 @@ static int parse_args(int argc, char *argv[])
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.fseg = 0x800;	/* stage2 wants this address */
-	    opt.flin = 0x8000;
+	    opt.foff = 0;
 	    opt.fip = 0x200;
 	    opt.loadfile = argv[i] + 5;
 	    opt.grub = true;
@@ -666,7 +668,7 @@ static int parse_args(int argc, char *argv[])
 		goto bail;
 	    }
 	    opt.setdrv = true;
-	    opt.drvoff = (uint8_t)v;
+	    opt.drvoff = v;
 	} else if (!strcmp(argv[i], "nosetdrv")) {
 	    opt.setdrv = false;
 	} else if (!strcmp(argv[i], "read")) {
@@ -1053,7 +1055,7 @@ static int manglef_drmk(struct data_area *data)
     }
     data->size = tsize;
     /* ds:[bp+28] must be 0x0000003f */
-    opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.fseg - 2u));
+    opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.fseg - 2));
     /* "Patch" into tail of the new space */
     *(uint32_t *)((char*)data->data + tsize - 4) = 0x0000003f;
 
@@ -1085,13 +1087,16 @@ out:
 
 fallback:
     if(di->disk & 0x80)
-	return 0x00FFFFFE; /* 254/63/1023 */
+	return 0x00FFFFFE; /* 1023/63/254 */
     else
 	/* FIXME ?
 	 * this is mostly "useful" with partitioned floppy,
 	 * maybe stick to 2.88mb ?
 	 */
-	return 0x004F1201; /* 1/18/79 */
+	return 0x004F1201; /* 79/18/1 */
+#if 0
+	return 0x004F2401; /* 79/36/1 */
+#endif
 }
 
 static int setup_handover(const struct part_iter *iter,
@@ -1274,10 +1279,10 @@ int main(int argc, char *argv[])
 
     /* Prepare and set defaults */
     memset(&opt, 0, sizeof(opt));
-    opt.read = true;	/* by def read bs / mbr */
-    opt.hand = true;	/* by def do prepare handover */
-    opt.smap = true;	/* by def map bs / mbr */
-    opt.flin = opt.slin = opt.fip = opt.sip = 0x7C00;
+    opt.read = true;	/* by def load sector */
+    opt.smap = true;	/* by def map sector */
+    opt.hand = true;	/* by def prepare handover */
+    opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";
 
     /* Parse arguments */
@@ -1287,12 +1292,12 @@ int main(int argc, char *argv[])
     /* Set initial registry values, file takes precedence */
     if(opt.loadfile) {
 	opt.regs.es = opt.regs.cs = opt.regs.ss =
-	   opt.regs.ds = opt.regs.fs = opt.regs.gs = opt.fseg;
-	opt.regs.ip = opt.fip;
+	    opt.regs.ds = opt.regs.fs = opt.regs.gs = (uint16_t)opt.fseg;
+	opt.regs.ip = (uint16_t)opt.fip;
     } else {
 	opt.regs.es = opt.regs.cs = opt.regs.ss =
-	    opt.regs.ds = opt.regs.fs = opt.regs.gs = opt.sseg;
-	opt.regs.ip = opt.sip;
+	    opt.regs.ds = opt.regs.fs = opt.regs.gs = (uint16_t)opt.sseg;
+	opt.regs.ip = (uint16_t)opt.sip;
     }
     if(opt.regs.ip == 0x7C00 && !opt.regs.cs)
 	opt.regs.esp.l = 0x7C00;
@@ -1311,13 +1316,13 @@ int main(int argc, char *argv[])
 
     /* Load file and bs/mbr */
 
-    data[ndata].base = opt.flin;
+    data[ndata].base = (opt.fseg << 4) + opt.foff;
     if (opt.loadfile) {
 	if (loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size)) {
 	    error("Couldn't read the boot file.\n");
 	    goto bail;
 	}
-	if (opt.flin + data[ndata].size - 1 > ADDRMAX) {
+	if (data[ndata].base + data[ndata].size - 1 > ADDRMAX) {
 	    error("Can't load the boot file at this address.\n");
 	    goto bail;
 	}
@@ -1331,10 +1336,10 @@ int main(int argc, char *argv[])
      * in first 512 bytes.
      */
     data[ndata].size = SECTOR;
-    data[ndata].base = opt.slin;
+    data[ndata].base = (opt.sseg << 4) + opt.soff;
     if (opt.read && (!opt.loadfile || !opt.smap || no_ov(data + fidx, data + ndata))) {
 	if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
-	    error("Couldn't read the bs / mbr.\n");
+	    error("Couldn't read the sector.\n");
 	    goto bail;
 	}
 	sect_area = (void *)data[ndata].data;
@@ -1344,7 +1349,7 @@ int main(int argc, char *argv[])
 	}
     }
 
-    /* Mangle file area */
+    /* Do file related stuff */
 
     if (fidx >= 0) {
 	if (opt.isolinux && manglef_isolinux(data + fidx))
@@ -1363,7 +1368,7 @@ int main(int argc, char *argv[])
 	    goto bail;
     }
 
-    /* Mangle bs/mbr area */
+    /* Do sector related stuff */
 
     if (sidx >= 0) {
 	if (try_sector_bpb(iter, data + sidx))
@@ -1371,23 +1376,33 @@ int main(int argc, char *argv[])
 
 	if (opt.cmldr && mangles_cmldr(data + sidx))
 	    goto bail;
+
+	if (opt.smap && fidx >= 0) {
+	    /* if we mmap bootsector for kernel to use,
+	     * let's point registers there
+	     */
+	    opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
+	    opt.regs.ds = (uint16_t)opt.sseg;
+	}
     }
 
-    /* Prepare handover (skip if not at partition) */
-    if (opt.hand && iter->index) {
+    /* Prepare handover; if both file and sector are loaded, sector must not be
+     * mmapped - if it is, then registers prepared for loaded file already
+     * point at the sector. */
+    if (iter->index && opt.hand && (((sidx < 0) ^ (fidx < 0)) || !opt.smap)) {
 	if (setup_handover(iter, data + ndata))
 	    goto bail;
 	hand_area = data[ndata].data;
 	/*
 	 * We have to make sure, that handover data doesn't overlap with the
-	 * file and/or the boot sector. For example, part of FreeDOS kernel
+	 * file or the sector. For example, part of FreeDOS kernel
 	 * loaded at 0x600 would conflict with the handover data. Handover
 	 * is not critical, so we can let it pass with a warning.
 	 */
 	if ( ( fidx < 0 || no_ov(data + fidx, data + ndata)) &&
-	     ( sidx < 0 || no_ov(data + sidx, data + ndata)) ) {
+	     ( sidx < 0 || !opt.smap || no_ov(data + sidx, data + ndata)) ) {
 	    /* If all is fine, prep registers and inc ndata */
-	    opt.regs.esi.w[0] = opt.regs.ebp.w[0] = 0x7be;
+	    opt.regs.esi.l = opt.regs.ebp.l = 0x7be;
 	    opt.regs.ds = 0;
 	    if(iter->type == typegpt)
 		opt.regs.eax.l = 0x54504721;	/* '!GPT' */
