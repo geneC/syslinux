@@ -211,7 +211,7 @@ MENU MASTER PASSWD passwd
 	work.
 
 
-MENU RESOLUTION height width
+MENU RESOLUTION width height
 
 	Requests a specific screen resolution when in graphics mode.
 	The default is "640 480" corresponding to a resolution of
