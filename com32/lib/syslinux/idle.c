@@ -38,10 +38,10 @@
 
 void syslinux_reset_idle(void)
 {
-    __com32.cs_pm->reset_idle();
+    reset_idle();
 }
 
 void syslinux_idle(void)
 {
-    __com32.cs_pm->idle();
+    __idle();
 }

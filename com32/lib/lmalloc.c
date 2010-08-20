@@ -34,7 +34,7 @@
 void *clmalloc(size_t size)
 {
     void *p;
-    p = __com32.cs_pm->lmalloc(size);
+    p = lmalloc(size);
     if (!p)
 	errno = ENOMEM;
     return p;
@@ -43,7 +43,7 @@ void *clmalloc(size_t size)
 void *lzalloc(size_t size)
 {
     void *p;
-    p = __com32.cs_pm->lmalloc(size);
+    p = lmalloc(size);
     if (!p)
 	errno = ENOMEM;
     else
@@ -53,5 +53,5 @@ void *lzalloc(size_t size)
 
 void lfree(void *ptr)
 {
-    __com32.cs_pm->lfree(ptr);
+    free(ptr);
 }

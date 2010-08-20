@@ -7,5 +7,5 @@
 
 char *getcwd(char *buf, size_t size)
 {
-    return __com32.cs_pm->getcwd(buf, size);
+    return core_getcwd(buf, size);
 }

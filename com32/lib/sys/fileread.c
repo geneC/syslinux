@@ -42,7 +42,7 @@ int __file_get_block(struct file_info *fp)
 {
     ssize_t bytes_read;
 
-    bytes_read = __com32.cs_pm->read_file(&fp->i.fd.handle, fp->i.buf,
+    bytes_read = pmapi_read_file(&fp->i.fd.handle, fp->i.buf,
 					  MAXBLOCK >> fp->i.fd.blocklg2);
     if (!bytes_read) {
 	errno = EIO;
@@ -67,7 +67,7 @@ ssize_t __file_read(struct file_info * fp, void *buf, size_t count)
 
 	    if (count > MAXBLOCK) {
 		/* Large transfer: copy directly, without buffering */
-		ncopy = __com32.cs_pm->read_file(&fp->i.fd.handle, bufp,
+		ncopy = pmapi_read_file(&fp->i.fd.handle, bufp,
 						 count >> fp->i.fd.blocklg2);
 		if (!ncopy) {
 		    errno = EIO;

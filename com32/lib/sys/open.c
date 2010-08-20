@@ -63,8 +63,7 @@ int open(const char *pathname, int flags, ...)
 	return -1;
 
     fp = &__file_info[fd];
-
-    handle = __com32.cs_pm->open_file(pathname, &fp->i.fd);
+    handle = open_file(pathname, &fp->i.fd);
     if (handle < 0)
 	return -1;
 

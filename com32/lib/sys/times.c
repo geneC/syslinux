@@ -38,5 +38,5 @@
 clock_t times(struct tms * buf)
 {
     (void)buf;
-    return *__com32.cs_pm->ms_timer;
+    return __ms_timer;
 }

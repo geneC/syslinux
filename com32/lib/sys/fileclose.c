@@ -39,7 +39,7 @@
 int __file_close(struct file_info *fp)
 {
     if (fp->i.fd.handle)
-	__com32.cs_pm->close_file(fp->i.fd.handle);
+	close_file(fp->i.fd.handle);
 
     return 0;
 }
