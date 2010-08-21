@@ -63,6 +63,7 @@ static struct options {
     bool grldr;
     bool maps;
     bool hand;
+    bool hptr;
     bool swap;
     bool hide;
     bool sethid;
@@ -173,12 +174,12 @@ static int find_by_guid(const struct guid *gpt_guid,
 	    continue;
 	}
 	/* Check for a matching GPT disk guid */
-	if(!memcmp(&boot_part->sub.gpt.disk_guid, gpt_guid, sizeof(*gpt_guid))) {
+	if (!memcmp(&boot_part->sub.gpt.disk_guid, gpt_guid, sizeof(*gpt_guid))) {
 	    goto ok;
 	}
 	/* disk guid doesn't match, maybe partition guid will */
 	while (pi_next(&boot_part)) {
-	    if(!memcmp(&boot_part->sub.gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
+	    if (!memcmp(&boot_part->sub.gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
 		goto ok;
 	}
     }
@@ -449,9 +450,9 @@ static int soi_s2n(char *ptr, unsigned int *seg,
     char *p;
 
     segval = strtoul(ptr, &p, 0);
-    if(*p == ':')
+    if (*p == ':')
 	offval = strtoul(p+1, &p, 0);
-    if(*p == ':')
+    if (*p == ':')
 	ipval = strtoul(p+1, NULL, 0);
 
     val = (segval << 4) + offval;
@@ -468,11 +469,11 @@ static int soi_s2n(char *ptr, unsigned int *seg,
 	goto bail;
     }
 
-    if(seg)
+    if (seg)
 	*seg = segval;
-    if(off)
+    if (off)
 	*off = offval;
-    if(ip)
+    if (ip)
 	*ip  = ipval;
 
     return 0;
@@ -505,7 +506,8 @@ Usage:\n\
                          - <o> defaults to 0x24\n\
                          - only 0x24 and 0x40 are accepted\n\
     nosave               Write adjusted sector back to disk\n\
-    hand                 Prepare handover data\n\
+    hand                 Prepare handover area\n\
+    hptr                 Force ds:{si,bp} to always point to handover area\n\
     noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
     nohide               Hide primary partitions, except selected partition\n\
     nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
@@ -540,7 +542,7 @@ static int parse_args(int argc, char *argv[])
 	if (!strncmp(argv[i], "file=", 5)) {
 	    opt.file = argv[i] + 5;
 	} else if (!strncmp(argv[i], "seg=", 4)) {
-	    if(soi_s2n(argv[i] + 4, &opt.fseg, &opt.foff, &opt.fip))
+	    if (soi_s2n(argv[i] + 4, &opt.fseg, &opt.foff, &opt.fip))
 		goto bail;
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.file = argv[i] + 9;
@@ -630,6 +632,10 @@ static int parse_args(int argc, char *argv[])
 	    opt.hand = true;
 	} else if (!strcmp(argv[i], "nohand")) {
 	    opt.hand = false;
+	} else if (!strcmp(argv[i], "hptr")) {
+	    opt.hptr = true;
+	} else if (!strcmp(argv[i], "nohptr")) {
+	    opt.hptr = false;
 	} else if (!strcmp(argv[i], "swap")) {
 	    opt.swap = true;
 	} else if (!strcmp(argv[i], "noswap")) {
@@ -649,9 +655,9 @@ static int parse_args(int argc, char *argv[])
 	} else if (!strcmp(argv[i], "nosetgeo")) {
 	    opt.setgeo = false;
 	} else if (!strncmp(argv[i], "setdrv",6)) {
-	    if(!argv[i][6])
+	    if (!argv[i][6])
 		v = 0x24;
-	    else if(argv[i][6] == '@' ||
+	    else if (argv[i][6] == '@' ||
 		    argv[i][6] == '=' ||
 		    argv[i][6] == ':')
 		v = strtoul(argv[i] + 7, NULL, 0);
@@ -672,7 +678,7 @@ static int parse_args(int argc, char *argv[])
 	    if (argv[i][4]) {
 		if (soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip))
 		    goto bail;
-		if((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
+		if ((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
 		    error("Arguments of 'sect=' are invalid - resulting address too big.\n");
 		    goto bail;
 		}
@@ -789,7 +795,7 @@ int find_dp(struct part_iter **_iter)
 	}
 #if 0
 	/* offsets match, but in case it changes in the future */
-	if(sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
+	if (sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
 	    drive = sdi->iso.drive_number;
 	    fs_lba = *sdi->iso.partoffset;
 	} else {
@@ -842,9 +848,6 @@ int find_dp(struct part_iter **_iter)
     if (!(iter->di.disk & 0x80) && iter->index) {
 	error("WARNING: Partitions on floppy devices may not work.\n");
     }
-
-    /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
 
     *_iter = iter;
 
@@ -941,7 +944,7 @@ static int manglef_grldr(const struct part_iter *iter)
 /*
  * Legacy grub's stage2 chainloading
  */
-static int manglef_grublegacy(const struct part_iter *iter, struct data_area *data)
+static int manglef_grub(const struct part_iter *iter, struct data_area *data)
 {
     /* Layout of stage2 file (from byte 0x0 to 0x270) */
     struct grub_stage2_patch_area {
@@ -1091,7 +1094,7 @@ out:
     return h | (s << 8) | ((c & 0x300) << 6) | ((c & 0xFF) << 16);
 
 fallback:
-    if(di->disk & 0x80)
+    if (di->disk & 0x80)
 	return 0x00FFFFFE; /* 1023/63/254 */
     else
 	/* FIXME ?
@@ -1188,7 +1191,7 @@ static int manglef_bpb(const struct part_iter *iter, struct data_area *data)
 {
     /* BPB: hidden sectors */
     if (opt.sethid) {
-	if(iter->start_lba < ~0u)
+	if (iter->start_lba < ~0u)
 	    *(uint32_t *) ((char *)data->data + 0x1c) = (uint32_t)iter->start_lba;
 	else
 	    /* won't really help much, but ... */
@@ -1196,10 +1199,10 @@ static int manglef_bpb(const struct part_iter *iter, struct data_area *data)
     }
     /* BPB: legacy geometry */
     if (opt.setgeo) {
-	if(iter->di.cbios)
+	if (iter->di.cbios)
 	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.sect);
 	else {
-	    if(iter->di.disk & 0x80)
+	    if (iter->di.disk & 0x80)
 		*(uint32_t *)((char *)data->data + 0x18) = 0x00FF003F;
 	    else
 		*(uint32_t *)((char *)data->data + 0x18) = 0x00020012;
@@ -1214,7 +1217,7 @@ static int manglef_bpb(const struct part_iter *iter, struct data_area *data)
     return 0;
 }
 
-static int try_sector_bpb(const struct part_iter *iter, struct data_area *data)
+static int try_mangles_bpb(const struct part_iter *iter, struct data_area *data)
 {
     void *cmp_buf = NULL;
 
@@ -1264,7 +1267,6 @@ static int mangles_cmldr(struct data_area *data)
     return 0;
 }
 
-
 int main(int argc, char *argv[])
 {
     struct part_iter *iter = NULL;
@@ -1273,8 +1275,8 @@ int main(int argc, char *argv[])
     void *sect_area = NULL;
     struct disk_dos_part_entry *hand_area = NULL;
 
-    struct data_area data[3];
-    int ndata = 0, fidx = -1, sidx = -1;
+    struct data_area data[3], bdata[3];
+    int ndata = 0, fidx = -1, sidx = -1, hidx = -1;
 
     console_ansi_raw();
 /*    openconsole(&dev_null_r, &dev_stdcon_w);*/
@@ -1288,69 +1290,90 @@ int main(int argc, char *argv[])
     opt.drivename = "boot";
 
     /* Parse arguments */
-    if(parse_args(argc, argv))
+    if (parse_args(argc, argv))
 	goto bail;
 
-    /* Set initial registry values, file takes precedence */
-    if(opt.file) {
-	opt.regs.es = opt.regs.cs = opt.regs.ss =
-	    opt.regs.ds = opt.regs.fs = opt.regs.gs = (uint16_t)opt.fseg;
+    /* Set initial registry values */
+    if (opt.file) {
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.fseg;
 	opt.regs.ip = (uint16_t)opt.fip;
     } else {
-	opt.regs.es = opt.regs.cs = opt.regs.ss =
-	    opt.regs.ds = opt.regs.fs = opt.regs.gs = (uint16_t)opt.sseg;
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.sseg;
 	opt.regs.ip = (uint16_t)opt.sip;
     }
-    if(opt.regs.ip == 0x7C00 && !opt.regs.cs)
+
+    if (opt.regs.ip == 0x7C00 && !opt.regs.cs)
 	opt.regs.esp.l = 0x7C00;
 
     /* Get max fixed disk number */
-
     fixed_cnt = *(uint8_t *)(0x475);
 
     /* Get disk/part iterator matching user supplied options */
-    if(find_dp(&iter))
+    if (find_dp(&iter))
 	goto bail;
+
+    /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
+    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
 
     /* Do hide / unhide if appropriate */
     if (opt.hide)
 	hide_unhide(iter);
 
-    /* Load file and sector */
-
+    /* Load the boot file */
     if (opt.file) {
 	data[ndata].base = (opt.fseg << 4) + opt.foff;
+
 	if (loadfile(opt.file, &data[ndata].data, &data[ndata].size)) {
 	    error("Couldn't read the boot file.\n");
 	    goto bail;
 	}
+	file_area = (void *)data[ndata].data;
+
 	if (data[ndata].base + data[ndata].size - 1 > ADDRMAX) {
 	    error("The boot file is too big to load at this address.\n");
 	    goto bail;
 	}
 
-	file_area = (void *)data[ndata].data;
 	fidx = ndata;
 	ndata++;
     }
 
+    /* Load the sector */
     if (opt.sect) {
 	data[ndata].size = SECTOR;
 	data[ndata].base = (opt.sseg << 4) + opt.soff;
+
 	if (opt.file && opt.maps && !no_ov(data + fidx, data + ndata)) {
-	    error("WARNING: Sector won't be loaded, as it would conflict with the boot file.\n");
+	    error("WARNING: The sector won't be loaded, as it would conflict with the boot file.\n");
 	} else {
 	    if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
 		error("Couldn't read the sector.\n");
 		goto bail;
 	    }
 	    sect_area = (void *)data[ndata].data;
+
 	    sidx = ndata;
-	    if(opt.maps) {
-		ndata++;
-	    }
+	    ndata++;
 	}
     }
+
+    /* Prep the handover */
+    if (opt.hand && iter->index) {
+	if (setup_handover(iter, data + ndata))
+	    goto bail;
+	hand_area = (void *)data[ndata].data;
+
+	/* Verify possible conflicts */
+	if ( ( fidx >= 0 && !no_ov(data + fidx, data + ndata)) ||
+	     ( sidx >= 0 && opt.maps && !no_ov(data + sidx, data + ndata)) ) {
+	    error("WARNING: Handover area won't be prepared,\n"
+		  "as it would conflict with the boot file and/or the sector.\n");
+	} else {
+	    hidx = ndata;
+	    ndata++;
+	}
+    }
+
 
     /* Do file related stuff */
 
@@ -1361,7 +1384,7 @@ int main(int argc, char *argv[])
 	if (opt.grldr && manglef_grldr(iter))
 	    goto bail;
 
-	if (opt.grub && manglef_grublegacy(iter, data + fidx))
+	if (opt.grub && manglef_grub(iter, data + fidx))
 	    goto bail;
 
 	if (opt.drmk && manglef_drmk(data + fidx))
@@ -1374,46 +1397,37 @@ int main(int argc, char *argv[])
     /* Do sector related stuff */
 
     if (sidx >= 0) {
-	if (try_sector_bpb(iter, data + sidx))
+	if (try_mangles_bpb(iter, data + sidx))
 	    goto bail;
 
 	if (opt.cmldr && mangles_cmldr(data + sidx))
 	    goto bail;
-
-	if (opt.maps && fidx >= 0) {
-	    /* if we mmap bootsector for kernel to use,
-	     * let's point registers there
-	     */
-	    opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
-	    opt.regs.ds = (uint16_t)opt.sseg;
-	}
     }
 
-    /* Prepare handover; if both file and sector are loaded, sector must not be
-     * mmapped - if it is, then registers prepared for loaded file already
-     * point at the sector. */
-    if (iter->index && opt.hand && (((sidx < 0) ^ (fidx < 0)) || !opt.maps)) {
-	if (setup_handover(iter, data + ndata))
-	    goto bail;
-	hand_area = data[ndata].data;
-	/*
-	 * We have to make sure, that handover data doesn't overlap with the
-	 * file or the sector. For example, part of FreeDOS kernel
-	 * loaded at 0x600 would conflict with the handover data. Handover
-	 * is not critical, so we can let it pass with a warning.
-	 */
-	if ( ( fidx < 0 || no_ov(data + fidx, data + ndata)) &&
-	     ( sidx < 0 || !opt.maps || no_ov(data + sidx, data + ndata)) ) {
-	    /* If all is fine, prep registers and inc ndata */
-	    opt.regs.esi.l = opt.regs.ebp.l = (uint16_t)data[ndata].base;
-	    opt.regs.ds = 0;
-	    if(iter->type == typegpt)
-		opt.regs.eax.l = 0x54504721;	/* '!GPT' */
-	    ndata++;
-	} else {
-	    error("WARNING: Handover ignored due to overlapping regions.\n");
-	}
+    /* Adjust registers - ds:si & ds:bp */
+
+    if (sidx >= 0 && fidx >= 0 && opt.maps && !opt.hptr) {
+	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
+	opt.regs.ds = (uint16_t)opt.sseg;
+	opt.regs.eax.l = 0;
+    } else if (hidx >= 0) {
+	opt.regs.esi.l = opt.regs.ebp.l = data[hidx].base;
+	opt.regs.ds = 0;
+	if (iter->type == typegpt)
+	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
+	else
+	    opt.regs.eax.l = 0;
     }
+
+    /* Prepare boot-time mmap data */
+
+    ndata = 0;
+    if (sidx >= 0)
+	memcpy(bdata + ndata++, data + sidx, sizeof(struct data_area));
+    if (fidx >= 0)
+	memcpy(bdata + ndata++, data + fidx, sizeof(struct data_area));
+    if (hidx >= 0)
+	memcpy(bdata + ndata++, data + hidx, sizeof(struct data_area));
 
 #ifdef DEBUG
     printf("iter dsk: %d\n", iter->di.disk);
@@ -1425,7 +1439,7 @@ int main(int argc, char *argv[])
     wait_key();
 #endif
 
-    do_boot(data, ndata);
+    do_boot(bdata, ndata);
 
 bail:
     pi_del(&iter);
