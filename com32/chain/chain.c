@@ -494,15 +494,15 @@ Usage:\n\
     chain.c32 fs [options]\n\
 \nOptions ('no' prefix specify defaulti value):\n\
     file=<loader>        Load and execute file\n\
-    seg[f]=<s[:o[:i]]>   Load file at <s:o>, jump to <s:i>\n\
+    seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>\n\
     nofilebpb            Treat file in memory as BPB compatible\n\
-    sect                 Load sector\n\
-    segs=<s[:o[:i]]>     Load sector at <s:o>, jump to <s:i>\n\
+    sect[=<s[:o[:i]]>]   Load sector at <s:o>, jump to <s:i>\n\
+                         - defaults to 0:0x7C00:0x7C00\n\
     maps                 Map loaded sector into real memory\n\
     nosethid[den]        Set BPB's hidden sectors field\n\
     nosetgeo             Set BPB's sectors per track and heads fields\n\
-    nosetdrv@<offset>    Set BPB's drive unit field at <offset>\n\
-                         - offset defaults to 0x24\n\
+    nosetdrv[@<o>]       Set BPB's drive unit field at <o>\n\
+                         - <o> defaults to 0x24\n\
                          - only 0x24 and 0x40 are accepted\n\
     nosave               Write adjusted sector back to disk\n\
     hand                 Prepare handover data\n\
@@ -539,17 +539,9 @@ static int parse_args(int argc, char *argv[])
     for (i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "file=", 5)) {
 	    opt.file = argv[i] + 5;
-	} else if ((v = 4, !strncmp(argv[i], "seg=", v)) ||
-		   (v = 5, !strncmp(argv[i], "segf=", v))) {
-	    if(soi_s2n(argv[i] + v, &opt.fseg, &opt.foff, &opt.fip))
+	} else if (!strncmp(argv[i], "seg=", 4)) {
+	    if(soi_s2n(argv[i] + 4, &opt.fseg, &opt.foff, &opt.fip))
 		goto bail;
-	} else if (!strncmp(argv[i], "segs=", 5)) {
-	    if(soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip))
-		goto bail;
-	    if((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
-		error("Option 'segs' is invalid - address too big.\n");
-		goto bail;
-	    }
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.file = argv[i] + 9;
 	    opt.isolinux = true;
@@ -663,17 +655,28 @@ static int parse_args(int argc, char *argv[])
 		    argv[i][6] == '=' ||
 		    argv[i][6] == ':')
 		v = strtoul(argv[i] + 7, NULL, 0);
-	    else
-		v = 0;
+	    else {
+		error("Invalid 'setdrv' specification.\n");
+		goto bail;
+	    }
 	    if (!(v == 0x24 || v == 0x40)) {
-		error("Invalid setdrv offset.\n");
+		error("Invalid 'setdrv' offset.\n");
 		goto bail;
 	    }
 	    opt.setdrv = true;
 	    opt.drvoff = v;
 	} else if (!strcmp(argv[i], "nosetdrv")) {
 	    opt.setdrv = false;
-	} else if (!strcmp(argv[i], "sect")) {
+	} else if (!strncmp(argv[i], "sect=", 5) ||
+		   !strcmp(argv[i], "sect")) {
+	    if (argv[i][4]) {
+		if (soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip))
+		    goto bail;
+		if((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
+		    error("Arguments of 'sect=' are invalid - resulting address too big.\n");
+		    goto bail;
+		}
+	    }
 	    opt.sect = true;
 	} else if (!strcmp(argv[i], "nosect")) {
 	    opt.sect = false;
@@ -1315,14 +1318,14 @@ int main(int argc, char *argv[])
 
     /* Load file and sector */
 
-    data[ndata].base = (opt.fseg << 4) + opt.foff;
     if (opt.file) {
+	data[ndata].base = (opt.fseg << 4) + opt.foff;
 	if (loadfile(opt.file, &data[ndata].data, &data[ndata].size)) {
 	    error("Couldn't read the boot file.\n");
 	    goto bail;
 	}
 	if (data[ndata].base + data[ndata].size - 1 > ADDRMAX) {
-	    error("Can't load the boot file at this address.\n");
+	    error("The boot file is too big to load at this address.\n");
 	    goto bail;
 	}
 
@@ -1331,17 +1334,21 @@ int main(int argc, char *argv[])
 	ndata++;
     }
 
-    data[ndata].size = SECTOR;
-    data[ndata].base = (opt.sseg << 4) + opt.soff;
-    if (opt.sect && (!opt.file || !opt.maps || no_ov(data + fidx, data + ndata))) {
-	if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
-	    error("Couldn't read the sector.\n");
-	    goto bail;
-	}
-	sect_area = (void *)data[ndata].data;
-	sidx = ndata;
-	if(opt.maps) {
-	    ndata++;
+    if (opt.sect) {
+	data[ndata].size = SECTOR;
+	data[ndata].base = (opt.sseg << 4) + opt.soff;
+	if (opt.file && opt.maps && !no_ov(data + fidx, data + ndata)) {
+	    error("WARNING: Sector won't be loaded, as it would conflict with the boot file.\n");
+	} else {
+	    if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
+		error("Couldn't read the sector.\n");
+		goto bail;
+	    }
+	    sect_area = (void *)data[ndata].data;
+	    sidx = ndata;
+	    if(opt.maps) {
+		ndata++;
+	    }
 	}
     }
 
