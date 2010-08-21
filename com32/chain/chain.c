@@ -54,22 +54,22 @@ static struct options {
     unsigned int drvoff;
     const char *drivename;
     const char *partition;
-    const char *loadfile;
+    const char *file;
     const char *grubcfg;
     bool isolinux;
     bool cmldr;
     bool drmk;
     bool grub;
     bool grldr;
-    bool smap;
+    bool maps;
     bool hand;
     bool swap;
     bool hide;
     bool sethid;
     bool setgeo;
     bool setdrv;
-    bool read;
-    bool write;
+    bool sect;
+    bool save;
     bool filebpb;
     uint16_t keeppxe;
     struct syslinux_rm_regs regs;
@@ -492,8 +492,25 @@ Usage:\n\
     chain.c32 label{:|=}<label> [<partition>] [options]\n\
     chain.c32 boot{,| }[<partition>] [options]\n\
     chain.c32 fs [options]\n\
-\nOptions ('no' prefix specify defaults):\n\
+\nOptions ('no' prefix specify defaulti value):\n\
     file=<loader>        Load and execute file\n\
+    seg[f]=<s[:o[:i]]>   Load file at <s:o>, jump to <s:i>\n\
+    nofilebpb            Treat file in memory as BPB compatible\n\
+    sect                 Load sector\n\
+    segs=<s[:o[:i]]>     Load sector at <s:o>, jump to <s:i>\n\
+    maps                 Map loaded sector into real memory\n\
+    nosethid[den]        Set BPB's hidden sectors field\n\
+    nosetgeo             Set BPB's sectors per track and heads fields\n\
+    nosetdrv@<offset>    Set BPB's drive unit field at <offset>\n\
+                         - offset defaults to 0x24\n\
+                         - only 0x24 and 0x40 are accepted\n\
+    nosave               Write adjusted sector back to disk\n\
+    hand                 Prepare handover data\n\
+    noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
+    nohide               Hide primary partitions, except selected partition\n\
+    nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
+", "\
+\nComposite options:\n\
     isolinux=<loader>    Load another version of ISOLINUX\n\
     ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
     cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003\n\
@@ -505,22 +522,6 @@ Usage:\n\
     grub=<loader>        Load GRUB Legacy stage2\n\
     grubcfg=<filename>   Set alternative config filename for GRUB Legacy\n\
     grldr=<loader>       Load GRUB4DOS grldr\n\
-", "\
-    [f]seg=<s[:o[:i]]>   Load file at <s:o>, jump to <s:i>\n\
-    sseg=<s[:o[:i]]>     Load sector at <s:o>, jump to <s:i>\n\
-    smap                 Map loaded sector into real memory\n\
-    hand                 Prepare handover data\n\
-    noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
-    nohide               Hide primary partitions, except selected partition\n\
-    nosethid[den]        Set BPB's hidden sectors field\n\
-    nosetgeo             Set BPB's sectors per track and heads fields\n\
-    nosetdrv@<offset>    Set BPB's drive unit field at <offset>\n\
-                         - offset defaults to 0x24\n\
-                         - only 0x24 and 0x40 are accepted\n\
-    read                 Load sector\n\
-    nowrite              Write adjusted sector back to disk\n\
-    nofilebpb            Treat file in memory as BPB compatible\n\
-    nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
 \nPlease see doc/chain.txt for the detailed documentation.\n"
     };
     error(usage[0]);
@@ -537,55 +538,55 @@ static int parse_args(int argc, char *argv[])
 
     for (i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "file=", 5)) {
-	    opt.loadfile = argv[i] + 5;
+	    opt.file = argv[i] + 5;
 	} else if ((v = 4, !strncmp(argv[i], "seg=", v)) ||
-		   (v = 5, !strncmp(argv[i], "fseg=", v))) {
+		   (v = 5, !strncmp(argv[i], "segf=", v))) {
 	    if(soi_s2n(argv[i] + v, &opt.fseg, &opt.foff, &opt.fip))
 		goto bail;
-	} else if (!strncmp(argv[i], "sseg=", 5)) {
+	} else if (!strncmp(argv[i], "segs=", 5)) {
 	    if(soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip))
 		goto bail;
 	    if((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
-		error("Option 'sseg' is invalid - address too big.\n");
+		error("Option 'segs' is invalid - address too big.\n");
 		goto bail;
 	    }
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
-	    opt.loadfile = argv[i] + 9;
+	    opt.file = argv[i] + 9;
 	    opt.isolinux = true;
 	    opt.hand = false;
-	    opt.read = false;
+	    opt.sect = false;
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.fseg = 0x2000;  /* NTLDR wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0;
-	    opt.loadfile = argv[i] + 6;
+	    opt.file = argv[i] + 6;
 	    opt.sethid = true;
 	    opt.setgeo = true;
 	    opt.setdrv = true;
 	    opt.drvoff = 0x24;
-	    /* opt.write = true; */
+	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
 	    opt.fseg = 0x2000;  /* CMLDR wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0;
-	    opt.loadfile = argv[i] + 6;
+	    opt.file = argv[i] + 6;
 	    opt.cmldr = true;
 	    opt.sethid = true;
 	    opt.setgeo = true;
 	    opt.setdrv = true;
 	    opt.drvoff = 0x24;
-	    /* opt.write = true; */
+	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.fseg = 0x60;    /* FREEDOS wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0;
-	    opt.loadfile = argv[i] + 8;
+	    opt.file = argv[i] + 8;
 	    opt.sethid = true;
 	    opt.setgeo = true;
-	    /* opt.write = true; */
-	    opt.smap = false;
+	    /* opt.save = true; */
+	    opt.maps = false;
 	    opt.hand = false;
 	} else if ( (v = 6, !strncmp(argv[i], "msdos=", v) ||
 		     !strncmp(argv[i], "pcdos=", v)) ||
@@ -593,46 +594,46 @@ static int parse_args(int argc, char *argv[])
 	    opt.fseg = 0x70;    /* MS-DOS 2.00 .. 6.xx wants this address */
 	    opt.foff = 0;
 	    opt.fip = v == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
-	    opt.loadfile = argv[i] + v;
+	    opt.file = argv[i] + v;
 	    opt.sethid = true;
 	    opt.setgeo = true;
-	    /* opt.write = true; */
-	    opt.smap = false;
+	    /* opt.save = true; */
+	    opt.maps = false;
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.fseg = 0x70;    /* DRMK wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0;
-	    opt.loadfile = argv[i] + 5;
+	    opt.file = argv[i] + 5;
 	    opt.drmk = true;
 	    opt.sethid = true;
 	    opt.setgeo = true;
-	    /* opt.write = true; */
-	    opt.smap = false;
+	    /* opt.save = true; */
+	    opt.maps = false;
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.fseg = 0x800;	/* stage2 wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0x200;
-	    opt.loadfile = argv[i] + 5;
+	    opt.file = argv[i] + 5;
 	    opt.grub = true;
 	    opt.hand = false;
-	    opt.read = false;
+	    opt.sect = false;
 	} else if (!strncmp(argv[i], "grubcfg=", 8)) {
 	    opt.grubcfg = argv[i] + 8;
 	} else if (!strncmp(argv[i], "grldr=", 6)) {
-	    opt.loadfile = argv[i] + 6;
+	    opt.file = argv[i] + 6;
 	    opt.grldr = true;
 	    opt.hand = false;
-	    opt.read = false;
+	    opt.sect = false;
 	} else if (!strcmp(argv[i], "keeppxe")) {
 	    opt.keeppxe = 3;
 	} else if (!strcmp(argv[i], "nokeeppxe")) {
 	    opt.keeppxe = 0;
-	} else if (!strcmp(argv[i], "smap")) {
-	    opt.smap = true;
-	} else if (!strcmp(argv[i], "nosmap")) {
-	    opt.smap = false;
+	} else if (!strcmp(argv[i], "maps")) {
+	    opt.maps = true;
+	} else if (!strcmp(argv[i], "nomaps")) {
+	    opt.maps = false;
 	} else if (!strcmp(argv[i], "hand")) {
 	    opt.hand = true;
 	} else if (!strcmp(argv[i], "nohand")) {
@@ -672,14 +673,14 @@ static int parse_args(int argc, char *argv[])
 	    opt.drvoff = v;
 	} else if (!strcmp(argv[i], "nosetdrv")) {
 	    opt.setdrv = false;
-	} else if (!strcmp(argv[i], "read")) {
-	    opt.read = true;
-	} else if (!strcmp(argv[i], "noread")) {
-	    opt.read = false;
-	} else if (!strcmp(argv[i], "write")) {
-	    opt.write = true;
-	} else if (!strcmp(argv[i], "nowrite")) {
-	    opt.write = false;
+	} else if (!strcmp(argv[i], "sect")) {
+	    opt.sect = true;
+	} else if (!strcmp(argv[i], "nosect")) {
+	    opt.sect = false;
+	} else if (!strcmp(argv[i], "save")) {
+	    opt.save = true;
+	} else if (!strcmp(argv[i], "nosave")) {
+	    opt.save = false;
 	} else if (!strcmp(argv[i], "filebpb")) {
 	    opt.filebpb = true;
 	} else if (!strcmp(argv[i], "nofilebpb")) {
@@ -715,12 +716,12 @@ static int parse_args(int argc, char *argv[])
 	goto bail;
     }
 
-    if ((!opt.smap || !opt.read) && !opt.loadfile) {
+    if ((!opt.maps || !opt.sect) && !opt.file) {
 	error("You have to load something.\n");
 	goto bail;
     }
 
-    if (opt.filebpb && !opt.loadfile) {
+    if (opt.filebpb && !opt.file) {
 	error("Option 'filebpb' requires file.\n");
 	goto bail;
     }
@@ -888,7 +889,7 @@ static int manglef_isolinux(struct data_area *data)
     isolinux_bin = (unsigned char *)data->data;
 
     /* Get LBA address of bootfile */
-    file_lba = get_file_lba(opt.loadfile);
+    file_lba = get_file_lba(opt.file);
 
     if (file_lba == 0) {
 	error("Failed to find LBA offset of the boot file\n");
@@ -1235,7 +1236,7 @@ static int try_sector_bpb(const struct part_iter *iter, struct data_area *data)
 
     manglef_bpb(iter, data);
 
-    if (opt.write && memcmp(cmp_buf, data->data, data->size)) {
+    if (opt.save && memcmp(cmp_buf, data->data, data->size)) {
 	if (disk_write_verify_sector(&iter->di, iter->start_lba, data->data)) {
 	    error("Cannot write updated boot sector.\n");
 	    goto bail;
@@ -1277,8 +1278,8 @@ int main(int argc, char *argv[])
 
     /* Prepare and set defaults */
     memset(&opt, 0, sizeof(opt));
-    opt.read = true;	/* by def load sector */
-    opt.smap = true;	/* by def map sector */
+    opt.sect = true;	/* by def load sector */
+    opt.maps = true;	/* by def map sector */
     opt.hand = true;	/* by def prepare handover */
     opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";
@@ -1288,7 +1289,7 @@ int main(int argc, char *argv[])
 	goto bail;
 
     /* Set initial registry values, file takes precedence */
-    if(opt.loadfile) {
+    if(opt.file) {
 	opt.regs.es = opt.regs.cs = opt.regs.ss =
 	    opt.regs.ds = opt.regs.fs = opt.regs.gs = (uint16_t)opt.fseg;
 	opt.regs.ip = (uint16_t)opt.fip;
@@ -1312,11 +1313,11 @@ int main(int argc, char *argv[])
     if (opt.hide)
 	hide_unhide(iter);
 
-    /* Load file and bs/mbr */
+    /* Load file and sector */
 
     data[ndata].base = (opt.fseg << 4) + opt.foff;
-    if (opt.loadfile) {
-	if (loadfile(opt.loadfile, &data[ndata].data, &data[ndata].size)) {
+    if (opt.file) {
+	if (loadfile(opt.file, &data[ndata].data, &data[ndata].size)) {
 	    error("Couldn't read the boot file.\n");
 	    goto bail;
 	}
@@ -1330,19 +1331,16 @@ int main(int argc, char *argv[])
 	ndata++;
     }
 
-    /* This should be fine for >512 sectors as well - we're really interested only
-     * in first 512 bytes.
-     */
     data[ndata].size = SECTOR;
     data[ndata].base = (opt.sseg << 4) + opt.soff;
-    if (opt.read && (!opt.loadfile || !opt.smap || no_ov(data + fidx, data + ndata))) {
+    if (opt.sect && (!opt.file || !opt.maps || no_ov(data + fidx, data + ndata))) {
 	if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
 	    error("Couldn't read the sector.\n");
 	    goto bail;
 	}
 	sect_area = (void *)data[ndata].data;
 	sidx = ndata;
-	if(opt.smap) {
+	if(opt.maps) {
 	    ndata++;
 	}
     }
@@ -1375,7 +1373,7 @@ int main(int argc, char *argv[])
 	if (opt.cmldr && mangles_cmldr(data + sidx))
 	    goto bail;
 
-	if (opt.smap && fidx >= 0) {
+	if (opt.maps && fidx >= 0) {
 	    /* if we mmap bootsector for kernel to use,
 	     * let's point registers there
 	     */
@@ -1387,7 +1385,7 @@ int main(int argc, char *argv[])
     /* Prepare handover; if both file and sector are loaded, sector must not be
      * mmapped - if it is, then registers prepared for loaded file already
      * point at the sector. */
-    if (iter->index && opt.hand && (((sidx < 0) ^ (fidx < 0)) || !opt.smap)) {
+    if (iter->index && opt.hand && (((sidx < 0) ^ (fidx < 0)) || !opt.maps)) {
 	if (setup_handover(iter, data + ndata))
 	    goto bail;
 	hand_area = data[ndata].data;
@@ -1398,9 +1396,9 @@ int main(int argc, char *argv[])
 	 * is not critical, so we can let it pass with a warning.
 	 */
 	if ( ( fidx < 0 || no_ov(data + fidx, data + ndata)) &&
-	     ( sidx < 0 || !opt.smap || no_ov(data + sidx, data + ndata)) ) {
+	     ( sidx < 0 || !opt.maps || no_ov(data + sidx, data + ndata)) ) {
 	    /* If all is fine, prep registers and inc ndata */
-	    opt.regs.esi.l = opt.regs.ebp.l = 0x7be;
+	    opt.regs.esi.l = opt.regs.ebp.l = (uint16_t)data[ndata].base;
 	    opt.regs.ds = 0;
 	    if(iter->type == typegpt)
 		opt.regs.eax.l = 0x54504721;	/* '!GPT' */
