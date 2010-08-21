@@ -72,6 +72,7 @@ static struct options {
     bool sect;
     bool save;
     bool filebpb;
+    bool warn;
     uint16_t keeppxe;
     struct syslinux_rm_regs regs;
 } opt;
@@ -502,15 +503,18 @@ Usage:\n\
     maps                 Map loaded sector into real memory\n\
     nosethid[den]        Set BPB's hidden sectors field\n\
     nosetgeo             Set BPB's sectors per track and heads fields\n\
-    nosetdrv[@<o>]       Set BPB's drive unit field at <o>\n\
-                         - <o> defaults to 0x24\n\
+    nosetdrv[@<off>]     Set BPB's drive unit field at <o>\n\
+                         - <off> defaults to autodetection\n\
                          - only 0x24 and 0x40 are accepted\n\
+    nosetbpb             Enable set{hid,geo,drv}\n\
     nosave               Write adjusted sector back to disk\n\
     hand                 Prepare handover area\n\
-    hptr                 Force ds:{si,bp} to always point to handover area\n\
+    nohptr               Force ds:si and ds:bp to point to handover area\n\
     noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
-    nohide               Hide primary partitions, except selected partition\n\
+    nohide               Hide primary partitions, unhide selected partition\n\
     nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
+    nowarn               Wait for a keypress to continue chainloading\n\
+                         - useful to see emited warnings\n\
 ", "\
 \nComposite options:\n\
     isolinux=<loader>    Load another version of ISOLINUX\n\
@@ -541,6 +545,8 @@ static int parse_args(int argc, char *argv[])
     for (i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "file=", 5)) {
 	    opt.file = argv[i] + 5;
+	} else if (!strcmp(argv[i], "nofile")) {
+	    opt.file = NULL;
 	} else if (!strncmp(argv[i], "seg=", 4)) {
 	    if (soi_s2n(argv[i] + 4, &opt.fseg, &opt.foff, &opt.fip))
 		goto bail;
@@ -576,11 +582,15 @@ static int parse_args(int argc, char *argv[])
 	    opt.fseg = 0x60;    /* FREEDOS wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0;
+	    opt.sseg = 0x9000;
+	    opt.soff = 0;
+	    opt.sip = 0;
 	    opt.file = argv[i] + 8;
 	    opt.sethid = true;
 	    opt.setgeo = true;
+	    opt.setdrv = true;
+	    opt.drvoff = ~0u;
 	    /* opt.save = true; */
-	    opt.maps = false;
 	    opt.hand = false;
 	} else if ( (v = 6, !strncmp(argv[i], "msdos=", v) ||
 		     !strncmp(argv[i], "pcdos=", v)) ||
@@ -588,22 +598,30 @@ static int parse_args(int argc, char *argv[])
 	    opt.fseg = 0x70;    /* MS-DOS 2.00 .. 6.xx wants this address */
 	    opt.foff = 0;
 	    opt.fip = v == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
+	    opt.sseg = 0x9000;
+	    opt.soff = 0;
+	    opt.sip = 0;
 	    opt.file = argv[i] + v;
 	    opt.sethid = true;
 	    opt.setgeo = true;
+	    opt.setdrv = true;
+	    opt.drvoff = ~0u;
 	    /* opt.save = true; */
-	    opt.maps = false;
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.fseg = 0x70;    /* DRMK wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0;
+	    opt.sseg = 0x2000;
+	    opt.soff = 0;
+	    opt.sip = 0;
 	    opt.file = argv[i] + 5;
-	    opt.drmk = true;
+	    /* opt.drmk = true; */
 	    opt.sethid = true;
 	    opt.setgeo = true;
+	    opt.setdrv = true;
+	    opt.drvoff = ~0u;
 	    /* opt.save = true; */
-	    opt.maps = false;
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.fseg = 0x800;	/* stage2 wants this address */
@@ -656,23 +674,32 @@ static int parse_args(int argc, char *argv[])
 	    opt.setgeo = false;
 	} else if (!strncmp(argv[i], "setdrv",6)) {
 	    if (!argv[i][6])
-		v = 0x24;
+		v = ~0u;    /* autodetect */
 	    else if (argv[i][6] == '@' ||
 		    argv[i][6] == '=' ||
-		    argv[i][6] == ':')
+		    argv[i][6] == ':') {
 		v = strtoul(argv[i] + 7, NULL, 0);
-	    else {
-		error("Invalid 'setdrv' specification.\n");
-		goto bail;
-	    }
-	    if (!(v == 0x24 || v == 0x40)) {
-		error("Invalid 'setdrv' offset.\n");
-		goto bail;
-	    }
+		if (!(v == 0x24 || v == 0x40)) {
+		    error("Invalid 'setdrv' offset.\n");
+		    goto bail;
+		}
+	    } else {
+		    error("Invalid 'setdrv' specification.\n");
+		    goto bail;
+		}
 	    opt.setdrv = true;
 	    opt.drvoff = v;
 	} else if (!strcmp(argv[i], "nosetdrv")) {
 	    opt.setdrv = false;
+	} else if (!strcmp(argv[i], "setbpb")) {
+	    opt.setdrv = true;
+	    opt.drvoff = ~0u;
+	    opt.setgeo = true;
+	    opt.sethid = true;
+	} else if (!strcmp(argv[i], "nosetbpb")) {
+	    opt.setdrv = false;
+	    opt.setgeo = false;
+	    opt.sethid = false;
 	} else if (!strncmp(argv[i], "sect=", 5) ||
 		   !strcmp(argv[i], "sect")) {
 	    if (argv[i][4]) {
@@ -694,6 +721,10 @@ static int parse_args(int argc, char *argv[])
 	    opt.filebpb = true;
 	} else if (!strcmp(argv[i], "nofilebpb")) {
 	    opt.filebpb = false;
+	} else if (!strcmp(argv[i], "warn")) {
+	    opt.warn = true;
+	} else if (!strcmp(argv[i], "nowarn")) {
+	    opt.warn = false;
 	} else if (((argv[i][0] == 'h' || argv[i][0] == 'f')
 		    && argv[i][1] == 'd')
 		   || !strncmp(argv[i], "mbr:", 4)
@@ -1267,6 +1298,33 @@ static int mangles_cmldr(struct data_area *data)
     return 0;
 }
 
+int setdrv_auto(const struct part_iter *iter)
+{
+    int a, b;
+    char *buf;
+
+    if (!(buf = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
+	error("Couldn't read a sector to detect 'setdrv' offset.\n");
+	return -1;
+    }
+
+    a = strncmp(buf + 0x36, "FAT", 3);
+    b = strncmp(buf + 0x52, "FAT", 3);
+
+    if ((!a && b && (buf[0x26] & 0xFE) == 0x28) || *((uint8_t*)buf + 0x26) == 0x80) {
+	opt.drvoff = 0x24;
+    } else if (a && !b && (buf[0x42] & 0xFE) == 0x28) {
+	opt.drvoff = 0x40;
+    } else {
+	error("WARNING: Couldn't autodetect 'setdrv' offset - turning option off.\n");
+	opt.setdrv = false;
+    }
+
+    free(buf);
+    return 0;
+
+}
+
 int main(int argc, char *argv[])
 {
     struct part_iter *iter = NULL;
@@ -1288,6 +1346,9 @@ int main(int argc, char *argv[])
     opt.hand = true;	/* by def prepare handover */
     opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";
+#ifdef DEBUG
+    opt.warn = true;
+#endif
 
     /* Parse arguments */
     if (parse_args(argc, argv))
@@ -1310,6 +1371,10 @@ int main(int argc, char *argv[])
 
     /* Get disk/part iterator matching user supplied options */
     if (find_dp(&iter))
+	goto bail;
+
+    /* Try to autodetect setdrv offest */
+    if (opt.setdrv && opt.drvoff == ~0u && setdrv_auto(iter))
 	goto bail;
 
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
@@ -1374,6 +1439,24 @@ int main(int argc, char *argv[])
 	}
     }
 
+    /*
+     *  Adjust registers - ds:si & ds:bp
+     *  We do it here, as they might get further
+     *  overriden during mangling.
+     */
+
+    if (sidx >= 0 && fidx >= 0 && opt.maps && !opt.hptr) {
+	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
+	opt.regs.ds = (uint16_t)opt.sseg;
+	opt.regs.eax.l = 0;
+    } else if (hidx >= 0) {
+	opt.regs.esi.l = opt.regs.ebp.l = data[hidx].base;
+	opt.regs.ds = 0;
+	if (iter->type == typegpt)
+	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
+	else
+	    opt.regs.eax.l = 0;
+    }
 
     /* Do file related stuff */
 
@@ -1404,21 +1487,6 @@ int main(int argc, char *argv[])
 	    goto bail;
     }
 
-    /* Adjust registers - ds:si & ds:bp */
-
-    if (sidx >= 0 && fidx >= 0 && opt.maps && !opt.hptr) {
-	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
-	opt.regs.ds = (uint16_t)opt.sseg;
-	opt.regs.eax.l = 0;
-    } else if (hidx >= 0) {
-	opt.regs.esi.l = opt.regs.ebp.l = data[hidx].base;
-	opt.regs.ds = 0;
-	if (iter->type == typegpt)
-	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
-	else
-	    opt.regs.eax.l = 0;
-    }
-
     /* Prepare boot-time mmap data */
 
     ndata = 0;
@@ -1435,12 +1503,14 @@ int main(int argc, char *argv[])
     printf("iter lba: %llu\n", iter->start_lba);
     if (hand_area)
 	printf("hand lba: %u\n", hand_area->start_lba);
-    printf("Press any key to continue ...\n");
-    wait_key();
 #endif
 
-    do_boot(bdata, ndata);
+    if (opt.warn) {
+	puts("Press any key to continue booting...");
+	wait_key();
+    }
 
+    do_boot(bdata, ndata);
 bail:
     pi_del(&iter);
     /* Free allocated areas */
