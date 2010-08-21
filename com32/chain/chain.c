@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <console.h>
+#include <consoles.h>
 #include <minmax.h>
 #include <stdbool.h>
 #include <dprintf.h>
@@ -1271,11 +1272,8 @@ int main(int argc, char *argv[])
     struct data_area data[3];
     int ndata = 0, fidx = -1, sidx = -1;
 
-#ifdef DEBUG
     console_ansi_raw();
-#else
-    openconsole(&dev_null_r, &dev_stdcon_w);
-#endif
+/*    openconsole(&dev_null_r, &dev_stdcon_w);*/
 
     /* Prepare and set defaults */
     memset(&opt, 0, sizeof(opt));
