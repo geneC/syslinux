@@ -112,3 +112,4 @@ uint32_t get_file_lba(const char *filename)
     return lba;
 }
 
+/* vim: set ts=8 sts=4 sw=4 noet: */

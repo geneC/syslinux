@@ -302,11 +302,11 @@ static void hide_unhide(const struct part_iter *_iter)
 
     if (_iter->type != typedos) {
 	error("Option 'hide' is only meaningful for legacy partition scheme.");
-	goto out;
+	goto bail;
     }
     if (!(mbr = disk_read_sectors(&_iter->di, 0, 1))) {
 	error("WARNING: Couldn't read MBR to hide/unhide partitions.\n");
-	goto out;
+	goto bail;
     }
 
     if (_iter->index < 1 || _iter->index > 4)
@@ -330,7 +330,7 @@ static void hide_unhide(const struct part_iter *_iter)
     if (write_back && disk_write_verify_sector(&_iter->di, 0, mbr))
 	error("WARNING: failed to write MBR for option 'hide'\n");
 
-out:
+bail:
     free(mbr);
 }
 
@@ -350,7 +350,6 @@ int find_dp(struct part_iter **_iter)
 	    error("Unable to find requested MBR signature.\n");
 	    goto bail;
 	}
-
     } else if (!strncmp(opt.drivename, "guid", 4)) {
 	if (str_to_guid(opt.drivename + 5, &gpt_guid))
 	    goto bail;
@@ -358,7 +357,6 @@ int find_dp(struct part_iter **_iter)
 	    error("Unable to find requested GPT disk or partition by guid.\n");
 	    goto bail;
 	}
-
     } else if (!strncmp(opt.drivename, "label", 5)) {
 	if (!opt.drivename[6]) {
 	    error("No label specified.\n");
@@ -368,7 +366,6 @@ int find_dp(struct part_iter **_iter)
 	    error("Unable to find requested GPT partition by label.\n");
 	    goto bail;
 	}
-
     } else if ((opt.drivename[0] == 'h' || opt.drivename[0] == 'f') &&
 	       opt.drivename[1] == 'd') {
 	hd = opt.drivename[0] == 'h' ? 0x80 : 0;
@@ -387,19 +384,14 @@ int find_dp(struct part_iter **_iter)
 		   "'boot' and 'fs' are meaningless.\n");
 	    goto bail;
 	}
-#if 0
 	/* offsets match, but in case it changes in the future */
 	if (sdi->c.filesystem == SYSLINUX_FS_ISOLINUX) {
 	    drive = sdi->iso.drive_number;
 	    fs_lba = *sdi->iso.partoffset;
 	} else {
-#endif
 	    drive = sdi->disk.drive_number;
 	    fs_lba = *sdi->disk.partoffset;
-#if 0
 	}
-#endif
-
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	/* this will start iteration over disk emulation, possibly raw */
@@ -736,7 +728,7 @@ int main(int argc, char *argv[])
     printf("iter dsk: %d\n", iter->di.disk);
     printf("iter idx: %d\n", iter->index);
     printf("iter lba: %llu\n", iter->start_lba);
-    if (hand_area)
+    if (hidx >= 0)
 	printf("hand lba: %u\n", hand_area->start_lba);
 #endif
 

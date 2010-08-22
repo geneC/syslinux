@@ -10,13 +10,13 @@ int soi_s2n(char *ptr, unsigned int *seg,
 		       unsigned int *off,
 		       unsigned int *ip)
 {
-    unsigned int segval = 0, offval = 0, ipval = 0, val;
+    unsigned int segval = 0, offval = 0x7c00, ipval = 0x7c00, val;
     char *p;
 
     segval = strtoul(ptr, &p, 0);
-    if (*p == ':')
+    if (p[0] == ':' && p[1] && p[1] != ':')
 	offval = strtoul(p+1, &p, 0);
-    if (*p == ':')
+    if (p[0] == ':' && p[1] && p[1] != ':')
 	ipval = strtoul(p+1, NULL, 0);
 
     val = (segval << 4) + offval;
@@ -47,7 +47,10 @@ bail:
 
 void usage(void)
 {
-    static const char *const usage[] = { "\
+    unsigned int i;
+    static const char key[] = "Press any key...\n";
+    static const char *const usage[] = {
+"\
 Usage:\n\
     chain.c32 [options]\n\
     chain.c32 {fd|hd}<disk> [<partition>] [options]\n\
@@ -56,16 +59,18 @@ Usage:\n\
     chain.c32 label{:|=}<label> [<partition>] [options]\n\
     chain.c32 boot{,| }[<partition>] [options]\n\
     chain.c32 fs [options]\n\
-\nOptions ('no' prefix specify defaulti value):\n\
+", "\
+\nOptions ('no' prefix specify default value):\n\
     file=<loader>        Load and execute file\n\
     seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>\n\
     nofilebpb            Treat file in memory as BPB compatible\n\
     sect[=<s[:o[:i]]>]   Load sector at <s:o>, jump to <s:i>\n\
                          - defaults to 0:0x7C00:0x7C00\n\
+                         - ommited o/i values default 0x7C00\n\
     maps                 Map loaded sector into real memory\n\
     nosethid[den]        Set BPB's hidden sectors field\n\
     nosetgeo             Set BPB's sectors per track and heads fields\n\
-    nosetdrv[@<off>]     Set BPB's drive unit field at <o>\n\
+    nosetdrv[@<off>]     Set BPB's drive unit field at <off>\n\
                          - <off> defaults to autodetection\n\
                          - only 0x24 and 0x40 are accepted\n\
     nosetbpb             Enable set{hid,geo,drv}\n\
@@ -90,12 +95,17 @@ Usage:\n\
     grub=<loader>        Load GRUB Legacy stage2\n\
     grubcfg=<filename>   Set alternative config filename for GRUB Legacy\n\
     grldr=<loader>       Load GRUB4DOS grldr\n\
-\nPlease see doc/chain.txt for the detailed documentation.\n"
+    bss=<filename>       Emulate BSS (see doc/chain.txt for differences)\n\
+\nPlease see doc/chain.txt for the detailed documentation.\n\
+"
     };
-    error(usage[0]);
-    error("Press any key...\n");
-    wait_key();
-    error(usage[1]);
+    for (i = 0; i < sizeof(usage)/sizeof(usage[0]); i++) {
+	if (i) {
+	    error(key);
+	    wait_key();
+	}
+	error(usage[i]);
+    }
 }
 
 int parse_args(int argc, char *argv[])
@@ -112,6 +122,14 @@ int parse_args(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "seg=", 4)) {
 	    if (soi_s2n(argv[i] + 4, &opt.fseg, &opt.foff, &opt.fip))
 		goto bail;
+	} else if (!strncmp(argv[i], "bss=", 4)) {
+	    opt.file = argv[i] + 4;
+	    opt.maps = false;
+	    opt.sethid = true;
+	    opt.setgeo = true;
+	    opt.setdrv = true;
+	    opt.drvoff = ~0u;
+	    opt.filebpb = true;
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.file = argv[i] + 9;
 	    opt.isolinux = true;
