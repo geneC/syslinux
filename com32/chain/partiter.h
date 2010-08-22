@@ -1,8 +1,8 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2003-2010 H. Peter Anvin - All Rights Reserved
- *   Copyright 2010 Shao Miller
  *   Copyright 2010 Michal Soltys
+ *   Copyright 2010 Shao Miller
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -33,8 +33,8 @@
  * Provides disk / partition iteration.
  */
 
-#ifndef _SYSLINUX_PARTITER_H
-#define _SYSLINUX_PARTITER_H
+#ifndef _COM32_CHAIN_PARTITER_H
+#define _COM32_CHAIN_PARTITER_H
 
 #include <stdint.h>
 #include <syslinux/disk.h>

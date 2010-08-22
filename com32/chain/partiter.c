@@ -39,7 +39,9 @@
 #include <stdarg.h>
 #include <zlib.h>
 #include <syslinux/disk.h>
+#include "common.h"
 #include "partiter.h"
+#include "utility.h"
 
 #define ost_is_ext(type) ((type) == 0x05 || (type) == 0x0F || (type) == 0x85)
 #define ost_is_nondata(type) (ost_is_ext(type) || (type) == 0x00)
@@ -47,11 +49,6 @@
 
 /* this is chosen to follow how many sectors disklib can read at once */
 #define MAXGPTPTSIZE (255u*SECTOR)
-
-static void error(const char *msg)
-{
-    fputs(msg, stderr);
-}
 
 /* forwards */
 
@@ -93,11 +90,6 @@ static int inv_type(const void *type)
     return -1;
 }
 #endif
-
-static int guid_is0(const struct guid *guid)
-{
-    return !*(const uint64_t *)guid && !*((const uint64_t *)guid+1);
-}
 
 /**
  * iter_ctor() - common iterator initialization
