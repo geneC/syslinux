@@ -52,15 +52,17 @@ struct itertype {
 
 struct part_iter {
     const struct itertype *type;
+    char *data;
     char *record;
     uint64_t start_lba;
     int index;
     struct disk_info di;
     /* internal */
-    char *data;
+    int stepall;
     union _sub {
 	struct _dos {
 	    uint32_t disk_sig;
+	    uint32_t mbr_lba;
 	    /* internal */
 	    uint32_t ebr_start;
 	    uint32_t ebr_size;
@@ -85,7 +87,7 @@ extern const struct itertype * const typedos;
 extern const struct itertype * const typegpt;
 extern const struct itertype * const typeraw;
 
-struct part_iter *pi_begin(const struct disk_info *);
+struct part_iter *pi_begin(const struct disk_info *, int stepall);
 struct part_iter *pi_new(const struct itertype *, ...);
 void *pi_del(struct part_iter **);
 struct part_iter *pi_next(struct part_iter **);

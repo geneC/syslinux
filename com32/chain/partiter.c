@@ -95,12 +95,14 @@ static int inv_type(const void *type)
  * iter_ctor() - common iterator initialization
  * @iter:	iterator pointer
  * @args(0):	disk_info structure used for disk functions
+ * @args(1):	stepall modifier
  *
  * Second and further arguments are passed as a pointer to va_list
  **/
 static int iter_ctor(struct part_iter *iter, va_list *args)
 {
     const struct disk_info *di = va_arg(*args, const struct disk_info *);
+    int stepall = va_arg(*args, int);
 
 #ifdef DEBUG
     if (!di)
@@ -108,6 +110,7 @@ static int iter_ctor(struct part_iter *iter, va_list *args)
 #endif
 
     memcpy(&iter->di, di, sizeof(struct disk_info));
+    iter->stepall = stepall;
 
     return 0;
 }
@@ -340,15 +343,12 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 	    /* record base EBR index */
 	    iter->sub.dos.bebr_index0 = iter->sub.dos.index0;
 	}
-	if (ost_is_nondata(dp->ostype))
-	    continue;
-
-	break;
+	if (!ost_is_nondata(dp->ostype) || iter->stepall) {
+	    *lba = dp->start_lba;
+	    *_dp = dp;
+	    break;
+	}
     }
-
-    /* safe */
-    *lba = dp->start_lba;
-    *_dp = dp;
 
     return 0;
 bail:
@@ -402,6 +402,7 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	if (notsane_logical(iter) || notsane_extended(iter))
 	    goto bail;
 
+	iter->sub.dos.mbr_lba = abs_ebr;
 	dp = ((struct disk_dos_mbr *)iter->data)->table;
 	abs_ebr += dp[0].start_lba;
 
@@ -413,7 +414,7 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	    iter->sub.dos.ebr_size = 0;
 	}
 
-	if (dp[0].ostype) {
+	if (dp[0].ostype || iter->stepall) {
 	    *lba = abs_ebr;
 	    *_dp = dp;
 	    break;
@@ -422,7 +423,8 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	 * This way it's possible to continue, if some crazy soft left a "hole"
 	 * - EBR with a valid extended partition without a logical one. In
 	 * such case, linux will not reserve a number for such hole - so we
-	 * don't increase index0.
+	 * don't increase index0. If stepall flag is set, we will never reach
+	 * this place.
 	 */
     }
     return 0;
@@ -447,7 +449,17 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
 
     /* dos_part and start_lba are guaranteed to be valid here */
 
-    iter->index = iter->sub.dos.index0 + 1;
+    /*
+     * note special index handling, if we have stepall set -
+     * this is made to keep index consistent with non-stepall
+     * iterators
+     */
+
+    if (iter->sub.dos.index0 >= 4 && !dos_part->ostype) {
+	iter->index = -1;
+	iter->sub.dos.index0--;
+    } else
+	iter->index = iter->sub.dos.index0 + 1;
     iter->start_lba = start_lba;
     iter->record = (char *)dos_part;
 
@@ -487,9 +499,8 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 	if (notsane_gpt(gpt_part))
 	    goto bail;
 
-	if (guid_is0(&gpt_part->type))
-	    continue;
-	break;
+	if (!guid_is0(&gpt_part->type) || iter->stepall)
+	    break;
     }
     /* no more partitions ? */
     if (iter->sub.gpt.index0 == iter->sub.gpt.pe_count) {
@@ -658,7 +669,7 @@ void *pi_del(struct part_iter **_iter)
  * This function checks the disk for GPT or legacy partition table and allocates
  * an appropriate iterator.
  **/
-struct part_iter *pi_begin(const struct disk_info *di)
+struct part_iter *pi_begin(const struct disk_info *di, int stepall)
 {
     int setraw = 0;
     struct part_iter *iter = NULL;
@@ -723,17 +734,17 @@ struct part_iter *pi_begin(const struct disk_info *di)
 	    goto bail;
 	}
 	/* allocate iterator and exit */
-	iter = pi_new(typegpt, di, gpth, gptl);
+	iter = pi_new(typegpt, di, stepall, gpth, gptl);
     } else {
 	/* looks like MBR */
-	iter = pi_new(typedos, di, mbr);
+	iter = pi_new(typedos, di, stepall, mbr);
     }
 
     setraw = 0;
 bail:
     if (setraw) {
 	error("WARNING: treating disk as raw.\n");
-	iter = pi_new(typeraw, di);
+	iter = pi_new(typeraw, di, stepall);
     }
     free(mbr);
     free(gpth);

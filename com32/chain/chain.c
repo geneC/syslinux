@@ -60,7 +60,10 @@ static int is_phys(uint8_t sdifs)
 	sdifs == SYSLINUX_FS_ISOLINUX;
 }
 
-/* Search for a specific drive, based on the MBR signature; bytes 440-443 */
+/*
+ * Search for a specific drive, based on the MBR signature.
+ * Return drive and iterator at 0th position.
+ */
 static int find_by_sig(uint32_t mbr_sig,
 			struct part_iter **_boot_part)
 {
@@ -71,7 +74,7 @@ static int find_by_sig(uint32_t mbr_sig,
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo)))
+	if (!(boot_part = pi_begin(&diskinfo, 0)))
 	    continue;
 	/* Check for a MBR disk */
 	if (boot_part->type != typedos) {
@@ -90,11 +93,7 @@ ok:
 
 /*
  * Search for a specific drive/partition, based on the GPT GUID.
- * We return the disk drive number if found, as well as populating the
- * boot_part pointer with the matching partition, if applicable.
- * If no matching partition is found or the GUID is a disk GUID,
- * boot_part will be populated with NULL.  If not matching disk is
- * found, we return -1.
+ * Return drive and iterator at proper position.
  */
 static int find_by_guid(const struct guid *gpt_guid,
 			struct part_iter **_boot_part)
@@ -106,7 +105,7 @@ static int find_by_guid(const struct guid *gpt_guid,
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo)))
+	if (!(boot_part = pi_begin(&diskinfo, 0)))
 	    continue;
 	/* Check for a GPT disk */
 	if (boot_part->type != typegpt) {
@@ -130,11 +129,8 @@ ok:
 }
 
 /*
- * Search for a specific partition, based on the GPT label.
- * We return the disk drive number if found, as well as populating the
- * boot_part pointer with the matching partition, if applicable.
- * If no matching partition is found, boot_part will be populated with
- * NULL and we return -1.
+ * Search for a specific drive/partition, based on the GPT label.
+ * Return drive and iterator at proper position.
  */
 static int find_by_label(const char *label, struct part_iter **_boot_part)
 {
@@ -145,10 +141,9 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo)))
+	if (!(boot_part = pi_begin(&diskinfo, 0)))
 	    continue;
 	/* Check for a GPT disk */
-	boot_part = pi_begin(&diskinfo);
 	if (!(boot_part->type == typegpt)) {
 	    pi_del(&boot_part);
 	    continue;
@@ -383,7 +378,7 @@ int find_dp(struct part_iter **_iter)
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	/* this will start iteration over FDD, possibly raw */
-	if (!(iter = pi_begin(&diskinfo)))
+	if (!(iter = pi_begin(&diskinfo, 0)))
 	    goto bail;
 
     } else if (!strcmp(opt.drivename, "boot") || !strcmp(opt.drivename, "fs")) {
@@ -408,7 +403,7 @@ int find_dp(struct part_iter **_iter)
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	/* this will start iteration over disk emulation, possibly raw */
-	if (!(iter = pi_begin(&diskinfo)))
+	if (!(iter = pi_begin(&diskinfo, 0)))
 	    goto bail;
 
 	/* 'fs' => we should lookup the syslinux partition number and use it */
