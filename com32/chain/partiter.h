@@ -64,7 +64,8 @@ struct part_iter {
     union _sub {
 	struct _dos {
 	    uint32_t disk_sig;
-	    uint32_t mbr_lba;
+	    uint32_t ebr_lba;
+	    uint32_t cebr_lba;
 	    /* internal */
 	    uint32_t ebr_start;
 	    uint32_t ebr_size;

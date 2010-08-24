@@ -369,6 +369,9 @@ static int prep_base_ebr(struct part_iter *iter)
 	iter->sub.dos.ebr_start = 0;
 	iter->sub.dos.ebr_size = iter->sub.dos.bebr_size;
 
+	iter->sub.dos.cebr_lba = 0;
+	iter->sub.dos.ebr_lba = iter->sub.dos.bebr_start;
+
 	iter->index0--;
     }
     return 0;
@@ -378,23 +381,14 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 			    struct disk_dos_part_entry **_dp)
 {
     struct disk_dos_part_entry *dp;
-    uint32_t abs_ebr;
 
     if (prep_base_ebr(iter))
 	return -1;
 
-#if 0
-    if(++iter->index0 >= 1024)
-	/* that's one paranoid upper bound */
-	goto bail;
-#endif
-    while (++iter->index0 < 1024 && iter->sub.dos.ebr_size) {
-
-	abs_ebr = iter->sub.dos.bebr_start + iter->sub.dos.ebr_start;
-
-	/* load ebr for current iteration */
+    while (++iter->index0 < 1024 && iter->sub.dos.ebr_lba) {
 	free(iter->data);
-	if (!(iter->data = disk_read_sectors(&iter->di, abs_ebr, 1))) {
+	if (!(iter->data =
+		    disk_read_sectors(&iter->di, iter->sub.dos.ebr_lba, 1))) {
 	    error("Couldn't load EBR.\n");
 	    return -1;
 	}
@@ -402,23 +396,26 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	if (notsane_logical(iter) || notsane_extended(iter))
 	    return -1;
 
-	iter->sub.dos.mbr_lba = abs_ebr;
 	dp = ((struct disk_dos_mbr *)iter->data)->table;
-	abs_ebr += dp[0].start_lba;
+
+	iter->sub.dos.cebr_lba = iter->sub.dos.ebr_lba;
 
 	/* setup next frame values */
 	if (dp[1].ostype) {
 	    iter->sub.dos.ebr_start = dp[1].start_lba;
 	    iter->sub.dos.ebr_size = dp[1].length;
+	    iter->sub.dos.ebr_lba = iter->sub.dos.bebr_start + dp[1].start_lba;
 	} else {
+	    iter->sub.dos.ebr_start = 0;
 	    iter->sub.dos.ebr_size = 0;
+	    iter->sub.dos.ebr_lba = 0;
 	}
 
 	if (!dp[0].ostype)
 	    iter->sub.dos.skipcnt++;
 
 	if (dp[0].ostype || iter->stepall) {
-	    *lba = abs_ebr;
+	    *lba = iter->sub.dos.cebr_lba + dp[0].start_lba;
 	    *_dp = dp;
 	    return 0;
 	}
@@ -430,10 +427,6 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	 * this place.
 	 */
     }
-#if 0
-    return 0;
-bail:
-#endif
     return -1;
 }
 

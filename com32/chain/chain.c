@@ -357,7 +357,8 @@ static int pem_sethide(struct disk_dos_part_entry *dp, int midx, int idx)
 }
 
 static int pem_setchs(const struct disk_info *di,
-		     struct disk_dos_part_entry *dp)
+		     struct disk_dos_part_entry *dp,
+		     uint32_t lba1)
 {
     uint32_t ochs1, ochs2;
 
@@ -365,11 +366,11 @@ static int pem_setchs(const struct disk_info *di,
     ochs2 = *(uint32_t *)dp->end;
 
     *(uint32_t *)dp->start =
-	lba2chs(di, dp->start_lba) |
+	lba2chs(di, lba1) |
 	(*(uint32_t *)dp->start & 0xFF000000);
 
     *(uint32_t *)dp->end =
-	lba2chs(di, dp->start_lba + dp->length - 1) |
+	lba2chs(di, lba1 + dp->length - 1) |
 	(*(uint32_t *)dp->end & 0xFF000000);
 
     return
@@ -377,10 +378,10 @@ static int pem_setchs(const struct disk_info *di,
 	*(uint32_t *)dp->end != ochs2;
 }
 
-static int pe_mangle(const struct part_iter *_iter)
+static int pe_mangle(struct part_iter *_iter)
 {
     int wb = 0, werr = 0;
-    uint32_t mbr_lba = 0;
+    uint32_t cebr_lba = 0;
     struct part_iter *iter = NULL;
     struct disk_dos_part_entry *dp;
     struct disk_dos_mbr mbr;
@@ -403,13 +404,13 @@ static int pe_mangle(const struct part_iter *_iter)
 	ridx = iter->rawindex;
 	if (ridx > 4) {
 	    if (opt.hide < 2 && !opt.mbrchs)
-		break;
+		break;	/* don't walk unnecessarily */
 	    if (wb && !werr) {
-		werr |= disk_write_verify_sector(&_iter->di, mbr_lba, &mbr);
+		werr |= disk_write_sector(&iter->di, cebr_lba, &mbr);
 		wb = false;
 	    }
 	    memcpy(&mbr, iter->data, sizeof(struct disk_dos_mbr));
-	    mbr_lba = iter->sub.dos.mbr_lba;
+	    cebr_lba = iter->sub.dos.cebr_lba;
 	    dp = mbr.table;
 	} else
 	    dp = mbr.table + ridx - 1;
@@ -422,20 +423,20 @@ static int pe_mangle(const struct part_iter *_iter)
 	    }
 	}
 	if (opt.mbrchs) {
-	    wb |= pem_setchs(&_iter->di, dp);
+	    wb |= pem_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
 	    if (ridx > 4)
-		wb |= pem_setchs(&_iter->di, mbr.table + 1);
+		wb |= pem_setchs(&iter->di, mbr.table + 1, iter->sub.dos.ebr_lba);
 	}
     }
     /* last write */
     if (wb && !werr)
-	werr |= disk_write_verify_sector(&_iter->di, mbr_lba, &mbr);
+	werr |= disk_write_sector(&_iter->di, cebr_lba, &mbr);
 
 bail:
     pi_del(&iter);
     if (werr)
 	error("WARNING: failed to write E/MBR for partition\n"
-	      "mangling options ('hide[all]', 'mbrchs')\n");
+	      "mangling options ('hide[all]', 'mbrchs').\n");
     return 0;
 }
 
