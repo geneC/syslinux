@@ -288,7 +288,7 @@ enomem:
     error("Out of memory\n");
     return;
 }
-
+#if 0
 static void hide_unhide(const struct part_iter *_iter)
 {
     int i;
@@ -332,6 +332,111 @@ static void hide_unhide(const struct part_iter *_iter)
 
 bail:
     free(mbr);
+}
+#endif
+static int pem_sethide(struct disk_dos_part_entry *dp, int midx, int idx)
+{
+    static const uint16_t mask =
+	(1 << 0x01) | (1 << 0x04) | (1 << 0x06) |
+	(1 << 0x07) | (1 << 0x0b) | (1 << 0x0c) | (1 << 0x0e);
+    uint8_t t;
+
+    t = dp->ostype;
+    if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
+	/* It's a hideable partition type */
+	if (midx == idx)
+	    t &= (uint8_t)(~0x10u);	/* unhide */
+	else
+	    t |= 0x10u;	/* hide */
+    }
+    if (t != dp->ostype) {
+	dp->ostype = t;
+	return -1;
+    }
+    return 0;
+}
+
+static int pem_setchs(const struct disk_info *di,
+		     struct disk_dos_part_entry *dp)
+{
+    uint32_t ochs1, ochs2;
+
+    ochs1 = *(uint32_t *)dp->start;
+    ochs2 = *(uint32_t *)dp->end;
+
+    *(uint32_t *)dp->start =
+	lba2chs(di, dp->start_lba) |
+	(*(uint32_t *)dp->start & 0xFF000000);
+
+    *(uint32_t *)dp->end =
+	lba2chs(di, dp->start_lba + dp->length - 1) |
+	(*(uint32_t *)dp->end & 0xFF000000);
+
+    return
+	*(uint32_t *)dp->start != ochs1 ||
+	*(uint32_t *)dp->end != ochs2;
+}
+
+static int pe_mangle(const struct part_iter *_iter)
+{
+    int wb = 0, werr = 0;
+    uint32_t mbr_lba = 0;
+    struct part_iter *iter = NULL;
+    struct disk_dos_part_entry *dp;
+    struct disk_dos_mbr mbr;
+    int ridx;
+
+    if (_iter->type != typedos) {
+	error("Partition entry mangling ('hide[all]', 'mbrchs')\n"
+	      "is meaningful only for legacy partition scheme.");
+	goto bail;
+    }
+    if ((_iter->index < 1 || _iter->index > 4) && opt.hide == 1)
+	error("WARNING: option 'hide' specified with a non-primary partition.\n");
+
+    if (!(iter = pi_begin(&_iter->di, 1)))  /* turn on stepall */
+	goto bail;
+
+    memcpy(&mbr, iter->data, sizeof(struct disk_dos_mbr));
+
+    while (pi_next(&iter) && !werr) {
+	ridx = iter->rawindex;
+	if (ridx > 4) {
+	    if (opt.hide < 2 && !opt.mbrchs)
+		break;
+	    if (wb && !werr) {
+		werr |= disk_write_verify_sector(&_iter->di, mbr_lba, &mbr);
+		wb = false;
+	    }
+	    memcpy(&mbr, iter->data, sizeof(struct disk_dos_mbr));
+	    mbr_lba = iter->sub.dos.mbr_lba;
+	    dp = mbr.table;
+	} else
+	    dp = mbr.table + ridx - 1;
+	if (opt.hide == 2 ||
+	    (opt.hide == 1 && ridx <= 4)) {
+	    wb |= pem_sethide(dp, _iter->index, iter->index);
+	    if (_iter->index == iter->index) {
+		((struct disk_dos_part_entry *)_iter->record)->ostype =
+		    dp->ostype;
+	    }
+	}
+	if (opt.mbrchs) {
+	    wb |= pem_setchs(&_iter->di, dp);
+	    if (ridx > 4)
+		wb |= pem_setchs(&_iter->di, mbr.table + 1);
+	}
+    }
+    /* last write */
+    if (wb && !werr)
+	werr |= disk_write_verify_sector(&_iter->di, mbr_lba, &mbr);
+
+bail:
+    pi_del(&iter);
+    if (werr)
+	error("WARNING: failed to write E/MBR for partition\n"
+	      "mangling options ('hide[all]', 'mbrchs')\n");
+    return 0;
 }
 
 int find_dp(struct part_iter **_iter)
@@ -605,9 +710,10 @@ int main(int argc, char *argv[])
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
     opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
 
-    /* Do hide / unhide if appropriate */
-    if (opt.hide)
-	hide_unhide(iter);
+    /* Perform initial partition entry mangling */
+    if (opt.hide || opt.mbrchs)
+	pe_mangle(iter);
+/*	hide_unhide(iter);*/
 
     /* Load the boot file */
     if (opt.file) {

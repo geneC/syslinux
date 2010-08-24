@@ -111,6 +111,7 @@ static int iter_ctor(struct part_iter *iter, va_list *args)
 
     memcpy(&iter->di, di, sizeof(struct disk_info));
     iter->stepall = stepall;
+    iter->index0 = -1;
 
     return 0;
 }
@@ -155,7 +156,6 @@ static int iter_dos_ctor(struct part_iter *iter, va_list *args)
 
     memcpy(iter->data, mbr, sizeof(struct disk_dos_mbr));
 
-    iter->sub.dos.index0 = -1;
     iter->sub.dos.bebr_index0 = -1;
     iter->sub.dos.disk_sig = mbr->disk_sig;
 
@@ -206,7 +206,6 @@ static int iter_gpt_ctor(struct part_iter *iter, va_list *args)
 
     memcpy(iter->data, gptl, (size_t)siz);
 
-    iter->sub.gpt.index0 = -1;
     iter->sub.gpt.pe_count = (int)gpth->part_count;
     iter->sub.gpt.pe_size = (int)gpth->part_size;
     memcpy(&iter->sub.gpt.disk_guid, &gpth->disk_guid, sizeof(struct guid));
@@ -329,8 +328,8 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 {
     struct disk_dos_part_entry *dp;
 
-    while (++iter->sub.dos.index0 < 4) {
-	dp = ((struct disk_dos_mbr *)iter->data)->table + iter->sub.dos.index0;
+    while (++iter->index0 < 4) {
+	dp = ((struct disk_dos_mbr *)iter->data)->table + iter->index0;
 
 	if (notsane_primary(dp))
 	    goto bail;
@@ -341,7 +340,7 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 		goto bail;
 	    }
 	    /* record base EBR index */
-	    iter->sub.dos.bebr_index0 = iter->sub.dos.index0;
+	    iter->sub.dos.bebr_index0 = iter->index0;
 	}
 	if (!ost_is_nondata(dp->ostype) || iter->stepall) {
 	    *lba = dp->start_lba;
@@ -370,7 +369,7 @@ static int prep_base_ebr(struct part_iter *iter)
 	iter->sub.dos.ebr_start = 0;
 	iter->sub.dos.ebr_size = iter->sub.dos.bebr_size;
 
-	iter->sub.dos.index0--;
+	iter->index0--;
     }
     return 0;
 }
@@ -382,13 +381,14 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
     uint32_t abs_ebr;
 
     if (prep_base_ebr(iter))
-	goto bail;
+	return -1;
 
-    if(++iter->sub.dos.index0 >= 1024)
+#if 0
+    if(++iter->index0 >= 1024)
 	/* that's one paranoid upper bound */
 	goto bail;
-
-    while (iter->sub.dos.ebr_size) {
+#endif
+    while (++iter->index0 < 1024 && iter->sub.dos.ebr_size) {
 
 	abs_ebr = iter->sub.dos.bebr_start + iter->sub.dos.ebr_start;
 
@@ -396,11 +396,11 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	free(iter->data);
 	if (!(iter->data = disk_read_sectors(&iter->di, abs_ebr, 1))) {
 	    error("Couldn't load EBR.\n");
-	    goto bail;
+	    return -1;
 	}
 
 	if (notsane_logical(iter) || notsane_extended(iter))
-	    goto bail;
+	    return -1;
 
 	iter->sub.dos.mbr_lba = abs_ebr;
 	dp = ((struct disk_dos_mbr *)iter->data)->table;
@@ -414,10 +414,13 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	    iter->sub.dos.ebr_size = 0;
 	}
 
+	if (!dp[0].ostype)
+	    iter->sub.dos.skipcnt++;
+
 	if (dp[0].ostype || iter->stepall) {
 	    *lba = abs_ebr;
 	    *_dp = dp;
-	    break;
+	    return 0;
 	}
 	/*
 	 * This way it's possible to continue, if some crazy soft left a "hole"
@@ -427,8 +430,10 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	 * this place.
 	 */
     }
+#if 0
     return 0;
 bail:
+#endif
     return -1;
 }
 
@@ -438,16 +443,14 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
     struct disk_dos_part_entry *dos_part = NULL;
 
     /* look for primary partitions */
-    if (iter->sub.dos.index0 < 4 &&
+    if (iter->index0 < 4 &&
 	    pi_dos_next_mbr(iter, &start_lba, &dos_part))
 	goto bail;
 
     /* look for logical partitions */
-    if (iter->sub.dos.index0 >= 4 &&
+    if (iter->index0 >= 4 &&
 	    pi_dos_next_ebr(iter, &start_lba, &dos_part))
 	goto bail;
-
-    /* dos_part and start_lba are guaranteed to be valid here */
 
     /*
      * note special index handling, if we have stepall set -
@@ -455,11 +458,11 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
      * iterators
      */
 
-    if (iter->sub.dos.index0 >= 4 && !dos_part->ostype) {
+    if (iter->index0 >= 4 && !dos_part->ostype)
 	iter->index = -1;
-	iter->sub.dos.index0--;
-    } else
-	iter->index = iter->sub.dos.index0 + 1;
+    else
+	iter->index = iter->index0 - iter->sub.dos.skipcnt + 1;
+    iter->rawindex = iter->index0 + 1;
     iter->start_lba = start_lba;
     iter->record = (char *)dos_part;
 
@@ -478,7 +481,7 @@ static void gpt_conv_label(struct part_iter *iter)
     const int16_t *orig_lab;
 
     gp = (const struct disk_gpt_part_entry *)
-	(iter->data + iter->sub.gpt.index0 * iter->sub.gpt.pe_size);
+	(iter->data + iter->index0 * iter->sub.gpt.pe_size);
     orig_lab = (const int16_t *)gp->name;
 
     /* caveat: this is very crude conversion */
@@ -492,9 +495,9 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 {
     const struct disk_gpt_part_entry *gpt_part = NULL;
 
-    while (++iter->sub.gpt.index0 < iter->sub.gpt.pe_count) {
+    while (++iter->index0 < iter->sub.gpt.pe_count) {
 	gpt_part = (const struct disk_gpt_part_entry *)
-	    (iter->data + iter->sub.gpt.index0 * iter->sub.gpt.pe_size);
+	    (iter->data + iter->index0 * iter->sub.gpt.pe_size);
 
 	if (notsane_gpt(gpt_part))
 	    goto bail;
@@ -503,11 +506,12 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 	    break;
     }
     /* no more partitions ? */
-    if (iter->sub.gpt.index0 == iter->sub.gpt.pe_count) {
+    if (iter->index0 == iter->sub.gpt.pe_count) {
 	goto bail;
     }
     /* gpt_part is guaranteed to be valid here */
-    iter->index = iter->sub.gpt.index0 + 1;
+    iter->index = iter->index0 + 1;
+    iter->rawindex = iter->index0 + 1;
     iter->start_lba = gpt_part->lba_first;
     iter->record = (char *)gpt_part;
     memcpy(&iter->sub.gpt.part_guid, &gpt_part->uid, sizeof(struct guid));

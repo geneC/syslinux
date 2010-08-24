@@ -56,9 +56,11 @@ struct part_iter {
     char *record;
     uint64_t start_lba;
     int index;
+    int rawindex;
     struct disk_info di;
-    /* internal */
     int stepall;
+    /* internal */
+    int index0;
     union _sub {
 	struct _dos {
 	    uint32_t disk_sig;
@@ -68,17 +70,15 @@ struct part_iter {
 	    uint32_t ebr_size;
 	    uint32_t bebr_start;
 	    uint32_t bebr_size;
-	    int index0;
 	    int bebr_index0;
+	    int skipcnt;
 	} dos;
 	struct _gpt {
 	    struct guid disk_guid;
 	    struct guid part_guid;
 	    char part_label[PI_GPTLABSIZE/2+1];
-	    /* internal */
 	    int pe_count;
 	    int pe_size;
-	    int index0;
 	} gpt;
     } sub;
 };

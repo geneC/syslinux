@@ -79,6 +79,8 @@ Usage:\n\
     nohptr               Force ds:si and ds:bp to point to handover area\n\
     noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
     nohide               Hide primary partitions, unhide selected partition\n\
+    nohideall            Hide *all* partitions, unhide selected partition\n\
+    nombrchs             Walk *all* partitions and fix E/MBRs' chs values\n\
     nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
     nowarn               Wait for a keypress to continue chainloading\n\
                          - useful to see emited warnings\n\
@@ -238,10 +240,13 @@ int parse_args(int argc, char *argv[])
 	    opt.swap = true;
 	} else if (!strcmp(argv[i], "noswap")) {
 	    opt.swap = false;
+	} else if (!strcmp(argv[i], "nohide") ||
+		    !strcmp(argv[i], "nohideall")) {
+	    opt.hide = 0;
 	} else if (!strcmp(argv[i], "hide")) {
-	    opt.hide = true;
-	} else if (!strcmp(argv[i], "nohide")) {
-	    opt.hide = false;
+	    opt.hide = 1;
+	} else if (!strcmp(argv[i], "hideall")) {
+	    opt.hide = 2;
 	} else if (!strcmp(argv[i], "sethid") ||
 		   !strcmp(argv[i], "sethidden")) {
 	    opt.sethid = true;
@@ -301,6 +306,10 @@ int parse_args(int argc, char *argv[])
 	    opt.filebpb = true;
 	} else if (!strcmp(argv[i], "nofilebpb")) {
 	    opt.filebpb = false;
+	} else if (!strcmp(argv[i], "mbrchs")) {
+	    opt.mbrchs = true;
+	} else if (!strcmp(argv[i], "nombrchs")) {
+	    opt.mbrchs = false;
 	} else if (!strcmp(argv[i], "warn")) {
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {

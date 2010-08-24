@@ -25,13 +25,14 @@ struct options {
     bool hand;
     bool hptr;
     bool swap;
-    bool hide;
+    int hide;
     bool sethid;
     bool setgeo;
     bool setdrv;
     bool sect;
     bool save;
     bool filebpb;
+    bool mbrchs;
     bool warn;
     uint16_t keeppxe;
     struct syslinux_rm_regs regs;
