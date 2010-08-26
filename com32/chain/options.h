@@ -1,7 +1,8 @@
 #ifndef _COM32_CHAIN_OPTIONS_H
 #define _COM32_CHAIN_OPTIONS_H
 
-int soi_s2n(char *ptr, unsigned int *seg, unsigned int *off, unsigned int *ip);
+int soi_s2n(char *ptr, unsigned int *seg, unsigned int *off,
+	unsigned int *ip, unsigned int def);
 void usage(void);
 int parse_args(int argc, char *argv[]);
 

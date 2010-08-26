@@ -8,10 +8,14 @@
 
 int soi_s2n(char *ptr, unsigned int *seg,
 		       unsigned int *off,
-		       unsigned int *ip)
+		       unsigned int *ip,
+		       unsigned int def)
 {
-    unsigned int segval = 0, offval = 0x7c00, ipval = 0x7c00, val;
+    unsigned int segval = 0, offval, ipval, val;
     char *p;
+
+    offval = def;
+    ipval = def;
 
     segval = strtoul(ptr, &p, 0);
     if (p[0] == ':' && p[1] && p[1] != ':')
@@ -53,20 +57,21 @@ void usage(void)
 "\
 Usage:\n\
     chain.c32 [options]\n\
-    chain.c32 {fd|hd}<disk> [<partition>] [options]\n\
-    chain.c32 mbr{:|=}<id> [<partition>] [options]\n\
-    chain.c32 guid{:|=}<guid> [<partition>] [options]\n\
-    chain.c32 label{:|=}<label> [<partition>] [options]\n\
-    chain.c32 boot{,| }[<partition>] [options]\n\
+    chain.c32 {fd|hd}<disk>{,| }[<part#>] [options]\n\
+    chain.c32 mbr{:|=}<id>{, | }[<part#>] [options]\n\
+    chain.c32 guid{:|=}<guid>{,| }[<part#>] [options]\n\
+    chain.c32 label{:|=}<label> [<part#>] [options]\n\
+    chain.c32 boot{,| }[<part#>] [options]\n\
     chain.c32 fs [options]\n\
 ", "\
-\nOptions ('no' prefix specify default value):\n\
-    file=<loader>        Load and execute file\n\
+\nOptions #1 ('no' prefix specifies default value):\n\
+    file=<file>          Load and execute <file>\n\
     seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>\n\
-    nofilebpb            Treat file in memory as BPB compatible\n\
+                         - defaults to 0:0x7C00:0x7C00\n\
+                         - ommited o/i values default to 0\n\
     sect[=<s[:o[:i]]>]   Load sector at <s:o>, jump to <s:i>\n\
                          - defaults to 0:0x7C00:0x7C00\n\
-                         - ommited o/i values default 0x7C00\n\
+                         - ommited o/i values default to 0x7C00\n\
     maps                 Map loaded sector into real memory\n\
     nosethid[den]        Set BPB's hidden sectors field\n\
     nosetgeo             Set BPB's sectors per track and heads fields\n\
@@ -74,6 +79,9 @@ Usage:\n\
                          - <off> defaults to autodetection\n\
                          - only 0x24 and 0x40 are accepted\n\
     nosetbpb             Enable set{hid,geo,drv}\n\
+    nofilebpb            Treat file in memory as BPB compatible\n\
+", "\
+\nOptions #2 ('no' prefix specifies default value):\n\
     nosave               Write adjusted sector back to disk\n\
     hand                 Prepare handover area\n\
     nohptr               Force ds:si and ds:bp to point to handover area\n\
@@ -85,7 +93,7 @@ Usage:\n\
     nowarn               Wait for a keypress to continue chainloading\n\
                          - useful to see emited warnings\n\
 ", "\
-\nComposite options:\n\
+\nOptions #3 ('no' prefix specifies default value):\n\
     isolinux=<loader>    Load another version of ISOLINUX\n\
     ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
     cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003\n\
@@ -122,7 +130,7 @@ int parse_args(int argc, char *argv[])
 	} else if (!strcmp(argv[i], "nofile")) {
 	    opt.file = NULL;
 	} else if (!strncmp(argv[i], "seg=", 4)) {
-	    if (soi_s2n(argv[i] + 4, &opt.fseg, &opt.foff, &opt.fip))
+	    if (soi_s2n(argv[i] + 4, &opt.fseg, &opt.foff, &opt.fip, 0))
 		goto bail;
 	} else if (!strncmp(argv[i], "bss=", 4)) {
 	    opt.file = argv[i] + 4;
@@ -132,6 +140,7 @@ int parse_args(int argc, char *argv[])
 	    opt.setdrv = true;
 	    opt.drvoff = ~0u;
 	    opt.filebpb = true;
+	    /* opt.save = true; */
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.file = argv[i] + 9;
 	    opt.isolinux = true;
@@ -164,9 +173,7 @@ int parse_args(int argc, char *argv[])
 	    opt.fseg = 0x60;    /* FREEDOS wants this address */
 	    opt.foff = 0;
 	    opt.fip = 0;
-	    opt.sseg = 0x9000;
-	    opt.soff = 0;
-	    opt.sip = 0;
+	    opt.sseg = 0x1FE0;
 	    opt.file = argv[i] + 8;
 	    opt.sethid = true;
 	    opt.setgeo = true;
@@ -180,9 +187,7 @@ int parse_args(int argc, char *argv[])
 	    opt.fseg = 0x70;    /* MS-DOS 2.00 .. 6.xx wants this address */
 	    opt.foff = 0;
 	    opt.fip = v == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
-	    opt.sseg = 0x9000;
-	    opt.soff = 0;
-	    opt.sip = 0;
+	    opt.sseg = 0x8000;
 	    opt.file = argv[i] + v;
 	    opt.sethid = true;
 	    opt.setgeo = true;
@@ -288,7 +293,7 @@ int parse_args(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "sect=", 5) ||
 		   !strcmp(argv[i], "sect")) {
 	    if (argv[i][4]) {
-		if (soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip))
+		if (soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip, 0x7c00))
 		    goto bail;
 		if ((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
 		    error("Arguments of 'sect=' are invalid - resulting address too big.\n");
@@ -326,13 +331,15 @@ int parse_args(int argc, char *argv[])
 		   || !strncmp(argv[i], "boot,", 5)
 		   || !strcmp(argv[i], "fs")) {
 	    opt.drivename = argv[i];
-	    p = strchr(opt.drivename, ',');
-	    if (p) {
-		*p = '\0';
-		opt.partition = p + 1;
-	    } else if (argv[i + 1] && argv[i + 1][0] >= '0'
-		       && argv[i + 1][0] <= '9') {
-		opt.partition = argv[++i];
+	    if (strncmp(argv[i], "label", 5)) {
+		p = strchr(opt.drivename, ',');
+		if (p) {
+		    *p = '\0';
+		    opt.partition = p + 1;
+		} else if (argv[i + 1] && argv[i + 1][0] >= '0'
+			&& argv[i + 1][0] <= '9') {
+		    opt.partition = argv[++i];
+		}
 	    }
 	} else {
 	    usage();

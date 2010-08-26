@@ -378,7 +378,7 @@ static int pem_setchs(const struct disk_info *di,
 	*(uint32_t *)dp->end != ochs2;
 }
 
-static int pe_mangle(struct part_iter *_iter)
+static int pentry_mangle(struct part_iter *_iter)
 {
     int wb = 0, werr = 0;
     uint32_t cebr_lba = 0;
@@ -522,7 +522,7 @@ int find_dp(struct part_iter **_iter)
     }
     /* main options done - only thing left is explicit partition specification,
      * if we're still at the disk stage with the iterator AND user supplied
-     * partition number (including disk).
+     * partition number (including disk pseudo-partition).
      */
     if (!iter->index && opt.partition) {
 	partition = strtol(opt.partition, NULL, 0);
@@ -713,7 +713,7 @@ int main(int argc, char *argv[])
 
     /* Perform initial partition entry mangling */
     if (opt.hide || opt.mbrchs)
-	pe_mangle(iter);
+	pentry_mangle(iter);
 /*	hide_unhide(iter);*/
 
     /* Load the boot file */
@@ -817,6 +817,7 @@ int main(int argc, char *argv[])
 	if (try_mangles_bpb(iter, data + sidx))
 	    goto bail;
 
+	/* This *must* be after BPB mangling */
 	if (opt.cmldr && mangles_cmldr(data + sidx))
 	    goto bail;
     }
