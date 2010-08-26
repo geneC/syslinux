@@ -24,6 +24,9 @@ int manglef_isolinux(struct data_area *data)
     uint32_t *checksum, *chkhead, *chktail;
     uint32_t file_lba = 0;
 
+    if (!opt.isolinux)
+	return 0;
+
     sdi = syslinux_derivative_info();
 
     if (sdi->c.filesystem != SYSLINUX_FS_ISOLINUX) {
@@ -92,6 +95,9 @@ bail:
  */
 int manglef_grldr(const struct part_iter *iter)
 {
+    if (!opt.grldr)
+	return 0;
+
     opt.regs.edx.b[1] = (uint8_t)(iter->index - 1);
     return 0;
 }
@@ -135,6 +141,9 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
 	/* 0x270: start of code (after jump from 0x200) */
 	char codestart[1];
     } __attribute__ ((packed)) *stage2;
+
+    if (!opt.grub)
+	return 0;
 
     if (data->size < sizeof(struct grub_stage2_patch_area)) {
 	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.\n");
@@ -202,7 +211,7 @@ bail:
 /*
  * Adjust BPB of a BPB-compatible file
  */
-int manglef_bpb(const struct part_iter *iter, struct data_area *data)
+int mangles_bpb(const struct part_iter *iter, struct data_area *data)
 {
     /* BPB: hidden sectors */
     if (opt.sethid) {
@@ -223,7 +232,6 @@ int manglef_bpb(const struct part_iter *iter, struct data_area *data)
 		*(uint32_t *)((char *)data->data + 0x18) = 0x00020012;
 	}
     }
-
     /* BPB: drive */
     if (opt.setdrv)
 	*(uint8_t *)((char *)data->data + opt.drvoff) = (uint8_t)
@@ -232,42 +240,28 @@ int manglef_bpb(const struct part_iter *iter, struct data_area *data)
     return 0;
 }
 
-/*
- * Adjust BPB of a sector
- */
-int try_mangles_bpb(const struct part_iter *iter, struct data_area *data)
+int manglef_bpb(const struct part_iter *iter, struct data_area *data)
 {
-    void *cmp_buf = NULL;
-
-    if (!(opt.setdrv || opt.setgeo || opt.sethid))
+    if (!opt.filebpb)
 	return 0;
 
-#if 0
-    /* Turn this off for now. It's hard to find a reason to
-     * BPB-mangle sector 0 of whatever there is, but it's
-     * "potentially" useful (fixing fdd's sector ?).
-     */
-    if (!iter->index)
+    return mangles_bpb(iter, data);
+}
+
+int mangles_save(const struct part_iter *iter, const struct data_area *data, void *org)
+{
+    if (!opt.save)
 	return 0;
-#endif
 
-    if (!(cmp_buf = malloc(data->size))) {
-	error("Could not allocate sector-compare buffer.\n");
-	goto bail;
-    }
-
-    memcpy(cmp_buf, data->data, data->size);
-
-    manglef_bpb(iter, data);
-
-    if (opt.save && memcmp(cmp_buf, data->data, data->size)) {
-	if (disk_write_verify_sector(&iter->di, iter->start_lba, data->data)) {
-	    error("Cannot write updated boot sector.\n");
+    if (memcmp(org, data->data, data->size)) {
+	if (disk_write_sector(&iter->di, iter->start_lba, data->data)) {
+	    error("Cannot write the updated sector.\n");
 	    goto bail;
 	}
+	/* function is ready do be called again */
+	memcpy(org, data->data, data->size);
     }
 
-    free(cmp_buf);
     return 0;
 
 bail:
@@ -281,6 +275,9 @@ bail:
  */
 int mangles_cmldr(struct data_area *data)
 {
+    if (!opt.cmldr)
+	return 0;
+
     memcpy((char *)data->data + 3, cmldr_signature, sizeof(cmldr_signature));
     return 0;
 }
@@ -296,6 +293,9 @@ int manglef_drmk(struct data_area *data)
      * A new size, aligned to 16 bytes to ease use of ds:[bp+28].
      * We only really need 4 new, usable bytes at the end.
      */
+
+    if (!opt.drmk)
+	return 0;
 
     uint32_t tsize = (data->size + 19) & 0xfffffff0;
     opt.regs.ss = opt.regs.fs = opt.regs.gs = 0;	/* Used before initialized */

@@ -16,7 +16,8 @@ topdir = ../..
 include ../MCONFIG
 
 OBJS = chain.o partiter.o utility.o options.o mangle.o
-GCCEXTRA = -Wextra -Wconversion -pedantic -Wno-error -DDEBUG
+#GCCEXTRA = -DDEBUG
+#GCCEXTRA += -Wextra -Wconversion -pedantic -Wno-error
 
 all: chain.c32
 

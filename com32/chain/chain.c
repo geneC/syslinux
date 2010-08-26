@@ -662,6 +662,7 @@ int main(int argc, char *argv[])
 
     void *file_area = NULL;
     void *sect_area = NULL;
+    void *sbck_area = NULL;
     struct disk_dos_part_entry *hand_area = NULL;
 
     struct data_area data[3], bdata[3];
@@ -749,6 +750,14 @@ int main(int argc, char *argv[])
 	    }
 	    sect_area = (void *)data[ndata].data;
 
+	    if (opt.save) {
+		if (!(sbck_area = malloc(SECTOR))) {
+		    error("Couldn't allocate cmp-buf for option 'save'.\n");
+		    goto bail;
+		}
+		memcpy(sbck_area, data->data, data->size);
+	    }
+
 	    sidx = ndata;
 	    ndata++;
 	}
@@ -793,32 +802,33 @@ int main(int argc, char *argv[])
     /* Do file related stuff */
 
     if (fidx >= 0) {
-	if (opt.isolinux && manglef_isolinux(data + fidx))
+	if (manglef_isolinux(data + fidx))
 	    goto bail;
 
-	if (opt.grldr && manglef_grldr(iter))
+	if (manglef_grldr(iter))
 	    goto bail;
 
-	if (opt.grub && manglef_grub(iter, data + fidx))
+	if (manglef_grub(iter, data + fidx))
 	    goto bail;
-
 #if 0
-	if (opt.drmk && manglef_drmk(data + fidx))
+	if (manglef_drmk(data + fidx))
 	    goto bail;
 #endif
-
-	if (opt.filebpb && manglef_bpb(iter, data + fidx))
+	if (manglef_bpb(iter, data + fidx))
 	    goto bail;
     }
 
     /* Do sector related stuff */
 
     if (sidx >= 0) {
-	if (try_mangles_bpb(iter, data + sidx))
+	if (mangles_bpb(iter, data + sidx))
 	    goto bail;
 
-	/* This *must* be after BPB mangling */
-	if (opt.cmldr && mangles_cmldr(data + sidx))
+	if (mangles_save(iter, data + sidx, sbck_area))
+	    goto bail;
+
+	/* This *must* be after last BPB saving */
+	if (mangles_cmldr(data + sidx))
 	    goto bail;
     }
 
@@ -851,6 +861,7 @@ bail:
     /* Free allocated areas */
     free(file_area);
     free(sect_area);
+    free(sbck_area);
     free(hand_area);
     return 255;
 }
