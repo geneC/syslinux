@@ -78,6 +78,7 @@ keywd_table:
 		keyword noescape,	pc_setint16,	NoEscape
 		keyword nocomplete,	pc_setint16,	NoComplete
 		keyword nohalt,		pc_setint16,	NoHalt
+		keyword pxeretry,	pc_setint16,	PXERetry
 		keyword f1,		pc_filename,	FKeyN(1)
 		keyword f2,		pc_filename,	FKeyN(2)
 		keyword f3,		pc_filename,	FKeyN(3)
