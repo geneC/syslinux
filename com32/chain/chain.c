@@ -629,49 +629,21 @@ bail:
     return -1;
 }
 
-int setdrv_auto(const struct part_iter *iter)
-{
-    int a, b;
-    char *buf;
-
-    if (!(buf = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
-	error("Couldn't read a sector to detect 'setdrv' offset.\n");
-	return -1;
-    }
-
-    a = strncmp(buf + 0x36, "FAT", 3);
-    b = strncmp(buf + 0x52, "FAT", 3);
-
-    if ((!a && b && (buf[0x26] & 0xFE) == 0x28) || *((uint8_t*)buf + 0x26) == 0x80) {
-	opt.drvoff = 0x24;
-    } else if (a && !b && (buf[0x42] & 0xFE) == 0x28) {
-	opt.drvoff = 0x40;
-    } else {
-	error("WARNING: Couldn't autodetect 'setdrv' offset - turning option off.\n");
-	opt.setdrv = false;
-    }
-
-    free(buf);
-    return 0;
-
-}
-
 int main(int argc, char *argv[])
 {
     struct part_iter *iter = NULL;
 
-    void *file_area = NULL;
-    void *sect_area = NULL;
-    void *sbck_area = NULL;
-    struct disk_dos_part_entry *hand_area = NULL;
-
-    struct data_area data[3], bdata[3];
-    int ndata = 0, fidx = -1, sidx = -1, hidx = -1;
+    void *sbck = NULL;
+    struct data_area fdat, hdat, sdat, data[3];
+    int ndata = 0;
 
     console_ansi_raw();
 /*    openconsole(&dev_null_r, &dev_stdcon_w);*/
 
     /* Prepare and set defaults */
+    memset(&fdat, 0, sizeof(fdat));
+    memset(&hdat, 0, sizeof(hdat));
+    memset(&sdat, 0, sizeof(sdat));
     memset(&opt, 0, sizeof(opt));
     opt.sect = true;	/* by def load sector */
     opt.maps = true;	/* by def map sector */
@@ -686,31 +658,12 @@ int main(int argc, char *argv[])
     if (parse_args(argc, argv))
 	goto bail;
 
-    /* Set initial registry values */
-    if (opt.file) {
-	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.fseg;
-	opt.regs.ip = (uint16_t)opt.fip;
-    } else {
-	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.sseg;
-	opt.regs.ip = (uint16_t)opt.sip;
-    }
-
-    if (opt.regs.ip == 0x7C00 && !opt.regs.cs)
-	opt.regs.esp.l = 0x7C00;
-
     /* Get max fixed disk number */
     fixed_cnt = *(uint8_t *)(0x475);
 
     /* Get disk/part iterator matching user supplied options */
     if (find_dp(&iter))
 	goto bail;
-
-    /* Try to autodetect setdrv offest */
-    if (opt.setdrv && opt.drvoff == ~0u && setdrv_auto(iter))
-	goto bail;
-
-    /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
 
     /* Perform initial partition entry mangling */
     if (opt.hide || opt.mbrchs)
@@ -719,135 +672,106 @@ int main(int argc, char *argv[])
 
     /* Load the boot file */
     if (opt.file) {
-	data[ndata].base = (opt.fseg << 4) + opt.foff;
+	fdat.base = (opt.fseg << 4) + opt.foff;
 
-	if (loadfile(opt.file, &data[ndata].data, &data[ndata].size)) {
+	if (loadfile(opt.file, &fdat.data, &fdat.size)) {
 	    error("Couldn't read the boot file.\n");
 	    goto bail;
 	}
-	file_area = (void *)data[ndata].data;
-
-	if (data[ndata].base + data[ndata].size - 1 > ADDRMAX) {
+	if (fdat.base + fdat.size - 1 > ADDRMAX) {
 	    error("The boot file is too big to load at this address.\n");
 	    goto bail;
 	}
-
-	fidx = ndata;
-	ndata++;
     }
 
     /* Load the sector */
     if (opt.sect) {
-	data[ndata].size = SECTOR;
-	data[ndata].base = (opt.sseg << 4) + opt.soff;
+	sdat.size = SECTOR;
+	sdat.base = (opt.sseg << 4) + opt.soff;
 
-	if (opt.file && opt.maps && overlap(data + fidx, data + ndata)) {
+	if (opt.file && opt.maps && overlap(&fdat, &sdat)) {
 	    error("WARNING: The sector won't be loaded, as it would conflict with the boot file.\n");
+	    opt.sect = false;
 	} else {
-	    if (!(data[ndata].data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
+	    if (!(sdat.data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
 		error("Couldn't read the sector.\n");
 		goto bail;
 	    }
-	    sect_area = (void *)data[ndata].data;
-
 	    if (opt.save) {
-		if (!(sbck_area = malloc(SECTOR))) {
+		if (!(sbck = malloc(SECTOR))) {
 		    error("Couldn't allocate cmp-buf for option 'save'.\n");
 		    goto bail;
 		}
-		memcpy(sbck_area, data->data, data->size);
+		memcpy(sbck, sdat.data, sdat.size);
 	    }
-
-	    sidx = ndata;
-	    ndata++;
 	}
     }
 
     /* Prep the handover */
-    if (opt.hand && iter->index) {
-	if (setup_handover(iter, data + ndata))
+    if (!iter->index) {
+	opt.hand = false;
+    } else if (opt.hand) {
+	if (setup_handover(iter, &hdat))
 	    goto bail;
-	hand_area = (void *)data[ndata].data;
-
 	/* Verify possible conflicts */
-	if ( ( fidx >= 0 && overlap(data + fidx, data + ndata)) ||
-	     ( sidx >= 0 && opt.maps && overlap(data + sidx, data + ndata)) ) {
+	if ( ( opt.file && overlap(&fdat, &hdat)) ||
+	     ( opt.sect && overlap(&sdat, &hdat) && opt.maps) ) {
 	    error("WARNING: Handover area won't be prepared,\n"
 		  "as it would conflict with the boot file and/or the sector.\n");
-	} else {
-	    hidx = ndata;
-	    ndata++;
+	    opt.hand = false;
 	}
     }
 
+    /* Adjust registers */
+    mangler_common(iter);
+    mangler_handover(iter, &hdat);
+    mangler_grldr(iter);
+
     /*
-     *  Adjust registers - ds:si & ds:bp
-     *  We do it here, as they might get further
-     *  overriden during mangling.
+     * Patching functions
+     * opt.* are tested inside
      */
 
-    if (sidx >= 0 && fidx >= 0 && opt.maps && !opt.hptr) {
-	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
-	opt.regs.ds = (uint16_t)opt.sseg;
-	opt.regs.eax.l = 0;
-    } else if (hidx >= 0) {
-	opt.regs.esi.l = opt.regs.ebp.l = data[hidx].base;
-	opt.regs.ds = 0;
-	if (iter->type == typegpt)
-	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
-	else
-	    opt.regs.eax.l = 0;
-    }
+    if (manglef_isolinux(&fdat))
+	goto bail;
 
-    /* Do file related stuff */
-
-    if (fidx >= 0) {
-	if (manglef_isolinux(data + fidx))
-	    goto bail;
-
-	if (manglef_grldr(iter))
-	    goto bail;
-
-	if (manglef_grub(iter, data + fidx))
-	    goto bail;
+    if (manglef_grub(iter, &fdat))
+	goto bail;
 #if 0
-	if (manglef_drmk(data + fidx))
-	    goto bail;
+    if (manglef_drmk(&fdat))
+	goto bail;
 #endif
-	if (manglef_bpb(iter, data + fidx))
-	    goto bail;
-    }
+    if (manglef_bpb(iter, &fdat))
+	goto bail;
 
-    /* Do sector related stuff */
+    if (mangles_bpb(iter, &sdat))
+	goto bail;
 
-    if (sidx >= 0) {
-	if (mangles_bpb(iter, data + sidx))
-	    goto bail;
+    if (mangles_save(iter, &sdat, sbck))
+	goto bail;
 
-	if (mangles_save(iter, data + sidx, sbck_area))
-	    goto bail;
+    if (manglesf_bss(&sdat, &fdat))
+	goto bail;
 
-	/* This *must* be after last BPB saving */
-	if (mangles_cmldr(data + sidx))
-	    goto bail;
-    }
+    /* This *must* be after BPB saving or copying */
+    if (mangles_cmldr(&sdat))
+	goto bail;
 
     /* Prepare boot-time mmap data */
 
-    ndata = 0;
-    if (sidx >= 0)
-	memcpy(bdata + ndata++, data + sidx, sizeof(struct data_area));
-    if (fidx >= 0)
-	memcpy(bdata + ndata++, data + fidx, sizeof(struct data_area));
-    if (hidx >= 0)
-	memcpy(bdata + ndata++, data + hidx, sizeof(struct data_area));
+    if (opt.file)
+	memcpy(data + ndata++, &fdat, sizeof(fdat));
+    if (opt.sect && opt.maps)
+	memcpy(data + ndata++, &sdat, sizeof(sdat));
+    if (opt.hand)
+	memcpy(data + ndata++, &hdat, sizeof(hdat));
 
 #ifdef DEBUG
     printf("iter dsk: %d\n", iter->di.disk);
     printf("iter idx: %d\n", iter->index);
     printf("iter lba: %llu\n", iter->start_lba);
-    if (hidx >= 0)
-	printf("hand lba: %u\n", hand_area->start_lba);
+    if (opt.hand)
+	printf("hand lba: %u\n", ((disk_dos_part_entry *)hdat.data)->start_lba);
 #endif
 
     if (opt.warn) {
@@ -855,14 +779,14 @@ int main(int argc, char *argv[])
 	wait_key();
     }
 
-    do_boot(bdata, ndata);
+    do_boot(data, ndata);
 bail:
     pi_del(&iter);
     /* Free allocated areas */
-    free(file_area);
-    free(sect_area);
-    free(sbck_area);
-    free(hand_area);
+    free(fdat.data);
+    free(sdat.data);
+    free(hdat.data);
+    free(sbck);
     return 255;
 }
 

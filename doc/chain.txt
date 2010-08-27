@@ -19,18 +19,15 @@ In more details, the flow of code is as follows:
 1.  Parse arguments.
 2.  Find drive and/or partition to boot from.
 3.  Hide / unhide systems and/or fix chs values in partition entries on the
-    drive syslinux is booting from (options: 'hide', 'hideall', 'mbrchs').
-4.  Load file to boot from (options: 'file', 'seg').
-5.  Load sector to boot from (options: 'sect', 'maps'), if it doesn't conflict
-    with #5.
-6.  Prepare handover area (options: 'hand', 'maps'), if it doesn't conflict
-    with #5 & #6, and syslinux is booting a partition.
-7.  Adjust ds:si and ds:bp to point to either a handover, a sector (options:
-    'hptr', 'maps', 'sect', 'file') or nowhere.
-8.  Patch loaded file if necessary ('isolinux', 'grub', 'grldr', 'filebpb')
-9.  Patch loaded sector if necessary ('setdrv', 'sethid', 'setgeo', 'setbpb',
-    'save', 'cmldr')
-10. Chainload (options: 'swap').
+    drive syslinux is booting from.
+4.  Load a file to boot from.
+5.  Load a sector to boot from, if it doesn't conflict with #5.
+6.  Prepare handover area, if it doesn't conflict with #5 & #6, and syslinux is
+    booting a partition.
+7.  Prepare registers.
+8.  Patch loaded file if necessary.
+9.  Patch loaded sector if necessary.
+10. Chainload.
 
 In most basic form, syslinux loads specified boot sector (or mbr, if not
 specified) at 0:0x7c00, prepares handover area as a standard mbr would do, and
@@ -98,7 +95,7 @@ This triplet lets you alter the addresses a file will use. Loading is done to
 bootloader or kernel, it's almost always mandatory.
 
 The defaults, if option is not specified, are 0:0x7c00:0x7c00
-If some of the fields are ommited (e.g. 0x2000::), they default to 0.
+If any of the fields are ommited (e.g. 0x2000::), they default to 0.
 
 	sect=<segment>:<offset>:<ip>
 	nosect
@@ -125,14 +122,8 @@ continue booting. 'nomaps' allows that - a sector will be loaded, but won't be
 mmapped into real memory. Any overlap tests (vs. handover or file areas) are
 not performed, being meaningless in such case.
 
-	sethid[den]
-	*nosethid[den]
-
-	setgeo
-	*nosetgeo
-
-	setdrv[@<addr>]
-	*nodrv
+	setbpb
+	*nosetbpb
 
 Microsoft side of the world is paritculary bitchy about certain BPB values.
 Depending on the system and chainloading method (sector or file), some or all
@@ -145,19 +136,9 @@ The "reality" means:
 "geometry" - valid disk geometry as reported by BIOS
 "drive" - valid drive number
 
-'sethidden'
-  updates the partition offset to match the current disk position
-'setgeo'
-  updates "heads" and "sectors per track" values as reported by BIOS
-'setdrv'
-  will update the drive value at proper offset. Only 0x24 and 0x40 are
-  accepted as valid values. You can use '@', '=' and ':' as delimiters.
-  If the address is not specified, it's autodetected.
-
-	setbpb
-	*nosetbpb
-
-Handy shortcut for setdrv, setgeo and sethid.
+This option will automatically determine the type of BPB and fix what is possible
+to fix, relatively to detected BPB. If it's impossible to detect BPB, function
+will do nothing.
 
 	filebpb
 	*nofilebpb
@@ -174,10 +155,10 @@ together with 'setbpb' or other ones using that implicitly.
 
 - this option never applies to a loaded file
 - chain module will never save anything to disk by default
-- writing is only performed, if the values actually changed
+- writing is only performed, if the values actually got changed
 
-	hand
 	*hand
+	nohand
 
 By default, a handover area is always prepared if possible and potentially
 useful - meaning it doesn't overlap with other areas, and syslinux chainloads a
@@ -206,7 +187,7 @@ In certain situations it's useful to hide partitions - for example to make sure
 DOS gets C:. 'hide' will hide hidable primary partitions, except the one we're
 booting from. Similary, 'hideall' will hide all hidable partitions, except the
 one we're booting from. Hiding is performed only on the boot drive.
-Writing is only performed, if the values actually changed.
+Writing is only performed, if the values actually got changed.
 
 	mbrchs
 	*nombrchs
@@ -217,13 +198,13 @@ FreeDOS complainig about 'logical CHS differs from physcial' of sfdisk about
 'found (...) expected (...).  Functionally seems to be mostly cosmetic, as
 Microsoft world - in cases it cares about geometry - generally sticks to values
 written in bootsectors. And the rest of the world generally doesn't care about
-them at all. Writing is only performed, if the values actually changed.
+them at all. Writing is only performed, if the values actually got changed.
 
 	keepexe
 	*nokeepexe
 
 If you're booting over a network using pxelinux - this lets you keep UNDI
-stacks in memory.
+stacks in memory (pxelinux only).
 
 	warn
 	*nowarn
@@ -232,7 +213,7 @@ This option will wait for a keypress right before continuing the chainloading.
 Useful to see warnings emited by the chain module.
 
 	isolinux=<file>
-	sets: file=<file> nohand nosect
+	sets: file=<file> nohand nosect isolinux
 
 Chainload another version/build of the ISOLINUX bootloader and patch the loader
 with appropriate parameters in memory. This avoids the need for the
@@ -246,7 +227,7 @@ Prepares to load ntldr directly. You might want to add 'save' option to store
 corrected BPB values.
 
 	cmldr=<file>
-	sets: file=<file> seg=0x2000 setbpb nohand
+	sets: file=<file> seg=0x2000 setbpb nohand cmldr
 
 Prepares to load recovery console directly. In-memory copy of bootsector is
 patched with "cmdcons\0". Remarks the same as in 'ntldr='.
@@ -257,7 +238,8 @@ patched with "cmdcons\0". Remarks the same as in 'ntldr='.
 Prepares to load freedos kernel directly. You will likely want to add 'save'
 option, as those kernels seem to require proper geometry written back to disk.
 Sector address is chosen based on where freedos' bootsectors relocate themselves,
-although it seems the kernel doesn't rely on one.
+although it seems the kernel doesn't rely on it.
+
 You might also want to employ 'hide' option, if you have problems with properly
 assigned C: drive.
 
@@ -271,37 +253,42 @@ Sector address is chosen arbitrarily. Otherwise comments as above.
 	msdos7=<file>
 	sets: file=<file> seg=0x70::0x200 sect=0x8000 setbpb nohand
 
-Only for MSDOS 7+ versions (98se ~ 7.xx, millenium ~ 8.xx). Comments as above.
+Only for MSDOS 7+ versions (98se ~ 7.xx, Me ~ 8.xx). Comments as above.
 TODO/TEST
 
 	drmk=<file>
 	sets: file=<file> seg=0x70 sect=0x2000:0:0 setbpb nohand
 
 This is used for loading of *only* Dell's DOS derivatives. It does require boot
-sector at 0x2000 and overall valid BPB values. As with other DOSish cases,
+sector at 0x2000 and overall valid BPB values. As in other DOS-ish cases,
 likely candidates for use are 'save' and 'hide'.
 
 	grub=<file>
 	grubcfg=<config>
-	sets: file=<file> seg=0x800::0x200 nohand nosect
+	sets: file=<file> seg=0x800::0x200 nohand nosect grub
 
 Chainloads grub legacy's stage2, performing additional corrections on the file
 in memory. Additionally, alternate config file can be specified through
 'grubcfg=' option
 
 	grldr=<file>
-	sets: file=<file> nohand nosect
+	sets: file=<file> nohand nosect grldr
 
 Chainloads GRUB4DOS grldr, performing additional corrections on the file
 in memory.
 
 	bss=<file>
-	sets: bss=<file> nomaps setbpb filebpb
+	sets: bss=<file> nomaps setbpb bss
 
-This attempts to emulate syslinux's native BSS option to certain extent. This
-loads both the file and the sector and adjusts BPB values in both. As only basic BPB
-fields are corrected, both the file and the sector should be identical enough
-(except boot code, drive number, geometry, hidden sectors). Don't forget about
-'save' and 'swap' options.
+This emulates syslinux's native BSS option. This loads both the file and the
+sector, adjusts BPB values in the loaded sector, then copies all possible BPB
+fields to the loaded file. Everything is made with reference to selected
+disk/partition.
 
-This will likely get expanded in future.
+	bs=<file>
+	sets: bs=<file> nosect filebpb
+
+This emulates syslinux's native BS option. This loads the file and if possible
+- adjusts its BPB values. Everything is made with reference to selected
+disk/partition.
+

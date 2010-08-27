@@ -4,11 +4,21 @@
 #include <stdint.h>
 #include <syslinux/disk.h>
 
+#define bpbV20	1
+#define bpbV30	2
+#define bpbV32	3
+#define bpbV34	4
+#define bpbV40	5
+#define bpbVNT	6
+#define bpbV70	7
+
 void error(const char *msg);
 int guid_is0(const struct guid *guid);
 void wait_key(void);
 uint32_t lba2chs(const struct disk_info *di, uint64_t lba);
 uint32_t get_file_lba(const char *filename);
+int drvoff_detect(int type, unsigned int *off);
+int bpb_detect(const uint8_t *bpb);
 
 #endif
 

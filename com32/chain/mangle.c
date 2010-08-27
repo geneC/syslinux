@@ -6,6 +6,7 @@
 #include <syslinux/config.h>
 #include "common.h"
 #include "chain.h"
+#include "options.h"
 #include "utility.h"
 #include "partiter.h"
 #include "mangle.h"
@@ -24,7 +25,7 @@ int manglef_isolinux(struct data_area *data)
     uint32_t *checksum, *chkhead, *chktail;
     uint32_t file_lba = 0;
 
-    if (!opt.isolinux)
+    if (!(opt.file && opt.isolinux))
 	return 0;
 
     sdi = syslinux_derivative_info();
@@ -88,21 +89,6 @@ bail:
 }
 
 /*
- * GRLDR of GRUB4DOS wants the partition number in DH:
- * -1:   whole drive (default)
- * 0-3:  primary partitions
- * 4-*:  logical partitions
- */
-int manglef_grldr(const struct part_iter *iter)
-{
-    if (!opt.grldr)
-	return 0;
-
-    opt.regs.edx.b[1] = (uint8_t)(iter->index - 1);
-    return 0;
-}
-
-/*
  * Legacy grub's stage2 chainloading
  */
 int manglef_grub(const struct part_iter *iter, struct data_area *data)
@@ -142,7 +128,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
 	char codestart[1];
     } __attribute__ ((packed)) *stage2;
 
-    if (!opt.grub)
+    if (!(opt.file && opt.grub))
 	return 0;
 
     if (data->size < sizeof(struct grub_stage2_patch_area)) {
@@ -207,81 +193,6 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
 bail:
     return -1;
 }
-
-/*
- * Adjust BPB of a BPB-compatible file
- */
-int mangles_bpb(const struct part_iter *iter, struct data_area *data)
-{
-    /* BPB: hidden sectors */
-    if (opt.sethid) {
-	if (iter->start_lba < ~0u)
-	    *(uint32_t *) ((char *)data->data + 0x1c) = (uint32_t)iter->start_lba;
-	else
-	    /* won't really help much, but ... */
-	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
-    }
-    /* BPB: legacy geometry */
-    if (opt.setgeo) {
-	if (iter->di.cbios)
-	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.sect);
-	else {
-	    if (iter->di.disk & 0x80)
-		*(uint32_t *)((char *)data->data + 0x18) = 0x00FF003F;
-	    else
-		*(uint32_t *)((char *)data->data + 0x18) = 0x00020012;
-	}
-    }
-    /* BPB: drive */
-    if (opt.setdrv)
-	*(uint8_t *)((char *)data->data + opt.drvoff) = (uint8_t)
-	    (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
-
-    return 0;
-}
-
-int manglef_bpb(const struct part_iter *iter, struct data_area *data)
-{
-    if (!opt.filebpb)
-	return 0;
-
-    return mangles_bpb(iter, data);
-}
-
-int mangles_save(const struct part_iter *iter, const struct data_area *data, void *org)
-{
-    if (!opt.save)
-	return 0;
-
-    if (memcmp(org, data->data, data->size)) {
-	if (disk_write_sector(&iter->di, iter->start_lba, data->data)) {
-	    error("Cannot write the updated sector.\n");
-	    goto bail;
-	}
-	/* function is ready do be called again */
-	memcpy(org, data->data, data->size);
-    }
-
-    return 0;
-
-bail:
-    return -1;
-}
-
-/*
- * To boot the Recovery Console of Windows NT/2K/XP we need to write
- * the string "cmdcons\0" to memory location 0000:7C03.
- * Memory location 0000:7C00 contains the bootsector of the partition.
- */
-int mangles_cmldr(struct data_area *data)
-{
-    if (!opt.cmldr)
-	return 0;
-
-    memcpy((char *)data->data + 3, cmldr_signature, sizeof(cmldr_signature));
-    return 0;
-}
-
 #if 0
 /*
  * Dell's DRMK chainloading.
@@ -294,7 +205,7 @@ int manglef_drmk(struct data_area *data)
      * We only really need 4 new, usable bytes at the end.
      */
 
-    if (!opt.drmk)
+    if (!(opt.file && opt.drmk))
 	return 0;
 
     uint32_t tsize = (data->size + 19) & 0xfffffff0;
@@ -314,5 +225,208 @@ bail:
     return -1;
 }
 #endif
+/* Adjust BPB common function */
+static int mangle_bpb(const struct part_iter *iter, struct data_area *data)
+{
+    unsigned int off;
+    int type = bpb_detect(data->data);
+
+    /* BPB: hidden sectors 32bit*/
+    if (type >= bpbV34) {
+	if (iter->start_lba < ~0u)
+	    *(uint32_t *) ((char *)data->data + 0x1c) = (uint32_t)iter->start_lba;
+	else
+	    /* won't really help much, but ... */
+	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
+    }
+    /* BPB: hidden sectors 16bit*/
+    if (bpbV30 <= type && type <= bpbV32) {
+	if (iter->start_lba < 0xFFFF)
+	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)iter->start_lba;
+	else
+	    /* won't really help much, but ... */
+	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)~0u;
+    }
+    /* BPB: legacy geometry */
+    if (type >= bpbV30) {
+	if (iter->di.cbios)
+	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.sect);
+	else {
+	    if (iter->di.disk & 0x80)
+		*(uint32_t *)((char *)data->data + 0x18) = 0x00FF003F;
+	    else
+		*(uint32_t *)((char *)data->data + 0x18) = 0x00020012;
+	}
+    }
+    /* BPB: drive */
+    if (drvoff_detect(type, &off)) {
+	*(uint8_t *)((char *)data->data + off) = (uint8_t)
+	    (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
+    }
+
+    return 0;
+}
+
+/*
+ * Adjust BPB of a BPB-compatible file
+ */
+int manglef_bpb(const struct part_iter *iter, struct data_area *data)
+{
+    if (!(opt.file && opt.filebpb))
+	return 0;
+
+    return mangle_bpb(iter, data);
+}
+
+/*
+ * Adjust BPB of a sector
+ */
+int mangles_bpb(const struct part_iter *iter, struct data_area *data)
+{
+    if (!(opt.sect && opt.setbpb))
+	return 0;
+
+    return mangle_bpb(iter, data);
+}
+
+/*
+ * This function performs full BPB patching, analogously to syslinux's
+ * native BSS. opt.drv is prereq
+ */
+int manglesf_bss(struct data_area *sec, struct data_area *fil)
+{
+    int type1, type2;
+    unsigned int cnt = 0;
+
+    if (!(opt.sect && opt.file && opt.bss))
+	return 0;
+
+    type1 = bpb_detect(fil->data);
+    type2 = bpb_detect(sec->data);
+
+    if (type1 < 0 || type2 < 0) {
+	error("Option 'bss' can't determine BPB type.\n");
+	goto bail;
+    }
+    if (type1 != type2) {
+	error("Option 'bss' can't be used,\n"
+		"when a sector and a file have incompatible BPBs.\n");
+	goto bail;
+    }
+
+    /* Copy common 2.0 data */
+    memcpy((char *)fil->data + 0x0B, (char *)sec->data + 0x0B, 0x0D);
+
+    /* Copy 3.0+ data */
+    if (type1 <= bpbV30) {
+	cnt = 0x06;
+    } else if (type1 <= bpbV32) {
+	cnt = 0x08;
+    } else if (type1 <= bpbV34) {
+	cnt = 0x0C;
+    } else if (type1 <= bpbV40) {
+	cnt = 0x2E;
+    } else if (type1 <= bpbVNT) {
+	cnt = 0x3C;
+    } else if (type1 <= bpbV70) {
+	cnt = 0x42;
+    }
+    memcpy((char *)fil->data + 0x18, (char *)sec->data + 0x18, cnt);
+
+    return 0;
+bail:
+    return -1;
+}
+
+/*
+ * Save sector.
+ */
+int mangles_save(const struct part_iter *iter, const struct data_area *data, void *org)
+{
+    if (!(opt.sect && opt.save))
+	return 0;
+
+    if (memcmp(org, data->data, data->size)) {
+	if (disk_write_sector(&iter->di, iter->start_lba, data->data)) {
+	    error("Cannot write the updated sector.\n");
+	    goto bail;
+	}
+	/* function can be called again */
+	memcpy(org, data->data, data->size);
+    }
+
+    return 0;
+bail:
+    return -1;
+}
+
+/*
+ * To boot the Recovery Console of Windows NT/2K/XP we need to write
+ * the string "cmdcons\0" to memory location 0000:7C03.
+ * Memory location 0000:7C00 contains the bootsector of the partition.
+ */
+int mangles_cmldr(struct data_area *data)
+{
+    if (!(opt.sect && opt.cmldr))
+	return 0;
+
+    memcpy((char *)data->data + 3, cmldr_signature, sizeof(cmldr_signature));
+    return 0;
+}
+
+/* Set common registers */
+int mangler_common(const struct part_iter *iter)
+{
+    /* Set initial registry values */
+    if (opt.file) {
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.fseg;
+	opt.regs.ip = (uint16_t)opt.fip;
+    } else {
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.sseg;
+	opt.regs.ip = (uint16_t)opt.sip;
+    }
+
+    if (opt.regs.ip == 0x7C00 && !opt.regs.cs)
+	opt.regs.esp.l = 0x7C00;
+
+    /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
+    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
+
+    return 0;
+}
+
+/* ds:si & ds:bp */
+int mangler_handover(const struct part_iter *iter, const struct data_area *data)
+{
+    if (opt.sect && opt.file && opt.maps && !opt.hptr) {
+	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
+	opt.regs.ds = (uint16_t)opt.sseg;
+	opt.regs.eax.l = 0;
+    } else if (opt.hand) {
+	/* base is really 0x7be */
+	opt.regs.esi.l = opt.regs.ebp.l = data->base;
+	opt.regs.ds = 0;
+	if (iter->type == typegpt)
+	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
+	else
+	    opt.regs.eax.l = 0;
+    }
+
+    return 0;
+}
+
+/*
+ * GRLDR of GRUB4DOS wants the partition number in DH:
+ * -1:   whole drive (default)
+ * 0-3:  primary partitions
+ * 4-*:  logical partitions
+ */
+int mangler_grldr(const struct part_iter *iter)
+{
+    if (opt.grldr)
+	opt.regs.edx.b[1] = (uint8_t)(iter->index - 1);
+
+    return 0;
+}
 
 /* vim: set ts=8 sts=4 sw=4 noet: */

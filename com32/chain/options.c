@@ -73,18 +73,13 @@ Usage:\n\
                          - defaults to 0:0x7C00:0x7C00\n\
                          - ommited o/i values default to 0x7C00\n\
     maps                 Map loaded sector into real memory\n\
-    nosethid[den]        Set BPB's hidden sectors field\n\
-    nosetgeo             Set BPB's sectors per track and heads fields\n\
-    nosetdrv[@<off>]     Set BPB's drive unit field at <off>\n\
-                         - <off> defaults to autodetection\n\
-                         - only 0x24 and 0x40 are accepted\n\
-    nosetbpb             Enable set{hid,geo,drv}\n\
-    nofilebpb            Treat file in memory as BPB compatible\n\
-", "\
-\nOptions #2 ('no' prefix specifies default value):\n\
+    nosetbpb             Fix BPB fields in loaded sector\n\
+    nofilebpb            Apply 'setbpb' to loaded file\n\
     nosave               Write adjusted sector back to disk\n\
     hand                 Prepare handover area\n\
     nohptr               Force ds:si and ds:bp to point to handover area\n\
+    bss=<filename>       Emulate syslinux's BSS\n\
+    bs=<filename>        Emulate syslinux's BS\n\
     noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
     nohide               Hide primary partitions, unhide selected partition\n\
     nohideall            Hide *all* partitions, unhide selected partition\n\
@@ -105,7 +100,6 @@ Usage:\n\
     grub=<loader>        Load GRUB Legacy stage2\n\
     grubcfg=<filename>   Set alternative config filename for GRUB Legacy\n\
     grldr=<loader>       Load GRUB4DOS grldr\n\
-    bss=<filename>       Emulate BSS (see doc/chain.txt for differences)\n\
 \nPlease see doc/chain.txt for the detailed documentation.\n\
 "
     };
@@ -134,13 +128,14 @@ int parse_args(int argc, char *argv[])
 		goto bail;
 	} else if (!strncmp(argv[i], "bss=", 4)) {
 	    opt.file = argv[i] + 4;
+	    opt.bss = true;
 	    opt.maps = false;
-	    opt.sethid = true;
-	    opt.setgeo = true;
-	    opt.setdrv = true;
-	    opt.drvoff = ~0u;
-	    opt.filebpb = true;
+	    opt.setbpb = true;
 	    /* opt.save = true; */
+	} else if (!strncmp(argv[i], "bs=", 3)) {
+	    opt.file = argv[i] + 3;
+	    opt.sect = false;
+	    opt.filebpb = true;
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.file = argv[i] + 9;
 	    opt.isolinux = true;
@@ -151,10 +146,7 @@ int parse_args(int argc, char *argv[])
 	    opt.foff = 0;
 	    opt.fip = 0;
 	    opt.file = argv[i] + 6;
-	    opt.sethid = true;
-	    opt.setgeo = true;
-	    opt.setdrv = true;
-	    opt.drvoff = 0x24;
+	    opt.setbpb = true;
 	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
@@ -163,10 +155,7 @@ int parse_args(int argc, char *argv[])
 	    opt.fip = 0;
 	    opt.file = argv[i] + 6;
 	    opt.cmldr = true;
-	    opt.sethid = true;
-	    opt.setgeo = true;
-	    opt.setdrv = true;
-	    opt.drvoff = 0x24;
+	    opt.setbpb = true;
 	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
@@ -175,10 +164,7 @@ int parse_args(int argc, char *argv[])
 	    opt.fip = 0;
 	    opt.sseg = 0x1FE0;
 	    opt.file = argv[i] + 8;
-	    opt.sethid = true;
-	    opt.setgeo = true;
-	    opt.setdrv = true;
-	    opt.drvoff = ~0u;
+	    opt.setbpb = true;
 	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if ( (v = 6, !strncmp(argv[i], "msdos=", v) ||
@@ -189,10 +175,7 @@ int parse_args(int argc, char *argv[])
 	    opt.fip = v == 7 ? 0x200 : 0;  /* MS-DOS 7.0+ wants this ip */
 	    opt.sseg = 0x8000;
 	    opt.file = argv[i] + v;
-	    opt.sethid = true;
-	    opt.setgeo = true;
-	    opt.setdrv = true;
-	    opt.drvoff = ~0u;
+	    opt.setbpb = true;
 	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
@@ -204,10 +187,7 @@ int parse_args(int argc, char *argv[])
 	    opt.sip = 0;
 	    opt.file = argv[i] + 5;
 	    /* opt.drmk = true; */
-	    opt.sethid = true;
-	    opt.setgeo = true;
-	    opt.setdrv = true;
-	    opt.drvoff = ~0u;
+	    opt.setbpb = true;
 	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
@@ -252,44 +232,14 @@ int parse_args(int argc, char *argv[])
 	    opt.hide = 1;
 	} else if (!strcmp(argv[i], "hideall")) {
 	    opt.hide = 2;
-	} else if (!strcmp(argv[i], "sethid") ||
-		   !strcmp(argv[i], "sethidden")) {
-	    opt.sethid = true;
-	} else if (!strcmp(argv[i], "nosethid") ||
-		   !strcmp(argv[i], "nosethidden")) {
-	    opt.sethid = false;
-	} else if (!strcmp(argv[i], "setgeo")) {
-	    opt.setgeo = true;
-	} else if (!strcmp(argv[i], "nosetgeo")) {
-	    opt.setgeo = false;
-	} else if (!strncmp(argv[i], "setdrv",6)) {
-	    if (!argv[i][6])
-		v = ~0u;    /* autodetect */
-	    else if (argv[i][6] == '@' ||
-		    argv[i][6] == '=' ||
-		    argv[i][6] == ':') {
-		v = strtoul(argv[i] + 7, NULL, 0);
-		if (!(v == 0x24 || v == 0x40)) {
-		    error("Invalid 'setdrv' offset.\n");
-		    goto bail;
-		}
-	    } else {
-		    error("Invalid 'setdrv' specification.\n");
-		    goto bail;
-		}
-	    opt.setdrv = true;
-	    opt.drvoff = v;
-	} else if (!strcmp(argv[i], "nosetdrv")) {
-	    opt.setdrv = false;
 	} else if (!strcmp(argv[i], "setbpb")) {
-	    opt.setdrv = true;
-	    opt.drvoff = ~0u;
-	    opt.setgeo = true;
-	    opt.sethid = true;
+	    opt.setbpb = true;
 	} else if (!strcmp(argv[i], "nosetbpb")) {
-	    opt.setdrv = false;
-	    opt.setgeo = false;
-	    opt.sethid = false;
+	    opt.setbpb = false;
+	} else if (!strcmp(argv[i], "filebpb")) {
+	    opt.filebpb = true;
+	} else if (!strcmp(argv[i], "nofilebpb")) {
+	    opt.filebpb = false;
 	} else if (!strncmp(argv[i], "sect=", 5) ||
 		   !strcmp(argv[i], "sect")) {
 	    if (argv[i][4]) {
@@ -307,10 +257,6 @@ int parse_args(int argc, char *argv[])
 	    opt.save = true;
 	} else if (!strcmp(argv[i], "nosave")) {
 	    opt.save = false;
-	} else if (!strcmp(argv[i], "filebpb")) {
-	    opt.filebpb = true;
-	} else if (!strcmp(argv[i], "nofilebpb")) {
-	    opt.filebpb = false;
 	} else if (!strcmp(argv[i], "mbrchs")) {
 	    opt.mbrchs = true;
 	} else if (!strcmp(argv[i], "nombrchs")) {
@@ -358,7 +304,17 @@ int parse_args(int argc, char *argv[])
     }
 
     if (opt.filebpb && !opt.file) {
-	error("Option 'filebpb' requires file.\n");
+	error("Option 'filebpb' requires a file.\n");
+	goto bail;
+    }
+
+    if (opt.save && !opt.sect) {
+	error("Option 'save' requires a sector.\n");
+	goto bail;
+    }
+
+    if (opt.setbpb && !opt.sect) {
+	error("Option 'setbpb' requires a sector.\n");
 	goto bail;
     }
 
