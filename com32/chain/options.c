@@ -57,14 +57,14 @@ void usage(void)
 "\
 Usage:\n\
     chain.c32 [options]\n\
-    chain.c32 {fd|hd}<disk>{,| }[<part#>] [options]\n\
-    chain.c32 mbr{:|=}<id>{, | }[<part#>] [options]\n\
+    chain.c32 {fd|hd}<disk#>{,| }[<part#>] [options]\n\
+    chain.c32 mbr{:|=}<id>{,| }[<part#>] [options]\n\
     chain.c32 guid{:|=}<guid>{,| }[<part#>] [options]\n\
     chain.c32 label{:|=}<label> [<part#>] [options]\n\
     chain.c32 boot{,| }[<part#>] [options]\n\
     chain.c32 fs [options]\n\
 ", "\
-\nOptions #1 ('no' prefix specifies default value):\n\
+\nOptions ('no' prefix specifies default value):\n\
     file=<file>          Load and execute <file>\n\
     seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>\n\
                          - defaults to 0:0x7C00:0x7C00\n\
@@ -88,7 +88,7 @@ Usage:\n\
     nowarn               Wait for a keypress to continue chainloading\n\
                          - useful to see emited warnings\n\
 ", "\
-\nOptions #3 ('no' prefix specifies default value):\n\
+\nOptions continued ...\n\
     isolinux=<loader>    Load another version of ISOLINUX\n\
     ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
     cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003\n\
