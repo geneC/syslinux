@@ -571,7 +571,6 @@ static int setup_handover(const struct part_iter *iter,
 	    error("Could not build GPT hand-over record!\n");
 	    goto bail;
 	}
-	memset(ha, 0, synth_size);
 	*(uint32_t *)ha->start = lba2chs(&iter->di, gp->lba_first);
 	*(uint32_t *)ha->end = lba2chs(&iter->di, gp->lba_last);
 	ha->active_flag = 0x80;
@@ -594,30 +593,42 @@ static int setup_handover(const struct part_iter *iter,
 	disk_dos_part_dump(ha);
 	disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
-    } else if (iter->type == typedos) {
-	/* MBR handover protocol */
-	dp = (const struct disk_dos_part_entry *)iter->record;
+    } else if (iter->type == typedos || iter->type == typeraw) {
+	/* MBR / RAW handover protocol */
 	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build MBR hand-over record!\n");
+	    error("Could not build MBR / RAW hand-over record!\n");
 	    goto bail;
 	}
+	if (!iter->index) {
+	    *(uint32_t *)ha->start = lba2chs(&iter->di, 0);
+	    *(uint32_t *)ha->end = lba2chs(&iter->di, 2879);
+	    ha->active_flag = 0x80;
+	    ha->ostype = 0xDA;
+	    ha->start_lba = 0;
+	    ha->length = 2880;
+	} else if (iter->type == typedos) {
+	    dp = (const struct disk_dos_part_entry *)iter->record;
 
-	*(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba);
-	*(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1);
-	ha->active_flag = dp->active_flag;
-	ha->ostype = dp->ostype;
-	ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */
-	ha->length = dp->length;
-
+	    *(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba);
+	    *(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1);
+	    ha->active_flag = dp->active_flag;
+	    ha->ostype = dp->ostype;
+	    ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */
+	    ha->length = dp->length;
 #ifdef DEBUG
-	dprintf("MBR handover:\n");
-	disk_dos_part_dump(ha);
+	    dprintf("MBR handover:\n");
+	    disk_dos_part_dump(ha);
+	} else {
+	    goto bail;
 #endif
+	}
+#ifdef DEBUG
     } else {
 	/* shouldn't ever happen */
 	goto bail;
+#endif
     }
 
     data->base = 0x7be;
@@ -714,12 +725,9 @@ int main(int argc, char *argv[])
     }
 
     /* Prep the handover */
-    if (!iter->index) {
-	opt.hand = false;
-    } else if (opt.hand) {
+    if (opt.hand) {
 	if (setup_handover(iter, &hdat))
 	    goto bail;
-
 	/* Verify possible conflicts */
 	if ( ( opt.file && overlap(&fdat, &hdat)) ||
 	     ( opt.sect && overlap(&sdat, &hdat) && opt.maps) ) {
