@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <syslinux/disk.h>
 
+#define bpbUNK	0
 #define bpbV20	1
 #define bpbV30	2
 #define bpbV32	3

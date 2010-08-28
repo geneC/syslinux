@@ -2,8 +2,8 @@
  *
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
- *   Significant portions copyright (C) 2010 Shao Miller
- *					[partition iteration, GPT, "fs"]
+ *   Copyright 2010 Shao Miller
+ *   Copyright 2010 Michal Soltys
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 
 struct options opt;
 
-static int fixed_cnt;
+static int fixed_cnt = 128;   /* see comments in main() */
 
 static int overlap(const struct data_area *a, const struct data_area *b)
 {
@@ -425,7 +425,7 @@ static int pentry_mangle(struct part_iter *_iter)
 	if (opt.mbrchs) {
 	    wb |= pem_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
 	    if (ridx > 4)
-		wb |= pem_setchs(&iter->di, mbr.table + 1, iter->sub.dos.ebr_lba);
+		wb |= pem_setchs(&iter->di, mbr.table + 1, iter->sub.dos.nebr_lba);
 	}
     }
     /* last write */
@@ -452,14 +452,14 @@ int find_dp(struct part_iter **_iter)
     sdi = syslinux_derivative_info();
 
     if (!strncmp(opt.drivename, "mbr", 3)) {
-	if (find_by_sig(strtoul(opt.drivename + 4, NULL, 0), &iter)) {
+	if (find_by_sig(strtoul(opt.drivename + 4, NULL, 0), &iter) < 0) {
 	    error("Unable to find requested MBR signature.\n");
 	    goto bail;
 	}
     } else if (!strncmp(opt.drivename, "guid", 4)) {
 	if (str_to_guid(opt.drivename + 5, &gpt_guid))
 	    goto bail;
-	if (find_by_guid(&gpt_guid, &iter)) {
+	if (find_by_guid(&gpt_guid, &iter) < 0) {
 	    error("Unable to find requested GPT disk or partition by guid.\n");
 	    goto bail;
 	}
@@ -468,7 +468,7 @@ int find_dp(struct part_iter **_iter)
 	    error("No label specified.\n");
 	    goto bail;
 	}
-	if (find_by_label(opt.drivename + 6, &iter)) {
+	if (find_by_label(opt.drivename + 6, &iter) < 0) {
 	    error("Unable to find requested GPT partition by label.\n");
 	    goto bail;
 	}
@@ -657,9 +657,15 @@ int main(int argc, char *argv[])
     /* Parse arguments */
     if (parse_args(argc, argv))
 	goto bail;
-
+#if 0
     /* Get max fixed disk number */
     fixed_cnt = *(uint8_t *)(0x475);
+
+    /*
+     * hmm, looks like we can't do that
+     * any better options than hardcoded 0x80 - 0xFF ?
+     */
+#endif
 
     /* Get disk/part iterator matching user supplied options */
     if (find_dp(&iter))
@@ -713,6 +719,7 @@ int main(int argc, char *argv[])
     } else if (opt.hand) {
 	if (setup_handover(iter, &hdat))
 	    goto bail;
+
 	/* Verify possible conflicts */
 	if ( ( opt.file && overlap(&fdat, &hdat)) ||
 	     ( opt.sect && overlap(&sdat, &hdat) && opt.maps) ) {
@@ -723,14 +730,12 @@ int main(int argc, char *argv[])
     }
 
     /* Adjust registers */
+
     mangler_common(iter);
     mangler_handover(iter, &hdat);
     mangler_grldr(iter);
 
-    /*
-     * Patching functions
-     * opt.* are tested inside
-     */
+    /* Patching functions */
 
     if (manglef_isolinux(&fdat))
 	goto bail;
@@ -757,7 +762,10 @@ int main(int argc, char *argv[])
     if (mangles_cmldr(&sdat))
 	goto bail;
 
-    /* Prepare boot-time mmap data */
+    /*
+     * Prepare boot-time mmap data We should to it here, as manglers could
+     * potentially alter some of the data.
+     */
 
     if (opt.file)
 	memcpy(data + ndata++, &fdat, sizeof(fdat));
@@ -771,7 +779,8 @@ int main(int argc, char *argv[])
     printf("iter idx: %d\n", iter->index);
     printf("iter lba: %llu\n", iter->start_lba);
     if (opt.hand)
-	printf("hand lba: %u\n", ((disk_dos_part_entry *)hdat.data)->start_lba);
+	printf("hand lba: %u\n",
+		((struct disk_dos_part_entry *)hdat.data)->start_lba);
 #endif
 
     if (opt.warn) {

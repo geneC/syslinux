@@ -263,8 +263,7 @@ This is used for loading of *only* Dell's DOS derivatives. It does require boot
 sector at 0x2000 and overall valid BPB values. As in other DOS-ish cases,
 likely candidates for use are 'save' and 'hide'.
 
-	grub=<file>
-	grubcfg=<config>
+	grub=<file> [grubcfg=<config>]
 	sets: file=<file> seg=0x800::0x200 nohand nosect grub
 
 Chainloads grub legacy's stage2, performing additional corrections on the file
@@ -282,13 +281,13 @@ in memory.
 
 This emulates syslinux's native BSS option. This loads both the file and the
 sector, adjusts BPB values in the loaded sector, then copies all possible BPB
-fields to the loaded file. Everything is made with reference to selected
+fields to the loaded file. Everything is made with reference to the selected
 disk/partition.
 
 	bs=<file>
 	sets: bs=<file> nosect filebpb
 
 This emulates syslinux's native BS option. This loads the file and if possible
-- adjusts its BPB values. Everything is made with reference to selected
+- adjusts its BPB values. Everything is made with reference to the selected
 disk/partition.
 

@@ -304,8 +304,8 @@ int manglesf_bss(struct data_area *sec, struct data_area *fil)
     type1 = bpb_detect(fil->data);
     type2 = bpb_detect(sec->data);
 
-    if (type1 < 0 || type2 < 0) {
-	error("Option 'bss' can't determine BPB type.\n");
+    if (!type1 || !type2) {
+	error("Couldn't determine the BPB type for option 'bss'.\n");
 	goto bail;
     }
     if (type1 != type2) {

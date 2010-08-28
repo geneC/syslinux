@@ -7,6 +7,19 @@
 #include <syslinux/disk.h>
 #include "utility.h"
 
+#ifdef DEBUG
+static const char *bpbtypes[] = {
+    [0] =  "BPB unknown",
+    [1] =  "BPB v.2.0",
+    [2] =  "BPB v.3.0",
+    [3] =  "BPB v.3.2",
+    [4] =  "BPB v.3.4",
+    [5] =  "BPB v.4.0",
+    [6] =  "BPB v.NT+",
+    [7] =  "BPB v.7.0",
+};
+#endif
+
 void error(const char *msg)
 {
     fputs(msg, stderr);
@@ -130,11 +143,11 @@ int drvoff_detect(int type, unsigned int *off)
  */
 int bpb_detect(const uint8_t *sec)
 {
-    int a, b, c, jmp = -1, rev = -1;
+    int a, b, c, jmp = -1, rev = 0;
 
     /* media descriptor check */
     if ((sec[0x15] & 0xF0) != 0xF0)
-	return -1;
+	goto out;
 
     if (sec[0] == 0xEB)	/* jump short */
 	jmp = 2 + *(int8_t *)(sec + 1);
@@ -146,7 +159,7 @@ int bpb_detect(const uint8_t *sec)
 
     /* sanity */
     if (jmp < 0x18 || jmp > 0x1F0)
-	return -1;
+	goto out;
 
     /* detect by jump */
     if (jmp >= 0x18 && jmp < 0x1E)
@@ -160,8 +173,18 @@ int bpb_detect(const uint8_t *sec)
 
     /* TODO: some better V2 - V3.4 checks ? */
 
-    if (rev >= 0)
-	return rev;
+    if (rev)
+	goto out;
+    /*
+     * BPB info:
+     * 2.0 ==       0x0B - 0x17
+     * 3.0 == 2.0 + 0x18 - 0x1D
+     * 3.2 == 3.0 + 0x1E - 0x1F
+     * 3.4 ==!2.0 + 0x18 - 0x23
+     * 4.0 == 3.4 + 0x24 - 0x45
+     *  NT ==~3.4 + 0x24 - 0x53
+     * 7.0 == 3.4 + 0x24 - 0x59
+     */
 
 nocode:
     a = memcmp(sec + 0x03, "NTFS", 4);
@@ -176,6 +199,10 @@ nocode:
 	rev = bpbV70;
     }
 
+out:
+#ifdef DEBUG
+    printf("INFO: BPB detection: %s\n", bpbtypes[rev]);
+#endif
     return rev;
 }
 

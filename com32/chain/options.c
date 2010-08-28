@@ -277,15 +277,16 @@ int parse_args(int argc, char *argv[])
 		   || !strncmp(argv[i], "boot,", 5)
 		   || !strcmp(argv[i], "fs")) {
 	    opt.drivename = argv[i];
-	    if (strncmp(argv[i], "label", 5)) {
+	    if (strncmp(argv[i], "label", 5))
 		p = strchr(opt.drivename, ',');
-		if (p) {
-		    *p = '\0';
-		    opt.partition = p + 1;
-		} else if (argv[i + 1] && argv[i + 1][0] >= '0'
-			&& argv[i + 1][0] <= '9') {
-		    opt.partition = argv[++i];
-		}
+	    else
+		p = NULL;
+	    if (p) {
+		*p = '\0';
+		opt.partition = p + 1;
+	    } else if (argv[i + 1] && argv[i + 1][0] >= '0'
+		    && argv[i + 1][0] <= '9') {
+		opt.partition = argv[++i];
 	    }
 	} else {
 	    usage();

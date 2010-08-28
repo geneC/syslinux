@@ -370,7 +370,7 @@ static int prep_base_ebr(struct part_iter *iter)
 	iter->sub.dos.ebr_size = iter->sub.dos.bebr_size;
 
 	iter->sub.dos.cebr_lba = 0;
-	iter->sub.dos.ebr_lba = iter->sub.dos.bebr_start;
+	iter->sub.dos.nebr_lba = iter->sub.dos.bebr_start;
 
 	iter->index0--;
     }
@@ -385,10 +385,10 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
     if (prep_base_ebr(iter))
 	return -1;
 
-    while (++iter->index0 < 1024 && iter->sub.dos.ebr_lba) {
+    while (++iter->index0 < 1024 && iter->sub.dos.nebr_lba) {
 	free(iter->data);
 	if (!(iter->data =
-		    disk_read_sectors(&iter->di, iter->sub.dos.ebr_lba, 1))) {
+		    disk_read_sectors(&iter->di, iter->sub.dos.nebr_lba, 1))) {
 	    error("Couldn't load EBR.\n");
 	    return -1;
 	}
@@ -398,17 +398,17 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 
 	dp = ((struct disk_dos_mbr *)iter->data)->table;
 
-	iter->sub.dos.cebr_lba = iter->sub.dos.ebr_lba;
+	iter->sub.dos.cebr_lba = iter->sub.dos.nebr_lba;
 
 	/* setup next frame values */
 	if (dp[1].ostype) {
 	    iter->sub.dos.ebr_start = dp[1].start_lba;
 	    iter->sub.dos.ebr_size = dp[1].length;
-	    iter->sub.dos.ebr_lba = iter->sub.dos.bebr_start + dp[1].start_lba;
+	    iter->sub.dos.nebr_lba = iter->sub.dos.bebr_start + dp[1].start_lba;
 	} else {
 	    iter->sub.dos.ebr_start = 0;
 	    iter->sub.dos.ebr_size = 0;
-	    iter->sub.dos.ebr_lba = 0;
+	    iter->sub.dos.nebr_lba = 0;
 	}
 
 	if (!dp[0].ostype)
