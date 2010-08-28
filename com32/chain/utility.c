@@ -51,37 +51,40 @@ void wait_key(void)
 uint32_t lba2chs(const struct disk_info *di, uint64_t lba)
 {
     uint32_t c, h, s, t;
+    uint32_t cs, hs, ss;
 
+    /*
+     * Not much reason here, but if we have no valid chs geometry, we assume
+     * "typical" ones to have something to return.
+     */
     if (di->cbios) {
-	if (lba >= di->cyl * di->head * di->sect) {
-	    s = di->sect;
-	    h = di->head - 1;
-	    c = di->cyl - 1;
-	    goto out;
+	cs = di->cyl;
+	hs = di->head;
+	ss = di->sect;
+    } else {
+	if (di->disk & 0x80) {
+	    cs = 1024;
+	    hs = 255;
+	    ss = 63;
+	} else {
+	    cs = 80;
+	    hs = 2;
+	    ss = 18;
 	}
-	s = ((uint32_t)lba % di->sect) + 1;
-	t = (uint32_t)lba / di->sect;
-	h = t % di->head;
-	c = t / di->head;
-    } else
-	goto fallback;
+    }
 
-out:
+    if (lba >= cs*hs*ss) {
+	s = ss;
+	h = hs - 1;
+	c = cs - 1;
+    } else {
+	s = ((uint32_t)lba % ss) + 1;
+	t = (uint32_t)lba / ss;
+	h = t % hs;
+	c = t / hs;
+    }
+
     return h | (s << 8) | ((c & 0x300) << 6) | ((c & 0xFF) << 16);
-
-fallback:
-    if (di->disk & 0x80)
-	return 0x00FFFFFE; /* 1023/63/254 */
-    else
-	/*
-	 * adjust ?
-	 * this is somewhat "useful" with partitioned floppy,
-	 * maybe stick to 2.88mb ?
-	 */
-	return 0x004F1201; /* 79/18/1 */
-#if 0
-	return 0x004F2401; /* 79/36/1 */
-#endif
 }
 
 uint32_t get_file_lba(const char *filename)
