@@ -39,6 +39,11 @@
 #include <stdint.h>
 #include <syslinux/disk.h>
 
+#define PI_ERRLOAD 3
+#define PI_INSANE 2
+#define PI_DONE 1
+#define PI_OK 0
+
 struct itertype;
 struct part_iter;
 
@@ -59,6 +64,7 @@ struct part_iter {
     int rawindex;
     struct disk_info di;
     int stepall;
+    int status;
     /* internal */
     int index0;
     union _sub {
@@ -90,8 +96,8 @@ extern const struct itertype * const typeraw;
 
 struct part_iter *pi_begin(const struct disk_info *, int stepall);
 struct part_iter *pi_new(const struct itertype *, ...);
-void *pi_del(struct part_iter **);
-struct part_iter *pi_next(struct part_iter **);
+void pi_del(struct part_iter **);
+int pi_next(struct part_iter **);
 
 #endif
 

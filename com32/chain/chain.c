@@ -117,7 +117,7 @@ static int find_by_guid(const struct guid *gpt_guid,
 	    goto ok;
 	}
 	/* disk guid doesn't match, maybe partition guid will */
-	while (pi_next(&boot_part)) {
+	while (!pi_next(&boot_part)) {
 	    if (!memcmp(&boot_part->sub.gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
 		goto ok;
 	}
@@ -149,7 +149,7 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
 	    continue;
 	}
 	/* Check for a matching partition */
-	while (pi_next(&boot_part)) {
+	while (!pi_next(&boot_part)) {
 	    if (!strcmp(label, boot_part->sub.gpt.part_label))
 		goto ok;
 	}
@@ -400,7 +400,7 @@ static int pentry_mangle(struct part_iter *_iter)
 
     memcpy(&mbr, iter->data, sizeof(struct disk_dos_mbr));
 
-    while (pi_next(&iter) && !werr) {
+    while (!pi_next(&iter) && !werr) {
 	ridx = iter->rawindex;
 	if (ridx > 4) {
 	    if (opt.hide < 2 && !opt.mbrchs)
@@ -442,7 +442,7 @@ bail:
 
 int find_dp(struct part_iter **_iter)
 {
-    struct part_iter *iter;
+    struct part_iter *iter = NULL;
     struct disk_info diskinfo;
     struct guid gpt_guid;
     uint64_t fs_lba;
@@ -506,12 +506,12 @@ int find_dp(struct part_iter **_iter)
 
 	/* 'fs' => we should lookup the syslinux partition number and use it */
 	if (!strcmp(opt.drivename, "fs")) {
-	    while (pi_next(&iter)) {
+	    while (!pi_next(&iter)) {
 		if (iter->start_lba == fs_lba)
 		    break;
 	    }
 	    /* broken part structure or other problems */
-	    if (!iter) {
+	    if (iter->status) {
 		error("Can't find myself on the drive I booted from.\n");
 		goto bail;
 	    }
@@ -530,8 +530,8 @@ int find_dp(struct part_iter **_iter)
 	do {
 	    if (iter->index == partition)
 		break;
-	} while (pi_next(&iter));
-	if (!iter) {
+	} while (!pi_next(&iter));
+	if (iter->status) {
 	    error("Requested disk / partition combination not found.\n");
 	    goto bail;
 	}
@@ -546,6 +546,7 @@ int find_dp(struct part_iter **_iter)
     return 0;
 
 bail:
+    pi_del(&iter);
     return -1;
 }
 

@@ -331,12 +331,15 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
     while (++iter->index0 < 4) {
 	dp = ((struct disk_dos_mbr *)iter->data)->table + iter->index0;
 
-	if (notsane_primary(dp))
+	if (notsane_primary(dp)) {
+	    iter->status = PI_INSANE;
 	    goto bail;
+	}
 
 	if (ost_is_ext(dp->ostype)) {
 	    if (iter->sub.dos.bebr_index0 >= 0) {
 		error("You have more than 1 extended partition.\n");
+		iter->status = PI_INSANE;
 		goto bail;
 	    }
 	    /* record base EBR index */
@@ -382,19 +385,24 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 {
     struct disk_dos_part_entry *dp;
 
-    if (prep_base_ebr(iter))
+    if (prep_base_ebr(iter)) {
+	iter->status = PI_DONE;
 	return -1;
+    }
 
     while (++iter->index0 < 1024 && iter->sub.dos.nebr_lba) {
 	free(iter->data);
 	if (!(iter->data =
 		    disk_read_sectors(&iter->di, iter->sub.dos.nebr_lba, 1))) {
 	    error("Couldn't load EBR.\n");
+	    iter->status = PI_ERRLOAD;
 	    return -1;
 	}
 
-	if (notsane_logical(iter) || notsane_extended(iter))
+	if (notsane_logical(iter) || notsane_extended(iter)) {
+	    iter->status = PI_INSANE;
 	    return -1;
+	}
 
 	dp = ((struct disk_dos_mbr *)iter->data)->table;
 
@@ -427,6 +435,7 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	 * this place.
 	 */
     }
+    iter->status = PI_DONE;
     return -1;
 }
 
@@ -434,6 +443,9 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
 {
     uint32_t start_lba = 0;
     struct disk_dos_part_entry *dos_part = NULL;
+
+    if (iter->status)
+	goto bail;
 
     /* look for primary partitions */
     if (iter->index0 < 4 &&
@@ -465,7 +477,7 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
 
     return iter;
 bail:
-    return pi_del(&iter);
+    return NULL;
 }
 
 static void gpt_conv_label(struct part_iter *iter)
@@ -488,18 +500,24 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 {
     const struct disk_gpt_part_entry *gpt_part = NULL;
 
+    if (iter->status)
+	goto bail;
+
     while (++iter->index0 < iter->sub.gpt.pe_count) {
 	gpt_part = (const struct disk_gpt_part_entry *)
 	    (iter->data + iter->index0 * iter->sub.gpt.pe_size);
 
-	if (notsane_gpt(gpt_part))
+	if (notsane_gpt(gpt_part)) {
+	    iter->status = PI_INSANE;
 	    goto bail;
+	}
 
 	if (!guid_is0(&gpt_part->type) || iter->stepall)
 	    break;
     }
     /* no more partitions ? */
     if (iter->index0 == iter->sub.gpt.pe_count) {
+	iter->status = PI_DONE;
 	goto bail;
     }
     /* gpt_part is guaranteed to be valid here */
@@ -516,12 +534,13 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 
     return iter;
 bail:
-    return pi_del(&iter);
+    return NULL;
 }
 
 static struct part_iter *pi_raw_next(struct part_iter *iter)
 {
-    return pi_del(&iter);
+    iter->status = PI_DONE;
+    return NULL;
 }
 
 static int check_crc(uint32_t crc_match, const uint8_t *buf, unsigned int siz)
@@ -571,19 +590,23 @@ static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct dis
  */
 
 
-struct part_iter *pi_next(struct part_iter **_iter)
+int pi_next(struct part_iter **_iter)
 {
-    struct part_iter *iter = *_iter;
+    struct part_iter *iter;
+
+    if(!_iter || !*_iter)
+	return 0;
+    iter = *_iter;
 #ifdef DEBUG
-    if (!iter)
-	return NULL;
     if (inv_type(iter->type)) {
 	error("This is not a valid iterator.\n");
-	return NULL;
+	return 0;
     }
 #endif
-    *_iter = iter->type->next(iter);
-    return *_iter;
+    if ((iter = iter->type->next(iter))) {
+	*_iter = iter;
+    }
+    return (*_iter)->status;
 }
 
 /**
@@ -638,25 +661,24 @@ bail:
  *
  **/
 
-void *pi_del(struct part_iter **_iter)
+void pi_del(struct part_iter **_iter)
 {
     struct part_iter *iter;
 
     if(!_iter || !*_iter)
-	return NULL;
+	return;
     iter = *_iter;
 
 #ifdef DEBUG
     if (inv_type(iter->type)) {
 	error("This is not a valid iterator.\n");
-	return NULL;
+	return;
     }
 #endif
 
     iter->type->dtor(iter);
     free(iter);
     *_iter = NULL;
-    return NULL;
 }
 
 /**
