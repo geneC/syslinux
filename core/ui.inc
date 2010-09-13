@@ -497,10 +497,16 @@ bad_kernel:
 		mov byte [AutoBoot],0
 		cmp word [DefaultLevel],2
 		jb .abort
+		mov si,crlf_msg
+		call writestr
+		mov si,err_badui
+		call writestr
 		cmp byte [default_cmd],0
 		je .no_default
 		mov word [DefaultLevel],1
-		jmp .abort
+		mov si,crlf_msg
+		call writestr
+		jmp check_for_key		; Just as if no UI were used
 .no_default:	mov word [DefaultLevel],0
 .abort:
 		mov si,crlf_msg
@@ -711,6 +717,7 @@ wipe_char	db BS, ' ', BS, 0
 err_badimage	db 'Invalid image type for this media type!', CR, LF, 0
 err_notfound	db 'Could not find kernel image: ',0
 err_notkernel	db CR, LF, 'Invalid or corrupt kernel image.', CR, LF, 0
+err_badui	db 'UI could not be loaded', 0
 
 
 		alignz 2
