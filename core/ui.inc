@@ -492,24 +492,23 @@ bad_kernel:
 		call writestr
 		mov si,KernelName
                 call writestr
+		mov si,crlf_msg
 		cmp byte [AutoBoot],1
 		jne .abort
 		mov byte [AutoBoot],0
 		cmp word [DefaultLevel],2
 		jb .abort
-		mov si,crlf_msg
 		call writestr
 		mov si,err_badui
 		call writestr
+		mov si,crlf_msg
 		cmp byte [default_cmd],0
 		je .no_default
 		mov word [DefaultLevel],1
-		mov si,crlf_msg
 		call writestr
 		jmp check_for_key		; Just as if no UI were used
 .no_default:	mov word [DefaultLevel],0
 .abort:
-		mov si,crlf_msg
 		jmp abort_load                  ; Ask user for clue
 
 ;
