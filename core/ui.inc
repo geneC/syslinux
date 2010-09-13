@@ -60,6 +60,7 @@ enter_command:
 		cmp word [NoEscape],0		; If NOESCAPE, no prompt,
 		jne auto_boot			; always run default cmd
 
+		mov byte [AutoBoot],0
 		mov si,boot_prompt
 		call writestr
 
@@ -495,7 +496,7 @@ bad_kernel:
 		mov si,crlf_msg
 		cmp byte [AutoBoot],1
 		jne .abort
-		mov byte [AutoBoot],0
+; 		mov byte [AutoBoot],0
 		cmp word [DefaultLevel],2
 		jb .abort
 		call writestr
@@ -515,6 +516,16 @@ bad_kernel:
 ; on_error: bad kernel, but we have onerror set; CX = OnerrorLen
 ;
 on_error:
+		cmp byte [AutoBoot],1
+		jne .compare
+		cmp word [DefaultLevel],2
+		jb .compare
+		cmp byte [default_cmd],0
+		je .no_default
+		mov word [DefaultLevel],1
+		jmp .compare
+.no_default:	mov word [DefaultLevel],0
+.compare:
 		mov si,Onerror
 		mov di,command_line
 		push si				; <A>
