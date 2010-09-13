@@ -21,10 +21,20 @@
 ;
 ; "default" or "ui" command, with level (1 = default, 2 = ui)
 ;
-pc_default:	cmp ax,[DefaultLevel]
-		jb skipline			; == call skipline + ret
-		mov [DefaultLevel],ax
-		mov di,default_cmd
+pc_default:	cmp word [DefaultLevel],1
+		jae .copy
+		mov word [DefaultLevel],1
+.copy:		mov di,default_cmd
+		call getline
+		mov byte [di-1],0		; null-terminate
+		ret
+;
+; "default" or "ui" command, with level (1 = default, 2 = ui)
+;
+pc_ui:		cmp word [DefaultLevel],2
+		jae .copy
+		mov word [DefaultLevel],2
+.copy:		mov di,ui_cmd
 		call getline
 		mov byte [di-1],0		; null-terminate
 		ret
@@ -465,6 +475,7 @@ DefaultLevel	dw 0			; The current level of default
 		global PXERetry
 PXERetry	dw 0			; Extra PXE retries
 VKernel		db 0			; Have we seen any "label" statements?
+AutoBoot	db 0			; Are we in the midst of running auto_boot
 
 %if IS_PXELINUX
 IPAppend	db 0			; Default IPAPPEND option
@@ -475,3 +486,5 @@ IPAppend	db 0			; Default IPAPPEND option
 command_line	resb max_cmd_len+2	; Command line buffer
 		alignb 4
 default_cmd	resb max_cmd_len+1	; "default" command line
+		alignb 4
+ui_cmd		resb max_cmd_len+1	; "ui" command line

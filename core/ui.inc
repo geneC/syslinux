@@ -301,8 +301,13 @@ auto_boot:
 		jmp enter_command
 
 .have_default:
+		mov byte [AutoBoot],1
+		cmp word [DefaultLevel],1
+		ja .use_ui
 		mov si,default_cmd
-		mov di,command_line
+		jmp .set_di
+.use_ui:	mov si,ui_cmd
+.set_di:	mov di,command_line
 		mov cx,(max_cmd_len+4) >> 2
 		rep movsd
 		jmp short load_kernel
@@ -487,8 +492,19 @@ bad_kernel:
 		call writestr
 		mov si,KernelName
                 call writestr
-                mov si,crlf_msg
-                jmp abort_load                  ; Ask user for clue
+		cmp byte [AutoBoot],1
+		jne .abort
+		mov byte [AutoBoot],0
+		cmp word [DefaultLevel],2
+		jb .abort
+		cmp byte [default_cmd],0
+		je .no_default
+		mov word [DefaultLevel],1
+		jmp .abort
+.no_default:	mov word [DefaultLevel],0
+.abort:
+		mov si,crlf_msg
+		jmp abort_load                  ; Ask user for clue
 
 ;
 ; on_error: bad kernel, but we have onerror set; CX = OnerrorLen
