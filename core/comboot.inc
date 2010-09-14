@@ -289,7 +289,12 @@ comboot_bogus_tail:
 		call writechr
 		mov eax,edi
 		call writehex8		; CS:IP of the origin
-		call crlf
+		mov si,crlf_msg
+		push ax
+		mov al,1
+		call bad_ui
+		pop ax
+		call writestr
 		jmp enter_command
 
 ; Proper return vector
