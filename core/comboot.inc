@@ -65,6 +65,10 @@
 comboot_too_large:
 		pm_call pm_close_file
 		mov si,err_comlarge
+		push ax
+		mov al,1
+		call bad_ui
+		pop ax
 		call writestr
 		jmp enter_command
 
