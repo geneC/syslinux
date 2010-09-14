@@ -111,6 +111,10 @@ not_com32r:
 		mov si,KernelName
 		call writestr
 		mov si,not_com32r_msg
+		push ax
+		mov al,1
+		call bad_ui
+		pop ax
 		call writestr
 		jmp enter_command
 

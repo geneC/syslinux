@@ -60,7 +60,7 @@ enter_command:
 		cmp word [NoEscape],0		; If NOESCAPE, no prompt,
 		jne auto_boot			; always run default cmd
 
-		mov byte [AutoBoot],0
+		mov byte [AutoBoot],0		; clear AutoBoot
 		mov si,boot_prompt
 		call writestr
 
@@ -492,24 +492,12 @@ bad_kernel:
 		mov si,err_notfound		; Complain about missing kernel
 		call writestr
 		mov si,KernelName
-                call writestr
-		mov si,crlf_msg
-		cmp byte [AutoBoot],1
-		jne .abort
-; 		mov byte [AutoBoot],0
-		cmp word [DefaultLevel],2
-		jb .abort
-		call writestr
-		mov si,err_badui
 		call writestr
 		mov si,crlf_msg
-		cmp byte [default_cmd],0
-		je .no_default
-		mov word [DefaultLevel],1
-		call writestr
-		jmp check_for_key		; Just as if no UI were used
-.no_default:	mov word [DefaultLevel],0
-.abort:
+		push ax
+		mov al,1
+		call bad_ui
+		pop ax
 		jmp abort_load                  ; Ask user for clue
 
 ;
@@ -557,6 +545,35 @@ on_error:
 ;
 kernel_corrupt: mov si,err_notkernel
                 jmp abort_load
+
+; bad_ui: If AutoBoot == 1 and DefaultLevel == 2, we have work to do.
+;
+; If AL == 1, call writestr to dump the pending message, output a message
+; about a bad UI and set si to crlf_msg.
+; If default_cmd is not null, reset DefaultLevel to 1 and call check_for_key.  Set DefaultLevel to 0 if it is null.
+;
+; When outputing the bad UI message, this order helps abort_load
+;
+bad_ui:
+		cmp byte [AutoBoot],1
+		jne .ok
+		cmp word [DefaultLevel],2
+		jb .ok
+		cmp al,1
+		jb .chk_default
+		call writestr
+		mov si,err_badui
+		call writestr
+		mov si,crlf_msg
+.chk_default:	cmp byte [default_cmd],0
+		je .no_default
+		mov word [DefaultLevel],1
+		call writestr
+		pop ax				; call bad_ui
+		pop ax				; push ax
+		jmp check_for_key		; Just as if no UI were used
+.no_default:	mov word [DefaultLevel],0
+.ok:		ret
 
 ;
 ; Get a key, observing ThisKbdTO and ThisTotalTO -- those are timeouts
