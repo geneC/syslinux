@@ -36,6 +36,8 @@ void generic_mangle_name(char *dst, const char *src)
             break;
         if (dst[-1] != '/')
             break;
+	if ((dst[-1] == '/') && ((dst - 1) == p))
+	    break;
 
         dst--;
         i++;
