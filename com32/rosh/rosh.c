@@ -20,7 +20,10 @@
 
 /*
  * ToDos:
- * rosh_ls(): sorted; then multiple columns
+ * prompt:	Allow left/right arrow, home/end and more?
+ * commands	Break into argv/argc-like array
+ * rosh_cfg:	allow -s <file> to change config
+ * rosh_ls():	sorted; then multiple columns
  */
 
 /*#define DO_DEBUG 1
@@ -38,7 +41,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b069"
+#define APP_VER		"beta-b070"
 
 void rosh_version(int vtype)
 {
@@ -117,6 +120,89 @@ int rosh_parse_sp_1(char *dest, const char *src, const int ipos)
 	dest[0] = 0;
     }
     return epos;
+}
+
+int __parse_argv(char ***argv, const char *str);
+
+/*
+ * parse_args1: Try 1 at parsing a string to an argc/argv pair.  use free_args1 to free memory malloc'd
+ *
+ * Derived from com32/lib/sys/argv.c:__parse_argv()
+ *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ */
+int parse_args1(char ***iargv, const char *istr)
+{
+    int argc  = 0;
+    const char *p;
+    char *q, *r, *args, **arg;
+    int sp = 1;	//, qt = 0;		/* Was a space; inside a quote */
+
+    /* Scan 1: Length */
+    /* I could eliminate this if I knew a max length, like strncpy() */
+    int len = strlen(istr);
+
+    /* Scan 2: Copy, nullify and make argc */
+    if (!(args = malloc(len + 1)))
+	goto fail_args;
+    q = args;
+    for (p = istr;; p++) {
+	if (*p <= ' ') {
+	    if (!sp) {
+		sp = 1;
+		*q++ = '\0';
+	    }
+	} else {
+	    if (sp) {
+		argc++;
+		sp = 0;
+	    }
+	    *q++ = *p;
+	}
+	if (!*p)
+	    break;
+    }
+
+    q--;			/* Point q to final null */
+    /* Scan 3: Build array of pointers */
+    if (!(*iargv = malloc((argc + 1) * sizeof(char *))))
+	goto fail_args_ptr;
+    arg = *iargv;
+    arg[argc] = NULL;		/* Nullify the last pointer */
+    if (*args != '\0')
+	    *arg++ = args;
+    for (r = args; r < q ; r++) {
+	if (*r == '\0') {
+	    *arg++ = r + 1;
+	}
+    }
+
+fail_args:
+    return argc;
+fail_args_ptr:
+    free(args);
+    return 0;
+}
+
+void free_args1(char ***argv)
+{
+    char *s;
+    s = **argv;
+    free(*argv);
+    free(s);
+}
+
+int rosh_str2argv(char ***argv, const char *str)
+{
+    return __parse_argv(argv, str);
+}
+
+void rosh_pr_argv(int argc, char *argv[])
+{
+    int i;
+    for (i = 0; i < argc; i++) {
+	printf("%4d '%s'\n", i, argv[i]);
+    }
 }
 
 /* Display help
@@ -1013,11 +1099,12 @@ void rosh_run(const char *cmdstr)
  */
 char rosh_command(const char *cmdstr, const char *ipwdstr)
 {
-    char do_exit;
-    char tstr[ROSH_CMD_SZ];
-    int tlen;
-    do_exit = false;
+    char do_exit = false;
+    char tstr[ROSH_CMD_SZ], **argv;
+    int tlen, argc;
+    argc = rosh_str2argv(&argv, cmdstr);
     ROSH_DEBUG("--cmd:'%s'\n", cmdstr);
+    rosh_pr_argv(argc - 1, &argv[1]);
     tlen = rosh_parse_sp_1(tstr, cmdstr, 0);
     switch (cmdstr[0]) {
     case 'e':
