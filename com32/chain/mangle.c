@@ -291,7 +291,7 @@ int mangles_bpb(const struct part_iter *iter, struct data_area *data)
 
 /*
  * This function performs full BPB patching, analogously to syslinux's
- * native BSS. opt.drv is prereq
+ * native BSS.
  */
 int manglesf_bss(struct data_area *sec, struct data_area *fil)
 {
