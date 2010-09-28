@@ -16,6 +16,7 @@ linux
 boot
 bss
 pxe
+pxeretry
 fdimage
 comboot
 com32
