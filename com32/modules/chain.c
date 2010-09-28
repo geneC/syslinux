@@ -722,7 +722,7 @@ static int hide_unhide(struct disk_dos_mbr *mbr, int part)
     }
 
     if (write_back)
-	return disk_write_verify_sector(&diskinfo, 0, mbr);
+	return disk_write_verify_sectors(&diskinfo, 0, mbr, 1);
 
     return 0;			/* ok */
 }

@@ -72,44 +72,80 @@ int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg)
  */
 int disk_get_params(int disk, struct disk_info *const diskinfo)
 {
-    static com32sys_t getparm, parm, getebios, ebios;
+    static com32sys_t inreg, outreg;
+    struct disk_ebios_eparam *eparam = __com32.cs_bounce;
 
+    memset(diskinfo, 0, sizeof *diskinfo);
     diskinfo->disk = disk;
-    diskinfo->ebios = diskinfo->cbios = 0;
 
     /* Get EBIOS support */
-    getebios.eax.w[0] = 0x4100;
-    getebios.ebx.w[0] = 0x55aa;
-    getebios.edx.b[0] = disk;
-    getebios.eflags.b[0] = 0x3;	/* CF set */
+    memset(&inreg, 0, sizeof inreg);
+    inreg.eax.b[1] = 0x41;
+    inreg.ebx.w[0] = 0x55aa;
+    inreg.edx.b[0] = disk;
+    inreg.eflags.b[0] = 0x3;	/* CF set */
 
-    __intcall(0x13, &getebios, &ebios);
+    __intcall(0x13, &inreg, &outreg);
 
-    if (!(ebios.eflags.l & EFLAGS_CF) &&
-	ebios.ebx.w[0] == 0xaa55 && (ebios.ecx.b[0] & 1)) {
+    if (!(outreg.eflags.l & EFLAGS_CF) &&
+	outreg.ebx.w[0] == 0xaa55 && (outreg.ecx.b[0] & 1)) {
 	diskinfo->ebios = 1;
     }
 
-    /* Get disk parameters -- really only useful for
-       hard disks, but if we have a partitioned floppy
-       it's actually our best chance... */
-    getparm.eax.b[1] = 0x08;
-    getparm.edx.b[0] = disk;
+    /* Get extended disk parameters if ebios == 1 */
+    if (diskinfo->ebios) {
+	memset(&inreg, 0, sizeof inreg);
+	inreg.eax.b[1] = 0x48;
+	inreg.edx.b[0] = disk;
+	inreg.esi.w[0] = OFFS(eparam);
+	inreg.ds = SEG(eparam);
 
-    __intcall(0x13, &getparm, &parm);
+	memset(eparam, 0, sizeof *eparam);
+	eparam->len = sizeof *eparam;
 
-    if (parm.eflags.l & EFLAGS_CF)
+	__intcall(0x13, &inreg, &outreg);
+
+	if (outreg.eflags.l & EFLAGS_CF)
+	    return -1;	/* this really shouldn't happen if we have ebios */
+
+	diskinfo->lbacnt = eparam->lbacnt;
+	if (eparam->bps)
+	    diskinfo->bps = eparam->bps;
+	else
+	    diskinfo->bps = SECTOR;
+	/*
+	 * don't think about using geometry data returned by
+	 * 48h, as it can differ from 08h a lot ...
+	 */
+    }
+    /*
+     * Get disk parameters the old way - really only useful for hard
+     * disks, but if we have a partitioned floppy it's actually our best
+     * chance...
+     */
+    memset(&inreg, 0, sizeof inreg);
+    inreg.eax.b[1] = 0x08;
+    inreg.edx.b[0] = disk;
+
+    __intcall(0x13, &inreg, &outreg);
+
+    if (outreg.eflags.l & EFLAGS_CF)
 	return diskinfo->ebios ? 0 : -1;
 
-    diskinfo->head = parm.edx.b[1] + 1;
-    diskinfo->sect = parm.ecx.b[0] & 0x3f;
-    diskinfo->cyl  = (parm.ecx.b[1] |
-		     ((parm.ecx.b[0] & 0xc0u) << 2)) + 1;
-    if (diskinfo->sect == 0) {
-	diskinfo->sect = 1;
-    } else {
+    diskinfo->spt = 0x3f & outreg.ecx.b[0];
+    diskinfo->head = 1 + outreg.edx.b[1];
+    diskinfo->cyl = 1 + (outreg.ecx.b[1] | ((outreg.ecx.b[0] & 0xc0u) << 2));
+
+    if (diskinfo->spt)
 	diskinfo->cbios = 1;	/* Valid geometry */
+    else {
+	diskinfo->head = 1;
+	diskinfo->spt = 1;
+	diskinfo->cyl = 1;
     }
+
+    if (!diskinfo->lbacnt)
+	diskinfo->lbacnt = diskinfo->cyl * diskinfo->head * diskinfo->spt;
 
     return 0;
 }
@@ -130,11 +166,12 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 {
     com32sys_t inreg;
     struct disk_ebios_dapa *dapa = __com32.cs_bounce;
-    void *buf = (char *)__com32.cs_bounce + SECTOR;
+    void *buf = (char *)__com32.cs_bounce + diskinfo->bps;
     void *data;
+    uint32_t maxcnt;
 
-    if (!count)
-	/* Silly */
+    maxcnt = (__com32.cs_bounce_size - diskinfo->bps) / diskinfo->bps;
+    if (!count || count > maxcnt || lba + count > diskinfo->lbacnt)
 	return NULL;
 
     memset(&inreg, 0, sizeof inreg);
@@ -152,22 +189,19 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 	inreg.eax.b[1] = 0x42;	/* Extended read */
     } else {
 	unsigned int c, h, s, t;
-
+	/*
+	 * if we passed lba + count check and we get here, that means that
+	 * lbacnt was calculated from chs geometry, thus 32bits are perfectly
+	 * enough and lbacnt corresponds to cylinder boundary
+	 */
 	if (!diskinfo->cbios) {
 	    /* We failed to get the geometry */
-
-	    if (lba)
-		return NULL;	/* Can only read MBR */
-
 	    s = 1;
 	    h = 0;
 	    c = 0;
 	} else {
-	    if (lba + count > diskinfo->cyl * diskinfo->head * diskinfo->sect)
-		/* beyond acceptable geometry */
-		return NULL;
-	    s = (lba % diskinfo->sect) + 1;
-	    t = lba / diskinfo->sect;	/* Track = head*cyl */
+	    s = (lba % diskinfo->spt) + 1;
+	    t = lba / diskinfo->spt;
 	    h = t % diskinfo->head;
 	    c = t / diskinfo->head;
 	}
@@ -185,36 +219,42 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
     if (disk_int13_retry(&inreg, NULL))
 	return NULL;
 
-    data = malloc(count * SECTOR);
+    data = malloc(count * diskinfo->bps);
     if (data)
-	memcpy(data, buf, count * SECTOR);
+	memcpy(data, buf, count * diskinfo->bps);
     return data;
 }
 
 /**
- * Write a disk block.
+ * Write disk block(s).
  *
  * @v diskinfo			The disk drive to write to
  * @v lba			The logical block address to begin writing at
  * @v data			The data to write
+ * @v count			The number of sectors to write
  * @ret (int)			0 upon success, -1 upon failure
  *
  * Uses the disk number and information from diskinfo.
- * Write a sector to a disk drive, starting at lba.
+ * Write sector(s) to a disk drive, starting at lba.
  */
-int disk_write_sector(const struct disk_info *const diskinfo, uint64_t lba,
-		      const void *data)
+int disk_write_sectors(const struct disk_info *const diskinfo, uint64_t lba,
+		       const void *data, uint8_t count)
 {
     com32sys_t inreg;
     struct disk_ebios_dapa *dapa = __com32.cs_bounce;
-    void *buf = (char *)__com32.cs_bounce + SECTOR;
+    void *buf = (char *)__com32.cs_bounce + diskinfo->bps;
+    uint32_t maxcnt;
 
-    memcpy(buf, data, SECTOR);
+    maxcnt = (__com32.cs_bounce_size - diskinfo->bps) / diskinfo->bps;
+    if (!count || count > maxcnt || lba + count > diskinfo->lbacnt)
+	return -1;
+
+    memcpy(buf, data, count * diskinfo->bps);
     memset(&inreg, 0, sizeof inreg);
 
     if (diskinfo->ebios) {
 	dapa->len = sizeof(*dapa);
-	dapa->count = 1;	/* 1 sector */
+	dapa->count = count;
 	dapa->off = OFFS(buf);
 	dapa->seg = SEG(buf);
 	dapa->lba = lba;
@@ -222,30 +262,28 @@ int disk_write_sector(const struct disk_info *const diskinfo, uint64_t lba,
 	inreg.esi.w[0] = OFFS(dapa);
 	inreg.ds = SEG(dapa);
 	inreg.edx.b[0] = diskinfo->disk;
-	inreg.eax.w[0] = 0x4300;	/* Extended write */
+	inreg.eax.b[1] = 0x43;	/* Extended write */
     } else {
 	unsigned int c, h, s, t;
-
+	/*
+	 * if we passed lba + count check and we get here, that means that
+	 * lbacnt was calculated from chs geometry, thus 32bits are perfectly
+	 * enough and lbacnt corresponds to cylinder boundary
+	 */
 	if (!diskinfo->cbios) {
 	    /* We failed to get the geometry */
-
-	    if (lba)
-		return -1;	/* Can only write MBR */
-
 	    s = 1;
 	    h = 0;
 	    c = 0;
 	} else {
-	    if (lba >= diskinfo->cyl * diskinfo->head * diskinfo->sect)
-		/* beyond acceptable geometry */
-		return -1;
-	    s = (lba % diskinfo->sect) + 1;
-	    t = lba / diskinfo->sect;	/* Track = head*cyl */
+	    s = (lba % diskinfo->spt) + 1;
+	    t = lba / diskinfo->spt;
 	    h = t % diskinfo->head;
 	    c = t / diskinfo->head;
 	}
 
-	inreg.eax.w[0] = 0x0301;	/* Write one sector */
+	inreg.eax.b[0] = count;
+	inreg.eax.b[1] = 0x03;	/* Write */
 	inreg.ecx.b[1] = c & 0xff;
 	inreg.ecx.b[0] = ((c >> 2) & 0xc0u) | s;
 	inreg.edx.b[1] = h;
@@ -261,30 +299,31 @@ int disk_write_sector(const struct disk_info *const diskinfo, uint64_t lba,
 }
 
 /**
- * Write a disk block and verify it was written.
+ * Write disk blocks and verify they were written.
  *
  * @v diskinfo			The disk drive to write to
  * @v lba			The logical block address to begin writing at
  * @v buf			The data to write
+ * @v count			The number of sectors to write
  * @ret rv			0 upon success, -1 upon failure
  *
  * Uses the disk number and information from diskinfo.
- * Writes a sector to a disk drive starting at lba, then reads it back
- * to verify it was written correctly.
+ * Writes sectors to a disk drive starting at lba, then reads them back
+ * to verify they were written correctly.
  */
-int disk_write_verify_sector(const struct disk_info *const diskinfo,
-			     uint64_t lba, const void *buf)
+int disk_write_verify_sectors(const struct disk_info *const diskinfo,
+			      uint64_t lba, const void *buf, uint8_t count)
 {
     char *rb;
     int rv;
 
-    rv = disk_write_sector(diskinfo, lba, buf);
+    rv = disk_write_sectors(diskinfo, lba, buf, count);
     if (rv)
 	return rv;		/* Write failure */
-    rb = disk_read_sectors(diskinfo, lba, 1);
+    rb = disk_read_sectors(diskinfo, lba, count);
     if (!rb)
 	return -1;		/* Readback failure */
-    rv = memcmp(buf, rb, SECTOR);
+    rv = memcmp(buf, rb, count * diskinfo->bps);
     free(rb);
     return rv ? -1 : 0;
 }
