@@ -39,14 +39,15 @@
 #include <com32.h>
 #include <stdint.h>
 
-#define SECTOR 512		/* bytes/sector */
+#define SECTOR 512u		/* bytes/sector */
 
 struct disk_info {
     int disk;
     int ebios;			/* EBIOS supported on this disk */
     int cbios;			/* CHS geometry is valid */
-    int head;
-    int sect;
+    unsigned int head;
+    unsigned int sect;
+    unsigned int cyl;
 };
 
 struct disk_ebios_dapa {
@@ -144,9 +145,9 @@ extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,
 			       uint64_t lba, uint8_t count);
 extern int disk_write_sector(const struct disk_info *const diskinfo,
-			     unsigned int lba, const void *data);
+			     uint64_t lba, const void *data);
 extern int disk_write_verify_sector(const struct disk_info *const diskinfo,
-				    unsigned int lba, const void *buf);
+				    uint64_t lba, const void *buf);
 extern void disk_dos_part_dump(const struct disk_dos_part_entry *const part);
 extern void guid_to_str(char *buf, const struct guid *const id);
 extern int str_to_guid(const char *buf, struct guid *const id);
