@@ -366,11 +366,11 @@ static int pem_setchs(const struct disk_info *di,
     ochs2 = *(uint32_t *)dp->end;
 
     *(uint32_t *)dp->start =
-	lba2chs(di, lba1) |
+	lba2chs(di, lba1, l2c_cadd) |
 	(*(uint32_t *)dp->start & 0xFF000000);
 
     *(uint32_t *)dp->end =
-	lba2chs(di, lba1 + dp->length - 1) |
+	lba2chs(di, lba1 + dp->length - 1, l2c_cadd) |
 	(*(uint32_t *)dp->end & 0xFF000000);
 
     return
@@ -406,7 +406,7 @@ static int pentry_mangle(struct part_iter *_iter)
 	    if (opt.hide < 2 && !opt.mbrchs)
 		break;	/* don't walk unnecessarily */
 	    if (wb && !werr) {
-		werr |= disk_write_sector(&iter->di, cebr_lba, &mbr);
+		werr |= disk_write_sectors(&iter->di, cebr_lba, &mbr, 1);
 		wb = false;
 	    }
 	    memcpy(&mbr, iter->data, sizeof(struct disk_dos_mbr));
@@ -430,7 +430,7 @@ static int pentry_mangle(struct part_iter *_iter)
     }
     /* last write */
     if (wb && !werr)
-	werr |= disk_write_sector(&_iter->di, cebr_lba, &mbr);
+	werr |= disk_write_sectors(&_iter->di, cebr_lba, &mbr, 1);
 
 bail:
     pi_del(&iter);
@@ -572,8 +572,8 @@ static int setup_handover(const struct part_iter *iter,
 	    error("Could not build GPT hand-over record!\n");
 	    goto bail;
 	}
-	*(uint32_t *)ha->start = lba2chs(&iter->di, gp->lba_first);
-	*(uint32_t *)ha->end = lba2chs(&iter->di, gp->lba_last);
+	*(uint32_t *)ha->start = lba2chs(&iter->di, gp->lba_first, l2c_cadd);
+	*(uint32_t *)ha->end = lba2chs(&iter->di, gp->lba_last, l2c_cadd);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xED;
 	/* All bits set by default */
@@ -603,8 +603,8 @@ static int setup_handover(const struct part_iter *iter,
 	    goto bail;
 	}
 	if (!iter->index) {
-	    *(uint32_t *)ha->start = lba2chs(&iter->di, 0);
-	    *(uint32_t *)ha->end = lba2chs(&iter->di, 2879);
+	    *(uint32_t *)ha->start = lba2chs(&iter->di, 0, l2c_cadd);
+	    *(uint32_t *)ha->end = lba2chs(&iter->di, 2879, l2c_cadd);
 	    ha->active_flag = 0x80;
 	    ha->ostype = 0xDA;
 	    ha->start_lba = 0;
@@ -612,8 +612,8 @@ static int setup_handover(const struct part_iter *iter,
 	} else if (iter->type == typedos) {
 	    dp = (const struct disk_dos_part_entry *)iter->record;
 
-	    *(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba);
-	    *(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1);
+	    *(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba, l2c_cadd);
+	    *(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1, l2c_cadd);
 	    ha->active_flag = dp->active_flag;
 	    ha->ostype = dp->ostype;
 	    ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */
@@ -784,7 +784,11 @@ int main(int argc, char *argv[])
 	memcpy(data + ndata++, &hdat, sizeof(hdat));
 
 #ifdef DEBUG
-    printf("iter dsk: %d\n", iter->di.disk);
+    printf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %llu, %u\n"
+	   "iter->di C, H, S: %u, %u, %u\n",
+	iter->di.disk, iter->di.bps,
+	iter->di.lbacnt, iter->di.cyl * iter->di.head * iter->di.spt,
+	iter->di.cyl, iter->di.head, iter->di.spt);
     printf("iter idx: %d\n", iter->index);
     printf("iter lba: %llu\n", iter->start_lba);
     if (opt.hand)

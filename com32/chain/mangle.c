@@ -250,7 +250,7 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data)
     /* BPB: legacy geometry */
     if (type >= bpbV30) {
 	if (iter->di.cbios)
-	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.sect);
+	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.spt);
 	else {
 	    if (iter->di.disk & 0x80)
 		*(uint32_t *)((char *)data->data + 0x18) = 0x00FF003F;
@@ -347,7 +347,7 @@ int mangles_save(const struct part_iter *iter, const struct data_area *data, voi
 	return 0;
 
     if (memcmp(org, data->data, data->size)) {
-	if (disk_write_sector(&iter->di, iter->start_lba, data->data)) {
+	if (disk_write_sectors(&iter->di, iter->start_lba, data->data, 1)) {
 	    error("Cannot write the updated sector.\n");
 	    goto bail;
 	}

@@ -27,7 +27,7 @@ void error(const char *msg)
 
 int guid_is0(const struct guid *guid)
 {
-    return !*(const uint64_t *)guid && !*((const uint64_t *)guid+1);
+    return !*(const uint64_t *)guid && !*((const uint64_t *)guid + 1);
 }
 
 void wait_key(void)
@@ -48,19 +48,23 @@ void wait_key(void)
     } while (!cnt || (cnt < 0 && errno == EAGAIN));
 }
 
-uint32_t lba2chs(const struct disk_info *di, uint64_t lba)
+uint32_t lba2chs(const struct disk_info *di, uint64_t lba, uint32_t mode)
 {
     uint32_t c, h, s, t;
     uint32_t cs, hs, ss;
 
     /*
-     * Not much reason here, but if we have no valid chs geometry, we assume
+     * Not much reason here, but if we have no valid CHS geometry, we assume
      * "typical" ones to have something to return.
      */
     if (di->cbios) {
 	cs = di->cyl;
 	hs = di->head;
-	ss = di->sect;
+	ss = di->spt;
+	if (mode == l2c_cadd && cs < 1024 && di->lbacnt > cs*hs*ss)
+	    cs++;
+	else if (mode == l2c_cmax)
+	    cs = 1024;
     } else {
 	if (di->disk & 0x80) {
 	    cs = 1024;
