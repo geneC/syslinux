@@ -334,23 +334,35 @@ bail:
     free(mbr);
 }
 #endif
-static int pem_sethide(struct disk_dos_part_entry *dp, int midx, int idx)
+
+static int pem_sethide(struct part_iter *miter, struct part_iter *iter)
 {
+    struct disk_dos_part_entry *mdp, *dp;
     static const uint16_t mask =
 	(1 << 0x01) | (1 << 0x04) | (1 << 0x06) |
 	(1 << 0x07) | (1 << 0x0b) | (1 << 0x0c) | (1 << 0x0e);
     uint8_t t;
 
+    mdp = (struct disk_dos_part_entry *)miter->record;
+    dp = (struct disk_dos_part_entry *)iter->record;
     t = dp->ostype;
+
     if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
 	/* It's a hideable partition type */
-	if (midx == idx)
+	if (miter->index == iter->index)
 	    t &= (uint8_t)(~0x10u);	/* unhide */
 	else
 	    t |= 0x10u;	/* hide */
     }
-    if (t != dp->ostype) {
+    if (dp->ostype != t) {
 	dp->ostype = t;
+	/*
+	 * the type of the partition being booted has to be adjusted in
+	 * the match iterator (miter) as well
+	 */
+	if (miter->index == iter->index) {
+	    mdp->ostype = t;
+	}
 	return -1;
     }
     return 0;
@@ -378,59 +390,47 @@ static int pem_setchs(const struct disk_info *di,
 	*(uint32_t *)dp->end != ochs2;
 }
 
-static int pentry_mangle(struct part_iter *_iter)
+static int pentry_mangle(struct part_iter *miter)
 {
     int wb = 0, werr = 0;
-    uint32_t cebr_lba = 0;
     struct part_iter *iter = NULL;
     struct disk_dos_part_entry *dp;
-    struct disk_dos_mbr mbr;
     int ridx;
 
-    if (_iter->type != typedos) {
+    if (miter->type != typedos) {
 	error("Partition entry mangling ('hide[all]', 'mbrchs')\n"
 	      "is meaningful only for legacy partition scheme.");
 	goto bail;
     }
-    if ((_iter->index < 1 || _iter->index > 4) && opt.hide == 1)
+    if ((miter->index < 1 || miter->index > 4) && opt.hide == 1)
 	error("WARNING: option 'hide' specified with a non-primary partition.\n");
 
-    if (!(iter = pi_begin(&_iter->di, 1)))  /* turn on stepall */
+    if (!(iter = pi_begin(&miter->di, 1)))  /* turn on stepall */
 	goto bail;
 
-    memcpy(&mbr, iter->data, sizeof(struct disk_dos_mbr));
-
-    while (!pi_next(&iter) && !werr) {
+    while (!pi_next(&iter) && !werr && (opt.hide == 2 || opt.mbrchs)) {
 	ridx = iter->rawindex;
-	if (ridx > 4) {
-	    if (opt.hide < 2 && !opt.mbrchs)
-		break;	/* don't walk unnecessarily */
-	    if (wb && !werr) {
-		werr |= disk_write_sectors(&iter->di, cebr_lba, &mbr, 1);
-		wb = false;
+	dp = (struct disk_dos_part_entry *)iter->record;
+
+	if (dp->ostype) {
+	    if (opt.hide == 2 || (opt.hide == 1 && ridx <= 4)) {
+		wb |= pem_sethide(miter, iter);
 	    }
-	    memcpy(&mbr, iter->data, sizeof(struct disk_dos_mbr));
-	    cebr_lba = iter->sub.dos.cebr_lba;
-	    dp = mbr.table;
-	} else
-	    dp = mbr.table + ridx - 1;
-	if (opt.hide == 2 ||
-	    (opt.hide == 1 && ridx <= 4)) {
-	    wb |= pem_sethide(dp, _iter->index, iter->index);
-	    if (_iter->index == iter->index) {
-		((struct disk_dos_part_entry *)_iter->record)->ostype =
-		    dp->ostype;
+	    if (opt.mbrchs) {
+		wb |= pem_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
+		if (ridx > 4)
+		    wb |= pem_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
 	    }
 	}
-	if (opt.mbrchs) {
-	    wb |= pem_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
-	    if (ridx > 4)
-		wb |= pem_setchs(&iter->di, mbr.table + 1, iter->sub.dos.nebr_lba);
+
+	if (ridx >= 4 && wb && !werr) {
+	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	    wb = 0;
 	}
     }
     /* last write */
     if (wb && !werr)
-	werr |= disk_write_sectors(&_iter->di, cebr_lba, &mbr, 1);
+	werr |= disk_write_sectors(&miter->di, iter->sub.dos.cebr_lba, iter->data, 1);
 
 bail:
     pi_del(&iter);
