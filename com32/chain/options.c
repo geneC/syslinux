@@ -225,13 +225,16 @@ int parse_args(int argc, char *argv[])
 	    opt.swap = true;
 	} else if (!strcmp(argv[i], "noswap")) {
 	    opt.swap = false;
-	} else if (!strcmp(argv[i], "nohide") ||
-		    !strcmp(argv[i], "nohideall")) {
+	} else if (!strcmp(argv[i], "nohide")) {
 	    opt.hide = 0;
 	} else if (!strcmp(argv[i], "hide")) {
-	    opt.hide = 1;
+	    opt.hide = 1; /* 001b */
 	} else if (!strcmp(argv[i], "hideall")) {
-	    opt.hide = 2;
+	    opt.hide = 2; /* 010b */
+	} else if (!strcmp(argv[i], "unhide")) {
+	    opt.hide = 5; /* 101b */
+	} else if (!strcmp(argv[i], "unhideall")) {
+	    opt.hide = 6; /* 110b */
 	} else if (!strcmp(argv[i], "setbpb")) {
 	    opt.setbpb = true;
 	} else if (!strcmp(argv[i], "nosetbpb")) {

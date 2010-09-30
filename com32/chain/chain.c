@@ -349,7 +349,7 @@ static int pem_sethide(struct part_iter *miter, struct part_iter *iter)
 
     if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
 	/* It's a hideable partition type */
-	if (miter->index == iter->index)
+	if (miter->index == iter->index || opt.hide & 4)
 	    t &= (uint8_t)(~0x10u);	/* unhide */
 	else
 	    t |= 0x10u;	/* hide */
@@ -398,22 +398,22 @@ static int pentry_mangle(struct part_iter *miter)
     int ridx;
 
     if (miter->type != typedos) {
-	error("Partition entry mangling ('hide[all]', 'mbrchs')\n"
+	error("Partition entry mangling ('[un]hide[all]', 'mbrchs')\n"
 	      "is meaningful only for legacy partition scheme.");
 	goto bail;
     }
-    if ((miter->index < 1 || miter->index > 4) && opt.hide == 1)
-	error("WARNING: option 'hide' specified with a non-primary partition.\n");
+    if ((miter->index < 1 || miter->index > 4) && opt.hide & 1)
+	error("WARNING: option '[un]hide' specified with a non-primary partition.\n");
 
     if (!(iter = pi_begin(&miter->di, 1)))  /* turn on stepall */
 	goto bail;
 
-    while (!pi_next(&iter) && !werr && (opt.hide == 2 || opt.mbrchs)) {
+    while (!pi_next(&iter) && !werr && (opt.hide & 2 || opt.mbrchs)) {
 	ridx = iter->rawindex;
 	dp = (struct disk_dos_part_entry *)iter->record;
 
 	if (dp->ostype) {
-	    if (opt.hide == 2 || (opt.hide == 1 && ridx <= 4)) {
+	    if (opt.hide & 2 || (opt.hide & 1 && ridx <= 4)) {
 		wb |= pem_sethide(miter, iter);
 	    }
 	    if (opt.mbrchs) {
@@ -436,7 +436,7 @@ bail:
     pi_del(&iter);
     if (werr)
 	error("WARNING: failed to write E/MBR for partition\n"
-	      "mangling options ('hide[all]', 'mbrchs').\n");
+	      "mangling options ('[un]hide[all]', 'mbrchs').\n");
     return 0;
 }
 

@@ -181,13 +181,15 @@ This option will install a tiny stub code used to swap drive numbers, if the
 drive we use during chainloading is not fd0 or hd0.
 
 	hide[all]
+	unhide[all]
 	*nohide
 
 In certain situations it's useful to hide partitions - for example to make sure
 DOS gets C:. 'hide' will hide hidable primary partitions, except the one we're
 booting from. Similary, 'hideall' will hide all hidable partitions, except the
-one we're booting from. Hiding is performed only on the boot drive.
-Writing is only performed, if the values actually got changed.
+one we're booting from. Hiding is performed only on the booting drive. Options
+starting with 'un' will simply unhide every partition (primary ones or all).
+Writing is only performed, if the os type values actually changed.
 
 	mbrchs
 	*nombrchs
