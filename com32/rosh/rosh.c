@@ -417,6 +417,9 @@ void rosh_cat(const char *cmdstr)
 void rosh_cd(int argc, char *argv[], const char *ipwdstr)
 {
     int rv = 0;
+#ifdef DO_DEBUG
+    char filestr[ROSH_PATH_SZ];
+#endif /* DO_DEBUG */
     ROSH_DEBUG("CMD: \n");
     ROSH_DEBUG_ARGV(argc, argv);
     if (argc == 2)
