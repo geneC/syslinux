@@ -46,6 +46,7 @@
 
 #ifdef DO_DEBUG
 # define ROSH_DEBUG	printf
+# define ROSH_DEBUG_ARGV	rosh_pr_argv
 /* define ROSH_DEBUG(f, ...)	printf (f, ## __VA_ARGS__) */
 # ifdef DO_DEBUG2
 #  define ROSH_DEBUG2	printf
@@ -55,6 +56,7 @@
 # endif	/* DO_DEBUG2 */
 #else /* DO_DEBUG */
 # define ROSH_DEBUG(f, ...)	((void)0)
+# define ROSH_DEBUG_ARGV(int argc, char *argv[])	((void)0)
 # define ROSH_DEBUG2(f, ...)	((void)0)
 #endif /* DO_DEBUG */
 
@@ -234,6 +236,10 @@ const char rosh_beta_str[] =
 
 const char rosh_cd_norun_str[] =
     " -- cd (Change Directory) not implemented for use with run and exit.\n";
+
+const char rosh_help_cd_str[] = "cd    Change directory\n\
+   with no argument, return to original directory from entry to rosh\n\
+   with one argument, change to that directory";
 
 const char rosh_help_ls_str[] = "ls    List contents of current directory\n\
   -l  Long format\n\

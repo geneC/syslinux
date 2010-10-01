@@ -41,7 +41,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b071"
+#define APP_VER		"beta-b072"
 
 void rosh_version(int vtype)
 {
@@ -221,6 +221,9 @@ void rosh_help(int type, const char *cmdstr)
 	    puts(rosh_help_str2);
 	} else {
 	    switch (istr[0]) {
+	    case 'c':
+		puts(rosh_help_cd_str);
+		break;
 	    case 'l':
 		puts(rosh_help_ls_str);
 		break;
@@ -407,26 +410,21 @@ void rosh_cat(const char *cmdstr)
 }				/* rosh_cat */
 
 /* Change PWD (Present Working Directory)
- *	cmdstr	command string to process
+ *	argc	Argument count
+ *	argv	Argument values
  *	ipwdstr	Initial PWD
  */
-void rosh_cd(const char *cmdstr, const char *ipwdstr)
+void rosh_cd(int argc, char *argv[], const char *ipwdstr)
 {
-    int rv;
-    char filestr[ROSH_PATH_SZ];
-    int cmdpos;
-    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
-    /* Initialization */
-    filestr[0] = 0;
-    cmdpos = 0;
-    rv = 0;
-    /* skip the first word */
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    if (strlen(filestr) != 0)
-	rv = chdir(filestr);
-    else
+    int rv = 0;
+    ROSH_DEBUG("CMD: \n");
+    ROSH_DEBUG_ARGV(argc, argv);
+    if (argc == 2)
+	rv = chdir(argv[1]);
+    else if (argc == 1)
 	rv = chdir(ipwdstr);
+    else
+	rosh_help(2, argv[0]);
     if (rv != 0) {
 	rosh_error(errno, "cd", filestr);
 	errno = 0;
@@ -1147,7 +1145,7 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
 	case 'd':
 	case 'D':
 	    if (strncasecmp("cd", argv[0], tlen) == 0)
-		rosh_cd(cmdstr, ipwdstr);
+		rosh_cd(argc, argv, ipwdstr);
 	    else
 		rosh_help(1, NULL);
 	    break;
