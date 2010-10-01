@@ -41,7 +41,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b070"
+#define APP_VER		"beta-b071"
 
 void rosh_version(int vtype)
 {
@@ -194,7 +194,7 @@ void free_args1(char ***argv)
 
 int rosh_str2argv(char ***argv, const char *str)
 {
-    return __parse_argv(argv, str);
+    return parse_args1(argv, str);
 }
 
 void rosh_pr_argv(int argc, char *argv[])
@@ -1100,32 +1100,32 @@ void rosh_run(const char *cmdstr)
 char rosh_command(const char *cmdstr, const char *ipwdstr)
 {
     char do_exit = false;
-    char tstr[ROSH_CMD_SZ], **argv;
+    char **argv;
     int tlen, argc;
     argc = rosh_str2argv(&argv, cmdstr);
     ROSH_DEBUG("--cmd:'%s'\n", cmdstr);
-    rosh_pr_argv(argc - 1, &argv[1]);
-    tlen = rosh_parse_sp_1(tstr, cmdstr, 0);
-    switch (cmdstr[0]) {
+    rosh_pr_argv(argc, argv);
+    tlen = strlen(argv[0]);
+    switch (argv[0][0]) {
     case 'e':
     case 'E':
     case 'q':
     case 'Q':
-	switch (cmdstr[1]) {
+	switch (argv[0][1]) {
 	case 0:
 	case 'x':
 	case 'X':
 	case 'u':
 	case 'U':
-	    if ((strncasecmp("exit", tstr, tlen) == 0) ||
-		(strncasecmp("quit", tstr, tlen) == 0))
+	    if ((strncasecmp("exit", argv[0], tlen) == 0) ||
+		(strncasecmp("quit", argv[0], tlen) == 0))
 		do_exit = true;
 	    else
 		rosh_help(1, NULL);
 	    break;
 	case 'c':
 	case 'C':
-	    if (strncasecmp("echo", tstr, tlen) == 0)
+	    if (strncasecmp("echo", argv[0], tlen) == 0)
 		rosh_echo(cmdstr);
 	    else
 		rosh_help(1, NULL);
@@ -1136,24 +1136,24 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
 	break;
     case 'c':
     case 'C':			/* run 'cd' 'cat' 'cfg' */
-	switch (cmdstr[1]) {
+	switch (argv[0][1]) {
 	case 'a':
 	case 'A':
-	    if (strncasecmp("cat", tstr, tlen) == 0)
+	    if (strncasecmp("cat", argv[0], tlen) == 0)
 		rosh_cat(cmdstr);
 	    else
 		rosh_help(1, NULL);
 	    break;
 	case 'd':
 	case 'D':
-	    if (strncasecmp("cd", tstr, tlen) == 0)
+	    if (strncasecmp("cd", argv[0], tlen) == 0)
 		rosh_cd(cmdstr, ipwdstr);
 	    else
 		rosh_help(1, NULL);
 	    break;
 	case 'f':
 	case 'F':
-	    if (strncasecmp("cfg", tstr, tlen) == 0)
+	    if (strncasecmp("cfg", argv[0], tlen) == 0)
 		rosh_cfg();
 	    else
 		rosh_help(1, NULL);
@@ -1164,7 +1164,7 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
 	break;
     case 'd':
     case 'D':			/* run 'dir' */
-	if (strncasecmp("dir", tstr, tlen) == 0)
+	if (strncasecmp("dir", argv[0], tlen) == 0)
 	    rosh_dir(cmdstr);
 	else
 	    rosh_help(1, NULL);
@@ -1172,26 +1172,26 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
     case 'h':
     case 'H':
     case '?':
-	if ((strncasecmp("help", tstr, tlen) == 0) || (tlen == 1))
+	if ((strncasecmp("help", argv[0], tlen) == 0) || (tlen == 1))
 	    rosh_help(2, cmdstr);
 	else
 	    rosh_help(1, NULL);
 	break;
     case 'l':
     case 'L':			/* run 'ls' 'less' */
-	switch (cmdstr[1]) {
+	switch (argv[0][1]) {
 	case 0:
 	case ' ':
 	case 's':
 	case 'S':
-	    if (strncasecmp("ls", tstr, tlen) == 0)
+	    if (strncasecmp("ls", argv[0], tlen) == 0)
 		rosh_ls(cmdstr);
 	    else
 		rosh_help(1, NULL);
 	    break;
 	case 'e':
 	case 'E':
-	    if (strncasecmp("less", tstr, tlen) == 0)
+	    if (strncasecmp("less", argv[0], tlen) == 0)
 		rosh_less(cmdstr);
 	    else
 		rosh_help(1, NULL);
@@ -1202,17 +1202,17 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
 	break;
     case 'm':
     case 'M':
-	switch (cmdstr[1]) {
+	switch (argv[0][1]) {
 	case 'a':
 	case 'A':
-	    if (strncasecmp("man", tstr, tlen) == 0)
+	    if (strncasecmp("man", argv[0], tlen) == 0)
 		rosh_help(2, cmdstr);
 	    else
 		rosh_help(1, NULL);
 	    break;
 	case 'o':
 	case 'O':
-	    if (strncasecmp("more", tstr, tlen) == 0)
+	    if (strncasecmp("more", argv[0], tlen) == 0)
 		rosh_more(cmdstr);
 	    else
 		rosh_help(1, NULL);
@@ -1223,26 +1223,26 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
 	break;
     case 'p':
     case 'P':			/* run 'pwd' */
-	if (strncasecmp("pwd", tstr, tlen) == 0)
+	if (strncasecmp("pwd", argv[0], tlen) == 0)
 	    rosh_pwd(cmdstr);
 	else
 	    rosh_help(1, NULL);
 	break;
     case 'r':
     case 'R':			/* run 'run' */
-	switch (cmdstr[1]) {
+	switch (argv[0][1]) {
 	case 0:
 	case ' ':
 	case 'e':
 	case 'E':
-	    if (strncasecmp("reboot", tstr, tlen) == 0)
+	    if (strncasecmp("reboot", argv[0], tlen) == 0)
 		rosh_reboot();
 	    else
 		rosh_help(1, NULL);
 	    break;
 	case 'u':
 	case 'U':
-	    if (strncasecmp("run", tstr, tlen) == 0)
+	    if (strncasecmp("run", argv[0], tlen) == 0)
 		rosh_run(cmdstr);
 	    else
 		rosh_help(1, NULL);
@@ -1251,7 +1251,7 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
 	break;
     case 'v':
     case 'V':
-	if (strncasecmp("version", tstr, tlen) == 0)
+	if (strncasecmp("version", argv[0], tlen) == 0)
 	    rosh_version(1);
 	else
 	    rosh_help(1, NULL);
@@ -1261,7 +1261,8 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
 	break;
     default:
 	rosh_help(1, NULL);
-    }				/* switch(cmdstr[0]) */
+    }				/* switch(argv[0][0]) */
+    free_args1(&argv);
     return do_exit;
 }				/* rosh_command */
 
