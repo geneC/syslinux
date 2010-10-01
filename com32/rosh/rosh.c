@@ -426,7 +426,10 @@ void rosh_cd(int argc, char *argv[], const char *ipwdstr)
     else
 	rosh_help(2, argv[0]);
     if (rv != 0) {
-	rosh_error(errno, "cd", filestr);
+	if (argc == 2)
+	    rosh_error(errno, "cd", argv[1]);
+	else
+	    rosh_error(errno, "cd", ipwdstr);
 	errno = 0;
     } else {
 #ifdef DO_DEBUG

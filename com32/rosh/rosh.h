@@ -56,7 +56,7 @@
 # endif	/* DO_DEBUG2 */
 #else /* DO_DEBUG */
 # define ROSH_DEBUG(f, ...)	((void)0)
-# define ROSH_DEBUG_ARGV(int argc, char *argv[])	((void)0)
+# define ROSH_DEBUG_ARGV(argc, argv)	((void)0)
 # define ROSH_DEBUG2(f, ...)	((void)0)
 #endif /* DO_DEBUG */
 
