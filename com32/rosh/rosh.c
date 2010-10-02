@@ -202,6 +202,15 @@ void rosh_free_argv(char ***argv)
      free_args1(argv);
 }
 
+void rosh_pr_argv(int argc, char *argv[])
+{
+    int i;
+    for (i = 0; i < argc; i++) {
+	printf("%s%s", argv[i], (i < argc)? " " : "");
+    }
+    puts("");
+}
+
 void rosh_pr_argv_v(int argc, char *argv[])
 {
     int i;
@@ -778,7 +787,7 @@ void rosh_ls_arg(const char *filestr, const int *optarr)
     if (status == 0) {
 	if (S_ISDIR(fdstat.st_mode)) {
 	    ROSH_DEBUG("PATH '%s' is a directory\n", filestr);
-	    if (d = opendir(filestr)) {
+	    if ((d = opendir(filestr))) {
 		rosh_ls_arg_dir(filestr, d, optarr);
 		closedir(d);
 	    } else {
@@ -1141,7 +1150,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 'c':
 	case 'C':
 	    if (strncasecmp("echo", argv[0], tlen) == 0)
-		rosh_echo(cmdstr);
+		rosh_pr_argv(argc - 1, &argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
