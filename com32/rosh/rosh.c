@@ -779,7 +779,12 @@ void rosh_ls_arg(const char *filestr, const int *optarr)
 	if (S_ISDIR(fdstat.st_mode)) {
 	    ROSH_DEBUG("PATH '%s' is a directory\n", filestr);
 	    d = opendir(filestr);
-	    rosh_ls_arg_dir(filestr, d, optarr);
+	    if (d) {
+		rosh_ls_arg_dir(filestr, d, optarr);
+	    } else {
+		rosh_error(errno, "ls", filestr);
+		errno = 0;
+	    }
 	    closedir(d);
 	} else {
 	    de.d_ino = rosh_ls_d_ino(&fdstat);
