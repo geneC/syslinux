@@ -242,20 +242,17 @@ void rosh_pr_argv_v(int argc, char *argv[])
 
 /* Display help
  *	type	Help type
- *	cmdstr	Command string
+ *	cmdstr	Command for which help is requested
  */
 void rosh_help(int type, const char *cmdstr)
 {
-    const char *istr;
-    istr = cmdstr;
     switch (type) {
     case 2:
-	istr += rosh_search_nonsp(cmdstr, rosh_search_sp(cmdstr, 0));
-	if ((cmdstr == NULL) || (strcmp(istr, "") == 0)) {
+	if ((cmdstr == NULL) || (strcmp(cmdstr, "") == 0)) {
 	    rosh_version(0);
 	    puts(rosh_help_str2);
 	} else {
-	    switch (istr[0]) {
+	    switch (cmdstr[0]) {
 	    case 'c':
 		puts(rosh_help_cd_str);
 		break;
@@ -263,7 +260,7 @@ void rosh_help(int type, const char *cmdstr)
 		puts(rosh_help_ls_str);
 		break;
 	    default:
-		printf(rosh_help_str_adv, istr);
+		printf(rosh_help_str_adv, cmdstr);
 	    }
 	}
 	break;
@@ -1209,7 +1206,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
     case 'H':
     case '?':
 	if ((strncasecmp("help", argv[0], tlen) == 0) || (tlen == 1))
-	    rosh_help(2, cmdstr);
+	    rosh_help(2, argv[1]);
 	else
 	    rosh_help(1, NULL);
 	break;
@@ -1242,7 +1239,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 'a':
 	case 'A':
 	    if (strncasecmp("man", argv[0], tlen) == 0)
-		rosh_help(2, cmdstr);
+		rosh_help(2, argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
