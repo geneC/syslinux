@@ -46,7 +46,7 @@
 
 #ifdef DO_DEBUG
 # define ROSH_DEBUG	printf
-# define ROSH_DEBUG_ARGV	rosh_pr_argv
+# define ROSH_DEBUG_ARGV_V	rosh_pr_argv_v
 /* define ROSH_DEBUG(f, ...)	printf (f, ## __VA_ARGS__) */
 # ifdef DO_DEBUG2
 #  define ROSH_DEBUG2	printf
@@ -56,7 +56,7 @@
 # endif	/* DO_DEBUG2 */
 #else /* DO_DEBUG */
 # define ROSH_DEBUG(f, ...)	((void)0)
-# define ROSH_DEBUG_ARGV(argc, argv)	((void)0)
+# define ROSH_DEBUG_ARGV_V(argc, argv)	((void)0)
 # define ROSH_DEBUG2(f, ...)	((void)0)
 #endif /* DO_DEBUG */
 
