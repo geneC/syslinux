@@ -41,8 +41,10 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b072"
+#define APP_VER		"beta-b080"
 
+/* Print version information to stdout
+ */
 void rosh_version(int vtype)
 {
     char env[256];
@@ -55,6 +57,8 @@ void rosh_version(int vtype)
     }
 }
 
+/* Print beta message and if DO_DEBUG/DO_DEBUG2 are active
+ */
 void print_beta(void)
 {
     puts(rosh_beta_str);
@@ -122,8 +126,6 @@ int rosh_parse_sp_1(char *dest, const char *src, const int ipos)
     return epos;
 }
 
-int __parse_argv(char ***argv, const char *str);
-
 /*
  * parse_args1: Try 1 at parsing a string to an argc/argv pair.  use free_args1 to free memory malloc'd
  *
@@ -184,6 +186,9 @@ fail_args_ptr:
     return 0;
 }
 
+/* Free argv created by parse_args1()
+ *	argv	Argument Values
+ */
 void free_args1(char ***argv)
 {
     char *s;
@@ -192,16 +197,28 @@ void free_args1(char ***argv)
     free(s);
 }
 
+/* Convert a string to an argc/argv pair
+ *	str	String to parse
+ *	argv	Argument Values
+ *	returns	Argument Count
+ */
 int rosh_str2argv(char ***argv, const char *str)
 {
     return parse_args1(argv, str);
 }
 
+/* Free an argv created by rosh_str2argv()
+ *	argv	Argument Values to free
+ */
 void rosh_free_argv(char ***argv)
 {
      free_args1(argv);
 }
 
+/* Print the contents of an argc/argv pair
+ *	argc	Argument Count
+ *	argv	Argument Values
+ */
 void rosh_pr_argv(int argc, char *argv[])
 {
     int i;
@@ -211,6 +228,10 @@ void rosh_pr_argv(int argc, char *argv[])
     puts("");
 }
 
+/* Print the contents of an argc/argv pair verbosely
+ *	argc	Argument Count
+ *	argv	Argument Values
+ */
 void rosh_pr_argv_v(int argc, char *argv[])
 {
     int i;
