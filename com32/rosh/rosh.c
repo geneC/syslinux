@@ -197,6 +197,11 @@ int rosh_str2argv(char ***argv, const char *str)
     return parse_args1(argv, str);
 }
 
+void rosh_free_argv(char ***argv)
+{
+     free_args1(argv);
+}
+
 void rosh_pr_argv(int argc, char *argv[])
 {
     int i;
@@ -1096,20 +1101,22 @@ void rosh_run(const char *cmdstr)
     syslinux_run_command(cmdptr);
 }				/* rosh_run */
 
-/* Process a single command string and call handling function
- *	cmdstr	command string to process
+/* Process an argc/argv pair and call handling function
+ *	argc	Argument count
+ *	argv	Argument values
  *	ipwdstr	Initial Present Working Directory string
  *	returns	Whether to exit prompt
  */
-char rosh_command(const char *cmdstr, const char *ipwdstr)
+char rosh_command(int argc, char *argv[], const char *ipwdstr)
 {
     char do_exit = false;
-    char **argv;
-    int tlen, argc;
-    argc = rosh_str2argv(&argv, cmdstr);
-    ROSH_DEBUG("--cmd:'%s'\n", cmdstr);
-    rosh_pr_argv(argc, argv);
+    int tlen;
+    char cmdstr[ROSH_CMD_SZ];
+//     argc = rosh_str2argv(&argv, cmdstr);
     tlen = strlen(argv[0]);
+    rosh_argcat(cmdstr, argc, argv, 0);
+    ROSH_DEBUG("--cmd:'%s'\n", cmdstr);
+    ROSH_DEBUG_ARGV(argc, argv);
     switch (argv[0][0]) {
     case 'e':
     case 'E':
@@ -1266,7 +1273,6 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
     default:
 	rosh_help(1, NULL);
     }				/* switch(argv[0][0]) */
-    free_args1(&argv);
     return do_exit;
 }				/* rosh_command */
 
@@ -1275,29 +1281,29 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
  *	icmdstr	Initial command line string
  *	returns	Exit status
  */
-int rosh_prompt(const char *icmdstr)
+int rosh_prompt(int iargc, char *iargv[])
 {
     int rv;
     char cmdstr[ROSH_CMD_SZ];
     char ipwdstr[ROSH_PATH_SZ];
     char do_exit;
-    char *c;
+    char **argv;
+    int argc;
 
     rv = 0;
     do_exit = false;
     if (!getcwd(ipwdstr, ROSH_PATH_SZ))
 	strcpy(ipwdstr, "./");
-    if (icmdstr[0] != '\0')
-	do_exit = rosh_command(icmdstr, ipwdstr);
+    if (iargc > 1)
+	do_exit = rosh_command(iargc - 1, &iargv[1], ipwdstr);
     while (!(do_exit)) {
 	/* Extra preceeding newline */
 	printf("\nrosh: ");
 	/* Read a line from console */
 	if (fgets(cmdstr, ROSH_CMD_SZ, stdin)) {
-	    /* remove newline from input string */
-	    c = strchr(cmdstr, '\n');
-	    *c = 0;
-	    do_exit = rosh_command(cmdstr, ipwdstr);
+	    argc = rosh_str2argv(&argv, cmdstr);
+	    do_exit = rosh_command(argc, argv, ipwdstr);
+	    rosh_free_argv(&argv);
 	} else {
 	    do_exit = false;
 	}
@@ -1308,19 +1314,15 @@ int rosh_prompt(const char *icmdstr)
 int main(int argc, char *argv[])
 {
     int rv;
-    char cmdstr[ROSH_CMD_SZ];
 
     /* Initialization */
     rv = 0;
     rosh_console_std();
-    if (argc != 1) {
-	rv = rosh_argcat(cmdstr, argc, argv, 1);
-    } else {
+    if (argc == 1) {
 	rosh_version(0);
 	print_beta();
-	cmdstr[0] = '\0';
     }
-    rv = rosh_prompt(cmdstr);
+    rv = rosh_prompt(argc, argv);
     printf("--Exiting '%s'\n", APP_NAME);
     return rv;
 }
