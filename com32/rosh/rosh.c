@@ -202,7 +202,7 @@ void rosh_free_argv(char ***argv)
      free_args1(argv);
 }
 
-void rosh_pr_argv(int argc, char *argv[])
+void rosh_pr_argv_v(int argc, char *argv[])
 {
     int i;
     for (i = 0; i < argc; i++) {
@@ -426,7 +426,7 @@ void rosh_cd(int argc, char *argv[], const char *ipwdstr)
     char filestr[ROSH_PATH_SZ];
 #endif /* DO_DEBUG */
     ROSH_DEBUG("CMD: \n");
-    ROSH_DEBUG_ARGV(argc, argv);
+    ROSH_DEBUG_ARGV_V(argc, argv);
     if (argc == 2)
 	rv = chdir(argv[1]);
     else if (argc == 1)
@@ -1120,7 +1120,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
     tlen = strlen(argv[0]);
     rosh_argcat(cmdstr, argc, argv, 0);
     ROSH_DEBUG("--cmd:'%s'\n", cmdstr);
-    ROSH_DEBUG_ARGV(argc, argv);
+    ROSH_DEBUG_ARGV_V(argc, argv);
     switch (argv[0][0]) {
     case 'e':
     case 'E':
