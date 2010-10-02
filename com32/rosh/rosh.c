@@ -409,26 +409,18 @@ void rosh_qualify_filestr(char *filestr, const char *ifilstr,
 }
 
 /* Concatenate multiple files to stdout
- *	cmdstr	command string to process
+ *	argc	Argument Count
+ *	argv	Argument Values
  */
-void rosh_cat(const char *cmdstr)
+void rosh_cat(int argc, char *argv[])
 {
     FILE *f;
-    char filestr[ROSH_PATH_SZ];
     char buf[ROSH_BUF_SZ];
-    int numrd;
-    int cmdpos;
+    int i, numrd;
 
-    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
-    /* Initialization */
-    filestr[0] = 0;
-    cmdpos = 0;
-    /* skip the first word */
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    while (strlen(filestr) > 0) {
-	printf("--File = '%s'\n", filestr);
-	f = fopen(filestr, "r");
+    for (i = 0; i < argc; i++) {
+	printf("--File = '%s'\n", argv[i]);
+	f = fopen(argv[i], "r");
 	if (f != NULL) {
 	    numrd = fread(buf, 1, ROSH_BUF_SZ, f);
 	    while (numrd > 0) {
@@ -437,10 +429,9 @@ void rosh_cat(const char *cmdstr)
 	    }
 	    fclose(f);
 	} else {
-	    rosh_error(errno, "cat", filestr);
+	    rosh_error(errno, "cat", argv[i]);
 	    errno = 0;
 	}
-	cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
     }
 }				/* rosh_cat */
 
@@ -1185,7 +1176,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 'a':
 	case 'A':
 	    if (strncasecmp("cat", argv[0], tlen) == 0)
-		rosh_cat(cmdstr);
+		rosh_cat(argc - 1, &argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
