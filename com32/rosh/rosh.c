@@ -504,7 +504,7 @@ void rosh_ls_arg_opt(int argc, char *argv[], int *optarr)
     optarr[2] = -1;
     while (rv != -1) {
 	rv = getopt(argc, argv, rosh_ls_opt_str);
-	switch (rv){
+	switch (rv) {
 	case 'l':
 	    optarr[0] = 1;
 	    break;
@@ -871,8 +871,7 @@ void rosh_ls(int argc, char *argv[])
     ROSH_DEBUG("  argc=%d; optind=%d\n", argc, optind);
     if (optind > argc)
 	rosh_ls_arg(".", optarr);
-    for (i = optind; i < argc; i++){
-//     while (strlen(filestr) > 0) {
+    for (i = optind; i < argc; i++) {
 	rosh_ls_arg(argv[i], optarr);
     }
 }				/* rosh_ls */
