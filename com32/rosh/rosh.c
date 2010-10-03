@@ -1344,6 +1344,6 @@ int main(int argc, char *argv[])
 	print_beta();
     }
     rv = rosh_prompt(argc, argv);
-    printf("--Exiting '%s'\n", APP_NAME);
+    printf("--Exiting '" APP_NAME "'\n");
     return rv;
 }
