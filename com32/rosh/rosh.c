@@ -1112,11 +1112,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 {
     char do_exit = false;
     int tlen;
-    char cmdstr[ROSH_CMD_SZ];
-//     argc = rosh_str2argv(&argv, cmdstr);
     tlen = strlen(argv[0]);
-    rosh_argcat(cmdstr, argc, argv, 0);
-    ROSH_DEBUG("--cmd:'%s'\n", cmdstr);
     ROSH_DEBUG_ARGV_V(argc, argv);
     switch (argv[0][0]) {
     case 'e':
