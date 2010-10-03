@@ -265,4 +265,6 @@ const char rosh_help_str2[] =
 
 const char rosh_help_str_adv[] = "No additional help available for '%s'";
 
+const char rosh_ls_opt_str[] = "lFi";
+
 #endif /* Not ROSH_H */

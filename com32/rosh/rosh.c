@@ -41,7 +41,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b084"
+#define APP_VER		"beta-b085"
 
 /* Print version information to stdout
  */
@@ -490,30 +490,34 @@ void rosh_echo(const char *cmdstr)
     }
 }				/* rosh_echo */
 
-/* Process optstr to optarr
- *	optstr	option string to process
+/* Process argc/argv to optarr
+ *	argc	Argument count
+ *	argv	Argument values
  *	optarr	option array to populate
  */
-void rosh_ls_arg_opt(const char *optstr, int *optarr)
+void rosh_ls_arg_opt(int argc, char *argv[], int *optarr)
 {
-    char *cpos;
-    cpos = strchr(optstr, 'l');
-    if (cpos) {
-	optarr[0] = cpos - optstr;
-    } else {
-	optarr[0] = -1;
-    }
-    cpos = strchr(optstr, 'F');
-    if (cpos) {
-	optarr[1] = cpos - optstr;
-    } else {
-	optarr[1] = -1;
-    }
-    cpos = strchr(optstr, 'i');
-    if (cpos) {
-	optarr[2] = cpos - optstr;
-    } else {
-	optarr[2] = -1;
+    int rv = 0;
+
+    optarr[0] = -1;
+    optarr[1] = -1;
+    optarr[2] = -1;
+    while (rv != -1) {
+	rv = getopt(argc, argv, rosh_ls_opt_str);
+	switch (rv){
+	case 'l':
+	    optarr[0] = 1;
+	    break;
+	case 'F':
+	    optarr[1] = 1;
+	    break;
+	case 'i':
+	    optarr[2] = 1;
+	    break;
+	case '?':
+	default:
+	    break;
+	}
     }
 }				/* rosh_ls_arg_opt */
 
@@ -851,71 +855,36 @@ int rosh_ls_parse_opt(const char *filestr, char *optstr)
     return ret;
 }				/* rosh_ls_parse_opt */
 
-/* List Directory based on cmdstr and pwdstr
- *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
+/* List Directory
+ *	argc	Argument count
+ *	argv	Argument values
  */
-void rosh_ls(const char *cmdstr)
+void rosh_ls(int argc, char *argv[])
 {
-    char filestr[ROSH_PATH_SZ];
-    char optstr[ROSH_OPT_SZ];	/* Options string */
-    int cmdpos, tpos;		/* Position within cmdstr, temp position */
-    int numargs;		/* number of non-option arguments */
-    int argpos;			/* number of non-option arguments processed */
     int optarr[3];
+    int i;
 
-    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
-    /* Initialization */
-    filestr[0] = 0;
-    optstr[0] = 0;
-    cmdpos = 0;
-    numargs = 0;
-    argpos = 0;
-    /* skip the first word */
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    tpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    /* If there are no real arguments, substitute PWD */
-    if (strlen(filestr) == 0) {
-	strcpy(filestr, ".");
-	cmdpos = tpos;
-    } else {			/* Parse for command line options */
-	while (strlen(filestr) > 0) {
-	    numargs += rosh_ls_parse_opt(filestr, optstr);
-	    tpos = rosh_parse_sp_1(filestr, cmdstr, tpos);
-	}
-	if (numargs == 0) {
-	    strcpy(filestr, ".");
-	    cmdpos = tpos;
-	} else {
-	    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-	}
-    }
+    rosh_ls_arg_opt(argc, argv, optarr);
 #ifdef DO_DEBUG
-    if (!strchr(optstr, 'l'))
-	strcat(optstr, "l");
+    optarr[0] = 2;
 #endif /* DO_DEBUG */
-    rosh_ls_arg_opt(optstr, optarr);
-    ROSH_DEBUG("\tfopt: '%s'\n", optstr);
-    while (strlen(filestr) > 0) {
-	if (rosh_ls_parse_opt(filestr, NULL)) {
-	    rosh_ls_arg(filestr, optarr);
-	    argpos++;
-	}
-	if (argpos < numargs)
-	    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-	else
-	    break;
+    ROSH_DEBUG("  argc=%d; optind=%d\n", argc, optind);
+    if (optind > argc)
+	rosh_ls_arg(".", optarr);
+    for (i = optind; i < argc; i++){
+//     while (strlen(filestr) > 0) {
+	rosh_ls_arg(argv[i], optarr);
     }
 }				/* rosh_ls */
 
 /* Simple directory listing; calls rosh_ls()
- *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
+ *	argc	Argument count
+ *	argv	Argument values
  */
-void rosh_dir(const char *cmdstr)
+void rosh_dir(int argc, char *argv[])
 {
     ROSH_DEBUG("  dir implemented as ls\n");
-    rosh_ls(cmdstr);
+    rosh_ls(argc, argv);
 }				/* rosh_dir */
 
 /* Page through a buffer string
@@ -1209,7 +1178,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
     case 'd':
     case 'D':			/* run 'dir' */
 	if (strncasecmp("dir", argv[0], tlen) == 0)
-	    rosh_dir(cmdstr);
+	    rosh_dir(argc - 1, &argv[1]);
 	else
 	    rosh_help(1, NULL);
 	break;
@@ -1229,7 +1198,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 's':
 	case 'S':
 	    if (strncasecmp("ls", argv[0], tlen) == 0)
-		rosh_ls(cmdstr);
+		rosh_ls(argc - 1, &argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
