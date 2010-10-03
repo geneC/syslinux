@@ -1189,7 +1189,6 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
     case 'L':			/* run 'ls' 'less' */
 	switch (argv[0][1]) {
 	case 0:
-	case ' ':
 	case 's':
 	case 'S':
 	    if (strncasecmp("ls", argv[0], tlen) == 0)
@@ -1240,7 +1239,6 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
     case 'R':			/* run 'run' */
 	switch (argv[0][1]) {
 	case 0:
-	case ' ':
 	case 'e':
 	case 'E':
 	    if (strncasecmp("reboot", argv[0], tlen) == 0)
