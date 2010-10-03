@@ -1082,15 +1082,10 @@ void rosh_less(const char *cmdstr)
 }				/* rosh_less */
 
 /* Show PWD
- *	cmdstr	command string to process
  */
-void rosh_pwd(const char *cmdstr)
+void rosh_pwd(void)
 {
-    int istr;
     char pwdstr[ROSH_PATH_SZ];
-    if (cmdstr)
-	istr = 0;
-    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     errno = 0;
     if (getcwd(pwdstr, ROSH_PATH_SZ)) {
 	printf("%s\n", pwdstr);
@@ -1098,8 +1093,6 @@ void rosh_pwd(const char *cmdstr)
 	rosh_error(errno, "pwd", "");
 	errno = 0;
     }
-    istr = htonl(*(int *)pwdstr);
-    ROSH_DEBUG2("  --%08X\n", istr);
 }				/* rosh_pwd */
 
 /* Reboot; use warm reboot if one of certain options set
@@ -1283,7 +1276,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
     case 'p':
     case 'P':			/* run 'pwd' */
 	if (strncasecmp("pwd", argv[0], tlen) == 0)
-	    rosh_pwd(cmdstr);
+	    rosh_pwd();
 	else
 	    rosh_help(1, NULL);
 	break;
