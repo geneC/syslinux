@@ -417,6 +417,7 @@ void rosh_cat(int argc, char *argv[])
 
     for (i = 0; i < argc; i++) {
 	printf("--File = '%s'\n", argv[i]);
+	errno = 0;
 	f = fopen(argv[i], "r");
 	if (f != NULL) {
 	    numrd = fread(buf, 1, ROSH_BUF_SZ, f);
@@ -445,6 +446,7 @@ void rosh_cd(int argc, char *argv[], const char *ipwdstr)
 #endif /* DO_DEBUG */
     ROSH_DEBUG("CMD: \n");
     ROSH_DEBUG_ARGV_V(argc, argv);
+    errno = 0;
     if (argc == 2)
 	rv = chdir(argv[1]);
     else if (argc == 1)
@@ -564,6 +566,7 @@ int rosh_ls_de_size_mode(struct dirent *de, mode_t * st_mode)
 	filestr2[file2pos] = '/';
     }
     strcpy(filestr2 + file2pos + 1, de->d_name);*/
+    errno = 0;
     status = stat(de->d_name, &fdstat);
     ROSH_DEBUG2("\t--stat()=%d\terr=%d\n", status, errno);
     if (errno) {
@@ -757,14 +760,17 @@ void rosh_ls_arg_dir(const char *filestr, DIR * d, const int *optarr)
     int filepos;
 
     filepos = 0;
+    errno = 0;
     while ((de = readdir(d))) {
 	filepos++;
 	rosh_ls_arg_dir_de(de, optarr);
     }
-    if (errno)
+    if (errno) {
 	rosh_error(errno, "ls:arg_dir", filestr);
-    else if (filepos == 0)
+	errno = 0;
+    } else { if (filepos == 0)
 	ROSH_DEBUG("0 files found");
+    }
 }				/* rosh_ls_arg_dir */
 
 /* Simple directory listing for one argument (file/directory) based on
@@ -1048,6 +1054,7 @@ void rosh_more(const char *cmdstr)
 	rosh_console_raw();
 	while (strlen(filestr) > 0) {
 	    printf("--File = '%s'\n", filestr);
+	    errno = 0;
 	    fd = open(filestr, O_RDONLY);
 	    if (fd != -1) {
 		rosh_more_fd(fd, rows, cols, scrbuf);
