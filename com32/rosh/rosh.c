@@ -41,7 +41,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b082"
+#define APP_VER		"beta-b084"
 
 /* Print version information to stdout
  */
@@ -1013,22 +1013,19 @@ void rosh_more_fd(int fd, int rows, int cols, char *scrbuf)
 }				/* rosh_more_fd */
 
 /* Page through a file like the more command
- *	cmdstr	command string to process
- *	ipwdstr	Initial PWD
+ *	argc	Argument Count
+ *	argv	Argument Values
  */
-void rosh_more(const char *cmdstr)
+void rosh_more(int argc, char *argv[])
 {
-    int fd;
-    char filestr[ROSH_PATH_SZ];
-    int cmdpos;
+    int fd, i;
+/*    char filestr[ROSH_PATH_SZ];
+    int cmdpos;*/
     int rows, cols;
     char *scrbuf;
     int ret;
 
     ROSH_DEBUG("CMD: '%s'\n", cmdstr);
-    /* Initialization */
-    filestr[0] = 0;
-    cmdpos = 0;
     ret = getscreensize(1, &rows, &cols);
     if (ret) {
 	ROSH_DEBUG("getscreensize() fail(%d); fall back\n", ret);
@@ -1045,25 +1042,21 @@ void rosh_more(const char *cmdstr)
     if (!scrbuf)
 	return;
 
-    /* skip the first word */
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
-    if (strlen(filestr) > 0) {
+    if (argc) {
 	/* There is no need to mess up the console if we don't have a
 	   file */
 	rosh_console_raw();
-	while (strlen(filestr) > 0) {
-	    printf("--File = '%s'\n", filestr);
+	for (i = 0; i < argc; i++) {
+	    printf("--File = '%s'\n", argv[i]);
 	    errno = 0;
-	    fd = open(filestr, O_RDONLY);
+	    fd = open(argv[i], O_RDONLY);
 	    if (fd != -1) {
 		rosh_more_fd(fd, rows, cols, scrbuf);
 		close(fd);
 	    } else {
-		rosh_error(errno, "more", filestr);
+		rosh_error(errno, "more", argv[i]);
 		errno = 0;
 	    }
-	    cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
 	}
 	rosh_console_std();
     }
@@ -1071,14 +1064,13 @@ void rosh_more(const char *cmdstr)
 }				/* rosh_more */
 
 /* Page a file with rewind
- *	cmdstr	command string to process
- *	pwdstr	Present Working Directory string
- *	ipwdstr	Initial PWD
+ *	argc	Argument Count
+ *	argv	Argument Values
  */
-void rosh_less(const char *cmdstr)
+void rosh_less(int argc, char *argv[])
 {
     printf("  less implemented as more (for now)\n");
-    rosh_more(cmdstr);
+    rosh_more(argc, argv);
 }				/* rosh_less */
 
 /* Show PWD
@@ -1244,7 +1236,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 'e':
 	case 'E':
 	    if (strncasecmp("less", argv[0], tlen) == 0)
-		rosh_less(cmdstr);
+		rosh_less(argc - 1, &argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
@@ -1265,7 +1257,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 'o':
 	case 'O':
 	    if (strncasecmp("more", argv[0], tlen) == 0)
-		rosh_more(cmdstr);
+		rosh_more(argc - 1, &argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
