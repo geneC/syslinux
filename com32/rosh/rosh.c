@@ -1105,22 +1105,21 @@ void rosh_reboot(void)
 }				/* rosh_reboot */
 
 /* Run a boot string, calling syslinux_run_command
- *	cmdstr	command string to process
+ *	argc	Argument count
+ *	argv	Argument values
  */
-void rosh_run(const char *cmdstr)
+void rosh_run(int argc, char *argv[])
 {
-    int cmdpos;
-    char *cmdptr;
+    char cmdstr[ROSH_CMD_SZ];
+    int len;
 
-    cmdpos = 0;
-    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
-    /* skip the first word */
-    cmdpos = rosh_search_sp(cmdstr, cmdpos);
-    /* skip spaces */
-    cmdpos = rosh_search_nonsp(cmdstr, cmdpos);
-    cmdptr = (char *)(cmdstr + cmdpos);
-    printf("--run: '%s'\n", cmdptr);
-    syslinux_run_command(cmdptr);
+    len = rosh_argcat(cmdstr, argc, argv, 0);
+    if (len) {
+	printf("--run: '%s'\n", cmdstr);
+	syslinux_run_command(cmdstr);
+    } else {
+	printf(APP_NAME ":run: No arguments\n");
+    }
 }				/* rosh_run */
 
 /* Process an argc/argv pair and call handling function
@@ -1276,7 +1275,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 'u':
 	case 'U':
 	    if (strncasecmp("run", argv[0], tlen) == 0)
-		rosh_run(cmdstr);
+		rosh_run(argc - 1, &argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
