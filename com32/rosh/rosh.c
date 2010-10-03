@@ -41,7 +41,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b080"
+#define APP_VER		"beta-b082"
 
 /* Print version information to stdout
  */
@@ -1095,13 +1095,33 @@ void rosh_pwd(const char *cmdstr)
     ROSH_DEBUG2("  --%08X\n", istr);
 }				/* rosh_pwd */
 
-/* Reboot
+/* Reboot; use warm reboot if one of certain options set
+ *	argc	Argument count
+ *	argv	Argument values
  */
-void rosh_reboot(void)
+void rosh_reboot(int argc, char *argv[])
 {
-//     char cmdstr[ROSH_CMD_SZ];
-//     printf
-    syslinux_reboot(0);
+    int rtype = 0;
+    if (argc) {
+	/* For now, just use the first */
+	switch (argv[0][0]) {
+	case '1':
+	case 's':
+	case 'w':
+	    rtype = 1;
+	    break;
+	case '-':
+	    switch (argv[0][1]) {
+	    case '1':
+	    case 's':
+	    case 'w':
+		rtype = 1;
+		break;
+	    }
+	    break;
+	}
+    }
+    syslinux_reboot(rtype);
 }				/* rosh_reboot */
 
 /* Run a boot string, calling syslinux_run_command
@@ -1268,7 +1288,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 'e':
 	case 'E':
 	    if (strncasecmp("reboot", argv[0], tlen) == 0)
-		rosh_reboot();
+		rosh_reboot(argc - 1, &argv[1]);
 	    else
 		rosh_help(1, NULL);
 	    break;
