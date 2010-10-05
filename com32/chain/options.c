@@ -65,10 +65,6 @@ Usage:\n\
     chain.c32 fs [options]\n\
 ", "\
 \nOptions ('no' prefix specifies default value):\n\
-    file=<file>          Load and execute <file>\n\
-    seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>\n\
-                         - defaults to 0:0x7C00:0x7C00\n\
-                         - ommited o/i values default to 0\n\
     sect[=<s[:o[:i]]>]   Load sector at <s:o>, jump to <s:i>\n\
                          - defaults to 0:0x7C00:0x7C00\n\
                          - ommited o/i values default to 0x7C00\n\
@@ -78,17 +74,23 @@ Usage:\n\
     nosave               Write adjusted sector back to disk\n\
     hand                 Prepare handover area\n\
     nohptr               Force ds:si and ds:bp to point to handover area\n\
-    bss=<filename>       Emulate syslinux's BSS\n\
-    bs=<filename>        Emulate syslinux's BS\n\
     noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
-    nohide               Hide primary partitions, unhide selected partition\n\
-    nohideall            Hide *all* partitions, unhide selected partition\n\
+    nohide               Disable all hide variations (also the default)\n\
+    hide                 Hide primary partitions, unhide selected partition\n\
+    hideall              Hide *all* partitions, unhide selected partition\n\
+    unhide               Unhide primary partitions\n\
+    unhideall            Unhide *all* partitions\n\
     nombrchs             Walk *all* partitions and fix E/MBRs' chs values\n\
     nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
     nowarn               Wait for a keypress to continue chainloading\n\
                          - useful to see emited warnings\n\
+    chain                Actually perform the chainloading\n\
 ", "\
 \nOptions continued ...\n\
+    file=<file>          Load and execute <file>\n\
+    seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>\n\
+                         - defaults to 0:0x7C00:0x7C00\n\
+                         - ommited o/i values default to 0\n\
     isolinux=<loader>    Load another version of ISOLINUX\n\
     ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
     cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003\n\
@@ -100,6 +102,8 @@ Usage:\n\
     grub=<loader>        Load GRUB Legacy stage2\n\
     grubcfg=<filename>   Set alternative config filename for GRUB Legacy\n\
     grldr=<loader>       Load GRUB4DOS grldr\n\
+    bss=<filename>       Emulate syslinux's BSS\n\
+    bs=<filename>        Emulate syslinux's BS\n\
 \nPlease see doc/chain.txt for the detailed documentation.\n\
 "
     };
@@ -268,6 +272,13 @@ int parse_args(int argc, char *argv[])
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {
 	    opt.warn = false;
+	} else if (!strcmp(argv[i], "chain")) {
+	    opt.chain = true;
+	} else if (!strcmp(argv[i], "nochain")) {
+	    opt.chain = false;
+	    opt.file = NULL;
+	    opt.maps = false;
+	    opt.hand = false;
 	} else if (((argv[i][0] == 'h' || argv[i][0] == 'f')
 		    && argv[i][1] == 'd')
 		   || !strncmp(argv[i], "mbr:", 4)
@@ -302,10 +313,12 @@ int parse_args(int argc, char *argv[])
 	goto bail;
     }
 
+#if 0
     if ((!opt.maps || !opt.sect) && !opt.file) {
 	error("You have to load something.\n");
 	goto bail;
     }
+#endif
 
     if (opt.filebpb && !opt.file) {
 	error("Option 'filebpb' requires a file.\n");

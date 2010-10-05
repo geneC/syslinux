@@ -662,9 +662,10 @@ int main(int argc, char *argv[])
     memset(&hdat, 0, sizeof(hdat));
     memset(&sdat, 0, sizeof(sdat));
     memset(&opt, 0, sizeof(opt));
-    opt.sect = true;	/* by def load sector */
-    opt.maps = true;	/* by def map sector */
-    opt.hand = true;	/* by def prepare handover */
+    opt.sect = true;	/* by def. load sector */
+    opt.maps = true;	/* by def. map sector */
+    opt.hand = true;	/* by def. prepare handover */
+    opt.chain = true;	/* by def. do chainload */
     opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";
 #ifdef DEBUG
@@ -777,7 +778,7 @@ int main(int argc, char *argv[])
 	goto bail;
 
     /*
-     * Prepare boot-time mmap data We should to it here, as manglers could
+     * Prepare boot-time mmap data. We should to it here, as manglers could
      * potentially alter some of the data.
      */
 
@@ -806,7 +807,10 @@ int main(int argc, char *argv[])
 	wait_key();
     }
 
-    do_boot(data, ndata);
+    if (ndata && opt.chain) /* boot only if we actually chainload */
+	do_boot(data, ndata);
+    else
+	error("Service-only run completed, exiting.\n");
 bail:
     pi_del(&iter);
     /* Free allocated areas */
