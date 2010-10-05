@@ -603,12 +603,15 @@ static int setup_handover(const struct part_iter *iter,
 	    goto bail;
 	}
 	if (!iter->index) {
+	    uint32_t len = ~0u;
+	    if (iter->di.lbacnt < len)
+		len = (uint32_t)iter->di.lbacnt;
 	    *(uint32_t *)ha->start = lba2chs(&iter->di, 0, l2c_cadd);
-	    *(uint32_t *)ha->end = lba2chs(&iter->di, 2879, l2c_cadd);
+	    *(uint32_t *)ha->end = lba2chs(&iter->di, len - 1, l2c_cadd);
 	    ha->active_flag = 0x80;
-	    ha->ostype = 0xDA;
+	    ha->ostype = 0xDA;	/* "Non-FS Data", anything is good here though ... */
 	    ha->start_lba = 0;
-	    ha->length = 2880;
+	    ha->length = len;
 	} else if (iter->type == typedos) {
 	    dp = (const struct disk_dos_part_entry *)iter->record;
 
