@@ -429,4 +429,113 @@ int mangler_grldr(const struct part_iter *iter)
     return 0;
 }
 
+static int mpe_sethide(struct part_iter *miter, struct part_iter *iter)
+{
+    struct disk_dos_part_entry *mdp, *dp;
+    static const uint16_t mask =
+	(1 << 0x01) | (1 << 0x04) | (1 << 0x06) |
+	(1 << 0x07) | (1 << 0x0b) | (1 << 0x0c) | (1 << 0x0e);
+    uint8_t t;
+
+    mdp = (struct disk_dos_part_entry *)miter->record;
+    dp = (struct disk_dos_part_entry *)iter->record;
+    t = dp->ostype;
+
+    if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
+	/* It's a hideable partition type */
+	if (miter->index == iter->index || opt.hide & 4)
+	    t &= (uint8_t)(~0x10u);	/* unhide */
+	else
+	    t |= 0x10u;	/* hide */
+    }
+    if (dp->ostype != t) {
+	dp->ostype = t;
+	/*
+	 * the type of the partition being booted has to be adjusted in
+	 * the match iterator (miter) as well
+	 */
+	if (miter->index == iter->index) {
+	    mdp->ostype = t;
+	}
+	return -1;
+    }
+    return 0;
+}
+
+static int mpe_setchs(const struct disk_info *di,
+		     struct disk_dos_part_entry *dp,
+		     uint32_t lba1)
+{
+    uint32_t ochs1, ochs2;
+
+    ochs1 = *(uint32_t *)dp->start;
+    ochs2 = *(uint32_t *)dp->end;
+
+    *(uint32_t *)dp->start =
+	lba2chs(di, lba1, l2c_cadd) |
+	(*(uint32_t *)dp->start & 0xFF000000);
+
+    *(uint32_t *)dp->end =
+	lba2chs(di, lba1 + dp->length - 1, l2c_cadd) |
+	(*(uint32_t *)dp->end & 0xFF000000);
+
+    return
+	*(uint32_t *)dp->start != ochs1 ||
+	*(uint32_t *)dp->end != ochs2;
+}
+
+int manglepe_mbrchshide(struct part_iter *miter)
+{
+    int wb = 0, werr = 0;
+    struct part_iter *iter = NULL;
+    struct disk_dos_part_entry *dp;
+    int ridx;
+
+    if (!(opt.mbrchs || opt.hide))
+	return 0;
+
+    if (miter->type != typedos) {
+	error("Partition entry mangling ('[un]hide[all]', 'mbrchs')\n"
+	      "is meaningful only for legacy partition scheme.\n");
+	return -1;
+    }
+    if (opt.hide &&
+	    ((miter->index < 1 && opt.hide < 4) || /* try to hide a disk */
+	     (miter->index > 4 && opt.hide == 1))) /* try to hide a part when limited to pri */
+	error("WARNING: It's impossible to hide the selected partition (or you selected a disk).\n");
+
+    if (!(iter = pi_begin(&miter->di, 1)))  /* turn on stepall */
+	return -1;
+
+    while (!pi_next(&iter) && !werr && (opt.hide & 2 || opt.mbrchs)) {
+	ridx = iter->rawindex;
+	dp = (struct disk_dos_part_entry *)iter->record;
+
+	if (dp->ostype) {
+	    if (opt.hide & 2 || (opt.hide & 1 && ridx <= 4)) {
+		wb |= mpe_sethide(miter, iter);
+	    }
+	    if (opt.mbrchs) {
+		wb |= mpe_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
+		if (ridx > 4)
+		    wb |= mpe_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
+	    }
+	}
+
+	if (ridx >= 4 && wb && !werr) {
+	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	    wb = 0;
+	}
+    }
+    /* last write */
+    if (wb && !werr)
+	werr |= disk_write_sectors(&miter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+
+    pi_del(&iter);
+    if (werr)
+	error("WARNING: failed to write E/MBR for partition\n"
+	      "mangling options ('[un]hide[all]', 'mbrchs').\n");
+    return 0;
+}
+
 /* vim: set ts=8 sts=4 sw=4 noet: */

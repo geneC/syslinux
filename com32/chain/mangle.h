@@ -19,6 +19,8 @@ int mangler_common(const struct part_iter *iter);
 int mangler_handover(const struct part_iter *iter, const struct data_area *data);
 int mangler_grldr(const struct part_iter *iter);
 
+int manglepe_mbrchshide(struct part_iter *miter);
+
 #endif
 
 /* vim: set ts=8 sts=4 sw=4 noet: */
