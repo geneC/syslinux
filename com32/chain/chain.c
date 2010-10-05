@@ -301,7 +301,7 @@ static void hide_unhide(const struct part_iter *_iter)
     bool write_back = false;
 
     if (_iter->type != typedos) {
-	error("Option 'hide' is only meaningful for legacy partition scheme.");
+	error("Option 'hide' is only meaningful for legacy partition scheme.\n");
 	goto bail;
     }
     if (!(mbr = disk_read_sectors(&_iter->di, 0, 1))) {
@@ -399,11 +399,13 @@ static int pentry_mangle(struct part_iter *miter)
 
     if (miter->type != typedos) {
 	error("Partition entry mangling ('[un]hide[all]', 'mbrchs')\n"
-	      "is meaningful only for legacy partition scheme.");
+	      "is meaningful only for legacy partition scheme.\n");
 	goto bail;
     }
-    if ((miter->index < 1 || miter->index > 4) && opt.hide & 1)
-	error("WARNING: option '[un]hide' specified with a non-primary partition.\n");
+    if (opt.hide &&
+	    ((miter->index < 1 && opt.hide < 4) || /* try to hide a disk */
+	     (miter->index > 4 && opt.hide == 1))) /* try to hide a part when limited to pri */
+	error("WARNING: It's impossible to hide the selected partition (or you selected a disk).\n");
 
     if (!(iter = pi_begin(&miter->di, 1)))  /* turn on stepall */
 	goto bail;
