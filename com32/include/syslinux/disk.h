@@ -45,9 +45,11 @@ struct disk_info {
     int disk;
     int ebios;			/* EBIOS supported on this disk */
     int cbios;			/* CHS geometry is valid */
-    unsigned int head;
-    unsigned int sect;
-    unsigned int cyl;
+    uint32_t bps;		/* bytes per sector */
+    uint64_t lbacnt;		/* total amount of sectors */
+    uint32_t cyl;
+    uint32_t head;
+    uint32_t spt;
 };
 
 struct disk_ebios_dapa {
@@ -56,7 +58,27 @@ struct disk_ebios_dapa {
     uint16_t off;
     uint16_t seg;
     uint64_t lba;
-};
+} __attribute__ ((packed));
+
+struct disk_ebios_eparam {
+    uint16_t len;
+    uint16_t info;
+    uint32_t cyl;
+    uint32_t head;
+    uint32_t spt;
+    uint64_t lbacnt;
+    uint16_t bps;	/* bytes per sector */
+    uint32_t edd;
+    uint16_t dpi_sig;
+    uint8_t  dpi_len;
+    char     reserved1[3];
+    char     hostbus[4];
+    char     if_type[8];
+    char     if_path[8];
+    char     dev_path[8];
+    char     reserved2;
+    uint8_t  checksum;
+} __attribute__ ((packed));
 
 /**
  * CHS (cylinder, head, sector) value extraction macros.
@@ -144,10 +166,10 @@ extern int disk_int13_retry(const com32sys_t * inreg, com32sys_t * outreg);
 extern int disk_get_params(int disk, struct disk_info *const diskinfo);
 extern void *disk_read_sectors(const struct disk_info *const diskinfo,
 			       uint64_t lba, uint8_t count);
-extern int disk_write_sector(const struct disk_info *const diskinfo,
-			     uint64_t lba, const void *data);
-extern int disk_write_verify_sector(const struct disk_info *const diskinfo,
-				    uint64_t lba, const void *buf);
+extern int disk_write_sectors(const struct disk_info *const diskinfo,
+			      uint64_t lba, const void *data, uint8_t count);
+extern int disk_write_verify_sectors(const struct disk_info *const diskinfo,
+				     uint64_t lba, const void *buf, uint8_t count);
 extern void disk_dos_part_dump(const struct disk_dos_part_entry *const part);
 extern void guid_to_str(char *buf, const struct guid *const id);
 extern int str_to_guid(const char *buf, struct guid *const id);
