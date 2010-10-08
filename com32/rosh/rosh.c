@@ -32,17 +32,24 @@
  * debugging enabled; Comment to remove.
  */
 #include "rosh.h"
+#include "../../version.h"
 
 #define APP_LONGNAME	"Read-Only Shell"
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b062"
+#define APP_VER		"beta-b068"
 
-void rosh_version(void)
+void rosh_version(int vtype)
 {
-    printf("%s v %s; (c) %s %s.\n", APP_LONGNAME, APP_VER, APP_YEAR,
-	   APP_AUTHOR);
+    char env[256];
+    env[0] = 0;
+    printf("%s v %s; (c) %s %s.\n\tFrom Syslinux %s, %s\n", APP_LONGNAME, APP_VER, APP_YEAR, APP_AUTHOR, VERSION_STR, DATE);
+    switch (vtype) {
+    case 1:
+	rosh_get_env_ver(env, 256);
+	printf("\tRunning on %s\n", env);
+    }
 }
 
 void print_beta(void)
@@ -124,7 +131,7 @@ void rosh_help(int type, const char *cmdstr)
     case 2:
 	istr += rosh_search_nonsp(cmdstr, rosh_search_sp(cmdstr, 0));
 	if ((cmdstr == NULL) || (strcmp(istr, "") == 0)) {
-	    rosh_version();
+	    rosh_version(0);
 	    puts(rosh_help_str2);
 	} else {
 	    switch (istr[0]) {
@@ -138,7 +145,7 @@ void rosh_help(int type, const char *cmdstr)
 	break;
     case 1:
     default:
-	rosh_version();
+	rosh_version(0);
 	puts(rosh_help_str1);
     }
 }
@@ -775,15 +782,14 @@ void rosh_dir(const char *cmdstr)
 /* Page through a buffer string
  *	buf	Buffer to page through
  */
-//HERE: minor pagination issue; sometimes prints 1 less than rows
-void rosh_more_buf(char *buf, int buflen, int rows, int cols)
+void rosh_more_buf(char *buf, int buflen, int rows, int cols, char *scrbuf)
 {
     char *bufp, *bufeol, *bufeol2;	/* Pointer to current and next
 					   end-of-line position in buffer */
     int bufpos, bufcnt;		/* current position, count characters */
-    char scrbuf[ROSH_SBUF_SZ];
     int inc;
     int i, numln;		/* Index, Number of lines */
+    int elpl;		/* Extra lines per line read */
 
     (void)cols;
 
@@ -799,10 +805,19 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 		bufeol = buf + buflen;
 		i = numln;
 	    } else {
-		i += ((bufeol2 - bufeol) / cols);
-		bufeol = bufeol2 + 1;
+		elpl = ((bufeol2 - bufeol - 1) / cols);
+		if (elpl < 0)
+		    elpl = 0;
+		i += elpl;
+		ROSH_DEBUG2("  %d/%d  ", elpl, i+1);
+		/* If this will not push too much, use it */
+		/* but if it's the first line, use it */
+		/* //HERE: We should probably snip the line off */
+		if ((i < numln) || (i == elpl))
+		    bufeol = bufeol2 + 1;
 	    }
 	}
+	ROSH_DEBUG2("\n");
 	bufcnt = bufeol - bufp;
 	printf("--(%d/%d @%d)\n", bufcnt, buflen, bufpos);
 	memcpy(scrbuf, bufp, bufcnt);
@@ -829,7 +844,7 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols)
 /* Page through a single file using the open file stream
  *	fd	File Descriptor
  */
-void rosh_more_fd(int fd, int rows, int cols)
+void rosh_more_fd(int fd, int rows, int cols, char *scrbuf)
 {
     struct stat fdstat;
     int status;
@@ -851,7 +866,7 @@ void rosh_more_fd(int fd, int rows, int cols)
 			      ((int)fdstat.st_size - bufpos), f);
 	    }
 	    fclose(f);
-	    rosh_more_buf(buf, bufpos, rows, cols);
+	    rosh_more_buf(buf, bufpos, rows, cols, scrbuf);
 	}
     } else {
     }
@@ -868,13 +883,16 @@ void rosh_more(const char *cmdstr)
     char filestr[ROSH_PATH_SZ];
     int cmdpos;
     int rows, cols;
+    char *scrbuf;
+    int ret;
 
     ROSH_DEBUG("CMD: '%s'\n", cmdstr);
     /* Initialization */
     filestr[0] = 0;
     cmdpos = 0;
-    if (getscreensize(1, &rows, &cols)) {
-	ROSH_DEBUG("getscreensize() fail; fall back\n");
+    ret = getscreensize(1, &rows, &cols);
+    if (ret) {
+	ROSH_DEBUG("getscreensize() fail(%d); fall back\n", ret);
 	ROSH_DEBUG("\tROWS='%d'\tCOLS='%d'\n", rows, cols);
 	/* If either fail, go under normal size, just in case */
 	if (!rows)
@@ -883,6 +901,10 @@ void rosh_more(const char *cmdstr)
 	    cols = 75;
     }
     ROSH_DEBUG("\tUSE ROWS='%d'\tCOLS='%d'\n", rows, cols);
+    /* 32 bit align beginning of row and over allocate */
+    scrbuf = malloc(rows * ((cols+3)&(INT_MAX - 3)));
+    if (!scrbuf)
+	return;
 
     /* skip the first word */
     cmdpos = rosh_parse_sp_1(filestr, cmdstr, cmdpos);
@@ -895,7 +917,7 @@ void rosh_more(const char *cmdstr)
 	    printf("--File = '%s'\n", filestr);
 	    fd = open(filestr, O_RDONLY);
 	    if (fd != -1) {
-		rosh_more_fd(fd, rows, cols);
+		rosh_more_fd(fd, rows, cols, scrbuf);
 		close(fd);
 	    } else {
 		rosh_error(errno, "more", filestr);
@@ -905,6 +927,7 @@ void rosh_more(const char *cmdstr)
 	}
 	rosh_console_std();
     }
+    free(scrbuf);
 }				/* rosh_more */
 
 /* Page a file with rewind
@@ -1109,7 +1132,7 @@ char rosh_command(const char *cmdstr, const char *ipwdstr)
     case 'v':
     case 'V':
 	if (strncasecmp("version", tstr, tlen) == 0)
-	    rosh_version();
+	    rosh_version(1);
 	else
 	    rosh_help(1, NULL);
 	break;
@@ -1168,7 +1191,7 @@ int main(int argc, char *argv[])
     if (argc != 1) {
 	rv = rosh_argcat(cmdstr, argc, argv, 1);
     } else {
-	rosh_version();
+	rosh_version(0);
 	print_beta();
 	cmdstr[0] = '\0';
     }
