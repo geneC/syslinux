@@ -462,6 +462,8 @@ AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level
 DefaultLevel	dw 0			; The current level of default
+		global PXERetry
+PXERetry	dw 0			; Extra PXE retries
 VKernel		db 0			; Have we seen any "label" statements?
 
 %if IS_PXELINUX

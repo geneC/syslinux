@@ -31,9 +31,10 @@ PartInfo	equ StackBuf
 .gpt		equ PartInfo+20
 FloppyTable	equ PartInfo+76
 ; Total size of PartInfo + FloppyTable == 76+16 = 92 bytes
-Hidden		equ StackBuf-20		; Partition offset
-OrigFDCTabPtr	equ StackBuf-12		; The 2nd high dword on the stack
-OrigESDI	equ StackBuf-8		; The high dword on the stack
+Hidden		equ StackBuf-24		; Partition offset (qword)
+OrigFDCTabPtr	equ StackBuf-16		; Original FDC table
+OrigDSSI	equ StackBuf-12		; DS:SI -> partinfo
+OrigESDI	equ StackBuf-8		; ES:DI -> $PnP structure
 DriveNumber	equ StackBuf-4		; Drive number
 StackHome	equ Hidden		; The start of the canonical stack
 
@@ -116,6 +117,8 @@ start:
 		push dx			; Save drive number (in DL)
 		push es			; Save initial ES:DI -> $PnP pointer
 		push di
+		push ds			; Save original DS:SI -> partinfo
+		push si
 		mov es,cx
 
 ;
@@ -174,6 +177,12 @@ floppy:
 ; Note: di points to beyond the end of PartInfo
 ;
 harddisk:
+		mov dx,[di-76-10]	; Original DS
+		mov si,[di-76-12]	; Original SI
+		shr si,4
+		add dx,si
+		cmp dx,PartInfo >> 4
+		jae .no_partition
 		test byte [di-76],7Fh	; Sanity check: "active flag" should
 		jnz .no_partition	; be 00 or 80
 		cmp [di-76+4],cl	; Sanity check: partition type != 0
