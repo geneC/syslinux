@@ -68,7 +68,7 @@ const struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
-const char short_options[] = "t:fid:UuzS:H:rvho:OM:ma";
+const char short_options[] = "t:fid:UuzsS:H:rvho:OM:ma";
 
 void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 {
@@ -101,7 +101,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 
     fprintf(stderr,
 	    "  --install    -i  Install over the current bootsector\n"
-	    "  --update     -U  Update a previous EXTLINUX installation\n"
+	    "  --update     -U  Update a previous installation\n"
 	    "  --zip        -z  Force zipdrive geometry (-H 64 -S 32)\n"
 	    "  --sectors=#  -S  Force the number of sectors per track\n"
 	    "  --heads=#    -H  Force number of heads\n"
@@ -111,20 +111,20 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "  --clear-once -O  Clear the boot-once command\n"
 	    "  --reset-adv      Reset auxilliary data\n",
 	    mode == MODE_SYSLINUX  ? "  " : "-o");
-    /* Have to chop this roughly in half for the DOS installer for some reason */
+    /*
+     * Have to chop this roughly in half for the DOS installer due
+     * to limited output buffer size
+     */
     fprintf(stderr,
-	    "  --menu-save= -M  Set the label to select as default on the next boot\n"
-	    "  --mbr        -m  Install an MBR (DOS/Win32 installers only)\n"
-	    "  --active     -a  Mark partition as active (DOS/Win32 installers only)\n"
-	    "  --force      -f  Ignore precautions (DOS/Win32/mtools installers only)\n"
-	    "\n"
-	    "  Note: geometry is determined at boot time for devices which\n"
-	    "  are considered hard disks by the BIOS.  Unfortunately, this is\n"
-	    "  not possible for devices which are considered floppy disks,\n"
-	    "  which includes zipdisks and LS-120 superfloppies.\n"
-	    "\n"
-	    "  The -z option is useful for USB devices which are considered\n"
-	    "  hard disks by some BIOSes and zipdrives by other BIOSes.");
+	    "  --menu-save= -M  Set the label to select as default on the next boot\n");
+    if (mode == MODE_SYSLINUX_DOSWIN)
+	fprintf(stderr,
+		"  --mbr        -m  Install an MBR\n"
+		"  --active     -a  Mark partition as active\n");
+
+    if (mode == MODE_SYSLINUX_DOSWIN || mode == MODE_SYSLINUX)
+	fprintf(stderr,
+		"  --force      -f  Ignore precautions\n");
 
     exit(rv);
 }

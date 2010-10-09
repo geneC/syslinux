@@ -100,6 +100,32 @@ struct geometry_table {
     struct hd_geometry g;
 };
 
+static int sysfs_get_offset(int devfd, unsigned long *start)
+{
+    struct stat st;
+    char sysfs_name[128];
+    FILE *f;
+    int rv;
+
+    if (fstat(devfd, &st))
+	return -1;
+
+    if ((size_t)snprintf(sysfs_name, sizeof sysfs_name,
+			 "/sys/dev/block/%u:%u/start",
+			 major(st.st_dev), minor(st.st_dev))
+	>= sizeof sysfs_name)
+	return -1;
+
+    f = fopen(sysfs_name, "r");
+    if (!f)
+	return -1;
+
+    rv = fscanf(f, "%lu", start);
+    fclose(f);
+
+    return (rv == 1) ? 0 : -1;
+}
+
 /* Standard floppy disk geometries, plus LS-120.  Zipdisk geometry
    (x/64/32) is the final fallback.  I don't know what LS-240 has
    as its geometry, since I don't have one and don't know anyone that does,
@@ -123,24 +149,25 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
     struct loop_info li;
     struct loop_info64 li64;
     const struct geometry_table *gp;
+    int rv = 0;
 
     memset(geo, 0, sizeof *geo);
 
     if (!ioctl(devfd, HDIO_GETGEO, &geo)) {
-	return 0;
+	goto ok;
     } else if (!ioctl(devfd, FDGETPRM, &fd_str)) {
 	geo->heads = fd_str.head;
 	geo->sectors = fd_str.sect;
 	geo->cylinders = fd_str.track;
 	geo->start = 0;
-	return 0;
+	goto ok;
     }
 
     /* Didn't work.  Let's see if this is one of the standard geometries */
     for (gp = standard_geometries; gp->bytes; gp++) {
 	if (gp->bytes == totalbytes) {
 	    memcpy(geo, &gp->g, sizeof *geo);
-	    return 0;
+	    goto ok;
 	}
     }
 
@@ -153,19 +180,25 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
     geo->cylinders = totalbytes / (geo->heads * geo->sectors << SECTOR_SHIFT);
     geo->start = 0;
 
-    if (!opt.sectors && !opt.heads)
+    if (!opt.sectors && !opt.heads) {
 	fprintf(stderr,
 		"Warning: unable to obtain device geometry (defaulting to %d heads, %d sectors)\n"
 		"         (on hard disks, this is usually harmless.)\n",
 		geo->heads, geo->sectors);
+	rv = 1;			/* Suboptimal result */
+    }
 
+ok:
     /* If this is a loopback device, try to set the start */
     if (!ioctl(devfd, LOOP_GET_STATUS64, &li64))
 	geo->start = li64.lo_offset >> SECTOR_SHIFT;
     else if (!ioctl(devfd, LOOP_GET_STATUS, &li))
 	geo->start = (unsigned int)li.lo_offset >> SECTOR_SHIFT;
+    else if (!sysfs_get_offset(devfd, &geo->start)) {
+	/* OK */
+    }
 
-    return 1;
+    return rv;
 }
 
 /*

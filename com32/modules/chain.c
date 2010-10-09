@@ -133,6 +133,7 @@ static struct options {
     bool swap;
     bool hide;
     bool sethidden;
+    bool drmk;
 } opt;
 
 struct data_area {
@@ -624,8 +625,8 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 
     /* Update parameters to reflect this new partition.  Re-use iterator */
     part->lba_data = table[part->private.mbr_index].start_lba;
-    dprintf("Partition %d primary lba %u\n", part->index, part->lba_data);
-    part->index++;
+    dprintf("Partition %d primary lba %u\n", part->private.mbr_index, part->lba_data);
+    part->index = part->private.mbr_index + 1;
     part->record = table + part->private.mbr_index;
     return part;
 
@@ -869,7 +870,7 @@ static struct disk_part_iter *next_gpt_part(struct disk_part_iter *part)
     part->private.gpt.part_guid = &gpt_part->uid;
     part->private.gpt.part_label = gpt_part->name;
     /* Update our index */
-    part->index++;
+    part->index = part->private.gpt.index + 1;
     gpt_part_dump(gpt_part);
 
     /* In a GPT scheme, we re-use the iterator */
@@ -1281,6 +1282,7 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
          msdos=<loader>     Load MS-DOS IO.SYS\n\
          pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
+         drmk=<loader>      Load DRMK DELLBIO.BIN\n\
          grub=<loader>      Load GRUB Legacy stage2\n\
          grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
          grldr=<loader>     Load GRUB4DOS grldr\n\
@@ -1351,6 +1353,11 @@ int main(int argc, char *argv[])
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethidden = true;
+	} else if (!strncmp(argv[i], "drmk=", 5)) {
+	    opt.seg = 0x70;	/* DRMK wants this address */
+	    opt.loadfile = argv[i] + 5;
+	    opt.sethidden = true;
+	    opt.drmk = true;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.seg = 0x800;	/* stage2 wants this address */
 	    opt.loadfile = argv[i] + 5;
@@ -1695,6 +1702,25 @@ int main(int argc, char *argv[])
 
 		strcpy((char *)stage2->config_file, opt.grubcfg);
 	    }
+	}
+
+	if (opt.drmk) {
+	    /* DRMK entry is different than MS-DOS/PC-DOS */
+	    /*
+	     * A new size, aligned to 16 bytes to ease use of ds:[bp+28].
+	     * We only really need 4 new, usable bytes at the end.
+	     */
+	    int tsize = (data[ndata].size + 19) & 0xfffffff0;
+	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
+	    if (!realloc(data[ndata].data, tsize)) {
+		error("Failed to realloc for DRMK\n");
+		goto bail;
+	    }
+	    data[ndata].size = tsize;
+	    /* ds:[bp+28] must be 0x0000003f */
+	    regs.ds = (tsize >> 4) + (opt.seg - 2);
+	    /* "Patch" into tail of the new space */
+	    *(int *)(data[ndata].data + tsize - 4) = 0x0000003f;
 	}
 
 	ndata++;
