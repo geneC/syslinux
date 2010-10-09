@@ -77,6 +77,7 @@ int disk_get_params(int disk, struct disk_info *const diskinfo)
 
     memset(diskinfo, 0, sizeof *diskinfo);
     diskinfo->disk = disk;
+    diskinfo->bps = SECTOR;
 
     /* Get EBIOS support */
     memset(&inreg, 0, sizeof inreg);
@@ -105,18 +106,15 @@ int disk_get_params(int disk, struct disk_info *const diskinfo)
 
 	__intcall(0x13, &inreg, &outreg);
 
-	if (outreg.eflags.l & EFLAGS_CF)
-	    return -1;	/* this really shouldn't happen if we have ebios */
-
-	diskinfo->lbacnt = eparam->lbacnt;
-	if (eparam->bps)
-	    diskinfo->bps = eparam->bps;
-	else
-	    diskinfo->bps = SECTOR;
-	/*
-	 * don't think about using geometry data returned by
-	 * 48h, as it can differ from 08h a lot ...
-	 */
+	if (!(outreg.eflags.l & EFLAGS_CF)) {
+	    diskinfo->lbacnt = eparam->lbacnt;
+	    if (eparam->bps)
+		diskinfo->bps = eparam->bps;
+	    /*
+	     * don't think about using geometry data returned by
+	     * 48h, as it can differ from 08h a lot ...
+	     */
+	}
     }
     /*
      * Get disk parameters the old way - really only useful for hard
@@ -191,20 +189,14 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 	unsigned int c, h, s, t;
 	/*
 	 * if we passed lba + count check and we get here, that means that
-	 * lbacnt was calculated from chs geometry, thus 32bits are perfectly
-	 * enough and lbacnt corresponds to cylinder boundary
+	 * lbacnt was calculated from chs geometry (or faked from 1/1/1), thus
+	 * 32bits are perfectly enough and lbacnt corresponds to cylinder
+	 * boundary
 	 */
-	if (!diskinfo->cbios) {
-	    /* We failed to get the geometry */
-	    s = 1;
-	    h = 0;
-	    c = 0;
-	} else {
-	    s = (lba % diskinfo->spt) + 1;
-	    t = lba / diskinfo->spt;
-	    h = t % diskinfo->head;
-	    c = t / diskinfo->head;
-	}
+	s = (lba % diskinfo->spt) + 1;
+	t = lba / diskinfo->spt;
+	h = t % diskinfo->head;
+	c = t / diskinfo->head;
 
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x02;	/* Read */
@@ -267,20 +259,14 @@ int disk_write_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 	unsigned int c, h, s, t;
 	/*
 	 * if we passed lba + count check and we get here, that means that
-	 * lbacnt was calculated from chs geometry, thus 32bits are perfectly
-	 * enough and lbacnt corresponds to cylinder boundary
+	 * lbacnt was calculated from chs geometry (or faked from 1/1/1), thus
+	 * 32bits are perfectly enough and lbacnt corresponds to cylinder
+	 * boundary
 	 */
-	if (!diskinfo->cbios) {
-	    /* We failed to get the geometry */
-	    s = 1;
-	    h = 0;
-	    c = 0;
-	} else {
-	    s = (lba % diskinfo->spt) + 1;
-	    t = lba / diskinfo->spt;
-	    h = t % diskinfo->head;
-	    c = t / diskinfo->head;
-	}
+	s = (lba % diskinfo->spt) + 1;
+	t = lba / diskinfo->spt;
+	h = t % diskinfo->head;
+	c = t / diskinfo->head;
 
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x03;	/* Write */
