@@ -36,13 +36,14 @@
 #include <sys/stat.h>		/* fstat() */
 #include <fcntl.h>		/* open(); open mode macros */
 #include <dirent.h>		/* fdopendir() opendir() readdir() closedir() DIR */
-#include <unistd.h>		/* getcwd() */
+#include <unistd.h>		/* getcwd() getopt() */
 #include <errno.h>		/* errno; error macros */
 #include <netinet/in.h>		/* For htonl/ntohl/htons/ntohs */
 #include <ctype.h>		/* isspace() */
 
 #include <getkey.h>
 #include <consoles.h>		/* console_ansi_raw() console_ansi_std() */
+// #include <getopt.h>		/* getopt_long() */
 
 #ifdef DO_DEBUG
 # define ROSH_DEBUG	printf
@@ -50,14 +51,17 @@
 /* define ROSH_DEBUG(f, ...)	printf (f, ## __VA_ARGS__) */
 # ifdef DO_DEBUG2
 #  define ROSH_DEBUG2	printf
+#  define ROSH_DEBUG2_ARGV_V	rosh_pr_argv_v
 # else /* DO_DEBUG2 */
 	/* This forces a format argument into the function call */
 #  define ROSH_DEBUG2(f, ...)	((void)0)
+#  define ROSH_DEBUG2_ARGV_V(argc, argv)	((void)0)
 # endif	/* DO_DEBUG2 */
 #else /* DO_DEBUG */
 # define ROSH_DEBUG(f, ...)	((void)0)
 # define ROSH_DEBUG_ARGV_V(argc, argv)	((void)0)
 # define ROSH_DEBUG2(f, ...)	((void)0)
+# define ROSH_DEBUG2_ARGV_V(argc, argv)	((void)0)
 #endif /* DO_DEBUG */
 
 #ifdef __COM32__

@@ -41,7 +41,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b085"
+#define APP_VER		"beta-b087"
 
 /* Print version information to stdout
  */
@@ -238,6 +238,14 @@ void rosh_pr_argv_v(int argc, char *argv[])
     for (i = 0; i < argc; i++) {
 	printf("%4d '%s'\n", i, argv[i]);
     }
+}
+
+/* Reset the getopt() environment
+ */
+void rosh_getopt_reset(void)
+{
+    optind = 0;
+    optopt = 0;
 }
 
 /* Display help
@@ -495,30 +503,40 @@ void rosh_echo(const char *cmdstr)
  *	argv	Argument values
  *	optarr	option array to populate
  */
-void rosh_ls_arg_opt(int argc, char *argv[], int *optarr)
+void rosh_ls_arg_opt(int argc, char *argv[], int optarr[])
 {
     int rv = 0;
 
     optarr[0] = -1;
     optarr[1] = -1;
     optarr[2] = -1;
+    rosh_getopt_reset();
     while (rv != -1) {
+	ROSH_DEBUG2("getopt optind=%d rv=%d\n", optind, rv);
 	rv = getopt(argc, argv, rosh_ls_opt_str);
 	switch (rv) {
 	case 'l':
+	case 0:
 	    optarr[0] = 1;
 	    break;
 	case 'F':
+	case 1:
 	    optarr[1] = 1;
 	    break;
 	case 'i':
+	case 2:
 	    optarr[2] = 1;
 	    break;
 	case '?':
+	case -1:
 	default:
+	    ROSH_DEBUG2("getopt optind=%d rv=%d\n", optind, rv);
 	    break;
 	}
     }
+    ROSH_DEBUG2(" end getopt optind=%d rv=%d\n", optind, rv);
+    ROSH_DEBUG2("\tIn rosh_ls_arg_opt() opt[0]=%d\topt[1]=%d\topt[2]=%d\n", optarr[0], optarr[1],
+	       optarr[2]);
 }				/* rosh_ls_arg_opt */
 
 /* Retrieve the size of a file argument
@@ -865,11 +883,13 @@ void rosh_ls(int argc, char *argv[])
     int i;
 
     rosh_ls_arg_opt(argc, argv, optarr);
+    ROSH_DEBUG2("In ls()\n");
+    ROSH_DEBUG2_ARGV_V(argc, argv);
 #ifdef DO_DEBUG
     optarr[0] = 2;
 #endif /* DO_DEBUG */
-    ROSH_DEBUG("  argc=%d; optind=%d\n", argc, optind);
-    if (optind > argc)
+    ROSH_DEBUG2("  argc=%d; optind=%d\n", argc, optind);
+    if (optind >= argc)
 	rosh_ls_arg(".", optarr);
     for (i = optind; i < argc; i++) {
 	rosh_ls_arg(argv[i], optarr);
@@ -993,7 +1013,7 @@ void rosh_more(int argc, char *argv[])
     char *scrbuf;
     int ret;
 
-    ROSH_DEBUG("CMD: '%s'\n", cmdstr);
+    ROSH_DEBUG_ARGV_V(argc, argv);
     ret = getscreensize(1, &rows, &cols);
     if (ret) {
 	ROSH_DEBUG("getscreensize() fail(%d); fall back\n", ret);
@@ -1192,7 +1212,7 @@ char rosh_command(int argc, char *argv[], const char *ipwdstr)
 	case 's':
 	case 'S':
 	    if (strncasecmp("ls", argv[0], tlen) == 0)
-		rosh_ls(argc - 1, &argv[1]);
+		rosh_ls(argc, argv);
 	    else
 		rosh_help(1, NULL);
 	    break;
