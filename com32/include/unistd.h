@@ -28,6 +28,10 @@ __extern int chdir(const char *);
 __extern unsigned int sleep(unsigned int);
 __extern unsigned int msleep(unsigned int);
 
+__extern int getopt(int, char *const *, const char *);
+__extern char *optarg;
+__extern int optind, opterr, optopt;
+
 /* Standard file descriptor numbers. */
 #define STDIN_FILENO	0
 #define STDOUT_FILENO	1
