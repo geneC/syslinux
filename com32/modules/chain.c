@@ -132,6 +132,7 @@ static struct options {
     bool swap;
     bool hide;
     bool sethidden;
+    bool drmk;
 } opt;
 
 struct data_area {
@@ -786,6 +787,7 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
          msdos=<loader>     Load MS-DOS IO.SYS\n\
          pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
+         drmk=<loader>      Load DRMK DELLBIO.BIN\n\
          grub=<loader>      Load GRUB Legacy stage2\n\
          grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
          grldr=<loader>     Load GRUB4DOS grldr\n\
@@ -856,6 +858,11 @@ int main(int argc, char *argv[])
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethidden = true;
+	} else if (!strncmp(argv[i], "drmk=", 5)) {
+	    opt.seg = 0x70;	/* DRMK wants this address */
+	    opt.loadfile = argv[i] + 5;
+	    opt.sethidden = true;
+	    opt.drmk = true;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.seg = 0x800;	/* stage2 wants this address */
 	    opt.loadfile = argv[i] + 5;
@@ -1200,6 +1207,25 @@ int main(int argc, char *argv[])
 
 		strcpy((char *)stage2->config_file, opt.grubcfg);
 	    }
+	}
+
+	if (opt.drmk) {
+	    /* DRMK entry is different than MS-DOS/PC-DOS */
+	    /*
+	     * A new size, aligned to 16 bytes to ease use of ds:[bp+28].
+	     * We only really need 4 new, usable bytes at the end.
+	     */
+	    int tsize = (data[ndata].size + 19) & 0xfffffff0;
+	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
+	    if (!realloc(data[ndata].data, tsize)) {
+		error("Failed to realloc for DRMK\n");
+		goto bail;
+	    }
+	    data[ndata].size = tsize;
+	    /* ds:[bp+28] must be 0x0000003f */
+	    regs.ds = (tsize >> 4) + (opt.seg - 2);
+	    /* "Patch" into tail of the new space */
+	    *(int *)(data[ndata].data + tsize - 4) = 0x0000003f;
 	}
 
 	ndata++;

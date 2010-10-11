@@ -63,6 +63,8 @@ static void iso_mangle_name(char *dst, const char *src)
 
         if ( (*(dst-1) != '.') && (*(dst-1) != '/') )
             break;
+	if ((dst[-1] == '/') && ((dst - 1) == p))
+	    break;
 
         dst --;
         i ++;

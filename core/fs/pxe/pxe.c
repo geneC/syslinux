@@ -642,7 +642,21 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
  * @out: the lenght of this file, stores in file->file_len
  *
  */
+static void __pxe_searchdir(const char *filename, struct file *file);
+extern uint16_t PXERetry;
+
 static void pxe_searchdir(const char *filename, struct file *file)
+{
+    int i = PXERetry;
+
+    do {
+	dprintf("PXE: file = %p, retries left = %d: ", file, i);
+	__pxe_searchdir(filename, file);
+	dprintf("%s\n", file->inode ? "ok" : "failed");
+    } while (!file->inode && i--);
+}
+
+static void __pxe_searchdir(const char *filename, struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode;
