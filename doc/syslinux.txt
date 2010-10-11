@@ -122,8 +122,8 @@ backslash.
 All options here applies to PXELINUX, ISOLINUX and EXTLINUX as well as
 SYSLINUX unless otherwise noted.  See the respective .txt files.
 
-# comment
-	A comment line.  The whitespace after the hash mark is mandatory.
+#comment
+	A comment line.
 
 INCLUDE filename
 	Inserts the contents of another file at this point in the
