@@ -252,10 +252,6 @@ int parse_args(int argc, char *argv[])
 	    if (argv[i][4]) {
 		if (soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip, 0x7c00))
 		    goto bail;
-		if ((opt.sseg << 4) + opt.soff + SECTOR - 1 > ADDRMAX) {
-		    error("Arguments of 'sect=' are invalid - resulting address too big.\n");
-		    goto bail;
-		}
 	    }
 	    opt.sect = true;
 	} else if (!strcmp(argv[i], "nosect")) {

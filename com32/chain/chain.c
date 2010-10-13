@@ -556,9 +556,13 @@ int main(int argc, char *argv[])
 
     /* Load the sector */
     if (opt.sect) {
-	sdat.size = SECTOR;
 	sdat.base = (opt.sseg << 4) + opt.soff;
+	sdat.size = iter->di.bps;
 
+	if (sdat.base + sdat.size - 1 > ADDRMAX) {
+	    error("The sector cannot be loaded at such high address.\n");
+	    goto bail;
+	}
 	if (opt.file && opt.maps && overlap(&fdat, &sdat)) {
 	    error("WARNING: The sector won't be loaded, as it would conflict with the boot file.\n");
 	    opt.sect = false;
@@ -568,7 +572,7 @@ int main(int argc, char *argv[])
 		goto bail;
 	    }
 	    if (opt.save) {
-		if (!(sbck = malloc(SECTOR))) {
+		if (!(sbck = malloc(sdat.size))) {
 		    error("Couldn't allocate cmp-buf for option 'save'.\n");
 		    goto bail;
 		}
