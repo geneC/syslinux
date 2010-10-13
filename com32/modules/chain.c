@@ -1715,24 +1715,22 @@ int main(int argc, char *argv[])
 	    sdi = syslinux_derivative_info();
 	    /* We should lookup the Syslinux partition offset and use it */
 	    fs_lba = *sdi->disk.partoffset;
+	    /*
+	     * fs_lba should be verified against the disk as some DRMK
+	     * variants will check and fail if it does not match
+	     */
 	    dprintf("  fs_lba offset is %d\n", fs_lba);
 	    if (fs_lba > 0xffffffff) {
-		error("LBA very large; Only using lower 32 bits; DRMK may fail\n");
-	    } else if (fs_lba == 0) {
-		error("LBA is 0; DRMK may fail\n");
-	    } else if (fs_lba > 0x3f) {
-		error("LBA > 0x3f; DRMK may fail\n");
+		error("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
 	    }
 	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
 	    if (!realloc(data[ndata].data, tsize)) {
 		error("Failed to realloc for DRMK\n");
-		goto bail;
+		goto bail;	/* We'll never make it */
 	    }
 	    data[ndata].size = tsize;
-	    /* ds:[bp+28] is a special "internal" value */
-	    /*
-	     * Currently, I (Gene Cumm) am still examining its real meaning.  For the Syslinux partition at C,H,S 0,1,1, it's equal to the number of sectors per track.  It matches the FAT header field of the number of early sectors at offset 0x1c(=28) found in these partitions.
-	     */
+	    /* ds:bp is assumed by DRMK to be the boot sector */
+	    /* offset 28 is the FAT HiddenSectors value */
 	    regs.ds = (tsize >> 4) + (opt.seg - 2);
 	    /* "Patch" into tail of the new space */
 	    *(int *)(data[ndata].data + tsize - 4) = (int)(fs_lba & 0xffffffff);
