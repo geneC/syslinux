@@ -1720,6 +1720,7 @@ int main(int argc, char *argv[])
 	     * variants will check and fail if it does not match
 	     */
 	    dprintf("  fs_lba offset is %d\n", fs_lba);
+	    /* DRMK only uses a DWORD */
 	    if (fs_lba > 0xffffffff) {
 		error("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
 	    }
