@@ -282,7 +282,7 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x02;	/* Read */
 	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.ecx.b[0] = ((c >> 2) & 0xc0) + s;
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = disk_info.disk;
 	inreg.ebx.w[0] = OFFS(buf);
