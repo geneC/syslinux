@@ -193,15 +193,15 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 	 * 32bits are perfectly enough and lbacnt corresponds to cylinder
 	 * boundary
 	 */
-	s = (lba % diskinfo->spt) + 1;
+	s = lba % diskinfo->spt;
 	t = lba / diskinfo->spt;
 	h = t % diskinfo->head;
 	c = t / diskinfo->head;
 
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x02;	/* Read */
-	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = ((c >> 2) & 0xc0u) | s;
+	inreg.ecx.b[1] = c;
+	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = diskinfo->disk;
 	inreg.ebx.w[0] = OFFS(buf);
@@ -263,15 +263,15 @@ int disk_write_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 	 * 32bits are perfectly enough and lbacnt corresponds to cylinder
 	 * boundary
 	 */
-	s = (lba % diskinfo->spt) + 1;
+	s = lba % diskinfo->spt;
 	t = lba / diskinfo->spt;
 	h = t % diskinfo->head;
 	c = t / diskinfo->head;
 
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x03;	/* Write */
-	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = ((c >> 2) & 0xc0u) | s;
+	inreg.ecx.b[1] = c;
+	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = diskinfo->disk;
 	inreg.ebx.w[0] = OFFS(buf);
