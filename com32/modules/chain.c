@@ -266,23 +266,21 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 	    if (lba)
 		return NULL;	/* Can only read MBR */
 
-	    s = 1;
-	    h = 0;
-	    c = 0;
+	    s = h = c = 0;
 	} else {
-	    s = (lba % disk_info.sect) + 1;
+	    s = lba % disk_info.sect;
 	    t = lba / disk_info.sect;	/* Track = head*cyl */
 	    h = t % disk_info.head;
 	    c = t / disk_info.head;
 	}
 
-	if (s > 63 || h > 256 || c > 1023)
+	if (s >= 63 || h >= 256 || c >= 1024)
 	    return NULL;
 
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x02;	/* Read */
-	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.ecx.b[1] = c;
+	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = disk_info.disk;
 	inreg.ebx.w[0] = OFFS(buf);
@@ -327,22 +325,20 @@ static int write_sector(unsigned int lba, const void *data)
 	    if (lba)
 		return -1;	/* Can only write MBR */
 
-	    s = 1;
-	    h = 0;
-	    c = 0;
+	    s = h = c = 0;
 	} else {
-	    s = (lba % disk_info.sect) + 1;
+	    s = lba % disk_info.sect;
 	    t = lba / disk_info.sect;	/* Track = head*cyl */
 	    h = t % disk_info.head;
 	    c = t / disk_info.head;
 	}
 
-	if (s > 63 || h > 256 || c > 1023)
+	if (s >= 63 || h >= 256 || c >= 1024)
 	    return -1;
 
 	inreg.eax.w[0] = 0x0301;	/* Write one sector */
-	inreg.ecx.b[1] = c & 0xff;
-	inreg.ecx.b[0] = s + (c >> 6);
+	inreg.ecx.b[1] = c;
+	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = disk_info.disk;
 	inreg.ebx.w[0] = OFFS(buf);
