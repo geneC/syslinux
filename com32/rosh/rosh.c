@@ -24,6 +24,8 @@
  * commands	Break into argv/argc-like array
  * rosh_cfg:	allow -s <file> to change config
  * rosh_ls():	sorted; then multiple columns
+ * prompt:	Possibly honor timeout on initial entry for usage as UI
+ *		Also possibly honor totaltimeout
  */
 
 /*#define DO_DEBUG 1
