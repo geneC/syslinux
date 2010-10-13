@@ -47,9 +47,6 @@
 #define ost_is_nondata(type) (ost_is_ext(type) || (type) == 0x00)
 #define sane(s,l) ((s)+(l) > (s))
 
-/* this is chosen to follow how many sectors disklib can read at once */
-#define MAXGPTPTSIZE (255u*SECTOR)
-
 /* forwards */
 
 static int iter_ctor(struct part_iter *, va_list *);
@@ -194,12 +191,14 @@ static int iter_gpt_ctor(struct part_iter *iter, va_list *args)
 	goto bail;
 #endif
 
-    siz = (uint64_t)gpth->part_count * (uint64_t)gpth->part_size;
+    siz = (uint64_t)gpth->part_count * gpth->part_size;
 
-    if (!siz || siz > MAXGPTPTSIZE ||
+#ifdef DEBUG
+    if (!siz || (siz + iter->di.bps - 1) / iter->di.bps > 255u ||
 	    gpth->part_size < sizeof(struct disk_gpt_part_entry)) {
 	goto bail;
     }
+#endif
 
     if (!(iter->data = malloc((size_t)siz)))
 	goto bail;
@@ -208,6 +207,9 @@ static int iter_gpt_ctor(struct part_iter *iter, va_list *args)
 
     iter->sub.gpt.pe_count = (int)gpth->part_count;
     iter->sub.gpt.pe_size = (int)gpth->part_size;
+    iter->sub.gpt.ufirst = gpth->lba_first_usable;
+    iter->sub.gpt.ulast = gpth->lba_last_usable;
+
     memcpy(&iter->sub.gpt.disk_guid, &gpth->disk_guid, sizeof(struct guid));
 
     return 0;
@@ -293,14 +295,18 @@ static int notsane_extended(const struct part_iter *iter)
  * - values must not wrap around 32bit
  */
 
-static int notsane_primary(const struct disk_dos_part_entry *dp)
+static int notsane_primary(const struct part_iter *iter)
 {
+    const struct disk_dos_part_entry *dp;
+    dp = ((struct disk_dos_mbr *)iter->data)->table + iter->index0;
+
     if (!dp->ostype)
 	return 0;
 
     if (!dp->start_lba ||
 	!dp->length ||
-	!sane(dp->start_lba, dp->length)) {
+	!sane(dp->start_lba, dp->length) ||
+	dp->start_lba + dp->length > iter->di.lbacnt) {
 	error("Insane primary (MBR) partition.\n");
 	return -1;
     }
@@ -308,14 +314,17 @@ static int notsane_primary(const struct disk_dos_part_entry *dp)
     return 0;
 }
 
-static int notsane_gpt(const struct disk_gpt_part_entry *gp)
+static int notsane_gpt(const struct part_iter *iter)
 {
+    const struct disk_gpt_part_entry *gp;
+    gp = (const struct disk_gpt_part_entry *)
+	(iter->data + iter->index0 * iter->sub.gpt.pe_size);
+
     if (guid_is0(&gp->type))
 	return 0;
 
-    if (!gp->lba_first ||
-	!gp->lba_last ||
-	gp->lba_first > gp->lba_last) {
+    if (gp->lba_first < iter->sub.gpt.ufirst ||
+	gp->lba_last > iter->sub.gpt.ulast) {
 	error("Insane GPT partition.\n");
 	return -1;
     }
@@ -331,7 +340,7 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
     while (++iter->index0 < 4) {
 	dp = ((struct disk_dos_mbr *)iter->data)->table + iter->index0;
 
-	if (notsane_primary(dp)) {
+	if (notsane_primary(iter)) {
 	    iter->status = PI_INSANE;
 	    goto bail;
 	}
@@ -507,7 +516,7 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 	gpt_part = (const struct disk_gpt_part_entry *)
 	    (iter->data + iter->index0 * iter->sub.gpt.pe_size);
 
-	if (notsane_gpt(gpt_part)) {
+	if (notsane_gpt(iter)) {
 	    iter->status = PI_INSANE;
 	    goto bail;
 	}
@@ -723,6 +732,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int stepall)
 	/* looks like GPT v1.0 */
 	uint64_t gpt_loff;	    /* offset to GPT partition list in sectors */
 	uint64_t gpt_lsiz;	    /* size of GPT partition list in bytes */
+	uint64_t gpt_lcnt;	    /* size of GPT partition in sectors */
 #ifdef DEBUG
 	puts("Looks like a GPT v1.0 disk.");
 	disk_gpt_header_dump(gpth);
@@ -732,25 +742,42 @@ struct part_iter *pi_begin(const struct disk_info *di, int stepall)
 	    goto bail;
 
 	gpt_loff = gpth->lba_table;
-	gpt_lsiz = (uint64_t)gpth->part_size*gpth->part_count;
+	gpt_lsiz = (uint64_t)gpth->part_size * gpth->part_count;
+	gpt_lcnt = (gpt_lsiz + di->bps - 1) / di->bps;
 
 	/*
 	 * disk_read_sectors allows reading of max 255 sectors, so we use
-	 * it as a sanity check base. EFI doesn't specify max.
+	 * it as a sanity check base. EFI doesn't specify max (AFAIK).
+	 * Apart from that, some extensive sanity checks.
 	 */
-	if (!gpt_loff || !gpt_lsiz || gpt_lsiz > MAXGPTPTSIZE ||
+	if (!gpt_loff || !gpt_lsiz || gpt_lcnt > 255u ||
+		gpth->lba_first_usable > gpth->lba_last_usable ||
+		!sane(gpt_loff, gpt_lcnt) ||
+		gpt_loff + gpt_lcnt > gpth->lba_first_usable ||
+		!sane(gpth->lba_last_usable, gpt_lcnt) ||
+		gpth->lba_last_usable + gpt_lcnt >= gpth->lba_alt ||
+		gpth->lba_alt >= di->lbacnt ||
 		gpth->part_size < sizeof(struct disk_gpt_part_entry)) {
-	    error("Invalid GPT header's lba_table/part_count/part_size values.\n");
+	    error("Invalid GPT header's values.\n");
 	    goto bail;
 	}
-	if (!(gptl = disk_read_sectors(di, gpt_loff, (uint8_t)((gpt_lsiz+SECTOR-1)/SECTOR)))) {
+	if (!(gptl = disk_read_sectors(di, gpt_loff, (uint8_t)gpt_lcnt))) {
 	    error("Couldn't read GPT partition list.\n");
 	    goto bail;
 	}
-	/* Check array checksum. */
+	/* Check array checksum(s). */
 	if (check_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
-	    error("GPT partition list checksum invalid.\n");
-	    goto bail;
+	    error("WARNING: GPT partition list checksum invalid, trying backup.\n");
+	    free(gptl);
+	    /* secondary array directly precedes secondary header */
+	    if (!(gptl = disk_read_sectors(di, gpth->lba_alt - gpt_lcnt, (uint8_t)gpt_lcnt))) {
+		error("Couldn't read backup GPT partition list.\n");
+		goto bail;
+	    }
+	    if (check_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
+		error("Backup GPT partition list checksum invalid.\n");
+		goto bail;
+	    }
 	}
 	/* allocate iterator and exit */
 	iter = pi_new(typegpt, di, stepall, gpth, gptl);

@@ -86,6 +86,8 @@ struct part_iter {
 	    char part_label[PI_GPTLABSIZE/2+1];
 	    int pe_count;
 	    int pe_size;
+	    uint64_t ufirst;
+	    uint64_t ulast;
 	} gpt;
     } sub;
 };
