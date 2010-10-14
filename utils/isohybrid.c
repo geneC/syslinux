@@ -543,15 +543,11 @@ main(int argc, char *argv[])
 
     if (padding)
     {
-        if (!(buf = realloc(buf, padding)))
-            err(1, "%s: could not re-size buffer", argv[0]);
+        if (fsync(fileno(fp)))
+            err(1, "%s: could not synchronise", argv[0]);
 
-        if (fseek(fp, isostat.st_size, SEEK_SET))
-            err(1, "%s: seek error - 6", argv[0]);
-
-        memset(buf, 0, padding);
-        if (fwrite(buf, sizeof(char), padding, fp) != (size_t)padding)
-            err(1, "%s: write error - 2", argv[0]);
+        if (ftruncate(fileno(fp), isostat.st_size + padding))
+            err(1, "%s: could not add padding bytes", argv[0]);
     }
 
     free(buf);
