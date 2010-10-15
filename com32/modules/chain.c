@@ -77,7 +77,8 @@
  *	used with DOS' io.sys.
  *
  * drmk=<loader>
- *	Similar to msdos=<loader> but prepares the special options for the Dell Real Mode Kernel.  Currently, this is only known to work on a partition at C,H,S 0,1,1
+ *	Similar to msdos=<loader> but prepares the special options
+ *	for the Dell Real Mode Kernel.
  *
  * grub=<loader>
  *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
