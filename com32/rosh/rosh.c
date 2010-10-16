@@ -43,7 +43,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b088"
+#define APP_VER		"beta-b089"
 
 /* Print version information to stdout
  */
@@ -327,11 +327,13 @@ void rosh_error(const int ierrno, const char *cmdstr, const char *filestr)
 
 /* Concatenate command line arguments into one string
  *	cmdstr	Output command string
+ *	cmdlen	Length of cmdstr
  *	argc	Argument Count
  *	argv	Argument Values
  *	barg	Beginning Argument
  */
-int rosh_argcat(char *cmdstr, const int argc, char *argv[], const int barg)
+int rosh_argcat(char *cmdstr, const int cmdlen, const int argc, char *argv[],
+		const int barg)
 {
     int i, arglen, curpos;	/* index, argument length, current position
 				   in cmdstr */
@@ -340,15 +342,15 @@ int rosh_argcat(char *cmdstr, const int argc, char *argv[], const int barg)
     for (i = barg; i < argc; i++) {
 	arglen = strlen(argv[i]);
 	/* Theoretically, this should never be met in SYSLINUX */
-	if ((curpos + arglen) > (ROSH_CMD_SZ - 1))
-	    arglen = (ROSH_CMD_SZ - 1) - curpos;
+	if ((curpos + arglen) > (cmdlen - 1))
+	    arglen = (cmdlen - 1) - curpos;
 	memcpy(cmdstr + curpos, argv[i], arglen);
 	curpos += arglen;
-	if (curpos >= (ROSH_CMD_SZ - 1)) {
+	if (curpos >= (cmdlen - 1)) {
 	    /* Hopefully, curpos should not be greater than
-	       (ROSH_CMD_SZ - 1) */
+	       (cmdlen - 1) */
 	    /* Still need a '\0' at the last character */
-	    cmdstr[(ROSH_CMD_SZ - 1)] = 0;
+	    cmdstr[(cmdlen - 1)] = 0;
 	    break;		/* Escape out of the for() loop;
 				   We can no longer process anything more */
 	} else {
@@ -1117,7 +1119,7 @@ void rosh_run(int argc, char *argv[])
     char cmdstr[ROSH_CMD_SZ];
     int len;
 
-    len = rosh_argcat(cmdstr, argc, argv, 0);
+    len = rosh_argcat(cmdstr, ROSH_CMD_SZ, argc, argv, 0);
     if (len) {
 	printf("--run: '%s'\n", cmdstr);
 	syslinux_run_command(cmdstr);
@@ -1342,6 +1344,12 @@ int main(int argc, char *argv[])
     if (argc == 1) {
 	rosh_version(0);
 	print_beta();
+    } else {
+#ifdef DO_DEBUG
+	char cmdstr[ROSH_CMD_SZ];
+	rosh_argcat(cmdstr, ROSH_CMD_SZ, argc, argv, 1);
+	ROSH_DEBUG("arg='%s'\n", cmdstr);
+#endif
     }
     rv = rosh_prompt(argc, argv);
     printf("--Exiting '" APP_NAME "'\n");
