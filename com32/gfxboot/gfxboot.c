@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <minmax.h>
 
 #include <syslinux/loadfile.h>
 #include <syslinux/config.h>
@@ -770,7 +771,7 @@ void *load_one(char *file, ssize_t *file_size)
   if(size) {
     buf = malloc(size);
     for(i = 1, cur = 0 ; cur < size && i > 0; cur += i) {
-      i = save_read(fd, buf + cur, CHUNK_SIZE);
+      i = save_read(fd, buf + cur, min(CHUNK_SIZE, size - cur));
       if(i == -1) break;
       gfx_progress_update(i);
     }
