@@ -402,20 +402,36 @@ bail:
 static int setup_handover(const struct part_iter *iter,
 		   struct data_area *data)
 {
-    const struct disk_dos_part_entry *dp;
-    const struct disk_gpt_part_entry *gp;
     struct disk_dos_part_entry *ha;
-    uint64_t lba_count;
     uint32_t synth_size;
     uint32_t *plen;
 
-    if (iter->type == typegpt) {
+    if (!iter->index) { /* implies typeraw or non-iterated */
+	uint32_t len;
+	/* RAW handover protocol */
+	synth_size = sizeof(struct disk_dos_part_entry);
+	ha = malloc(synth_size);
+	if (!ha) {
+	    error("Could not build RAW hand-over record!\n");
+	    goto bail;
+	}
+	len = ~0u;
+	if (iter->di.lbacnt < len)
+	    len = (uint32_t)iter->di.lbacnt;
+	*(uint32_t *)ha->start = lba2chs(&iter->di, 0, l2c_cadd);
+	*(uint32_t *)ha->end = lba2chs(&iter->di, len - 1, l2c_cadd);
+	ha->active_flag = 0x80;
+	ha->ostype = 0xDA;	/* "Non-FS Data", anything is good here though ... */
+	ha->start_lba = 0;
+	ha->length = len;
+    } else if (iter->type == typegpt) {
+	const struct disk_gpt_part_entry *gp;
+	uint64_t lba_count;
 	/* GPT handover protocol */
 	gp = (const struct disk_gpt_part_entry *)iter->record;
 	lba_count = gp->lba_last - gp->lba_first + 1;
 	synth_size = sizeof(struct disk_dos_part_entry) +
 	    sizeof(uint32_t) + (uint32_t)iter->sub.gpt.pe_size;
-
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build GPT hand-over record!\n");
@@ -443,41 +459,25 @@ static int setup_handover(const struct part_iter *iter,
 	disk_dos_part_dump(ha);
 	disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
-    } else if (iter->type == typedos || iter->type == typeraw) {
-	/* MBR / RAW handover protocol */
+    } else if (iter->type == typedos) {
+	const struct disk_dos_part_entry *dp;
+	/* MBR handover protocol */
+	dp = (const struct disk_dos_part_entry *)iter->record;
 	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build MBR / RAW hand-over record!\n");
+	    error("Could not build MBR hand-over record!\n");
 	    goto bail;
 	}
-	if (!iter->index) {
-	    uint32_t len = ~0u;
-	    if (iter->di.lbacnt < len)
-		len = (uint32_t)iter->di.lbacnt;
-	    *(uint32_t *)ha->start = lba2chs(&iter->di, 0, l2c_cadd);
-	    *(uint32_t *)ha->end = lba2chs(&iter->di, len - 1, l2c_cadd);
-	    ha->active_flag = 0x80;
-	    ha->ostype = 0xDA;	/* "Non-FS Data", anything is good here though ... */
-	    ha->start_lba = 0;
-	    ha->length = len;
-	} else if (iter->type == typedos) {
-	    dp = (const struct disk_dos_part_entry *)iter->record;
-
-	    *(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba, l2c_cadd);
-	    *(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1, l2c_cadd);
-	    ha->active_flag = dp->active_flag;
-	    ha->ostype = dp->ostype;
-	    ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */
-	    ha->length = dp->length;
+	*(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba, l2c_cadd);
+	*(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1, l2c_cadd);
+	ha->active_flag = dp->active_flag;
+	ha->ostype = dp->ostype;
+	ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */
+	ha->length = dp->length;
 #ifdef DEBUG
-	    dprintf("MBR handover:\n");
-	    disk_dos_part_dump(ha);
-	} else {
-	    goto bail;
-#endif
-	}
-#ifdef DEBUG
+	dprintf("MBR handover:\n");
+	disk_dos_part_dump(ha);
     } else {
 	/* shouldn't ever happen */
 	goto bail;
