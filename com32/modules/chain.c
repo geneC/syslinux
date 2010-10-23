@@ -76,6 +76,10 @@
  *	equivalent to seg=0x70 file=<loader> sethidden,
  *	used with DOS' io.sys.
  *
+ * drmk=<loader>
+ *	Similar to msdos=<loader> but prepares the special options
+ *	for the Dell Real Mode Kernel.
+ *
  * grub=<loader>
  *	same as seg=0x800 file=<loader> & jumping to seg 0x820,
  *	used with GRUB Legacy stage2 files.
@@ -1707,16 +1711,31 @@ int main(int argc, char *argv[])
 	     * We only really need 4 new, usable bytes at the end.
 	     */
 	    int tsize = (data[ndata].size + 19) & 0xfffffff0;
+	    const union syslinux_derivative_info *sdi;
+
+	    sdi = syslinux_derivative_info();
+	    /* We should lookup the Syslinux partition offset and use it */
+	    fs_lba = *sdi->disk.partoffset;
+	    /*
+	     * fs_lba should be verified against the disk as some DRMK
+	     * variants will check and fail if it does not match
+	     */
+	    dprintf("  fs_lba offset is %d\n", fs_lba);
+	    /* DRMK only uses a DWORD */
+	    if (fs_lba > 0xffffffff) {
+		error("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
+	    }
 	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
 	    if (!realloc(data[ndata].data, tsize)) {
 		error("Failed to realloc for DRMK\n");
-		goto bail;
+		goto bail;	/* We'll never make it */
 	    }
 	    data[ndata].size = tsize;
-	    /* ds:[bp+28] must be 0x0000003f */
+	    /* ds:bp is assumed by DRMK to be the boot sector */
+	    /* offset 28 is the FAT HiddenSectors value */
 	    regs.ds = (tsize >> 4) + (opt.seg - 2);
 	    /* "Patch" into tail of the new space */
-	    *(int *)(data[ndata].data + tsize - 4) = 0x0000003f;
+	    *(int *)(data[ndata].data + tsize - 4) = (int)(fs_lba & 0xffffffff);
 	}
 
 	ndata++;
