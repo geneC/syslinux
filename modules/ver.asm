@@ -2,9 +2,10 @@
 ;
 ;  ver.asm
 ;
-;  A COMBOOT/DOS COM program to display the version of the system (Syslinux or DOS)
+;  A COMBOOT/DOS COM program to display the version of the system
+; (Syslinux, DOS, or DRMK)
 ;
-;   Copyright (C) 2009  Gene Cumm
+;   Copyright (C) 2009-2010  Gene Cumm
 ;
 ;  This program is free software; you can redistribute it and/or modify
 ;  it under the terms of the GNU General Public License as published by
@@ -167,6 +168,8 @@ chkprn_dosver:
 		je .var_msdos
 		cmp bh,0FDh
 		je .var_freedos
+		cmp bh,0DEh
+		je .var_drmk
 		jmp .var_unk
 .var_pcdos:
 		mov si,pcdos_str
@@ -178,6 +181,10 @@ chkprn_dosver:
 		jmp .var_end
 .var_freedos:
 		mov si,freedos_str
+		call writestr
+		jmp .var_end
+.var_drmk:
+		mov si,drmk_str
 		call writestr
 		jmp .var_end
 .var_unk:
@@ -200,7 +207,13 @@ chkprn_dosver:
 		pop edx
 		pop eax
 		cmp bh,0FFh
+		je .msdos_ver
+		cmp bh,0DEh
 		jne .end_ver
+.drmk_ver:
+		call getprn_drmkver
+		jmp .end_ver
+.msdos_ver:
 		cmp al,5
 		jb .end_ver
 		call getprn_msdosver
@@ -226,8 +239,8 @@ prn_dosver_num:
 		call writechr_dl
 .vmin_prn:
 		mov al,ah
-		call writedecb
-; 		call writehex2
+; 		call writedecb
+		call writehex2
 .serial:
 		mov si,spparen_str
 		call writestr
@@ -292,6 +305,99 @@ getprn_msdosver:
 		mov ebx,0
 		mov ecx,edx
 		call prn_dosver_num
+.end:
+		popfd
+		popad
+		ret
+
+; getdrmkver:	Get the DRMK-specifc OS version
+;	Returns	Version
+;	AX	OS Version
+;	DX	Patch Version
+getdrmkver:
+		mov dx,0
+		mov ax,4452h
+		int 21h
+		ret
+
+; getdrmkver:	Get the DRMK-specifc Kernel build info
+getdrmkbld:
+		mov bx,0
+		mov ax,4458h
+		int 21h
+		ret
+
+; getprn_drmkver: Get/Print DRMK-specific Version info
+getprn_drmkver:
+		pushad
+		pushfd
+.getver:
+		call getdrmkver
+.prnosver:	; "OS Version"
+		mov si,osver_str
+		call writestr
+		mov si,zerox_str
+		call writestr
+		call writehex4
+		call crlf
+.prnpatchver:	; "Patch Version"
+		mov si,patchver_str
+		call writestr
+		mov si,zerox_str
+		call writestr
+		mov dx,ax
+		call writehex4
+		call crlf
+.getbld:
+		call getdrmkbld
+.prnkernbld:	; "Kernel Build Date"
+		mov si,kernbld_str
+		call writestr
+		call writedate_ax
+		call crlf
+.end:
+		popfd
+		popad
+		ret
+
+;writedate_ax	Write a date in AX in ? format
+;	Input
+;	AX	Date in 16-bit DOS format
+writedate_ax:
+		pushad
+		pushfd
+		mov dx,ax
+.year:
+		shr ax,9
+		add ax,1980
+		call writedecw
+		mov al,'-'
+		call writechr
+		mov ax,dx
+.month:
+		shr ax,9
+		and ax,0Fh
+		cmp ax,10
+		jae .month_wri
+		mov cx,ax
+		mov ax,'0'
+		call writechr
+		mov ax,cx
+.month_wri:
+		call writedecw
+		mov al,'-'
+		call writechr
+		mov ax,dx
+.day:
+		and ax,1Fh
+		cmp ax,10
+		jae .day_wri
+		mov cx,ax
+		mov ax,'0'
+		call writechr
+		mov ax,cx
+.day_wri:
+		call writedecw
 .end:
 		popfd
 		popad
@@ -386,9 +492,10 @@ is_zf:
 %include "../core/writedec.inc"		; Decimal output
 
 		section .data
-info_str	db 'Ver.com b010', CR, LF, 0
+info_str	db 'Ver.com b016', CR, LF, 0
 is_dos_str	db 'Found DOS', CR, LF, 0
 is_sysl_str	db 'Found a Syslinux variant', CR, LF, 0
+is_drmk_str	db 'Found DRMK', CR, LF, 0
 may_sysl_str	db 'Maybe Syslinux variant', CR, LF, 0
 gotver_str	db 'Got the version back', CR, LF, 0
 prn_ver_str	db 'Printing version number', CR, LF, 0
@@ -401,7 +508,11 @@ pcdos_str	db 'PC-DOS ', 0
 msdos_str	db 'MS-DOS ', 0
 freedos_str	db 'FreeDOS ', 0
 unkdos_str	db 'Unknown-DOS ', 0
+drmk_str	db 'DRMK ', 0
 dosext_str	db '  Extended DOS version: ', 0
+osver_str	db '  OS Version: ', 0
+patchver_str	db '  Patch Version: ', 0
+kernbld_str	db '  Kernel Build Date: ', 0
 spparen_str	db ' (', 0
 zerox_str	db '0x', 0
 parensp_str	db ') ', 0
