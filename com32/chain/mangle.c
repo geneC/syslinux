@@ -209,16 +209,33 @@ int manglef_drmk(struct data_area *data)
 	return 0;
 
     uint32_t tsize = (data->size + 19) & 0xfffffff0;
+    const union syslinux_derivative_info *sdi;
+    uint64_t fs_lba;
+
+    sdi = syslinux_derivative_info();
+    /* We should lookup the Syslinux partition offset and use it */
+    fs_lba = *sdi->disk.partoffset;
+
+    /*
+     * fs_lba should be verified against the disk as some DRMK
+     * variants will check and fail if it does not match
+     */
+    dprintf("  fs_lba offset is %d\n", fs_lba);
+    /* DRMK only uses a DWORD */
+    if (fs_lba > 0xffffffff) {
+	error("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
+    }
     opt.regs.ss = opt.regs.fs = opt.regs.gs = 0;	/* Used before initialized */
     if (!realloc(data->data, tsize)) {
 	error("Failed to realloc for DRMK.\n");
 	goto bail;
     }
     data->size = tsize;
-    /* ds:[bp+28] must be 0x0000003f */
+    /* ds:bp is assumed by DRMK to be the boot sector */
+    /* offset 28 is the FAT HiddenSectors value */
     opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.fseg - 2));
     /* "Patch" into tail of the new space */
-    *(uint32_t *)((char*)data->data + tsize - 4) = 0x0000003f;
+    *(uint32_t *)((char*)data->data + tsize - 4) = (uint32_t)fs_lba;
 
     return 0;
 bail:
