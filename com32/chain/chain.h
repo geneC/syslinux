@@ -1,17 +1,13 @@
 #ifndef _COM32_CHAIN_CHAIN_H
 #define _COM32_CHAIN_CHAIN_H
 
-#include <stdint.h>
-#include <syslinux/bootrm.h>
-#include "options.h"
+#include <syslinux/movebits.h>
 
 struct data_area {
     void *data;
     addr_t base;
     addr_t size;
 };
-
-extern struct options opt;
 
 #endif
 

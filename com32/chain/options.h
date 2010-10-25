@@ -1,6 +1,9 @@
 #ifndef _COM32_CHAIN_OPTIONS_H
 #define _COM32_CHAIN_OPTIONS_H
 
+#include <stdint.h>
+#include <syslinux/bootrm.h>
+
 struct options {
     unsigned int fseg;
     unsigned int foff;
@@ -34,10 +37,10 @@ struct options {
     struct syslinux_rm_regs regs;
 };
 
-int soi_s2n(char *ptr, unsigned int *seg, unsigned int *off,
-	unsigned int *ip, unsigned int def);
-void usage(void);
-int parse_args(int argc, char *argv[]);
+extern struct options opt;
+
+void opt_set_defs(void);
+int opt_parse_args(int argc, char *argv[]);
 
 #endif
 

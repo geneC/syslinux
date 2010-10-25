@@ -6,7 +6,9 @@
 #include "utility.h"
 #include "options.h"
 
-int soi_s2n(char *ptr, unsigned int *seg,
+struct options opt;
+
+static int soi_s2n(char *ptr, unsigned int *seg,
 		       unsigned int *off,
 		       unsigned int *ip,
 		       unsigned int def)
@@ -49,7 +51,7 @@ bail:
     return -1;
 }
 
-void usage(void)
+static void usage(void)
 {
     unsigned int i;
     static const char key[] = "Press any key...\n";
@@ -116,7 +118,21 @@ Usage:\n\
     }
 }
 
-int parse_args(int argc, char *argv[])
+void opt_set_defs(void)
+{
+    memset(&opt, 0, sizeof(opt));
+    opt.sect = true;	/* by def. load sector */
+    opt.maps = true;	/* by def. map sector */
+    opt.hand = true;	/* by def. prepare handover */
+    opt.chain = true;	/* by def. do chainload */
+    opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
+    opt.drivename = "boot";
+#ifdef DEBUG
+    opt.warn = true;
+#endif
+}
+
+int opt_parse_args(int argc, char *argv[])
 {
     int i;
     unsigned int v;
@@ -250,12 +266,13 @@ int parse_args(int argc, char *argv[])
 	} else if (!strncmp(argv[i], "sect=", 5) ||
 		   !strcmp(argv[i], "sect")) {
 	    if (argv[i][4]) {
-		if (soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip, 0x7c00))
+		if (soi_s2n(argv[i] + 5, &opt.sseg, &opt.soff, &opt.sip, 0))
 		    goto bail;
 	    }
 	    opt.sect = true;
 	} else if (!strcmp(argv[i], "nosect")) {
 	    opt.sect = false;
+	    opt.maps = false;
 	} else if (!strcmp(argv[i], "save")) {
 	    opt.save = true;
 	} else if (!strcmp(argv[i], "nosave")) {
@@ -328,6 +345,11 @@ int parse_args(int argc, char *argv[])
 
     if (opt.setbpb && !opt.sect) {
 	error("Option 'setbpb' requires a sector.\n");
+	goto bail;
+    }
+
+    if (opt.maps && !opt.sect) {
+	error("Option 'maps' requires option 'sect'.\n");
 	goto bail;
     }
 

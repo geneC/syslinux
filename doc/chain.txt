@@ -40,7 +40,7 @@ A "service-only" run is possible when either:
 
 or
 
-- 'nofile' and 'nomaps' are in effect
+- 'nofile' and 'nomaps' (or 'nosect') are in effect
 
 This is useful for invocations such as:
 
@@ -117,6 +117,7 @@ If any of the fields are ommited (e.g. 0x2000::), they default to 0.
 	sect=<segment>:<offset>:<ip>
 	nosect
 	*sect=0:0x7c00:0x7c00
+	nosect sets: nomaps
 
 This triplet lets you alter the addresses a sector will use. File is loaded at
 <segment:offset>, the jump is made to <segment:ip>. This option is mostly used
@@ -127,8 +128,7 @@ relocated sector at some particular address (e.g. DRKM).
 is being chainloaded, sector is not necessary.
 
 The defaults if option is not specified, are 0:0x7c00:0x7c00.
-If some of the fields are ommited (e.g. 0x2000::), segment defaults to 0,
-offset and ip to 0x7c00.
+If some of the fields are ommited (e.g. 0x2000::), they default to 0.
 
 	*maps
 	nomaps
@@ -172,16 +172,15 @@ together with 'setbpb' or other ones using that implicitly.
 
 - this option never applies to a loaded file
 - chain module will never save anything to disk by default
-- writing is only performed, if the values actually got changed
+- writing is only performed, if the values actually changed
 
 	*hand
 	nohand
 
-By default, a handover area is always prepared if possible and potentially
-useful - meaning it doesn't overlap with other areas, and syslinux chainloads a
-partition. It's often not necessary though - usually, a chainloaded file or
-kernel don't care about it anymore, so a user can disable it explicitly with
-this option.
+By default, a handover area is always prepared if possible - meaning it doesn't
+overlap with other areas. It's often not necessary though - usually, a
+chainloaded file or kernel don't care about it anymore, so a user can disable
+it explicitly with this option.
 
 	hptr
 	*nohptr

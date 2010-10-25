@@ -41,8 +41,6 @@
 #include "partiter.h"
 #include "mangle.h"
 
-struct options opt;
-
 static int fixed_cnt = 128;   /* see comments in main() */
 
 static int overlap(const struct data_area *a, const struct data_area *b)
@@ -496,38 +494,28 @@ bail:
 int main(int argc, char *argv[])
 {
     struct part_iter *iter = NULL;
-
     void *sbck = NULL;
     struct data_area fdat, hdat, sdat, data[3];
     int ndata = 0;
 
     console_ansi_raw();
-/*    openconsole(&dev_null_r, &dev_stdcon_w);*/
 
-    /* Prepare and set defaults */
     memset(&fdat, 0, sizeof(fdat));
     memset(&hdat, 0, sizeof(hdat));
     memset(&sdat, 0, sizeof(sdat));
-    memset(&opt, 0, sizeof(opt));
-    opt.sect = true;	/* by def. load sector */
-    opt.maps = true;	/* by def. map sector */
-    opt.hand = true;	/* by def. prepare handover */
-    opt.chain = true;	/* by def. do chainload */
-    opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
-    opt.drivename = "boot";
-#ifdef DEBUG
-    opt.warn = true;
-#endif
 
-    /* Parse arguments */
-    if (parse_args(argc, argv))
+    opt_set_defs();
+    if (opt_parse_args(argc, argv))
 	goto bail;
+
 #if 0
     /* Get max fixed disk number */
     fixed_cnt = *(uint8_t *)(0x475);
 
     /*
-     * hmm, looks like we can't do that
+     * hmm, looks like we can't do that -
+     * some bioses/vms just set it to 1
+     * and go on living happily
      * any better options than hardcoded 0x80 - 0xFF ?
      */
 #endif
@@ -563,21 +551,20 @@ int main(int argc, char *argv[])
 	    error("The sector cannot be loaded at such high address.\n");
 	    goto bail;
 	}
-	if (opt.file && opt.maps && overlap(&fdat, &sdat)) {
-	    error("WARNING: The sector won't be loaded, as it would conflict with the boot file.\n");
-	    opt.sect = false;
-	} else {
-	    if (!(sdat.data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
-		error("Couldn't read the sector.\n");
+	if (!(sdat.data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
+	    error("Couldn't read the sector.\n");
+	    goto bail;
+	}
+	if (opt.save) {
+	    if (!(sbck = malloc(sdat.size))) {
+		error("Couldn't allocate cmp-buf for option 'save'.\n");
 		goto bail;
 	    }
-	    if (opt.save) {
-		if (!(sbck = malloc(sdat.size))) {
-		    error("Couldn't allocate cmp-buf for option 'save'.\n");
-		    goto bail;
-		}
-		memcpy(sbck, sdat.data, sdat.size);
-	    }
+	    memcpy(sbck, sdat.data, sdat.size);
+	}
+	if (opt.file && opt.maps && overlap(&fdat, &sdat)) {
+	    error("WARNING: The sector won't be mmapped, as it would conflict with the boot file.\n");
+	    opt.maps = false;
 	}
     }
 
@@ -587,7 +574,7 @@ int main(int argc, char *argv[])
 	    goto bail;
 	/* Verify possible conflicts */
 	if ( ( opt.file && overlap(&fdat, &hdat)) ||
-	     ( opt.sect && overlap(&sdat, &hdat) && opt.maps) ) {
+	     ( opt.maps && overlap(&sdat, &hdat)) ) {
 	    error("WARNING: Handover area won't be prepared,\n"
 		  "as it would conflict with the boot file and/or the sector.\n");
 	    opt.hand = false;
@@ -596,7 +583,7 @@ int main(int argc, char *argv[])
 
     /* Adjust registers */
 
-    mangler_common(iter);
+    mangler_init(iter);
     mangler_handover(iter, &hdat);
     mangler_grldr(iter);
 
@@ -634,7 +621,7 @@ int main(int argc, char *argv[])
 
     if (opt.file)
 	memcpy(data + ndata++, &fdat, sizeof(fdat));
-    if (opt.sect && opt.maps)
+    if (opt.maps)
 	memcpy(data + ndata++, &sdat, sizeof(sdat));
     if (opt.hand)
 	memcpy(data + ndata++, &hdat, sizeof(hdat));

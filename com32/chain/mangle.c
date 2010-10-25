@@ -392,7 +392,7 @@ int mangles_cmldr(struct data_area *data)
 }
 
 /* Set common registers */
-int mangler_common(const struct part_iter *iter)
+int mangler_init(const struct part_iter *iter)
 {
     /* Set initial registry values */
     if (opt.file) {
@@ -415,7 +415,7 @@ int mangler_common(const struct part_iter *iter)
 /* ds:si & ds:bp */
 int mangler_handover(const struct part_iter *iter, const struct data_area *data)
 {
-    if (opt.sect && opt.file && opt.maps && !opt.hptr) {
+    if (opt.file && opt.maps && !opt.hptr) {
 	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
 	opt.regs.ds = (uint16_t)opt.sseg;
 	opt.regs.eax.l = 0;
@@ -423,7 +423,7 @@ int mangler_handover(const struct part_iter *iter, const struct data_area *data)
 	/* base is really 0x7be */
 	opt.regs.esi.l = opt.regs.ebp.l = data->base;
 	opt.regs.ds = 0;
-	if (iter->type == typegpt)
+	if (iter->index && iter->type == typegpt)   /* must be iterated and GPT */
 	    opt.regs.eax.l = 0x54504721;	/* '!GPT' */
 	else
 	    opt.regs.eax.l = 0;
