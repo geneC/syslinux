@@ -99,23 +99,26 @@ chkprn_syslinux:
 .var_sysl:
 		mov si,sysl_str
 		call writestr
-		jmp .prn_ver
+		jmp .prn_lnxsp
 .var_pxel:
 		mov si,pxel_str
 		call writestr
-		jmp .prn_ver
+		jmp .prn_lnxsp
 .var_isol:
 		mov si,isol_str
 		call writestr
-		jmp .prn_ver
+		jmp .prn_lnxsp
 .var_extl:
 		mov si,extl_str
 		call writestr
-		jmp .prn_ver
+		jmp .prn_lnxsp
 .var_unk:
 		mov si,unkvar_str
 		call writestr
-; 		jmp .prn_ver
+		jmp .prn_ver
+.prn_lnxsp:
+		mov si,linsp_str
+		call writestr
 .prn_ver:
 %ifdef DEBUG
 		push si
@@ -499,10 +502,11 @@ is_drmk_str	db 'Found DRMK', CR, LF, 0
 may_sysl_str	db 'Maybe Syslinux variant', CR, LF, 0
 gotver_str	db 'Got the version back', CR, LF, 0
 prn_ver_str	db 'Printing version number', CR, LF, 0
-sysl_str	db 'SYSLINUX ', 0
-pxel_str	db 'PXELINUX ', 0
-isol_str	db 'ISOLINUX ', 0
-extl_str	db 'EXTLINUX ', 0
+sysl_str	db 'SYS', 0
+pxel_str	db 'PXE', 0
+isol_str	db 'ISO', 0
+extl_str	db 'EXT', 0
+linsp_str	db 'LINUX ', 0
 unkvar_str	db 'Unkown-Variant ', 0
 pcdos_str	db 'PC-DOS ', 0
 msdos_str	db 'MS-DOS ', 0
