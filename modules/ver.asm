@@ -21,9 +21,6 @@
 		org	0x100
 
 _start:
-; 		push ds
-; 		push cs
-; 		pop ds
 		call crlf
 		mov si,info_str
 		call writestr
@@ -38,7 +35,6 @@ _start:
 
 
 ; chkprn_syslinux
-;	EAX=59530000h EBX=4C530000h ECX=4E490000h EDX=58550000h
 chkprn_syslinux:
 %ifdef DEBUG
 		mov si,may_sysl_str
@@ -53,7 +49,7 @@ chkprn_syslinux:
 		cmp edx,58550000h
 		jne .end
 .is_syslinux:
-		push es
+		pushad
 %ifdef DEBUG
 		mov si,is_sysl_str
 		call writestr
@@ -80,6 +76,8 @@ chkprn_syslinux:
 %endif
 
 .prn_ver_str:
+		mov si,syslban_str
+		call writestr
 		push ds
 		push es
 		pop ds
@@ -111,13 +109,13 @@ chkprn_syslinux:
 .var_extl:
 		mov si,extl_str
 		call writestr
-		jmp .prn_lnxsp
-.var_unk:
-		mov si,unkvar_str
-		call writestr
-		jmp .prn_ver
+; 		jmp .prn_lnxsp
 .prn_lnxsp:
 		mov si,linsp_str
+		call writestr
+		jmp .prn_ver
+.var_unk:
+		mov si,unkvar_str
 		call writestr
 .prn_ver:
 %ifdef DEBUG
@@ -135,10 +133,17 @@ chkprn_syslinux:
 		call writechr_dl
 .prn_ver_min:
 		mov al,cl
-		call writedecb
+; 		cmp al,10
+; 		jae .min_wri
+; 		mov al,'0'
+; 		call writechr
+; 		mov al,cl
+; .min_wri:
+; 		call writedecb
+		call writedecb2
 
 .end_prn:
-		pop es
+		popad
 .end:
 		ret
 
@@ -235,6 +240,7 @@ prn_dosver_num:
 		push eax
 		push edx
 		push si
+		pushfd
 .vmaj_prn:
 		call writedecb
 ; 		call writehex2
@@ -242,9 +248,14 @@ prn_dosver_num:
 		call writechr_dl
 .vmin_prn:
 		mov al,ah
-; 		call writedecb
-		call writehex2
-.serial:
+		call writedecb
+; 		call writehex2
+.serial:	; Skip if 0
+		cmp bl,0
+		jne .ser_start
+		cmp cx,0
+		je .end
+.ser_start:
 		mov si,spparen_str
 		call writestr
 		mov si,zerox_str
@@ -259,6 +270,7 @@ prn_dosver_num:
 		mov si,parensp_str
 		call writestr
 .end:
+		popfd
 		pop si
 		pop edx
 		pop eax
@@ -271,11 +283,10 @@ prn_dosver_num:
 ;	ECX	Part 3
 ;	EDX	Part 4
 getdosver:
-		mov eax,0
 		mov ecx,0
 		mov edx,0
 		mov ebx,0
-		mov ah,30h
+		mov eax,3000h
 		int 21h
 		ret
 
@@ -318,14 +329,15 @@ getprn_msdosver:
 ;	AX	OS Version
 ;	DX	Patch Version
 getdrmkver:
-		mov dx,0
 		mov ax,4452h
 		int 21h
 		ret
 
 ; getdrmkver:	Get the DRMK-specifc Kernel build info
+;	Returns	Kernel build info
+;	AX	Kernel build date in DOS 16-bit format
+;	[ES:BX]	Kernel private data
 getdrmkbld:
-		mov bx,0
 		mov ax,4458h
 		int 21h
 		ret
@@ -341,6 +353,7 @@ getprn_drmkver:
 		call writestr
 		mov si,zerox_str
 		call writestr
+; 		mov ax,0
 		call writehex4
 		call crlf
 .prnpatchver:	; "Patch Version"
@@ -348,7 +361,7 @@ getprn_drmkver:
 		call writestr
 		mov si,zerox_str
 		call writestr
-		mov dx,ax
+		mov ax,dx
 		call writehex4
 		call crlf
 .getbld:
@@ -358,12 +371,43 @@ getprn_drmkver:
 		call writestr
 		call writedate_ax
 		call crlf
+%ifdef DEBUG
+.prnkernprv:
+		mov di,[es:bx]
+		mov ax,di
+		call writehex4
+		call crlf
+		mov si,2
+		mov cx,16
+.prnkernprv2:
+		push cx
+		mov cx,8
+.prnkernprv1:
+		mov eax,[es:bx+si]
+		call writehex8
+		cmp cx,1
+		jbe .prnkern0dash
+		mov ax,'-'
+		call writechr
+.prnkern0dash:
+		add si,4
+		sub di,4
+		cmp di,0
+		jbe .prnkernprvend
+		loop .prnkernprv1
+		call crlf
+		pop cx
+		loop .prnkernprv2
+		jmp .end
+.prnkernprvend:
+		pop cx
+%endif
 .end:
 		popfd
 		popad
 		ret
 
-;writedate_ax	Write a date in AX in ? format
+;writedate_ax	Write a date in AX in ISO8601 big endian format
 ;	Input
 ;	AX	Date in 16-bit DOS format
 writedate_ax:
@@ -380,27 +424,29 @@ writedate_ax:
 .month:
 		shr ax,9
 		and ax,0Fh
-		cmp ax,10
-		jae .month_wri
-		mov cx,ax
-		mov ax,'0'
-		call writechr
-		mov ax,cx
-.month_wri:
-		call writedecw
+; 		cmp ax,10
+; 		jae .month_wri
+; 		mov cx,ax
+; 		mov ax,'0'
+; 		call writechr
+; 		mov ax,cx
+; .month_wri:
+; 		call writedecb
+		call writedecb2
 		mov al,'-'
 		call writechr
 		mov ax,dx
 .day:
 		and ax,1Fh
-		cmp ax,10
-		jae .day_wri
-		mov cx,ax
-		mov ax,'0'
-		call writechr
-		mov ax,cx
-.day_wri:
-		call writedecw
+; 		cmp ax,10
+; 		jae .day_wri
+; 		mov cx,ax
+; 		mov ax,'0'
+; 		call writechr
+; 		mov ax,cx
+; .day_wri:
+; 		call writedecb
+		call writedecb2
 .end:
 		popfd
 		popad
@@ -428,17 +474,30 @@ writechr_al:
 .end:		pop dx
 		ret
 
-; writedecb2	FIXME: Fake a write decimal function
+; writedecb[23]	Print byte as fixed width
 ;	Input
 ;	AL	number to write
-; writedecb:
-writedecb2:
-		push eax
-		add al,'0'
+writedecb3:
+		pushfd
+		cmp al,100
+		jae .skip
+		push ax
+		mov ax,'0'
 		call writechr
-.end:
-		pop eax
+		pop ax
+.skip:		popfd
+writedecb2:
+		pushfd
+		cmp al,10
+		jae .skip
+		push ax
+		mov ax,'0'
+		call writechr
+		pop ax
+.skip:		popfd
+		call writedecb
 		ret
+
 
 ; prnreg_gp_l	Dump GP registers (Long)
 prnreg_gp_l:
@@ -495,13 +554,14 @@ is_zf:
 %include "../core/writedec.inc"		; Decimal output
 
 		section .data
-info_str	db 'Ver.com b016', CR, LF, 0
+info_str	db 'Ver.com b023', CR, LF, 0
 is_dos_str	db 'Found DOS', CR, LF, 0
 is_sysl_str	db 'Found a Syslinux variant', CR, LF, 0
 is_drmk_str	db 'Found DRMK', CR, LF, 0
 may_sysl_str	db 'Maybe Syslinux variant', CR, LF, 0
 gotver_str	db 'Got the version back', CR, LF, 0
 prn_ver_str	db 'Printing version number', CR, LF, 0
+syslban_str	db 'Syslinux banner: ',0
 sysl_str	db 'SYS', 0
 pxel_str	db 'PXE', 0
 isol_str	db 'ISO', 0
