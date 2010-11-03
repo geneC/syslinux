@@ -410,10 +410,16 @@ getprn_drmkver:
 ;writedate_ax	Write a date in AX in ISO8601 big endian format
 ;	Input
 ;	AX	Date in 16-bit DOS format
+; 2006-01-11
+; 0011010 0001 01011
 writedate_ax:
 		pushad
 		pushfd
 		mov dx,ax
+%ifdef DEBUG
+		call writehex4
+		call crlf
+%endif
 .year:
 		shr ax,9
 		add ax,1980
@@ -422,7 +428,7 @@ writedate_ax:
 		call writechr
 		mov ax,dx
 .month:
-		shr ax,9
+		shr ax,5
 		and ax,0Fh
 ; 		cmp ax,10
 ; 		jae .month_wri
