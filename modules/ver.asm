@@ -220,7 +220,7 @@ chkprn_dosver:
 		jne .end_ver
 .drmk_ver:
 		call getprn_drmkver
-		jmp .end_ver
+; 		jmp .end_ver		; DRMK returns Extended/True DOS
 .msdos_ver:
 		cmp al,5
 		jb .end_ver
@@ -371,6 +371,16 @@ getprn_drmkver:
 		call writestr
 		call writedate_ax
 		call crlf
+.prnkernprvaddr:
+		mov si,prvdat_str
+		call writestr
+		mov ax,es
+		call writehex4
+		mov dl,':'
+		call writechr_dl
+		mov ax,bx
+		call writehex4
+		call crlf
 %ifdef DEBUG
 .prnkernprv:
 		mov di,[es:bx]
@@ -378,7 +388,7 @@ getprn_drmkver:
 		call writehex4
 		call crlf
 		mov si,2
-		mov cx,16
+		mov cx,8
 .prnkernprv2:
 		push cx
 		mov cx,8
@@ -560,7 +570,7 @@ is_zf:
 %include "../core/writedec.inc"		; Decimal output
 
 		section .data
-info_str	db 'Ver.com b023', CR, LF, 0
+info_str	db 'Ver.com b026', CR, LF, 0
 is_dos_str	db 'Found DOS', CR, LF, 0
 is_sysl_str	db 'Found a Syslinux variant', CR, LF, 0
 is_drmk_str	db 'Found DRMK', CR, LF, 0
@@ -583,6 +593,7 @@ dosext_str	db '  Extended DOS version: ', 0
 osver_str	db '  OS Version: ', 0
 patchver_str	db '  Patch Version: ', 0
 kernbld_str	db '  Kernel Build Date: ', 0
+prvdat_str	db '  Private Data Ptr: ', 0
 spparen_str	db ' (', 0
 zerox_str	db '0x', 0
 parensp_str	db ') ', 0
