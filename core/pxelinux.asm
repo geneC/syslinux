@@ -369,8 +369,7 @@ pxenv:
 		cmp bx,0073h		; PXENV_RESTART_TFTP
 		jz .disable_timer
 		cmp bx,00E5h		; gPXE PXENV_FILE_EXEC
-		jz .disable_timer
-		jmp .store_stack
+		jnz .store_stack
 
 .disable_timer:
 		call timer_cleanup
@@ -407,8 +406,7 @@ pxenv:
 		cmp bx,0073h
 		jz .enable_timer
 		cmp bx,00E5h
-		jz .enable_timer
-		jmp .pop_flags
+		jnz .pop_flags
 
 .enable_timer:
 		call timer_init
