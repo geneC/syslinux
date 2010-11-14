@@ -20,13 +20,13 @@
 #include <disk/partition.h>
 #include <disk/read.h>
 
-static inline int is_extended_partition(struct part_entry *ptab)
+static int is_extended_partition(struct part_entry *ptab)
 {
     return (ptab->ostype == 0x05 ||
 	    ptab->ostype == 0x0f || ptab->ostype == 0x85);
 }
 
-static inline int msdos_magic_present(const char *ptab)
+static int msdos_magic_present(const char *ptab)
 {
     return (*(uint16_t *) (ptab + 0x1fe) == 0xaa55);
 }
