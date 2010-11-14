@@ -35,6 +35,8 @@
 #include <syslinux/video.h>
 #include <com32.h>
 #include <stdint.h>
+#include <syslinux/pxe.h>
+#include <sys/gpxe.h>
 
 /*
 #include <ctype.h>
@@ -50,9 +52,11 @@
 #define DEBUG
 
 #ifdef DEBUG
-#  define dprintf	printf
+#  define dprintf			printf
+#  define dprint_pxe_bootp_t		print_pxe_bootp_t
 #else
-#  define dprintf(f, ...)	((void)0)
+#  define dprintf(f, ...)		((void)0)
+#  define dprint_pxe_bootp_t(pxe)	((void)0)
 #endif
 
 #define STACK_SPLIT	11
@@ -70,7 +74,7 @@ struct payload {
 
 struct pxelinux_opt {
     char *fn;	/* Filename as passed to us */
-    uint32_t fip;	/* fn's IP component */
+    in_addr_t fip;	/* fn's IP component */
     char *fp;	/* fn's path component */
     char *cfg;
     char *prefix;
@@ -79,7 +83,7 @@ struct pxelinux_opt {
 };
 
 /* BEGIN per pxespec.pdf */
-typedef unsigned char UINT8;
+/*typedef unsigned char UINT8;
 typedef unsigned short UINT16;
 typedef unsigned long UINT32;
 typedef signed char INT8;
@@ -123,7 +127,7 @@ typedef struct s_PXENV_GET_CACHED_INFO {
     UINT16 BufferSize;
     SEGOFF16 Buffer;
     UINT16 BufferLimit;
-} t_PXENV_GET_CACHED_INFO;
+} t_PXENV_GET_CACHED_INFO;*/
 /* END per pxespec.pdf */
 
 /* from chain.c */
@@ -211,6 +215,24 @@ void pxe_error(int ierr, const char *evt, const char *msg)
     printf("%d:%s\n", ierr, strerror(ierr));
 }
 
+void print_pxe_bootp_t(pxe_bootp_t *p)
+{
+    if (!p) {
+	printf("  packet pointer is null\n");
+	return;
+    }
+    printf("  op:%02X  hw:%02X  hl:%02X  gh:%02X  id:%08X se:%04X f:%04X\n",
+	p->opcode, p->Hardware, p->Hardlen, p->Gatehops, ntohl(p->ident),
+	ntohs(p->seconds), ntohs(p->Flags));
+    printf("  cip:%08X  yip:%08X  sip:%08X  gip:%08X\n", ntohl(p->cip),
+	ntohl(p->yip), ntohl(p->sip), ntohl(p->gip));
+    printf("  caddr-%02X:%02X:%02X:%02X:%02X:%02X\n", p->CAddr[0],
+	   p->CAddr[1], p->CAddr[2], p->CAddr[3], p->CAddr[4], p->CAddr[5]);
+    printf("  sName: '%s'\n", p->Sname);
+    printf("  bootfile: '%s'\n", p->bootfile);
+//     printf("\n");
+}
+
 void pxe_set_regs(struct syslinux_rm_regs *regs)
 {
     com32sys_t tregs;
@@ -233,18 +255,82 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
     regs->eax.l = regs->ecx.l = regs->edx.l = 0;
 }
 
-void pxechain_parse_fn(char fn[], uint32_t *fip, char *fp[])
+void pxechain_parse_fn(char fn[], in_addr_t *fip, char *fp[])
 {
+    char host[256];	/* 63 bytes per label; 255 max total */
+    in_addr_t tip = 0;
+    char *csep, *ssep;	/* Colon, Slash separator */
+    int hlen;
+
+    host[0] = 0;
+    csep = strchr(fn, ':');
+    if (csep) {
+	if (csep[1] == ':') {	/* IP::FN */
+	    *fp = &csep[2];
+	    if (fn[0] != ':') {
+		hlen = csep - fn;
+		memcpy(host, fn, hlen);
+		host[hlen] = 0;
+	    }
+	} else if ((csep[1] == '/') && (csep[2] == '/')) {	/* URL */
+	    ssep = strchr(csep + 3, '/');
+	    if (ssep) {
+		hlen = ssep - (csep + 3);
+	    } else {
+		hlen = strlen(csep + 3);
+	    }
+	    memcpy(host, (csep + 3), hlen);
+	    host[hlen] = 0;
+	} else {	/* assume plain filename */
+	    csep = NULL;
+	}
+    }
+    if (!csep) {
+	*fp = fn;
+    }
+    if (host[0])
+	tip = pxe_dns(host);
+    if (tip != 0)
+	*fip = tip;
+    dprintf("  host '%s'\n  fp   '%s'\n  fip  %08x\n", host, *fp, ntohl(*fip));
+}
+
+void pxechain_fill_pkt(struct pxelinux_opt *pxe)
+{
+    int rv = -1;
+    /* PXENV_PACKET_TYPE_CACHED_REPLY */
+    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK,
+	    (void **)&(pxe->pkt0.d), &(pxe->pkt0.s))) {
+	pxe->pkt1.d = malloc(2048);
+	if (pxe->pkt1.d) {
+	    memcpy(pxe->pkt1.d, pxe->pkt0.d, pxe->pkt0.s);
+	    pxe->pkt1.s = pxe->pkt0.s;
+	    rv = 0;
+	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.d));
+	} else {
+	    printf("%s: ERROR: Unable to malloc() for second packet\n", app_name_str);
+	    free(pxe->pkt0.d);
+	}
+    } else {
+	printf("%s: ERROR: Unable to retrieve first packet\n", app_name_str);
+    }
+    if (rv <= -1) {
+	pxe->pkt0.d = pxe->pkt1.d = NULL;
+	pxe->pkt0.s = pxe->pkt1.s = 0;
+    }
 }
 
 void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
+//     in_addr_t tip = 0;
     /* Init for paranoia */
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
-    pxe->pkt0.d = pxe->pkt1.d = NULL;
-    pxe->pkt0.s = pxe->pkt1.s = 0;
-    pxe->fip = 0;
+    pxechain_fill_pkt(pxe);
+    if (pxe->pkt1.d)
+	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
+    else
+	pxe->fip = 0;
     /* Fill */
     pxe->fn = argv[0];
     if (argc > 1) {
@@ -257,6 +343,7 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 		pxe->reboot = strtoul(argv[3], NULL, 0);
 	}
     }
+    pxechain_parse_fn(pxe->fn, &(pxe->fip), &(pxe->fp));
 }
 
 /* pxechain: Chainload to new PXE file ourselves
@@ -265,6 +352,7 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
  *	argv	Values of arguments passed
  *	Returns	0 on success (which should never happen)
  *		1 on loadfile() error
+ *		-1 on usage error
  */
 int pxechain(int argc, char *argv[])
 {
@@ -275,6 +363,7 @@ int pxechain(int argc, char *argv[])
 
 //     --parse-options
     pxechain_args(argc, argv, &pxe);
+//     goto tabort;
 //     --make 2 copies of cache packet #3
 //     --rebuild copy #1 applying new options in order ensuring an option is only specified once in patched packet
     /* Parse the filename to understand if a PXE parameter update is needed. */
@@ -289,6 +378,7 @@ int pxechain(int argc, char *argv[])
 	goto ret;
     }
     puts("loaded.");
+    goto tabort;
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
 //     --copy patched copy into cache
@@ -298,6 +388,7 @@ int pxechain(int argc, char *argv[])
 	do_boot(&file, 1, &regs);
     }
 //     --if failed, copy backup back in and abort
+tabort:
     puts("temp abort");
 ret:
     return rv;
@@ -317,22 +408,38 @@ ret:
     return rv;
 }
 
+/* pxechain_gpxe: Use gPXE to chainload a new NBP
+ *	Input:
+ *	argc	Count of arguments passed
+ *	argv	Values of arguments passed
+ *	Returns	0 on success (which should never happen)
+ *		1 on loadfile() error
+ *		-1 on usage error
+ */
+int pxechain_gpxe(int argc, char *argv[])
+{
+    int rv = 0;
+    if (argc)
+	printf("%s\n", argv[0]);
+    return rv;
+}
+
 int main(int argc, char *argv[])
 {
-    int rv;
+    int rv= -1;
     const struct syslinux_version *sv;
 
     /* Initialization */
-    rv = -1;
     openconsole(&dev_null_r, &dev_stdcon_w);
 //     console_ansi_raw();
     sv = syslinux_version();
     if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
 	printf("%s: May only run in PXELINUX\n", app_name_str);
 	argc = 1;	/* prevents further processing to boot */
-    } else if (isgpxe()) {
+    } else if (is_gpxe()) {
 	rv = pxechain_gpxe(argc - 1, &argv[1]);
-	argc = 1;
+	if (rv >= 0)
+	    argc = 1;
     }
     if (argc == 2) {
 	if ((strcmp(argv[1], "-h") == 0) || ((strcmp(argv[1], "-?") == 0))
