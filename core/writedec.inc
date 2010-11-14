@@ -37,6 +37,7 @@ writedec_common:
 		xor cx,cx		; Number of digits
 
 .cloop:
+		mov edx,0
 		div ebx
 		inc cx
 		push dx
@@ -53,5 +54,5 @@ writedec_common:
 		popad
 		ret
 
-writechr:
-		ret
+; writechr:
+; 		ret

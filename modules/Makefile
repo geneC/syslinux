@@ -19,7 +19,7 @@ include $(topdir)/MCONFIG.embedded
 
 INCLUDES   = -I$(com32)/include
 
-BINS = pxechain.com poweroff.com int18.com
+BINS = pxechain.com poweroff.com int18.com ver.com
 
 all: $(BINS)
 
