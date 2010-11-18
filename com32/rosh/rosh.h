@@ -36,26 +36,32 @@
 #include <sys/stat.h>		/* fstat() */
 #include <fcntl.h>		/* open(); open mode macros */
 #include <dirent.h>		/* fdopendir() opendir() readdir() closedir() DIR */
-#include <unistd.h>		/* getcwd() */
+#include <unistd.h>		/* getcwd() getopt() */
 #include <errno.h>		/* errno; error macros */
 #include <netinet/in.h>		/* For htonl/ntohl/htons/ntohs */
 #include <ctype.h>		/* isspace() */
 
 #include <getkey.h>
 #include <consoles.h>		/* console_ansi_raw() console_ansi_std() */
+// #include <getopt.h>		/* getopt_long() */
 
 #ifdef DO_DEBUG
 # define ROSH_DEBUG	printf
+# define ROSH_DEBUG_ARGV_V	rosh_pr_argv_v
 /* define ROSH_DEBUG(f, ...)	printf (f, ## __VA_ARGS__) */
 # ifdef DO_DEBUG2
 #  define ROSH_DEBUG2	printf
+#  define ROSH_DEBUG2_ARGV_V	rosh_pr_argv_v
 # else /* DO_DEBUG2 */
 	/* This forces a format argument into the function call */
 #  define ROSH_DEBUG2(f, ...)	((void)0)
+#  define ROSH_DEBUG2_ARGV_V(argc, argv)	((void)0)
 # endif	/* DO_DEBUG2 */
 #else /* DO_DEBUG */
 # define ROSH_DEBUG(f, ...)	((void)0)
+# define ROSH_DEBUG_ARGV_V(argc, argv)	((void)0)
 # define ROSH_DEBUG2(f, ...)	((void)0)
+# define ROSH_DEBUG2_ARGV_V(argc, argv)	((void)0)
 #endif /* DO_DEBUG */
 
 #ifdef __COM32__
@@ -135,10 +141,10 @@ static inline int getscreensize(int fd, int *rows, int *cols)
     str = NULL;
     if (fd == 1) {
 	ioctl(0, TIOCGWINSZ, &ws);
-/*	if (rows)
+	if (rows)
 	    *rows = ws.ws_row;
 	if (cols)
-	    *cols = ws.ws_col;*/
+	    *cols = ws.ws_col;
 	if (rows && !*rows) {
 	    str = getenv("LINES");
 	    if (str)
@@ -235,6 +241,10 @@ const char rosh_beta_str[] =
 const char rosh_cd_norun_str[] =
     " -- cd (Change Directory) not implemented for use with run and exit.\n";
 
+const char rosh_help_cd_str[] = "cd    Change directory\n\
+   with no argument, return to original directory from entry to rosh\n\
+   with one argument, change to that directory";
+
 const char rosh_help_ls_str[] = "ls    List contents of current directory\n\
   -l  Long format\n\
   -i  Inode; print Inode of file\n\
@@ -258,5 +268,7 @@ const char rosh_help_str2[] =
   exit  Exit to previous environment\n    ALSO quit";
 
 const char rosh_help_str_adv[] = "No additional help available for '%s'";
+
+const char rosh_ls_opt_str[] = "lFi";
 
 #endif /* Not ROSH_H */

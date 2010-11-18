@@ -12,6 +12,7 @@
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
+#include <sys/bitops.h>
 
 #ifndef LONG_BIT
 #define LONG_BIT (CHAR_BIT*sizeof(long))
@@ -46,23 +47,11 @@ enum bail {
     bail_err			/* Conversion mismatch */
 };
 
-static inline const char *skipspace(const char *p)
+static const char *skipspace(const char *p)
 {
     while (isspace((unsigned char)*p))
 	p++;
     return p;
-}
-
-#undef set_bit
-static inline void set_bit(unsigned long *bitmap, unsigned int bit)
-{
-    bitmap[bit / LONG_BIT] |= 1UL << (bit % LONG_BIT);
-}
-
-#undef test_bit
-static inline int test_bit(unsigned long *bitmap, unsigned int bit)
-{
-    return (int)(bitmap[bit / LONG_BIT] >> (bit % LONG_BIT)) & 1;
 }
 
 int vsscanf(const char *buffer, const char *format, va_list ap)
@@ -323,7 +312,7 @@ set_integer:
 	    if (ch == '^' && !(flags & FL_INV)) {
 		matchinv = 1;
 	    } else {
-		set_bit(matchmap, (unsigned char)ch);
+		set_bit((unsigned char)ch, matchmap);
 		state = st_match;
 	    }
 	    break;
@@ -335,18 +324,18 @@ set_integer:
 		range_start = (unsigned char)ch;
 		state = st_match_range;
 	    } else {
-		set_bit(matchmap, (unsigned char)ch);
+		set_bit((unsigned char)ch, matchmap);
 	    }
 	    break;
 
 	case st_match_range:	/* %[ match after - */
 	    if (ch == ']') {
-		set_bit(matchmap, (unsigned char)'-');	/* - was last character */
+		set_bit((unsigned char)'-', matchmap);	/* - was last character */
 		goto match_run;
 	    } else {
 		int i;
 		for (i = range_start; i < (unsigned char)ch; i++)
-		    set_bit(matchmap, i);
+		    set_bit(i, matchmap);
 		state = st_match;
 	    }
 	    break;
@@ -354,7 +343,7 @@ set_integer:
 match_run:			/* Match expression finished */
 	    qq = q;
 	    while (width && *q
-		   && test_bit(matchmap, (unsigned char)*q) ^ matchinv) {
+		   && test_bit((unsigned char)*q, matchmap) ^ matchinv) {
 		*sarg++ = *q++;
 	    }
 	    if (q != qq) {

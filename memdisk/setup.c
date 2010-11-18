@@ -119,7 +119,7 @@ static const char *getcmditem(const char *what)
  */
 #define UNZIP_ALIGN 512
 
-extern void _end;		/* Symbol signalling end of data */
+extern const char _end[];		/* Symbol signalling end of data */
 
 void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 {
@@ -171,8 +171,8 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 			? 0xFFFFFFFF : (uint32_t) ranges[i + 1].start);
 
 	    /* Make sure we don't overwrite ourselves */
-	    if (startrange < (uint32_t) & _end)
-		startrange = (uint32_t) & _end;
+	    if (startrange < (uint32_t) _end)
+		startrange = (uint32_t) _end;
 
 	    /* Allow for alignment */
 	    startrange =

@@ -61,7 +61,7 @@
 #define GFX_CB_PASSWORD_DONE	11
 
 // real mode code chunk, will be placed into bounce buffer
-extern void realmode_callback_start, realmode_callback_end;
+extern const char realmode_callback_start[], realmode_callback_end[];
 
 // gets in the way
 #undef linux
@@ -557,7 +557,7 @@ int gfx_init(char *file)
 
   gfx_config.file = gfx_config.archive_start + file_start;
 
-  u = &realmode_callback_end - &realmode_callback_start;
+  u = realmode_callback_end - realmode_callback_start;
   u = (u + REALMODE_BUF_SIZE + 0xf) & ~0xf;
 
   if(u + code_size > lowmem_size) {
@@ -565,7 +565,8 @@ int gfx_init(char *file)
     return 1;
   }
 
-  memcpy(lowmem + REALMODE_BUF_SIZE, &realmode_callback_start, &realmode_callback_end - &realmode_callback_start);
+  memcpy(lowmem + REALMODE_BUF_SIZE, realmode_callback_start,
+	 realmode_callback_end - realmode_callback_start);
 
   // fill in buffer size and location
   *(uint16_t *) (lowmem + REALMODE_BUF_SIZE) = REALMODE_BUF_SIZE;
