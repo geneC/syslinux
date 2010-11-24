@@ -54,9 +54,13 @@
 #ifdef DEBUG
 #  define dprintf			printf
 #  define dprint_pxe_bootp_t		print_pxe_bootp_t
+#  define dprint_pxe_vendor_blk		print_pxe_vendor_blk
+#  define dprint_pxe_vendor_raw		print_pxe_vendor_raw
 #else
 #  define dprintf(f, ...)		((void)0)
-#  define dprint_pxe_bootp_t(pxe)	((void)0)
+#  define dprint_pxe_bootp_t(p, l)	((void)0)
+#  define dprint_pxe_vendor_blk(p, l)	((void)0)
+#  define dprint_pxe_vendor_raw(p, l)	((void)0)
 #endif
 
 #define STACK_SPLIT	11
@@ -73,9 +77,9 @@ struct payload {
 };
 
 struct pxelinux_opt {
-    char *fn;	/* Filename as passed to us */
+    const char *fn;	/* Filename as passed to us */
     in_addr_t fip;	/* fn's IP component */
-    char *fp;	/* fn's path component */
+    const char *fp;	/* fn's path component */
     char *cfg;
     char *prefix;
     uint32_t reboot;
@@ -215,22 +219,78 @@ void pxe_error(int ierr, const char *evt, const char *msg)
     printf("%d:%s\n", ierr, strerror(ierr));
 }
 
-void print_pxe_bootp_t(pxe_bootp_t *p)
+void print_pxe_vendor_raw(pxe_bootp_t *p, size_t len)
+{
+    int i, vlen;
+    if (!p) {
+	printf("  packet pointer is null\n");
+	return;
+    }
+    vlen = len - ((void *)&(p->vendor) - (void *)p);
+    dprintf("  rawLen = %d", vlen);
+    for (i = 0; i < vlen; i++) {
+	if ((i & 0xf) == 0)
+	    printf("\n  %04X:", i);
+	printf(" %02X", p->vendor.d[i]);
+	if (i >= 0x7F)
+	    break;
+    }
+    printf("\n");
+}
+
+void print_pxe_vendor_blk(pxe_bootp_t *p, size_t len)
+{
+    int i, vlen, oplen, j;
+    uint8_t *d;
+    uint32_t magic;
+    if (!p) {
+	printf("  packet pointer is null\n");
+	return;
+    }
+    vlen = len - ((void *)&(p->vendor) - (void *)p);
+    printf("  Vendor Data:    Len=%d", vlen);
+    d = p->vendor.d;
+    /* Print only 256 characters of the vendor/option data */
+    /*
+    print_pxe_vendor_raw(p, (len - vlen) + 256);
+    vlen = 0;
+    */
+    magic = ntohl(*((uint32_t *)d));
+    printf("    Magic: %08X", ntohl(*((uint32_t *)d)));
+    if (magic != VM_RFC1048)	/* Invalid DHCP packet */
+	vlen = 0;
+    for (i = 4; i < vlen; i++) {
+	if (d[i])	/* Skip the padding */
+	    printf("\n    @%03X-%2d", i, d[i]);
+	if (d[i] == 255)
+	    break;
+	if (d[i]) {
+	    oplen = d[++i];
+	    printf(" l=%3d:", oplen);
+	    for (j = (i + oplen); i < vlen && i < j; i++) {
+		printf(" %02X", d[i]);
+	    }
+	}
+    }
+    printf("\n");
+}
+
+void print_pxe_bootp_t(pxe_bootp_t *p, size_t len)
 {
     if (!p) {
 	printf("  packet pointer is null\n");
 	return;
     }
-    printf("  op:%02X  hw:%02X  hl:%02X  gh:%02X  id:%08X se:%04X f:%04X\n",
-	p->opcode, p->Hardware, p->Hardlen, p->Gatehops, ntohl(p->ident),
-	ntohs(p->seconds), ntohs(p->Flags));
-    printf("  cip:%08X  yip:%08X  sip:%08X  gip:%08X\n", ntohl(p->cip),
+    printf("  op:%02X  hw:%02X  hl:%02X  gh:%02X  id:%08X se:%04X f:%04X"
+	"  cip:%08X\n", p->opcode, p->Hardware, p->Hardlen, p->Gatehops,
+	ntohl(p->ident), ntohs(p->seconds), ntohs(p->Flags), ntohl(p->cip));
+    printf("  yip:%08X  sip:%08X  gip:%08X",
 	ntohl(p->yip), ntohl(p->sip), ntohl(p->gip));
     printf("  caddr-%02X:%02X:%02X:%02X:%02X:%02X\n", p->CAddr[0],
-	   p->CAddr[1], p->CAddr[2], p->CAddr[3], p->CAddr[4], p->CAddr[5]);
+	p->CAddr[1], p->CAddr[2], p->CAddr[3], p->CAddr[4], p->CAddr[5]);
     printf("  sName: '%s'\n", p->Sname);
     printf("  bootfile: '%s'\n", p->bootfile);
-//     printf("\n");
+    dprint_pxe_vendor_blk(p, len);
 }
 
 void pxe_set_regs(struct syslinux_rm_regs *regs)
@@ -255,12 +315,22 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
     regs->eax.l = regs->ecx.l = regs->edx.l = 0;
 }
 
-void pxechain_parse_fn(char fn[], in_addr_t *fip, char *fp[])
+/* Parse a filename into an IPv4 address and filename pointer
+ *	returns	Based on the interpretation of fn
+ *		0 regular file name
+ *		1 in format IP::FN
+ *		2 TFTP URL
+ *		3 HTTP URL
+ *		4 HTTPS URL
+ *		-1 if fn is another URL type
+ */
+int pxechain_parse_fn(const char fn[], in_addr_t *fip, const char *fp[])
 {
     char host[256];	/* 63 bytes per label; 255 max total */
     in_addr_t tip = 0;
-    char *csep, *ssep;	/* Colon, Slash separator */
+    char *csep, *ssep;	/* Colon, Slash separator positions */
     int hlen;
+    int rv = 0;
 
     host[0] = 0;
     csep = strchr(fn, ':');
@@ -271,17 +341,30 @@ void pxechain_parse_fn(char fn[], in_addr_t *fip, char *fp[])
 		hlen = csep - fn;
 		memcpy(host, fn, hlen);
 		host[hlen] = 0;
+		rv = 1;
+	    } else {	/* assume plain filename */
+		csep = NULL;
 	    }
-	} else if ((csep[1] == '/') && (csep[2] == '/')) {	/* URL */
+	} else if ((csep[1] == '/') && (csep[2] == '/')) {
+		/* URL: proto://host:port/path/file */
 	    ssep = strchr(csep + 3, '/');
 	    if (ssep) {
 		hlen = ssep - (csep + 3);
+		*fp = ssep + 1;
 	    } else {
 		hlen = strlen(csep + 3);
 	    }
 	    memcpy(host, (csep + 3), hlen);
 	    host[hlen] = 0;
-	} else {	/* assume plain filename */
+	    if (strncmp(fn, "tftp", 4) == 0)
+		rv = 2;
+	    else if (strncmp(fn, "http", 4) == 0)
+		rv = 3;
+	    else if (strncmp(fn, "https", 5) == 0)
+		rv = 4;
+	    else
+		rv = -1;
+	} else {
 	    csep = NULL;
 	}
     }
@@ -293,20 +376,24 @@ void pxechain_parse_fn(char fn[], in_addr_t *fip, char *fp[])
     if (tip != 0)
 	*fip = tip;
     dprintf("  host '%s'\n  fp   '%s'\n  fip  %08x\n", host, *fp, ntohl(*fip));
+    return rv;
 }
 
 void pxechain_fill_pkt(struct pxelinux_opt *pxe)
 {
     int rv = -1;
-    /* PXENV_PACKET_TYPE_CACHED_REPLY */
-    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK,
+    /* PXENV_PACKET_TYPE_DHCP_DISCOVER PXENV_PACKET_TYPE_DHCP_ACK PXENV_PACKET_TYPE_CACHED_REPLY */
+/*    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK,
+	    (void **)&(pxe->pkt0.d), &(pxe->pkt0.s)))
+	dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.d));*/
+    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_CACHED_REPLY,
 	    (void **)&(pxe->pkt0.d), &(pxe->pkt0.s))) {
 	pxe->pkt1.d = malloc(2048);
 	if (pxe->pkt1.d) {
 	    memcpy(pxe->pkt1.d, pxe->pkt0.d, pxe->pkt0.s);
 	    pxe->pkt1.s = pxe->pkt0.s;
 	    rv = 0;
-	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.d));
+	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.d), pxe->pkt0.s);
 	} else {
 	    printf("%s: ERROR: Unable to malloc() for second packet\n", app_name_str);
 	    free(pxe->pkt0.d);
@@ -396,19 +483,27 @@ ret:
 
 /* pxe_restart: Restart the PXE environment with a new PXE file
  *	Input:
- *	filename	Name of file to chainload to in a format PXELINUX understands
- *		This must strictly be TFTP
+ *	ifp	Name of file to chainload to in a format PXELINUX understands
+ *		This must strictly be TFTP or relative file
  */
-int pxe_restart(const char *filename)
+int pxe_restart(const char *ifn)
 {
     int rv = 0;
-    puts(filename);
+    struct pxelinux_opt pxe;
+    pxe.fn = ifn;
+    rv = pxechain_parse_fn(pxe.fn, &(pxe.fip), &(pxe.fp));
+    if ((rv > 2) || (rv < 0)) {
+	printf("%s: ERROR: Unparsable filename argument: '%s'\n\n", app_name_str, pxe.fn);
+	goto ret;
+    }
+    puts(pxe.fn);
     goto ret;
 ret:
     return rv;
 }
 
 /* pxechain_gpxe: Use gPXE to chainload a new NBP
+ * If it's around, don't bother with the heavy lifting ourselves
  *	Input:
  *	argc	Count of arguments passed
  *	argv	Values of arguments passed
@@ -460,5 +555,6 @@ int main(int argc, char *argv[])
 	usage();
 	rv = 1;
     }
+puts("tmp2");
     return rv;
 }
