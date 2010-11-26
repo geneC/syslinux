@@ -33,21 +33,24 @@
  * mbr_ho.S: MBR-like codeblock to display handoff data
  *
  * Displays the values of DL, DS, SI, the contents of [DS:SI] (16 bytes),
- * the values of ES, DI then the contents of [ES:DI] (4 bytes) then reports
- * a boot failure.
+ * the values of ES, DI, the contents of [ES:DI] (4 bytes), scans memory for
+ * $PnP then reports a boot failure.
+ *
+ * This should (hopefully) be only 8086 code
  */
 
-#define DEBUG_MARKER1
-#define DEBUG_START
-#define DEBUG_LOADE
-#define DEBUG_PNP
+// #define DEBUG_MARKER1	/* Insert markers in binary */
+// #define DEBUG_START	/* Print entry addresses at start */
+// #define DEBUG_LOADE	/* movw versus pop */
+#define DEBUG_PNP	/* Scan for $PnP and show address */
+#define DEBUG_PAK	/* Press Any Key before boot fail */
 
 #ifdef DEBUG_MARKER1
 	.macro ASCII_MARKER1 s:vararg
-	.ascii \s
+	.ascii	\s
 	.endm
 #else	/* DEBUG_MARKER1 */
-	.macro ASCII_MARKER1 s
+	.macro ASCII_MARKER1 s:vararg
 	.endm
 #endif	/* DEBUG_MARKER1 */
 
@@ -65,13 +68,20 @@
 	.text
 
 entry		= 0x7c00
-pnps		= (entry)
-pnpi		= (pnps-2)
-stack		= (pnpi-2)
-e_di		= (stack-2)
-e_es		= (stack-4)
-e_si		= (stack-6)
-e_ds		= (stack-8)
+stack		= (entry)
+e0_ax		= (stack-2)
+e0_cx		= (stack-4)
+e0_dx		= (stack-6)
+e0_bx		= (stack-8)
+e0_sp		= (stack-10)
+e0_bp		= (stack-12)
+e0_si		= (stack-14)
+e0_di		= (stack-16)
+e0_bot		= (stack-16)
+e_di		= (e0_bot-2)	/* Original register values from entry point */
+e_es		= (e0_bot-4)
+e_si		= (e0_bot-6)
+e_ds		= (e0_bot-8)
 
 BIOS_page	= 0x462
 
@@ -81,14 +91,15 @@ _start:
 	xorw	%ax, %ax
 	movw	%ax, %ss
 	movw	$stack, %sp
-	sti
-	cld
+	pushaw
 	pushw	%di		/* es:di -> $PnP header */
 	pushw	%es
 	pushw	%si
 	pushw	%ds
-	push	%cs
-	pop	%ds
+	sti
+	cld
+	pushw	%cs
+	popw	%ds
 
 #ifdef DEBUG_START
 	pushw	%dx
@@ -96,11 +107,10 @@ _start:
 	movw	$(_start),%dx	/* 0x0600 mbr.ld .text address */
 	call	wrhexw
 	call	crlf
-//	movw	$(entry - _start),%dx	/* 0x7C00 */
 	call	caddr
-caddr:	popw	%ax
-	sub	$(caddr - _start), %ax
-	movw	%ax, %dx	/* Same size as pushw %ax;popw %dx */
+caddr:
+	popw	%dx
+	subw	$(caddr - _start), %dx
 	call	wrhexw
 	call	crlf
 	popw	%dx
@@ -113,7 +123,6 @@ pr_dl:	call	wrstr
 	/* DS */
 pr_ds:	call	wrstr
 	.ascii	"  DS: \0"
-//	popw	%dx
 	LOADE	ds, dx
 	pushw	%dx
 	popw	%es
@@ -121,7 +130,6 @@ pr_ds:	call	wrstr
 	/* SI */
 pr_si:	call	wrstr
 	.ascii	"  SI: \0"
-//	popw	%dx
 	LOADE	si, dx
 	pushw	%dx
 	popw	%di
@@ -135,14 +143,12 @@ pr_si:	call	wrstr
 	/* ES */
 pr_es:	call	wrstr
 	.ascii	"ES: \0"
-//	popw	%dx
 	LOADE	es, dx
 	pushw	%dx
 	popw	%es
 	call	wrhexw
 pr_di:	call	wrstr
 	.ascii	"  DI: \0"
-//	popw	%dx
 	LOADE	di, dx
 	pushw	%dx
 	popw	%di
@@ -151,8 +157,19 @@ pr_di:	call	wrstr
 	/* ES:DI */	/* %es:0(%di) */
 	movw	$4, %cx
 	call	wrhexbses
-	call	crlf
 
+#ifdef DEBUG_PNP
+	subw	$4, %si
+	es lodsw
+	cmpw	$0x5024, %ax
+	jne	scn_pnp
+	es lodsw
+	cmpw	$0x506E, %ax
+	jne	scn_pnp
+	call	wrstr
+	.ascii	" =$PnP\0"
+scn_pnp:
+	call	crlf
 	/* $PnP Scan */
 	movw	$0xf000, %dx
 	pushw	%dx
@@ -163,10 +180,10 @@ pr_di:	call	wrstr
 	movw	$0x5024, %dx
 	movw	$0x506E, %bx
 ch_pnp:	es lodsw
-	cmp	%dx, %ax
+	cmpw	%dx, %ax
 	jne	ch_pnp_l
 	es lodsw
-	cmp	%bx, %ax
+	cmpw	%bx, %ax
 	je	pr_pnp
 ch_pnp_l:
 	addw	$14, %si
@@ -174,15 +191,18 @@ ch_pnp_l:
 	loopw	ch_pnp
 	jmp	end
 pr_pnp:
+	pushw	%si
 	call	wrstr
 	.ascii	"$PnP-\0"
 	movw	%es, %dx
 	call	wrhexw
 	movb	$':, %al
 	call	wrchr
-	movw	%si, %dx
+	popw	%dx
 	andw	$0xFFF0, %dx
 	call	wrhexw
+#endif	/* DEBUG_PNP */
+
 	call	crlf
 
 end:
@@ -210,8 +230,8 @@ wrstr_d:
 	ret
 
 crlf:
-	call wrstr
-	.ascii "\r\n\0"
+	call	wrstr
+	.ascii	"\r\n\0"
 	ret
 
 	ASCII_MARKER1	"hx"
@@ -259,6 +279,12 @@ wrhexbses_l:
 data:
 	ASCII_MARKER1	"bf"
 bootfail:
+#ifdef DEBUG_PAK
+	call wrstr
+	.ascii	"\r\n\r\nPress any key\r\n\0"
+	xor	%ax, %ax
+	int	$0x16
+#endif
 	int	$0x18		/* Boot failure */
 die:
 	hlt
