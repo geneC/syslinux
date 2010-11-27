@@ -483,7 +483,7 @@ ret:
 
 /* pxe_restart: Restart the PXE environment with a new PXE file
  *	Input:
- *	ifp	Name of file to chainload to in a format PXELINUX understands
+ *	ifn	Name of file to chainload to in a format PXELINUX understands
  *		This must strictly be TFTP or relative file
  */
 int pxe_restart(const char *ifn)
@@ -514,8 +514,12 @@ ret:
 int pxechain_gpxe(int argc, char *argv[])
 {
     int rv = 0;
-    if (argc)
+    struct pxelinux_opt pxe;
+
+    if (argc) {
 	printf("%s\n", argv[0]);
+	pxechain_args(argc, argv, &pxe);
+    }
     return rv;
 }
 
