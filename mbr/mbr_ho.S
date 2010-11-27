@@ -55,6 +55,7 @@
 // #define DEBUG_LOADE	/* movw versus pop */
 #define DEBUG_PNP	/* Scan for $PnP and show address */
 #define DEBUG_PAK	/* Press Any Key before boot fail */
+// #define DEBUG_ENTRY_REG	/* Store (manually as pusha is 80186) registers */
 
 #ifdef DEBUG_MARKER1
 	.macro ASCII_MARKER1 s:vararg
@@ -67,7 +68,7 @@
 
 #ifdef DEBUG_LOADE
 	.macro LOADE r:req, t:req
-	movw	(e_\r), %\t
+	movw	(es_\r), %\t
 	.endm
 #else	/* DEBUG_LOADE */
 	.macro LOADE r:req, t:req
@@ -80,29 +81,59 @@
 
 entry		= 0x7c00
 stack		= (entry)
-e0_ax		= (stack-2)
-e0_cx		= (stack-4)
-e0_dx		= (stack-6)
-e0_bx		= (stack-8)
-e0_sp		= (stack-10)
-e0_bp		= (stack-12)
-e0_si		= (stack-14)
-e0_di		= (stack-16)
-e0_bot		= (stack-16)
-e_di		= (e0_bot-2)	/* Original register values from entry point */
-e_es		= (e0_bot-4)
-e_si		= (e0_bot-6)
-e_ds		= (e0_bot-8)
+e_start		= (stack)
+e_ax		= (e_start-2)
+e_ss		= (e_ax-2)
+e_sp		= (e_ss-2)
+e_bot		= (e_ss)
+/* Doubtful this will be used */
+e0_beg		= (e_bot)
+e0_ax		= (e0_beg-2)
+e0_cx		= (e0_ax-2)
+e0_dx		= (e0_cx-2)
+e0_bx		= (e0_dx-2)
+e0_sp		= (e0_bx-2)
+e0_bp		= (e0_sp-2)
+e0_si		= (e0_bp-2)
+e0_di		= (e0_si-2)
+e0_ds		= (e0_di-2)
+e0_es		= (e0_ds-2)
+e0_bot		= (e0_es)
+es_beg		= (e0_bot)	/* Original register values from entry point */
+es_di		= (es_beg-2)
+es_es		= (es_di-2)
+es_si		= (es_es-2)
+es_ds		= (es_si-2)
+es_bot		= (es_ds)
 
 BIOS_page	= 0x462
 
 	.globl	_start
 _start:
 	cli
+#ifdef DEBUG_ENTRY_REG
+	movw	%ax, e_ax
+	movw	%ss, e_ss
+	movw	%sp, e_sp
+#endif /* DEBUG_ENTRY_REG */
 	xorw	%ax, %ax
 	movw	%ax, %ss
-	movw	$stack, %sp
-	pushaw
+#ifdef DEBUG_ENTRY_REG
+	movw	$e0_beg, %sp
+	/* pushaw */		/* 80186 */
+	pushw	%ax
+	pushw	%cx
+	pushw	%dx
+	pushw	%bx
+	pushw	%sp
+	pushw	%bp
+	pushw	%si
+	pushw	%di
+	pushw	%ds
+	pushw	%es
+#else /* DEBUG_ENTRY_REG */
+	movw	$es_beg, %sp
+#endif /* DEBUG_ENTRY_REG */
 	pushw	%di		/* es:di -> $PnP header */
 	pushw	%es
 	pushw	%si
@@ -259,18 +290,22 @@ wrhexn:
 	ret
 
 wrhexb:
+	pushw	%cx
 	movb	%dl, %al
 	pushw	%ax
-	rorw	$4, %ax
+	movb	$4, %cl
+	rorw	%cl, %ax
 	call	wrhexn
 	popw	%ax
 	call	wrhexn
+	pushw	%cx
 	ret
 
 wrhexw:
-	rorw	$8, %dx
+	movb	$8, %cl
+	rorw	%cl, %dx
 	call wrhexb
-	rorw	$8, %dx
+	rorw	%cl, %dx
 	call wrhexb
 	ret
 
