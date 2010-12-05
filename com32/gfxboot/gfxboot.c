@@ -441,6 +441,11 @@ do_include:
   if (!top_level)
     return 0;
 
+  if (gfx_menu.entries == 0) {
+    printf("No LABEL keywords found.\n");
+    return 1;
+  }
+
   // final '\0'
   gfx_menu.label_size++;
   gfx_menu.arg_size++;
