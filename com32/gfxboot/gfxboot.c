@@ -319,7 +319,7 @@ int read_config_file(const char *filename)
 {
   FILE *f;
   char *s, *t, buf[MAX_CONFIG_LINE_LEN];
-  unsigned u, top_level = 0;
+  unsigned u, top_level = 0, text = 0;
 
   if(!strcmp(filename, "~")) {
     top_level = 1;
@@ -341,6 +341,14 @@ int read_config_file(const char *filename)
     t = skip_nonspaces(s);
     if(*t) *t++ = 0;
     t = skip_spaces(t);
+
+    if(!strcasecmp(s, "endtext")) {
+      text = 0;
+      continue;
+    }
+
+    if (text)
+      continue;
 
     if(!strcasecmp(s, "timeout")) {
       timeout = atoi(t);
@@ -393,6 +401,11 @@ int read_config_file(const char *filename)
 
     if(!strcasecmp(s, "ipappend")) {
       (menu_ptr ?: menu_default)->ipappend = strdup(t);
+      continue;
+    }
+
+    if(!strcasecmp(s, "text")) {
+      text = 1;
       continue;
     }
 
