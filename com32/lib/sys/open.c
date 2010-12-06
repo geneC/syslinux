@@ -56,15 +56,17 @@ int open(const char *pathname, int flags, ...)
     struct file_info *fp;
 
     fd = opendev(&__file_dev, NULL, flags);
-
     if (fd < 0)
 	return -1;
 
     fp = &__file_info[fd];
 
     handle = __com32.cs_pm->open_file(pathname, &fp->i.fd);
-    if (handle < 0)
+    if (handle < 0) {
+	close(fd);
+	errno = ENOENT;
 	return -1;
+    }
 
     fp->i.offset = 0;
     fp->i.nbytes = 0;
