@@ -15,6 +15,9 @@ Changes in 4.04:
 	* rosh.c32: updated; Using getopt() for internal commands to aid
 	  parsing options; Fix bugs in ls; add warm reboot and echo
 	  (Gene Cumm).
+	* com32: fix a file descriptor leak.
+	* gfxboot.c32: handle TEXT..ENDTEXT; error out on no LABELs
+	  found (Sebastian Herbszt).
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
