@@ -262,14 +262,15 @@ void print_pxe_vendor_blk(pxe_bootp_t *p, size_t len)
     for (i = 4; i < vlen; i++) {
 	if (d[i])	/* Skip the padding */
 	    printf("\n    @%03X-%2d", i, d[i]);
-	if (d[i] == 255)
+	if (d[i] == 255)	/* End of list */
 	    break;
 	if (d[i]) {
 	    oplen = d[++i];
 	    printf(" l=%3d:", oplen);
-	    for (j = (i + oplen); i < vlen && i < j; i++) {
+	    for (j = (++i + oplen); i < vlen && i < j; i++) {
 		printf(" %02X", d[i]);
 	    }
+	    i--;
 	}
     }
     printf("\n");
@@ -490,14 +491,45 @@ int pxe_restart(const char *ifn)
 {
     int rv = 0;
     struct pxelinux_opt pxe;
+    com32sys_t reg;
+    t_PXENV_TFTP_READ_FILE *pxep;	/* PXENV callback Parameter */
+
     pxe.fn = ifn;
+    pxechain_fill_pkt(&pxe);
+    if (pxe.pkt1.d)
+	pxe.fip = ( (pxe_bootp_t *)(pxe.pkt1.d) )->sip;
+    else
+	pxe.fip = 0;
     rv = pxechain_parse_fn(pxe.fn, &(pxe.fip), &(pxe.fp));
     if ((rv > 2) || (rv < 0)) {
 	printf("%s: ERROR: Unparsable filename argument: '%s'\n\n", app_name_str, pxe.fn);
 	goto ret;
     }
-    puts(pxe.fn);
-    goto ret;
+    printf("  Attempting to boot '%s'...\n\n", pxe.fn);
+//     goto ret;
+//     pxep = __com32.cs_bounce;
+//     memset(pxep, 0, sizeof(t_PXENV_TFTP_READ_FILE));
+    if (!(pxep = lzalloc(sizeof(t_PXENV_TFTP_READ_FILE)))){
+	goto ret;
+    }
+    pxep->Status = PXENV_STATUS_SUCCESS;	/* PXENV_STATUS_FAILURE */
+    strcpy((char *)pxep->FileName, ifn);
+    pxep->BufferSize = 0x90000;
+    pxep->Buffer = (void *)0x7c00;
+    pxep->ServerIPAddress = pxe.fip;
+    dprintf("FN='%s'  %08X %08X %08X\n\n", (char *)pxep->FileName, pxep->ServerIPAddress,
+	pxep->BufferSize, (unsigned int)pxep->Buffer);
+// --here
+    reg.eax.w[0] = 0x0009;
+    reg.ebx.w[0] = PXENV_RESTART_TFTP;
+    reg.edi.w[0] = OFFS(pxep);
+    reg.es = SEG(pxep);
+
+    __intcall(0x22, &reg, &reg);
+
+    printf("PXENV_RESTART_TFTP returned %d\n", pxep->Status);
+    lfree(pxep);
+
 ret:
     return rv;
 }
