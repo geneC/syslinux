@@ -507,17 +507,23 @@ int pxe_restart(const char *ifn)
     }
     printf("  Attempting to boot '%s'...\n\n", pxe.fn);
 //     goto ret;
-//     pxep = __com32.cs_bounce;
-//     memset(pxep, 0, sizeof(t_PXENV_TFTP_READ_FILE));
-    if (!(pxep = lzalloc(sizeof(t_PXENV_TFTP_READ_FILE)))){
+    if (sizeof(t_PXENV_TFTP_READ_FILE)<= __com32.cs_bounce_size) {
+	pxep = __com32.cs_bounce;
+	memset(pxep, 0, sizeof(t_PXENV_TFTP_READ_FILE));
+    } else if (!(pxep = lzalloc(sizeof(t_PXENV_TFTP_READ_FILE)))){
+	dprintf("Unable to lzalloc() for PXE call structure\n");
 	goto ret;
     }
     pxep->Status = PXENV_STATUS_SUCCESS;	/* PXENV_STATUS_FAILURE */
     strcpy((char *)pxep->FileName, ifn);
-    pxep->BufferSize = 0x90000;
-    pxep->Buffer = (void *)0x7c00;
+    pxep->BufferSize = 0x8000;	/* 0x90000; */
+//     if (!(pxep->Buffer = lmalloc(pxep->BufferSize))) {
+// 	dprintf("Unable to lalloc() for buffer; using default\n");
+	pxep->Buffer = (void *)0x7c00;
+//     }
     pxep->ServerIPAddress = pxe.fip;
-    dprintf("FN='%s'  %08X %08X %08X\n\n", (char *)pxep->FileName, pxep->ServerIPAddress,
+    dprintf("FN='%s'  %08X %08X %08X %08X\n\n", (char *)pxep->FileName,
+	pxep->ServerIPAddress, (unsigned int)pxep,
 	pxep->BufferSize, (unsigned int)pxep->Buffer);
 // --here
     reg.eax.w[0] = 0x0009;
@@ -567,10 +573,10 @@ int main(int argc, char *argv[])
     if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
 	printf("%s: May only run in PXELINUX\n", app_name_str);
 	argc = 1;	/* prevents further processing to boot */
-    } else if (is_gpxe()) {
+/*    } else if (is_gpxe()) {
 	rv = pxechain_gpxe(argc - 1, &argv[1]);
 	if (rv >= 0)
-	    argc = 1;
+	    argc = 1;*/
     }
     if (argc == 2) {
 	if ((strcmp(argv[1], "-h") == 0) || ((strcmp(argv[1], "-?") == 0))
