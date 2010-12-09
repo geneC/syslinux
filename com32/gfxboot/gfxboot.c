@@ -319,7 +319,7 @@ int read_config_file(const char *filename)
 {
   FILE *f;
   char *s, *t, buf[MAX_CONFIG_LINE_LEN];
-  unsigned u, top_level = 0;
+  unsigned u, top_level = 0, text = 0;
 
   if(!strcmp(filename, "~")) {
     top_level = 1;
@@ -341,6 +341,14 @@ int read_config_file(const char *filename)
     t = skip_nonspaces(s);
     if(*t) *t++ = 0;
     t = skip_spaces(t);
+
+    if(!strcasecmp(s, "endtext")) {
+      text = 0;
+      continue;
+    }
+
+    if (text)
+      continue;
 
     if(!strcasecmp(s, "timeout")) {
       timeout = atoi(t);
@@ -396,6 +404,11 @@ int read_config_file(const char *filename)
       continue;
     }
 
+    if(!strcasecmp(s, "text")) {
+      text = 1;
+      continue;
+    }
+
     if(!strcasecmp(s, "menu") && menu_ptr) {
       s = skip_spaces(t);
       t = skip_nonspaces(s);
@@ -427,6 +440,11 @@ do_include:
 
   if (!top_level)
     return 0;
+
+  if (gfx_menu.entries == 0) {
+    printf("No LABEL keywords found.\n");
+    return 1;
+  }
 
   // final '\0'
   gfx_menu.label_size++;
