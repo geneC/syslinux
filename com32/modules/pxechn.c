@@ -85,6 +85,7 @@ struct pxelinux_opt {
     char *cfg;
     char *prefix;
     uint32_t reboot;
+    uint8_t opt52;	/* DHCP Option Overload value */
     struct payload pkt0, pkt1;	/* original and modified packets */
 };
 
@@ -394,14 +395,18 @@ void pxechain_fill_pkt(struct pxelinux_opt *pxe)
 
 void pxechain_init(struct pxelinux_opt *pxe)
 {
+    /* Init for paranoia */
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
+    pxe->opt52 = 0;
     pxechain_fill_pkt(pxe);
 }
 
 void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
-    /* Init for paranoia */
+    pxe_bootp_t *bootp1;
+    char *t;
+
     if (pxe->pkt1.d)
 	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
     else
@@ -419,6 +424,17 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	}
     }
     pxechain_parse_fn(pxe->fn, &(pxe->fip), &(pxe->fp));
+//     --rebuild copy #1 applying new options in order ensuring an option is only specified once in patched packet
+//     pxechain_patch_pkt1(argc, argv, &pxe);
+    /* Parse the filename to understand if a PXE parameter update is needed. */
+    /* How does BKO do this for HTTP? option 209/210 */
+
+    bootp1 = (pxe_bootp_t *)(pxe->pkt1.d);
+    bootp1->sip = pxe->fip;
+    strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
+    bootp1->bootfile[127] = 0;
+    if (argc >= 1)
+	t = argv[0];
 }
 
 /* dhcp_copy_pkt_to_pxe: Copy packet to PXE's BC data for a ptype packet
@@ -464,56 +480,42 @@ ret:
    return rv;
 }
 
-void pxechain_patch_pkt1(int argc, char *argv[], struct pxelinux_opt *pxe)
-{
-    pxe_bootp_t *bootp1;
-    char *t;
-
-    bootp1 = (pxe_bootp_t *)(pxe->pkt1.d);
-    bootp1->sip = pxe->fip;
-    strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
-    bootp1->bootfile[127] = 0;
-    if (argc >= 1)
-	t = argv[0];
-}
-
 /* pxechain: Chainload to new PXE file ourselves
  *	Input:
  *	argc	Count of arguments passed
  *	argv	Values of arguments passed
  *	Returns	0 on success (which should never happen)
  *		1 on loadfile() error
- *		2 if DHCP Option 52 (Option Overload) found
+ *		2 if DHCP Option 52 (Option Overload) used file field
  *		-1 on usage error
  */
 int pxechain(int argc, char *argv[])
 {
     struct pxelinux_opt pxe;
     pxe_bootp_t *bootp0, *bootp1;
-    int rv;
+    int rv, opos;
     struct data_area file;
     struct syslinux_rm_regs regs;
 
     pxechain_init(&pxe);
     bootp0 = (pxe_bootp_t *)(pxe.pkt0.d);
     bootp1 = (pxe_bootp_t *)(pxe.pkt1.d);
-    if ((rv = dhcp_find_opt(bootp0, pxe.pkt0.s, 52)) >= 0) {
+
+    if ((opos = dhcp_find_opt(bootp0, pxe.pkt0.s, 52)) >= 0) {
+	pxe.opt52 = bootp0->vendor.d[opos + 2];
+    }
+    if ((pxe.opt52 & 1) != 0) {	/* Only exclude bootfile */
 	puts(" Found UNSUPPORTED option (52) overload in DHCP packet; aborting");
 	rv = 2;
 	goto ret;
     } else {
 	rv = 0;
     }
-//     --parse-options
+//     --parse-options and patch pkt1
     pxechain_args(argc, argv, &pxe);
-//     goto tabort;
-//     --rebuild copy #1 applying new options in order ensuring an option is only specified once in patched packet
-    pxechain_patch_pkt1(argc, argv, &pxe);
-    /* Parse the filename to understand if a PXE parameter update is needed. */
-    /* How does BKO do this for HTTP? option 209/210 */
 //     --set_registers
     pxe_set_regs(&regs);
-    /* Load the file last; it's the most time-expensive operation */
+    /* Load the file late; it's the most time-expensive operation */
     printf("%s: Attempting to load '%s': ", app_name_str, pxe.fn);
     if (loadfile(pxe.fn, &file.data, &file.size)) {
 	pxe_error(errno, NULL, NULL);
