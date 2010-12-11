@@ -63,6 +63,8 @@
 #  define dprint_pxe_vendor_raw(p, l)	((void)0)
 #endif
 
+#define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
+
 #define STACK_SPLIT	11
 
 /* same as pxelinux.asm REBOOT_TIME */
@@ -83,56 +85,9 @@ struct pxelinux_opt {
     char *cfg;
     char *prefix;
     uint32_t reboot;
-    struct payload pkt0, pkt1;
+    struct payload pkt0, pkt1;	/* original and modified packets */
 };
 
-/* BEGIN per pxespec.pdf */
-/*typedef unsigned char UINT8;
-typedef unsigned short UINT16;
-typedef unsigned long UINT32;
-typedef signed char INT8;
-typedef signed short INT16;
-typedef signed long INT32;
-typedef UINT16 PXENV_STATUS;
-typedef UINT16 UDP_PORT;
-typedef UINT32 ADDR32;
-typedef UINT16 OFF16;
-typedef UINT16 SEGSEL;
-
-#define IP_ADDR_LEN 4
-typedef union u_IP4 {
-    UINT32 num;
-    UINT8 array[IP_ADDR_LEN];
-} IP4;
-
-typedef struct s_PXENV_TFTP_READ_FILE {
-    PXENV_STATUS Status;
-    UINT8 FileName[128];
-    UINT32 BufferSize;
-    ADDR32 Buffer;
-    IP4 ServerIPAddress;
-    IP4 GatewayIPAddress;
-    IP4 McastIPAddress;
-    UDP_PORT TFTPClntPort;
-    UDP_PORT TFTPSrvPort;
-    UINT16 TFTPOpenTimeOut;
-    UINT16 TFTPReopenDelay;
-} t_PXENV_TFTP_READ_FILE;
-
-typedef struct s_SEGOFF16 {
-    OFF16 offset;
-    SEGSEL segment;
-} SEGOFF16;
-
-#define PXENV_PACKET_TYPE_CACHED_REPLY 3
-typedef struct s_PXENV_GET_CACHED_INFO {
-    PXENV_STATUS Status;
-    UINT16 PacketType;
-    UINT16 BufferSize;
-    SEGOFF16 Buffer;
-    UINT16 BufferLimit;
-} t_PXENV_GET_CACHED_INFO;*/
-/* END per pxespec.pdf */
 
 /* from chain.c */
 struct data_area {
@@ -187,11 +142,8 @@ static void do_boot(struct data_area *data, int ndata,
     syslinux_force_text_mode();
 
     fputs("Booting...\n", stdout);
-goto return1;
     syslinux_shuffle_boot_rm(mlist, mmap, 3, regs);
     error("Chainboot failed!\n");
-    goto return1;
-return1:
     return;
 
 too_big:
@@ -217,6 +169,38 @@ void pxe_error(int ierr, const char *evt, const char *msg)
     else if (evt)
 	printf("Error while %s: ", evt);
     printf("%d:%s\n", ierr, strerror(ierr));
+}
+
+int dhcp_find_opt(pxe_bootp_t *p, size_t len, uint8_t opt)
+{
+    int rv = -1;
+    int i, vlen, oplen;
+    uint8_t *d;
+    uint32_t magic;
+
+    if (!p) {
+	dprintf("  packet pointer is null\n");
+	return rv;
+    }
+    vlen = len - ((void *)&(p->vendor) - (void *)p);
+    d = p->vendor.d;
+    magic = ntohl(*((uint32_t *)d));
+    if (magic != VM_RFC1048)	/* Invalid DHCP packet */
+	vlen = 0;
+    for (i = 4; i < vlen; i++) {
+	if (d[i] == opt) {
+	    dprintf("\n    @%03X-%2d\n", i, d[i]);
+	    rv = i;
+	    break;
+	}
+	if (d[i] == 255)	/* End of list */
+	    break;
+	if (d[i]) {		/* Skip padding */
+	    oplen = d[++i];
+	    i = i + oplen;
+	}
+    }
+    return rv;
 }
 
 void print_pxe_vendor_raw(pxe_bootp_t *p, size_t len)
@@ -408,13 +392,16 @@ void pxechain_fill_pkt(struct pxelinux_opt *pxe)
     }
 }
 
-void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
+void pxechain_init(struct pxelinux_opt *pxe)
 {
-//     in_addr_t tip = 0;
-    /* Init for paranoia */
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
     pxechain_fill_pkt(pxe);
+}
+
+void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
+{
+    /* Init for paranoia */
     if (pxe->pkt1.d)
 	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
     else
@@ -434,26 +421,94 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     pxechain_parse_fn(pxe->fn, &(pxe->fip), &(pxe->fp));
 }
 
+/* dhcp_copy_pkt_to_pxe: Copy packet to PXE's BC data for a ptype packet
+ *	Input:
+ *	p	Packet data to copy
+ *	len	length of data to copy
+ *	ptype	Packet type to overwrite
+ */
+int dhcp_copy_pkt_to_pxe(pxe_bootp_t *p, size_t len, int ptype)
+{
+    com32sys_t reg;
+    t_PXENV_GET_CACHED_INFO *ci;
+    void *cp;
+    int rv = -1;
+
+    if (!(ci = lzalloc(sizeof(t_PXENV_GET_CACHED_INFO)))){
+	dprintf("Unable to lzalloc() for PXE call structure\n");
+	rv = 1;
+	goto ret;
+    }
+    ci->Status = PXENV_STATUS_FAILURE;
+    ci->PacketType = ptype;
+    memset(&reg, 0, sizeof(reg));
+    reg.eax.w[0] = 0x0009;
+    reg.ebx.w[0] = PXENV_GET_CACHED_INFO;
+    reg.edi.w[0] = OFFS(ci);
+    reg.es = SEG(ci);
+    __intcall(0x22, &reg, &reg);
+
+    if (ci->Status != PXENV_STATUS_SUCCESS) {
+	dprintf("PXE Get Cached Info failed: %d\n", ci->Status);
+	rv = 2;
+	goto ret;
+    }
+
+    cp = MK_PTR(ci->Buffer.seg, ci->Buffer.offs);
+    if (!(memcpy(cp, p, len))) {
+	dprintf("Failed to copy packet\n");
+	rv = 3;
+	goto ret;
+    }
+ret:
+   return rv;
+}
+
+void pxechain_patch_pkt1(int argc, char *argv[], struct pxelinux_opt *pxe)
+{
+    pxe_bootp_t *bootp1;
+    char *t;
+
+    bootp1 = (pxe_bootp_t *)(pxe->pkt1.d);
+    bootp1->sip = pxe->fip;
+    strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
+    bootp1->bootfile[127] = 0;
+    if (argc >= 1)
+	t = argv[0];
+}
+
 /* pxechain: Chainload to new PXE file ourselves
  *	Input:
  *	argc	Count of arguments passed
  *	argv	Values of arguments passed
  *	Returns	0 on success (which should never happen)
  *		1 on loadfile() error
+ *		2 if DHCP Option 52 (Option Overload) found
  *		-1 on usage error
  */
 int pxechain(int argc, char *argv[])
 {
     struct pxelinux_opt pxe;
-    int rv = 0;
+    pxe_bootp_t *bootp0, *bootp1;
+    int rv;
     struct data_area file;
     struct syslinux_rm_regs regs;
 
+    pxechain_init(&pxe);
+    bootp0 = (pxe_bootp_t *)(pxe.pkt0.d);
+    bootp1 = (pxe_bootp_t *)(pxe.pkt1.d);
+    if ((rv = dhcp_find_opt(bootp0, pxe.pkt0.s, 52)) >= 0) {
+	puts(" Found UNSUPPORTED option (52) overload in DHCP packet; aborting");
+	rv = 2;
+	goto ret;
+    } else {
+	rv = 0;
+    }
 //     --parse-options
     pxechain_args(argc, argv, &pxe);
 //     goto tabort;
-//     --make 2 copies of cache packet #3
 //     --rebuild copy #1 applying new options in order ensuring an option is only specified once in patched packet
+    pxechain_patch_pkt1(argc, argv, &pxe);
     /* Parse the filename to understand if a PXE parameter update is needed. */
     /* How does BKO do this for HTTP? option 209/210 */
 //     --set_registers
@@ -466,18 +521,17 @@ int pxechain(int argc, char *argv[])
 	goto ret;
     }
     puts("loaded.");
-    goto tabort;
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
 //     --copy patched copy into cache
+    dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.s, PXENV_PACKET_TYPE_CACHED_REPLY);
 //     --try boot
     if (true) {
 	puts("  Attempting to boot...");
 	do_boot(&file, 1, &regs);
     }
 //     --if failed, copy backup back in and abort
-tabort:
-    puts("temp abort");
+    dhcp_copy_pkt_to_pxe(bootp0, pxe.pkt0.s, PXENV_PACKET_TYPE_CACHED_REPLY);
 ret:
     return rv;
 }
@@ -492,7 +546,7 @@ int pxe_restart(const char *ifn)
     int rv = 0;
     struct pxelinux_opt pxe;
     com32sys_t reg;
-    t_PXENV_TFTP_READ_FILE *pxep;	/* PXENV callback Parameter */
+    t_PXENV_RESTART_TFTP *pxep;	/* PXENV callback Parameter */
 
     pxe.fn = ifn;
     pxechain_fill_pkt(&pxe);
@@ -507,10 +561,11 @@ int pxe_restart(const char *ifn)
     }
     printf("  Attempting to boot '%s'...\n\n", pxe.fn);
 //     goto ret;
+    memset(&reg, 0, sizeof reg);
     if (sizeof(t_PXENV_TFTP_READ_FILE)<= __com32.cs_bounce_size) {
 	pxep = __com32.cs_bounce;
-	memset(pxep, 0, sizeof(t_PXENV_TFTP_READ_FILE));
-    } else if (!(pxep = lzalloc(sizeof(t_PXENV_TFTP_READ_FILE)))){
+	memset(pxep, 0, sizeof(t_PXENV_RESTART_TFTP));
+    } else if (!(pxep = lzalloc(sizeof(t_PXENV_RESTART_TFTP)))){
 	dprintf("Unable to lzalloc() for PXE call structure\n");
 	goto ret;
     }
@@ -525,6 +580,7 @@ int pxe_restart(const char *ifn)
     dprintf("FN='%s'  %08X %08X %08X %08X\n\n", (char *)pxep->FileName,
 	pxep->ServerIPAddress, (unsigned int)pxep,
 	pxep->BufferSize, (unsigned int)pxep->Buffer);
+    dprintf("PXENV_RESTART_TFTP status %d\n", pxep->Status);
 // --here
     reg.eax.w[0] = 0x0009;
     reg.ebx.w[0] = PXENV_RESTART_TFTP;
