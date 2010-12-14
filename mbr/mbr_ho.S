@@ -298,15 +298,17 @@ wrhexb:
 	call	wrhexn
 	popw	%ax
 	call	wrhexn
-	pushw	%cx
+	popw	%cx
 	ret
 
 wrhexw:
+	pushw	%cx
 	movb	$8, %cl
 	rorw	%cl, %dx
 	call wrhexb
 	rorw	%cl, %dx
 	call wrhexb
+	popw	%cx
 	ret
 
 	ASCII_MARKER1	"HE"
