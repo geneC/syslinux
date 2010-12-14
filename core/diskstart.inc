@@ -180,8 +180,11 @@ harddisk:
 		mov dx,[di-76-10]	; Original DS
 		mov si,[di-76-12]	; Original SI
 		shr si,4
+		jz .no_partition	; SI == 0 -> assume no partition
 		add dx,si
-		cmp dx,PartInfo >> 4
+		cmp dx,1024		; DS:SI < 1K (inside the IVT)?
+		jb .no_partition
+		cmp dx,PartInfo >> 4	; DS:SI in overwritten memory?
 		jae .no_partition
 		test byte [di-76],7Fh	; Sanity check: "active flag" should
 		jnz .no_partition	; be 00 or 80
