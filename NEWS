@@ -18,6 +18,7 @@ Changes in 4.04:
 	* com32: fix a file descriptor leak.
 	* gfxboot.c32: handle TEXT..ENDTEXT; error out on no LABELs
 	  found (Sebastian Herbszt).
+	* Fix booting on non-partitioned devices.
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
