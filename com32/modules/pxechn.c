@@ -404,8 +404,8 @@ void pxechain_init(struct pxelinux_opt *pxe)
 
 void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
-    pxe_bootp_t *bootp1;
-    char *t;
+    pxe_bootp_t *bootp0, *bootp1;
+    uint8_t *d0, d1;
 
     if (pxe->pkt1.d)
 	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
@@ -425,14 +425,20 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     }
     pxechain_parse_fn(pxe->fn, &(pxe->fip), &(pxe->fp));
 //     --rebuild copy #1 applying new options in order ensuring an option is only specified once in patched packet
-//     pxechain_patch_pkt1(argc, argv, &pxe);
     /* Parse the filename to understand if a PXE parameter update is needed. */
     /* How does BKO do this for HTTP? option 209/210 */
 
+    /* Start filling packet #1 */
+    bootp0 = (pxe_bootp_t *)(pxe->pkt0.d);
     bootp1 = (pxe_bootp_t *)(pxe->pkt1.d);
     bootp1->sip = pxe->fip;
-    strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
-    bootp1->bootfile[127] = 0;
+    d0 = bootp0->vendor.d + 4;	/* Skip the magic */
+    d1 = bootp1->vendor.d + 4;
+    if ((pxe.opt52 & 1) == 0) {
+	strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
+	bootp1->bootfile[127] = 0;
+    } else {	/* Need Option 67 */
+    }
     if (argc >= 1)
 	t = argv[0];
 }
