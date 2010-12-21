@@ -168,6 +168,7 @@ floppy:
 		push ax
 
 		int 13h			; Some BIOSes need this
+			; Using xint13 costs +1B
 		jmp short not_harddisk
 ;
 ; The drive number and possibly partition information was passed to us
@@ -220,7 +221,7 @@ harddisk:
 ;
 		; DL == drive # still
 		mov ah,08h
-		int 13h
+		call xint13
 		jc no_driveparm
 		and ah,ah
 		jnz no_driveparm
@@ -242,8 +243,7 @@ not_harddisk:
 eddcheck:
 		mov bx,55AAh
 		mov ah,41h		; EDD existence query
-		mov dl,[DriveNumber]
-		int 13h
+		call xint13
 		jc .noedd
 		cmp bx,0AA55h
 		jne .noedd
@@ -685,8 +685,7 @@ getlinsec_ebios:
 
 		pushad				; Try resetting the device
 		xor ax,ax
-		mov dl,[DriveNumber]
-		int 13h
+		call xint13
 		popad
 		loop .retry			; CX-- and jump if not zero
 
