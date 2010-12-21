@@ -420,8 +420,10 @@ writestr_early:
 ; INT 13h wrapper function
 ;
 xint13:
-                mov dl,[DriveNumber]
+		mov dl,[DriveNumber]
+		push es		; ES destroyed by INT 13h AH 08h
 		int 13h
+		pop es
 		ret
 
 ;
