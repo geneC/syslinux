@@ -17,6 +17,9 @@
 ; Common early-bootstrap code for harddisk-based Syslinux derivatives.
 ;
 
+Sect1Ptr0_VAL	equ 0xdeadbeef
+Sect1Ptr1_VAL	equ 0xfeedface
+
 		section .init
 ;
 ; Some of the things that have to be saved very early are saved
@@ -260,9 +263,9 @@ eddcheck:
 ; with parsing the superblock and root directory; it doesn't fit
 ; together with EBIOS support, unfortunately.
 ;
-		mov eax,strict dword 0xdeadbeef
+		mov eax,strict dword Sect1Ptr0_VAL	; 0xdeadbeef
 Sect1Ptr0	equ $-4
-		mov edx,strict dword 0xfeedface
+		mov edx,strict dword Sect1Ptr0_VAL	; 0xfeedface
 Sect1Ptr1	equ $-4
 		mov bx,ldlinux_sys	; Where to load it
 		call getonesec
