@@ -264,7 +264,7 @@ eddcheck:
 ;
 		mov eax,strict dword Sect1Ptr0_VAL	; 0xdeadbeef
 Sect1Ptr0	equ $-4
-		mov edx,strict dword Sect1Ptr0_VAL	; 0xfeedface
+		mov edx,strict dword Sect1Ptr1_VAL	; 0xfeedface
 Sect1Ptr1	equ $-4
 		mov bx,ldlinux_sys	; Where to load it
 		call getonesec
