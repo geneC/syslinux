@@ -19,6 +19,8 @@ Changes in 4.04:
 	* gfxboot.c32: handle TEXT..ENDTEXT; error out on no LABELs
 	  found (Sebastian Herbszt).
 	* Fix booting on non-partitioned devices.
+	* MBR, isohybrid: Workaround for a BIOS issue on Acer
+	  Travelmate and possibly other machines.
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
