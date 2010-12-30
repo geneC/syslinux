@@ -85,16 +85,12 @@ pc_ipappend:	call getint
 ;
 ; "localboot" command
 ;
-%if HAS_LOCALBOOT
-
 pc_localboot:	call getint
 		cmp byte [VKernel],0		; ("label" section only)
 		je .err
 		mov [VKernelBuf+vk_rname],bx
 		mov byte [VKernelBuf+vk_type],VK_LOCALBOOT
 .err:		ret
-
-%endif ; HAS_LOCALBOOT
 
 ;
 ; "kernel", "config", ... command

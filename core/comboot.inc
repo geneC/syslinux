@@ -723,13 +723,9 @@ comapi_idle:
 ;
 ; INT 22h AX=0014h	Local boot
 ;
-%if HAS_LOCALBOOT
 comapi_localboot:
 		mov ax,P_DX
 		jmp local_boot
-%else
-comapi_localboot equ comapi_err
-%endif ; HAS_LOCALBOOT
 
 ;
 ; INT 22h AX=0015h	Feature flags
