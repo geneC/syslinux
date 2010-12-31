@@ -180,6 +180,8 @@ verify_checksum:
 		dec ecx
 		jnz .checksum
 
+		mov ds,cx
+
 		and eax,eax			; Should be zero
 		jz all_read			; We're cool, go for it!
 
