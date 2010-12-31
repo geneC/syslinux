@@ -420,9 +420,8 @@ SectorPtrsEnd	equ $
 
 		section .text16
 all_read:
-		; We enter here with both DS and ES scrambled...
+		; We enter here with ES scrambled...
 		xor ax,ax
-		mov ds,ax
 		mov es,ax
 ;
 ; Let the user (and programmer!) know we got this far.  This used to be
