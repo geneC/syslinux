@@ -280,9 +280,9 @@ struct edd_disk_params {
     char      bus_type[4];
     char      if_type[8];
     uint8_t   if_path[8];
-    uint8_t   dev_path[8];
+    uint8_t   dev_path[16];
     uint8_t   _pad2;
-    uint8_t   devpath_csum;
+    uint8_t   devpath_csum;	/* Depends on devpath_len! */
 } __attribute__((packed));
 
 static inline bool is_power_of_2(uint32_t x)
