@@ -354,6 +354,9 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
 	    hard_max_transfer = 127;
 
 	    /* Query EBIOS parameters */
+	    /* The memset() is needed once this function can be called
+	       more than once */
+	    /* memset(&edd_params, 0, sizeof edd_params);  */
 	    edd_params.len = sizeof edd_params;
 
 	    ireg.eax.b[1] = 0x48;
