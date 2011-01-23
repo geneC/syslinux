@@ -12,6 +12,7 @@ for prefix in \
     x86_64-mingw64msvc- \
     x86_64-mingw32- \
     x86_64-mingw32msvc- \
+    amd64-mingw32msvc- \
     ; do
     if "${prefix}${cc}" -v > /dev/null 2>&1; then
 	echo "$prefix"
