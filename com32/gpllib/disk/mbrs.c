@@ -40,6 +40,8 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 	/* We need more than 2 bytes */
 	if (((label >> 8) & 0xff) == 0x8e)
 	    strlcpy(buffer, "Windows", buffer_size - 1);
+	else if (((label >> 8) & 0xff) == 0x90)
+	    strlcpy(buffer, "DiskCryptor", buffer_size - 1);
 	else if (((label >> 8) & 0xff) == 0xfa)
 	    strlcpy(buffer, "Syslinux", buffer_size - 1);
 	else
