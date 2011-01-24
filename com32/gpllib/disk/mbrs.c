@@ -27,7 +27,6 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 
     switch (s_label) {
     case 0x0000:
-    case 0xfab8:
     case 0xfabe:
 	strlcpy(buffer, "No bootloader", buffer_size - 1);
 	break;
@@ -98,6 +97,9 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 	break;
     case 0xfa33:
 	strlcpy(buffer, "MS-DOS 3.30 through Windows 95 (A)", buffer_size - 1);
+	break;
+    case 0xfab8:
+	strlcpy(buffer, "FreeDOS (eXtended FDisk)", buffer_size - 1);
 	break;
     case 0xfaeb:
 	strlcpy(buffer, "Lilo", buffer_size - 1);
