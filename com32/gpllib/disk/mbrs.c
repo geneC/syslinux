@@ -56,6 +56,9 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
     case 0xeb04:
 	strlcpy(buffer, "Solaris", buffer_size - 1);
 	break;
+    case 0xeb31:
+	strlcpy(buffer, "Paragon", buffer_size - 1);
+	break;
     case 0xeb48:
 	strlcpy(buffer, "Grub", buffer_size - 1);
 	break;
