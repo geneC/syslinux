@@ -9,13 +9,16 @@
 *.elf
 *.exe
 *.gen
+*.lib
 *.lnx
 *.lo
 *.lsr
 *.lst
 *.map
 *.o
+*.obj
 *.orig
+*.raw
 *.rej
 *.s
 *.sec
@@ -37,6 +40,7 @@
 /utils/isohdpfx.c
 /utils/isohybrid
 /utils/isohybrid.pl
+/utils/memdiskfind
 /utils/mkdiskimage
 /version.h
 /version.mk

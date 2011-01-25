@@ -87,7 +87,7 @@ static void autocomplete_add_token_to_list(const char *token)
 {
     struct autocomplete_list *new = malloc(sizeof(struct autocomplete_list));
 
-    strncpy(new->autocomplete_token, token, sizeof(new->autocomplete_token));
+    strlcpy(new->autocomplete_token, token, sizeof(new->autocomplete_token));
     new->next = NULL;
     autocomplete_backlog++;
 
@@ -273,13 +273,13 @@ static void expand_aliases(char *line __unused, char **command, char **module,
 	*argc = 1;
 	*argv = malloc(*argc * sizeof(char *));
 	argv[0] = malloc((sizeof(*command) + 1) * sizeof(char));
-	strncpy(argv[0], *command, sizeof(*command) + 1);
+	strlcpy(argv[0], *command, sizeof(*command) + 1);
 	dprintf("CLI DEBUG: ALIAS %s ", *command);
 
-	strncpy(*command, CLI_SET, sizeof(CLI_SET));	/* set */
+	strlcpy(*command, CLI_SET, sizeof(CLI_SET));	/* set */
 
 	*module = malloc(sizeof(CLI_MODE) * sizeof(char));
-	strncpy(*module, CLI_MODE, sizeof(CLI_MODE));	/* mode */
+	strlcpy(*module, CLI_MODE, sizeof(CLI_MODE));	/* mode */
 
 	dprintf("--> %s %s %s\n", *command, *module, argv[0]);
 	goto out;
@@ -291,7 +291,7 @@ static void expand_aliases(char *line __unused, char **command, char **module,
 	    if (!strncmp(*command, hdt_aliases[i].aliases[j],
 			 sizeof(hdt_aliases[i].aliases[j]))) {
 		dprintf("CLI DEBUG: ALIAS %s ", *command);
-		strncpy(*command, hdt_aliases[i].command,
+		strlcpy(*command, hdt_aliases[i].command,
 			sizeof(hdt_aliases[i].command) + 1);
 		dprintf("--> %s\n", *command);
 		goto out;	/* Don't allow chaining aliases */
@@ -363,14 +363,14 @@ static void parse_command_line(char *line, char **command, char **module,
 	if (token_found == 0) {
 	    /* Main command to execute */
 	    *command = malloc((token_len + 1) * sizeof(char));
-	    strncpy(*command, pch, token_len);
+	    strlcpy(*command, pch, token_len);
 	    (*command)[token_len] = '\0';
 	    dprintf("CLI DEBUG: command = %s\n", *command);
 	    args_pos += args_len;
 	} else if (token_found == 1) {
 	    /* Module */
 	    *module = malloc((token_len + 1) * sizeof(char));
-	    strncpy(*module, pch, token_len);
+	    strlcpy(*module, pch, token_len);
 	    (*module)[token_len] = '\0';
 	    dprintf("CLI DEBUG: module  = %s\n", *module);
 	    args_pos += args_len;
@@ -392,7 +392,7 @@ static void parse_command_line(char *line, char **command, char **module,
     while (pch != NULL) {
 	dprintf("CLI DEBUG: argv[%d] = %s\n", argc_iter, pch);
 	argv[argc_iter] = malloc(sizeof(pch) * sizeof(char));
-	strncpy(argv[argc_iter], pch, sizeof(pch));
+	strlcpy(argv[argc_iter], pch, sizeof(pch));
 	argc_iter++;
 	pch = strtok(NULL, CLI_SPACE);
 	/*
@@ -711,7 +711,6 @@ static void exec_command(char *line, struct s_hardware *hardware)
 	}
     }
 
-out:
     /* Let's not forget to clean ourselves */
     if (command != NULL)
 	free(command);
@@ -777,6 +776,10 @@ void start_auto_mode(struct s_hardware *hardware)
 
 void print_history(int argc, char **argv, struct s_hardware * hardware)
 {
+    (void)argc;
+    (void)argv;
+    (void)hardware;
+
     reset_more_printf();
     for (int i = 1; i <= MAX_HISTORY_SIZE; i++) {
 	if (i == hdt_cli.history_pos) {
@@ -911,7 +914,7 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	    /* Let's make that future position the one we use */
 	    memset(INPUT, 0, sizeof(INPUT));
-	    strncpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
+	    strlcpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
 
 	    /* Clear the line */
 	    clear_line();
@@ -952,7 +955,7 @@ void start_cli_mode(struct s_hardware *hardware)
 
 	    /* Let's make that future position the one we use */
 	    memset(INPUT, 0, sizeof(INPUT));
-	    strncpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
+	    strlcpy(INPUT, hdt_cli.history[future_history_pos], sizeof(INPUT));
 
 	    /* Clear the line */
 	    clear_line();
@@ -972,7 +975,7 @@ void start_cli_mode(struct s_hardware *hardware)
 		move_cursor_to_column(0);
 		reset_prompt();
 		printf("%s", autocomplete_last_seen->autocomplete_token);
-		strncpy(INPUT,
+		strlcpy(INPUT,
 			autocomplete_last_seen->autocomplete_token,
 			sizeof(INPUT));
 		hdt_cli.cursor_pos = strlen(INPUT);
@@ -1086,7 +1089,7 @@ void start_cli_mode(struct s_hardware *hardware)
 		char key[2];
 		int trailing_chars = strlen(INPUT) - hdt_cli.cursor_pos;
 		memset(temp_command, 0, sizeof(temp_command));
-		strncpy(temp_command, INPUT, hdt_cli.cursor_pos);
+		strlcpy(temp_command, INPUT, hdt_cli.cursor_pos);
 		sprintf(key, "%c", current_key);
 		strncat(temp_command, key, 1);
 		strncat(temp_command,

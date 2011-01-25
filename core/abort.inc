@@ -17,7 +17,7 @@
 ; Code to terminate a kernel load
 ;
 
-		section .text
+		section .text16
 
 ;
 ; dot_pause: same as abort_check, except prints a dot, too
@@ -78,7 +78,7 @@ error_or_command:
 		jnz on_error
 		jmp enter_command
 
-		section .data
+		section .data16
 aborted_msg	db ' aborted.', CR, LF, 0
 
-		section .text
+		section .text16

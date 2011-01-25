@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -18,17 +19,18 @@
  * We need device write permission anyway.
  */
 
-#define _XOPEN_SOURCE 500	/* Required on glibc 2.x */
-#define _BSD_SOURCE
+#define _GNU_SOURCE
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <getopt.h>
 #include <inttypes.h>
 #include <mntent.h>
 #include <paths.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -37,22 +39,21 @@
 
 #include "syslinux.h"
 #include "libfat.h"
+#include "setadv.h"
+#include "syslxopt.h"
 
 char *program;			/* Name of program */
-char *device;			/* Device to install to */
 pid_t mypid;
-off_t filesystem_offset = 0;	/* Offset of filesystem */
-
-void __attribute__ ((noreturn)) usage(void)
-{
-    fprintf(stderr, "Usage: %s [-sfr][-d directory][-o offset] device\n",
-	    program);
-    exit(1);
-}
 
 void __attribute__ ((noreturn)) die(const char *msg)
 {
     fprintf(stderr, "%s: %s\n", program, msg);
+    exit(1);
+}
+
+void __attribute__ ((noreturn)) die_err(const char *msg)
+{
+    fprintf(stderr, "%s: %s: %s\n", program, msg, strerror(errno));
     exit(1);
 }
 
@@ -119,88 +120,79 @@ ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset)
 int libfat_xpread(intptr_t pp, void *buf, size_t secsize,
 		  libfat_sector_t sector)
 {
-    off_t offset = (off_t) sector * secsize + filesystem_offset;
+    off_t offset = (off_t) sector * secsize + opt.offset;
     return xpread(pp, buf, secsize, offset);
 }
 
 int main(int argc, char *argv[])
 {
-    static unsigned char sectbuf[512];
+    static unsigned char sectbuf[SECTOR_SIZE];
     int dev_fd;
     struct stat st;
     int status;
-    char **argp, *opt;
-    char mtools_conf[] = "/tmp/syslinux-mtools-XXXXXX";
-    const char *subdir = NULL;
+    const char *tmpdir;
+    char *mtools_conf;
     int mtc_fd;
     FILE *mtc, *mtp;
     struct libfat_filesystem *fs;
-    libfat_sector_t s, *secp, sectors[65];	/* 65 is maximum possible */
+    libfat_sector_t s, *secp;
+    libfat_sector_t *sectors;
     int32_t ldlinux_cluster;
     int nsectors;
     const char *errmsg;
-
-    int force = 0;		/* -f (force) option */
-    int stupid = 0;		/* -s (stupid) option */
-    int raid_mode = 0;		/* -r (RAID) option */
+    int ldlinux_sectors, patch_sectors;
+    int i;
 
     (void)argc;			/* Unused */
 
     mypid = getpid();
     program = argv[0];
 
-    device = NULL;
+    parse_options(argc, argv, MODE_SYSLINUX);
 
-    for (argp = argv + 1; *argp; argp++) {
-	if (**argp == '-') {
-	    opt = *argp + 1;
-	    if (!*opt)
-		usage();
+    if (!opt.device)
+	usage(EX_USAGE, MODE_SYSLINUX);
 
-	    while (*opt) {
-		if (*opt == 's') {
-		    stupid = 1;
-		} else if (*opt == 'r') {
-		    raid_mode = 1;
-		} else if (*opt == 'f') {
-		    force = 1;	/* Force install */
-		} else if (*opt == 'd' && argp[1]) {
-		    subdir = *++argp;
-		} else if (*opt == 'o' && argp[1]) {
-		    filesystem_offset = (off_t) strtoull(*++argp, NULL, 0);	/* Byte offset */
-		} else {
-		    usage();
-		}
-		opt++;
-	    }
-	} else {
-	    if (device)
-		usage();
-	    device = *argp;
-	}
+    if (opt.sectors || opt.heads || opt.reset_adv || opt.set_once
+	|| (opt.update_only > 0) || opt.menu_save) {
+	fprintf(stderr,
+		"At least one specified option not yet implemented"
+		" for this installer.\n");
+	exit(1);
     }
 
-    if (!device)
-	usage();
+    /*
+     * Temp directory of choice...
+     */
+    tmpdir = getenv("TMPDIR");
+    if (!tmpdir) {
+#ifdef P_tmpdir
+	tmpdir = P_tmpdir;
+#elif defined(_PATH_TMP)
+	tmpdir = _PATH_TMP;
+#else
+	tmpdir = "/tmp";
+#endif
+    }
 
     /*
      * First make sure we can open the device at all, and that we have
      * read/write permission.
      */
-    dev_fd = open(device, O_RDWR);
+    dev_fd = open(opt.device, O_RDWR);
     if (dev_fd < 0 || fstat(dev_fd, &st) < 0) {
-	perror(device);
+	die_err(opt.device);
 	exit(1);
     }
 
-    if (!force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode)) {
+    if (!opt.force && !S_ISBLK(st.st_mode) && !S_ISREG(st.st_mode)) {
 	fprintf(stderr,
 		"%s: not a block device or regular file (use -f to override)\n",
-		device);
+		opt.device);
 	exit(1);
     }
 
-    xpread(dev_fd, sectbuf, 512, filesystem_offset);
+    xpread(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     /*
      * Check to see that what we got was indeed an MS-DOS boot sector/superblock
@@ -212,11 +204,14 @@ int main(int argc, char *argv[])
     /*
      * Create an mtools configuration file
      */
+    if (asprintf(&mtools_conf, "%s//syslinux-mtools-XXXXXX", tmpdir) < 0 ||
+	!mtools_conf)
+	die_err(tmpdir);
+
     mtc_fd = mkstemp(mtools_conf);
-    if (mtc_fd < 0 || !(mtc = fdopen(mtc_fd, "w"))) {
-	perror(program);
-	exit(1);
-    }
+    if (mtc_fd < 0 || !(mtc = fdopen(mtc_fd, "w")))
+	die_err(mtools_conf);
+
     fprintf(mtc,
 	    /* These are needed for some flash memories */
 	    "MTOOLS_SKIP_CHECK=1\n"
@@ -225,8 +220,10 @@ int main(int argc, char *argv[])
 	    "  file=\"/proc/%lu/fd/%d\"\n"
 	    "  offset=%llu\n",
 	    (unsigned long)mypid,
-	    dev_fd, (unsigned long long)filesystem_offset);
-    fclose(mtc);
+	    dev_fd, (unsigned long long)opt.offset);
+
+    if (ferror(mtc) || fclose(mtc))
+	die_err(mtools_conf);
 
     /*
      * Run mtools to create the LDLINUX.SYS file
@@ -236,12 +233,21 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
+    /*
+     * Create a vacuous ADV in memory.  This should be smarter.
+     */
+    syslinux_reset_adv(syslinux_adv);
+
     /* This command may fail legitimately */
-    system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
+    status = system("mattrib -h -r -s s:/ldlinux.sys 2>/dev/null");
+    (void)status;		/* Keep _FORTIFY_SOURCE happy */
 
     mtp = popen("mcopy -D o -D O -o - s:/ldlinux.sys", "w");
-    if (!mtp || (fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
-		 != syslinux_ldlinux_len) ||
+    if (!mtp ||
+	fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
+		!= syslinux_ldlinux_len ||
+	fwrite(syslinux_adv, 1, 2 * ADV_SIZE, mtp)
+		!= 2 * ADV_SIZE ||
 	(status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status))) {
 	die("failed to create ldlinux.sys");
     }
@@ -249,12 +255,15 @@ int main(int argc, char *argv[])
     /*
      * Now, use libfat to create a block map
      */
+    ldlinux_sectors = (syslinux_ldlinux_len + 2 * ADV_SIZE
+		       + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
+    sectors = calloc(ldlinux_sectors, sizeof *sectors);
     fs = libfat_open(libfat_xpread, dev_fd);
     ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
     secp = sectors;
     nsectors = 0;
     s = libfat_clustertosector(fs, ldlinux_cluster);
-    while (s && nsectors < 65) {
+    while (s && nsectors < ldlinux_sectors) {
 	*secp++ = s;
 	nsectors++;
 	s = libfat_nextsector(fs, s);
@@ -262,21 +271,25 @@ int main(int argc, char *argv[])
     libfat_close(fs);
 
     /* Patch ldlinux.sys and the boot sector */
-    syslinux_patch(sectors, nsectors, stupid, raid_mode);
+    i = syslinux_patch(sectors, nsectors, opt.stupid_mode, opt.raid_mode,
+		       opt.directory, NULL);
+    patch_sectors = (i + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
 
-    /* Write the now-patched first sector of ldlinux.sys */
-    xpwrite(dev_fd, syslinux_ldlinux, 512,
-	    filesystem_offset + ((off_t) sectors[0] << 9));
+    /* Write the now-patched first sectors of ldlinux.sys */
+    for (i = 0; i < patch_sectors; i++) {
+	xpwrite(dev_fd, syslinux_ldlinux + i * SECTOR_SIZE, SECTOR_SIZE,
+		opt.offset + ((off_t) sectors[i] << SECTOR_SHIFT));
+    }
 
     /* Move ldlinux.sys to the desired location */
-    if (subdir) {
+    if (opt.directory) {
 	char target_file[4096], command[5120];
 	char *cp = target_file, *ep = target_file + sizeof target_file - 16;
 	const char *sd;
 	int slash = 1;
 
 	cp += sprintf(cp, "'s:/");
-	for (sd = subdir; *sd; sd++) {
+	for (sd = opt.directory; *sd; sd++) {
 	    if (*sd == '/' || *sd == '\\') {
 		if (slash)
 		    continue;	/* Remove duplicated slashes */
@@ -305,7 +318,8 @@ int main(int argc, char *argv[])
 
 	/* This command may fail legitimately */
 	sprintf(command, "mattrib -h -r -s %s 2>/dev/null", target_file);
-	system(command);
+	status = system(command);
+	(void)status;		/* Keep _FORTIFY_SOURCE happy */
 
 	sprintf(command, "mmove -D o -D O s:/ldlinux.sys %s", target_file);
 	status = system(command);
@@ -339,13 +353,13 @@ int main(int argc, char *argv[])
      */
 
     /* Read the superblock again since it might have changed while mounted */
-    xpread(dev_fd, sectbuf, 512, filesystem_offset);
+    xpread(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     /* Copy the syslinux code into the boot sector */
     syslinux_make_bootsect(sectbuf);
 
     /* Write new boot sector */
-    xpwrite(dev_fd, sectbuf, 512, filesystem_offset);
+    xpwrite(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     close(dev_fd);
     sync();

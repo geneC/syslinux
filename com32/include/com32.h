@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2002-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -92,6 +92,8 @@ typedef struct {
 #define EFLAGS_VIP		0x00100000
 #define EFLAGS_ID		0x00200000
 
+struct com32_pmapi;
+
 extern struct com32_sys_args {
     uint32_t cs_sysargs;
     char *cs_cmdline;
@@ -102,6 +104,7 @@ extern struct com32_sys_args {
     int __cdecl (*cs_cfarcall)(uint32_t, const void *, uint32_t);
     uint32_t cs_memsize;
     const char *cs_name;
+    const struct com32_pmapi *cs_pm;
 } __com32;
 
 /*
@@ -113,6 +116,14 @@ void __farcall(uint16_t __cs, uint16_t __ip,
 int __cfarcall(uint16_t __cs, uint16_t __ip,
 	       const void *__stack, uint32_t __stack_size);
 extern const com32sys_t __com32_zero_regs;
+
+/*
+ * Lowmem allocation functions
+ */
+void *lmalloc(size_t);
+void *lzalloc(size_t);
+void lfree(void *);
+char *lstrdup(const char *);
 
 /*
  * These functions convert between linear pointers in the range

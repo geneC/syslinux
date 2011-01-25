@@ -17,7 +17,7 @@
 ;; Initialize the configuration section
 ;;
 
-		section .text
+		section .text16
 
 reset_config:
 		call highmemsize

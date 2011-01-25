@@ -5,6 +5,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include "malloc.h"
 
 struct free_arena_header __malloc_head = {
@@ -18,29 +19,16 @@ struct free_arena_header __malloc_head = {
     &__malloc_head
 };
 
-/* This is extern so it can be overridden by the user application */
-const size_t __stack_size = 4096;
-
-static inline size_t sp(void)
-{
-    uint32_t sp;
-    asm volatile ("movl %%esp,%0":"=rm" (sp));
-    return sp;
-}
-
-extern void *__mem_end;
+extern void *__mem_end;		/* In argv.c */
 
 void __init_memory_arena(void)
 {
+    extern char __heap_end[];
     struct free_arena_header *fp;
-    size_t start, total_space;
 
-    start = (size_t) ARENA_ALIGN_UP(__mem_end);
-    total_space = sp() - start;
-
-    fp = (struct free_arena_header *)start;
+    fp = (struct free_arena_header *)__mem_end;
     fp->a.type = ARENA_TYPE_FREE;
-    fp->a.size = total_space - __stack_size;
+    fp->a.size = __heap_end - (char *)__mem_end;
 
     /* Insert into chains */
     fp->a.next = fp->a.prev = &__malloc_head;
@@ -110,4 +98,14 @@ void *malloc(size_t size)
 
     /* Nothing found... need to request a block from the kernel */
     return NULL;		/* No kernel to get stuff from */
+}
+
+void *calloc(size_t nmemb, size_t size)
+{
+    void *p;
+    size *= nmemb;
+    p = malloc(size);
+    if (p)
+	memset(p, 0, size);
+    return p;
 }

@@ -912,10 +912,9 @@ static int des_cipher(const char *in, char *out, my_u_int32_t salt, int count)
 void setkey(const char *key)
 {
     int i, j;
-    my_u_int32_t packed_keys[2];
-    my_u_char_t *p;
+    char *p, packed_keys[8];
 
-    p = (my_u_char_t *) packed_keys;
+    p = packed_keys;
 
     for (i = 0; i < 8; i++) {
 	p[i] = 0;
@@ -935,7 +934,7 @@ void encrypt(char *block, int flag)
     des_init();
 
     setup_salt(0L);
-    p = block;
+    p = (my_u_char_t *)block;
     for (i = 0; i < 2; i++) {
 	io[i] = 0L;
 	for (j = 0; j < 32; j++)

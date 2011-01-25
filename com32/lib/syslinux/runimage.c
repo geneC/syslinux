@@ -40,26 +40,31 @@ void syslinux_run_kernel_image(const char *filename, const char *cmdline,
 			       uint32_t ipappend_flags, uint32_t type)
 {
     static com32sys_t ireg;
-    char *bbfilename, *bbcmdline, *bbptr;
-    int bytes;
+    char *bbfilename = NULL;
+    char *bbcmdline  = NULL;
 
-    bbptr = __com32.cs_bounce;
+    bbfilename = lstrdup(filename);
+    if (!bbfilename)
+	goto fail;
 
-    bytes = strlen(filename) + 1;
-    memcpy(bbfilename = bbptr, filename, bytes);
-    bbptr += bytes;
+    bbcmdline = lstrdup(cmdline);
+    if (!bbcmdline)
+	goto fail;
 
-    bytes = strlen(cmdline) + 1;
-    memcpy(bbcmdline = bbptr, filename, bytes);
-    bbptr += bytes;
 
     ireg.eax.w[0] = 0x0016;
     ireg.ds = SEG(bbfilename);
-    ireg.esi.w[0] = OFFS(bbfilename);
+    /* ireg.esi.w[0] = OFFS(bbfilename); */
     ireg.es = SEG(bbcmdline);
-    ireg.ebx.w[0] = OFFS(bbcmdline);
+    /* ireg.ebx.w[0] = OFFS(bbcmdline); */
     ireg.ecx.l = ipappend_flags;
     ireg.edx.l = type;
 
     __intcall(0x22, &ireg, 0);
+
+fail:
+    if (bbcmdline)
+	lfree(bbcmdline);
+    if (bbfilename)
+	lfree(bbfilename);
 }

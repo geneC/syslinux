@@ -16,7 +16,7 @@
 ;; VGA font handling code
 ;;
 
-		section .text
+		section .text16
 
 ;
 ; loadfont:	Load a .psf font file and install it onto the VGA console
@@ -141,12 +141,12 @@ vidrows_ok:	mov [VidRows],al
 		popa
 		ret
 
-		section .data
+		section .data16
 		alignz 2
 VGAFontSize	dw 16			; Defaults to 16 byte font
 UserFont	db 0			; Using a user-specified font
 
-		section .bss1
+		section .bss16
 		alignb 4
 GXPixCols	resw 1			; Graphics mode pixel columns
 GXPixRows	resw 1			; Graphics mode pixel rows

@@ -15,7 +15,7 @@
 ;; conio.inc
 ;;
 ;; Console I/O code, except:
-;;   writechr, writestr_early		- module-dependent
+;;   writechr, writestr_early	- module-dependent
 ;;   writestr, crlf		- writestr.inc
 ;;   writehex*			- writehex.inc
 ;;
@@ -24,7 +24,7 @@
 ; loadkeys:	Load a LILO-style keymap; file is open on the top of the
 ;		getc stack.
 ;
-		section .text
+		section .text16
 
 loadkeys:
 		mov cx,256
@@ -207,8 +207,8 @@ msg_viewimage:
 		mov byte [si],0			; Zero-terminate filename
 		mov si,VGAFileBuf
 		mov di,VGAFileMBuf
-		call mangle_name
-		call open
+		pm_call pm_mangle_name
+		call core_open
 		jz msg_putcharnext		; Not there
 		call vgadisplayfile
 		; Fall through
@@ -388,7 +388,7 @@ debug_tracer:	pushad
 		ret
 %endif	; DEBUG_TRACERS
 
-		section .data
+		section .data16
 %if IS_ISOLINUX == 0			; Defined elsewhere for ISOLINUX
 crlf_msg	db CR, LF
 null_msg	db 0
@@ -401,7 +401,7 @@ DisplayCon	dw 01h			; Console display enabled
 
 ScrollAttribute	db 07h			; Grey on white (normal text color)
 
-		section .bss
+		section .bss16
 		alignb 2
 NextCharJump    resw 1			; Routine to interpret next print char
 CursorDX        equ $
@@ -413,7 +413,7 @@ VidRows         resb 1			; Rows on screen-1
 
 ; Serial console stuff; don't put this in .config becasue we don't want
 ; loading a new config file to undo this setting.
-		section .data
+		section .data16
 		alignz 4
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 BaudDivisor	dw 115200/9600		; Baud rate divisor
@@ -423,8 +423,9 @@ FlowInput	db 0			; Input bits for serial flow
 FlowIgnore	db 0			; Ignore input unless these bits set
 FlowDummy	db 0			; Unused
 
-		section .bss
+		section .bss16
 TextAttribute   resb 1			; Text attribute for message file
 DisplayMask	resb 1			; Display modes mask
 
+		section .text16
 %include "serirq.inc"

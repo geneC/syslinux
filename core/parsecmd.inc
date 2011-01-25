@@ -17,7 +17,7 @@
 ;; Command line parser code
 ;;
 
-		section .text
+		section .text16
 
 ; -------------------------------------------------------------------------
 ;  getcommand:	Get a keyword from the current "getc" file and match it
@@ -106,7 +106,7 @@ skipline:	cmp al,10		; Search for LF
 		jnc skipline
 .end:		ret
 
-		section .data
+		section .data16
 err_badcfg      db 'Unknown keyword in configuration file: ',0
 err_noparm      db 'Missing parameter in configuration file. Keyword: ',0
 
@@ -118,19 +118,12 @@ AppendBuf       resb max_cmd_len+1	; append=
 Ontimeout	resb max_cmd_len+1	; ontimeout
 Onerror		resb max_cmd_len+1	; onerror
 		; This could be in .uibss but that makes PXELINUX overflow
-		section .bss
+		section .bss16
 KbdMap		resb 256		; Keyboard map
 FKeyName	resb MAX_FKEYS*FILENAME_MAX	; File names for F-key help
-KernelCNameLen	resw 1			; Length of unmangled kernel name
-InitRDCNameLen	resw 1			; Length of unmangled initrd name
-%if IS_SYSLINUX
-KernelName      resb FILENAME_MAX+1	; Mangled name for kernel
-KernelCName     resb FILENAME_MAX+2	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX+2	; Unmangled initrd name
-%else
+                global KernelName
 KernelName      resb FILENAME_MAX	; Mangled name for kernel
-KernelCName     resb FILENAME_MAX	; Unmangled kernel name
-InitRDCName     resb FILENAME_MAX	; Unmangled initrd name
-%endif
 MNameBuf        resb FILENAME_MAX
 InitRD          resb FILENAME_MAX
+
+		section .text16

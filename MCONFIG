@@ -32,15 +32,17 @@ BOOTDIR	    = /boot
 EXTLINUXDIR = $(BOOTDIR)/extlinux
 
 NASM	 = nasm
-NASMOPT  = -O9999
+NASMOPT  = -Ox
 
 PERL	 = perl
+UPX	 = upx
 
 CHMOD	 = chmod
 
 CC	 = gcc
 gcc_ok   = $(shell tmpf=gcc_ok.$$$$.tmp; \
-		   if $(CC) $(1) -c $(topdir)/dummy.c -o $$tmpf 2>/dev/null ; \
+		   if $(CC) $(GCCOPT) $(1) -c $(topdir)/dummy.c \
+			-o $$tmpf 2>/dev/null ; \
 		   then echo '$(1)'; else echo '$(2)'; fi; \
 		   rm -f $$tmpf)
 
@@ -71,3 +73,10 @@ MAKEDEPS = -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d
 # Dependencies that exclude system headers; use whenever we use
 # header files from the platform.
 UMAKEDEPS = -Wp,-MT,$@,-MMD,$(dir $@).$(notdir $@).d
+
+# Items that are only appropriate during development; this file is
+# removed when tarballs are generated.
+-include $(topdir)/MCONFIG.devel
+
+# Local additions, like -DDEBUG can go here
+-include $(topdir)/MCONFIG.local

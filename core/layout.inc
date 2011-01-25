@@ -27,7 +27,7 @@ BSS_START	equ 0800h
 TEXT_START	equ 7C00h
 
 ;
-; Stack layout
+; 16-bit stack layout
 ;
 ; PXELINUX: There are apparently some AMI BIOSes in the field which
 ; put their BEV stack somewhere below 7C00h (and therefore don't
@@ -50,17 +50,27 @@ STACK_BASE	equ STACK_TOP - STACK_LEN
 LATEBSS_START	equ 0B800h
 
 ;
+; 32-bit stack layout
+;
+		global STACK32_LEN
+STACK32_LEN	equ 64*1024
+
+		section	.stack		nobits write align=4096
+		resb STACK32_LEN
+
+;
 ; The various sections and their relationship
 ;
 		; Use .earlybss for things that MUST be in low memory.
-		section .earlybss	nobits
+		section .earlybss	nobits write
 		section .config		write progbits align=4
 		section .replacestub	exec write progbits align=16
+		section .gentextnr	exec write nobits align=16
 
-		; Use .bss for things that doesn't have to be in low memory;
-		; with .bss1 and .bss2 to offload.  .earlybss should be used
-		; for things that absolutely have to be below 0x7c00.
-		section .bss		write nobits align=16
+		; Use .bss16 for things that doesn't have to be in low memory;
+		; .earlybss should be used for things that absolutely have
+		; to be below 0x7c00.
+		section .bss16		write nobits align=16
 
 %if 0 ; IS_PXELINUX
 		; Warning here: RBFG build 22 randomly overwrites
@@ -72,11 +82,12 @@ LATEBSS_START	equ 0B800h
 RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 %endif
 
-		section .bss2		write nobits align=16
-
-		section .text		exec write progbits align=16
-		section .bcopyxx	exec write progbits align=16
-		section .data		write progbits align=16
+		section .init		exec write progbits align=1
+		section .text16		exec write progbits align=1
+		section .textnr		exec nowrite progbits align=1
+		section .bcopyxx.text	exec nowrite progbits align=16
+		section .bcopyxx.data	noexec write progbits align=16
+		section .data16		noexec write progbits align=16
 
 		section .adv		write nobits align=512
 
@@ -86,36 +97,41 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 		; the spillover from the last fractional sector load.
 		section .uibss		write nobits align=16
 
-		; Normal bss...
-		section .bss1		write nobits align=16
-
 		; Symbols from linker script
 %macro SECINFO 1
 		extern __%1_start, __%1_lma, __%1_end
 		extern __%1_len, __%1_dwords
 %endmacro
+		SECINFO bss16
+		SECINFO uibss
 		SECINFO config
 		SECINFO replacestub
+		SECINFO bcopyxx
+
+		SECINFO pm_code
+		SECINFO high_clear
+
+		SECINFO bss
+
+		extern free_high_memory
 
 		global _start
 
-		section .text
+		section .text16
 
 ;
 ; Segment assignments in the bottom 640K
 ; Keep the low-memory footprint as small as possible... overrun is a hard
 ; failure!
 ;
-; 0000h - main code/data segment (and BIOS segment)
-
-xfer_buf_seg	equ 1000h
-aux_seg		equ 2000h
 
 serial_buf_size	equ 4096		; Should be a power of 2
 
 ;
 ; Contents of aux_seg
 ;
+		extern aux_seg		; Actual segment assigned by linker
+
 		struc aux
 .fontbuf	resb 8192
 .serial		resb serial_buf_size
@@ -123,22 +139,33 @@ serial_buf_size	equ 4096		; Should be a power of 2
 		alignb 4096		; Align the next segment to 4K
 		endstruc
 
-aux_seg_end	equ aux_seg + (aux_size >> 4)
+		section .auxseg		write nobits align=16
+auxseg		resb aux_size
 
 ;
-; Bounce buffer for I/O to high mem
-; Note: we keep all the segments page-aligned, even if that probably
-; is somewhat excessive.  Sector alignment is obligatory, however.
+; Transfer buffer segment: guaranteed to be aligned 64K, used for disk I/O
+; One symbol for the segment number, one for the absolute address
 ;
+		extern	xfer_buf_seg
+		section .xfer_buf	write nobits align=65536
+		global	core_xfer_buf
+core_xfer_buf	resb 65536
 
-%if IS_ISOLINUX
-; ISOLINUX doesn't have a block cache yet
-real_mode_seg	equ aux_seg_end
-%else
-cache_seg	equ aux_seg_end		; 64K area for metadata cache
-real_mode_seg	equ cache_seg + 1000h
-
-pktbuf_seg	equ cache_seg		; PXELINUX packet buffers
-%endif
-
+;
+; Segment for the real mode code (needed as long as we have a in-kernel
+; loader and/or COM16 support.
+; One symbol for the segment number, one for the absolute address
+;
+		extern	real_mode_seg
+		section .real_mode	write nobits align=65536
+		global	core_real_mode
+core_real_mode	resb 65536
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
+
+;
+; At the very end, the lowmem heap
+;
+		extern __lowmem_heap
+min_lowmem_heap	equ 65536
+
+		section .text16

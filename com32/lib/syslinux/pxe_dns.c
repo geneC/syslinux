@@ -48,20 +48,25 @@ uint32_t pxe_dns(const char *hostname)
 	unsigned char b[4];
 	uint32_t ip;
     } q;
+    char *lm_hostname;
 
     /* Is this a dot-quad? */
     if (sscanf(hostname, "%hhu.%hhu.%hhu.%hhu",
 	       &q.b[0], &q.b[1], &q.b[2], &q.b[3]) == 4)
 	return q.ip;
 
+    lm_hostname = lstrdup(hostname);
+    if (!lm_hostname)
+	return 0;
+
     memset(&regs, 0, sizeof regs);
     regs.eax.w[0] = 0x0010;
-    regs.es = SEG(__com32.cs_bounce);
-    regs.ebx.w[0] = OFFS(__com32.cs_bounce);
-
-    strcpy((char *)__com32.cs_bounce, hostname);
+    regs.es = SEG(lm_hostname);
+    /* regs.ebx.w[0] = OFFS(lm_hostname); */
 
     __intcall(0x22, &regs, &regs);
+
+    lfree(lm_hostname);
 
     if (regs.eflags.l & EFLAGS_CF)
 	return 0;

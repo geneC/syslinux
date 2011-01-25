@@ -41,7 +41,7 @@
 extern ssize_t __file_read(struct file_info *, void *, size_t);
 extern int __file_close(struct file_info *);
 
-static const struct input_dev file_dev = {
+const struct input_dev __file_dev = {
     .dev_magic = __DEV_MAGIC,
     .flags = __DEV_FILE | __DEV_INPUT,
     .fileflags = O_RDONLY,
@@ -52,38 +52,22 @@ static const struct input_dev file_dev = {
 
 int open(const char *pathname, int flags, ...)
 {
-    com32sys_t regs;
-    int fd;
+    int fd, handle;
     struct file_info *fp;
 
-    fd = opendev(&file_dev, NULL, flags);
-
+    fd = opendev(&__file_dev, NULL, flags);
     if (fd < 0)
 	return -1;
 
     fp = &__file_info[fd];
 
-    strlcpy(__com32.cs_bounce, pathname, __com32.cs_bounce_size);
-
-    regs.eax.w[0] = 0x0006;
-    regs.esi.w[0] = OFFS(__com32.cs_bounce);
-    regs.es = SEG(__com32.cs_bounce);
-
-    __com32.cs_intcall(0x22, &regs, &regs);
-
-    if ((regs.eflags.l & EFLAGS_CF) || regs.esi.w[0] == 0) {
+    handle = __com32.cs_pm->open_file(pathname, &fp->i.fd);
+    if (handle < 0) {
 	close(fd);
 	errno = ENOENT;
 	return -1;
     }
 
-    {
-	uint16_t blklg2;
-	asm("bsrw %1,%0" :  "=r" (blklg2) : "rm" (regs.ecx.w[0]));
-	fp->i.blocklg2 = blklg2;
-    }
-    fp->i.length = regs.eax.l;
-    fp->i.filedes = regs.esi.w[0];
     fp->i.offset = 0;
     fp->i.nbytes = 0;
 

@@ -50,5 +50,6 @@ struct backend *get_backend(const char *name);
 /* backends */
 extern struct backend be_tftp;
 extern struct backend be_ymodem;
+extern struct backend be_srec;
 
 #endif /* BACKEND_H */

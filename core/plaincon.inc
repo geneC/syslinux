@@ -2,7 +2,7 @@
 ; writechr:	Write a single character in AL to the console without
 ;		mangling any registers; handle video pages correctly.
 ;
-		section .text
+		section .text16
 
 writechr:
 		call write_serial	; write to serial port if needed

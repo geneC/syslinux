@@ -17,24 +17,30 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
+CFLAGS	+= -D__MSDOS__
 # CFLAGS  += -DDEBUG
-LDFLAGS	 = -T com16.ld
+
+LDFLAGS	 = -T dosexe.ld
 OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
-	   -I. -I.. -I../libfat -I ../libinstaller
+	   -I. -I.. -I../libfat -I ../libinstaller -I ../libinstaller/getopt
 
 SRCS     = syslinux.c \
+	   ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/syslxopt.c \
+	   ../libinstaller/setadv.c \
+	   ../libinstaller/getopt/getopt_long.c \
 	   ../libinstaller/bootsect_bin.c \
-	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
            $(wildcard ../libfat/*.c)
-OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))
-LIBOBJS	 = int2526.o conio.o memcpy.o memset.o  skipatou.o atou.o \
-	   malloc.o free.o \
-	   argv.o printf.o __divdi3.o __udivmoddi4.o
+OBJS	 = header.o crt0.o ldlinux.o \
+	   $(patsubst %.c,%.o,$(notdir $(SRCS)))
+LIBOBJS	 = int2526.o conio.o memcpy.o memset.o memmove.o skipatou.o atou.o \
+	   malloc.o free.o getopt_long.o getsetsl.o strchr.o strtoul.o \
+	   strntoumax.o argv.o printf.o __divdi3.o __udivmoddi4.o
 
-VPATH = .:../libfat:../libinstaller
+VPATH = .:../libfat:../libinstaller:../libinstaller/getopt
 
 TARGETS = syslinux.com
 
@@ -50,8 +56,8 @@ spotless: clean
 
 installer:
 
-syslinux.elf: $(OBJS) libcom.a com16.ld
-	$(LD) $(LDFLAGS) -o $@ $(filter-out %.ld,$^)
+syslinux.elf: $(OBJS) dosexe.ld libcom.a
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) libcom.a
 
 libcom.a: $(LIBOBJS)
 	-rm -f $@
@@ -60,9 +66,13 @@ libcom.a: $(LIBOBJS)
 
 syslinux.com: syslinux.elf
 	$(OBJCOPY) -O binary $< $@
+	$(UPX) --lzma --ultra-brute $@ || \
+		$(UPX) --ultra-brute $@ || \
+		true
 
 %.com: %.asm
-	( $(NASM) -M -DDEPEND $(NASMOPT) -o $@ -M $< && echo '' ) > .$@.d; true
-	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
+	$(NASM) $(NASMOPT) -f bin -o $@ -MP -MD .$@.d -l $*.lst $<
+
+ldlinux.o: ldlinux.S ../core/ldlinux.sys
 
 -include .*.d *.tmp

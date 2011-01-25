@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <minmax.h>
 #include <stdbool.h>
+#include <ilog2.h>
 #include <syslinux/loadfile.h>
 #include "vesa.h"
 #include "video.h"
@@ -255,8 +256,7 @@ int vesacon_default_background(void)
 
     z = max(__vesa_info.mi.v_res, __vesa_info.mi.h_res) >> 1;
     z = ((z*z) >> 11) - 1;
-    asm("bsrl %1,%0" : "=r" (shft) : "rm" (z));
-    shft++;
+    shft = ilog2(z) + 1;
 
     for (y = 0, dy = -(__vesa_info.mi.v_res >> 1);
 	 y < __vesa_info.mi.v_res; y++, dy++) {

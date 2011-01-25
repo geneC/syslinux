@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -29,9 +29,8 @@
 ;
 
 		bits 32
-		section .bcopyxx
+		section .bcopyxx.text
 		align 16
-bcopyxx_start	equ $
 ;
 ; pm_bcopy:
 ;
@@ -95,10 +94,13 @@ pm_bcopy:
 		ret
 
 .reverse:
-		std			; Reverse copy
+		lea eax,[esi+ecx-1]	; Point to final byte
+		cmp edi,eax
+		ja .forward		; No overlap, do forward copy
 
-		lea esi,[esi+ecx-1]	; Point to final byte
+		std			; Reverse copy
 		lea edi,[edi+ecx-1]
+		mov esi,eax
 
 		; Initial alignment
 		mov edx,edi
@@ -204,21 +206,23 @@ pm_bcopy:
 ;		    the entry point and src the mode (0 = pm, 1 = rm)
 ;
 pm_shuffle:
+		cli			; End interrupt service (for good)
 		mov ebx,edi		; EBX <- descriptor list
 		lea edx,[edi+ecx+15]	; EDX <- where to relocate our code to
 		and edx,~15		; Align 16 to benefit the GDT
 		call pm_bcopy
-		mov edi,edx
-		mov esi,bcopyxx_start
-		mov ecx,bcopyxx_dwords
-		lea eax,[edx+.safe-bcopyxx_start]	; Resume point
+		mov esi,__bcopyxx_start	; Absolute source address
+		mov edi,edx		; Absolute target address
+		sub edx,esi		; EDX <- address delta
+		mov ecx,__bcopyxx_dwords
+		lea eax,[edx+.safe]	; Resume point
 		; Relocate this code
 		rep movsd
 		jmp eax			; Jump to safe location
 .safe:
 		; Give ourselves a safe stack
-		lea esp,[edx+bcopyxx_stack+bcopyxx_end-bcopyxx_start]
-		add edx,bcopy_gdt-bcopyxx_start
+		lea esp,[edx+bcopyxx_stack+__bcopyxx_end]
+		add edx,bcopy_gdt	; EDX <- new GDT
 		mov [edx+2],edx		; GDT self-pointer
 		lgdt [edx]		; Switch to local GDT
 
@@ -232,15 +236,16 @@ pm_shuffle:
 		call pm_bcopy
 		jmp .loop
 .done:
+		lidt [edx+RM_IDT_ptr-bcopy_gdt]	; RM-like IDT
 		push ecx		; == 0, for cleaning the flags register
 		and esi,esi
-		jz pm_shuffle_real_mode
+		jz pm_shuffle_16
 		popfd			; Clean the flags
 		jmp edi			; Protected mode entry
 
-		; We have a real-mode entry point, so we need to return
-		; to real mode.  Note: EDX already points to the GDT.
-pm_shuffle_real_mode:
+		; We have a 16-bit entry point, so we need to return
+		; to 16-bit mode.  Note: EDX already points to the GDT.
+pm_shuffle_16:
 		mov eax,edi
 		mov [edx+PM_CS16+2],ax
 		mov [edx+PM_DS16+2],ax
@@ -261,7 +266,9 @@ pm_shuffle_real_mode:
 		mov ss,edx
 		jmp PM_CS16:0
 
-		align	16
+		section	.bcopyxx.data
+
+		alignz 16
 ; GDT descriptor entry
 %macro desc 1
 bcopy_gdt.%1:
@@ -294,16 +301,6 @@ bcopy_gdt:
 		dd 00cf9300h		; present, dpl 0, cover all 4G
 
 bcopy_gdt_size:	equ $-bcopy_gdt
-
-		alignz 4
-bcopyxx_end	equ $			; *Must* be dword-aligned!
-bcopyxx_len	equ $-bcopyxx_start
-bcopyxx_dwords	equ bcopyxx_len >> 2
-
-bcopyxx_stack	equ 128			; We want this much stack
-		; The +15 is for alignment
-bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack + 15
-
 ;
 ; Space for a dummy task state segment.  It should never be actually
 ; accessed, but just in case it is, point to a chunk of memory that
@@ -311,5 +308,11 @@ bcopyxx_safe	equ bcopyxx_len + bcopyxx_stack + 15
 ;
 DummyTSS	equ 0x580
 
+		align 4
+RM_IDT_ptr:	dw 0FFFFh		; Length (nonsense, but matches CPU)
+		dd 0			; Offset
+
+bcopyxx_stack	equ 128			; We want this much stack
+
 		bits 16
-		section .text
+		section .text16

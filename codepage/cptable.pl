@@ -82,7 +82,7 @@ open(CPOUT, '>', $cpout)
 # Magic number, in anticipation of being able to load these
 # files dynamically...
 #
-print CPOUT pack("VV", 0x8fad232b, 0x9c295319);
+print CPOUT pack("VV", 0x58a8b3d4, 0x51d21eb1);
 
 # Header fields available for future use...
 print CPOUT pack("VVVVVV", 0, 0, 0, 0, 0, 0);
@@ -97,6 +97,7 @@ print CPOUT pack("VVVVVV", 0, 0, 0, 0, 0, 0);
 # ... where @ytab is console codepage -> Unicode and
 # %tabx is Unicode -> filesystem codepage.
 #
+@uctab = (undef) x 256;
 for ($i = 0; $i < 256; $i++) {
     $uuc = $ucase{$ytab[$i]};	# Unicode upper case
     if (defined($tabx{$uuc})) {
@@ -106,12 +107,41 @@ for ($i = 0; $i < 256; $i++) {
 	# Upper case equivalent stripped of accents
 	$u = $tabx{${$decomp{$uuc}}[0]};
     } else {
-	# No equivalent at all found.  Set this to zero, which should
-	# prevent shortname matching altogether (still making longname
-	# matching possible, of course.)
-	$u = 0;
+	# No equivalent at all found.  Assume it is a lower-case-only
+	# character, like greek alpha in CP437.
+	$u = $i;
     }
+    $uctab[$i] = $u;
     print CPOUT pack("C", $u);
+}
+
+#
+# Self (shortname) lowercase table.
+# This depends both on the console codepage and the filesystem codepage;
+# the logical transcoding operation is:
+#
+# $taby{$lcase{$xtab[$i]}}
+#
+# ... where @ytab is console codepage -> Unicode and
+# %tabx is Unicode -> filesystem codepage.
+#
+@lctab = (undef) x 256;
+for ($i = 0; $i < 256; $i++) {
+    $llc = $lcase{$xtab[$i]};	# Unicode lower case
+    if (defined($l = $taby{$llc}) && $uctab[$l] == $i) {
+	# Straight-forward conversion
+    } elsif (defined($l = $tabx{${$decomp{$llc}}[0]}) && $uctab[$l] == $i) {
+	# Lower case equivalent stripped of accents
+    } else {
+	# No equivalent at all found.  Find *anything* that matches the
+	# bijection criterion...
+	for ($l = 0; $l < 256; $l++) {
+	    last if ($uctab[$l] == $i);
+	}
+	$l = $i if ($l == 256);	# If nothing, we're screwed anyway...
+    }
+    $lctab[$i] = $l;
+    print CPOUT pack("C", $l);
 }
 
 #

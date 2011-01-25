@@ -676,28 +676,28 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
 		/* Searching for the vendor separator*/
 		char *temp = strstr(result,"d");
 		if (temp != NULL) {
-			strncpy(vendor_id,result,temp-result);
+			strlcpy(vendor_id,result,temp-result);
 			result+=strlen(vendor_id)+1;
 		}
 
 		/* Searching for the product separator*/
 		temp = strstr(result,"sv");
 		if (temp != NULL) {
-			strncpy(product_id,result,temp-result);
+			strlcpy(product_id,result,temp-result);
 			result+=strlen(product_id)+1;
 		}
 
 		/* Searching for the sub vendor separator*/
 		temp = strstr(result,"sd");
 		if (temp != NULL) {
-			strncpy(sub_vendor_id,result,temp-result);
+			strlcpy(sub_vendor_id,result,temp-result);
 			result+=strlen(sub_vendor_id)+1;
 		}
 
 		/* Searching for the sub product separator*/
 		temp = strstr(result,"bc");
 		if (temp != NULL) {
-			strncpy(sub_product_id,result,temp-result);
+			strlcpy(sub_product_id,result,temp-result);
 			result+=strlen(sub_product_id)+1;
 		}
 	/* That's the module name */

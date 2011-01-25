@@ -11,12 +11,12 @@
 #define LONG_BIT (CHAR_BIT*sizeof(long))
 #endif
 
-static inline void set_bit(unsigned long *bitmap, unsigned int bit)
+static void set_bit(unsigned long *bitmap, unsigned int bit)
 {
     bitmap[bit / LONG_BIT] |= 1UL << (bit % LONG_BIT);
 }
 
-static inline int test_bit(unsigned long *bitmap, unsigned int bit)
+static int test_bit(unsigned long *bitmap, unsigned int bit)
 {
     return (int)(bitmap[bit / LONG_BIT] >> (bit % LONG_BIT)) & 1;
 }

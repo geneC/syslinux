@@ -446,7 +446,7 @@ static const char *edit_cmdline(const char *input, int top)
     int key, len, prev_len, cursor;
     int redraw = 1;		/* We enter with the menu already drawn */
 
-    strncpy(cmdline, input, MAX_CMDLINE_LEN);
+    strlcpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';
 
     len = cursor = strlen(cmdline);
@@ -754,6 +754,7 @@ static const char *run_menu(void)
     const char *cmdline = NULL;
     volatile clock_t key_timeout, timeout_left, this_timeout;
     const struct menu_entry *me;
+    bool hotkey = false;
 
     /* Note: for both key_timeout and timeout == 0 means no limit */
     timeout_left = key_timeout = cm->timeout;
@@ -853,14 +854,22 @@ static const char *run_menu(void)
 	    to_clear = 0;
 	}
 
-	this_timeout = min(min(key_timeout, timeout_left), (clock_t) CLK_TCK);
-	key = mygetkey(this_timeout);
+	if (hotkey && me->immediate) {
+	    /* If the hotkey was flagged immediate, simulate pressing ENTER */
+	    key = KEY_ENTER;
+	} else {
+	    this_timeout = min(min(key_timeout, timeout_left),
+			       (clock_t) CLK_TCK);
+	    key = mygetkey(this_timeout);
 
-	if (key != KEY_NONE) {
-	    timeout_left = key_timeout;
-	    if (to_clear)
-		printf("\033[%d;1H\1#0\033[K", TIMEOUT_ROW);
+	    if (key != KEY_NONE) {
+		timeout_left = key_timeout;
+		if (to_clear)
+		    printf("\033[%d;1H\1#0\033[K", TIMEOUT_ROW);
+	    }
 	}
+
+	hotkey = false;
 
 	switch (key) {
 	case KEY_NONE:		/* Timeout */
@@ -911,6 +920,13 @@ static const char *run_menu(void)
 		    done = 1;
 		    clear = 1;
 		    draw_row(entry - top + 4 + VSHIFT, -1, top, 0, 0);
+		    break;
+		case MA_HELP:
+		    key = show_message_file(me->cmdline, me->background);
+		    /* If the exit was an F-key, display that help screen */
+		    show_fkey(key);
+		    done = 0;
+		    clear = 1;
 		    break;
 		default:
 		    done = 0;
@@ -1072,6 +1088,7 @@ static const char *run_menu(void)
 		    key_timeout = 0;
 		    entry = cm->menu_hotkeys[key]->entry;
 		    /* Should we commit at this point? */
+		    hotkey = true;
 		}
 	    }
 	    break;

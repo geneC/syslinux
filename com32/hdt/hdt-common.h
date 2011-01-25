@@ -61,6 +61,9 @@
 #define HDT_RETURN_TO_CLI 100
 #define MAX_VESA_MODES 255
 
+/* This value is used for rebooting from the menu mode */
+#define HDT_REBOOT "hdt_reboot"
+
 /* The maximum number of commands we can process */
 #define MAX_NB_AUTO_COMMANDS 255
 /* The maximum size of a command */
@@ -206,7 +209,6 @@ struct s_hardware {
     char modules_alias_path[255];
     char pciids_path[255];
     char memtest_label[255];
-    char reboot_label[255];
     char auto_label[AUTO_COMMAND_SIZE];
     char vesa_background[255];
 };

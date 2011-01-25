@@ -24,6 +24,8 @@ slight modifications.
 
 2. The configuration file is called "extlinux.conf", and is expected
    to be found in the same directory as extlinux is installed in.
+   Since 4.00 "syslinux.cfg" is also tried if "extlinux.conf" is not
+   found.
 
 
 3. Pathnames can be absolute or relative; if absolute (with a leading
@@ -97,9 +99,9 @@ preferred way to boot is:
 - Install the MBR on *each disk*, and mark the RAID-1 partition
   active.
 
-- Run "extlinux -i /boot" to install extlinux.  This will install it on
-  all the drives in the RAID-1 set, which means you can boot any
-  combination of drives in any order.
+- Run "extlinux --raid --install /boot" to install extlinux.  This
+  will install it on all the drives in the RAID-1 set, which means
+  you can boot any combination of drives in any order.
 
 
 

@@ -30,60 +30,84 @@
  */
 
 /* Number of arguments in our version of the entry structure */
-#define COM32_ARGS 8
+#define COM32_ARGS 9
 
 		.section ".init","ax"
 		.globl _start
 		.type _start, @function
 _start:
-		/* This first instruction acts as COM32 magic number */
-		movl $0x21cd4cff,%eax
+		/* This first instruction acts as COM32R magic number */
+		movl $0x21cd4cfe,%eax
 
 		/* Upwards string operations */
 		cld
 
+		/* Find our own location */
+		call 1f
+1:		popl %ebx
+		addl $_GLOBAL_OFFSET_TABLE_ + (. - 1b), %ebx
+	
+		/* Process relocations (which overlay the .bss segment) */
+		leal _edata@GOTOFF(%ebx),%esi
+		leal _start@GOTOFF(%ebx),%edx
+2:		lodsl
+		andl %eax,%eax
+		jz 3f
+		addl %edx,(%eax,%edx)
+		jmp 2b
+3:
+		/* Relocate the GOT (is this right?) */
+		leal __got_start@GOTOFF(%ebx),%esi
+		leal __got_end@GOTOFF(%ebx),%edi
+4:
+		addl %edx,(%esi)
+		addl $4,%esi
+		cmpl %edi,%esi
+		jb 4b
+	
 		/* Zero the .bss segment */
 		xorl %eax,%eax
-		movl $__bss_start,%edi		# Symbol provided by linker
-		movl $_end+3,%ecx		# Symbol provided by linker
+		leal __bss_start@GOTOFF(%ebx),%edi
+		leal _end+3@GOTOFF(%ebx),%ecx
 		subl %edi,%ecx
 		shrl $2,%ecx
 		rep ; stosl
 
 		/* Copy COM32 invocation parameters */
 		leal 4(%esp),%esi		# Argument list
-		movl $__com32,%edi
+		leal __com32@GOTOFF(%ebx),%edi
 		movl $(COM32_ARGS),%ecx
 		movl %esp,-4(%edi)		# Save the initial stack ptr
 		cmpl (%esi),%ecx
-		jbe 1f
+		jbe 5f
 		movl (%esi),%ecx
-1:		inc %ecx			# Copy the argument count, too
+5:		inc %ecx			# Copy the argument count, too
 		rep ; movsl
 
 		/* Parse the command line (assumes REGPARM) */
-		movl __com32+4,%edx		# Command line
-		pushl %edx			# Make space for argv
+		movl __com32+4@GOTOFF(%ebx),%edx	# Command line
+		pushl %edx				# Make space for argv
 		movl %esp,%eax
 		call __parse_argv
-		pushl %eax			# Save argc
+		pushl %eax				# Save argc
 
 		/* Look for library initialization functions */
-		movl $__ctors_start, %esi
-2:
-		cmpl $__ctors_end, %esi
-		jae 3f
+		leal __ctors_start@GOTOFF(%ebx),%esi
+		leal __ctors_end@GOTOFF(%ebx),%edi
+6:
+		cmpl %edi,%esi
+		jae 7f
 		call *(%esi)
 		addl $4,%esi
-		jmp 2b
+		jmp 6b
 /*
  * Actually run main.  This assumes REGPARM is used!!!!
  */
-3:
+7:
 		popl %eax			# argc
 		popl %edx			# argv
 		call main
-		call *(__exit_handler)
+		call *__exit_handler@GOTOFF(%ebx)
 		hlt
 		.size _start, .-_start
 

@@ -17,38 +17,9 @@
 topdir = ..
 include $(topdir)/MCONFIG.embedded
 
-INCLUDES   = -I$(com32)/include
-
 PPMTOLSS16 = $(topdir)/utils/ppmtolss16
-LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
-LIB	   = liboldcom32.a
 
-LIBOBJS	   = conio.o atou.o skipatou.o printf.o c32exit.o
-
-com32 = $(topdir)/com32
-C_LIBS	   = $(com32)/libutil/libutil_com.a $(com32)/lib/libcom32.a $(LIBGCC)
-LDFLAGS    = -m elf_i386 -T $(com32)/lib/com32.ld
-
-all: syslogo.lss comecho.com hello.c32 hello2.c32 filetest.c32 c32echo.c32 \
-     fd.c32 $(LIB)
-
-.PRECIOUS: %.o
-
-.PRECIOUS: %.elf
-%.elf: c32entry.o %.o $(LIB)
-	$(LD) -Ttext 0x101000 -e _start -o $@ $^
-
-%.c32: %.elf
-	$(OBJCOPY) -O binary $< $@
-
-%.com: %.asm
-	( $(NASM) -M -DDEPEND -o $@ $< ; echo '' ) > .$@.d ; true
-	$(NASM) $(NASMOPT) -f bin -o $@ -l $*.lst $<
-
-$(LIB): $(LIBOBJS)
-	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
+all: syslogo.lss
 
 %.lss:	%.ppm.gz $(PPMTOLSS16)
 	$(GZIPPROG) -cd $< | \
@@ -61,9 +32,8 @@ $(LIB): $(LIBOBJS)
 tidy dist:
 	rm -f *.o *.a *.lst *.elf .*.d
 
-# Don't specify *.com since mdiskchk.com can't be built using Linux tools
 clean: tidy
-	rm -f *.lss *.o *.c32 comecho.com
+	rm -f *.lss *.o *.c32 *.com
 
 spotless: clean
 

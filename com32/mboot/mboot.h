@@ -34,6 +34,7 @@
 
 #ifndef MBOOT_H
 
+#include <dprintf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -54,13 +55,6 @@
 
 #include "mb_header.h"
 #include "mb_info.h"
-
-#define DEBUG 0
-#if DEBUG
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
 
 static inline void error(const char *msg)
 {

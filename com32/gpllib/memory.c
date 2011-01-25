@@ -44,7 +44,7 @@ void get_type(int type, char *type_ptr, int type_ptr_sz)
 {
     unsigned int real_type = type - 1;
     if (real_type < sizeof(e820_types) / sizeof(e820_types[0]))
-	strncpy(type_ptr, e820_types[real_type], type_ptr_sz);
+	strlcpy(type_ptr, e820_types[real_type], type_ptr_sz);
 }
 
 /**

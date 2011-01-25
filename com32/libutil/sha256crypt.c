@@ -276,13 +276,13 @@ static const char sha256_salt_prefix[] = "$5$";
 static const char sha256_rounds_prefix[] = "rounds=";
 
 /* Maximum salt string length.  */
-#define SALT_LEN_MAX 16
+#define SALT_LEN_MAX 16U
 /* Default number of rounds if not explicitly specified.  */
-#define ROUNDS_DEFAULT 5000
+#define ROUNDS_DEFAULT 5000UL
 /* Minimum number of rounds.  */
-#define ROUNDS_MIN 1000
+#define ROUNDS_MIN 1000UL
 /* Maximum number of rounds.  */
-#define ROUNDS_MAX 999999999
+#define ROUNDS_MAX 999999999UL
 
 /* Table with characters for base64 transformation.  */
 static const char b64t[64] =
@@ -379,7 +379,7 @@ static char *sha256_crypt_r(const char *key, const char *salt, char *buffer,
 
     /* Take the binary representation of the length of the key and for every
        1 add the alternate sum, for every 0 the key.  */
-    for (cnt = key_len; cnt > 0; cnt >>= 1)
+    for (cnt = key_len; cnt; cnt >>= 1)
 	if ((cnt & 1) != 0)
 	    sha256_process_bytes(alt_result, 32, &ctx);
 	else
@@ -408,7 +408,7 @@ static char *sha256_crypt_r(const char *key, const char *salt, char *buffer,
     sha256_init_ctx(&alt_ctx);
 
     /* For every character in the password add the entire password.  */
-    for (cnt = 0; cnt < 16 + alt_result[0]; ++cnt)
+    for (cnt = 0; cnt < (size_t)16 + alt_result[0]; ++cnt)
 	sha256_process_bytes(salt, salt_len, &alt_ctx);
 
     /* Finish the digest.  */

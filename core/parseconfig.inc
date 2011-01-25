@@ -17,7 +17,7 @@
 ;; Configuration file operations
 ;;
 
-		section .text
+		section .text16
 ;
 ; "default" or "ui" command, with level (1 = default, 2 = ui)
 ;
@@ -85,16 +85,12 @@ pc_ipappend:	call getint
 ;
 ; "localboot" command
 ;
-%if HAS_LOCALBOOT
-
 pc_localboot:	call getint
 		cmp byte [VKernel],0		; ("label" section only)
 		je .err
 		mov [VKernelBuf+vk_rname],bx
 		mov byte [VKernelBuf+vk_type],VK_LOCALBOOT
 .err:		ret
-
-%endif ; HAS_LOCALBOOT
 
 ;
 ; "kernel", "config", ... command
@@ -104,7 +100,7 @@ pc_kernel:	cmp byte [VKernel],0
 		mov [VKernelBuf+vk_type],al
 		call pc_getline
 		mov di,VKernelBuf+vk_rname
-		call mangle_name
+		pm_call pm_mangle_name
 .err:		ret
 
 ;
@@ -147,8 +143,8 @@ pc_setint16:
 pc_filecmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
-		call mangle_name
-		call searchdir
+		pm_call pm_mangle_name
+		pm_call pm_searchdir
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
@@ -160,8 +156,8 @@ pc_filecmd:	push ax				; Function to tailcall
 pc_opencmd:	push ax				; Function to tailcall
 		call pc_getline
 		mov di,MNameBuf
-		call mangle_name
-		call open
+		pm_call pm_mangle_name
+		call core_open
 		jnz .ok
 		pop ax				; Drop the successor function
 .ok:		ret				; Tailcall if OK, error return
@@ -289,7 +285,7 @@ pc_serial:	call getint
 pc_filename:	push ax
 		call pc_getline
 		pop di
-		call mangle_name		; Mangle file name
+		pm_call pm_mangle_name		; Mangle file name
 		ret
 
 ;
@@ -314,7 +310,7 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		mov byte [VKernel],1		; We've seen a "label" statement
 		mov si,VKernelBuf+vk_vname	; By default, rname == mangled vname
 		mov di,VKernelBuf+vk_rname
-		call mangle_name
+		pm_call pm_mangle_name
 		mov si,AppendBuf		; Default append==global append
 		mov di,VKernelBuf+vk_append
 		mov cx,[AppendLen]
@@ -409,9 +405,8 @@ commit_vk:
 		mov cx,7	; "initrd="
 		rep movsb
 		mov si,InitRD
-		call unmangle_name
-		mov al,' '
-		stosb
+		call strcpy
+		mov byte [es:di-1],' '
 
 		; For better compression, clean up the append field
 .noinitrd:
@@ -427,7 +422,7 @@ commit_vk:
 		mov esi,VKernelBuf
 		mov edi,[VKernelEnd]
 		mov ecx,vk_size
-		call rllpack
+		pm_call rllpack
 		mov [VKernelEnd],edi
 .nolabel:
 		ret
@@ -436,11 +431,11 @@ commit_vk:
 		call writestr
 		ret
 
-		section .data
+		section .data16
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
 SerialNotice	db 1			; Only print this once
 
-		section .bss
+		section .bss16
 		alignb 4
 VKernelEnd	resd 1			; Lowest high memory address used
 
@@ -463,6 +458,8 @@ AllowImplicit   dw 1                    ; Allow implicit kernels
 AllowOptions	dw 1			; User-specified options allowed
 IncludeLevel	dw 1			; Nesting level
 DefaultLevel	dw 0			; The current level of default
+		global PXERetry
+PXERetry	dw 0			; Extra PXE retries
 VKernel		db 0			; Have we seen any "label" statements?
 
 %if IS_PXELINUX
@@ -474,5 +471,3 @@ IPAppend	db 0			; Default IPAPPEND option
 command_line	resb max_cmd_len+2	; Command line buffer
 		alignb 4
 default_cmd	resb max_cmd_len+1	; "default" command line
-
-%include "rllpack.inc"

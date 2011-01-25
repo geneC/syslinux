@@ -30,15 +30,9 @@
 #define DEFINE_HDT_CLI_H
 #include <stdio.h>
 #include <getkey.h>
+#include <dprintf.h>
 
 #include "hdt-common.h"
-
-#define DEBUG 0
-#if DEBUG
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
 
 #define MAX_LINE_SIZE 256
 

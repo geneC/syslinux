@@ -63,6 +63,4 @@ static inline char getvideomode(void)	// Get the current video mode
     return readbiosb(0x449);
 }
 
-unsigned char sleep(unsigned int msec);	// Sleep for specified time
-
 #endif

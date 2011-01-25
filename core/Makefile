@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
-##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+##   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@ topdir = ..
 include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
-OPTFLAGS = 
-INCLUDES =
+OPTFLAGS =
+INCLUDES = -I./include -I$(com32)/include
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
 # but it's unlikely the characters that are different will be used in
@@ -34,16 +34,30 @@ CODEPAGE = cp865
 # The targets to build in this directory...
 BTARGET  = kwdhash.gen \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   pxelinux.0 isolinux.bin isolinux-debug.bin \
-	   extlinux.bin extlinux.bss extlinux.sys
+	   isolinux.bin isolinux-debug.bin pxelinux.0
 
 # All primary source files for the main syslinux files
-NASMSRC	 = $(wildcard *.asm)
-NASMHDR  = $(wildcard *.inc)
-CSRC	 = $(wildcard *.c)
-CHDR	 = $(wildcard *.h)
-OTHERSRC = keywords
-ALLSRC   = $(NASMSRC) $(NASMHDR) $(CSRC) $(CHDR) $(OTHERSRC)
+NASMSRC	 := $(wildcard *.asm)
+NASMHDR  := $(wildcard *.inc)
+CSRC	 := $(wildcard *.c */*.c */*/*.c)
+SSRC	 := $(wildcard *.S */*.S */*/*.S)
+CHDR	 := $(wildcard *.h)
+OTHERSRC := keywords
+ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
+
+COBJ	 := $(patsubst %.c,%.o,$(CSRC))
+SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
+
+LIB	 = libcore.a
+LIBS	 = $(LIB) $(com32)/lib/libcomcore.a $(LIBGCC)
+LIBOBJS	 = $(COBJ) $(SOBJ)
+
+NASMDEBUG = -g -F dwarf
+NASMOPT  += $(NASMDEBUG)
+
+PREPCORE = ../lzo/prepcore
+
+# CFLAGS	+= -DDEBUG=1
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
@@ -62,25 +76,30 @@ kwdhash.gen: keywords genhash.pl
 
 .PRECIOUS: %.elf
 
-# Standard rule for {isolinux,isolinux-debug}.bin
-iso%.bin: iso%.elf checksumiso.pl
-	$(OBJCOPY) -O binary $< $@
-	$(PERL) checksumiso.pl $@
+%.raw: %.elf
+	$(OBJCOPY) -O binary $< $(@:.bin=.raw)
 
-# Standard rule for {ldlinux,pxelinux,extlinux}.bin
-%.bin: %.elf
-	$(OBJCOPY) -O binary $< $@
+# GNU make 3.82 gets confused by the first form
+#%.bin: %.raw $(PREPCORE)
+%.bin: %.raw
+	$(PREPCORE) $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
-	( $(NASM) -M -DDEPEND $(NINCLUDE) -o $@ $< ; echo '' ) > .$@.d; true
-	$(NASM) $(NASMOPT) -f elf -g -F stabs -DDATE_STR="'$(DATE)'" \
+	$(NASM) -f elf $(NASMOPT) -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
-		-l $(@:.o=.lsr) -o $@ $<
+		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
-%.elf: %.o syslinux.ld
-	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< > $(@:.elf=.map)
+%.elf: %.o $(LIBS) syslinux.ld
+	$(LD) $(LDFLAGS) -T syslinux.ld -M -o $@ $< \
+		--start-group $(LIBS) --end-group \
+		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
+
+$(LIB): $(LIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
 
 pxelinux.0: pxelinux.bin
 	cp -f $< $@
@@ -91,17 +110,10 @@ ldlinux.bss: ldlinux.bin
 ldlinux.sys: ldlinux.bin
 	dd if=$< of=$@ bs=512 skip=1
 
-extlinux.bss: extlinux.bin
-	dd if=$< of=$@ bs=512 count=1
-
-extlinux.sys: extlinux.bin
-	dd if=$< of=$@ bs=512 skip=1
-
-# NASM prior to 2.03 wouldn't auto-generate this dependency...
-ldlinux.o: codepage.cp
-
 codepage.cp: ../codepage/$(CODEPAGE).cp
 	cp -f $< $@
+
+codepage.o: codepage.S codepage.cp
 
 install: installer
 
@@ -112,9 +124,11 @@ install-all: install install-lib
 netinstall: installer
 
 tidy dist:
-	rm -f codepage.cp *.o *.elf stupid.* patch.offset .depend .*.d
-	rm -f *.lsr *.lst *.map *.sec
-	rm -f $(OBSOLETE)
+	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
+	rm -f *.elf.tmp *.sym
+	rm -f *.lsr *.lst *.map *.sec *.raw
+	rm -f */*.o */*/*.o */*.lst */*/*.lst */.*.d */*/.*.d
+	rm -f $(OBSOLETE) $(LIB)
 
 clean: tidy
 
@@ -122,4 +136,4 @@ spotless: clean
 	rm -f $(BTARGET) *.bin *_bin.c
 
 # Include dependencies file
--include .*.d
+-include .*.d */.*.d */*/.*.d

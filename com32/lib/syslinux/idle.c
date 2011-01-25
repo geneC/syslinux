@@ -33,25 +33,15 @@
 
 #include <stddef.h>
 #include <com32.h>
-#include <sys/cpu.h>
+#include <syslinux/pmapi.h>
 #include <syslinux/idle.h>
+
+void syslinux_reset_idle(void)
+{
+    __com32.cs_pm->reset_idle();
+}
 
 void syslinux_idle(void)
 {
-    static int do_idle = 1;
-    static const com32sys_t sys_idle = {
-	.eax.l = 0x0013,
-    };
-    com32sys_t idle_result;
-
-    /* This call isn't supported on SYSLINUX < 3.08, but all it does
-       is return an error, so we don't care. */
-
-    if (do_idle) {
-	__intcall(0x22, &sys_idle, &idle_result);
-
-	do_idle = ~idle_result.eflags.l & EFLAGS_CF;
-    }
-
-    cpu_relax();
+    __com32.cs_pm->idle();
 }

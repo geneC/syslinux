@@ -19,6 +19,8 @@
 ;; Not used by plain kernel due to BOOT_IMAGE= etc.
 ;;
 
+		section .text16
+
 ;
 ; Assumes DS == CS
 ;
@@ -37,6 +39,7 @@ make_plain_cmdline:
 
 		dec di
 		mov [CmdLinePtr],di
+		mov byte [es:di],0		; Null-terminate
 
 		pop es
 		ret
@@ -45,10 +48,14 @@ make_plain_cmdline:
 ; Actual IPAppend strings...
 ;
 %if IS_PXELINUX
-		section .data
+		extern IPOption, BOOTIFStr, SYSUUIDStr
+		global IPAppends, numIPAppends
+
+		section .data16
 		alignz 2
 IPAppends	dw IPOption
 		dw BOOTIFStr
+		dw SYSUUIDStr
 numIPAppends	equ ($-IPAppends)/2
 %else
 IPAppends	equ 0
@@ -60,7 +67,7 @@ numIPAppends	equ 0
 ;
 ; Assumes DS == CS; pushes output to ES:DI
 ;
-		section .text
+		section .text16
 
 do_ip_append:
 %ifndef DEPEND

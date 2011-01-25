@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 ;; Common code for running a COMBOOT image
 ;;
 
-		section .text
+		section .text16
 
 ; Parameter registers definition; this is the definition
 ; of the stack frame used by INT 21h and INT 22h.
@@ -63,7 +63,7 @@
 
 ; Looks like a COMBOOT image but too large
 comboot_too_large:
-		call close_file
+		pm_call pm_close_file
 		mov si,err_comlarge
 		call writestr
 		jmp enter_command
@@ -124,9 +124,8 @@ is_comboot_image:
 		; Now actually load the file...
 		pop si			; File handle
 		mov bx,100h		; Load at <seg>:0100h
-		mov cx,10000h >> SECTOR_SHIFT
-					; Absolute maximum # of sectors
-		call getfssec
+		mov cx,0FF00h		; Maximum number of bytes
+		pm_call getfsbytes
 		cmp ecx,65536-256-2	; Maximum size
 		ja comboot_too_large
 
@@ -139,17 +138,9 @@ is_comboot_image:
 
 		jmp comboot_seg:100h	; Run it
 
-; Proper return vector
-; Note: this gets invoked both via INT 21h and directly via INT 20h.
-; We don't need to cld explicitly here, because comboot_exit does that
-; when invoking RESET_STACK_AND_SEGS.
-comboot_return:	cli			; May not have a safe stack
-		push enter_command	; Normal return to command prompt
-		jmp comboot_exit
-
 ;
-; Set up the COMBOOT API interrupt vectors.  This is also used
-; by the COM32 code.
+; Set up the COMBOOT API interrupt vectors.  This is now done at
+; initialization time.
 ;
 comboot_setup_api:
 		mov di,DOSErrTramp	; Error trampolines
@@ -178,11 +169,24 @@ comboot_setup_api:
 		loop .loop2
 		ret
 
-		section .bss
+;
+; Restore the original state of the COMBOOT API vectors, and free
+; any low memory allocated by the comboot module.
+;
+comboot_cleanup_api:
+		pusha
+		mov si,DOSSaveVectors
+		mov di,4*20h
+		mov cx,20h
+		rep movsd		; Restore DOS-range vectors
+		popa
+		ret
+
+		section .bss16
 		alignb 4
 DOSSaveVectors	resd 32
 
-		section .data
+		section .data16
 %define comboot_err(x) (DOSErrTramp+4*((x)-20h))
 
 comboot_vectors:
@@ -219,7 +223,7 @@ comboot_vectors:
 		dw comboot_err(3Eh)	; INT 3E = DOS FPU emulation
 		dw comboot_err(3Fh)	; INT 3F = DOS overlay manager
 
-		section .text
+		section .text16
 
 ; INT 21h: generic DOS system call
 comboot_int21:	sti
@@ -284,25 +288,30 @@ comboot_bogus_tail:
 		call crlf
 		jmp enter_command
 
+; Proper return vector
+; Note: this gets invoked both via INT 21h and directly via INT 20h.
+; We don't need to cld explicitly here, because comboot_exit does that
+; when invoking RESET_STACK_AND_SEGS.
+comboot_return:
+		cli			; May not have a safe stack
+		push enter_command	; Normal return to command prompt
+		; jmp comboot_exit
+
 ;
 ; Generic COMBOOT return to command line code
 ;  stack -> where to go next
 ;     CX -> message (for _msg version)
 ;
+		extern comboot_cleanup_lowmem
 comboot_exit:
 		xor cx,cx
 comboot_exit_msg:
 		pop bx			; Return address
-		RESET_STACK_AND_SEGS SI	; Contains sti, cld
+		RESET_STACK_AND_SEGS si	; Contains sti, cld
+		pm_call comboot_cleanup_lowmem
 		call adjust_screen	; The COMBOOT program might have changed the screen
-		pusha
-		mov si,DOSSaveVectors
-		mov di,4*20h
-		mov cx,20h
-		rep movsd		; Restore DOS-range vectors
-		popa
 		jcxz .nomsg
-		mov si,KernelCName
+		mov si,KernelName
 		call writestr
 		mov si,cx
 		call writestr
@@ -507,31 +516,23 @@ comapi_textmode:
 ; INT 22h AX=0006h	Open file
 ;
 comapi_open:
-		call reset_idle
-		push ds
-		mov ds,P_ES
+		mov es,P_ES
 		mov si,P_SI
-		mov di,InitRD
-		call mangle_name
-		pop ds
-		call searchdir
-		jz comapi_err
+		pm_call pm_open_file
 		mov P_EAX,eax
-		mov P_CX,SECTOR_SIZE
+		mov P_CX,cx
 		mov P_SI,si
-		clc
 		ret
 
 ;
 ; INT 22h AX=0007h	Read file
 ;
 comapi_read:
-		call reset_idle
 		mov es,P_ES
 		mov bx,P_BX
 		mov si,P_SI
 		mov cx,P_CX
-		call getfssec
+		pm_call getfssec
 		jnc .noteof
 		xor si,si		; SI <- 0 on EOF, CF <- 0
 .noteof:	mov P_SI,si
@@ -543,7 +544,7 @@ comapi_read:
 ;
 comapi_close:
 		mov si,P_SI
-		call close_file
+		pm_call pm_close_file
 		clc
 		ret
 
@@ -579,16 +580,21 @@ comapi_derinfo:
 		mov P_SI,ax
 		mov ax,[InitStack+2]
 		mov P_FS,ax
-		mov eax,[MyIP]
+		mov eax,[IPInfo.MyIP]
 		mov P_ECX,eax
+		mov P_GS,0
+		mov P_DI,IPInfo
 %else
 		; Physical medium...
 
-		mov P_CL,SECTOR_SHIFT
+		mov al,[SectorShift]
+		mov P_CL,al
 		mov al,[DriveNumber]
 		mov P_DL,al
 		mov P_FS,cs
 		mov P_SI,OrigESDI
+		mov P_GS,cs
+		mov P_DI,Hidden
 %if IS_SYSLINUX || IS_EXTLINUX
 		mov P_ES,cs
 		mov P_BX,PartInfo
@@ -633,7 +639,7 @@ comapi_cleanup:
 		test dl,3
 		setnz [KeepPXE]
 		sub bp,sp		; unload_pxe may move the stack around
-		call unload_pxe
+		pm_call unload_pxe
 		add bp,sp		; restore frame pointer...
 %elif IS_SYSLINUX || IS_EXTLINUX
 		; Restore original FDC table
@@ -684,10 +690,11 @@ comapi_ipappend:
 ; INT 22h AX=0010h	Resolve hostname
 ;
 %if IS_PXELINUX
+                extern pxe_dns_resolv
 comapi_dnsresolv:
 		mov ds,P_ES
 		mov si,P_BX
-		call dns_resolv
+		pm_call pxe_dns_resolv
 		mov P_EAX,eax
 		clc
 		ret
@@ -695,7 +702,7 @@ comapi_dnsresolv:
 comapi_dnsresolv equ comapi_err
 %endif
 
-		section .text
+		section .text16
 
 ;
 ; INT 22h AX=0011h	Obsolete
@@ -716,13 +723,9 @@ comapi_idle:
 ;
 ; INT 22h AX=0014h	Local boot
 ;
-%if HAS_LOCALBOOT
 comapi_localboot:
 		mov ax,P_DX
 		jmp local_boot
-%else
-comapi_localboot equ comapi_err
-%endif ; HAS_LOCALBOOT
 
 ;
 ; INT 22h AX=0015h	Feature flags
@@ -742,29 +745,30 @@ comapi_runkernel:
 		cmp al,VK_TYPES-1
 		ja .error
 		mov [KernelType],al
+
+		; It's not just possible, but quite likely, that ES:BX
+		; points into real_mode_seg or xfer_buf_seg, so we
+		; need to exercise some special care here... use
+		; VKernelBuf for temporary storage.
+		push ds
+		mov ds,P_ES
+		mov si,P_BX
+		mov di,VKernelBuf
+		call strcpy
+		pop ds
+
 		push ds
 		mov ds,P_DS
 		mov si,P_SI
 		mov di,KernelName
-		call mangle_name
+		pm_call pm_mangle_name
 		pop ds
-		call searchdir
+		pm_call pm_searchdir
 		jz comapi_err
 
 		; The kernel image was found, so we can load it...
 		mov [Kernel_SI],si
 		mov [Kernel_EAX],eax
-
-		; It's not just possible, but quite likely, that ES:BX
-		; points into real_mode_seg or xfer_buf_seg, so we
-		; need to exercise some special care here... use
-		; trackbuf as an intermediary
-		push ds
-		mov ds,P_ES
-		mov si,P_BX
-		mov di,trackbuf
-		call strcpy
-		pop ds
 
 %if IS_PXELINUX
 		mov al,P_CL
@@ -778,10 +782,10 @@ comapi_runkernel:
 		push es
 		mov dx,real_mode_seg
 		mov es,dx
-		mov si,trackbuf
+		mov si,VKernelBuf
 		mov di,cmd_line_here
 		call strcpy
-		mov byte [es:di-1],' '		; Simulate APPEND
+		mov word [es:di-1],' '	; Simulate APPEND: space plus null
 		pop es
 		mov [CmdLinePtr],di
 		mov word [CmdOptPtr],zero_string
@@ -831,11 +835,10 @@ comapi_userfont:
 ;
 %if IS_SYSLINUX || IS_ISOLINUX || IS_EXTLINUX
 comapi_readdisk:
-		call reset_idle
-		mov esi,P_ESI		; Enforce ESI == EDI == 0, these
-		or esi,P_EDI		; are reserved for future expansion
+		cmp P_EDI,0		; Reserved for future expansion
 		jnz .err
 		mov eax,P_EDX
+		mov edx,P_ESI
 		mov es,P_ES
 		mov bx,P_BX
 		mov bp,P_CX		; WE CANNOT use P_* after touching bp!
@@ -895,69 +898,11 @@ comapi_getcwd:
 		ret
 
 ;
-; INT 22h AX=0020h	Open directory
-;
-%if IS_SYSLINUX
-comapi_opendir:
-		call reset_idle
-		push ds
-		mov ds,P_ES
-		mov si,P_SI
-		mov di,InitRD
-		call mangle_name
-		pop ds
-		call searchdir
-		jnz comapi_err	; Didn't find a directory
-		cmp eax,0
-		jz comapi_err	; Found nothing
-			;ZF is unset
-		call alloc_fill_dir
-		mov P_EAX,eax
-		mov P_CX,SECTOR_SIZE
-		mov P_SI,si
-		clc
-		ret
-%else
-comapi_opendir	equ comapi_err
-%endif
-
-;
-; INT 22h AX=0021h	Read directory
-;
-%if IS_SYSLINUX
-comapi_readdir:
-		call reset_idle
-		mov es,P_ES
-		mov di,P_DI
-		mov si,P_SI
-		call readdir
-		mov P_EAX,eax
-		mov P_DL,dl
-		mov P_EBX,ebx
-		mov P_SI,si
-		ret
-%else
-comapi_readdir	equ comapi_err
-%endif
-
-;
-; INT 22h AX=0022h	Close directory
-;
-%if IS_SYSLINUX
-comapi_closedir:
-		mov si,P_SI
-		call close_dir
-		clc
-		ret
-%else
-comapi_closedir	equ comapi_err
-%endif
-
-;
 ; INT 22h AX=0023h	Query shuffler size
 ;
 comapi_shufsize:
-		mov P_CX,bcopyxx_safe
+		; +15 is padding to guarantee alignment
+		mov P_CX,__bcopyxx_len + 15
 		ret
 
 ;
@@ -970,7 +915,7 @@ comapi_shufraw:
 		mov ecx,P_ECX
 		jmp shuffle_and_boot_raw
 
-		section .data
+		section .data16
 
 %macro		int21 2
 		db %1
@@ -1024,9 +969,9 @@ int22_table:
 		dw comapi_writeadv	; 001D write ADV to disk
 		dw comapi_kbdtable	; 001E keyboard remapping table
 		dw comapi_getcwd	; 001F get current working directory
-		dw comapi_opendir	; 0020 open directory
-		dw comapi_readdir	; 0021 read directory
-		dw comapi_closedir	; 0022 close directory
+		dw comapi_err		; 0020 open directory
+		dw comapi_err		; 0021 read directory
+		dw comapi_err		; 0022 close directory
 		dw comapi_shufsize	; 0023 query shuffler size
 		dw comapi_shufraw	; 0024 cleanup, shuffle and boot raw
 int22_count	equ ($-int22_table)/2
@@ -1049,8 +994,13 @@ feature_flags_len equ ($-feature_flags)
 err_notdos	db ': attempted DOS system call INT ',0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 
-		section .bss1
+		section .bss16
 		alignb 4
 DOSErrTramp	resd	33		; Error trampolines
+
+		global ConfigName
 ConfigName	resb	FILENAME_MAX
+%ifndef HAVE_CURRENTDIRNAME
+		global CurrentDirName
 CurrentDirName	resb	FILENAME_MAX
+%endif

@@ -63,6 +63,8 @@ void runsyslinuximage(const char *cmd, long ipappend)
     unsigned int numfun = 0;
     char *ptr, *cmdline;
 
+    (void)ipappend;		// XXX: Unused?!
+
     getversion(NULL, &numfun);
     // Function 16h not supported Fall back to runcommand
     if (numfun < 0x16)

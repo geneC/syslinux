@@ -31,6 +31,7 @@
  * This is the structure common to the start of all ACPI system
  * description tables.
  */
+MEMDISK_PACKED_PREFIX
 struct acpi_description_header {
 	/** ACPI signature (4 ASCII characters) */
 	char signature[4];
@@ -50,5 +51,5 @@ struct acpi_description_header {
 	char asl_compiler_id[4];
 	/** ASL compiler revision number */
 	uint32_t asl_compiler_revision;
-} __attribute__ (( packed ));
+} MEMDISK_PACKED_POSTFIX;
 

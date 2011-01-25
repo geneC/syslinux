@@ -49,7 +49,7 @@ struct keycode {
 };
 
 #define MAXLEN 8
-#define CODE(x,y) { x, (sizeof y)-1, y }
+#define CODE(x,y) { x, (sizeof y)-1, (const unsigned char *)(y) }
 
 static const struct keycode keycodes[] = {
     /* First, the BIOS combined codes */

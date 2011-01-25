@@ -8,12 +8,10 @@ COPYRIGHT NOTICE, DISCLAIMER, and LICENSE:
 If you modify libpng you may insert additional notices immediately following
 this sentence.
 
-*** This version of libpng has been slightly modified to fit into the
-    libcom32 framework.  In particular, it uses the libcom32 Makefile
-    system instead of its own.
+This code is released under the libpng license.
 
-libpng version 1.2.6, December 3, 2004, is
-Copyright (c) 2004 Glenn Randers-Pehrson, and is
+libpng versions 1.2.6, August 15, 2004, through 1.2.44, June 26, 2010, are
+Copyright (c) 2004, 2006-2009 Glenn Randers-Pehrson, and are
 distributed according to the same disclaimer and license as libpng-1.2.5
 with the following individual added to the list of Contributing Authors
 
@@ -110,4 +108,4 @@ certification mark of the Open Source Initiative.
 
 Glenn Randers-Pehrson
 glennrp at users.sourceforge.net
-December 3, 2004
+June 26, 2010

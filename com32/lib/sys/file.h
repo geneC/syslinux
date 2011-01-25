@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <dev.h>
 #include <fcntl.h>
+#include <syslinux/pmapi.h>
 
 /* Device structure; contains the relevant operations */
 
@@ -56,18 +57,18 @@ struct input_dev {
     uint16_t dev_magic;		/* Magic number */
     uint16_t flags;		/* Flags */
     int fileflags;		/* Permitted file flags */
-     ssize_t(*read) (struct file_info *, void *, size_t);
-    int (*close) (struct file_info *);
-    int (*open) (struct file_info *);
+    ssize_t (*read)(struct file_info *, void *, size_t);
+    int (*close)(struct file_info *);
+    int (*open)(struct file_info *);
 };
 
 struct output_dev {
     uint16_t dev_magic;		/* Magic number */
     uint16_t flags;		/* Flags */
     int fileflags;
-     ssize_t(*write) (struct file_info *, const void *, size_t);
-    int (*close) (struct file_info *);
-    int (*open) (struct file_info *);
+    ssize_t (*write)(struct file_info *, const void *, size_t);
+    int (*close)(struct file_info *);
+    int (*open)(struct file_info *);
     const struct output_dev *fallback;	/* Fallback option for certain consoles */
 };
 
@@ -87,11 +88,8 @@ struct file_info {
 
     /* Structure used for input blocking */
     struct {
-	int blocklg2;		/* Blocksize log 2 */
+	struct com32_filedata fd;
 	size_t offset;		/* Current file offset */
-	size_t length;		/* Total file length */
-	uint16_t filedes;	/* File descriptor */
-	uint16_t _filler;	/* Unused */
 	size_t nbytes;		/* Number of bytes available in buffer */
 	char *datap;		/* Current data pointer */
 	void *pvt;		/* Private pointer for driver */

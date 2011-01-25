@@ -37,6 +37,23 @@
 #include <minmax.h>
 #include "file.h"
 
+#define BIOS_ROWS (*(uint8_t *)0x484)	/* Minus one; if zero use 24 (= 25 lines) */
+#define BIOS_COLS (*(uint16_t *)0x44A)
+
+static int __stdcon_open(struct file_info *fp)
+{
+    fp->o.rows = BIOS_ROWS + 1;
+    fp->o.cols = BIOS_COLS;
+
+    /* Sanity check */
+    if (fp->o.rows < 12)
+	fp->o.rows = 24;
+    if (fp->o.cols < 40)
+	fp->o.cols = 80;
+
+    return 0;
+}
+
 static ssize_t __stdcon_write(struct file_info *fp, const void *buf,
 			      size_t count)
 {
@@ -68,5 +85,5 @@ const struct output_dev dev_stdcon_w = {
     .fileflags = O_WRONLY | O_CREAT | O_TRUNC | O_APPEND,
     .write = __stdcon_write,
     .close = NULL,
-    .open = NULL,
+    .open  = __stdcon_open,
 };

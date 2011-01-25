@@ -32,13 +32,11 @@
  */
 
 #include <sys/times.h>
-#include <inttypes.h>
+#include <syslinux/pmapi.h>
 #include <com32.h>
 
 clock_t times(struct tms * buf)
 {
-    (void)buf;			/* Ignored */
-
-    /* Should we get this via INT 1Ah? */
-    return *(uint16_t *) 0x46c;
+    (void)buf;
+    return *__com32.cs_pm->ms_timer;
 }

@@ -2,9 +2,20 @@
 
 include $(topdir)/MCONFIG
 
-GCCOPT := $(call gcc_ok,-std=gnu99,) \
-	  $(call gcc_ok,-m32,) \
-	  $(call gcc_ok,-fno-stack-protector,) \
+GCCOPT := $(call gcc_ok,-std=gnu99,)
+GCCOPT += $(call gcc_ok,-m32,)
+GCCOPT += $(call gcc_ok,-fno-stack-protector,)
+GCCOPT += $(call gcc_ok,-fwrapv,)
+GCCOPT += $(call gcc_ok,-freg-struct-return,)
+GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
+GCCOPT += $(call gcc_ok,-fno-exceptions,)
+GCCOPT += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
+GCCOPT += $(call gcc_ok,-fno-strict-aliasing,)
+GCCOPT += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
+GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
+GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
+GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
+GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
 
 INCLUDE	= -I.
 STRIP	= strip --strip-all -R .comment -R .note

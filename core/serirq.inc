@@ -18,26 +18,26 @@
 ;; We don't know what IRQ, if any, we have, so map all of them...
 ;;
 
-		section .text
+		section .text16
 		bits 16
 		align 8
 
-		section .bss
+		section .bss16
 		alignb 8
 
 %assign n 0
 %rep 16
-		section .text
+		section .text16
 serstub_irq %+ n :
 		push dword [cs:oldirq %+ n]
 		jmp short irq_common
 
-		section .bss
+		section .bss16
 oldirq %+ n	resd 1
 %assign n n+1
 %endrep
 
-		section .text
+		section .text16
 irq_common:
 		pushf
 		push ax
@@ -82,19 +82,19 @@ irq_common:
 		pop es
 		jmp .done
 
-		section .data
+		section .bss16
 ;
 ; SerialIRQPort will generally track SerialPort, but will be 0 when an
 ; IRQ service is not installed.
 ;
-SerialIRQPort	dw 0			; Serial port w IRQ service
-SerialHead	dw 0			; Head of serial port rx buffer
-SerialTail	dw 0			; Tail of serial port rx buffer
+SerialIRQPort	resw 1			; Serial port w IRQ service
+SerialHead	resw 1			; Head of serial port rx buffer
+SerialTail	resw 1			; Tail of serial port rx buffer
 
-		section .bss
+		section .bss16
 IRQMask		resw 1			; PIC IRQ mask status
 
-		section .text
+		section .text16
 
 sirq_install:
 		pushad
@@ -216,4 +216,4 @@ sirq_cleanup:
 		popad
 		ret
 
-		section .text
+		section .text16

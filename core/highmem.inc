@@ -17,7 +17,7 @@
 ;; mem= command on the command line while booting a new kernel.
 ;;
 
-		section .text
+		section .text16
 
 ;
 ; This is set up as a subroutine; it will set up the global variable
@@ -150,9 +150,9 @@ got_highmem:
 		pop es
 		ret				; Done!
 
-		section .bss
+		section .bss16
 		alignb 4
 E820Buf		resd 5			; INT 15:E820 data buffer
 E820Mem		resd 1			; Memory detected by E820
 E820Max		resd 1			; Is E820 memory capped?
-HighMemSize	resd 1			; End of memory pointer (bytes)
+; HighMemSize is defined in com32.inc

@@ -51,25 +51,28 @@ program), or execute INT 20h or INT 21h AH=00h or INT 21h AH=4Ch.
 If compatiblity with Syslinux 1.xx is desired, use INT 20h.
 
 
-	++++ COM32 file format ++++
+	++++ COM32R file format ++++
 
-A COM32 file is a raw binary file containing 32-bit code.  It should
-be linked to run at address 0x101000, and should not contain any
-segment references.  It will be run in flat-memory 32-bit protected
+A COM32R file is a raw binary file containing 32-bit code.  It should
+be self-relocating, as it will be loaded by the Syslinux core at any
+4K aligned address.  It will be run in flat-memory 32-bit protected
 mode.  Under Syslinux, it will be run in CPL 0, however, since it may
 be possible to create a COM32 execution engine that would run under
 something like Linux DOSEMU, it is recommended that the code does not
 assume CPL 0 unless absolutely necessary.
 
-It is highly recommended that every COM32 program begins with the byte
-sequence B8 FF 4C CD 21 (mov eax,21cd4cffh) as a magic number.
+A COM32R program must start with the byte sequence B8 FE 4C CD 21 (mov
+eax,21cd4cfeh) as a magic number.
 
-A COM32 file should have extension ".c32".
+The COM32R format replaces the earlier COM32 format, which was linked
+to a fixed address (0x101000).
+
+A COM32R file should have extension ".c32".
 
 On startup, CS will be set up as a flat 32-bit code segment, and DS ==
 ES == SS will be set up as the equivalent flat 32-bit data segment.
 FS and GS are reserved for future use and are currently initialized to
-zero.  A COM32 image should not assume any particular values of
+zero.  A COM32R image should not assume any particular values of
 segment selectors.
 
 ESP is set up at the end of available memory and also serves as
@@ -88,6 +91,23 @@ The following arguments are passed to the program on the stack:
  [ESP+28] dword Pointer to CDECL helper function (new in 3.54)
  [ESP+32] dword Amount of memory controlled by the Syslinux core (new in 3.74)
  [ESP+36] dword Pointer to the filename of the com32 module (new in 3.86)
+ [ESP+40] dword	Pointer to protected-mode functions (new in 4.00)
+
+The libcom32 startup code loads this into a structure named __com32,
+defined in <com32.h>:
+
+extern struct com32_sys_args {
+    uint32_t cs_sysargs;
+    char *cs_cmdline;
+    void __cdecl(*cs_intcall)(uint8_t, const com32sys_t *, com32sys_t *);
+    void *cs_bounce;
+    uint32_t cs_bounce_size;
+    void __cdecl(*cs_farcall)(uint32_t, const com32sys_t *, com32sys_t *);
+    int __cdecl(*cs_cfarcall)(uint32_t, const void *, uint32_t);
+    uint32_t cs_memsize;
+    const char *cs_name;
+    const struct com32_pmapi *cs_pm;
+} __com32;
 
 The intcall helper function can be used to issue BIOS or Syslinux API
 calls, and takes the interrupt number as first argument.  The second
@@ -133,6 +153,12 @@ invoked via a FAR CALL.
 The cfarcall helper function takes (CS << 16)+IP, a pointer to a stack
 frame, a size of that stack frame, and returns the return value of EAX
 (which may need to be appropriate truncated by the user.)
+
+Starting in version 4.00, some of these API calls are available as
+protected-mode function calls, using the regparm(3) calling convention
+(the first three argumetns in EAX, EDX, ECX; the rest on the stack.)
+Those functions are defined in struct com32_pmapi, defined in
+<syslinux/pmapi.h>.
 
 
 	++++ SYSLINUX API CALLS +++
@@ -300,6 +326,16 @@ AX=0006h [2.08] Open file
 	In 3.70 or later, EAX can contain -1 indicating that the file
 	length is unknown.
 
+	32-BIT VERSION:
+
+	int cs_pm->open_file(const char *filename, struct com32_filedata *data)
+
+	filename - null-terminated filename
+	data	 - pointer to a file data buffer
+
+	Returns the file handle, or -1 on failure.
+	The file data buffer contains block size and file size.
+
 
 AX=0007h [2.08] Read file
 
@@ -331,6 +367,16 @@ AX=0007h [2.08] Read file
 	WARNING: Calling this function with an invalid file handle
 	will probably crash the system.
 
+	32-BIT VERSION:
+
+	size_t cs_pm->read_file(uint16_t *handle, void *buf, size_t blocks)
+
+	handle	- file handle (input and output, set to zero on end of file)
+	buf	- buffer to write to
+	blocks	- number of blocks to read
+
+	Returns number of bytes read, or 0 on failure.
+
 
 AX=0008h [2.08] Close file
 
@@ -342,6 +388,12 @@ AX=0008h [2.08] Close file
 
 	WARNING: Calling this function with an invalid file handle
 	will probably crash the system.
+
+	32-BIT VERSION:
+
+	void cs_pm->close_file(uint16_t handle)
+
+	handle	- file handle to close
 
 
 AX=0009h [2.00] Call PXE Stack [PXELINUX ONLY]
@@ -374,8 +426,12 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 	Output:	AL	31h (SYSLINUX), 34h (EXTLINUX)
 		DL	drive number
 		CL	sector size as a power of 2 (9 = 512 bytes) [3.35]
+		CH	mode [3.73]
+			1 = CBIOS mode
+			2 = EBIOS mode
 		ES:BX	pointer to partition table entry (if DL >= 80h)
 		FS:SI	pointer to initial ES:DI value [3.53]
+		GS:DI	pointer to partition offset (QWORD) [4.00]
 
 		Note: This function was broken in EXTLINUX 3.00-3.02.
 
@@ -396,6 +452,7 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		ECX	Local IP number (network byte order) [3.85]
 		ES:BX	pointer to PXENV+ or !PXE structure
 		FS:SI	pointer to original stack with invocation record
+		GS:DI	pointer to network information [4.00]
 
 		Note: DX notes the API version detected by PXELINUX,
 		which may be more conservative than the actual version
@@ -429,6 +486,13 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 		[fs:si+44]	PXE return IP	<- t.o.s. when PXELINUX invoked
 		[fs:si+46]	PXE return CS
 
+		GS:DI points to a structure of the following form:
+
+		[gs:di+0]	4		- IPv4
+		[gs:di+4]	My IP
+		[gs:di+8]	Boot server IP
+		[gs:di+12]	Gateway IP
+		[gs:di+16]	Netmask
 
 	[ISOLINUX]
 	Input:	AX	000Ah
@@ -441,16 +505,13 @@ AX=000Ah [2.00]	Get Derivative-Specific Information
 			2 = Hybrid (hard disk), EBIOS mode
 		ES:BX	pointer to El Torito spec packet
 		FS:SI	pointer to initial ES:DI value [3.53]
+		GS:DI	pointer to partition offset (QWORD) [4.00]
 
 		Note: Some very broken El Torito implementations do
 		not provide the spec packet information.  If so, ES:BX
 		may point to all zeroes or to garbage.  Call INT 13h,
 		AX=4B01h to obtain the spec packet directly from the
 		BIOS if necessary.
-
-	This call gives information specific to a particular Syslinux
-	derivative.  The value returned in AL is the same as is
-	returned in DL by INT 22h AX=0001h.
 
 
 AX=000Bh [2.00]	Get Serial Console Configuration
@@ -772,8 +833,8 @@ AX=0018h [3.30]	Query custom font
 
 AX=0019h [3.50] Read disk [SYSLINUX, ISOLINUX, EXTLINUX]
 	Input:	AX	0019h
-		EDX	Sector number
-		ESI	Reserved - MUST BE ZERO
+		EDX	Sector number (LSW)
+		ESI	Sector number (MSW) [4.00]
 		EDI	Reserved - MUST BE ZERO
 		CX	Sector count
 		ES:BX	Buffer address
@@ -839,44 +900,16 @@ AX=001Fh [3.74]	Get current working directory
 	Input:	AX	0001Fh
 	Output:	ES:BX	null-terminated directory name string
 
-	Returns the current working directory.  For SYSLINUX, ISOLINUX,
-	and PXELINUX, this will be an absolute path.  For EXTLINUX, it
-	currently returns "./".
+	Returns the current working directory.
 
 
-AX=0020h [3.74] Open directory
-	Input:	AX	0020h
-		ES:SI	/-null-terminated directory name
-	Output:	SI	directory handle
-		EAX	clobbered
+AX=0020h [3.74] Obsoleted in 4.00
+AX=0021h [3.74] Obsoleted in 4.00
+AX=0022h [3.74] Obsoleted in 4.00
 
-	Open a directory for reading.  Directory name must have a trailing
-	 "/" before the null (otherwise, you're looking for a file)(This
-	may change as this is a BETA call).
-
-
-AX=0021h [3.74] Read directory
-	Input:	AX	0021h
-		SI	directory handle
-		ES:DI	buffer for file name
-	Output:	DL	Type of file
-		SI	directory handle, or 0 if end of directory was reached
-		EAX	Size of file
-		EBX	Inode of file
-
-	Read one filename from the directory, incrementing the
-	directory structure at SI as appropriate, storing the filename
-	into the buffer at ES:DI, and returning the type of the file
-	in DL, the file length in EAX, the inode/file number in EBX
-	and the updated directory handle.
-
-
-AX=0022h [3.74] Close directory
-	Input:	AX	0022h
-		SI	directory handle
-	Output	SI	0
-
-	Closes a directory.
+	These three functions provided opendir/readdir/closedir
+	functionality in the late 3.xx series.  They have been
+	replaced by the protected-mode interface.
 
 
 AX=0023h [3.80] Get shuffler parameters
@@ -949,3 +982,31 @@ AX=0024h [3.80] Cleanup, shuffle and boot, raw version
 	with read/write data segments, matching the respective code
 	segment.  For mode 0, B=0 and the limits will be 64K, for mode
 	1, B=1 and the limits will be 4 GB.
+
+
+	++++ 32-BIT ONLY API CALLS ++++
+
+void *pm_cs->lmalloc(size_t bytes)
+
+	Allocate a buffer in low memory (below 1 MB).
+
+
+void pm_cs->lfree(void *ptr)
+
+	Free a buffer allocated with pm_cs->lmalloc().
+
+
+DIR *pm_cs->opendir(const char *pathname)
+
+	Open a directory.
+
+
+struct dirent *pm_cs->readdir(DIR *dir)
+
+	Read an entry from a directory.  The entry is returned in a
+	static buffer.
+
+
+int pm_cs->closedir(DIR *dir)
+
+	Close a directory.

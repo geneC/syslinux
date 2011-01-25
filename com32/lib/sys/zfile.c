@@ -75,7 +75,7 @@ static int gzip_file_init(struct file_info *fp)
     }
 
     fp->iop = &gzip_file_dev;
-    fp->i.length = -1;		/* Unknown */
+    fp->i.fd.size = -1;		/* Unknown */
 
     return 0;
 }
@@ -92,7 +92,7 @@ static ssize_t gzip_file_read(struct file_info *fp, void *ptr, size_t n)
 	zs->next_out = p;
 	zs->avail_out = n;
 
-	if (!zs->avail_in && fp->i.filedes) {
+	if (!zs->avail_in && fp->i.fd.handle) {
 	    if (__file_get_block(fp))
 		return nout ? nout : -1;
 
@@ -154,7 +154,9 @@ int zopen(const char *pathname, int flags, ...)
     if (__file_get_block(fp))
 	goto err;
 
-    if (fp->i.nbytes >= 14 && (uint8_t) fp->i.buf[0] == 037 && (uint8_t) fp->i.buf[1] == 0213 &&	/* gzip */
+    if (fp->i.nbytes >= 14 &&
+	(uint8_t) fp->i.buf[0] == 037 &&
+	(uint8_t) fp->i.buf[1] == 0213 &&	/* gzip */
 	fp->i.buf[2] == 8)	/* deflate */
 	rv = gzip_file_init(fp);
     else

@@ -11,13 +11,14 @@ LIBOBJS = \
 	abort.o atexit.o atoi.o atol.o atoll.o calloc.o creat.o		\
 	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
 	fclose.o putchar.o setjmp.o					\
-	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o getopt.o	\
+	fputs.o fread2.o fread.o free.o fwrite2.o fwrite.o 		\
+	getopt.o getopt_long.o						\
 	lrand48.o malloc.o stack.o memccpy.o memchr.o memcmp.o		\
 	memcpy.o mempcpy.o memmem.o memmove.o memset.o memswap.o	\
 	exit.o onexit.o	\
 	perror.o printf.o puts.o qsort.o realloc.o seed48.o snprintf.o	\
 	sprintf.o srand48.o sscanf.o stack.o strcasecmp.o strcat.o	\
-	strchr.o strcmp.o strcpy.o strpcpy.o strdup.o strlen.o		\
+	strchr.o strcmp.o strcpy.o strdup.o strlen.o			\
 	strerror.o strnlen.o						\
 	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
 	stpcpy.o stpncpy.o 						\
@@ -27,19 +28,22 @@ LIBOBJS = \
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o zalloc.o						\
 	\
+	lmalloc.o lstrdup.o						\
+	\
 	dprintf.o vdprintf.o						\
 	\
-	opendir.o readdir.o closedir.o getcwd.o chdir.o fdopendir.o	\
+	sys/readdir.o getcwd.o chdir.o fdopendir.o			\
 	\
-	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
+	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o				\
 	\
 	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
-	sys/entry.o sys/exit.o sys/argv.o sys/times.o			\
+	sys/entry.o sys/exit.o sys/argv.o sys/times.o sys/sleep.o	\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
+	sys/openmem.o							\
 	sys/isatty.o sys/fstat.o					\
 	\
 	sys/zfile.o sys/zfopen.o					\
@@ -117,6 +121,25 @@ LIBOBJS = \
 	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
 	syslinux/video/reportmode.o
 
+# These are the objects which are also imported into the core
+LIBCOREOBJS = 	\
+	memcpy.o mempcpy.o memset.o memcmp.o memmove.o			\
+	strlen.o stpcpy.o strcpy.o strcmp.o strlcpy.o strlcat.o		\
+	strchr.o strncmp.o strncpy.o					\
+	\
+	snprintf.o sprintf.o vsnprintf.o				\
+	\
+	dprintf.o vdprintf.o						\
+	\
+	zalloc.o strdup.o						\
+	\
+	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
+	\
+	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
+	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
+	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
+	libgcc/__divdi3.o libgcc/__moddi3.o
+
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
 DATADIR  = /usr/share
@@ -124,9 +147,14 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.a
+all: libcom32.a libcomcore.a
 
 libcom32.a : $(LIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+
+libcomcore.a : $(LIBCOREOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@

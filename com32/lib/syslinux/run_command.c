@@ -30,18 +30,21 @@
 #include <string.h>
 #include <com32.h>
 
-__noreturn syslinux_run_command(const char *command)
+int syslinux_run_command(const char *command)
 {
     static com32sys_t ireg;
+    char *lm_command = lstrdup(command);
 
-    strcpy(__com32.cs_bounce, command);
-
+    if (!lm_command)
+	return -1;
+    
     ireg.eax.w[0] = 0x0003;
-    ireg.es = SEG(__com32.cs_bounce);
-    ireg.ebx.w[0] = OFFS(__com32.cs_bounce);
+    ireg.es = SEG(lm_command);
+    /* ireg.ebx.w[0] = OFFS(lm_command); */
 
     __intcall(0x22, &ireg, NULL);
 
-    /* Should not return even on failure */
-    for (;;) ;
+    /* Should not return even on failure, but in case... */
+    lfree(lm_command);
+    return -1;
 }

@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <cpufeature.h>
+#include <sys/bitops.h>
 #include <sys/cpu.h>
 #include <klibc/compiler.h>
 
@@ -172,11 +173,6 @@ typedef struct {
 #define X86_VENDOR_NSC 8
 #define X86_VENDOR_NUM 9
 #define X86_VENDOR_UNKNOWN 0xff
-
-static inline __purefunc bool test_bit(int nr, const uint32_t * addr)
-{
-    return ((1UL << (nr & 31)) & (addr[nr >> 5])) != 0;
-}
 
 #define cpu_has(c, bit)                test_bit(bit, (c)->x86_capability)
 

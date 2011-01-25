@@ -119,7 +119,7 @@
 		; must be first in the binary
 Pointers:	dw Int13Start
 		dw Int15Start
-		dw PatchArea
+		dw MemDisk_Info		; Portions are patched by installer
 		dw TotalSize
 		dw IretPtr
 
@@ -616,7 +616,12 @@ ElToritoTerminate:
 		mov ax,[cs:SavedAX]
 		cmp al,1		; We only support query, not terminate
 		jne ElToritoErr		; Fail
-		mov es,P_DS		; Caller's DS:SI pointed to packet
+		cmp dl,7fh		; Terminate all?
+		je .doit
+		cmp dl,[cs:DriveNo]	; Terminate our drive?
+		je .doit
+		jmp ElToritoErr		; Fail
+.doit:		mov es,P_DS		; Caller's DS:SI pointed to packet
 		mov di,P_SI		; We'll use ES:DI
 		mov si,CD_PKT.size	; First byte is packet size
 		xor cx,0		; Empty our count
@@ -1076,11 +1081,10 @@ mBFT:
 
 ; Note that the above ends on a DWORD boundary.
 ; The MDI has always started at such a boundary.
+; Portions of the MDI are patched by the installer
 MemDisk_Info	equ $			; Pointed to by installation check
 MDI_Bytes	dw MDI_Len		; Total bytes in MDI structure
 MDI_Version	db VERSION_MINOR, VERSION_MAJOR	; MEMDISK version
-
-PatchArea	equ $			; This gets filled in by the installer
 
 DiskBuf		dd 0			; Linear address of high memory disk
 DiskSize	dd 0			; Size of disk in blocks
@@ -1171,7 +1175,8 @@ CD_PKT:
 
 %endif ; EDD
 
-		; End patch area
+; End patch area
+
 		alignb 4, db 0
 Stack		dd 0			; Saved SS:ESP on invocation
 		dw 0

@@ -221,13 +221,15 @@ void keys_handler(t_menusystem * ms __attribute__ (( unused )), t_menuitem * mi,
    }
 }
 
-t_handler_return login_handler(t_menuitem *mi)
+t_handler_return login_handler(t_menusystem *ms, t_menuitem *mi)
 {
   (void)mi; // Unused
   char pwd[40];
   char login[40];
   int nc, nr;
   t_handler_return rv;
+
+  (void)ms;
 
   rv = ACTION_INVALID;
   if (PWD_ROW < 0) return rv; // No need to authenticate

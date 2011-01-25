@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
-##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+##   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ include $(topdir)/MCONFIG
 MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
-	com32/sysdump/*.c32
+	com32/sysdump/*.c32 com32/lua/src/*.c32
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
@@ -43,7 +43,8 @@ BOBJECTS = $(BTARGET) \
 	mbr/mbr_c.bin mbr/altmbr_c.bin mbr/gptmbr_c.bin \
 	mbr/mbr_f.bin mbr/altmbr_f.bin mbr/gptmbr_f.bin \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
-	gpxe/gpxelinux.0 dos/syslinux.com win32/syslinux.exe \
+	gpxe/gpxelinux.0 dos/syslinux.com \
+	win32/syslinux.exe win64/syslinux64.exe \
 	dosutil/*.com dosutil/*.sys \
 	$(MODULES)
 
@@ -53,8 +54,8 @@ BOBJECTS = $(BTARGET) \
 # Note: libinstaller is both a BSUBDIR and an ISUBDIR.  It contains
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
-BSUBDIRS = codepage core memdisk modules com32 mbr memdump gpxe sample \
-	   libinstaller dos win32 dosutil
+BSUBDIRS = codepage com32 lzo core memdisk modules mbr memdump gpxe sample \
+	   libinstaller dos win32 win64 dosutil
 ITARGET  =
 IOBJECTS = $(ITARGET) \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \
@@ -68,9 +69,9 @@ INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		core/isolinux-debug.bin \
-		dos/syslinux.com win32/syslinux.exe \
+		dos/syslinux.com \
 		mbr/*.bin $(MODULES)
-INSTALL_AUX_OPT = win32/syslinux.exe
+INSTALL_AUX_OPT = win32/syslinux.exe win64/syslinux64.exe
 
 # These directories manage their own installables
 INSTALLSUBDIRS = com32 utils dosutil

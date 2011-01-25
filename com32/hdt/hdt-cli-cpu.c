@@ -84,7 +84,7 @@ static void show_flag(char *buffer, bool flag, char *flag_name, bool flush)
     if ((((strlen(buffer) + strlen(flag_name)) > 66) && flag) || flush) {
 	snprintf(output_buffer, sizeof output_buffer, "Flags     : %s\n",
 		 buffer);
-	more_printf(output_buffer);
+	more_printf("%s", output_buffer);
 	memset(buffer, 0, sizeof(buffer));
 	if (flush)
 	    return;

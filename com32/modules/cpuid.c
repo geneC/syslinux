@@ -20,7 +20,7 @@ static void dump_reg(const char *name, uint32_t val)
 {
     int i;
 
-    printf("%-3s : %10d 0x%08x ", name, val, val);
+    printf("%-3s : %10u 0x%08x ", name, val, val);
 
     for (i = 3; i >= 0; i--) {
 	uint8_t c = val >> (i*8);

@@ -33,5 +33,6 @@
 #define _SYSLINUX_IDLE_H
 
 void syslinux_idle(void);
+void syslinux_reset_idle(void);
 
 #endif

@@ -15,19 +15,29 @@
 
 #include <inttypes.h>
 #include "advconst.h"
+#include "setadv.h"
 
 /* The standard boot sector and ldlinux image */
 extern unsigned char syslinux_bootsect[];
-extern unsigned int syslinux_bootsect_len;
-extern int syslinux_bootsect_mtime;
+extern const unsigned int syslinux_bootsect_len;
+extern const int syslinux_bootsect_mtime;
 
 extern unsigned char syslinux_ldlinux[];
-extern unsigned int syslinux_ldlinux_len;
-extern int syslinux_ldlinux_mtime;
+extern const unsigned int syslinux_ldlinux_len;
+extern const int syslinux_ldlinux_mtime;
+
+#define boot_sector	syslinux_bootsect
+#define boot_sector_len syslinux_bootsect_len
+#define boot_image	syslinux_ldlinux
+#define boot_image_len	syslinux_ldlinux_len
 
 extern unsigned char syslinux_mbr[];
-extern unsigned int syslinux_mbr_len;
-extern int syslinux_mbr_mtime;
+extern const unsigned int syslinux_mbr_len;
+extern const int syslinux_mbr_mtime;
+
+/* Sector size assumptions... */
+#define SECTOR_SHIFT	9
+#define SECTOR_SIZE	(1 << SECTOR_SHIFT)
 
 /* This takes a boot sector and merges in the syslinux fields */
 void syslinux_make_bootsect(void *);
@@ -36,16 +46,9 @@ void syslinux_make_bootsect(void *);
 const char *syslinux_check_bootsect(const void *bs);
 
 /* This patches the boot sector and ldlinux.sys based on a sector map */
-int syslinux_patch(const uint32_t * sectors, int nsectors,
-		   int stupid, int raid_mode);
-
-/* ADV information */
-#define ADV_SIZE	512	/* Total size */
-#define ADV_LEN		(ADV_SIZE-3*4)	/* Usable data size */
-extern unsigned char syslinux_adv[2 * ADV_SIZE];
-
-int syslinux_setadv(int tag, size_t size, const void *data);
-void syslinux_reset_adv(unsigned char *advbuf);
-int syslinux_validate_adv(unsigned char *advbuf);
+typedef uint64_t sector_t;
+int syslinux_patch(const sector_t *sectors, int nsectors,
+		   int stupid, int raid_mode,
+		   const char *subdir, const char *subvol);
 
 #endif

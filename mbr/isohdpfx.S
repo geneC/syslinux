@@ -65,9 +65,8 @@ bootsec:
 	.text
 	.globl	_start
 _start:
-
+	.byte	0x33, 0xed	/* xorw	%bp, %bp */
 	cli
-	xorw	%bp, %bp
 	movw	%bp, %ss
 	movw	$stack, %sp
 	sti
@@ -81,14 +80,16 @@ _start:
 	jz	1f
 	testb	$0x7f, (%si)		/* Invalid active flag field? */
 	jnz	1f
+	cmpb	%cl, 4(%si)		/* Partition type zero == invalid? */
+	je	1f
 	cmpl	$0x58504721, %eax	/* !GPT signature in EAX? */
 	jne	2f
-	cmpb	$0xee, 4(%si)		/* EFI partition type? */
+	cmpb	$0xed, 4(%si)		/* EFI partition type? */
 	jne	2f
 	
 	/* We have GPT partition information */
-	movl	(32+16)(%si), %ecx
-	movl	(36+16)(%si), %ebx
+	movl	(32+20)(%si), %ecx
+	movl	(36+20)(%si), %ebx
 	jmp	1f
 
 	/* We have non-GPT partition information */

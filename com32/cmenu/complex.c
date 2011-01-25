@@ -100,6 +100,8 @@ t_handler_return login_handler(t_menusystem * ms, t_menuitem * mi)
     int nc, nr;
     t_handler_return rv;
 
+    (void)ms;
+
     if (mi->item == loginstr) {	/* User wants to login */
     if (getscreensize(1, &nr, &nc)) {
         /* Unknown screen size? */
@@ -138,6 +140,7 @@ t_handler_return login_handler(t_menusystem * ms, t_menuitem * mi)
     }
     rv.valid = 0;
     rv.refresh = 1;
+    rv.reserved = 0;
     return rv;
 }
 
@@ -241,6 +244,7 @@ t_handler_return checkbox_handler(t_menusystem * ms, t_menuitem * mi)
 
     rv.valid = 0;
     rv.refresh = 1;
+    rv.reserved = 0;
     return rv;
 }
 

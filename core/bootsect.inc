@@ -36,13 +36,13 @@ SuperSize	equ $+1
 		push word superblock_len_fat16
 %endif
 load_bootsec:
-		mov edi,100000h
+		mov edi,free_high_memory
 		mov [trackbuf+4],edi	; Copy from this address
 		xor dx,dx		; No padding
 		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
 
-		sub edi,100000h
+		sub edi,free_high_memory
 		mov [trackbuf+8],edi	; Save length
 
 		mov eax,7C00h		; Entry point
@@ -54,7 +54,7 @@ load_bootsec:
 
 		; For a BSS boot sector we have to patch.
 		mov esi,superblock
-		mov edi,100000h+(superblock-bootsec)
+		mov edi,free_high_memory+(superblock-bootsec)
 		call bcopy
 %endif
 		push eax		; Save entry point
@@ -80,7 +80,7 @@ load_bootsec:
 		xor bx,bx
 %elif IS_PXELINUX
 		mov byte [KeepPXE],03h	; Chainloading + keep PXE
-		call reset_pxe
+		pm_call reset_pxe
 		lfs si,[InitStack]
 		; Put restore DS, EDX and ESI to the true initial values
 		mov bx,[fs:si+6]
@@ -143,7 +143,9 @@ replace_bootstrap_noclearmode:
 		jmp .stackok
 %endif
 .stdstack:
-		mov di,7C00h-44
+		; StackBuf is guaranteed to have 44 bytes free immediately
+		; above it, and it will not interfere with our existing stack.
+		mov di,StackBuf
 		push di
 		mov cx,22		; 44 bytes
 		rep stosw
@@ -232,4 +234,4 @@ replace_stub:
 		jmp 0:0
 .csip		equ $-4
 
-		section .text
+		section .text16

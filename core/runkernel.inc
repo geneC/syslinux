@@ -55,10 +55,10 @@ is_linux_kernel:
 ; work since we might have funny stuff up near the end of memory).
 ;
 		call abort_check		; Check for abort key
-		mov cx,8000h >> SECTOR_SHIFT	; Half a moby (32K)
+		mov cx,8000h			; Half a moby (32K)
 		xor bx,bx
                 pop si                          ; <A> file pointer
-		call getfssec
+		pm_call getfsbytes
 		cmp cx,1024
 		jb kernel_corrupt
                 cmp word [es:bs_bootsign],0AA55h
@@ -77,11 +77,9 @@ construct_cmdline:
                 mov si,boot_image		; BOOT_IMAGE=
                 mov cx,boot_image_len
                 rep movsb
-                mov si,KernelCName		; Unmangled kernel name
-                mov cx,[KernelCNameLen]
-                rep movsb
-                mov al,' '                      ; Space
-                stosb
+                mov si,KernelName		; Unmangled kernel name
+		call strcpy
+		mov byte [es:di-1],' '		; Follow by space
 
 		call do_ip_append		; Handle IPAppend
 
@@ -235,7 +233,7 @@ new_kernel:
 any_kernel:
 		mov si,loading_msg
                 call writestr_qchk
-                mov si,KernelCName		; Print kernel name part of
+                mov si,KernelName		; Print kernel name part of
                 call writestr_qchk		; "Loading" message
 
 ;
@@ -261,8 +259,8 @@ read_kernel:
                 shl si,9			; Convert to bytes
                 mov ecx,8000h			; 32K
 		sub ecx,esi			; Number of bytes to copy
-		add esi,(real_mode_seg << 4)	; Pointer to source
-                mov edi,100000h                 ; Copy to address 100000h
+		add esi,core_real_mode		; Pointer to source
+                mov edi,free_high_memory	; Copy to free high memory
 
                 call bcopy			; Transfer to high memory
 
@@ -361,7 +359,7 @@ setup_command_line:
 		; New cmdline protocol
 		; Store 32-bit (flat) pointer to command line
 		; This is the "high" location, since we have bzImage
-		mov dword [fs:su_cmd_line_ptr],(real_mode_seg << 4)+cmd_line_here
+		mov dword [fs:su_cmd_line_ptr],cmd_line
 		mov word [HeapEnd],linux_stack
 		mov word [fs:su_heapend],linux_stack-512
 		jmp .setup_done
@@ -417,30 +415,30 @@ setup_move:
 		push ds				; We need DS == ES == CS here
 		pop es
 
+		mov edx,100000h
 		test byte [LoadFlags],LOAD_HIGH
 		jnz .loading_high
 
 ; Loading low: move real_mode stuff to 90000h, then move the kernel down
 		mov eax,90000h
 		stosd
-		mov eax,real_mode_seg << 4
+		mov eax,core_real_mode
 		stosd
 		movzx eax,word [CmdLineEnd]
 		stosd
 		inc cx
+		mov edx,10000h			; Revised target address
+		mov bx,9000h			; Revised real mode segment
 
-		mov eax,10000h			; Target address of low kernel
+.loading_high:
+		mov eax,edx			; Target address of kernel
 		stosd
-		mov eax,100000h			; Where currently loaded
+		mov eax,free_high_memory	; Where currently loaded
 		stosd
 		neg eax
 		add eax,[KernelEnd]
 		stosd
 		inc cx
-
-		mov bx,9000h			; Revised real mode segment
-
-.loading_high:
 
 		cmp word [InitRDPtr],0		; Did we have an initrd?
 		je .no_initrd
@@ -546,7 +544,7 @@ parse_load_initrd:
 
 		push di
 		mov di,InitRD		; Target buffer for mangled name
-		call mangle_name
+		pm_call pm_mangle_name
 		pop di
 		call loadinitrd
 
@@ -591,20 +589,15 @@ loadinitrd:
 		mov ds,ax
 		mov es,ax
 		push edi
-                mov si,InitRD
-                mov di,InitRDCName
-                call unmangle_name              ; Create human-readable name
-                sub di,InitRDCName
-                mov [InitRDCNameLen],di
                 mov di,InitRD
-                call searchdir                  ; Look for it in directory
+                pm_call pm_searchdir                  ; Look for it in directory
 		pop edi
 		jz .notthere
 
 		push si
 		mov si,crlfloading_msg		; Write "Loading "
 		call writestr_qchk
-                mov si,InitRDCName		; Write ramdisk name
+                mov si,InitRD			; Write ramdisk name
                 call writestr_qchk
                 mov si,dotdot_msg		; Write dots
                 call writestr_qchk
@@ -623,7 +616,7 @@ loadinitrd:
 .notthere:
                 mov si,err_noinitrd
                 call writestr
-                mov si,InitRDCName
+                mov si,InitRD
                 call writestr
                 mov si,crlf_msg
                 jmp abort_load
@@ -637,7 +630,7 @@ writestr_qchk:
 		jz writestr
 		ret
 
-		section .data
+		section .data16
 crlfloading_msg	db CR, LF
 loading_msg     db 'Loading ', 0
 dotdot_msg      db '.'
@@ -670,7 +663,7 @@ str_initrd	equ $+1			; Pointer to "initrd=" in memory
 %endif
 		db 0
 
-		section .bss
+		section .bss16
 		alignb 4
 MyHighMemSize	resd 1			; Possibly adjusted highmem size
 RamdiskMax	resd 1			; Highest address for ramdisk

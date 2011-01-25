@@ -38,8 +38,8 @@
 
 #define ALIGN_UP(p,t)       ((t *)(((uintptr_t)(p) + (sizeof(t)-1)) & ~(sizeof(t)-1)))
 
-extern char _end[];		/* Symbol created by linker */
-void *__mem_end = &_end;	/* Global variable for use by malloc() */
+extern char __heap_start[];
+void *__mem_end = &__heap_start;	/* Global variable for use by malloc() */
 
 int __parse_argv(char ***argv, const char *str)
 {

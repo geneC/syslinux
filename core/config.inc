@@ -27,9 +27,10 @@ BAUD_DIVISOR	equ 115200		; Serial port parameter
 MAX_FKEYS	equ 12			; Number of F-key help files
 
 ;
-; Local boot supported
+; log2(Max filename size Including final null)
 ;
-%assign	HAS_LOCALBOOT 1
+FILENAME_MAX_LG2 equ 8
+FILENAME_MAX	 equ (1 << FILENAME_MAX_LG2)	; Max mangled filename size
 
 ;
 ; Version number definitinons

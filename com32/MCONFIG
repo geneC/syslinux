@@ -1,5 +1,5 @@
 ## -*- makefile -*- -------------------------------------------------------
-##   
+##
 ##   Copyright 2008-2009 H. Peter Anvin - All Rights Reserved
 ##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
 ##
@@ -17,17 +17,25 @@
 
 include $(topdir)/MCONFIG
 
-GCCOPT	  := $(call gcc_ok,-std=gnu99,)					\
-	     $(call gcc_ok,-m32,)					\
-	     $(call gcc_ok,-fno-stack-protector,)			\
-	     $(call gcc_ok,-falign-functions=0,-malign-functions=0)	\
-	     $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)		\
-	     $(call gcc_ok,-falign-loops=0,-malign-loops=0)		\
-	     $(call gcc_ok,-mpreferred-stack-boundary=2,)		\
-	     $(call gcc_ok,-mincoming-stack-boundary=2,)		\
-	     -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3
+GCCOPT := $(call gcc_ok,-std=gnu99,)
+GCCOPT += $(call gcc_ok,-m32,)
+GCCOPT += $(call gcc_ok,-fno-stack-protector,)
+GCCOPT += $(call gcc_ok,-fwrapv,)
+GCCOPT += $(call gcc_ok,-freg-struct-return,)
+GCCOPT += -mregparm=3 -DREGPARM=3 -march=i386 -Os
+GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
+GCCOPT += $(call gcc_ok,-fno-exceptions,)
+GCCOPT += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
+GCCOPT += $(call gcc_ok,-fno-strict-aliasing,)
+GCCOPT += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
+GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
+GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
+GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
+GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
+GCCOPT += $(call gcc_ok,-incoming-stack-boundary=2,)
 
-com32 = $(topdir)/com32
+com32  := $(topdir)/com32
+RELOCS := $(com32)/tools/relocs
 
 ifneq ($(NOGPL),1)
 GPLLIB     = $(com32)/gpllib/libcom32gpl.a
@@ -47,10 +55,11 @@ SFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
 	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
 
 COM32LD	   = $(com32)/lib/com32.ld
-LDFLAGS    = -m elf_i386 -T $(COM32LD)
+LDFLAGS    = -m elf_i386 --emit-relocs -T $(COM32LD)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
-LNXCFLAGS  = -I$(com32)/libutil/include $(GCCWARN) -O -g -D_GNU_SOURCE
+LNXCFLAGS  = -I$(com32)/libutil/include $(GCCWARN) -O -g \
+	     -D_GNU_SOURCE -D_FORTIFY_SOURCE=0 -Wno-error
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
@@ -86,3 +95,4 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 
 %.c32: %.elf
 	$(OBJCOPY) -O binary $< $@
+	$(RELOCS) $< >> $@ || ( rm -f $@ ; false )

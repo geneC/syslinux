@@ -31,11 +31,11 @@ int get_bootloader_string(struct driveinfo *d, const struct part_entry *p,
 	return -1;
     else {
 	if (!strncmp(boot_sector + 3, "SYSLINUX", 8))
-	    strncpy(buffer, "SYSLINUX", buffer_size - 1);
+	    strlcpy(buffer, "SYSLINUX", buffer_size - 1);
 	else if (!strncmp(boot_sector + 3, "EXTLINUX", 8))
-	    strncpy(buffer, "EXTLINUX", buffer_size - 1);
+	    strlcpy(buffer, "EXTLINUX", buffer_size - 1);
 	else if (!strncmp(boot_sector + 3, "MSWIN4.1", 8))
-	    strncpy(buffer, "MSWIN4.1", buffer_size - 1);
+	    strlcpy(buffer, "MSWIN4.1", buffer_size - 1);
 	else
 	    return -1;
 	/* Add more... */

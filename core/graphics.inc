@@ -21,7 +21,7 @@
 ;
 ;	Assumes CS == DS == ES.
 ;
-		section .text
+		section .text16
 
 vgadisplayfile:
 		; This is a cheap and easy way to make sure the screen is
@@ -322,7 +322,7 @@ vgacursorcommon:
 		ret
 
 
-		section .data
+		section .data16
 		; Map colors to consecutive DAC registers
 linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 
@@ -330,7 +330,7 @@ linear_color	db 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0
 		; of this byte.
 UsingVGA	db 0
 
-		section .bss2
+		section .bss16
 		alignb 4
 LSSHeader	equ $
 LSSMagic	resd 1			; Magic number

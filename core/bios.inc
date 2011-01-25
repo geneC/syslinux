@@ -18,11 +18,17 @@
 
 %ifndef _BIOS_INC
 %define _BIOS_INC
+                global BIOS_fbm, BIOS_timer
 
-		absolute 4*1Eh		; In the interrupt table
+		; Interrupt vectors
+		absolute 4*1Ch
+BIOS_timer_hook	resd 1
+
+		absolute 4*1Eh
 fdctab		equ $
 fdctab1		resw 1
 fdctab2		resw 1
+
 		absolute 0400h
 serial_base	resw 4			; Base addresses for 4 serial ports
 		absolute 0413h

@@ -20,9 +20,15 @@
 %ifndef _HEAD_INC
 %define _HEAD_INC
 
+%if __NASM_MAJOR__ < 2
+ %error "NASM 2.00 or later required to compile correctly"
+%endif
+
 %include "macros.inc"
 %include "config.inc"
 %include "layout.inc"
+%include "pmcall.inc"
+%include "extern.inc"
 %include "kernel.inc"
 %include "bios.inc"
 %include "tracers.inc"

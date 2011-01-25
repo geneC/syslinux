@@ -28,6 +28,9 @@ Clear the boot-once command.
 \fB\-o\fR, \fB\-\-once\fR=\fIcommand\fR
 Execute a command once upon boot.
 .TP
+\fB\-M\fR, \fB\-\-menu\-save\fR=\fIlabel\fR
+Set the label to select as default on the next boot
+.TP
 \fB\-r\fR, \fB\-\-raid\fR
 Fall back to the next device on boot failure.
 .TP
@@ -42,6 +45,8 @@ Updates a previous \fBEXTLINUX\fP installation.
 .TP
 \fB\-z\fR, \fB\-\-zip\fR
 Force zipdrive geometry (-H 64 -S 32).
+.SH FILES
+The extlinux configuration file needs to be named extlinux.conf and needs to be stored in the extlinux installation directory. For more information about the contents of extlinux.conf, see syslinux(1) manpage, section files.
 .SH BUGS
 I would appreciate hearing of any problems you have with \s-1SYSLINUX\s+1.  I
 would also like to hear from you if you have successfully used \s-1SYSLINUX\s+1,

@@ -16,7 +16,7 @@
 ;; Write decimal numbers to the console
 ;;
 
-		section .text
+		section .text16
 ;
 ; writedec[bwl]: Write an unsigned decimal number in (AL, AX, EAX)
 ;                to the console
@@ -37,6 +37,7 @@ writedec_common:
 		xor cx,cx		; Number of digits
 
 .cloop:
+		mov edx,0
 		div ebx
 		inc cx
 		push dx
@@ -53,5 +54,5 @@ writedec_common:
 		popad
 		ret
 
-writechr:
-		ret
+; writechr:
+; 		ret

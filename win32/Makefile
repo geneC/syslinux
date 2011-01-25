@@ -1,6 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2010 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -28,31 +29,40 @@ else
 ifeq ($(findstring MINGW32,$(OSTYPE)),MINGW32)
 WINPREFIX  :=
 else
-WINPREFIX  := $(shell ./find-mingw.sh gcc)
+WINPREFIX  := $(shell ./find-mingw32.sh gcc)
 endif
 WINCFLAGS  := $(GCCWARN) -Wno-sign-compare -Os -fomit-frame-pointer \
 	      -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -Os -s
 endif
-WINCFLAGS += -I. -I.. -I../libfat -I../libinstaller
+WINCFLAGS += -I. -I../win -I.. -I../libfat -I../libinstaller \
+	     -I../libinstaller/getopt
 
 WINCC      := $(WINPREFIX)gcc
 WINAR	   := $(WINPREFIX)ar
 WINRANLIB  := $(WINPREFIX)ranlib
 
-WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) -o hello.exe hello.c >/dev/null 2>&1 ; echo $$?)
+WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) \
+	-o hello.exe ../win/hello.c >/dev/null 2>&1 ; echo $$?)
 
-.SUFFIXES: .c .o .i .s .S
+.SUFFIXES: .c .obj .lib .exe .i .s .S
 
-SRCS     = syslinux.c \
+SRCS     = ../win/syslinux.c
+OBJS     = $(patsubst %.c,%.obj,$(notdir $(SRCS)))
+LIBSRC   = ../libinstaller/fat.c \
 	   ../libinstaller/syslxmod.c \
+	   ../libinstaller/syslxopt.c \
+	   ../libinstaller/setadv.c \
+	   ../libinstaller/getopt/getopt_long.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
 	   $(wildcard ../libfat/*.c)
-OBJS     = $(patsubst %.c,%.o,$(notdir $(SRCS)))
+LIBOBJS  = $(patsubst %.c,%.obj,$(notdir $(LIBSRC)))
 
-VPATH = .:../libfat:../libinstaller
+LIB	 = syslinux.lib
+
+VPATH = .:../win:../libfat:../libinstaller:../libinstaller/getopt
 
 TARGETS = syslinux.exe
 
@@ -64,7 +74,7 @@ all:
 endif
 
 tidy dist:
-	-rm -f *.o *.i *.s *.a .*.d *.tmp *_bin.c hello.exe
+	-rm -f *.o *.obj *.lib *.i *.s *.a .*.d *.tmp *_bin.c hello.exe
 
 clean: tidy
 
@@ -73,11 +83,16 @@ spotless: clean
 
 installer:
 
-syslinux.exe: $(OBJS)
+$(LIB): $(LIBOBJS)
+	rm -f $@
+	$(WINAR) cq $@ $^
+	$(WINRANLIB) $@
+
+syslinux.exe: $(OBJS) $(LIB)
 	$(WINCC) $(WINLDFLAGS) -o $@ $^
 
 
-%.o: %.c
+%.obj: %.c
 	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -c -o $@ $<
 %.i: %.c
 	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -E -o $@ $<

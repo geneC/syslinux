@@ -6,6 +6,7 @@
  */
 
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 static inline size_t newgap(size_t gap)
@@ -26,6 +27,9 @@ void qsort(void *base, size_t nmemb, size_t size,
     size_t i, j;
     char *p1, *p2;
     int swapped;
+
+    if (!nmemb)
+	return;
 
     do {
 	gap = newgap(gap);

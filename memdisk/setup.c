@@ -14,11 +14,9 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdint.h>
-#include "acpi.h"
 #include "bda.h"
 #include "dskprobe.h"
 #include "e820.h"
-#include "eltorito.h"
 #include "conio.h"
 #include "version.h"
 #include "memdisk.h"
@@ -41,131 +39,8 @@ extern const char _binary_memdisk_iso_2048_bin_start[];
 extern const char _binary_memdisk_iso_2048_bin_end[];
 extern const char _binary_memdisk_iso_2048_bin_size[];
 
-struct memdisk_header {
-    uint16_t int13_offs;
-    uint16_t int15_offs;
-    uint16_t patch_offs;
-    uint16_t total_size;
-    uint16_t iret_offs;
-};
-
-struct safe_hook {
-    uint8_t jump[3];		/* Max. three bytes for jump */
-    uint8_t signature[8];	/* "$INT13SF" */
-    uint8_t vendor[8];		/* "MEMDISK " */
-    uint32_t old_hook;		/* SEG:OFF for previous INT 13h hook */
-    uint32_t flags;		/* "Safe hook" flags */
-    /* The next field is a MEMDISK extension to the "safe hook" structure */
-    uint32_t mBFT;		/* Offset from hook to the mBFT; refilled
-				 * by setup() with the physical address
-				 */
-} __attribute__((packed));
-
-/* The Disk Parameter Table may be required */
-typedef union {
-    struct hd_dpt {
-	uint16_t max_cyl;	/* Max cylinder */
-	uint8_t max_head;	/* Max head */
-	uint8_t junk1[5];	/* Obsolete junk, leave at zero */
-	uint8_t ctrl;		/* Control byte */
-	uint8_t junk2[7];	/* More obsolete junk */
-    } hd;
-    struct fd_dpt {
-	uint8_t specify1;	/* "First specify byte" */
-	uint8_t specify2;	/* "Second specify byte" */
-	uint8_t delay;		/* Delay until motor turn off */
-	uint8_t sectors;	/* Sectors/track */
-
-	uint8_t bps;		/* Bytes/sector (02h = 512) */
-	uint8_t isgap;		/* Length of intersector gap */
-	uint8_t dlen;		/* Data length (0FFh) */
-	uint8_t fgap;		/* Formatting gap */
-
-	uint8_t ffill;		/* Format fill byte */
-	uint8_t settle;		/* Head settle time (ms) */
-	uint8_t mstart;		/* Motor start time */
-	uint8_t maxtrack;	/* Maximum track number */
-
-	uint8_t rate;		/* Data transfer rate */
-	uint8_t cmos;		/* CMOS type */
-	uint8_t pad[2];
-
-	uint32_t old_fd_dpt;	/* Extension: pointer to old INT 1Eh */
-    } fd;
-} dpt_t;
-
-/* EDD disk parameter table */
-struct edd_dpt {
-    uint16_t len;		/* Length of table */
-    uint16_t flags;		/* Information flags */
-    uint32_t c;			/* Physical cylinders (count!) */
-    uint32_t h;			/* Physical heads (count!) */
-    uint32_t s;			/* Physical sectors/track (count!) */
-    uint64_t sectors;		/* Total sectors */
-    uint16_t bytespersec;	/* Bytes/sector */
-    uint16_t dpte_off, dpte_seg;	/* DPTE pointer */
-    uint16_t dpikey;		/* Device Path Info magic */
-    uint8_t  dpilen;		/* Device Path Info length */
-    uint8_t  res1;		/* Reserved */
-    uint16_t res2;		/* Reserved */
-    uint8_t  bustype[4];	/* Host bus type */
-    uint8_t  inttype[8];	/* Interface type */
-    uint64_t intpath;		/* Interface path */
-    uint64_t devpath[2];	/* Device path (double QuadWord!) */
-    uint8_t  res3;		/* Reserved */
-    uint8_t  chksum;		/* DPI checksum */
-} __attribute__((packed));
-
-struct mBFT {
-    struct acpi_description_header acpi;
-    uint32_t safe_hook;		/* "Safe hook" physical address */
-} __attribute__((packed));
-
-struct patch_area {
-    uint32_t diskbuf;
-    uint32_t disksize;
-    uint16_t cmdline_off, cmdline_seg;
-
-    uint32_t oldint13;
-    uint32_t oldint15;
-
-    uint16_t olddosmem;
-    uint8_t bootloaderid;
-    uint8_t _pad1;
-
-    uint16_t dpt_ptr;
-    /* End of the official MemDisk_Info */
-    uint8_t driveshiftlimit;	/* Do not shift drives above this region */
-    uint8_t _pad2;		/* Pad to DWORD */
-    uint16_t _pad3;		/* Pad to QWORD */
-
-    uint16_t memint1588;
-
-    uint16_t cylinders;
-    uint16_t heads;
-    uint32_t sectors;
-
-    uint32_t mem1mb;
-    uint32_t mem16mb;
-
-    uint8_t driveno;
-    uint8_t drivetype;
-    uint8_t drivecnt;
-    uint8_t configflags;
-
-#define CONFIG_READONLY	0x01
-#define CONFIG_RAW	0x02
-#define CONFIG_SAFEINT	0x04
-#define CONFIG_BIGRAW	0x08	/* MUST be 8! */
-#define CONFIG_MODEMASK	0x0e
-
-    uint16_t mystack;
-    uint16_t statusptr;
-
-    dpt_t dpt;
-    struct edd_dpt edd_dpt;
-    struct edd4_cd_pkt cd_pkt; /* Only really in a memdisk_iso_* hook */
-} __attribute__((packed));
+/* Pull in structures common to MEMDISK and MDISKCHK.COM */
+#include "mstructs.h"
 
 /* An EDD disk packet */
 struct edd_dsk_pkt {
@@ -176,6 +51,13 @@ struct edd_dsk_pkt {
     uint64_t start;		/* LBA to start from  */
     uint64_t buf64;		/* 64-bit buf pointer */
 } __attribute__ ((packed));
+
+/* Change to 1 for El Torito debugging */
+#define DBG_ELTORITO 0
+
+#if DBG_ELTORITO
+extern void eltorito_dump(uint32_t);
+#endif
 
 /*
  * Routine to seek for a command-line item and return a pointer
@@ -237,7 +119,7 @@ static const char *getcmditem(const char *what)
  */
 #define UNZIP_ALIGN 512
 
-extern void _end;		/* Symbol signalling end of data */
+extern const char _end[];		/* Symbol signalling end of data */
 
 void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 {
@@ -289,8 +171,8 @@ void unzip_if_needed(uint32_t * where_p, uint32_t * size_p)
 			? 0xFFFFFFFF : (uint32_t) ranges[i + 1].start);
 
 	    /* Make sure we don't overwrite ourselves */
-	    if (startrange < (uint32_t) & _end)
-		startrange = (uint32_t) & _end;
+	    if (startrange < (uint32_t) _end)
+		startrange = (uint32_t) _end;
 
 	    /* Allow for alignment */
 	    startrange =
@@ -360,7 +242,7 @@ struct geometry {
     uint32_t boot_lba;		/* LBA of bootstrap code */
     uint8_t type;		/* Type byte for INT 13h AH=08h */
     uint8_t driveno;		/* Drive no */
-    uint16_t sector_size;	/* Sector size in bytes (512 vs. 2048) */
+    uint8_t sector_shift;	/* Sector size as a power of 2 */
     const char *hsrc, *ssrc;	/* Origins of H and S geometries */
 };
 
@@ -440,13 +322,13 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 
     printf("command line: %s\n", shdr->cmdline);
 
-    hd_geometry.sector_size = 512;	/* Assume floppy/HDD at first */
+    hd_geometry.sector_shift = 9;	/* Assume floppy/HDD at first */
 
     offset = 0;
     if (CMD_HASDATA(p = getcmditem("offset")) && (v = atou(p)))
 	offset = v;
 
-    sectors = xsectors = (size - offset) >> 9;
+    sectors = xsectors = (size - offset) >> hd_geometry.sector_shift;
 
     hd_geometry.hsrc = "guess";
     hd_geometry.ssrc = "guess";
@@ -454,7 +336,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
     hd_geometry.offset = offset;
 
     if ((p = getcmditem("iso")) != CMD_NOTFOUND) {
-#ifdef DBG_ELTORITO
+#if DBG_ELTORITO
 	eltorito_dump(where);
 #endif
 	struct edd4_bvd *bvd = (struct edd4_bvd *)(where + 17 * 2048);
@@ -490,8 +372,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	    hd_geometry.h = 255;
 	    hd_geometry.s = 15;
 	    /* 2048-byte sectors, so adjust the size and count */
-	    hd_geometry.sector_size = 2048;
-	    sectors = (size - hd_geometry.offset) >> 11;
+	    hd_geometry.sector_shift = 11;
 	    break;
 	case 1:		/* 1.2 MB floppy  */
 	    hd_geometry.s = 15;
@@ -511,9 +392,10 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	case 4:
 	    hd_geometry.driveno = 0x80;
 	    hd_geometry.type = 0;
-	    sectors = (size - hd_geometry.offset) >> 9;
 	    break;
 	}
+	sectors = (size - hd_geometry.offset) >> hd_geometry.sector_shift;
+
 	/* For HDD emulation, we figure out the geometry later. Otherwise: */
 	if (hd_geometry.s) {
 	    hd_geometry.hsrc = hd_geometry.ssrc = "El Torito";
@@ -531,7 +413,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	hd_geometry.h = dosemu.h;
 	hd_geometry.s = dosemu.s;
 	hd_geometry.offset += dosemu.offset;
-	sectors = (size - hd_geometry.offset) >> 9;
+	sectors = (size - hd_geometry.offset) >> hd_geometry.sector_shift;
 
 	hd_geometry.hsrc = hd_geometry.ssrc = "DOSEMU";
     }
@@ -584,7 +466,7 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 
 	if (!(max_h | max_s)) {
 	    /* No FAT filesystem found to steal geometry from... */
-	    if ((sectors < 4096 * 2) && (hd_geometry.sector_size == 512)) {
+	    if ((sectors < 4096 * 2) && (hd_geometry.sector_shift == 9)) {
 		int ok = 0;
 		unsigned int xsectors = sectors;
 
@@ -835,8 +717,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     unsigned int bin_size;
     char *memdisk_hook;
     struct memdisk_header *hptr;
-    struct safe_hook *safe_hook;
     struct patch_area *pptr;
+    struct mBFT *mbft;
     uint16_t driverseg;
     uint32_t driverptr, driveraddr;
     uint16_t dosmem_k;
@@ -896,7 +778,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Choose the appropriate installable memdisk hook */
     if (do_eltorito) {
-	if (geometry->sector_size == 2048) {
+	if (geometry->sector_shift == 11) {
 	    bin_size = (int)&_binary_memdisk_iso_2048_bin_size;
 	    memdisk_hook = (char *)&_binary_memdisk_iso_2048_bin_start;
 	} else {
@@ -919,11 +801,10 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     /* Figure out where it needs to go */
     hptr = (struct memdisk_header *)memdisk_hook;
-    safe_hook = (struct safe_hook *)(memdisk_hook + hptr->int13_offs);
     pptr = (struct patch_area *)(memdisk_hook + hptr->patch_offs);
 
     dosmem_k = rdz_16(BIOS_BASEMEM);
-    pptr->olddosmem = dosmem_k;
+    pptr->mdi.olddosmem = dosmem_k;
     stddosmem = dosmem_k << 10;
     /* If INT 15 E820 and INT 12 disagree, go with the most conservative */
     if (stddosmem > dos_mem)
@@ -934,11 +815,12 @@ void setup(const struct real_mode_args *rm_args_ptr)
     pptr->cylinders = geometry->c;	/* Possible precision loss */
     pptr->heads = geometry->h;
     pptr->sectors = geometry->s;
-    pptr->disksize = geometry->sectors;
-    pptr->diskbuf = ramdisk_image + geometry->offset;
+    pptr->mdi.disksize = geometry->sectors;
+    pptr->mdi.diskbuf = ramdisk_image + geometry->offset;
+    pptr->mdi.sector_shift = geometry->sector_shift;
     pptr->statusptr = (geometry->driveno & 0x80) ? 0x474 : 0x441;
 
-    pptr->bootloaderid = shdr->type_of_loader;
+    pptr->mdi.bootloaderid = shdr->type_of_loader;
 
     pptr->configflags = CONFIG_SAFEINT;	/* Default */
     /* Set config flags */
@@ -1031,7 +913,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	     * for INT 0x13, AH=0x48 "EDD Get Disk Parameters" call on an
 	     * El Torito ODD.  Check for 2048-byte sector size
 	     */
-	    if (geometry->sector_size != 2048)
+	    if (geometry->sector_shift != 11)
 		pptr->edd_dpt.flags |= 0x0002;	/* Geometry valid */
 	}
 	if (!(geometry->driveno & 0x80)) {
@@ -1040,7 +922,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	    pptr->edd_dpt.flags |= 0x0014;
 	}
 
-	pptr->edd_dpt.devpath[0] = pptr->diskbuf;
+	pptr->edd_dpt.devpath[0] = pptr->mdi.diskbuf;
 	pptr->edd_dpt.chksum = -checksum_buf(&pptr->edd_dpt.dpikey, 73 - 30);
     }
 
@@ -1109,8 +991,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Anything beyond the end is for the stack */
     pptr->mystack = (uint16_t) (stddosmem - driveraddr);
 
-    pptr->oldint13 = rdz_32(BIOS_INT13);
-    pptr->oldint15 = rdz_32(BIOS_INT15);
+    pptr->mdi.oldint13.uint32 = rdz_32(BIOS_INT13);
+    pptr->mdi.oldint15.uint32 = rdz_32(BIOS_INT15);
 
     /* Adjust the E820 table: if there are null ranges (type 0)
        at the end, change them to type end of list (-1).
@@ -1125,7 +1007,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	bios_drives = 0;
 	pptr->drivecnt = 0;
 	no_bpt = 1;
-	pptr->oldint13 = driverptr + hptr->iret_offs;
+	pptr->mdi.oldint13.uint32 = driverptr + hptr->iret_offs;
 	wrz_8(BIOS_EQUIP, rdz_8(BIOS_EQUIP) & ~0xc1);
 	wrz_8(BIOS_HD_COUNT, 0);
     } else if (getcmditem("nopass") != CMD_NOTFOUND) {
@@ -1173,9 +1055,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	}
     }
 
-    /* Note the previous INT 13h hook in the "safe hook" structure */
-    safe_hook->old_hook = pptr->oldint13;
-
     /* Add ourselves to the drive count */
     pptr->drivecnt++;
 
@@ -1191,8 +1070,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->driveshiftlimit);
 
     /* Pointer to the command line */
-    pptr->cmdline_off = bin_size + (nranges + 1) * sizeof(ranges[0]);
-    pptr->cmdline_seg = driverseg;
+    pptr->mdi.cmdline.seg_off.offset = bin_size + (nranges + 1) * sizeof(ranges[0]);
+    pptr->mdi.cmdline.seg_off.segment = driverseg;
 
     /* Copy driver followed by E820 table followed by command line */
     {
@@ -1200,7 +1079,6 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
 	/* Adjust these pointers to point to the installed image */
 	/* Careful about the order here... the image isn't copied yet! */
-	safe_hook = (struct safe_hook *)(dpp + hptr->int13_offs);
 	pptr = (struct patch_area *)(dpp + hptr->patch_offs);
 	hptr = (struct memdisk_header *)dpp;
 
@@ -1210,8 +1088,12 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	dpp = mempcpy(dpp, shdr->cmdline, cmdline_len);
     }
 
+    /* Note the previous INT 13h hook in the "safe hook" structure */
+    hptr->safe_hook.old_hook.uint32 = pptr->mdi.oldint13.uint32;
+
     /* Re-fill the "safe hook" mBFT field with the physical address */
-    safe_hook->mBFT += (uint32_t)hptr;
+    mbft = (struct mBFT *)(((const char *)hptr) + hptr->safe_hook.mbft);
+    hptr->safe_hook.mbft = (size_t)mbft;
 
     /* Update various BIOS magic data areas (gotta love this shit) */
 
@@ -1242,21 +1124,18 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	if (getcmditem("dpt") != CMD_NOTFOUND ||
 	    ((nflop == 1 || no_bpt) && getcmditem("nodpt") == CMD_NOTFOUND)) {
 	    /* Do install a replacement DPT into INT 1Eh */
-	    pptr->dpt_ptr = hptr->patch_offs + offsetof(struct patch_area, dpt);
+	    pptr->mdi.dpt_ptr =
+		hptr->patch_offs + offsetof(struct patch_area, dpt);
 	}
     }
 
     /* Complete the mBFT */
-    {
-	struct mBFT *mBFT = (struct mBFT *)safe_hook->mBFT;
-
-	mBFT->acpi.signature[0] = 'm';	/* "mBFT" */
-	mBFT->acpi.signature[1] = 'B';
-	mBFT->acpi.signature[2] = 'F';
-	mBFT->acpi.signature[3] = 'T';
-	mBFT->safe_hook = (uint32_t)safe_hook;
-	mBFT->acpi.checksum = -checksum_buf(mBFT, mBFT->acpi.length);
-    }
+    mbft->acpi.signature[0] = 'm';	/* "mBFT" */
+    mbft->acpi.signature[1] = 'B';
+    mbft->acpi.signature[2] = 'F';
+    mbft->acpi.signature[3] = 'T';
+    mbft->safe_hook = (size_t)&hptr->safe_hook;
+    mbft->acpi.checksum = -checksum_buf(mbft, mbft->acpi.length);
 
     /* Install the interrupt handlers */
     printf("old: int13 = %08x  int15 = %08x  int1e = %08x\n",
@@ -1264,8 +1143,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     wrz_32(BIOS_INT13, driverptr + hptr->int13_offs);
     wrz_32(BIOS_INT15, driverptr + hptr->int15_offs);
-    if (pptr->dpt_ptr)
-	wrz_32(BIOS_INT1E, driverptr + pptr->dpt_ptr);
+    if (pptr->mdi.dpt_ptr)
+	wrz_32(BIOS_INT1E, driverptr + pptr->mdi.dpt_ptr);
 
     printf("new: int13 = %08x  int15 = %08x  int1e = %08x\n",
 	   rdz_32(BIOS_INT13), rdz_32(BIOS_INT15), rdz_32(BIOS_INT1E));
@@ -1291,7 +1170,8 @@ void setup(const struct real_mode_args *rm_args_ptr)
     /* Reboot into the new "disk" */
     puts("Loading boot sector... ");
 
-    memcpy((void *)boot_base, (char *)pptr->diskbuf + geometry->boot_lba * 512,
+    memcpy((void *)boot_base,
+	   (char *)pptr->mdi.diskbuf + geometry->boot_lba * 512,
 	   boot_len);
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
@@ -1306,3 +1186,4 @@ void setup(const struct real_mode_args *rm_args_ptr)
     shdr->esdi = pnp_install_check();
     shdr->edx = geometry->driveno;
 }
+

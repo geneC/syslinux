@@ -49,6 +49,7 @@ enum menu_action {
     MA_QUIT,			/* Quit to CLI */
     MA_EXIT,			/* Exit to higher-level menu */
     MA_EXIT_UNRES,		/* Unresolved exit */
+    MA_HELP,			/* Show help text */
 };
 
 struct menu_entry {
@@ -58,11 +59,13 @@ struct menu_entry {
     const char *passwd;
     char *helptext;
     const char *cmdline;
+    const char *background;
     struct menu *submenu;
     struct menu_entry *next;	/* Linked list of all labels across menus */
     int entry;			/* Entry number inside menu */
     enum menu_action action;
     unsigned char hotkey;
+    bool immediate;		/* Hotkey action does not require Enter */
     bool save;			/* Save this entry if selected */
 };
 
@@ -156,6 +159,7 @@ struct menu {
     int timeout;
 
     bool allowedit;
+    bool immediate;		/* MENU IMMEDIATE default for this menu */
     bool save;			/* MENU SAVE default for this menu */
 
     int curentry;

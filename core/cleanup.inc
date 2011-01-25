@@ -16,7 +16,7 @@
 ;; Some final tidying before jumping to a kernel or bootsector
 ;;
 
-		section .text
+		section .text16
 ;
 ; cleanup_hardware:
 ;
@@ -49,6 +49,11 @@ cleanup_hardware:
 		int 10h
 .no_vmware:
 %endif
+
+		call comboot_cleanup_api
+
+		call timer_cleanup
+
 		popad
 
 		; If we enabled serial port interrupts, clean them up now

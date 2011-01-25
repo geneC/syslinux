@@ -172,6 +172,7 @@ static struct menu *new_menu(struct menu *parent,
 	m->allowedit = parent->allowedit;
 	m->timeout = parent->timeout;
 	m->save = parent->save;
+	m->immediate = parent->immediate;
 
 	m->ontimeout = refstr_get(parent->ontimeout);
 	m->onerror = refstr_get(parent->onerror);
@@ -219,6 +220,7 @@ struct labeldata {
     unsigned int menuindent;
     enum menu_action action;
     int save;
+    int immediate;
     struct menu *submenu;
 };
 
@@ -304,6 +306,7 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	me->hotkey = 0;
 	me->action = ld->action ? ld->action : MA_CMD;
 	me->save = ld->save ? (ld->save > 0) : m->save;
+	me->immediate = ld->immediate ? (ld->immediate > 0) : m->immediate;
 
 	if (ld->menuindent) {
 	    const char *dn;
@@ -340,7 +343,8 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	    if (ld->ipappend) {
 		ipappend = syslinux_ipappend_strings();
 		for (i = 0; i < ipappend->count; i++) {
-		    if ((ld->ipappend & (1U << i)) && ipappend->ptr[i])
+		    if ((ld->ipappend & (1U << i)) && ipappend->ptr[i] &&
+			ipappend->ptr[i][0])
 			ipp += sprintf(ipp, " %s", ipappend->ptr[i]);
 		}
 	    }
@@ -367,6 +371,11 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	case MA_GOTO:
 	case MA_EXIT:
 	    me->submenu = ld->submenu;
+	    break;
+
+	case MA_HELP:
+	    me->cmdline = refstr_get(ld->kernel);
+	    me->background = refstr_get(ld->append);
 	    break;
 
 	default:
@@ -603,9 +612,9 @@ static char *is_fkey(char *cmdstr, int *fkeyno)
 static void parse_config_file(FILE * f)
 {
     char line[MAX_LINE], *p, *ep, ch;
-    enum kernel_type type;
-    enum message_number msgnr;
-    int fkeyno;
+    enum kernel_type type = -1;
+    enum message_number msgnr = -1;
+    int fkeyno = 0;
     struct menu *m = current_menu;
 
     while (fgets(line, sizeof line, f)) {
@@ -674,6 +683,16 @@ static void parse_config_file(FILE * f)
 		    ld.save = -1;
 		else
 		    m->save = false;
+	    } else if (looking_at(p, "immediate")) {
+		if (ld.label)
+		    ld.immediate = 1;
+		else
+		    m->immediate = true;
+	    } else if (looking_at(p, "noimmediate")) {
+		if (ld.label)
+		    ld.immediate = -1;
+		else
+		    m->immediate = false;
 	    } else if (looking_at(p, "onerror")) {
 		refstr_put(m->onerror);
 		m->onerror = refstrdup(skipspace(p + 7));
@@ -821,6 +840,24 @@ static void parse_config_file(FILE * f)
 		}
 	    } else if (looking_at(p, "start")) {
 		start_menu = m;
+	    } else if (looking_at(p, "help")) {
+		if (ld.label) {
+		    ld.action = MA_HELP;
+		    p = skipspace(p + 4);
+
+		    refstr_put(ld.kernel);
+		    ld.kernel = refdup_word(&p);
+
+		    if (ld.append) {
+			refstr_put(ld.append);
+			ld.append = NULL;
+		    }
+
+		    if (*p) {
+			p = skipspace(p);
+			ld.append = refdup_word(&p); /* Background */
+		    }
+		}
 	    } else if ((ep = looking_at(p, "resolution"))) {
 		int x, y;
 		x = strtoul(ep, &ep, 0);

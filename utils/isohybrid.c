@@ -401,7 +401,7 @@ display_mbr(const uint8_t *mbr, size_t len)
     unsigned char c = 0;
     unsigned int i = 0, j = 0;
 
-    printf("sizeof(MBR): %d bytes\n", len);
+    printf("sizeof(MBR): %zu bytes\n", len);
     for (i = 0; i < len; i++)
     {
         if (!(i % 16))
@@ -499,7 +499,7 @@ main(int argc, char *argv[])
     padding = (frac > 0) ? cylsize - frac : 0;
 
     if (mode & VERBOSE)
-        printf("imgsize: %lu, padding: %d\n", isostat.st_size, padding);
+        printf("imgsize: %zu, padding: %d\n", (size_t)isostat.st_size, padding);
 
     cc = c = (isostat.st_size + padding) / cylsize;
     if (c > 1024)
@@ -514,7 +514,9 @@ main(int argc, char *argv[])
         if (fseek(fp, 440, SEEK_SET))
             err(1, "%s: seek error - 4", argv[0]);
 
-        fscanf(fp, "%4c", &id);
+	if (fread(&id, 1, 4, fp) != 4)
+	    err(1, "%s: read error", argv[0]);
+
         id = lendian_int(id);
         if (!id)
         {
@@ -541,15 +543,11 @@ main(int argc, char *argv[])
 
     if (padding)
     {
-        if (!(buf = realloc(buf, padding)))
-            err(1, "%s: could not re-size buffer", argv[0]);
+        if (fsync(fileno(fp)))
+            err(1, "%s: could not synchronise", argv[0]);
 
-        if (fseek(fp, isostat.st_size, SEEK_SET))
-            err(1, "%s: seek error - 6", argv[0]);
-
-        memset(buf, 0, padding);
-        if (fwrite(buf, sizeof(char), padding, fp) != (size_t)padding)
-            err(1, "%s: write error - 2", argv[0]);
+        if (ftruncate(fileno(fp), isostat.st_size + padding))
+            err(1, "%s: could not add padding bytes", argv[0]);
     }
 
     free(buf);

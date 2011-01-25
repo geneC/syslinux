@@ -30,7 +30,7 @@ VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
 VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')
 
-MEMTEST_URL = http://memtest.org/download/4.00/memtest86+-4.00.bin
+MEMTEST_URL = http://memtest.org/download/4.10/memtest86+-4.10.bin
 MEMTEST     = memtest.bin
 
 KERNEL_VERSION          ?= $(shell uname -r)
@@ -43,7 +43,6 @@ ISOLINUX_DIR            ?= isolinux
 FLOPPY_DIR		?= floppy
 PCI_IDS_FILE            ?= $(PWD)/$(FLOPPY_DIR)/pci.ids
 GZ_PCI_IDS_FILE         ?= $(PCI_IDS_FILE).gz
-REBOOT_COM32            ?= $(com32)/modules/reboot.c32
 MENU_COM32              ?= $(com32)/menu/menu.c32
 ART_DIR                 ?= art/
 QEMU			?= qemu-kvm
@@ -56,7 +55,7 @@ hdt.elf : $(OBJS) $(LIBS) $(C_LIBS)
 memtest:
 	-[ ! -f $(FLOPPY_DIR)/$(MEMTEST) ] && $(WGET) $(MEMTEST_URL) -O $(FLOPPY_DIR)/$(MEMTEST)
 
-hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(REBOOT_COM32) $(MENU_COM32) memtest
+hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(MENU_COM32) memtest
 	rm -f hdt*.img
 	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg |\
 	$(SED) -e 's/%CODENAME%/$(CODENAME)/g' > $(FLOPPY_DIR)/syslinux.cfg
@@ -68,7 +67,6 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	-[ -f $(MODULES_PCIMAP_FILE) ] && cat $(MODULES_PCIMAP_FILE) | $(GZIPPROG) - -f | MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) - a:modules.pcimap
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) hdt.c32 a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(MENU_COM32) a:
-	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(REBOOT_COM32) a:
 	@ [ -f $(GZ_PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(GZ_PCI_IDS_FILE) a:pci.ids || printf "\nThe $(GZ_PCI_IDS_FILE) file is missing and can be downloaded from http://pciids.sourceforge.net and gzipped in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/syslinux.cfg a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/$(MEMTEST) a:
@@ -89,7 +87,6 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg |\
 		$(SED) -e 's/%CODENAME%/$(CODENAME)/g' > $(ISO_DIR)/$(ISOLINUX_DIR)/isolinux.cfg
 	cp hdt.c32 $(ISO_DIR)/$(ISOLINUX_DIR)
-	cp $(REBOOT_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(FLOPPY_DIR)/$(MEMTEST) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(MENU_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp -av $(ART_DIR)/backgnd.png $(ISO_DIR)/$(ISOLINUX_DIR)

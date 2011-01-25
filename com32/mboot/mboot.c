@@ -135,7 +135,7 @@ static int get_modules(char **argv, struct module_data **mdp)
 	    char *p;
 	    mp->cmdline = p = malloc(arglen);
 	    for (; *argp && strcmp(*argp, module_separator); argp++) {
-		p = strpcpy(p, *argp);
+		p = stpcpy(p, *argp);
 		*p++ = ' ';
 	    }
 	    *--p = '\0';

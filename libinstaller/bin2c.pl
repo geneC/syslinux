@@ -69,10 +69,10 @@ if ($align != 0) {
     }
 }
 
-printf "\n};\n\nunsigned int %s_len = %u;\n", $table_name, $total_len;
+printf "\n};\n\nconst unsigned int %s_len = %u;\n", $table_name, $total_len;
 
 @st = stat STDIN;
 
-printf "\nint %s_mtime = %d;\n", $table_name, $st[9];
+printf "\nconst int %s_mtime = %d;\n", $table_name, $st[9];
 
 exit 0;

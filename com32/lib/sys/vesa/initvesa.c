@@ -95,9 +95,13 @@ static int vesacon_set_mode(int x, int y)
     com32sys_t rm;
     uint8_t *rom_font;
     uint16_t mode, bestmode, *mode_ptr;
+    struct vesa_info *vi;
     struct vesa_general_info *gi;
     struct vesa_mode_info *mi;
     enum vesa_pixel_format pxf, bestpxf;
+    int err = 0;
+
+    debug("Hello, World!\r\n");
 
     /* Free any existing data structures */
     if (__vesacon_background) {
@@ -110,13 +114,15 @@ static int vesacon_set_mode(int x, int y)
     }
 
     /* Allocate space in the bounce buffer for these structures */
-    gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
-    mi = &((struct vesa_info *)__com32.cs_bounce)->mi;
-
-    debug("Hello, World!\r\n");
+    vi = lzalloc(sizeof *vi);
+    if (!vi) {
+	err = 10;		/* Out of memory */
+	goto exit;
+    }
+    gi = &vi->gi;
+    mi = &vi->mi;
 
     memset(&rm, 0, sizeof rm);
-    memset(gi, 0, sizeof *gi);
 
     gi->signature = VBE2_MAGIC;	/* Get VBE2 extended data */
     rm.eax.w[0] = 0x4F00;	/* Get SVGA general information */
@@ -124,12 +130,18 @@ static int vesacon_set_mode(int x, int y)
     rm.es = SEG(gi);
     __intcall(0x10, &rm, &rm);
 
-    if (rm.eax.w[0] != 0x004F)
-	return 1;		/* Function call failed */
-    if (gi->signature != VESA_MAGIC)
-	return 2;		/* No magic */
-    if (gi->version < 0x0102)
-	return 3;		/* VESA 1.2+ required */
+    if (rm.eax.w[0] != 0x004F) {
+	err = 1;		/* Function call failed */
+	goto exit;
+    }
+    if (gi->signature != VESA_MAGIC) {
+	err = 2;		/* No magic */
+	goto exit;
+    }
+    if (gi->version < 0x0102) {
+	err = 3;		/* VESA 1.2+ required */
+	goto exit;
+    }
 
     /* Copy general info */
     memcpy(&__vesa_info.gi, gi, sizeof *gi);
@@ -232,8 +244,10 @@ static int vesacon_set_mode(int x, int y)
 	}
     }
 
-    if (bestpxf == PXF_NONE)
-	return 4;		/* No mode found */
+    if (bestpxf == PXF_NONE) {
+	err = 4;		/* No mode found */
+	goto exit;
+    }
 
     mi = &__vesa_info.mi;
     mode = bestmode;
@@ -260,8 +274,10 @@ static int vesacon_set_mode(int x, int y)
 	mode |= 0x4000;		/* Request linear framebuffer if supported */
     rm.ebx.w[0] = mode;
     __intcall(0x10, &rm, &rm);
-    if (rm.eax.w[0] != 0x004F)
-	return 9;		/* Failed to set mode */
+    if (rm.eax.w[0] != 0x004F) {
+	err = 9;		/* Failed to set mode */
+	goto exit;
+    }
 
     __vesacon_background = calloc(mi->h_res*mi->v_res, 4);
     __vesacon_shadowfb = calloc(mi->h_res*mi->v_res, 4);
@@ -279,7 +295,11 @@ static int vesacon_set_mode(int x, int y)
 
     __vesacon_pixel_format = bestpxf;
 
-    return 0;
+exit:
+    if (vi)
+	lfree(vi);
+
+    return err;
 }
 
 static int init_text_display(void)

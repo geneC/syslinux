@@ -23,7 +23,6 @@ MAX_GETC_LG2	equ 4			; Max number of file nesting
 MAX_GETC	equ (1 << MAX_GETC_LG2)
 bytes_per_getc_lg2	equ 16-MAX_GETC_LG2
 bytes_per_getc		equ (1 << bytes_per_getc_lg2)
-secs_per_getc	equ bytes_per_getc/SECTOR_SIZE
 MAX_UNGET	equ 9			; Max bytes that can be pushed back
 
 		struc getc_file
@@ -60,8 +59,9 @@ getc_file_lg2	equ 4			; Size of getc_file as a power of 2
 ;
 ;		close:	Output:	CF set if nothing open
 ;
-open:
-		call searchdir
+		global core_open
+core_open:
+		pm_call pm_searchdir
 		jz openfd.ret
 openfd:
 		push bx
@@ -82,11 +82,11 @@ openfd:
 .ret:		ret
 
 .stack_full:
-		call close_file
+		pm_call pm_close_file
 		xor ax,ax		; ZF <- 1
 		pop bx
 		ret
-
+		
 getc:
 		push bx
 		push si
@@ -134,8 +134,8 @@ getc:
 		and si,si
 		mov [di+gc_bufbytes],si	; In case SI == 0
 		jz .empty
-		mov cx,bytes_per_getc >> SECTOR_SHIFT
-		call getfssec
+		mov cx,bytes_per_getc
+		pm_call getfsbytes
 		mov [di+gc_bufbytes],cx
 		mov [di+gc_file],si
 		jcxz .empty
@@ -177,7 +177,7 @@ close:
 		push si
 		mov bx,[CurrentGetC]
 		mov si,[bx+gc_file]
-		call close_file
+		pm_call pm_close_file
 		add bx,getc_file_size
 		mov [CurrentGetC],bx
 		pop si
@@ -321,7 +321,7 @@ parseint:
 .isk:		shl ebx,10		; * 2^10
 		jmp .fini
 
-		section .bss1
+		section .bss16
 		alignb 4
 NumBuf		resb 15			; Buffer to load number
 NumBufEnd	resb 1			; Last byte in NumBuf
@@ -329,14 +329,14 @@ NumBufEnd	resb 1			; Last byte in NumBuf
 GetCStack	resb getc_file_size*MAX_GETC
 .end		equ $
 
-		section .data
+		section .data16
 CurrentGetC	dw GetCStack.end	; GetCStack empty
 
 ;
 ; unhexchar:    Convert a hexadecimal digit in AL to the equivalent number;
 ;               return CF=1 if not a hex digit
 ;
-		section .text
+		section .text16
 unhexchar:
                 cmp al,'0'
 		jb .ret			; If failure, CF == 1 already

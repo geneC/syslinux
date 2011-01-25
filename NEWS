@@ -2,6 +2,146 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 4.04:
+	* PXELINUX: Fix handling of unqualified DNS names.
+	* PXELINUX: Fix timer bug when PXELINUX might be unloaded
+	  (Gene Cumm).
+	* core/writedec.inc: Fix duplicate declaration and overflow
+	  (Gene Cumm).
+	* GCC 4.5 fixes.
+	* sample directory: Fix Makefile include (Gene Cumm).
+	* ver.com: New universal DOS/COMBOOT application to display
+	  version information (includes DRMK) (Gene Cumm).
+	* rosh.c32: updated; Using getopt() for internal commands to aid
+	  parsing options; Fix bugs in ls; add warm reboot and echo
+	  (Gene Cumm).
+	* com32: fix a file descriptor leak.
+	* gfxboot.c32: handle TEXT..ENDTEXT; error out on no LABELs
+	  found (Sebastian Herbszt).
+	* Fix booting on non-partitioned devices.
+	* MBR, isohybrid: Workaround for a BIOS issue on Acer
+	  Travelmate and possibly other machines.
+
+Changes in 4.03:
+	* Don't hang if no configuration file is found.
+	* Better support for booting from MBRs which don't pass
+	  handover information.
+	* EXTLINUX: Try to be smarter about finding the partition
+	  offset.
+	* chain.c32: support chainloading Dell Real Mode Kernel (Gene
+	  Cumm).
+	* chain.c32: fix booting in CHS mode.
+	* rosh.c32 updated (Gene Cumm).
+	* Fix the -s option to the syslinux/extlinux installer (Arwin
+	  Vosselman).
+	* isohybrid: fix padding of large images (PJ Pandit).
+
+Changes in 4.02:
+	* SYSLINUX: correctly handle the case where the -d option is
+	  specified with a non-absolute path, i.e. "syslinux -d
+	  syslinux" instead of "syslinux -d /syslinux".
+	* ISOLINUX: recognize the directory names /boot/syslinux and
+	  /syslinux, and the filename syslinux.cfg in addition to the
+	  isolinux-specific names.  Thus, "syslinux.cfg" is now a
+	  generic name, whereas "isolinux.cfg" or "extlinux.conf" is
+	  specific to different derivative.
+	* chain.c32: support setting alternate config filename for
+	  stage2 of GRUB Legacy (Gert Hulselmans).
+	* whichsys.c32: execute specific command, based on Syslinux
+	  bootloader variant (Gert Hulselmans).
+	* lua.c32: a lot of new bindings added to the "syslinux"
+	  namespace: VESA, PCI, DMI, kernel loading (Marcel Ritter).
+	* btrfs: print a comprehensive error message if compressed or
+	  encrypted files are encountered (neither is currently
+	  supported.)
+	* SYSLINUX: mtools installer: honor TMPDIR, error out on disk
+	  full.
+	* Handle fallbacks from EDD to CHS, to deal with systems which
+	  announce EDD support but don't actually have it.
+	* SYSLINUX: the mtools, DOS and win32 installers now use the new
+	  command line options.
+	* PXELINUX: fix the use of IP addresses in TFTP :: or tftp://
+	  host syntax.
+	* SYSLINUX: experimental Win64 installer (syslinux64.exe).
+
+Changes in 4.01:
+	* ISOLINUX: fix initialization on systems which don't zero
+	  low memory.
+	* SYSLINUX/EXTLINUX: fix handing of disk read retries in
+	  EDD mode.
+	* ISOLINUX: change the initialization sequence to avoid
+	  problems with certain (old) BIOSes.  Special thanks to
+	  Helmut Hullen for invaluable debugging support.
+	* ifplop.c32: new module which detects if the PLoP Boot Loader
+	  already has booted a CDROM or USB drive (Gert Hulselmans).
+	* Correct a severe memory overwrite bug, triggered primarily
+	  when selecting a very long command line in the menu system.
+	* lua.c32: Lua script interpreter, currently experimental
+	  (Alexey Zaytsev, Marcel Ritter, Geert Stappers).
+	* PXELINUX: new option IPAPPEND 4 to append the system UUID to
+	  the kernel command line.
+	* PXELINUX: display BOOTIF and SYSUUID at startup time, and
+	  when Ctrl-N is pressed on the command line.
+
+Changes in 4.00:
+	* Major code base changes; all filesystem rewritten in C.
+	  This work was done primarily by Liu Aleaxander (Yuanhan Liu).
+	* EXTLINUX: btrfs and ext4 support.  btrfs support was done by
+	  Alek Du of Intel.
+	* EXTLINUX is no longer a separate derivative; extlinux and
+	  syslinux both install the same loader (ldlinux.sys); for the
+	  Linux-based installers the extlinux binary is used for a
+	  mounted filesystem; the syslinux binary for an unmounted
+	  filesystem.
+	* When loading a new configuration file with the CONFIG
+	  command, one can now also specify a new current directory
+	  with an APPEND statement.
+	* Full ADV support for Syslinux, to boot-once and MENU SAVE
+	  works.
+	* Full support of GPT-partitioned disks, including disks
+	  and/or parititions larger than 2 TiB (if supported by BIOS.)
+	* The GPT handover protocol adjusted to the current T13
+	  committee draft; see doc/gpt.txt.
+	* HDT: code cleanup, small bugfixes
+	* The "linux" syslinux installer (syslinux-nomtools) now has a
+	  command-line syntax closer to the extlinux installer.  The
+	  mtools, dos and win32 installers will get this new syntax
+	  eventually, but it is not implemented yet.
+	* chain.c32: support booting GPT partitions by index, GUID, label.
+	* chain.c32: support booting the Syslinux partition with "fs".
+	* chain.c32: implement gpt.txt hand-over protocol.
+	* chain.c32: support for chainloading Grub stage 2.
+	* PXELINUX: TFTP URL syntax (tftp://) supported even when not
+	  running gPXE/gpxelinux.
+	* New ls.c32 module to display the contents of the disk from
+	  the command line, and pwd.c32 to display the current
+	  directory.
+	* rosh.c32 (read only shell) updated and hopefully usable.
+	* PXELINUX: Support "localboot -1", just like the other
+	  derivatives.
+	* gfxboot.com removed in favor of gfxboot.c32.
+	* New MENU HELP statement to display fullscreen help text as a
+	  result of a menu selection.
+	* memdiskfind utility that can be used with the phram driver
+	  in the Linux kernel to mount a memdisk.
+        * ifcpu.c32: Adding usage when no parameters are given, 
+          adding PAE support.
+	* ifcpu.c32, ifcpu64.c32: handle more than one argument per
+	  target.
+	* isohybrid: C version which does not require Perl.
+	* New command MENU IMMEDIATE to permit hotkeys to activate
+	  immediately without needing Enter.
+	* mdiskchk.com supports a --no-sequential (or -n) option to
+	  suppress the classic all-drive-probing heuristic.  Useful
+	  on BIOSes who crash/hang when certain drive numbers are
+	  probed.
+	* ElTorito.Sys DOS driver now scans drive numbers upwards
+	  instead of downwards, in order to avoid a fairly common
+	  bug on some BIOSes where probing drive 0xFF causes a
+	  failure.
+	* NASM 2.03 or later required to build.  2.07 or later
+          recommended.
+
 Changes in 3.86:
 	* chain.c32: fix chainloading the MBR of a hard disk (broken
 	  in 3.85).

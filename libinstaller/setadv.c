@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -19,10 +20,16 @@
  * Return 0 on success, -1 on error, and set errno.
  *
  */
+#define  _GNU_SOURCE
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <errno.h>
 #include "syslxint.h"
+#include "syslxcom.h"
 
 unsigned char syslinux_adv[2 * ADV_SIZE];
 
@@ -36,14 +43,14 @@ static void cleanup_adv(unsigned char *advbuf)
     uint32_t csum;
 
     /* Make sure both copies agree, and update the checksum */
-    set_32(advbuf, ADV_MAGIC1);
+    set_32((uint32_t *) advbuf, ADV_MAGIC1);
 
     csum = ADV_MAGIC2;
     for (i = 8; i < ADV_SIZE - 4; i += 4)
-	csum -= get_32(advbuf + i);
+	csum -= get_32((uint32_t *) (advbuf + i));
 
-    set_32(advbuf + 4, csum);
-    set_32(advbuf + ADV_SIZE - 4, ADV_MAGIC3);
+    set_32((uint32_t *) (advbuf + 4), csum);
+    set_32((uint32_t *) (advbuf + ADV_SIZE - 4), ADV_MAGIC3);
 
     memcpy(advbuf + ADV_SIZE, advbuf, ADV_SIZE);
 }
@@ -130,12 +137,13 @@ static int adv_consistent(const unsigned char *p)
     int i;
     uint32_t csum;
 
-    if (get_32(p) != ADV_MAGIC1 || get_32(p + ADV_SIZE - 4) != ADV_MAGIC3)
+    if (get_32((uint32_t *) p) != ADV_MAGIC1 ||
+	get_32((uint32_t *) (p + ADV_SIZE - 4)) != ADV_MAGIC3)
 	return 0;
 
     csum = 0;
     for (i = 4; i < ADV_SIZE - 4; i += 4)
-	csum += get_32(p + i);
+	csum += get_32((uint32_t *) (p + i));
 
     return csum == ADV_MAGIC2;
 }
