@@ -122,7 +122,7 @@ int parse_xsdt(s_acpi * acpi)
 		parse_dsdt(d);
 		/* PSDT have to be considered as SSDT. Intel ACPI Spec @ 5.2.11.3 */
 	    } else if ((memcmp(adh.signature, SSDT, sizeof(SSDT) - 1) == 0)
-		       || (memcmp(adh.signature, PSDT, sizeof(PSDT) - 1))) {
+		       || (memcmp(adh.signature, PSDT, sizeof(PSDT) - 1) == 0)) {
 		if ((acpi->ssdt_count >= MAX_SSDT - 1))
 		    break;
 
