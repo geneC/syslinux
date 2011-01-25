@@ -16,16 +16,22 @@
  * Routines for probing BIOS disk drives
  */
 
-/*
- * Uncomment for debugging
- *
- * #define DBG_DSKPROBE 1
- */
+/* Change to 1 for debugging */
+#define DBG_DSKPROBE 0
 
 #include <stdint.h>
 #include "memdisk.h"
 #include "bda.h"
 #include "conio.h"
+
+/* Function type for printf() */
+typedef int (f_printf) (const char *, ...);
+
+/* Dummy printf() that does nothing */
+static f_printf no_printf;
+static f_printf *dskprobe_printfs[] = { no_printf, printf };
+
+#define dskprobe_printf (dskprobe_printfs[DBG_DSKPROBE])
 
 /*
  * We will probe a BIOS drive numer using INT 13h, AH=probe
@@ -43,9 +49,8 @@ int probe_int13_ah(uint8_t drive, uint8_t probe)
     intcall(0x13, &regs, &regs);
 
     err = !(regs.eflags.l & 1);
-#ifdef DBG_DSKPROBE
-    printf("probe_int13_ah(0x%02x, 0x%02x) == %d\n", drive, probe, err);
-#endif
+    dskprobe_printf("probe_int13_ah(0x%02x, 0x%02x) == %d\n", drive, probe,
+		    err);
     return err;
 }
 
@@ -72,10 +77,8 @@ int probe_bda_drive(uint8_t drive)
 	    bios_drives = 0;
     }
     err = (drive - (drive & 0x80)) >= bios_drives ? 0 : 1;
-#ifdef DBG_DSKPROBE
-    printf("probe_bda_drive(0x%02x) == %d, count: %d\n",
-	   drive, err, bios_drives);
-#endif
+    dskprobe_printf("probe_bda_drive(0x%02x) == %d, count: %d\n", drive, err,
+		    bios_drives);
     return err;
 }
 
@@ -111,4 +114,11 @@ uint8_t probe_drive_range(uint8_t start)
 	    break;
     }
     return drive;
+}
+
+/* Dummy printf() that does nothing */
+static int no_printf(const char *ignored, ...)
+{
+    (void)ignored;
+    return 0;
 }
