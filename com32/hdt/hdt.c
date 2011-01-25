@@ -48,11 +48,13 @@ int max_console_lines = MAX_CLI_LINES;
 int main(const int argc, const char *argv[])
 {
     char version_string[256];
-    const char *arg;
     struct s_hardware hardware;
 
     snprintf(version_string, sizeof version_string, "%s %s (%s)",
 	     PRODUCT_NAME, VERSION, CODENAME);
+
+    /* Opening the Syslinux console */
+    init_console(&hardware);
 
     /* Cleaning structures */
     init_hardware(&hardware);
@@ -62,9 +64,6 @@ int main(const int argc, const char *argv[])
 
     /* Detecting parameters */
     detect_parameters(argc, argv, &hardware);
-
-    /* Opening the Syslinux console */
-    init_console(&hardware);
 
     /* Detect hardware */
     detect_hardware(&hardware);
