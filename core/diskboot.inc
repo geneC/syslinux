@@ -390,8 +390,15 @@ kaboom:
 		pop dword [fdctab]	; Restore FDC table
 .patch:					; When we have full code, intercept here
 		mov si,bailmsg
-		call writestr_early
+.loop:		lodsb
+		and al,al
+                jz .done
+		mov ah,0Eh		; Write to screen as TTY
+		mov bx,0007h		; Attribute
+		int 10h
+		jmp short .loop
 
+.done:
 		xor ax,ax
 .again:		int 16h			; Wait for keypress
 					; NB: replaced by int 18h if
@@ -399,24 +406,6 @@ kaboom:
 		int 19h			; And try once more to boot...
 .norge:		hlt			; If int 19h returned; this is the end
 		jmp short .norge
-
-;
-;
-; writestr_early: write a null-terminated string to the console
-;	    This assumes we're on page 0.  This is only used for early
-;           messages, so it should be OK.
-;
-writestr_early:
-		pushad
-.loop:		lodsb
-		and al,al
-                jz .return
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; Attribute
-		int 10h
-		jmp short .loop
-.return:	popad
-		ret
 
 ;
 ; INT 13h wrapper function

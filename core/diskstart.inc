@@ -370,6 +370,24 @@ maxtrans:
 .ok:		ret
 
 ;
+;
+; writestr_early: write a null-terminated string to the console
+;	    This assumes we're on page 0.  This is only used for early
+;           messages, so it should be OK.
+;
+writestr_early:
+		pushad
+.loop:		lodsb
+		and al,al
+                jz .return
+		mov ah,0Eh		; Write to screen as TTY
+		mov bx,0007h		; Attribute
+		int 10h
+		jmp short .loop
+.return:	popad
+		ret
+
+;
 ; Checksum error message
 ;
 checksumerr_msg	db ' Load error - ', 0	; Boot failed appended
