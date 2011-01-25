@@ -72,7 +72,7 @@ static int probe_int13h_15h(uint8_t drive, com32sys_t * regs)
 
     memset(regs, 0, sizeof *regs);
     probe_any(0x15, drive, regs);
-    present = !(regs->eflags.l & 1);
+    present = !(regs->eflags.l & 1) && regs->eax.b[1];
     dskprobe_printf("  AH15: CF%d AH%02x\n", regs->eflags.l & 1,
 		    regs->eax.b[1]);
     return present;
