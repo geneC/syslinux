@@ -31,6 +31,14 @@
 #include <memory.h>
 #include "acpi/acpi.h"
 
+void dbg_printf(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+}
+
 void init_acpi(s_acpi * acpi)
 {
     memset(acpi, 0, sizeof(s_acpi));

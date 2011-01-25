@@ -42,6 +42,7 @@ int parse_rsdt(s_rsdt *r)
 
     /* Searching for MADT with APIC signature */
     if (memcmp(q, RSDT, sizeof(RSDT)-1) == 0) {
+	DEBUG_PRINT(("RSDT table found\n"));
 	r->valid = true;
 	get_acpi_description_header(q, &r->header);
 

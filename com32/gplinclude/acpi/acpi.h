@@ -12,6 +12,12 @@
 
 #ifndef ACPI_H
 #define ACPI_H
+
+#define DEBUG_ACPI 0
+
+void dbg_printf(const char *fmt, ...);
+#define DEBUG_PRINT(x) do { if (DEBUG_ACPI) dbg_printf x; } while (0)
+
 #include <inttypes.h>
 #include <stdbool.h>
 #include <acpi/structs.h>

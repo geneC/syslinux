@@ -42,6 +42,7 @@ int parse_xsdt(s_acpi * acpi)
 
     /* Searching for MADT with APIC signature */
     if (memcmp(q, XSDT, sizeof(XSDT) - 1) == 0) {
+	DEBUG_PRINT(("XSDT table found\n"));
 	s_xsdt *x = &acpi->xsdt;
 	x->valid = true;
 	get_acpi_description_header(q, &x->header);
@@ -60,6 +61,7 @@ int parse_xsdt(s_acpi * acpi)
 	    /* Trying to determine the pointed table */
 	    /* Looking for FADT */
 	    if (memcmp(adh.signature, FACP, sizeof(FACP) - 1) == 0) {
+		DEBUG_PRINT(("FACP table found\n"));
 		s_fadt *f = &acpi->fadt;
 		s_facs *fa = &acpi->facs;
 		s_dsdt *d = &acpi->dsdt;
@@ -88,6 +90,7 @@ int parse_xsdt(s_acpi * acpi)
 		    get_acpi_description_header(f->x_dsdt,
 						&new_adh);
 		    if (memcmp(new_adh.signature, DSDT, sizeof(DSDT) - 1) == 0) {
+			DEBUG_PRINT(("DSDT table found\n"));
 			d->valid = true;
 			d->address = f->x_dsdt;
 			memcpy(&d->header, &new_adh, sizeof(new_adh));
@@ -107,6 +110,7 @@ int parse_xsdt(s_acpi * acpi)
 		}
 	    } /* Looking for MADT */
 	    else if (memcmp(adh.signature, APIC, sizeof(APIC) - 1) == 0) {
+		DEBUG_PRINT(("MADT table found\n"));
 		s_madt *m = &acpi->madt;
 		/* This structure is valid, let's fill it */
 		m->valid = true;
@@ -114,6 +118,7 @@ int parse_xsdt(s_acpi * acpi)
 		memcpy(&m->header, &adh, sizeof(adh));
 		parse_madt(acpi);
 	    } else if (memcmp(adh.signature, DSDT, sizeof(DSDT) - 1) == 0) {
+		DEBUG_PRINT(("DSDT table found\n"));
 		s_dsdt *d = &acpi->dsdt;
 		/* This structure is valid, let's fill it */
 		d->valid = true;
@@ -123,6 +128,9 @@ int parse_xsdt(s_acpi * acpi)
 		/* PSDT have to be considered as SSDT. Intel ACPI Spec @ 5.2.11.3 */
 	    } else if ((memcmp(adh.signature, SSDT, sizeof(SSDT) - 1) == 0)
 		       || (memcmp(adh.signature, PSDT, sizeof(PSDT) - 1) == 0)) {
+		
+		DEBUG_PRINT(("SSDT table found with %s \n",adh.signature));
+
 		if ((acpi->ssdt_count >= MAX_SSDT - 1))
 		    break;
 
@@ -148,6 +156,7 @@ int parse_xsdt(s_acpi * acpi)
 		/* Increment the number of ssdt we have */
 		acpi->ssdt_count++;
 	    } else if (memcmp(adh.signature, SBST, sizeof(SBST) - 1) == 0) {
+		DEBUG_PRINT(("SBST table found\n"));
 		s_sbst *s = &acpi->sbst;
 		/* This structure is valid, let's fill it */
 		s->valid = true;
@@ -155,6 +164,7 @@ int parse_xsdt(s_acpi * acpi)
 		memcpy(&s->header, &adh, sizeof(adh));
 		parse_sbst(s);
 	    } else if (memcmp(adh.signature, ECDT, sizeof(ECDT) - 1) == 0) {
+		DEBUG_PRINT(("ECDT table found\n"));
 		s_ecdt *e = &acpi->ecdt;
 		/* This structure is valid, let's fill it */
 		e->valid = true;
