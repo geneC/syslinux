@@ -35,16 +35,15 @@
 int search_rsdp(s_acpi * acpi)
 {
     /* Let's seach for RSDT table */
-    uint8_t *p, *q;
+    uint8_t *q;
 
     /* Let's start for the base address */
-    p = (uint64_t *) RSDP_MIN_ADDRESS;
-    for (q = p; q < RSDP_MAX_ADDRESS; q += 16) {
+    for (q = (uint8_t *)RSDP_MIN_ADDRESS; q < (uint8_t *)RSDP_MAX_ADDRESS; q+=16 ) {
 	/* Searching for RSDP with "RSD PTR" signature */
 	if (memcmp(q, RSDP, sizeof(RSDP)-1) == 0) {
 	    s_rsdp *r = &acpi->rsdp;
 	    r->valid = true;
-	    r->address = (uint64_t) q;
+	    r->address = q;
 	    cp_str_struct(r->signature);
 	    cp_struct(&r->checksum);
 	    cp_str_struct(r->oem_id);
@@ -68,13 +67,13 @@ void print_rsdp(s_acpi * acpi)
 
     if (!r->valid)
 	return;
-    printf("RSDP Table @ 0x%016llx\n", r->address);
+    printf("RSDP Table @ 0x%p\n", r->address);
     printf(" signature         : %s\n", r->signature);
     printf(" checksum          : %u\n", r->checksum);
     printf(" oem id            : %s\n", r->oem_id);
     printf(" revision          : %u\n", r->revision);
-    printf(" RDST address      : 0x%08x\n", r->rsdt_address);
+    printf(" RDST address      : %p\n", r->rsdt_address);
     printf(" length            : %u\n", r->length);
-    printf(" XSDT address      : 0x%08x\n", r->xsdt_address);
+    printf(" XSDT address      : %p\n", r->xsdt_address);
     printf(" extended checksum : %u\n", r->extended_checksum);
 }

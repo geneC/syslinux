@@ -23,14 +23,14 @@
 enum { RSDP_TABLE_FOUND };
 
 typedef struct {
-    uint64_t address;
+    uint8_t *address;
     uint8_t signature[8 + 1];
     uint8_t checksum;
     uint8_t oem_id[6 + 1];
     uint8_t revision;
-    uint32_t rsdt_address;
+    uint8_t *rsdt_address;
     uint32_t length;
-    uint32_t xsdt_address;
+    uint8_t *xsdt_address;
     uint8_t extended_checksum;
     bool valid;
 } s_rsdp;

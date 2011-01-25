@@ -18,7 +18,7 @@
 #define DSDT "DSDT"
 
 typedef struct {
-    uint64_t address;
+    uint8_t *address;
     s_acpi_description_header header;
     uint8_t *definition_block;
     bool valid;

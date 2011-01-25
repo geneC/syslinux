@@ -38,17 +38,17 @@ int parse_rsdt(s_rsdt *r)
     uint8_t *q;
 
     /* Let's start for the base address */
-    q = (uint32_t *) r->address;
+    q = r->address;
 
     /* Searching for MADT with APIC signature */
     if (memcmp(q, RSDT, sizeof(RSDT)-1) == 0) {
 	r->valid = true;
 	get_acpi_description_header(q, &r->header);
 
-	uint32_t *p = NULL;
-	for (p = (uint32_t *) (r->address + ACPI_HEADER_SIZE);
-	     p < (uint32_t *) (r->address + r->header.length); p++) {
-	    r->entry[r->entry_count] = (uint32_t) * p;
+	uint8_t *p = NULL;
+	for (p = (r->address + ACPI_HEADER_SIZE);
+	     p < (r->address + r->header.length); p++) {
+	    r->entry[r->entry_count] = p;
 	    r->entry_count++;
 	}
 	return RSDT_TABLE_FOUND;

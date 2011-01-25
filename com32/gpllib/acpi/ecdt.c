@@ -29,13 +29,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <memory.h>
+#include <stdlib.h>
 #include <dprintf.h>
 #include "acpi/acpi.h"
 
 void parse_ecdt(s_ecdt * e)
 {
     uint8_t *q;
-    q = (uint64_t *) (e->address + ACPI_HEADER_SIZE);
+    q = (e->address + ACPI_HEADER_SIZE);
 
     /* Copying remaining structs */
     cp_struct(&e->ec_control);

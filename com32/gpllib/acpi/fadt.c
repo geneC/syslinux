@@ -41,7 +41,7 @@ void parse_fadt(s_fadt * f)
     memcpy(f->header.signature,FADT,sizeof(FADT));
     
     /* Copying remaining structs */
-    q = (uint64_t *) (f->address+ACPI_HEADER_SIZE);
+    q = (f->address+ACPI_HEADER_SIZE);
     cp_struct(&f->firmware_ctrl);
     cp_struct(&f->dsdt_address);
     cp_struct(&f->reserved);

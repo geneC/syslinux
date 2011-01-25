@@ -36,12 +36,12 @@
 void parse_dsdt(s_dsdt * d)
 {
     uint8_t *q;
-    q = (uint64_t *) (d->address+ACPI_HEADER_SIZE);
+    q = (d->address+ACPI_HEADER_SIZE);
 
     /* Searching how much definition blocks we must copy */
     uint32_t definition_block_size=d->header.length-ACPI_HEADER_SIZE;
     if ((d->definition_block=malloc(definition_block_size)) != NULL) {
-	memcpy(d->definition_block,(uint64_t *)(d->address+ACPI_HEADER_SIZE),definition_block_size);
+	memcpy(d->definition_block,(d->address+ACPI_HEADER_SIZE),definition_block_size);
     }
 
 }

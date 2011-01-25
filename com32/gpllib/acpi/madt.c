@@ -30,6 +30,7 @@
 #include <string.h>
 #include <memory.h>
 #include <dprintf.h>
+#include <stdlib.h>
 #include "acpi/acpi.h"
 
 /* Parse the apic structures */
@@ -156,7 +157,7 @@ void parse_madt(s_acpi * acpi)
     memcpy(m->header.signature, MADT, sizeof(MADT));
 
     /* Copying remaining structs */
-    q = (uint8_t *) (m->address + ACPI_HEADER_SIZE);
+    q = (m->address + ACPI_HEADER_SIZE);
 
     cp_struct(&m->local_apic_address);
     cp_struct(&m->flags);

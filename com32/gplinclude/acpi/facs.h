@@ -25,7 +25,7 @@
 #define OWNED 1<<1
 
 typedef struct {
-    uint64_t address;
+    uint8_t *address;
     uint8_t signature[4+1];
     uint8_t length;
     uint32_t hardware_signature;

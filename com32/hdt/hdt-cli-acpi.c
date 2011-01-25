@@ -34,32 +34,23 @@
 #include <errno.h>
 #include <acpi/acpi.h>
 
-/* Print ACPI's table header in a defined formating
- * this particular version is made for displaying 32bit addresses*/
-static void show_header_32(uint32_t address, s_acpi_description_header * h)
-{
-    more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%016x\n",
-		h->signature, h->revision, h->oem_id, h->oem_table_id,
-		h->oem_revision, h->creator_id, h->creator_revision, address)
-}
-
 /* Print ACPI's table header in a defined formating */
-static void show_header(uint64_t address, s_acpi_description_header * h)
+static void show_header(uint8_t *address, s_acpi_description_header * h)
 {
-    more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%016llx\n",
+    more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%p\n",
 		h->signature, h->revision, h->oem_id, h->oem_table_id,
 		h->oem_revision, h->creator_id, h->creator_revision, address)
 }
 
 /* That's an helper to visualize columns*/
-void show_table_separator()
+static void show_table_separator(void)
 {
     more_printf
 	("----|----|------|--------|----------|-------|-----------|--------------------\n");
 }
 
 /* Display the main header before displaying the ACPI tables */
-void show_table_name()
+static void show_table_name(void)
 {
     more_printf
 	("ACPI rev  oem    table_id oem_rev    creator creat_rev  @ address \n");
@@ -84,16 +75,16 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.rsdp.valid) {
 	s_rsdp *r = &hardware->acpi.rsdp;
 	more_printf
-	    ("RSDP v%03x %-6s                                        @ 0x%016llx\n",
+	    ("RSDP v%03x %-6s                                        @ %p\n",
 	     r->revision, r->oem_id, r->address);
     }
 
     if (hardware->acpi.rsdt.valid)
-	show_header_32(hardware->acpi.rsdt.address,
+	show_header(hardware->acpi.rsdt.address,
 		       &hardware->acpi.rsdt.header);
 
     if (hardware->acpi.xsdt.valid)
-	show_header_32(hardware->acpi.xsdt.address,
+	show_header(hardware->acpi.xsdt.address,
 		       &hardware->acpi.xsdt.header);
 
     if (hardware->acpi.fadt.valid)
@@ -122,7 +113,7 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.facs.valid) {
 	s_facs *fa = &hardware->acpi.facs;
 	more_printf
-	    ("FACS                                                     @ 0x%016llx\n",
+	    ("FACS                                                     @ 0x%p\n",
 	     fa->address);
     }
 }
