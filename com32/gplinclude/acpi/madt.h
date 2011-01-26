@@ -129,7 +129,7 @@ typedef struct {
 } __attribute__ ((packed)) s_local_sapic;
 
 typedef struct {
-    uint8_t *address;
+    uint64_t *address;
     s_acpi_description_header header;
     uint32_t local_apic_address;
     uint32_t flags;

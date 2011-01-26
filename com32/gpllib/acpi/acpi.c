@@ -73,4 +73,5 @@ void get_acpi_description_header(uint8_t * q, s_acpi_description_header * adh)
     cp_struct(&adh->oem_revision);
     cp_str_struct(adh->creator_id);
     cp_struct(&adh->creator_revision);
+    DEBUG_PRINT(("acpi_header at %p = %s | %s | %s\n", q, adh->signature,adh->oem_id, adh->creator_id ));
 }

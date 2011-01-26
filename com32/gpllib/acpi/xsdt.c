@@ -42,21 +42,28 @@ int parse_xsdt(s_acpi * acpi)
 
     /* Searching for MADT with APIC signature */
     if (memcmp(q, XSDT, sizeof(XSDT) - 1) == 0) {
-	DEBUG_PRINT(("XSDT table found\n"));
 	s_xsdt *x = &acpi->xsdt;
 	x->valid = true;
 	get_acpi_description_header(q, &x->header);
+	DEBUG_PRINT(("XSDT table found at %p : length=%d\n",x->address,x->header.length));
+	DEBUG_PRINT(("Expected Tables = %d\n",(x->header.length-ACPI_HEADER_SIZE)/8));
 
 	/* We now have a set of pointers to some tables */
-	uint8_t *p = NULL;
-	for (p = (x->address + ACPI_HEADER_SIZE);
-	     p < (x->address + x->header.length); p++) {
+	uint64_t *p = NULL;
+	for (p = ((uint64_t *)(x->address + ACPI_HEADER_SIZE));
+	     p < ((uint64_t *)(x->address + x->header.length)); p++) {
+	    DEBUG_PRINT((" Looking for HEADER at %p = %x\n",p,*p));
+	    
 	    s_acpi_description_header adh;
 	    memset(&adh, 0, sizeof(adh));
-	    x->entry[x->entry_count] = p;
 
 	    /* Let's grab the pointed table header */
-	    get_acpi_description_header(p, &adh);
+	    char address[16] = { 0 };
+	    sprintf(address, "%llx", *p);
+	    uint64_t *pointed_address = (uint64_t *)strtoul(address, NULL, 16);
+
+	    x->entry[x->entry_count] = pointed_address;
+	    get_acpi_description_header((uint8_t *)pointed_address, &adh);
 
 	    /* Trying to determine the pointed table */
 	    /* Looking for FADT */
@@ -67,18 +74,18 @@ int parse_xsdt(s_acpi * acpi)
 		s_dsdt *d = &acpi->dsdt;
 		/* This structure is valid, let's fill it */
 		f->valid = true;
-		f->address = p;
+		f->address = pointed_address;
 		memcpy(&f->header, &adh, sizeof(adh));
 		parse_fadt(f);
 
 		/* FACS wasn't already detected
 		 * FADT points to it, let's try to detect it */
 		if (fa->valid == false) {
-		    fa->address = f->x_firmware_ctrl;
+		    fa->address = (uint64_t *)f->x_firmware_ctrl;
 		    parse_facs(fa);
 		    if (fa->valid == false) {
 			/* Let's try again */
-			fa->address = f->firmware_ctrl;
+			fa->address = (uint64_t *)f->firmware_ctrl;
 			parse_facs(fa);
 		    }
 		}
@@ -87,22 +94,23 @@ int parse_xsdt(s_acpi * acpi)
 		 * FADT points to it, let's try to detect it */
 		if (d->valid == false) {
 		    s_acpi_description_header new_adh;
-		    get_acpi_description_header(f->x_dsdt,
+		    get_acpi_description_header((uint8_t *)f->x_dsdt,
 						&new_adh);
 		    if (memcmp(new_adh.signature, DSDT, sizeof(DSDT) - 1) == 0) {
-			DEBUG_PRINT(("DSDT table found\n"));
+			DEBUG_PRINT(("DSDT table found via x_dsdt\n"));
 			d->valid = true;
-			d->address = f->x_dsdt;
+			d->address = (uint64_t *)f->x_dsdt;
 			memcpy(&d->header, &new_adh, sizeof(new_adh));
 			parse_dsdt(d);
 		    } else {
 			/* Let's try again */
-			get_acpi_description_header(f->dsdt_address,
+			get_acpi_description_header((uint8_t *)f->dsdt_address,
 						    &new_adh);
 			if (memcmp(new_adh.signature, DSDT, sizeof(DSDT) - 1) ==
 			    0) {
+			    DEBUG_PRINT(("DSDT table found via dsdt_address\n"));
 			    d->valid = true;
-			    d->address = f->dsdt_address;
+			    d->address = (uint64_t *)f->dsdt_address;
 			    memcpy(&d->header, &new_adh, sizeof(new_adh));
 			    parse_dsdt(d);
 			}
@@ -114,7 +122,7 @@ int parse_xsdt(s_acpi * acpi)
 		s_madt *m = &acpi->madt;
 		/* This structure is valid, let's fill it */
 		m->valid = true;
-		m->address = p;
+		m->address = pointed_address;
 		memcpy(&m->header, &adh, sizeof(adh));
 		parse_madt(acpi);
 	    } else if (memcmp(adh.signature, DSDT, sizeof(DSDT) - 1) == 0) {
@@ -122,7 +130,7 @@ int parse_xsdt(s_acpi * acpi)
 		s_dsdt *d = &acpi->dsdt;
 		/* This structure is valid, let's fill it */
 		d->valid = true;
-		d->address = p;
+		d->address = pointed_address;
 		memcpy(&d->header, &adh, sizeof(adh));
 		parse_dsdt(d);
 		/* PSDT have to be considered as SSDT. Intel ACPI Spec @ 5.2.11.3 */
@@ -142,7 +150,7 @@ int parse_xsdt(s_acpi * acpi)
 
 		/* This structure is valid, let's fill it */
 		s->valid = true;
-		s->address = p;
+		s->address = pointed_address;
 		memcpy(&s->header, &adh, sizeof(adh));
 
 		/* Searching how much definition blocks we must copy */
@@ -160,7 +168,7 @@ int parse_xsdt(s_acpi * acpi)
 		s_sbst *s = &acpi->sbst;
 		/* This structure is valid, let's fill it */
 		s->valid = true;
-		s->address = p;
+		s->address = pointed_address;
 		memcpy(&s->header, &adh, sizeof(adh));
 		parse_sbst(s);
 	    } else if (memcmp(adh.signature, ECDT, sizeof(ECDT) - 1) == 0) {
@@ -168,7 +176,7 @@ int parse_xsdt(s_acpi * acpi)
 		s_ecdt *e = &acpi->ecdt;
 		/* This structure is valid, let's fill it */
 		e->valid = true;
-		e->address = p;
+		e->address = pointed_address;
 		memcpy(&e->header, &adh, sizeof(adh));
 		parse_ecdt(e);
 	    }

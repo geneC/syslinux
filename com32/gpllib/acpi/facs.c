@@ -35,7 +35,9 @@
 void parse_facs(s_facs * f)
 {
     uint8_t *q;
-    q = (f->address + ACPI_HEADER_SIZE);
+    q = (uint8_t *) f->address;
+
+    DEBUG_PRINT(("Searching FACS at %p\n",q));
     if (memcmp(q, FACS, sizeof(FACS) - 1) == 0) {
 	f->valid = true;
 	cp_str_struct(f->signature);

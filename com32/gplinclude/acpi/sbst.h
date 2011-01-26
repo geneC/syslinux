@@ -18,7 +18,7 @@
 #define SBST "SBST"
 
 typedef struct {
-    uint8_t *address;
+    uint64_t *address;
     s_acpi_description_header header;
     bool valid;
     uint32_t warning_energy_level;

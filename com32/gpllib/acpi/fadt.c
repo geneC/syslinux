@@ -41,7 +41,10 @@ void parse_fadt(s_fadt * f)
     memcpy(f->header.signature,FADT,sizeof(FADT));
     
     /* Copying remaining structs */
-    q = (f->address+ACPI_HEADER_SIZE);
+    q = (uint8_t *)f->address;
+    q += ACPI_HEADER_SIZE;
+    DEBUG_PRINT(("- Parsing FADT at %p\n",q));
+
     cp_struct(&f->firmware_ctrl);
     cp_struct(&f->dsdt_address);
     cp_struct(&f->reserved);

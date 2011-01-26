@@ -61,11 +61,11 @@ enum { PM_UNSPECIFIED = 0,
 #define FORCE_APIC_PHYSICAL_DESTINATION_MODE 1<<19
 
 typedef struct {
-    uint8_t *address;
+    uint64_t *address;
     s_acpi_description_header header;
     bool valid;
-    uint8_t *firmware_ctrl;
-    uint8_t *dsdt_address;
+    uint32_t *firmware_ctrl;
+    uint32_t *dsdt_address;
     uint8_t reserved;
     uint8_t prefered_pm_profile;
     uint16_t sci_int;
@@ -105,8 +105,8 @@ typedef struct {
     s_gas reset_reg;
     uint8_t reset_value;
     uint8_t reserved_3[3];
-    uint8_t *x_firmware_ctrl;
-    uint8_t *x_dsdt;
+    uint64_t *x_firmware_ctrl;
+    uint64_t *x_dsdt;
     s_gas x_pm1a_evt_blk;
     s_gas x_pm1b_evt_blk;
     s_gas x_pm1a_cnt_blk;

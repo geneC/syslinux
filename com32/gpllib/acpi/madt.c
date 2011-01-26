@@ -140,7 +140,7 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
 	madt->local_sapic_count++;
 	break;
     default:
-	printf("APIC structure type %u, size=%u \n", type, length);
+	printf("Unkown APIC structure type %u, size=%u \n", type, length);
 	q += length - 2;
 	break;
     }
@@ -150,19 +150,23 @@ static uint8_t *add_apic_structure(s_acpi * acpi, uint8_t * q)
 void parse_madt(s_acpi * acpi)
 {
     /* Let's seach for FADT table */
-    uint8_t *q;
+    uint8_t *q, *max_address;
     s_madt *m = &acpi->madt;
 
     /* Fixing table name */
     memcpy(m->header.signature, MADT, sizeof(MADT));
 
     /* Copying remaining structs */
-    q = (m->address + ACPI_HEADER_SIZE);
+    q = (uint8_t *)m->address;
+    q += ACPI_HEADER_SIZE;
+    
+    max_address = (uint8_t *)m->address;
+    max_address += m->header.length;
 
     cp_struct(&m->local_apic_address);
     cp_struct(&m->flags);
 
-    while (q < (m->address + m->header.length)) {
+    while (q <  max_address) {
 	q = add_apic_structure(acpi, q);
     }
 }

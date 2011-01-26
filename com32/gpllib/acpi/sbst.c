@@ -35,7 +35,8 @@
 void parse_sbst(s_sbst * s)
 {
     uint8_t *q;
-    q = (s->address+ACPI_HEADER_SIZE);
+    q = (uint8_t *)s->address;
+    q += ACPI_HEADER_SIZE;
 
     /* Copying remaining structs */
     cp_struct(&s->warning_energy_level);

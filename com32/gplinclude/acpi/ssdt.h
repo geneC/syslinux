@@ -19,7 +19,7 @@
 #define PSDT "PSDT"
 
 typedef struct {
-    uint8_t *address;
+    uint64_t *address;
     s_acpi_description_header header;
     uint8_t *definition_block;
     bool valid;

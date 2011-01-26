@@ -36,7 +36,8 @@
 void parse_ecdt(s_ecdt * e)
 {
     uint8_t *q;
-    q = (e->address + ACPI_HEADER_SIZE);
+    q = (uint8_t *)e->address;
+    q += ACPI_HEADER_SIZE;
 
     /* Copying remaining structs */
     cp_struct(&e->ec_control);
