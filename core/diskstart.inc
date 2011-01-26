@@ -1,7 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+;   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -92,7 +92,8 @@ ldlinux_ent:
 ; value in CS, but we don't want to deal with that anymore from now
 ; on.
 ;
-		sti		; In case of broken INT 13h BIOSes
+		jmp 0:.next	; Normalize CS:IP
+.next:		sti		; In case of broken INT 13h BIOSes
 
 ;
 ; Tell the user we got this far

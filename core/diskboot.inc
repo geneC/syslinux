@@ -262,6 +262,7 @@ eddcheck:
 ; with parsing the superblock and root directory; it doesn't fit
 ; together with EBIOS support, unfortunately.
 ;
+Sect1Load:
 		mov eax,strict dword Sect1Ptr0_VAL	; 0xdeadbeef
 Sect1Ptr0	equ $-4
 		mov edx,strict dword Sect1Ptr1_VAL	; 0xfeedface
@@ -273,9 +274,8 @@ Sect1Ptr1	equ $-4
 		cmp dword [ldlinux_magic+4],LDLINUX_MAGIC^HEXDATE
 		jne kaboom
 
-		; Go for it...
-		jmp 0:ldlinux_ent
-
+		; Go for it!  This also normalizes CS:IP.
+		jmp ldlinux_ent
 
 ;
 ; getonesec: load a single disk linear sector EDX:EAX into the buffer
@@ -423,8 +423,10 @@ xint13:
 bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 
 		; This fails if the boot sector overflowsg
-		zb 1FEh-($-$$)
+		zb 1F8h-($-$$)
 
+bs_magic	dd LDLINUX_MAGIC
+bs_link		dw (Sect1Load - bootsec) | BS_MAGIC_VER
 bootsignature	dw 0xAA55
 
 ;
