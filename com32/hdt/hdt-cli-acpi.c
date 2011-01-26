@@ -90,9 +90,6 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.fadt.valid)
 	show_header(hardware->acpi.fadt.address, &hardware->acpi.fadt.header);
 
-    if (hardware->acpi.madt.valid)
-	show_header(hardware->acpi.madt.address, &hardware->acpi.madt.header);
-
     if (hardware->acpi.dsdt.valid)
 	show_header(hardware->acpi.dsdt.address, &hardware->acpi.dsdt.header);
 
@@ -113,9 +110,14 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.facs.valid) {
 	s_facs *fa = &hardware->acpi.facs;
 	more_printf
-	    ("FACS                                                     @ 0x%p\n",
+	    ("FACS                                                    @ 0x%p\n",
 	     fa->address);
     }
+
+    if (hardware->acpi.madt.valid)
+	show_header(hardware->acpi.madt.address, &hardware->acpi.madt.header);
+
+    more_printf("\nLocal APIC at 0x%08x\n", hardware->acpi.madt.local_apic_address);
 }
 
 /* Let's display the Processor Local APIC configuration */
@@ -241,9 +243,9 @@ static void show_interrupt_source_override(s_madt * madt)
     }
 }
 
-/* Display the madt configuration
- * This is called by acpi> show madt */
-static void show_acpi_madt(int argc __unused, char **argv __unused,
+/* Display the apic configuration
+ * This is called by acpi> show apic */
+static void show_acpi_apic(int argc __unused, char **argv __unused,
 			   struct s_hardware *hardware)
 {
     if (hardware->is_acpi_valid == false) {
@@ -254,14 +256,11 @@ static void show_acpi_madt(int argc __unused, char **argv __unused,
     s_madt *madt = &hardware->acpi.madt;
 
     if (madt->valid == false) {
-	more_printf("No MADT table found\n");
+	more_printf("No APIC (MADT) table found\n");
 	return;
     }
 
-    show_table_name();
-    show_header(madt->address, &madt->header);
     more_printf("Local APIC at 0x%08x\n", madt->local_apic_address);
-    show_table_separator();
     show_local_apic(madt);
     show_local_apic_nmi(madt);
     show_io_apic(madt);
@@ -270,8 +269,8 @@ static void show_acpi_madt(int argc __unused, char **argv __unused,
 
 struct cli_callback_descr list_acpi_show_modules[] = {
     {
-     .name = "madt",
-     .exec = show_acpi_madt,
+     .name = "apic",
+     .exec = show_acpi_apic,
      },
     {
      .name = NULL,
