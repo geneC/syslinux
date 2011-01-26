@@ -154,7 +154,7 @@ void parse_madt(s_acpi * acpi)
     s_madt *m = &acpi->madt;
 
     /* Fixing table name */
-    memcpy(m->header.signature, MADT, sizeof(MADT));
+    memcpy(m->header.signature, APIC, sizeof(APIC));
 
     /* Copying remaining structs */
     q = (uint8_t *)m->address;
