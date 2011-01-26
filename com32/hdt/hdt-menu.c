@@ -168,6 +168,7 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     compute_summarymenu(&(hdt_menu->summary_menu), hardware);
     compute_syslinuxmenu(&(hdt_menu->syslinux_menu), hardware);
     compute_VESA(hdt_menu, hardware);
+    compute_ACPI(hdt_menu, hardware);
     compute_aboutmenu(&(hdt_menu->about_menu));
 }
 
@@ -259,6 +260,12 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     if (hardware->is_vesa_valid == true) {
 	add_item("<V>ESA", "VESA Information Menu", OPT_SUBMENU, NULL,
 		 hdt_menu->vesa_menu.menu);
+	hdt_menu->main_menu.items_count++;
+    }
+
+    if (hardware->is_acpi_valid == true) {
+	add_item("<A>CPI", "ACPI Menu", OPT_SUBMENU, NULL,
+		 hdt_menu->acpi_menu.menu);
 	hdt_menu->main_menu.items_count++;
     }
 
