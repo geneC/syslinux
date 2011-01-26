@@ -30,7 +30,7 @@ VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
 VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')
 
-MEMTEST_URL = http://memtest.org/download/4.10/memtest86+-4.10.bin
+MEMTEST_URL = http://memtest.org/download/4.20/memtest86+-4.20.bin
 MEMTEST     = memtest.bin
 
 KERNEL_VERSION          ?= $(shell uname -r)
@@ -121,7 +121,7 @@ clean: tidy
 spotless: clean
 	rm -f *.lss *.c32 *.com hdt*.img hdt*.iso hdt*.img.gz
 	rm -rf $(ISO_DIR)
-	rm -rf $(FLOPPY_DIR)/memtest
+	rm -rf $(FLOPPY_DIR)/$(MEMTEST)
 	rm -rf $(FLOPPY_DIR)/pci.ids*
 	rm -f *~ \#*
 
