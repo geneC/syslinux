@@ -35,7 +35,7 @@
 #include <acpi/acpi.h>
 
 /* Print ACPI's table header in a defined formating */
-static void show_header(uint8_t *address, s_acpi_description_header * h)
+static void show_header(void *address, s_acpi_description_header * h)
 {
     more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%p\n",
 		h->signature, h->revision, h->oem_id, h->oem_table_id,
