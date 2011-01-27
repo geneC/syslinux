@@ -73,7 +73,7 @@ static int probe_int13h_01h(uint8_t drive)
     int status;
     com32sys_t regs;
 
-    memset((void *)(&regs), 0, sizeof regs);
+    memset(&regs, 0, sizeof regs);
     probe_any(0x01, drive, &regs);
     status = (regs.eflags.l & 1) * 256 + regs.eax.b[1];
     dskprobe_printf("    AH01: CF%d AH%02x\n", regs.eflags.l & 1, regs.eax.b[1]);
@@ -102,7 +102,6 @@ static int probe_int13h_08h(uint8_t drive, com32sys_t * regs)
 static int probe_int13h_15h(uint8_t drive, com32sys_t * regs)
 {
     int present;
-    int status;
 
     memset(regs, 0, sizeof *regs);
     probe_any(0x15, drive, regs);
