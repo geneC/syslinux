@@ -106,9 +106,8 @@ static int probe_int13h_15h(uint8_t drive, com32sys_t * regs)
 
     memset(regs, 0, sizeof *regs);
     probe_any(0x15, drive, regs);
-    present = !(regs->eflags.l & 1) && regs->eax.b[1];
-    status = probe_int13h_01h(drive);
-    probe_int13h_01h_fail(status);
+    present = !(regs->eflags.l & 1) && regs->eax.b[1]
+	&& !(probe_int13h_01h_fail(probe_int13h_01h(drive)));
     dskprobe_printf("  AH15: P%d CF%d AH%02x AL%02x CX%04x DX%04x\n", present,
 		    regs->eflags.l & 1, regs->eax.b[1], regs->eax.b[0],
 		    regs->ecx.w[0], regs->edx.w[0]);
