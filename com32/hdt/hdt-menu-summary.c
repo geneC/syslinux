@@ -54,8 +54,12 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
 
     char features[SUBMENULEN + 1];
     memset(features, 0, sizeof(features));
-    sprintf(features, "%d cores, %dK L2 Cache", hardware->cpu.num_cores,
-	    hardware->cpu.l2_cache_size);
+    if (hardware->dmi.processor.thread_count != 0)
+        sprintf(buffer, ", %d thread", hardware->dmi.processor.thread_count);
+    else
+        buffer[0] = 0x00;
+    sprintf(features, "%d core%s, %dK L2 Cache", hardware->cpu.num_cores,
+        buffer, hardware->cpu.l2_cache_size);
     if (hardware->cpu.flags.lm)
 	strcat(features, ", 64bit");
     else

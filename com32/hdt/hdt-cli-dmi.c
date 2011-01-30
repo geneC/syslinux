@@ -350,6 +350,13 @@ static void show_dmi_cpu(int argc __unused, char **argv __unused,
     more_printf(" Serial             : %s\n", hardware->dmi.processor.serial);
     more_printf(" Part Number        : %s\n",
 		hardware->dmi.processor.part_number);
+    if (hardware->dmi.processor.core_count != 0)
+        more_printf(" Cores Count        : %d\n", hardware->dmi.processor.core_count);
+    if (hardware->dmi.processor.core_enabled != 0)
+        more_printf(" Cores Enabled      : %d\n", hardware->dmi.processor.core_enabled);
+    if (hardware->dmi.processor.thread_count != 0)
+        more_printf(" Threads Count      : %d\n", hardware->dmi.processor.thread_count);
+
     more_printf(" ID                 : %s\n", hardware->dmi.processor.id);
     for (int i = 0; i < PROCESSOR_FLAGS_ELEMENTS; i++) {
 	if (((bool *) (&hardware->dmi.processor.cpu_flags))[i] == true) {

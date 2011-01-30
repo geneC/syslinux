@@ -51,6 +51,8 @@ void main_show_cpu(int argc __unused, char **argv __unused,
     more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
     more_printf(" Product      : %s \n", hardware->cpu.model);
     more_printf(" CPU Cores    : %d \n", hardware->cpu.num_cores);
+    if (hardware->dmi.processor.thread_count != 0)
+        more_printf(" CPU Threads  : %d \n", hardware->dmi.processor.thread_count);
     more_printf(" L2 Cache     : %dK\n", hardware->cpu.l2_cache_size);
 
     memset(features, 0, sizeof(features));
@@ -112,6 +114,10 @@ static void show_cpu(int argc __unused, char **argv __unused,
     more_printf("Vendor    : %s\n", hardware->cpu.vendor);
     more_printf("Model     : %s\n", hardware->cpu.model);
     more_printf("CPU Cores : %d\n", hardware->cpu.num_cores);
+    if (hardware->dmi.processor.core_enabled != 0)
+        more_printf("CPU Enable: %d\n", hardware->dmi.processor.core_enabled);
+    if (hardware->dmi.processor.thread_count != 0)
+        more_printf("CPU Thread: %d \n", hardware->dmi.processor.thread_count);
     more_printf("L1 Cache  : %dK + %dK (I + D) \n",
 		hardware->cpu.l1_instruction_cache_size,
 		hardware->cpu.l1_data_cache_size);
