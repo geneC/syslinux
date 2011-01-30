@@ -90,7 +90,7 @@ static int probe_int13h_08h(uint8_t drive, com32sys_t * regs)
 
     memset(regs, 0, sizeof *regs);
     probe_any(0x08, drive, regs);
-    dskprobe_printf("  AH08: CF%d AH%02x AL%02x BL%02x DL%02x",
+    dskprobe_printf("  AH08: CF%d AH%02x AL%02x BL%02x DL%02x    ",
 		    regs->eflags.l & 1, regs->eax.b[1], regs->eax.b[0],
 		    regs->ebx.b[0], regs->edx.b[0]);
     present = !(regs->eflags.l & 1) && !regs->eax.b[1];
@@ -130,9 +130,9 @@ static int probe_int13h_41h(uint8_t drive, com32sys_t * regs)
     memset(regs, 0, sizeof *regs);
     regs->ebx.w[0] = 0x55AA;	/* BX == 0x55AA */
     probe_any(0x41, drive, regs);
-    dskprobe_printf("  AH41: CF%d AH%02x BX%04x DH%02x",
+    dskprobe_printf("  AH41: CF%d AH%02x BX%04x CX%04x DH%02x",
 		    regs->eflags.l & 1, regs->eax.b[1], regs->ebx.w[0],
-		    regs->edx.b[1]);
+		    regs->ecx.w[0], regs->edx.b[1]);
     present = !(regs->eflags.l & 1) && (regs->ebx.w[0] == 0xAA55);
     status = probe_int13h_01h(drive);
     dskprobe_printf("  P%d\n",  present);
