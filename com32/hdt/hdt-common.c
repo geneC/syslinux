@@ -184,6 +184,7 @@ void init_hardware(struct s_hardware *hardware)
     hardware->is_acpi_valid = false;
     hardware->pci_domain = NULL;
     hardware->detected_memory_size = 0;
+    hardware->physical_cpu_count =1; /* we have at least one cpu */
 
     /* Cleaning structures */
     memset(hardware->disk_info, 0, sizeof(hardware->disk_info));
@@ -563,6 +564,10 @@ void cpu_detect(struct s_hardware *hardware)
      * That makes some weird display in console/menu
      * Let's remove that mulitple spaces */
     strlcpy(hardware->cpu.model,del_multi_spaces(hardware->cpu.model),sizeof(hardware->cpu.model));
+
+    if ((hardware->is_acpi_valid) && (hardware->acpi.madt.valid)) {
+    	hardware->physical_cpu_count=hardware->acpi.madt.processor_local_apic_count / hardware->cpu.num_cores;
+    }
     hardware->cpu_detection = true;
 }
 

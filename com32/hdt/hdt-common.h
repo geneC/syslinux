@@ -173,6 +173,7 @@ struct s_vesa {
 struct s_hardware {
     s_dmi dmi;			/* DMI table */
     s_cpu cpu;			/* CPU information */
+    uint8_t physical_cpu_count; /* Number of physical cpu */
     s_vpd vpd;			/* VPD information */
     s_acpi acpi;
     struct pci_domain *pci_domain;	/* PCI Devices */

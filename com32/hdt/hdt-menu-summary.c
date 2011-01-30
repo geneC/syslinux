@@ -34,7 +34,8 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     char buffer[SUBMENULEN + 1];
     char statbuffer[STATLEN + 1];
 
-    menu->menu = add_menu(" Summary ", -1);
+    snprintf(buffer, sizeof(buffer), " Summary (%d CPU) ", hardware->physical_cpu_count);
+    menu->menu = add_menu(buffer, -1);
     menu->items_count = 0;
 
     set_menu_pos(SUBMENU_Y, SUBMENU_X);
@@ -60,9 +61,9 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     else
 	strcat(features, ", 32bit");
     if (hardware->cpu.flags.smp)
-	strcat(features, ", SMP ");
+	strcat(features, ", SMP");
     if (hardware->cpu.flags.vmx || hardware->cpu.flags.svm)
-	strcat(features, ", HwVIRT ");
+	strcat(features, ", HwVIRT");
     snprintf(buffer, sizeof buffer, "%s", features);
     snprintf(statbuffer, sizeof statbuffer, "Features : %s", features);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);

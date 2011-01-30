@@ -45,8 +45,7 @@ void main_show_cpu(int argc __unused, char **argv __unused,
     if (hardware->acpi.madt.processor_local_apic_count > 0) {
 	more_printf("CPU (%d logical / %d phys)\n",
 		    hardware->acpi.madt.processor_local_apic_count,
-		    hardware->acpi.madt.processor_local_apic_count /
-		    hardware->cpu.num_cores);
+		    hardware->physical_cpu_count);
     } else
 	more_printf("CPU\n");
     more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);

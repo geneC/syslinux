@@ -58,8 +58,7 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
 	snprintf(buffer, sizeof buffer,
 		 " Main Processors (%d logical / %d phys. ) ",
 		 hardware->acpi.madt.processor_local_apic_count,
-		 hardware->acpi.madt.processor_local_apic_count /
-		 hardware->cpu.num_cores);
+		 hardware->physical_cpu_count);
 	menu->menu = add_menu(buffer, -1);
 	menu->items_count = 0;
 	set_menu_pos(SUBMENU_Y, SUBMENU_X);
