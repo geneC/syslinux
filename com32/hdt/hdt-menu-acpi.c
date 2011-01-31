@@ -86,6 +86,9 @@ static void compute_acpi_tables(struct s_my_menu *menu,
     if (hardware->acpi.ecdt.valid)
         compute_table(menu,hardware->acpi.ecdt.address, &hardware->acpi.ecdt.header);
 
+    if (hardware->acpi.hpet.valid)
+        compute_table(menu,hardware->acpi.hpet.address, &hardware->acpi.hpet.header);
+
     /* FACS isn't having the same headers, let's use a dedicated rendering */
     if (hardware->acpi.facs.valid) {
     }
