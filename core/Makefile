@@ -79,7 +79,9 @@ kwdhash.gen: keywords genhash.pl
 %.raw: %.elf
 	$(OBJCOPY) -O binary $< $(@:.bin=.raw)
 
-%.bin: %.raw $(PREPCORE)
+# GNU make 3.82 gets confused by the first form
+#%.bin: %.raw $(PREPCORE)
+%.bin: %.raw
 	$(PREPCORE) $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen

@@ -95,8 +95,6 @@ keywd_table:
 %if IS_PXELINUX
 		keyword ipappend,	pc_ipappend
 %endif
-%if HAS_LOCALBOOT
 		keyword localboot,	pc_localboot
-%endif
 
 keywd_count	equ ($-keywd_table)/keywd_size

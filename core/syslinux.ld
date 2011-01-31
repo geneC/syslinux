@@ -31,7 +31,7 @@ SECTIONS
 	/* "Early" sections (before the load) */
 	. = 0x1000;
 
-	.earlybss : {
+	.earlybss (NOLOAD) : {
 		__earlybss_start = .;
 		*(.earlybss)
 		__earlybss_end = .;
@@ -40,7 +40,7 @@ SECTIONS
 	__earlybss_dwords = (__earlybss_len + 3) >> 2;
 
 	. = ALIGN(4);
-	.bss16 : {
+	.bss16 (NOLOAD) : {
 		__bss16_start = .;
 		*(.bss16)
 		__bss16_end = .;
