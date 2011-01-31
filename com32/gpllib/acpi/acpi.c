@@ -221,7 +221,15 @@ bool parse_header(uint64_t *address, s_acpi *acpi) {
 		m->valid = true;
 		m->address = address;
 		memcpy(&m->header, &adh, sizeof(adh));
+	    } else if (memcmp(adh.signature, SLIC, sizeof(SLIC) - 1) == 0) {
+		DEBUG_PRINT(("SLIC table found\n"));
+		s_slic *s = &acpi->slic;
+		/* This structure is valid, let's fill it */
+		s->valid = true;
+		s->address = address;
+		memcpy(&s->header, &adh, sizeof(adh));
 	    }
+
 
 
 	    return true;

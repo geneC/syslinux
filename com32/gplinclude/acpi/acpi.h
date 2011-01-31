@@ -34,6 +34,7 @@ void dbg_printf(const char *fmt, ...);
 #include <acpi/hpet.h>
 #include <acpi/tcpa.h>
 #include <acpi/mcfg.h>
+#include <acpi/slic.h>
 
 enum { ACPI_FOUND = 1, ENO_ACPI = 2 , MADT_FOUND = 3 , ENO_MADT = 4 };
 
@@ -61,6 +62,7 @@ enum { ACPI_FOUND = 1, ENO_ACPI = 2 , MADT_FOUND = 3 , ENO_MADT = 4 };
 #define WDAT "WDAT"
 #define WDRT "WDRT"
 #define WSPT "WSPT"
+#define SLIC "SLIC"
 
 /* This macro are used to extract ACPI structures 
  * please be careful about the q (interator) naming */
@@ -82,6 +84,7 @@ typedef struct {
     s_hpet hpet;
     s_tcpa tcpa;
     s_mcfg mcfg;
+    s_slic slic;
 } s_acpi;
 
 int parse_acpi(s_acpi * acpi);
