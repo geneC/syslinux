@@ -98,6 +98,9 @@ static void compute_acpi_tables(struct s_my_menu *menu,
     if (hardware->acpi.slic.valid)
         compute_table(menu,hardware->acpi.slic.address, &hardware->acpi.slic.header);
 
+    if (hardware->acpi.boot.valid)
+        compute_table(menu,hardware->acpi.boot.address, &hardware->acpi.boot.header);
+
     /* FACS isn't having the same headers, let's use a dedicated rendering */
     if (hardware->acpi.facs.valid) {
 	s_facs *fa = &hardware->acpi.facs;
