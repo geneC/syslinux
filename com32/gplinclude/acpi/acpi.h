@@ -35,6 +35,7 @@ void dbg_printf(const char *fmt, ...);
 #include <acpi/tcpa.h>
 #include <acpi/mcfg.h>
 #include <acpi/slic.h>
+#include <acpi/boot.h>
 
 enum { ACPI_FOUND = 1, ENO_ACPI = 2 , MADT_FOUND = 3 , ENO_MADT = 4 };
 
@@ -85,6 +86,7 @@ typedef struct {
     s_tcpa tcpa;
     s_mcfg mcfg;
     s_slic slic;
+    s_boot boot;
 } s_acpi;
 
 int parse_acpi(s_acpi * acpi);

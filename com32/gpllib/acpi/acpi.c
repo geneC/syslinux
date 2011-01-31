@@ -228,9 +228,14 @@ bool parse_header(uint64_t *address, s_acpi *acpi) {
 		s->valid = true;
 		s->address = address;
 		memcpy(&s->header, &adh, sizeof(adh));
+	    } else if (memcmp(adh.signature, BOOT, sizeof(BOOT) - 1) == 0) {
+		DEBUG_PRINT(("BOOT table found\n"));
+		s_boot *b = &acpi->boot;
+		/* This structure is valid, let's fill it */
+		b->valid = true;
+		b->address = address;
+		memcpy(&b->header, &adh, sizeof(adh));
 	    }
-
-
-
+	    
 	    return true;
 }
