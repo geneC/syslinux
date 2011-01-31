@@ -214,6 +214,13 @@ bool parse_header(uint64_t *address, s_acpi *acpi) {
 		t->valid = true;
 		t->address = address;
 		memcpy(&t->header, &adh, sizeof(adh));
+	    } else if (memcmp(adh.signature, MCFG, sizeof(MCFG) - 1) == 0) {
+		DEBUG_PRINT(("MCFG table found\n"));
+		s_mcfg *m = &acpi->mcfg;
+		/* This structure is valid, let's fill it */
+		m->valid = true;
+		m->address = address;
+		memcpy(&m->header, &adh, sizeof(adh));
 	    }
 
 
