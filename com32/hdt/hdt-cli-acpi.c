@@ -109,6 +109,9 @@ void main_show_acpi(int argc __unused, char **argv __unused,
     if (hardware->acpi.hpet.valid)
 	show_header(hardware->acpi.hpet.address, &hardware->acpi.hpet.header);
 
+    if (hardware->acpi.tcpa.valid)
+	show_header(hardware->acpi.tcpa.address, &hardware->acpi.tcpa.header);
+
     /* FACS isn't having the same headers, let's use a dedicated rendering */
     if (hardware->acpi.facs.valid) {
 	s_facs *fa = &hardware->acpi.facs;
