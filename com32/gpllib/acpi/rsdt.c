@@ -27,6 +27,7 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <memory.h>
 #include <dprintf.h>
@@ -40,16 +41,28 @@ int parse_rsdt(s_rsdt *r)
     /* Let's start for the base address */
     q = r->address;
 
+    DEBUG_PRINT(("Searching for RSDT at %p\n",q));
     /* Searching for MADT with APIC signature */
     if (memcmp(q, RSDT, sizeof(RSDT)-1) == 0) {
-	DEBUG_PRINT(("RSDT table found\n"));
+//        DEBUG_PRINT(("RSDT : %c %c %c %c\n",q[0], q[1], q[2], q[3]));
 	r->valid = true;
+	DEBUG_PRINT(("Before \n"));
 	get_acpi_description_header(q, &r->header);
+	DEBUG_PRINT(("RSDT table at %p found with %d bytes long with %d items\n",r->address, r->header.length,(r->header.length-ACPI_HEADER_SIZE)/4));
 
-	uint8_t *p = NULL;
-	for (p = (r->address + ACPI_HEADER_SIZE);
-	     p < (r->address + r->header.length); p++) {
-	    r->entry[r->entry_count] = p;
+	uint32_t *start = (uint32_t *)r->address;
+	start += (ACPI_HEADER_SIZE / 4);
+	uint32_t *max = (uint32_t *)r->address;
+	max += (r->header.length / 4);
+	DEBUG_PRINT(("Searching starting at %p till %p\n",start,max));
+	uint32_t *p;
+	for (p = start ; p < max; p++) {
+            /* Let's grab the pointed table header */
+            char address[16] = { 0 };
+            sprintf(address, "%x", *p);
+            uint32_t *pointed_address = (uint32_t *)strtoul(address, NULL, 16);
+	    r->entry[r->entry_count] = (uint8_t *)pointed_address;
+	    DEBUG_PRINT(("%d : %p\n",r->entry_count, r->entry[r->entry_count]));
 	    r->entry_count++;
 	}
 	return RSDT_TABLE_FOUND;

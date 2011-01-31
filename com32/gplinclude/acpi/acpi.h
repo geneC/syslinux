@@ -83,4 +83,5 @@ int parse_xsdt(s_acpi * acpi);
 void parse_madt(s_acpi * acpi);
 int search_rsdp(s_acpi *acpi);
 void get_acpi_description_header(uint8_t *q, s_acpi_description_header * adh);
+bool parse_header(uint64_t *address, s_acpi *acpi);
 #endif

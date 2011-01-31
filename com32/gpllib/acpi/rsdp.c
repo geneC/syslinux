@@ -27,6 +27,7 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <memory.h>
 #include <dprintf.h>
@@ -55,6 +56,8 @@ int search_rsdp(s_acpi * acpi)
 	    q += 3;		/* reserved field */
 	    acpi->rsdt.address = r->rsdt_address;
 	    acpi->xsdt.address = r->xsdt_address;
+	    DEBUG_PRINT(("RSDT should be at %p\n",r->rsdt_address));
+	    DEBUG_PRINT(("XSDT should be at %p\n",r->xsdt_address));
 	    return RSDP_TABLE_FOUND;
 	}
     }
