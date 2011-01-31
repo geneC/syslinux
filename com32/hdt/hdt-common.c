@@ -661,9 +661,6 @@ char *del_multi_spaces(char *p)
 	     * the content from the second space*/
 	    strlcpy(p, p + 1, strlen(p + 1));
 
-	    /* The string is 1 char smaller */
-	    *(p + strlen(p) - 1) = '\0';
-
 	    /* Don't increment the pointer as we
 	     * changed the content of the current position*/
 	    continue;
