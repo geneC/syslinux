@@ -207,7 +207,15 @@ bool parse_header(uint64_t *address, s_acpi *acpi) {
 		h->valid = true;
 		h->address = address;
 		memcpy(&h->header, &adh, sizeof(adh));
+	    } else if (memcmp(adh.signature, TCPA, sizeof(TCPA) - 1) == 0) {
+		DEBUG_PRINT(("TCPA table found\n"));
+		s_tcpa *t = &acpi->tcpa;
+		/* This structure is valid, let's fill it */
+		t->valid = true;
+		t->address = address;
+		memcpy(&t->header, &adh, sizeof(adh));
 	    }
+
 
 	    return true;
 }

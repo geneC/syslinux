@@ -32,6 +32,7 @@ void dbg_printf(const char *fmt, ...);
 #include <acpi/ecdt.h>
 #include <acpi/facs.h>
 #include <acpi/hpet.h>
+#include <acpi/tcpa.h>
 
 enum { ACPI_FOUND = 1, ENO_ACPI = 2 , MADT_FOUND = 3 , ENO_MADT = 4 };
 
@@ -78,6 +79,7 @@ typedef struct {
     s_ecdt ecdt;
     s_facs facs;
     s_hpet hpet;
+    s_tcpa tcpa;
 } s_acpi;
 
 int parse_acpi(s_acpi * acpi);
