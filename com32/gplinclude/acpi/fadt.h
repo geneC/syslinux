@@ -15,7 +15,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-enum { FADT_TABLE_FOUND };
+enum { FADT_TABLE_FOUND = 1};
 
 #define FACP "FACP"
 #define FADT "FADT"

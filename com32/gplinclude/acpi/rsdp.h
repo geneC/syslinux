@@ -20,7 +20,7 @@
 
 #define RSDP "RSD PTR"
 
-enum { RSDP_TABLE_FOUND };
+enum { RSDP_TABLE_FOUND = 1 };
 
 typedef struct {
     uint8_t *address;

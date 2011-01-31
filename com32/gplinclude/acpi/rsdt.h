@@ -15,7 +15,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-enum { RSDT_TABLE_FOUND };
+enum { RSDT_TABLE_FOUND = 1};
 
 #define RSDT "RSDT"
 

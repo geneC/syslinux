@@ -32,7 +32,7 @@ void dbg_printf(const char *fmt, ...);
 #include <acpi/ecdt.h>
 #include <acpi/facs.h>
 
-enum { ACPI_FOUND, ENO_ACPI, MADT_FOUND, ENO_MADT };
+enum { ACPI_FOUND = 1, ENO_ACPI = 2 , MADT_FOUND = 3 , ENO_MADT = 4 };
 
 #define MAX_SSDT 128
 

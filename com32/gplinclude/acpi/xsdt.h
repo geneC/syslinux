@@ -15,7 +15,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-enum { XSDT_TABLE_FOUND };
+enum { XSDT_TABLE_FOUND = 1 };
 
 #define XSDT "XSDT"
 
