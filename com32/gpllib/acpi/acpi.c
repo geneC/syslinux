@@ -200,6 +200,14 @@ bool parse_header(uint64_t *address, s_acpi *acpi) {
 		e->address = address;
 		memcpy(&e->header, &adh, sizeof(adh));
 		parse_ecdt(e);
+	    }  else if (memcmp(adh.signature, HPET, sizeof(HPET) - 1) == 0) {
+		DEBUG_PRINT(("HPET table found\n"));
+		s_hpet *h = &acpi->hpet;
+		/* This structure is valid, let's fill it */
+		h->valid = true;
+		h->address = address;
+		memcpy(&h->header, &adh, sizeof(adh));
 	    }
+
 	    return true;
 }
