@@ -92,8 +92,19 @@ static void compute_acpi_tables(struct s_my_menu *menu,
     if (hardware->acpi.tcpa.valid)
         compute_table(menu,hardware->acpi.tcpa.address, &hardware->acpi.tcpa.header);
 
+    if (hardware->acpi.mcfg.valid)
+        compute_table(menu,hardware->acpi.mcfg.address, &hardware->acpi.mcfg.header);
+
     /* FACS isn't having the same headers, let's use a dedicated rendering */
     if (hardware->acpi.facs.valid) {
+	s_facs *fa = &hardware->acpi.facs;
+        char buffer[SUBMENULEN + 1] = { 0 };
+        char statbuffer[STATLEN + 1] = { 0 };
+
+	snprintf(buffer, sizeof buffer, "%-4s", fa->signature); 
+	snprintf(statbuffer, sizeof statbuffer, "%-4s @ 0x%p", fa->signature, fa->address);
+	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    	menu->items_count++;
     }
 
     if (hardware->acpi.madt.valid)
