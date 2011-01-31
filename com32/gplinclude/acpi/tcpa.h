@@ -15,7 +15,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#define HPET "HPET"
+#define TCPA "TCPA"
 
 enum { TCPA_TABLE_FOUND = 1 };
 
