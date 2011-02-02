@@ -4,3 +4,4 @@ floppy/syslinux.cfg
 *.img
 *.iso
 iso/
+*gz
