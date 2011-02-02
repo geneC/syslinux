@@ -33,7 +33,7 @@
 #define AUTHOR "Erwan Velu"
 #define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.4.0-beta1"
+#define VERSION "0.4.0"
 #define CODENAME "chouffe"
 #define NB_CONTRIBUTORS 3
 #define CONTRIBUTORS {"Sebastien Gonzalve (Patches)", "Gert Hulselmans (Tests)", "Alexander Andino (Design)"}
