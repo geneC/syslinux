@@ -95,7 +95,7 @@ void detect_parameters(const int argc, const char *argv[],
 	    convert_isolinux_filename(hardware->memtest_label, hardware);
 	} else if (!strncmp(argv[i], "vesa", 4)) {
 	    vesamode = true;
-	    max_console_lines = MAX_CLI_LINES;
+	    max_console_lines = MAX_VESA_CLI_LINES;
 	    /* If the user defines a background image */
 	    if (!strncmp(argv[i], "vesa=", 5)) {
 		strlcpy(hardware->vesa_background, argv[i] + 5,
@@ -103,7 +103,7 @@ void detect_parameters(const int argc, const char *argv[],
 	    }
 	} else if (!strncmp(argv[i], "novesa", 6)) {
 	    vesamode = false;
-	    max_console_lines = MAX_VESA_CLI_LINES;
+	    max_console_lines = MAX_CLI_LINES;
 	} else if (!strncmp(argv[i], "nomenu", 6)) {
 	    menumode = false;
 	} else if (!strncmp(argv[i], "auto=", 5)) {
