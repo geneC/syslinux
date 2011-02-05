@@ -705,6 +705,39 @@ static int stack_needed(void)
   return v;
 }
 
+/*
+ * Specify max RAM by reservation
+ * Adds a reservation to data in INT15h to prevent access to the top of RAM
+ * if there's any above the point specified.
+ */
+void int15maxres(uint32_t restop)
+{
+    uint32_t ramtop;
+
+    if (high_mem) {
+	ramtop = high_mem + (1<<24);
+    } else if (low_mem) {
+	ramtop = low_mem + (1<<20);
+    } else {
+	ramtop = 0;
+    }
+
+    /* printf("  TOP RAM-%08x  RES-%08x", ramtop, restop); */
+    if (restop < ramtop) {
+	/* printf("  (A)"); */
+	insertrange(restop, (ramtop - restop), 3);
+	parse_mem();
+    }
+    if (high_mem) {
+	ramtop = high_mem + (1<<24);
+    } else if (low_mem) {
+	ramtop = low_mem + (1<<20);
+    } else {
+	ramtop = 0;
+    }
+    /* printf("    NOW RAM-%08x\n", ramtop); */
+}
+
 struct real_mode_args rm_args;
 
 /*
@@ -737,6 +770,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     int no_bpt;			/* No valid BPT presented */
     uint32_t boot_seg = 0;	/* Meaning 0000:7C00 */
     uint32_t boot_len = 512;	/* One sector */
+    const char *p;
 
     /* We need to copy the rm_args into their proper place */
     memcpy(&rm_args, rm_args_ptr, sizeof rm_args);
@@ -940,6 +974,10 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->cd_pkt.geom2 =
 	    (uint8_t)(pptr->sectors) | (uint8_t)((pptr->cylinders >> 2) & 0xC0);
 	pptr->cd_pkt.geom3 = (uint8_t)(pptr->heads);
+    }
+
+    if ((p = getcmditem("int15maxres")) != CMD_NOTFOUND) {
+	int15maxres(atou(p));
     }
 
     /* The size is given by hptr->total_size plus the size of the E820
