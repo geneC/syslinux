@@ -117,6 +117,8 @@ static int vesa_getmodes(lua_State *L)
 
 static int vesa_setmode(lua_State *L)
 {
+  /* Preventing GCC to complain about unused L*/
+  L=L;
   openconsole(&dev_rawcon_r, &dev_vesaserial_w);
 
   return 0;
