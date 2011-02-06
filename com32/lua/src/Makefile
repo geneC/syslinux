@@ -22,7 +22,7 @@ LIBS	   = ../../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = 
 
 # Temporarily allow warnings not being treated as errors
-GCCWARN	  += -Wno-error
+#GCCWARN	  += -Wno-error
 
 MODULES	  = lua.c32
 TESTFILES =
