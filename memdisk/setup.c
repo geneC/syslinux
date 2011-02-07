@@ -724,16 +724,21 @@ uint32_t getramtop(void)
 void int15maxres(uint32_t restop)
 {
     uint32_t ramtop;
+    struct e820range *ep;
 
     ramtop = getramtop();
-    /* printf("  TOP RAM-%08x  RES-%08x", ramtop, restop); */
-    if (restop < ramtop) {
-	/* printf("  (A)"); */
-	insertrange(restop, (ramtop - restop), 3);
-	parse_mem();
+    for (ep = ranges; ep->type != -1U; ep++) {
+	if (ep->type == 1) {	/* Only if available */
+	    if (ep->start >= restop) {
+		printf("  %08x -> 2\n", ep->start);
+		ep->type = 2;
+	    } else if (ep[1].start > restop) {
+		printf("  +%08x =2; cut %08x\n", restop, ep->start);
+		insertrange(restop, (ep[1].start - restop), 2);
+	    }
+	}
     }
-    ramtop = getramtop();
-    /* printf("    NOW RAM-%08x\n", ramtop); */
+    parse_mem();
 }
 
 struct real_mode_args rm_args;
