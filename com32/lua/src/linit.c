@@ -29,6 +29,7 @@ static const luaL_Reg lualibs[] = {
   {LUA_DBLIBNAME, luaopen_debug},
 #ifdef SYSLINUX
   {LUA_DMILIBNAME, luaopen_dmi},
+  {LUA_PCILIBNAME, luaopen_pci},
   {LUA_SYSLINUXLIBNAME, luaopen_syslinux},
   {LUA_VESALIBNAME, luaopen_vesa},
 #endif
