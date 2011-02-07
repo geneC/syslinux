@@ -725,16 +725,17 @@ void int15maxres(uint32_t restop)
 {
     uint32_t ramtop;
     struct e820range *ep;
+    const int int15restype = 2;
 
     ramtop = getramtop();
     for (ep = ranges; ep->type != -1U; ep++) {
 	if (ep->type == 1) {	/* Only if available */
 	    if (ep->start >= restop) {
-		printf("  %08x -> 2\n", ep->start);
-		ep->type = 2;
+		/* printf("  %08x -> 2\n", ep->start); */
+		ep->type = int15restype;
 	    } else if (ep[1].start > restop) {
-		printf("  +%08x =2; cut %08x\n", restop, ep->start);
-		insertrange(restop, (ep[1].start - restop), 2);
+		/* printf("  +%08x =2; cut %08x\n", restop, ep->start); */
+		insertrange(restop, (ep[1].start - restop), int15restype);
 	    }
 	}
     }
