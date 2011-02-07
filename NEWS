@@ -21,6 +21,9 @@ Changes in 4.04:
 	* Fix booting on non-partitioned devices.
 	* MBR, isohybrid: Workaround for a BIOS issue on Acer
 	  Travelmate and possibly other machines.
+        * COM32: Adding ACPI parsing libary
+        * HDT: Release 0.4.1 to support ACPI parsing, 
+          improved mutli-core/cpu reporting 
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.

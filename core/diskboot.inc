@@ -162,7 +162,7 @@ floppy:
 		mov [bx+2],ax		; Segment 0
 		fs rep movsw		; Faster to move words
 		mov cl,[bsSecPerTrack]  ; Patch the sector count
-		mov [di-76+8],cl
+		mov [di-12+4],cl
 
 		push ax			; Partition offset == 0
 		push ax
