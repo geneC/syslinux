@@ -974,7 +974,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->cd_pkt.geom3 = (uint8_t)(pptr->heads);
     }
 
-    if ((p = getcmditem("int15maxres")) != CMD_NOTFOUND) {
+    if ((p = getcmditem("mem")) != CMD_NOTFOUND) {
 	int15maxres(atou(p));
     }
 
