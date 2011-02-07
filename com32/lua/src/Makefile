@@ -24,6 +24,7 @@ LNXLIBS	   =
 # Temporarily allow warnings not being treated as errors
 #GCCWARN	  += -Wno-error
 
+CFLAGS    += -DSYSLINUX
 MODULES	  = lua.c32
 TESTFILES =
 

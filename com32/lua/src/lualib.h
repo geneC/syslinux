@@ -33,14 +33,15 @@ LUALIB_API int (luaopen_string) (lua_State *L);
 #define LUA_MATHLIBNAME	"math"
 LUALIB_API int (luaopen_math) (lua_State *L);
 
-#define LUA_PCILIBNAME	"pci"
-LUALIB_API int (luaopen_pci) (lua_State *L);
-
 #define LUA_DBLIBNAME	"debug"
 LUALIB_API int (luaopen_debug) (lua_State *L);
 
 #define LUA_LOADLIBNAME	"package"
 LUALIB_API int (luaopen_package) (lua_State *L);
+
+#ifdef SYSLINUX
+#define LUA_PCILIBNAME	"pci"
+LUALIB_API int (luaopen_pci) (lua_State *L);
 
 #define LUA_SYSLINUXLIBNAME	"syslinux"
 LUALIB_API int (luaopen_syslinux) (lua_State *L);
@@ -50,7 +51,7 @@ LUALIB_API int (luaopen_dmi) (lua_State *L);
 
 #define LUA_VESALIBNAME "vesa"
 LUALIB_API int (luaopen_vesa) (lua_State *L);
-
+#endif
 
 /* open all previous libraries */
 LUALIB_API void (luaL_openlibs) (lua_State *L); 

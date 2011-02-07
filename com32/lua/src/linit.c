@@ -19,16 +19,19 @@ static const luaL_Reg lualibs[] = {
   {LUA_LOADLIBNAME, luaopen_package},
   {LUA_TABLIBNAME, luaopen_table},
   {LUA_IOLIBNAME, luaopen_io},
-//  {LUA_OSLIBNAME, luaopen_os},
+#ifndef SYSLINUX
+  {LUA_OSLIBNAME, luaopen_os},
+#endif
   {LUA_STRLIBNAME, luaopen_string},
 #if !defined LUA_NUMBER_INTEGRAL
   {LUA_MATHLIBNAME, luaopen_math},
 #endif
-  {LUA_PCILIBNAME, luaopen_pci},
   {LUA_DBLIBNAME, luaopen_debug},
+#ifdef SYSLINUX
   {LUA_DMILIBNAME, luaopen_dmi},
   {LUA_SYSLINUXLIBNAME, luaopen_syslinux},
   {LUA_VESALIBNAME, luaopen_vesa},
+#endif
   {NULL, NULL}
 };
 

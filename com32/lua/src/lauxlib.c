@@ -552,9 +552,6 @@ static int errfile (lua_State *L, const char *what, int fnameindex) {
 LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
   LoadF lf;
   int status, readstatus;
-#if 0
-  int c;
-#endif
   int fnameindex = lua_gettop(L) + 1;  /* index of filename on the stack */
   lf.extraline = 0;
   if (filename == NULL) {
@@ -566,7 +563,8 @@ LUALIB_API int luaL_loadfile (lua_State *L, const char *filename) {
     lf.f = fopen(filename, "r");
     if (lf.f == NULL) return errfile(L, "open", fnameindex);
   }
-#if 0
+#ifndef SYSLINUX
+  int c;
   c = getc(lf.f);
   if (c == '#') {  /* Unix exec. file? */
     lf.extraline = 1;
