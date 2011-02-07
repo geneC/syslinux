@@ -114,4 +114,11 @@ __ctype_inline int tolower(int __c)
     return isupper(__c) ? _tolower(__c) : __c;
 }
 
+__ctype_inline char *skipspace(const char *p)
+{
+   while (isspace((unsigned char)*p))
+            p++;
+   return (char *)p;
+}
+
 #endif /* _CTYPE_H */

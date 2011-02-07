@@ -30,6 +30,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <console.h>
@@ -43,14 +44,6 @@
 #else
 # define dprintf(...) ((void)0)
 #endif
-
-static char *skipspace(char *p)
-{
-    while (*p && *p <= ' ')
-	p++;
-
-    return p;
-}
 
 #define MAX_LINE 512
 
