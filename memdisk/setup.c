@@ -705,17 +705,6 @@ static int stack_needed(void)
   return v;
 }
 
-uint32_t getramtop(void)
-{
-    if (high_mem) {
-	return high_mem + (1<<24);
-    } else if (low_mem) {
-	return low_mem + (1<<20);
-    } else {
-	return 0;
-    }
-}
-
 /*
  * Specify max RAM by reservation
  * Adds a reservation to data in INT15h to prevent access to the top of RAM
@@ -723,11 +712,9 @@ uint32_t getramtop(void)
  */
 void int15maxres(uint32_t restop)
 {
-    uint32_t ramtop;
     struct e820range *ep;
     const int int15restype = 2;
 
-    ramtop = getramtop();
     for (ep = ranges; ep->type != -1U; ep++) {
 	if (ep->type == 1) {	/* Only if available */
 	    if (ep->start >= restop) {
