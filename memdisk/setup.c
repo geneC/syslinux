@@ -705,6 +705,17 @@ static int stack_needed(void)
   return v;
 }
 
+uint32_t getramtop(void)
+{
+    if (high_mem) {
+	return high_mem + (1<<24);
+    } else if (low_mem) {
+	return low_mem + (1<<20);
+    } else {
+	return 0;
+    }
+}
+
 /*
  * Specify max RAM by reservation
  * Adds a reservation to data in INT15h to prevent access to the top of RAM
@@ -714,27 +725,14 @@ void int15maxres(uint32_t restop)
 {
     uint32_t ramtop;
 
-    if (high_mem) {
-	ramtop = high_mem + (1<<24);
-    } else if (low_mem) {
-	ramtop = low_mem + (1<<20);
-    } else {
-	ramtop = 0;
-    }
-
+    ramtop = getramtop();
     /* printf("  TOP RAM-%08x  RES-%08x", ramtop, restop); */
     if (restop < ramtop) {
 	/* printf("  (A)"); */
 	insertrange(restop, (ramtop - restop), 3);
 	parse_mem();
     }
-    if (high_mem) {
-	ramtop = high_mem + (1<<24);
-    } else if (low_mem) {
-	ramtop = low_mem + (1<<20);
-    } else {
-	ramtop = 0;
-    }
+    ramtop = getramtop();
     /* printf("    NOW RAM-%08x\n", ramtop); */
 }
 
