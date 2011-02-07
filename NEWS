@@ -24,6 +24,7 @@ Changes in 4.04:
         * COM32: Adding ACPI parsing libary
         * HDT: Release 0.4.1 to support ACPI parsing, 
           improved mutli-core/cpu reporting 
+	* LUA: Updating to 5.1.4-2
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
