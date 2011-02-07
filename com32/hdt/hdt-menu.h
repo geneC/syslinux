@@ -79,6 +79,9 @@ struct s_hdt_menu {
     struct s_my_menu vesa_card_menu;
     struct s_my_menu vesa_modes_menu;
     struct s_my_menu vpd_menu;
+    struct s_my_menu acpi_menu;
+    struct s_my_menu acpi_apic_menu;
+    struct s_my_menu acpi_tables_menu;
     int total_menu_count;	// Sum of all menus we have
 };
 
@@ -126,10 +129,12 @@ void compute_PXE(struct s_my_menu *menu, struct s_hardware *hardware);
 //VESA menu
 int compute_VESA(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
 
+// ACPI menu
+int compute_ACPI(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
+
 int start_menu_mode(struct s_hardware *hardware, char *version_string);
 void setup_menu(char *version);
 void compute_main_menu(struct s_hdt_menu *hdt_menu,
 		       struct s_hardware *hardware);
 void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware);
-void detect_hardware(struct s_hardware *hardware);
 #endif

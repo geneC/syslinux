@@ -36,7 +36,6 @@ void main_show_vpd(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
     reset_more_printf();
-    detect_vpd(hardware);
 
     if (!hardware->is_vpd_valid) {
 	more_printf("No VPD structure detected.\n");

@@ -49,6 +49,7 @@ const char *dmi_processor_type(uint8_t code)
 const char *dmi_processor_family(uint8_t code, char *manufacturer)
 {
     /* 3.3.5.2 */
+    /* TODO : Need to implement code/value (see dmidecode) insteed of array to address large index */
     static const char *family[256] = {
 	NULL,			/* 0x00 */
 	"Other",
@@ -221,11 +222,11 @@ const char *dmi_processor_family(uint8_t code, char *manufacturer)
 	"Dual-Core Xeon 7100",
 	"Quad-Core Xeon 5400",
 	"Quad-Core Xeon",	/* 0xAA */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,			/* 0xAF */
+	"Dual-Core Xeon 5200",
+	"Dual-Core Xeon 7200",
+	"Quad-Core Xeon 7300",
+	"Quad-Core Xeon 7400",
+	"Multi-Core Xeon 7400",			/* 0xAF */
 	"Pentium III Xeon",
 	"Pentium III Speedstep",
 	"Pentium 4",
@@ -248,8 +249,8 @@ const char *dmi_processor_family(uint8_t code, char *manufacturer)
 	"Core 2 Extreme Mobile",
 	"Core 2 Duo Mobile",
 	"Core 2 Solo Mobile",
-	NULL,
-	NULL,			/* 0xC7 */
+	"Core i7",
+	"Dual-Core Celeron",		/* 0xC7 */
 	"IBM390",
 	"G4",
 	"G5",
@@ -264,16 +265,16 @@ const char *dmi_processor_family(uint8_t code, char *manufacturer)
 	"C7-D",
 	"C7",
 	"Eden",
-	NULL,			/*0xD6 */
+	"Multi-Core Xeon",			/*0xD6 */
+	"Dual-Core Xeon 3xxx",
+	"Quad-Core Xeon 3xxx",  /*0xD8 */
 	NULL,
+	"Dual-Core Xeon 5xxx", /*0xDA */
+	"Quad-Core Xeon 5xxx",
 	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	"Dual-Core Xeon 7xxx", /*0xDD */
+	"Quad-Core Xeon 7xxx",
+	"Multi-Core Xeon 7xxx",
 	NULL,			/*0xE0 */
 	NULL,
 	NULL,
@@ -373,9 +374,10 @@ const char *dmi_processor_upgrade(uint8_t code)
 	"Socket S1",
 	"Socket AM2",
 	"Socket F (1207)"
+	"Socket LGA1366"	/* 0x19 */
     };
 
-    if (code >= 0x01 && code <= 0x18)
+    if (code >= 0x01 && code <= 0x19)
 	return upgrade[code - 0x01];
     return out_of_spec;
 }

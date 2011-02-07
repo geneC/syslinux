@@ -36,7 +36,7 @@ static void compute_e820(struct s_my_menu *menu)
     char buffer[MENULEN + 1];
     char statbuffer[STATLEN + 1];
 
-    sprintf(buffer, " e820 Physical RAM map ");
+    sprintf(buffer, " e820 information ");
     menu->items_count = 0;
     menu->menu = add_menu(buffer, -1);
 

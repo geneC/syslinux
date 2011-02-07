@@ -54,9 +54,19 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
     char buffer1[SUBMENULEN + 1];
     char statbuffer[STATLEN + 1];
 
-    menu->menu = add_menu(" Main Processor ", -1);
-    menu->items_count = 0;
-    set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    if (hardware->acpi.madt.processor_local_apic_count > 0) {
+	snprintf(buffer, sizeof buffer,
+		 " Main Processors (%d logical / %d phys. ) ",
+		 hardware->acpi.madt.processor_local_apic_count,
+		 hardware->physical_cpu_count);
+	menu->menu = add_menu(buffer, -1);
+	menu->items_count = 0;
+	set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    } else {
+	menu->menu = add_menu(" Main Processor ", -1);
+	menu->items_count = 0;
+	set_menu_pos(SUBMENU_Y, SUBMENU_X);
+    }
 
     snprintf(buffer, sizeof buffer, "Vendor    : %s", hardware->cpu.vendor);
     snprintf(statbuffer, sizeof statbuffer, "Vendor: %s", hardware->cpu.vendor);
@@ -73,6 +83,22 @@ void compute_processor(struct s_my_menu *menu, struct s_hardware *hardware)
 	     hardware->cpu.num_cores);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
+
+    if (hardware->dmi.processor.core_enabled != 0) {
+        snprintf(buffer, sizeof buffer, "CPU Enable: %d", hardware->dmi.processor.core_enabled);
+        snprintf(statbuffer, sizeof statbuffer, "Number of CPU Enabled : %d",
+	     hardware->dmi.processor.core_enabled);
+        add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+        menu->items_count++;
+    }
+
+    if (hardware->dmi.processor.thread_count != 0) {
+        snprintf(buffer, sizeof buffer, "CPU Thread: %d", hardware->dmi.processor.thread_count);
+        snprintf(statbuffer, sizeof statbuffer, "Number of CPU Threads : %d",
+	     hardware->dmi.processor.thread_count);
+        add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+        menu->items_count++;
+    }
 
     snprintf(buffer, sizeof buffer, "L1 Cache  : %dK + %dK (I+D)",
 	     hardware->cpu.l1_instruction_cache_size,

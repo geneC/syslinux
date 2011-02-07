@@ -124,10 +124,15 @@ const char *dmi_memory_device_type(uint8_t code)
 	"RDRAM",
 	"DDR",
 	"DDR2",
-	"DDR2 FB-DIMM"		/* 0x14 */
+	"DDR2 FB-DIMM",		/* 0x14 */
+	NULL,
+	NULL,
+	NULL,
+	"DDR3",			/* 0x18 */
+	"FBD2"			/* 0x19 */
     };
 
-    if (code >= 0x01 && code <= 0x14)
+    if (code >= 0x01 && code <= 0x19)
 	return type[code - 0x01];
     return out_of_spec;
 }
