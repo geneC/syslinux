@@ -14,6 +14,8 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdint.h>
+#include <minmax.h>
+#include <suffix_number.h>
 #include "bda.h"
 #include "dskprobe.h"
 #include "e820.h"
@@ -710,10 +712,16 @@ static int stack_needed(void)
  * Adds a reservation to data in INT15h to prevent access to the top of RAM
  * if there's any above the point specified.
  */
-void int15maxres(uint32_t restop)
+void int15maxres(unsigned long long restop_ull)
 {
+    uint32_t restop;
     struct e820range *ep;
     const int int15restype = 2;
+
+    /* insertrange() works on uint32_t */
+    restop = min(restop_ull, UINT32_MAX);
+    /* printf("  int15maxres  '%08x%08x'  => %08x\n",
+	(unsigned int)(restop_ull>>32), (unsigned int)restop_ull, restop); */
 
     for (ep = ranges; ep->type != -1U; ep++) {
 	if (ep->type == 1) {	/* Only if available */
@@ -968,7 +976,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     if ((p = getcmditem("mem")) != CMD_NOTFOUND) {
-	int15maxres(atou(p));
+	int15maxres(suffix_number(p));
     }
 
     /* The size is given by hptr->total_size plus the size of the E820

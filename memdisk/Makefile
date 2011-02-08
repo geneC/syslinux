@@ -15,7 +15,7 @@ topdir = ..
 include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
-INCLUDES = -I$(topdir)/com32/include
+INCLUDES = -I$(topdir)/com32/include -I$(topdir)/com32/libutil/include
 CFLAGS  += -D__MEMDISK__ -DDATE='"$(DATE)"'
 LDFLAGS  = $(GCCOPT) -g
 NASM     = nasm
@@ -39,7 +39,7 @@ endif
 OBJS16   = init.o16 init32.o
 OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \
 	   memmove.o unzip.o dskprobe.o eltorito.o \
-	   ctypes.o strntoumax.o strtoull.o \
+	   ctypes.o strntoumax.o strtoull.o suffix_number.o \
 	   memdisk_chs_512.o memdisk_edd_512.o \
 	   memdisk_iso_512.o memdisk_iso_2048.o
 
