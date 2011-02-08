@@ -43,11 +43,15 @@ OBJS32   = start32.o setup.o msetup.o e820func.o conio.o memcpy.o memset.o \
 	   memdisk_chs_512.o memdisk_edd_512.o \
 	   memdisk_iso_512.o memdisk_iso_2048.o
 
-CSRC     = setup.c msetup.c e820func.c conio.c unzip.c dskprobe.c eltorito.c
+CSRC     = setup.c msetup.c e820func.c conio.c unzip.c dskprobe.c eltorito.c \
+	   $(topdir)/com32/lib/ctypes.c $(topdir)/com32/lib/strntoumax.c \
+	   $(topdir)/com32/lib/strtoull.c $(topdir)/com32/libutil/suffix_number.c
 SSRC     = start32.S memcpy.S memset.S memmove.S
 NASMSRC  = memdisk_chs_512.asm memdisk_edd_512.asm \
 	   memdisk_iso_512.asm memdisk_iso_2048.asm \
 	   memdisk16.asm
+
+vpath %.c $(topdir)/com32/lib:$(topdir)/com32/libutil
 
 all: memdisk # e820test
 
