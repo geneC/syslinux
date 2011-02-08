@@ -51,6 +51,9 @@ LUALIB_API int (luaopen_dmi) (lua_State *L);
 
 #define LUA_VESALIBNAME "vesa"
 LUALIB_API int (luaopen_vesa) (lua_State *L);
+
+#define LUA_CPULIBNAME	"cpu"
+LUALIB_API int (luaopen_cpu) (lua_State *L);
 #endif
 
 /* open all previous libraries */

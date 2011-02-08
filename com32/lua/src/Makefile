@@ -41,7 +41,7 @@ LIBLUA_OBJS += lauxlib.o lbaselib.o ldblib.o ltablib.o
 LIBLUA_OBJS += lstrlib.o loadlib.o linit.o
 LIBLUA_OBJS += liolib.o
 LIBLUA_OBJS += dmi.o
-
+LIBLUA_OBJS += cpu.o
 LIBLUA_OBJS += pci.o
 LIBLUA_OBJS += vesa.o
 
