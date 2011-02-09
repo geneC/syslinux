@@ -1,1 +1,1 @@
-#include "../com32/libutil/suffix_number.c"
+#include "../com32/lib/suffix_number.c"

@@ -15,7 +15,7 @@ topdir = ..
 include $(topdir)/MCONFIG.embedded
 -include $(topdir)/version.mk
 
-INCLUDES = -I$(topdir)/com32/include -I$(topdir)/com32/libutil/include
+INCLUDES = -I$(topdir)/com32/include
 CFLAGS  += -D__MEMDISK__ -DDATE='"$(DATE)"'
 LDFLAGS  = $(GCCOPT) -g
 NASM     = nasm
