@@ -33,8 +33,7 @@ topdir = ../..
 include ../MCONFIG
 
 LIBOBJS	   = ansiline.o ansiraw.o get_key.o sha1hash.o unbase64.o \
-	     md5.o crypt-md5.o sha256crypt.o sha512crypt.o base64.o \
-	     suffix_number.o
+	     md5.o crypt-md5.o sha256crypt.o sha512crypt.o base64.o
 LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
 all: libutil_com.a libutil_lnx.a
