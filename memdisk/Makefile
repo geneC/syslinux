@@ -51,8 +51,6 @@ NASMSRC  = memdisk_chs_512.asm memdisk_edd_512.asm \
 	   memdisk_iso_512.asm memdisk_iso_2048.asm \
 	   memdisk16.asm
 
-vpath %.c $(topdir)/com32/lib:$(topdir)/com32/libutil
-
 all: memdisk # e820test
 
 # tidy, clean removes everything except the final binary
