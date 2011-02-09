@@ -708,11 +708,11 @@ static int stack_needed(void)
 }
 
 /*
- * Specify max RAM by reservation
- * Adds a reservation to data in INT15h to prevent access to the top of RAM
+ * Set max memory by reservation
+ * Adds reservations to data in INT15h to prevent access to the top of RAM
  * if there's any above the point specified.
  */
-void int15maxres(unsigned long long restop_ull)
+void setmaxmem(unsigned long long restop_ull)
 {
     uint32_t restop;
     struct e820range *ep;
@@ -720,7 +720,7 @@ void int15maxres(unsigned long long restop_ull)
 
     /* insertrange() works on uint32_t */
     restop = min(restop_ull, UINT32_MAX);
-    /* printf("  int15maxres  '%08x%08x'  => %08x\n",
+    /* printf("  setmaxmem  '%08x%08x'  => %08x\n",
 	(unsigned int)(restop_ull>>32), (unsigned int)restop_ull, restop); */
 
     for (ep = ranges; ep->type != -1U; ep++) {
@@ -976,7 +976,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     }
 
     if ((p = getcmditem("mem")) != CMD_NOTFOUND) {
-	int15maxres(suffix_number(p));
+	setmaxmem(suffix_number(p));
     }
 
     /* The size is given by hptr->total_size plus the size of the E820
