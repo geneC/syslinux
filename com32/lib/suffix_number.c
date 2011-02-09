@@ -33,6 +33,7 @@
  */
 
 #include <stdlib.h>
+#include <suffix_number.h>
 
 /* Get a value with a potential suffix (k/m/g/t/p/e) */
 unsigned long long suffix_number(const char *str)
