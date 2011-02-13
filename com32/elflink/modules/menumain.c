@@ -30,6 +30,7 @@
 #include <com32.h>
 #include <syslinux/adv.h>
 #include <sys/module.h>
+#include <core-elf.h>
 
 #include "menu.h"
 #include "cli.h"

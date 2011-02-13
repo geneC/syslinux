@@ -16,7 +16,7 @@
 	extern abort_load_new
 
 	; elflink/load_env32.c
-	extern load_env32, enter_cmdline
+	extern load_env32
 
 	; memscan.c
 	extern highmem_init

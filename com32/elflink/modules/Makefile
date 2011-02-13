@@ -13,6 +13,8 @@
 topdir = ../../..
 include MCONFIG
 
+CFLAGS += -I$(topdir)/core/elflink
+
 MODULES	  = hello.c32 sort.c32 mytest.c32 menumain.c32 printmsg.c32 background.c32 passwd.c32 sha1hash.c32 \
 	unbase64.c32 sha512crypt.c32 md5.c32 crypt-md5.c32 sha256crypt.c32 get_key.c32 ansiraw.c32 test.c32 \
 	meminfo.c32 menu.c32 drain.c32 dir.c32 pcitest.c32 vesainfo.c32 cpuid.c32 cpuidtest.c32

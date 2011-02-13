@@ -15,7 +15,28 @@
 #include <stdio.h>
 
 #include <com32.h>
-#include "menu.h"
+#include "core-elf.h"
+
+/* Must match enum kernel_type */
+const char *const kernel_types[] = {
+    "none",
+    "localboot",
+    "kernel",
+    "linux",
+    "boot",
+    "bss",
+    "pxe",
+    "fdimage",
+    "comboot",
+    "com32",
+    "config",
+    NULL
+};
+
+static inline int my_isspace(char c)
+{
+    return (unsigned char)c <= ' ';
+}
 
 void execute(const char *cmdline, enum kernel_type type)
 {
@@ -72,7 +93,9 @@ void execute(const char *cmdline, enum kernel_type type)
 		new_linux_kernel(kernel, cmdline);
 	} else if (type == KT_CONFIG) {
 		/* kernel contains the config file name */
-		start_ui(kernel);
+		spawn_load_param[0] = args;
+		module_load_dependencies("ui.c32", "modules.dep");
+		spawn_load(kernel, spawn_load_param);
 	} else {
 		/* process the image need int 22 support */
 		if (type == KT_LOCALBOOT) {

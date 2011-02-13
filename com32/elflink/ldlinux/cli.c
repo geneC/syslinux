@@ -12,16 +12,19 @@
 #include <linux/list.h>
 #include <sys/exec.h>
 #include <sys/module.h>
-#include <core.h>
+#include <core-elf.h>
 
 #include "getkey.h"
-#include "common.h"
 #include "menu.h"
 #include "cli.h"
 
+static jmp_buf timeout_jump;
+
+static struct list_head cli_history_head;
+
 void clear_screen(void)
 {
-	mp("enter");
+    //mp("enter");
     fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
 }
 
@@ -31,7 +34,7 @@ int mygetkey(clock_t timeout)
     clock_t tto, to;
     int key;
 
-	//mp("enter");
+    //mp("enter");
     if (!totaltimeout)
 	return get_key(stdin, timeout);
 
@@ -39,9 +42,9 @@ int mygetkey(clock_t timeout)
 	tto = min(totaltimeout, INT_MAX);
 	to = timeout ? min(tto, timeout) : tto;
 
-	t0 = jiffies();
+	t0 = 0;
 	key = get_key(stdin, to);
-	t = jiffies() - t0;
+	t = 0 - t0;
 
 	if (totaltimeout <= t)
 	    longjmp(timeout_jump, 1);
@@ -348,7 +351,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     return ret;
 }
 
-void process_command(const char *cmd)
+void process_command(const char *cmd, bool history)
 {
 	char **argv = malloc((MAX_COMMAND_ARGS + 1) * sizeof(char *));
 	char *temp_cmd = (char *)malloc(sizeof(char) * (strlen(cmd) + 1));
@@ -362,7 +365,17 @@ void process_command(const char *cmd)
 	}
 	printf("\n");
 
-	mp("raw cmd = %s", cmd);
+	if (history) {
+		struct cli_command  *comm;
+
+		comm = (struct cli_command *)malloc(sizeof(struct cli_command *));
+		comm->command =
+			(char *)malloc(sizeof(char) * (strlen(cmd) + 1));
+		strcpy(comm->command, cmd);
+		list_add(&(comm->list), &cli_history_head);
+	}
+
+	//	mp("raw cmd = %s", cmd);
 	strcpy(temp_cmd, cmd);
 	module_name = strtok(cmd, COMMAND_DELIM);
 	len_mn = strlen(module_name);
@@ -370,7 +383,7 @@ void process_command(const char *cmd)
 	if (!strcmp(module_name + len_mn - 4, ".c32")) {
 		if (module_find(module_name) != NULL) {
 			/* make module re-enterable */
-			mp("Module %s is already running");
+		  //		mp("Module %s is already running");
 		}
 		do {
 			argv[0] = module_name;
@@ -408,3 +421,18 @@ cleanup:
 	free(argv);
 	free(temp_cmd);
 }
+
+static int cli_init(void)
+{
+	INIT_LIST_HEAD(&cli_history_head);
+
+	return 0;
+}
+
+static void cli_exit(void)
+{
+	/* Nothing to do */
+}
+
+MODULE_INIT(cli_init);
+MODULE_EXIT(cli_exit);

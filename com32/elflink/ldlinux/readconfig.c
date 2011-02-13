@@ -22,6 +22,7 @@
 #include <com32.h>
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
+#include <core-elf.h>
 
 #include "menu.h"
 
@@ -70,7 +71,7 @@ long long totaltimeout = 0;
 
 /* Keep track of global default */
 static int has_ui = 0;		/* DEFAULT only counts if UI is found */
-char *globaldefault = NULL;
+extern char *globaldefault;
 static bool menusave = false;	/* True if there is any "menu save" */
 
 /* Linked list of all entires, hidden or not; used by unlabel() */
@@ -89,22 +90,6 @@ static const struct messages messages[MSG_COUNT] = {
                       char *__p = alloca(__n); \
                       if ( __p ) memcpy(__p, __x, __n); \
                       __p; })
-
-/* Must match enum kernel_type */
-const char *const kernel_types[] = {
-    "none",
-    "localboot",
-    "kernel",
-    "linux",
-    "boot",
-    "bss",
-    "pxe",
-    "fdimage",
-    "comboot",
-    "com32",
-    "config",
-    NULL
-};
 
 /*
  * Search the list of all menus for a specific label
@@ -579,7 +564,7 @@ uint32_t parse_argb(char **p)
  * same way as if the files had been concatenated together.
  */
 //static const char *append = NULL;
-char *append = NULL;
+extern char *append;
 //static unsigned int ipappend = 0;
 unsigned int ipappend = 0;
 static struct labeldata ld;
