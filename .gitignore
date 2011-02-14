@@ -44,3 +44,6 @@
 /utils/mkdiskimage
 /version.h
 /version.mk
+*GPATH
+*GRTAGS
+*GTAGS
