@@ -51,6 +51,7 @@
 #include "../lib/sys/vesa/vesa.h"
 #include <vpd/vpd.h>
 #include <libansi.h>
+#include <acpi/acpi.h>
 
 /* Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))
@@ -84,6 +85,12 @@ bool quiet;
 
 /* Defines if we must use the vesa mode */
 bool vesamode;
+
+/* Defines if we must use the menu mode */
+bool menumode;
+
+/* Defines if we are running the auto mode */
+bool automode;
 
 /* Defines the number of lines in the console
  * Default is 20 for a std console */
@@ -166,7 +173,9 @@ struct s_vesa {
 struct s_hardware {
     s_dmi dmi;			/* DMI table */
     s_cpu cpu;			/* CPU information */
+    uint8_t physical_cpu_count; /* Number of physical cpu */
     s_vpd vpd;			/* VPD information */
+    s_acpi acpi;
     struct pci_domain *pci_domain;	/* PCI Devices */
     struct driveinfo disk_info[256];	/* Disk Information */
     uint32_t mbr_ids[256];	/* MBR ids */
@@ -183,6 +192,7 @@ struct s_hardware {
     bool is_pxe_valid;
     bool is_vesa_valid;
     bool is_vpd_valid;
+    bool is_acpi_valid;
 
     bool dmi_detection;		/* Does the dmi stuff has already been detected? */
     bool pci_detection;		/* Does the pci stuff has already been detected? */
@@ -192,6 +202,7 @@ struct s_hardware {
     bool vesa_detection;	/* Does the vesa sutff have been already detected? */
     bool vpd_detection;		/* Does the vpd stuff has already been detected? */
     bool memory_detection;	/* Does the memory size got detected ?*/
+    bool acpi_detection;	/* Does the acpi got detected ?*/
 
     char syslinux_fs[22];
     const struct syslinux_version *sv;
@@ -218,9 +229,11 @@ int detect_pxe(struct s_hardware *hardware);
 void init_hardware(struct s_hardware *hardware);
 void clear_screen(void);
 void detect_syslinux(struct s_hardware *hardware);
+int detect_acpi(struct s_hardware *hardware);
 void detect_parameters(const int argc, const char *argv[],
 		       struct s_hardware *hardware);
 int detect_vesa(struct s_hardware *hardware);
 void detect_memory(struct s_hardware *hardware);
 void init_console(struct s_hardware *hardware);
+void detect_hardware(struct s_hardware *hardware);
 #endif

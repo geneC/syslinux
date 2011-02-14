@@ -37,9 +37,6 @@ int start_menu_mode(struct s_hardware *hardware, char *version_string)
 
     memset(&hdt_menu, 0, sizeof(hdt_menu));
 
-    /* Detect every kind of hardware */
-    detect_hardware(hardware);
-
     /* Setup the menu system */
     setup_menu(version_string);
 
@@ -164,14 +161,14 @@ void compute_submenus(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     compute_vpd(&(hdt_menu->vpd_menu), hardware);
     compute_disks(hdt_menu, hardware);
 
-#ifdef WITH_PCI
     compute_PCI(hdt_menu, hardware);
     compute_PXE(&(hdt_menu->pxe_menu), hardware);
     compute_kernel(&(hdt_menu->kernel_menu), hardware);
-#endif
+    
     compute_summarymenu(&(hdt_menu->summary_menu), hardware);
     compute_syslinuxmenu(&(hdt_menu->syslinux_menu), hardware);
     compute_VESA(hdt_menu, hardware);
+    compute_ACPI(hdt_menu, hardware);
     compute_aboutmenu(&(hdt_menu->about_menu));
 }
 
@@ -185,14 +182,13 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     hdt_menu->main_menu.menu = add_menu(" Main Menu ", -1);
     set_item_options(-1, 24);
 
-#ifdef WITH_PCI
     snprintf(menu_item, sizeof(menu_item), "PC<I> Devices(%2d)\n",
 	     hardware->nb_pci_devices);
     add_item(menu_item, "PCI Devices Menu", OPT_SUBMENU, NULL,
 	     hdt_menu->pci_menu.menu);
     hdt_menu->main_menu.items_count++;
     hdt_menu->total_menu_count += hdt_menu->pci_menu.items_count;
-#endif
+    
     if (hdt_menu->disk_menu.items_count > 0) {
 	snprintf(menu_item, sizeof(menu_item), "<D>isks      (%2d)\n",
 		 hdt_menu->disk_menu.items_count);
@@ -267,15 +263,21 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
 	hdt_menu->main_menu.items_count++;
     }
 
+    if (hardware->is_acpi_valid == true) {
+	add_item("<A>CPI", "ACPI Menu", OPT_SUBMENU, NULL,
+		 hdt_menu->acpi_menu.menu);
+	hdt_menu->main_menu.items_count++;
+    }
+
     add_item("", "", OPT_SEP, "", 0);
-#ifdef WITH_PCI
+    
     if ((hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) ||
 	(hardware->modules_alias_return_code != -ENOMODULESALIAS)) {
 	add_item("<K>ernel Modules", "Kernel Modules Menu", OPT_SUBMENU,
 		 NULL, hdt_menu->kernel_menu.menu);
 	hdt_menu->main_menu.items_count++;
     }
-#endif
+    
     add_item("S<y>slinux", "Syslinux Information Menu", OPT_SUBMENU, NULL,
 	     hdt_menu->syslinux_menu.menu);
     hdt_menu->main_menu.items_count++;
@@ -294,44 +296,4 @@ void compute_main_menu(struct s_hdt_menu *hdt_menu, struct s_hardware *hardware)
     hdt_menu->main_menu.items_count++;
 
     hdt_menu->total_menu_count += hdt_menu->main_menu.items_count;
-}
-
-void detect_hardware(struct s_hardware *hardware)
-{
-    if (!quiet)
-	more_printf("MEMORY: Detecting\n");
-    detect_memory(hardware);
-
-    if (!quiet)
-	more_printf("DMI: Detecting Table\n");
-    if (detect_dmi(hardware) == -ENODMITABLE) {
-	printf("DMI: ERROR ! Table not found ! \n");
-	printf("DMI: Many hardware components will not be detected ! \n");
-    } else {
-	if (!quiet)
-	    more_printf("DMI: Table found ! (version %u.%u)\n",
-			hardware->dmi.dmitable.major_version,
-			hardware->dmi.dmitable.minor_version);
-    }
-
-    if (!quiet)
-	more_printf("CPU: Detecting\n");
-    cpu_detect(hardware);
-
-    if (!quiet)
-	more_printf("DISKS: Detecting\n");
-    detect_disks(hardware);
-
-    if (!quiet)
-	more_printf("VPD: Detecting\n");
-    detect_vpd(hardware);
-
-#ifdef WITH_PCI
-    detect_pci(hardware);
-    if (!quiet)
-	more_printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);
-#endif
-    if (!quiet)
-	more_printf("VESA: Detecting\n");
-    detect_vesa(hardware);
 }

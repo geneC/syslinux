@@ -338,7 +338,10 @@ static void show_dmi_cpu(int argc __unused, char **argv __unused,
 		hardware->dmi.processor.signature.stepping);
     more_printf(" Cpu Minor Stepping : %u\n",
 		hardware->dmi.processor.signature.minor_stepping);
-// more_printf(" Voltage            : %f\n",hardware->dmi.processor.voltage);
+    more_printf("Voltage             : %d.%02d\n",
+                hardware->dmi.processor.voltage_mv / 1000,
+                hardware->dmi.processor.voltage_mv -
+                ((hardware->dmi.processor.voltage_mv / 1000) * 1000));
     more_printf(" Status             : %s\n", hardware->dmi.processor.status);
     more_printf(" Upgrade            : %s\n", hardware->dmi.processor.upgrade);
     more_printf(" Cache L1 Handle    : %s\n", hardware->dmi.processor.cache1);
@@ -347,6 +350,13 @@ static void show_dmi_cpu(int argc __unused, char **argv __unused,
     more_printf(" Serial             : %s\n", hardware->dmi.processor.serial);
     more_printf(" Part Number        : %s\n",
 		hardware->dmi.processor.part_number);
+    if (hardware->dmi.processor.core_count != 0)
+        more_printf(" Cores Count        : %d\n", hardware->dmi.processor.core_count);
+    if (hardware->dmi.processor.core_enabled != 0)
+        more_printf(" Cores Enabled      : %d\n", hardware->dmi.processor.core_enabled);
+    if (hardware->dmi.processor.thread_count != 0)
+        more_printf(" Threads Count      : %d\n", hardware->dmi.processor.thread_count);
+
     more_printf(" ID                 : %s\n", hardware->dmi.processor.id);
     for (int i = 0; i < PROCESSOR_FLAGS_ELEMENTS; i++) {
 	if (((bool *) (&hardware->dmi.processor.cpu_flags))[i] == true) {
@@ -493,8 +503,6 @@ void main_show_dmi(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
 
-    detect_dmi(hardware);
-
     if (hardware->is_dmi_valid == false) {
 	more_printf("No valid DMI table found, exiting.\n");
 	return;
@@ -512,12 +520,6 @@ void show_dmi_memory_modules(int argc __unused, char **argv __unused,
 {
     /* Do we have so display unpopulated banks ? */
     int show_free_banks = 1;
-
-    /* Needed, if called by the memory mode */
-    detect_dmi(hardware);
-
-    /* Detecting installed memory */
-    detect_memory(hardware);
 
     more_printf("Memory Size   : %lu MB (%lu KB)\n",
 		(hardware->detected_memory_size + (1 << 9)) >> 10,

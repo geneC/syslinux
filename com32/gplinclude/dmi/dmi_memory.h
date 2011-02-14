@@ -13,21 +13,22 @@
 #ifndef DMI_MEMORY_H
 #define DMI_MEMORY_H
 
-#define MEMORY_MANUFACTURER_SIZE	32
+#define MEMORY_MANUFACTURER_SIZE	65
 #define MEMORY_ERROR_SIZE		16
 #define MEMORY_TOTAL_WIDTH_SIZE		16
 #define MEMORY_DATA_WIDTH_SIZE		16
 #define MEMORY_SIZE_SIZE		32
 #define MEMORY_FORM_FACTOR_SIZE		32
 #define MEMORY_DEVICE_SET_SIZE		32
-#define MEMORY_DEVICE_LOCATOR_SIZE	32
-#define MEMORY_BANK_LOCATOR_SIZE	32
+#define MEMORY_DEVICE_LOCATOR_SIZE	65
+#define MEMORY_BANK_LOCATOR_SIZE	65
 #define MEMORY_TYPE_SIZE		32
 #define MEMORY_TYPE_DETAIL_SIZE		16
 #define MEMORY_SPEED_SIZE		16
-#define MEMORY_SERIAL_SIZE		16
-#define MEMORY_ASSET_TAG_SIZE		16
-#define MEMORY_PART_NUMBER_SIZE		16
+#define MEMORY_SERIAL_SIZE		65
+#define MEMORY_ASSET_TAG_SIZE		65
+#define MEMORY_PART_NUMBER_SIZE		65
+#define MEMORY_SOCKET_DESIGNATION_SIZE	65
 
 typedef struct {
     char manufacturer[MEMORY_MANUFACTURER_SIZE];
@@ -50,7 +51,7 @@ typedef struct {
 } s_memory;
 
 typedef struct {
-    char socket_designation[8];
+    char socket_designation[MEMORY_SOCKET_DESIGNATION_SIZE];
     char bank_connections[8];
     char speed[8];
     char type[48];

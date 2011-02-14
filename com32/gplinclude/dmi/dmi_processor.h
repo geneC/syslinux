@@ -15,18 +15,18 @@
 
 #include "stdbool.h"
 #include "string.h"
-#define PROCESSOR_SOCKET_DESIGNATION_SIZE		32
+#define PROCESSOR_SOCKET_DESIGNATION_SIZE		65
 #define PROCESSOR_TYPE_SIZE		32
 #define PROCESSOR_FAMILY_SIZE		32
-#define PROCESSOR_MANUFACTURER_SIZE     64
-#define PROCESSOR_VERSION_SIZE		64	
+#define PROCESSOR_MANUFACTURER_SIZE     65
+#define PROCESSOR_VERSION_SIZE		65	
 #define PROCESSOR_VOLTAGE_SIZE		16
 #define PROCESSOR_STATUS_SIZE		16
 #define PROCESSOR_UPGRADE_SIZE		16
 #define PROCESSOR_CACHE_SIZE		16
-#define PROCESSOR_SERIAL_SIZE		32
-#define PROCESSOR_ASSET_TAG_SIZE	32
-#define PROCESSOR_PART_NUMBER_SIZE	32
+#define PROCESSOR_SERIAL_SIZE		65
+#define PROCESSOR_ASSET_TAG_SIZE	65
+#define PROCESSOR_PART_NUMBER_SIZE	65
 #define PROCESSOR_ID_SIZE		32
 
 #define PROCESSOR_FLAGS_ELEMENTS	32
@@ -97,6 +97,9 @@ typedef struct {
     char asset_tag[PROCESSOR_ASSET_TAG_SIZE];
     char part_number[PROCESSOR_PART_NUMBER_SIZE];
     char id[PROCESSOR_ID_SIZE];
+    uint16_t core_count;
+    uint16_t core_enabled;
+    uint16_t thread_count;
     s_dmi_cpu_flags cpu_flags;
     s_signature signature;
 /* The filled field have to be set to true when the dmitable implement that item */

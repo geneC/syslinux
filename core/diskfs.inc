@@ -2,7 +2,7 @@
 ; -----------------------------------------------------------------------
 ;   
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@ NULLOFFSET	equ 0			; Position in which to look
 retry_count	equ 16			; How patient are we with the disk?
 %assign HIGHMEM_SLOP 0			; Avoid this much memory near the top
 LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
+
+; This indicates the general format of the last few bytes in the boot sector
+BS_MAGIC_VER	equ 0x1b << 9
 
 SECTOR_SHIFT	equ 9
 SECTOR_SIZE	equ (1 << SECTOR_SHIFT)

@@ -299,6 +299,35 @@ static void dmi_base_board_features(uint8_t code, s_dmi * dmi)
     }
 }
 
+static void dmi_base_board_type(uint8_t code, s_dmi * dmi)
+{
+    /* 3.3.3.2 */
+    static const char *type[] = {
+            "Unknown", /* 0x01 */
+            "Other",
+            "Server Blade",
+            "Connectivity Switch",
+            "System Management Module",
+            "Processor Module",
+            "I/O Module",
+            "Memory Module",
+            "Daughter Board",
+            "Motherboard",
+            "Processor+Memory Module",
+            "Processor+I/O Module",
+            "Interconnect Board" /* 0x0D */
+    };
+
+    if (code >= 0x01 && code <= 0x0D) {
+	strlcpy(dmi->base_board.type, type[code],
+		sizeof(dmi->base_board.type));
+    } else {
+	strlcpy(dmi->base_board.type, out_of_spec,
+		sizeof(dmi->base_board.type));
+    }
+    return;
+}
+
 static void dmi_processor_voltage(uint8_t code, s_dmi * dmi)
 {
     /* 3.3.5.4 */
@@ -652,8 +681,7 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 	dmi_base_board_features(data[0x09], dmi);
 	strlcpy(dmi->base_board.location, dmi_string(h, data[0x0A]),
 		sizeof(dmi->base_board.location));
-	strlcpy(dmi->base_board.type, dmi_string(h, data[0x0D]),
-		sizeof(dmi->base_board.type));
+	dmi_base_board_type(data[0x0D], dmi);
 	if (h->length < 0x0F + data[0x0E] * sizeof(uint16_t))
 	    break;
 	break;
@@ -743,6 +771,14 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 		sizeof(dmi->processor.asset_tag));
 	strlcpy(dmi->processor.part_number, dmi_string(h, data[0x22]),
 		sizeof(dmi->processor.part_number));
+        dmi->processor.core_count = 0;
+        dmi->processor.core_enabled = 0;
+        dmi->processor.thread_count = 0;
+	if (h->length < 0x28)
+	    break;
+        dmi->processor.core_count = data[0x23];
+        dmi->processor.core_enabled = data[0x24];
+        dmi->processor.thread_count = data[0x25];
 	break;
     case 6:			/* 3.3.7 Memory Module Information */
 	if (h->length < 0x0C)

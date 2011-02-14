@@ -62,6 +62,7 @@
 #define CLI_MODES "modes"
 #define CLI_VPD  "vpd"
 #define CLI_MEMORY  "memory"
+#define CLI_ACPI "acpi"
 #define CLI_ENABLE "enable"
 #define CLI_DISABLE "disable"
 
@@ -79,6 +80,7 @@ typedef enum {
     DISK_MODE,
     VPD_MODE,
     MEMORY_MODE,
+    ACPI_MODE
 } cli_mode_t;
 
 #define PROMPT_SIZE 32
@@ -140,6 +142,7 @@ struct cli_mode_descr vesa_mode;
 struct cli_mode_descr disk_mode;
 struct cli_mode_descr vpd_mode;
 struct cli_mode_descr memory_mode;
+struct cli_mode_descr acpi_mode;
 
 /* cli helpers */
 void find_cli_mode_descr(cli_mode_t mode, struct cli_mode_descr **mode_found);
@@ -178,7 +181,6 @@ void show_dmi_memory_bank(int argc, char **argv, struct s_hardware *hardware);
 // PCI STUFF
 #define CLI_PCI_DEVICE "device"
 void main_show_pci(int argc, char **argv, struct s_hardware *hardware);
-void cli_detect_pci(struct s_hardware *hardware);
 
 // CPU STUFF
 void main_show_cpu(int argc, char **argv, struct s_hardware *hardware);
@@ -201,4 +203,9 @@ void main_show_vesa(int argc, char **argv, struct s_hardware *hardware);
 // VPD STUFF
 void main_show_vpd(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware);
+
+// ACPI STUFF
+void main_show_acpi(int argc __unused, char **argv __unused,
+		                    struct s_hardware *hardware);
+
 #endif

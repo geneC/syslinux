@@ -52,7 +52,12 @@ void compute_aboutmenu(struct s_my_menu *menu)
     menu->items_count++;
 
     snprintf(buffer, sizeof buffer, "Website        : %s", WEBSITE_URL);
-    snprintf(statbuffer, sizeof statbuffer, "Website : %s",WEBSITE_URL); 
+    snprintf(statbuffer, sizeof statbuffer, "Website : %s",WEBSITE_URL);
+    add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
+    menu->items_count++;
+
+    snprintf(buffer, sizeof buffer, "IRC Channel    : %s", IRC_CHANNEL);
+    snprintf(statbuffer, sizeof statbuffer, "IRC Channel : %s",IRC_CHANNEL);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
@@ -67,7 +72,7 @@ void compute_aboutmenu(struct s_my_menu *menu)
     snprintf(statbuffer, sizeof statbuffer, "Project Leader  : %s", AUTHOR);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
-    
+
     snprintf(buffer, sizeof buffer, "Core Developer : %s", CORE_DEVELOPER);
     snprintf(statbuffer, sizeof statbuffer, "Core Developer  : %s",
 	     CORE_DEVELOPER);

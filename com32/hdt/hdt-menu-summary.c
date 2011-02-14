@@ -34,7 +34,8 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     char buffer[SUBMENULEN + 1];
     char statbuffer[STATLEN + 1];
 
-    menu->menu = add_menu(" Summary ", -1);
+    snprintf(buffer, sizeof(buffer), " Summary (%d CPU) ", hardware->physical_cpu_count);
+    menu->menu = add_menu(buffer, -1);
     menu->items_count = 0;
 
     set_menu_pos(SUBMENU_Y, SUBMENU_X);
@@ -53,16 +54,20 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
 
     char features[SUBMENULEN + 1];
     memset(features, 0, sizeof(features));
-    sprintf(features, "%d cores, %dK L2 Cache", hardware->cpu.num_cores,
-	    hardware->cpu.l2_cache_size);
+    if (hardware->dmi.processor.thread_count != 0)
+        sprintf(buffer, ", %d thread", hardware->dmi.processor.thread_count);
+    else
+        buffer[0] = 0x00;
+    sprintf(features, "%d core%s, %dK L2 Cache", hardware->cpu.num_cores,
+        buffer, hardware->cpu.l2_cache_size);
     if (hardware->cpu.flags.lm)
 	strcat(features, ", 64bit");
     else
 	strcat(features, ", 32bit");
     if (hardware->cpu.flags.smp)
-	strcat(features, ", SMP ");
+	strcat(features, ", SMP");
     if (hardware->cpu.flags.vmx || hardware->cpu.flags.svm)
-	strcat(features, ", HwVIRT ");
+	strcat(features, ", HwVIRT");
     snprintf(buffer, sizeof buffer, "%s", features);
     snprintf(statbuffer, sizeof statbuffer, "Features : %s", features);
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);

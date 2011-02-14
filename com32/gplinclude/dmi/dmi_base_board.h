@@ -14,16 +14,18 @@
 #define DMI_BASE_BOARD_H
 
 #include "stdbool.h"
-#define BASE_BOARD_MANUFACTURER_SIZE		32
-#define BASE_BOARD_PRODUCT_NAME_SIZE		32
-#define BASE_BOARD_VERSION_SIZE			16
-#define BASE_BOARD_SERIAL_SIZE			32
-#define BASE_BOARD_ASSET_TAG_SIZE		32
-#define BASE_BOARD_LOCATION_SIZE		32
+#define BASE_BOARD_MANUFACTURER_SIZE		65
+#define BASE_BOARD_PRODUCT_NAME_SIZE		65
+#define BASE_BOARD_VERSION_SIZE			65
+#define BASE_BOARD_SERIAL_SIZE			65
+#define BASE_BOARD_ASSET_TAG_SIZE		65
+#define BASE_BOARD_LOCATION_SIZE		65
 #define BASE_BOARD_FEATURES_SIZE		32
 #define BASE_BOARD_TYPE_SIZE			32
 
 #define BASE_BOARD_NB_ELEMENTS			5
+
+#define BASE_BOARD_DEVICE_DESCRIPTION		65
 
 extern const char *base_board_features_strings[];
 
@@ -51,7 +53,7 @@ typedef struct {
     struct {
 	char type[16];
 	uint8_t status;
-	char description[10];
+	char description[BASE_BOARD_DEVICE_DESCRIPTION];
     } devices_information[10];
 } s_base_board;
 

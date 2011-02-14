@@ -22,8 +22,10 @@
 
 #include "stdbool.h"
 
+#define CACHE_SOCKET_DESIGNATION_SIZE  65
+
 typedef struct {
-    char socket_designation[32];
+    char socket_designation[CACHE_SOCKET_DESIGNATION_SIZE];
     char configuration[32];
     char mode[32];
     char location[8];

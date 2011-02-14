@@ -267,6 +267,18 @@ static int dmi_gettable(lua_State *L)
   lua_pushstring(L, dmi.processor.id);
   lua_settable(L,-3);
 
+  lua_pushstring(L, "processor.core_count");
+  lua_pushnumber(L, dmi.processor.core_count);
+  lua_settable(L,-3);
+
+  lua_pushstring(L, "processor.core_enabled");
+  lua_pushnumber(L, dmi.processor.core_enabled);
+  lua_settable(L,-3);
+
+  lua_pushstring(L, "processor.thread_count");
+  lua_pushnumber(L, dmi.processor.thread_count);
+  lua_settable(L,-3);
+
   /* set global variable: lua_setglobal(L, "dmitable"); */
 
   /* return number of return values on stack */
