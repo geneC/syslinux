@@ -17,7 +17,7 @@
 # Very simple, really...
 #
 
-TARGETS	= gpxelinux.0
+TARGETS	= gpxelinux.0 gpxelinuxk.0
 
 all: $(TARGETS)
 
@@ -38,4 +38,11 @@ src/bin/undionly.kkpxe: pxelinux.gpxe ../core/pxelinux.0
 		EMBEDDED_IMAGE=../pxelinux.gpxe,../../core/pxelinux.0
 
 gpxelinux.0: src/bin/undionly.kkpxe
+	cp -f $< $@
+
+src/bin/undionly.kpxe: pxelinuxk.gpxe ../core/pxelinux.0
+	$(MAKE) -C src bin/undionly.kpxe NO_WERROR=1 \
+		EMBEDDED_IMAGE=../pxelinuxk.gpxe,../../core/pxelinux.0
+
+gpxelinuxk.0: src/bin/undionly.kpxe
 	cp -f $< $@
