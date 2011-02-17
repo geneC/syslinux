@@ -71,9 +71,20 @@ resolve_sym ()
 
 	while read symbol 
 	do
-		#echo $symbol
-		sed -n -e "s/^$symbol <\(.*\)>/\1/p" all.txt >> resolve.tmp 
-		#grep $symbol all.txt
+		# If no one provides the symbol we're trying to
+		# resolve then add it to the list of unresolved
+		# symbols.
+		grep -q $symbol all.txt
+		if [ $? -ne 0 ]; then
+			# We only need to add the symbol once
+			if [[ ! "$unresolved_symbols" =~ "$symbol" ]]; then
+				unresolved_symbols="$unresolved_symbols $symbol"
+			fi
+		else
+			#echo $symbol
+			sed -n -e "s/^$symbol <\(.*\)>/\1/p" all.txt >> resolve.tmp
+			#grep $symbol all.txt
+		fi
 	done
 
 	rm_cr < resolve.tmp
@@ -108,4 +119,9 @@ done
 rm *.txt
 rm *.ext
 rm *.int
+
+if [ "$unresolved_symbols" ]; then
+	echo "WARNING: These symbols could not be resolved:" $unresolved_symbols
+fi
+
 echo ELF modules dependency is bult up, pls check modules.dep!
