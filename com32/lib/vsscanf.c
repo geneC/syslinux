@@ -47,13 +47,6 @@ enum bail {
     bail_err			/* Conversion mismatch */
 };
 
-static const char *skipspace(const char *p)
-{
-    while (isspace((unsigned char)*p))
-	p++;
-    return p;
-}
-
 int vsscanf(const char *buffer, const char *format, va_list ap)
 {
     const char *p = format;

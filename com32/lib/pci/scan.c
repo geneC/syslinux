@@ -39,6 +39,7 @@
 #include <sys/pci.h>
 #include <com32.h>
 #include <stdbool.h>
+#include <ctype.h>
 #include <syslinux/zio.h>
 
 #ifdef DEBUG
@@ -48,15 +49,6 @@
 #endif
 
 #define MAX_LINE 512
-
-/* searching the next char that is not a space */
-static char *skipspace(char *p)
-{
-    while (*p && *p <= ' ')
-	p++;
-
-    return p;
-}
 
 /* removing any \n found in a string */
 static void remove_eol(char *string)
