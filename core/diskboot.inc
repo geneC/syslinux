@@ -1,7 +1,7 @@
 ; -----------------------------------------------------------------------
 ;
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+;   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
 ;
 ;   This program is free software; you can redistribute it and/or modify
 ;   it under the terms of the GNU General Public License as published by
@@ -185,7 +185,7 @@ harddisk:
 		shr si,4
 		jz .no_partition	; SI == 0 -> assume no partition
 		add dx,si
-		cmp dx,1024		; DS:SI < 1K (inside the IVT)?
+		cmp dx,1024 >> 4	; DS:SI < 1K (inside the IVT)?
 		jb .no_partition
 		cmp dx,PartInfo >> 4	; DS:SI in overwritten memory?
 		jae .no_partition
