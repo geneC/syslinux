@@ -234,7 +234,9 @@ LABEL label
 
 	CONFIG means restart the boot loader using a different
 	configuration file.  Optionally, a new working directory may be
-	specified in an APPEND.
+	specified in an APPEND.  The configuration file is read, the
+	working directory is changed (if specified), then the
+	configuration file is parsed.
 
     APPEND -
         Append nothing.  APPEND with a single hyphen as argument in a
