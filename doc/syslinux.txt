@@ -233,7 +233,8 @@ LABEL label
 	filetype, regardless of the filename.
 
 	CONFIG means restart the boot loader using a different
-	configuration file.
+	configuration file.  Optionally, a new working directory may be
+	specified in an APPEND.
 
     APPEND -
         Append nothing.  APPEND with a single hyphen as argument in a
