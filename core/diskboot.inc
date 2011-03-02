@@ -16,7 +16,9 @@
 ;
 ; Common boot sector code for harddisk-based Syslinux derivatives.
 ;
-; Requires z[bwd] macros and STACK_TOP, Sect1Ptr[01]_VAL constants
+; Requires macros z[bwd], labels ldlinux_ent, ldlinux_magic, ldlinux_sys
+; and constants BS_MAGIC_VER, LDLINUX_MAGIC, retry_count, Sect1Ptr[01]_VAL,
+; STACK_TOP
 ;
 
 		section .init
