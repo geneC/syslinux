@@ -63,6 +63,8 @@
 # define ROSH_DEBUG2(f, ...)	((void)0)
 # define ROSH_DEBUG2_ARGV_V(argc, argv)	((void)0)
 #endif /* DO_DEBUG */
+#define ROSH_DEBUG2_STAT(f, ...)	((void)0)
+// #define ROSH_DEBUG2_STAT	ROSH_DEBUG2
 
 #ifdef __COM32__
 #define ROSH_IS_COM32	1
@@ -79,16 +81,21 @@ int stat(const char *pathname, struct stat *buf)
     int fd, status, ret = -1;
     DIR *d;
 
+    ROSH_DEBUG2_STAT("stat:opendir(%s) ", pathname);
     d = opendir(pathname);
     if (d != NULL) {
+	ROSH_DEBUG2_STAT("stat:closedir() ");
 	closedir(d);
 	ret = 0;
 	buf->st_mode = S_IFDIR | 0555;
 	buf->st_size = 0;
     } else if ((errno == 0) || (errno == ENOENT) || (errno == ENOTDIR)) {
+	ROSH_DEBUG2_STAT("(%d)stat:open() ", errno);
 	fd = open(pathname, O_RDONLY);
-	if (fd != 1) {
+	if (fd != -1) {
+	    ROSH_DEBUG2_STAT("(%d)stat:fstat() ", fd);
 	    status = fstat(fd, buf);
+	    ROSH_DEBUG2_STAT("stat:close() ");
 	    close(fd);
 	    ret = 0;
 	}

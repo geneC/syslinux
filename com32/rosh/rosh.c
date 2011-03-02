@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2008-2010 Gene Cumm - All Rights Reserved
+ *   Copyright 2008-2011 Gene Cumm - All Rights Reserved
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@
 #define APP_NAME	"rosh"
 #define APP_AUTHOR	"Gene Cumm"
 #define APP_YEAR	"2010"
-#define APP_VER		"beta-b089"
+#define APP_VER		"beta-b090"
 
 /* Print version information to stdout
  */
@@ -576,26 +576,32 @@ int rosh_ls_de_size(const char *filestr, struct dirent *de)
  *	filestr	directory name of directory entry
  *	de	directory entry
  */
-int rosh_ls_de_size_mode(struct dirent *de, mode_t * st_mode)
+int rosh_ls_de_size_mode(const char *filestr, struct dirent *de, mode_t * st_mode)
 {
     int de_size;
-//    char filestr2[ROSH_PATH_SZ];
-//     int file2pos;
+    char filestr2[ROSH_PATH_SZ];
+    int file2pos;
     struct stat fdstat;
     int status;
 
-/*    filestr2[0] = 0;
-    file2pos = -1;*/
-    fdstat.st_size = 0;
-    fdstat.st_mode = 0;
-/*    if (filestr) {
+    filestr2[0] = 0;
+    file2pos = -1;
+    memset(&fdstat, 0, sizeof fdstat);
+    ROSH_DEBUG2("ls:dsm(%s, %s) ", filestr, de->d_name);
+    if (filestr) {
+	/* FIXME: prevent string overflow */
 	file2pos = strlen(filestr);
 	memcpy(filestr2, filestr, file2pos);
-	filestr2[file2pos] = '/';
+	if (( filestr2[file2pos - 1] == SEP )) {
+	    file2pos--;
+	} else {
+	    filestr2[file2pos] = SEP;
+	}
     }
-    strcpy(filestr2 + file2pos + 1, de->d_name);*/
+    strcpy(filestr2 + file2pos + 1, de->d_name);
     errno = 0;
-    status = stat(de->d_name, &fdstat);
+    ROSH_DEBUG2("stat(%s) ", filestr2);
+    status = stat(filestr2, &fdstat);
     ROSH_DEBUG2("\t--stat()=%d\terr=%d\n", status, errno);
     if (errno) {
 	rosh_error(errno, "ls:szmd.stat", de->d_name);
@@ -754,16 +760,17 @@ void rosh_st_mode2str(mode_t st_mode, char *st_mode_str)
  *	de	directory entry
  *	optarr	Array of options
  */
-void rosh_ls_arg_dir_de(struct dirent *de, const int *optarr)
+void rosh_ls_arg_dir_de(const char *filestr, struct dirent *de, const int *optarr)
 {
     int de_size;
     mode_t st_mode;
     char st_mode_str[11];
     st_mode = 0;
+    ROSH_DEBUG2("+");
     if (optarr[2] > -1)
-	printf("%10d ", (int)de->d_ino);
+	printf("%10d ", (int)(de->d_ino));
     if (optarr[0] > -1) {
-	de_size = rosh_ls_de_size_mode(de, &st_mode);
+	de_size = rosh_ls_de_size_mode(filestr, de, &st_mode);
 	rosh_st_mode2str(st_mode, st_mode_str);
 	ROSH_DEBUG2("%04X ", st_mode);
 	printf("%s %10d ", st_mode_str, de_size);
@@ -791,7 +798,7 @@ void rosh_ls_arg_dir(const char *filestr, DIR * d, const int *optarr)
     errno = 0;
     while ((de = readdir(d))) {
 	filepos++;
-	rosh_ls_arg_dir_de(de, optarr);
+	rosh_ls_arg_dir_de(filestr, de, optarr);
     }
     if (errno) {
 	rosh_error(errno, "ls:arg_dir", filestr);
@@ -846,7 +853,7 @@ void rosh_ls_arg(const char *filestr, const int *optarr)
 	    } else {
 		ROSH_DEBUG("PATH '%s' is some other file\n", filestr);
 	    }
-	    rosh_ls_arg_dir_de(&de, optarr);
+	    rosh_ls_arg_dir_de(NULL, &de, optarr);
 /*	    if (ifilstr[0] == SEP)
 		rosh_ls_arg_dir_de(NULL, &de, optarr);
 	    else
