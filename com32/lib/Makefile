@@ -33,6 +33,8 @@ LIBOBJS = \
 	\
 	dprintf.o vdprintf.o						\
 	\
+	suffix_number.o							\
+	\
 	sys/readdir.o getcwd.o chdir.o fdopendir.o			\
 	\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
