@@ -1049,6 +1049,10 @@ static int parse_one_config(const char *filename)
 	if (f)
 		goto config_found;
 
+	f = fopen("syslinux.cfg", "r");
+	if (f)
+		goto config_found;
+
 	return -1;
 config_found:
 	parse_config_file(f);
