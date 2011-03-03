@@ -1,8 +1,12 @@
 #include <linux/list.h>
 #include <sys/times.h>
 #include <stdbool.h>
+#include <core-elf.h>
 #include "cli.h"
 #include "console.h"
+#include "com32.h"
+#include "menu.h"
+#include "config.h"
 
 #include <sys/module.h>
 

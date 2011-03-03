@@ -25,6 +25,7 @@
 #include <core-elf.h>
 
 #include "menu.h"
+#include "config.h"
 
 const struct menu_parameter mparm[NPARAMS] = {
     [P_WIDTH] = {"width", 0},
@@ -43,17 +44,17 @@ const struct menu_parameter mparm[NPARAMS] = {
     [P_HIDDEN_ROW] = {"hiddenrow", -2},
 };
 
-short uappendlen;		//bytes in append= command
-short ontimeoutlen;		//bytes in ontimeout command
-short onerrorlen;		//bytes in onerror command
-short forceprompt;		//force prompt
-short noescape;			//no escape
-short nocomplete;		//no label completion on TAB key
+short uappendlen = 0;		//bytes in append= command
+short ontimeoutlen = 0;		//bytes in ontimeout command
+short onerrorlen = 0;		//bytes in onerror command
+short forceprompt = 0;		//force prompt
+short noescape = 0;		//no escape
+short nocomplete = 0;		//no label completion on TAB key
 short allowimplicit = 1;	//allow implicit kernels
 short allowoptions = 1;		//user-specified options allowed
 short includelevel = 1;		//nesting level
-short defaultlevel;		//the current level of default
-short vkernel;			//have we seen any "label" statements?
+short defaultlevel = 0;		//the current level of default
+short vkernel = 0;		//have we seen any "label" statements?
 short displaycon = 1;		//conio.inc
 short nohalt = 1;		//idle.inc
 
