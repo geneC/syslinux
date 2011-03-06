@@ -169,7 +169,7 @@ replace_bootstrap_noclearmode:
 		mov [es:di+8],ax	; New DI
 		mov [es:di+4],bx	; New ES
 %endif
-		pop ax			; List length
+		pop ax			; descriptor list entries count
 
 		push di
 		push es
@@ -179,8 +179,8 @@ replace_bootstrap_noclearmode:
 
 		mov ebx,trackbuf
 		imul di,ax,12
+		push di			; length of list
 		add di,bx		; DI <- end of list
-		push di
 
 		; Terminating entry...
 		lea eax,[replace_stub]	; Entrypoint
@@ -196,8 +196,10 @@ replace_bootstrap_noclearmode:
 		mov cx,__replacestub_dwords
 		rep movsd
 
+		; ECX <- final list length
 		xor ecx,ecx
-		pop cx			; ECX <- length of list
+		pop cx			; original length in bytes
+		add cx, 12		; + termination entry size
 
 		pop word [replace_stub.ss]
 		pop word [replace_stub.esp]

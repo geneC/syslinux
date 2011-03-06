@@ -453,7 +453,7 @@ setup_move:
 
 .no_initrd:
 		push dword run_linux_kernel
-		push cx				; Length of descriptor list
+		push cx				; descriptor list entries count
 
 		; BX points to the final real mode segment, and will be loaded
 		; into DS.
