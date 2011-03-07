@@ -387,8 +387,10 @@ int module_load_dependencies(const char *name,const char *dep_file)
 		i++;	/* skip a space */
 
 		if (strlen(temp_name)) {
+			char *argv[2] = { NULL, NULL };
+
 			module_load_dependencies(temp_name, MODULES_DEP);
-			if (spawn_load(temp_name, NULL) < 0)
+			if (spawn_load(temp_name, argv) < 0)
 				continue;
 		}
 	}
