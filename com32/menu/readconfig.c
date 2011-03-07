@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <minmax.h>
 #include <alloca.h>
 #include <inttypes.h>
@@ -91,14 +92,6 @@ static struct menu *find_menu(const char *label)
 }
 
 #define MAX_LINE 4096
-
-static char *skipspace(char *p)
-{
-    while (*p && my_isspace(*p))
-	p++;
-
-    return p;
-}
 
 /* Strip ^ from a string, returning a new reference to the same refstring
    if none present */

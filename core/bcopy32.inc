@@ -65,6 +65,8 @@ bcopy:		jecxz .ret
 ;     If len == 0:  this marks the end of the list; dst indicates
 ;		    the entry point and src the mode (0 = pm, 1 = rm)
 ;
+;     (*) dst, src, and len are four bytes each
+;
 shuffle_and_boot_raw:
 		mov bx,pm_shuffle
 		jmp enter_pm

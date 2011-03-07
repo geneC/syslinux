@@ -4,13 +4,19 @@
 ** See Copyright Notice in lua.h
 */
 
-
-//#include <signal.h>
+#ifndef SYSLINUX
+#include <signal.h>
+#else
+#define signal(x,y)
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef SYSLINUX
 #include <console.h>
+#endif
+
 #define lua_c
 
 #include "lua.h"
@@ -25,8 +31,7 @@ static lua_State *globalL = NULL;
 static const char *progname = LUA_PROGNAME;
 
 
-#if 0
-
+#ifndef SYSLINUX
 static void lstop (lua_State *L, lua_Debug *ar) {
   (void)ar;  /* unused arg. */
   lua_sethook(L, NULL, 0, 0);
@@ -99,15 +104,14 @@ static int docall (lua_State *L, int narg, int clear) {
   int base = lua_gettop(L) - narg;  /* function index */
   lua_pushcfunction(L, traceback);  /* push traceback function */
   lua_insert(L, base);  /* put it under chunk and args */
- /* signal(SIGINT, laction);*/
+  signal(SIGINT, laction);
   status = lua_pcall(L, narg, (clear ? 0 : LUA_MULTRET), base);
-/*  signal(SIGINT, SIG_DFL);*/
+  signal(SIGINT, SIG_DFL);
   lua_remove(L, base);  /* remove traceback function */
   /* force a complete garbage collection in case of errors */
   if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0);
   return status;
 }
-
 
 static void print_version (void) {
   l_message(NULL, LUA_RELEASE "  " LUA_COPYRIGHT);
@@ -322,7 +326,11 @@ static int runargs (lua_State *L, char **argv, int n) {
 
 
 static int handle_luainit (lua_State *L) {
-  const char *init = /*getenv(LUA_INIT)*/ NULL;
+#ifndef SYSLINUX
+  const char *init = getenv(LUA_INIT);
+#else
+  const char *init = NULL;
+#endif
   if (init == NULL) return 0;  /* status OK */
   else if (init[0] == '@')
     return dofile(L, init+1);
@@ -378,9 +386,9 @@ static int pmain (lua_State *L) {
 int main (int argc, char **argv) {
   int status;
   struct Smain s;
-
+#ifdef SYSLINUX
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
-
+#endif
   lua_State *L = lua_open();  /* create state */
   if (L == NULL) {
     l_message(argv[0], "cannot create state: not enough memory");

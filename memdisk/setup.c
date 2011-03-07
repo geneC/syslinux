@@ -14,6 +14,8 @@
  * ----------------------------------------------------------------------- */
 
 #include <stdint.h>
+#include <minmax.h>
+#include <suffix_number.h>
 #include "bda.h"
 #include "dskprobe.h"
 #include "e820.h"
@@ -705,6 +707,36 @@ static int stack_needed(void)
   return v;
 }
 
+/*
+ * Set max memory by reservation
+ * Adds reservations to data in INT15h to prevent access to the top of RAM
+ * if there's any above the point specified.
+ */
+void setmaxmem(unsigned long long restop_ull)
+{
+    uint32_t restop;
+    struct e820range *ep;
+    const int int15restype = 2;
+
+    /* insertrange() works on uint32_t */
+    restop = min(restop_ull, UINT32_MAX);
+    /* printf("  setmaxmem  '%08x%08x'  => %08x\n",
+	(unsigned int)(restop_ull>>32), (unsigned int)restop_ull, restop); */
+
+    for (ep = ranges; ep->type != -1U; ep++) {
+	if (ep->type == 1) {	/* Only if available */
+	    if (ep->start >= restop) {
+		/* printf("  %08x -> 2\n", ep->start); */
+		ep->type = int15restype;
+	    } else if (ep[1].start > restop) {
+		/* printf("  +%08x =2; cut %08x\n", restop, ep->start); */
+		insertrange(restop, (ep[1].start - restop), int15restype);
+	    }
+	}
+    }
+    parse_mem();
+}
+
 struct real_mode_args rm_args;
 
 /*
@@ -737,6 +769,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
     int no_bpt;			/* No valid BPT presented */
     uint32_t boot_seg = 0;	/* Meaning 0000:7C00 */
     uint32_t boot_len = 512;	/* One sector */
+    const char *p;
 
     /* We need to copy the rm_args into their proper place */
     memcpy(&rm_args, rm_args_ptr, sizeof rm_args);
@@ -940,6 +973,10 @@ void setup(const struct real_mode_args *rm_args_ptr)
 	pptr->cd_pkt.geom2 =
 	    (uint8_t)(pptr->sectors) | (uint8_t)((pptr->cylinders >> 2) & 0xC0);
 	pptr->cd_pkt.geom3 = (uint8_t)(pptr->heads);
+    }
+
+    if ((p = getcmditem("mem")) != CMD_NOTFOUND) {
+	setmaxmem(suffix_number(p));
     }
 
     /* The size is given by hptr->total_size plus the size of the E820

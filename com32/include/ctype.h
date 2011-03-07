@@ -7,6 +7,8 @@
 #ifndef _CTYPE_H
 #define _CTYPE_H
 
+#include <klibc/extern.h>
+
 #ifndef __CTYPE_NO_INLINE
 # define __ctype_inline static __inline__
 #else
@@ -113,5 +115,7 @@ __ctype_inline int tolower(int __c)
 {
     return isupper(__c) ? _tolower(__c) : __c;
 }
+
+__extern char *skipspace(const char *p);
 
 #endif /* _CTYPE_H */

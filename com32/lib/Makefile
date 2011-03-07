@@ -27,10 +27,13 @@ LIBOBJS = \
 	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o zalloc.o						\
+	skipspace.o							\
 	\
 	lmalloc.o lstrdup.o						\
 	\
 	dprintf.o vdprintf.o						\
+	\
+	suffix_number.o							\
 	\
 	sys/readdir.o getcwd.o chdir.o fdopendir.o			\
 	\

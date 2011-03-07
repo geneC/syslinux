@@ -10,28 +10,6 @@
 
 int vesacon_load_background(const char *filename);
 
-static int __constfunc is_power_of_2(unsigned int x)
-{
-  return x && !(x & (x-1));
-}
-
-static int vesacon_paged_mode_ok(const struct vesa_mode_info *mi)
-{
-  int i;
-
-  if (!is_power_of_2(mi->win_size) ||
-      !is_power_of_2(mi->win_grain) ||
-      mi->win_grain > mi->win_size)
-    return 0;                   /* Impossible... */
-
-  for (i = 0; i < 2; i++) {
-    if ((mi->win_attr[i] & 0x05) == 0x05 && mi->win_seg[i])
-      return 1;                 /* Usable window */
-  }
-
-  return 0;                     /* Nope... */
-}
-
 static int vesa_getmodes(lua_State *L)
 {
   com32sys_t rm;
@@ -117,6 +95,8 @@ static int vesa_getmodes(lua_State *L)
 
 static int vesa_setmode(lua_State *L)
 {
+  /* Preventing GCC to complain about unused L*/
+  L=L;
   openconsole(&dev_rawcon_r, &dev_vesaserial_w);
 
   return 0;

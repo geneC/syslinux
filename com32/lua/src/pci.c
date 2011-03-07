@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define lpcilib_c       /* Define the library */
 
@@ -9,6 +10,15 @@
 #include "lualib.h"
 #include <sys/pci.h>
 
+/* removing any \n found in a string */
+static void remove_eol(char *string)
+{
+    int j = strlen(string);
+    int i = 0;
+    for (i = 0; i < j; i++)
+        if (string[i] == '\n')
+            string[i] = 0;
+}
 
 static int pci_getinfo(lua_State *L)
 {
@@ -58,24 +68,6 @@ static int pci_getinfo(lua_State *L)
 
   return 1;
 }
-
-/* searching the next char that is not a space */
-static char *skipspace(char *p)
-{
-  while (*p && *p <= ' ')
-    p++;
-
-  return p;
-}
-
-/* removing any \n found in a string */
-static void remove_eol(char *string)
-{
- int j = strlen(string);
- int i = 0;
- for(i = 0; i < j; i++) if(string[i] == '\n') string[i] = 0;
-}
-
 
 /* Try to match any pci device to the appropriate kernel module */
 /* it uses the modules.pcimap from the boot device*/
