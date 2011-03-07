@@ -69,7 +69,7 @@ Usage:\n\
 \nOptions ('no' prefix specifies default value):\n\
     sect[=<s[:o[:i]]>]   Load sector at <s:o>, jump to <s:i>\n\
                          - defaults to 0:0x7C00:0x7C00\n\
-                         - ommited o/i values default to 0x7C00\n\
+                         - ommited o/i values default to 0\n\
     maps                 Map loaded sector into real memory\n\
     nosetbpb             Fix BPB fields in loaded sector\n\
     nofilebpb            Apply 'setbpb' to loaded file\n\
@@ -349,7 +349,7 @@ int opt_parse_args(int argc, char *argv[])
     }
 
     if (opt.maps && !opt.sect) {
-	error("Option 'maps' requires option 'sect'.\n");
+	error("Option 'maps' requires a sector.\n");
 	goto bail;
     }
 
