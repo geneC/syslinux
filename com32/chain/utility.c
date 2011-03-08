@@ -7,18 +7,16 @@
 #include <syslinux/disk.h>
 #include "utility.h"
 
-#ifdef DEBUG
 static const char *bpbtypes[] = {
-    [0] =  "BPB unknown",
-    [1] =  "BPB v.2.0",
-    [2] =  "BPB v.3.0",
-    [3] =  "BPB v.3.2",
-    [4] =  "BPB v.3.4",
-    [5] =  "BPB v.4.0",
-    [6] =  "BPB v.NT+",
-    [7] =  "BPB v.7.0",
+    [0] =  "unknown",
+    [1] =  "2.0",
+    [2] =  "3.0",
+    [3] =  "3.2",
+    [4] =  "3.4",
+    [5] =  "4.0",
+    [6] =  "8.0 (NT+)",
+    [7] =  "7.0",
 };
-#endif
 
 void error(const char *msg)
 {
@@ -148,7 +146,7 @@ int drvoff_detect(int type, unsigned int *off)
 /*
  * heuristics could certainly be improved
  */
-int bpb_detect(const uint8_t *sec)
+int bpb_detect(const uint8_t *sec, const char *tag)
 {
     int a, b, c, jmp = -1, rev = 0;
 
@@ -207,11 +205,8 @@ nocode:
     }
 
 out:
-#ifdef DEBUG
-    printf("INFO: BPB detection: %s\n", bpbtypes[rev]);
-#endif
+    printf("BPB detection (%s): %s\n", tag, bpbtypes[rev]);
     return rev;
 }
-
 
 /* vim: set ts=8 sts=4 sw=4 noet: */

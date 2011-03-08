@@ -243,10 +243,10 @@ bail:
 }
 #endif
 /* Adjust BPB common function */
-static int mangle_bpb(const struct part_iter *iter, struct data_area *data)
+static int mangle_bpb(const struct part_iter *iter, struct data_area *data, const char *tag)
 {
     unsigned int off;
-    int type = bpb_detect(data->data);
+    int type = bpb_detect(data->data, tag);
 
     /* BPB: hidden sectors 32bit*/
     if (type >= bpbV34) {
@@ -292,7 +292,7 @@ int manglef_bpb(const struct part_iter *iter, struct data_area *data)
     if (!(opt.file && opt.filebpb))
 	return 0;
 
-    return mangle_bpb(iter, data);
+    return mangle_bpb(iter, data, "file");
 }
 
 /*
@@ -303,7 +303,7 @@ int mangles_bpb(const struct part_iter *iter, struct data_area *data)
     if (!(opt.sect && opt.setbpb))
 	return 0;
 
-    return mangle_bpb(iter, data);
+    return mangle_bpb(iter, data, "sect");
 }
 
 /*
@@ -318,8 +318,8 @@ int manglesf_bss(struct data_area *sec, struct data_area *fil)
     if (!(opt.sect && opt.file && opt.bss))
 	return 0;
 
-    type1 = bpb_detect(fil->data);
-    type2 = bpb_detect(sec->data);
+    type1 = bpb_detect(fil->data, "bss/file");
+    type2 = bpb_detect(sec->data, "bss/sect");
 
     if (!type1 || !type2) {
 	error("Couldn't determine the BPB type for option 'bss'.\n");
