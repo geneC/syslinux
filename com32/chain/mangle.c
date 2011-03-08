@@ -587,11 +587,9 @@ int manglepe_fixchs(struct part_iter *miter)
 	ridx = iter->rawindex;
 	dp = (struct disk_dos_part_entry *)iter->record;
 
-	if (dp->ostype) {
-	    wb |= mpe_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
-	    if (ridx > 4)
+	wb |= mpe_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
+	if (ridx > 4)
 		wb |= mpe_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
-	}
 
 	if (ridx >= 4 && wb && !werr) {
 	    push_embr(miter, iter);
