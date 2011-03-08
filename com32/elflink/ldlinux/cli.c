@@ -13,6 +13,7 @@
 #include <sys/exec.h>
 #include <sys/module.h>
 #include <core-elf.h>
+#include <dprintf.h>
 
 #include "getkey.h"
 #include "menu.h"
@@ -24,7 +25,7 @@ static struct list_head cli_history_head;
 
 void clear_screen(void)
 {
-    //mp("enter");
+    //dprintf("enter");
     fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
 }
 
@@ -34,7 +35,7 @@ int mygetkey(clock_t timeout)
     clock_t tto, to;
     int key;
 
-    //mp("enter");
+    //dprintf("enter");
     if (!totaltimeout)
 	return get_key(stdin, timeout);
 
@@ -52,13 +53,13 @@ int mygetkey(clock_t timeout)
 	totaltimeout -= t;
 
 	if (key != KEY_NONE) {
-		//mp("get key 0x%x", key);
+		//dprintf("get key 0x%x", key);
 	    return key;
 	}
 
 	if (timeout) {
 	    if (timeout <= t) {
-		//mp("timeout");
+		//dprintf("timeout");
 		return KEY_NONE;
 		}
 
@@ -375,7 +376,7 @@ void process_command(const char *cmd, bool history)
 		list_add(&(comm->list), &cli_history_head);
 	}
 
-	//	mp("raw cmd = %s", cmd);
+	//	dprintf("raw cmd = %s", cmd);
 	strcpy(temp_cmd, cmd);
 	module_name = strtok(cmd, COMMAND_DELIM);
 	len_mn = strlen(module_name);
@@ -383,7 +384,7 @@ void process_command(const char *cmd, bool history)
 	if (!strcmp(module_name + len_mn - 4, ".c32")) {
 		if (module_find(module_name) != NULL) {
 			/* make module re-enterable */
-		  //		mp("Module %s is already running");
+		  //		dprintf("Module %s is already running");
 		}
 		do {
 			argv[0] = module_name;

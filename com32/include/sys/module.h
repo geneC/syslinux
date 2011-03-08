@@ -135,7 +135,7 @@ struct elf_module {
 static inline void dump_elf_module(struct elf_module *module)
 {
 	/*
-	mp("module name = %s", module->name);
+	dprintf("module name = %s", module->name);
 	printf("base_addr = 0x%p, module_size = %d\n", module->base_addr, module->module_size);
 	printf("hash tlb = 0x%p, ghash tbl = 0x%p\n", module->hash_table, module->ghash_table);
 	printf("str tbl = 0x%p, size = %d\n", module->str_table, module->strtable_size);

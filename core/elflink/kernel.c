@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <console.h>
+#include <dprintf.h>
 #include <syslinux/loadfile.h>
 #include <syslinux/linux.h>
 #include <syslinux/pxe.h>
@@ -25,7 +26,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	char cmdline_buf[256], *cmdline;
 	int i;
 
-	mp("okernel = %s, ocmdline = %s", okernel, ocmdline);
+	dprintf("okernel = %s, ocmdline = %s", okernel, ocmdline);
 
 	cmdline = cmdline_buf;
 
@@ -116,7 +117,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 		initramfs_load_archive(initramfs, initrd_name);
 	}
 
-	//mp("loading initrd done");
+	//dprintf("loading initrd done");
 
 	/* This should not return... */
 	syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);

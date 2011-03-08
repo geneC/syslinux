@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <dprintf.h>
 #include "malloc.h"
 
 #include <stdio.h>
@@ -18,7 +19,7 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 	struct free_arena_header *fp;
 	addr_t end;
 
-	mp("start = %x, len = %x, is_ram = %d", start, len, is_ram);
+	dprintf("start = %x, len = %x, is_ram = %d", start, len, is_ram);
 
 	if (start < 0x100000 || start > E820_MEM_MAX
 			     || !is_ram)
@@ -36,7 +37,7 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 		fp = (struct free_arena_header *)start;
 		fp->a.attrs = ARENA_TYPE_USED | (HEAP_MAIN << ARENA_HEAP_POS);
 		ARENA_SIZE_SET(fp->a.attrs, len);
-		mp("will inject a block start:0x%x size 0x%x", start, len);
+		dprintf("will inject a block start:0x%x size 0x%x", start, len);
 		__inject_free_block(fp);
 	}
 
@@ -70,7 +71,7 @@ void mem_init(void)
 	int i;
 	uint16_t *bios_free_mem = (uint16_t *)0x413;
 
-	//mp("enter");
+	//dprintf("enter");
 
 	/* Initialize the head nodes */
 	fp = &__core_malloc_head[0];
@@ -81,7 +82,7 @@ void mem_init(void)
 	fp++;
 	}
 	
-	//mp("__lowmem_heap = 0x%p bios_free = 0x%p",
+	//dprintf("__lowmem_heap = 0x%p bios_free = 0x%p",
 	//	__lowmem_heap, *bios_free_mem);
 	
 	/* Initialize the lowmem heap */

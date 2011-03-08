@@ -23,6 +23,7 @@
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <core-elf.h>
+#include <dprintf.h>
 
 #include "menu.h"
 #include "config.h"
@@ -171,7 +172,7 @@ static struct menu *new_menu(struct menu *parent,
     struct menu *m = calloc(1, sizeof(struct menu));
     int i;
 	
-	//mp("enter: menu_label = %s", label);
+	//dprintf("enter: menu_label = %s", label);
 
     m->label = label;
     m->title = refstr_get(empty_string);
@@ -260,7 +261,7 @@ static struct menu_entry *new_entry(struct menu *m)
 {
     struct menu_entry *me;
 
-    //mp("enter, call from menu %s", m->label);
+    //dprintf("enter, call from menu %s", m->label);
 
     if (m->nentries >= m->nentries_space) {
 	if (!m->nentries_space)
@@ -377,7 +378,7 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	    else
 		rsprintf(&me->cmdline, ".%s %s%s%s%s",
 			 kernel_types[ld->type], ld->kernel, s, a, ipoptions);
-		mp("type = %s, cmd = %s", kernel_types[ld->type], me->cmdline);
+		dprintf("type = %s, cmd = %s", kernel_types[ld->type], me->cmdline);
 	    break;
 
 	case MA_GOTO_UNRES:
@@ -931,7 +932,7 @@ do_include:
 		refstr_put(append);
 		append = a;
 	    }
-	    //mp("we got a append: %s", a);
+	    //dprintf("we got a append: %s", a);
 	} else if (looking_at(p, "initrd")) {
 	    const char *a = refstrdup(skipspace(p + 6));
 	    if (ld.label) {
@@ -961,7 +962,7 @@ do_include:
 		refstr_put(ld.kernel);
 		ld.kernel = refstrdup(skipspace(ep));
 		ld.type = type;
-		//mp("got a kernel: %s, type = %d", ld.kernel, ld.type);
+		//dprintf("got a kernel: %s, type = %d", ld.kernel, ld.type);
 	    }
 	} else if (looking_at(p, "timeout")) {
 	    m->timeout = (atoi(skipspace(p + 7)) * CLK_TCK + 9) / 10;
@@ -1083,7 +1084,7 @@ static void resolve_gotos(void)
 
 static void dump_menu(struct menu *menu)
 {
-	mp("will dump menu for %s:", menu->label);
+	dprintf("will dump menu for %s:", menu->label);
 	printf("entries num: %d\n", menu->nentries);
 	printf("defentry: %d, nam = %s\n",
 		menu->defentry, menu->menu_entries[menu->defentry]->label);
@@ -1099,7 +1100,7 @@ void parse_configs(char **argv)
     struct menu *m;
     struct menu_entry *me;
     char *cmdline;
-    mp("enter");
+    dprintf("enter");
 
     empty_string = refstrdup("");
 
@@ -1122,7 +1123,7 @@ void parse_configs(char **argv)
 	parse_one_config("~");
     } else {
 	while ((filename = *argv++)) {
-		mp("Parsing config: %s", filename);
+		dprintf("Parsing config: %s", filename);
 	    parse_one_config(filename);
 	}
     }
@@ -1136,7 +1137,7 @@ void parse_configs(char **argv)
     /* Handle global default */
     //if (has_ui && globaldefault) {
     if (globaldefault) {
-	mp("gloabldefault = %s", globaldefault);
+	dprintf("gloabldefault = %s", globaldefault);
 	me = find_label(globaldefault);
 	if (me && me->menu != hide_menu) {
 	    me->menu->defentry = me->entry;

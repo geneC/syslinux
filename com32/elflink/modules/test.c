@@ -46,6 +46,7 @@
 #include <syslinux/loadfile.h>
 #include <syslinux/linux.h>
 #include <sys/module.h>
+#include <dprintf.h>
 
 //const char *progname = "test.c32";
 
@@ -94,11 +95,11 @@ static int test_main(int argc, char *argv[])
 
 
 	if (initramfs_load_archive(initramfs, "initrd.gz"))
-		mp("initrd load failure\n");
+		dprintf("initrd load failure\n");
 	else
-		mp("initrd load success\n");
+		dprintf("initrd load success\n");
 
-	mp("1111");
+	dprintf("1111");
 
         /* This should not return... */
     syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);

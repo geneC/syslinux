@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <elf.h>
+#include <dprintf.h>
 
 #include <linux/list.h>
 #include <sys/module.h>
@@ -480,7 +481,7 @@ int module_load(struct elf_module *module) {
 	// Perform the relocations
 	resolve_symbols(module);
 
-	//mp("module->symtable_size = %d\n", module->symtable_size);
+	//dprintf("module->symtable_size = %d\n", module->symtable_size);
 
 	//print_elf_symbols(module);
 

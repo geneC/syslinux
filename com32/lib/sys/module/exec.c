@@ -14,8 +14,9 @@
 #include <setjmp.h>
 #include <setjmp.h>
 #include <alloca.h>
+#include <dprintf.h>
 
-#define DBG_PRINT(fmt, args...)	fprintf(stderr, "[EXEC] " fmt, ##args)
+#define DBG_PRINT(fmt, args...) dprintf("[EXEC] " fmt, ##args)
 
 static struct elf_module    *mod_root = NULL;
 struct elf_module *__syslinux_current = NULL;
@@ -232,13 +233,13 @@ int spawn_load(const char *name,const char **argv)
 
 	int type;
 
-	mp("enter: name = %s", name);
+	dprintf("enter: name = %s", name);
 
 	if (module == NULL)
 		return -1;
 
 	if (!strcmp(cur_module->name, module->name)) {
-		mp("We is running this module %s already!", module->name);
+		dprintf("We is running this module %s already!", module->name);
 
 		/*
 		 * If we're already running the module and it's of
@@ -266,7 +267,7 @@ int spawn_load(const char *name,const char **argv)
 	prev_module = cur_module;
 	cur_module = module;
 
-	mp("type = %d, prev = %s, cur = %s",
+	dprintf("type = %d, prev = %s, cur = %s",
 		type, prev_module->name, cur_module->name);
 
 	if(type==LIB_MODULE)
@@ -383,7 +384,7 @@ int module_load_dependencies(const char *name,const char *dep_file)
 			while (line[i] != '\n')
 				aux[j++] = line[i++];
 			aux[j] = '\0';
-			//mp("found dependency: temp_name = %s, aux = %s, name = %s", temp_name, aux, name);
+			//dprintf("found dependency: temp_name = %s, aux = %s, name = %s", temp_name, aux, name);
 			break;
 		}
 	}
@@ -394,7 +395,7 @@ int module_load_dependencies(const char *name,const char *dep_file)
 	i = 0;
 	while (aux[i]) {
 		sscanf(aux + i, "%s", temp_name);
-		//mp("load module: %s", temp_name);
+		//dprintf("load module: %s", temp_name);
 		i += strlen(temp_name);
 		i++;	/* skip a space */
 

@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <dprintf.h>
 
 #include <com32.h>
 #include "core-elf.h"
@@ -71,7 +72,7 @@ void execute(const char *cmdline, enum kernel_type type)
 
 	strcpy(q, p);
 
-	mp("kernel is %s, args = %s  type = %d \n", kernel, args, type);
+	dprintf("kernel is %s, args = %s  type = %d \n", kernel, args, type);
 
 	if (kernel[0] == '.' && type == KT_NONE) {
 		/* It might be a type specifier */

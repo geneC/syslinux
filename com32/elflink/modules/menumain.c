@@ -31,6 +31,7 @@
 #include <syslinux/adv.h>
 #include <sys/module.h>
 #include <core-elf.h>
+#include <dprintf.h>
 
 #include "menu.h"
 #include "cli.h"
@@ -899,7 +900,7 @@ static const char *run_menu(void)
 
 static void dump_menu(struct menu *menu)
 {
-	mp("will dump menu for %s:", menu->label);
+	dprintf("will dump menu for %s:", menu->label);
 	printf("entries num: %d\n", menu->nentries);
 	printf("defentry: %d, nam = %s\n",
 		menu->defentry, menu->menu_entries[menu->defentry]->label);
@@ -956,7 +957,7 @@ int menu_main(int argc, char *argv[])
 	printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
 
 	if (cmdline) {
-		mp("cmdline = %s", cmdline);
+		dprintf("cmdline = %s", cmdline);
 	    execute(cmdline, KT_NONE);
 	    if (cm->onerror)
 		execute(cm->onerror, KT_NONE);
