@@ -24,7 +24,8 @@ int mangler_handover(const struct part_iter *iter, const struct data_area *data)
 int mangler_grldr(const struct part_iter *iter);
 
 /* partition layout's manglers */
-int manglepe_mbrchshide(struct part_iter *miter);
+int manglepe_fixchs(struct part_iter *miter);
+int manglepe_hide(struct part_iter *miter);
 
 #endif
 

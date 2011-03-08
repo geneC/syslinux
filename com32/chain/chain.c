@@ -525,7 +525,9 @@ int main(int argc, char *argv[])
 	goto bail;
 
     /* Perform initial partition entry mangling */
-    if (manglepe_mbrchshide(iter))
+    if (manglepe_fixchs(iter))
+	goto bail;
+    if (manglepe_hide(iter))
 	goto bail;
 
     /* Load the boot file */

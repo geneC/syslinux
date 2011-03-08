@@ -446,15 +446,25 @@ int mangler_grldr(const struct part_iter *iter)
     return 0;
 }
 
-static int mpe_sethide(struct part_iter *miter, struct part_iter *iter)
+/*
+ * try to copy values from temporary iterator, if positions match
+ */
+static void push_embr(struct part_iter *diter, struct part_iter *siter)
 {
-    struct disk_dos_part_entry *mdp, *dp;
+    if (diter->sub.dos.cebr_lba == siter->sub.dos.cebr_lba &&
+	    diter->di.disk == siter->di.disk) {
+	memcpy(diter->data, siter->data, sizeof(struct disk_dos_mbr));
+    }
+}
+
+static int mpe_sethide(struct part_iter *iter, struct part_iter *miter)
+{
+    struct disk_dos_part_entry *dp;
     static const uint16_t mask =
 	(1 << 0x01) | (1 << 0x04) | (1 << 0x06) |
 	(1 << 0x07) | (1 << 0x0b) | (1 << 0x0c) | (1 << 0x0e);
     uint8_t t;
 
-    mdp = (struct disk_dos_part_entry *)miter->record;
     dp = (struct disk_dos_part_entry *)iter->record;
     t = dp->ostype;
 
@@ -467,15 +477,71 @@ static int mpe_sethide(struct part_iter *miter, struct part_iter *iter)
     }
     if (dp->ostype != t) {
 	dp->ostype = t;
-	/*
-	 * the type of the partition being booted has to be adjusted in
-	 * the match iterator (miter) as well
-	 */
-	if (miter->index == iter->index) {
-	    mdp->ostype = t;
-	}
 	return -1;
     }
+    return 0;
+}
+
+/*
+ * miter - iterator we match against
+ * hide bits meaning:
+ * ..| - enable (1) / disable (0)
+ * .|. - all (1) / pri (0)
+ * |.. - unhide (1) / hide (0)
+ */
+int manglepe_hide(struct part_iter *miter)
+{
+    int wb = 0, werr = 0;
+    struct part_iter *iter = NULL;
+    struct disk_dos_part_entry *dp;
+    int ridx;
+
+    if (!opt.hide)
+	return 0;
+
+    if (miter->type != typedos) {
+	error("Options '*hide*' is meaningful only for legacy partition scheme.\n");
+	return -1;
+    }
+
+    if (miter->index < 1)
+	error("WARNING: It's impossible to unhide a disk.\n");
+
+    if (miter->index > 4 && !(opt.hide & 2))
+	error("WARNING: your partition is beyond mbr, so it can't be unhidden without '*hideall'.\n");
+
+    if (!(iter = pi_begin(&miter->di, 1)))  /* turn stepall on */
+	return -1;
+
+    while (!pi_next(&iter) && !werr) {
+	ridx = iter->rawindex;
+	if (!(opt.hide & 2) && ridx > 4)
+	    break;  /* skip when we're constrained to pri only */
+
+	dp = (struct disk_dos_part_entry *)iter->record;
+	if (dp->ostype)
+	    wb |= mpe_sethide(iter, miter);
+
+	if (ridx >= 4 && wb && !werr) {
+	    push_embr(miter, iter);
+	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	    wb = 0;
+	}
+    }
+
+    if (iter->status > PI_DONE)
+	goto bail;
+
+    /* last write */
+    if (wb && !werr) {
+	push_embr(miter, iter);
+	werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+    }
+    if (werr)
+	error("WARNING: failed to write E/MBR during '*hide*'\n");
+
+bail:
+    pi_del(&iter);
     return 0;
 }
 
@@ -501,57 +567,57 @@ static int mpe_setchs(const struct disk_info *di,
 	*(uint32_t *)dp->end != ochs2;
 }
 
-int manglepe_mbrchshide(struct part_iter *miter)
+/*
+ * miter - iterator we match against
+ */
+int manglepe_fixchs(struct part_iter *miter)
 {
     int wb = 0, werr = 0;
     struct part_iter *iter = NULL;
     struct disk_dos_part_entry *dp;
     int ridx;
 
-    if (!(opt.mbrchs || opt.hide))
+    if (!opt.mbrchs)
 	return 0;
 
     if (miter->type != typedos) {
-	error("Partition entry mangling ('[un]hide[all]', 'mbrchs')\n"
-	      "is meaningful only for legacy partition scheme.\n");
+	error("Options 'fixchs' is meaningful only for legacy partition scheme.\n");
 	return -1;
     }
-    if (opt.hide &&
-	    ((miter->index < 1 && opt.hide < 4) || /* try to hide a disk */
-	     (miter->index > 4 && opt.hide == 1))) /* try to hide a part when limited to pri */
-	error("WARNING: It's impossible to hide the selected partition (or you selected a disk).\n");
 
-    if (!(iter = pi_begin(&miter->di, 1)))  /* turn on stepall */
+    if (!(iter = pi_begin(&miter->di, 1)))  /* turn stepall on */
 	return -1;
 
-    while (!pi_next(&iter) && !werr && (opt.hide & 2 || opt.mbrchs)) {
+    while (!pi_next(&iter) && !werr) {
 	ridx = iter->rawindex;
 	dp = (struct disk_dos_part_entry *)iter->record;
 
 	if (dp->ostype) {
-	    if (opt.hide & 2 || (opt.hide & 1 && ridx <= 4)) {
-		wb |= mpe_sethide(miter, iter);
-	    }
-	    if (opt.mbrchs) {
-		wb |= mpe_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
-		if (ridx > 4)
-		    wb |= mpe_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
-	    }
+	    wb |= mpe_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
+	    if (ridx > 4)
+		wb |= mpe_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
 	}
 
 	if (ridx >= 4 && wb && !werr) {
+	    push_embr(miter, iter);
 	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
 	    wb = 0;
 	}
     }
-    /* last write */
-    if (wb && !werr)
-	werr |= disk_write_sectors(&miter->di, iter->sub.dos.cebr_lba, iter->data, 1);
 
-    pi_del(&iter);
+    if (iter->status > PI_DONE)
+	goto bail;
+
+    /* last write */
+    if (wb && !werr) {
+	push_embr(miter, iter);
+	werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+    }
     if (werr)
-	error("WARNING: failed to write E/MBR for partition\n"
-	      "mangling options ('[un]hide[all]', 'mbrchs').\n");
+	error("WARNING: failed to write E/MBR during 'fixchs'\n");
+
+bail:
+    pi_del(&iter);
     return 0;
 }
 
