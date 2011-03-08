@@ -109,6 +109,7 @@ static int iter_ctor(struct part_iter *iter, va_list *args)
     memcpy(&iter->di, di, sizeof(struct disk_info));
     iter->stepall = stepall;
     iter->index0 = -1;
+    iter->length = di->lbacnt;
 
     return 0;
 }
@@ -478,6 +479,7 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
 	iter->index = iter->index0 - iter->sub.dos.skipcnt + 1;
     iter->rawindex = iter->index0 + 1;
     iter->start_lba = start_lba;
+    iter->length = dos_part->length;
     iter->record = (char *)dos_part;
 
 #ifdef DEBUG
@@ -533,6 +535,7 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
     iter->index = iter->index0 + 1;
     iter->rawindex = iter->index0 + 1;
     iter->start_lba = gpt_part->lba_first;
+    iter->length = gpt_part->lba_last - gpt_part->lba_first + 1;
     iter->record = (char *)gpt_part;
     memcpy(&iter->sub.gpt.part_guid, &gpt_part->uid, sizeof(struct guid));
     gpt_conv_label(iter);

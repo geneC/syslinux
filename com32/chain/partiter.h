@@ -60,6 +60,7 @@ struct part_iter {
     char *data;
     char *record;
     uint64_t start_lba;
+    uint64_t length;
     int index;
     int rawindex;
     struct disk_info di;
