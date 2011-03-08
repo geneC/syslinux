@@ -100,8 +100,7 @@ void __inject_free_block(struct free_arena_header *ah)
     size_t a_end = (size_t) ah + ARENA_SIZE_GET(ah->a.attrs);
     size_t n_end;
 
-    //dprintf("inject: %#zx bytes @ %p, heap %u (%p)\n",
-    printf("inject: %#zx bytes @%p, heap%u (%p)\n",
+    dprintf("inject: %#zx bytes @ %p, heap %u (%p)\n",
 	    ARENA_SIZE_GET(ah->a.attrs), ah,
 	    ARENA_HEAP_GET(ah->a.attrs), head);
 

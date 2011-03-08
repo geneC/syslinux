@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <console.h>
+#include <dprintf.h>
 #include <com32.h>
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
@@ -112,7 +113,7 @@ void start_ui(char *config_file)
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32(com32sys_t * regs)
 {
-	printf("Starting 32 bit elf module subsystem...\n");
+	dprintf("Starting 32 bit elf module subsystem...\n");
 	call_constr();
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 	INIT_LIST_HEAD(&cli_history_head);
