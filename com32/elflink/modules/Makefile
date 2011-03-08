@@ -97,7 +97,7 @@ tidy dist:
 	rm -f *.o *.lo *.a *.lst .*.d 
 
 clean: tidy
-	rm -f *.lss *.lnx *.com
+	rm -f *.lss *.lnx *.com *.c32
 
 spotless: clean
 	rm -f *~ \#*
