@@ -30,7 +30,7 @@ struct options {
     bool bss;
     bool setbpb;
     bool filebpb;
-    bool mbrchs;
+    bool fixchs;
     bool warn;
     bool chain;
     uint16_t keeppxe;

@@ -577,7 +577,7 @@ int manglepe_fixchs(struct part_iter *miter)
     struct disk_dos_part_entry *dp;
     int ridx;
 
-    if (!opt.mbrchs)
+    if (!opt.fixchs)
 	return 0;
 
     if (miter->type != typedos) {

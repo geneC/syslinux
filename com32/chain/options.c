@@ -82,7 +82,7 @@ Usage:\n\
     hideall              Hide *all* partitions, unhide selected partition\n\
     unhide               Unhide primary partitions\n\
     unhideall            Unhide *all* partitions\n\
-    nombrchs             Walk *all* partitions and fix E/MBRs' chs values\n\
+    nofixchs             Walk *all* partitions and fix E/MBRs' chs values\n\
     nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
     nowarn               Wait for a keypress to continue chainloading\n\
                          - useful to see emited warnings\n\
@@ -277,10 +277,10 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.save = true;
 	} else if (!strcmp(argv[i], "nosave")) {
 	    opt.save = false;
-	} else if (!strcmp(argv[i], "mbrchs")) {
-	    opt.mbrchs = true;
-	} else if (!strcmp(argv[i], "nombrchs")) {
-	    opt.mbrchs = false;
+	} else if (!strcmp(argv[i], "fixchs")) {
+	    opt.fixchs = true;
+	} else if (!strcmp(argv[i], "nofixchs")) {
+	    opt.fixchs = false;
 	} else if (!strcmp(argv[i], "warn")) {
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {
