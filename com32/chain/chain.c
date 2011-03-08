@@ -414,8 +414,8 @@ static int setup_handover(const struct part_iter *iter,
 	    goto bail;
 	}
 	len = ~0u;
-	if (iter->di.lbacnt < len)
-	    len = (uint32_t)iter->di.lbacnt;
+	if (iter->length < len)
+	    len = (uint32_t)iter->length;
 	lba2chs(&ha->start, &iter->di, 0, l2c_cadd);
 	lba2chs(&ha->end, &iter->di, len - 1, l2c_cadd);
 	ha->active_flag = 0x80;
@@ -423,11 +423,7 @@ static int setup_handover(const struct part_iter *iter,
 	ha->start_lba = 0;
 	ha->length = len;
     } else if (iter->type == typegpt) {
-	const struct disk_gpt_part_entry *gp;
-	uint64_t lba_count;
 	/* GPT handover protocol */
-	gp = (const struct disk_gpt_part_entry *)iter->record;
-	lba_count = gp->lba_last - gp->lba_first + 1;
 	synth_size = sizeof(struct disk_dos_part_entry) +
 	    sizeof(uint32_t) + (uint32_t)iter->sub.gpt.pe_size;
 	ha = malloc(synth_size);
@@ -435,8 +431,8 @@ static int setup_handover(const struct part_iter *iter,
 	    error("Could not build GPT hand-over record!\n");
 	    goto bail;
 	}
-	lba2chs(&ha->start, &iter->di, gp->lba_first, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, gp->lba_last, l2c_cadd);
+	lba2chs(&ha->start, &iter->di, iter->start_lba, l2c_cadd);
+	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, l2c_cadd);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xED;
 	/* All bits set by default */
@@ -445,34 +441,33 @@ static int setup_handover(const struct part_iter *iter,
 	/* If these fit the precision, pass them on */
 	if (iter->start_lba < ha->start_lba)
 	    ha->start_lba = (uint32_t)iter->start_lba;
-	if (lba_count < ha->length)
-	    ha->length = (uint32_t)lba_count;
+	if (iter->length < ha->length)
+	    ha->length = (uint32_t)iter->length;
 	/* Next comes the GPT partition record length */
 	plen = (uint32_t *) (ha + 1);
 	plen[0] = (uint32_t)iter->sub.gpt.pe_size;
 	/* Next comes the GPT partition record copy */
-	memcpy(plen + 1, gp, plen[0]);
+	memcpy(plen + 1, iter->record, plen[0]);
 #ifdef DEBUG
 	dprintf("GPT handover:\n");
 	disk_dos_part_dump(ha);
 	disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
     } else if (iter->type == typedos) {
-	const struct disk_dos_part_entry *dp;
 	/* MBR handover protocol */
-	dp = (const struct disk_dos_part_entry *)iter->record;
 	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build MBR hand-over record!\n");
 	    goto bail;
 	}
+	memcpy(ha, iter->record, synth_size);
+	/* make sure these match bios imaginations and are ebr agnostic */
 	lba2chs(&ha->start, &iter->di, iter->start_lba, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, iter->start_lba + dp->length - 1, l2c_cadd);
-	ha->active_flag = dp->active_flag;
-	ha->ostype = dp->ostype;
-	ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */
-	ha->length = dp->length;
+	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, l2c_cadd);
+	ha->start_lba = (uint32_t)iter->start_lba;
+	ha->length = (uint32_t)iter->length;
+
 #ifdef DEBUG
 	dprintf("MBR handover:\n");
 	disk_dos_part_dump(ha);
