@@ -1185,12 +1185,6 @@ ROOT_FS_OPS:
 		section .text16
 
 ;
-; Locate the configuration file
-;
-		;pm_call pm_load_config
-		;jz no_config_file
-
-;
 ; Now we have the config file open.  Parse the config file and
 ; run the user interface.
 ;

@@ -26,10 +26,45 @@ static void enter_cmdline(void)
 	}
 }
 
+static void load_kernel(void)
+{
+	enum kernel_type type;
+
+	if (defaultlevel == LEVEL_UI)
+		type = KT_COM32;
+	else
+		type = KT_KERNEL;
+
+	execute(default_cmd, type);
+}
+
 static int ldlinux_main(int argc, char **argv)
 {
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 
+	parse_configs(NULL);
+
+	/* TODO: ADV */
+	/* TODO: Check KbdFlags? */
+
+	if (forceprompt)
+		goto cmdline;
+
+	/*
+	 * Auto boot
+	 */
+	if (defaultlevel || !noescape) {
+		if (defaultlevel) {
+			load_kernel();	/* Shouldn't return */
+		} else {
+			printf("No DEFAULT or UI configuration directive found!\n");
+
+			if (noescape)
+				kaboom();
+		}
+	}
+
+cmdline:
 	/* Should never return */
 	enter_cmdline();
 
