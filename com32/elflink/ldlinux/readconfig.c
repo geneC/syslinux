@@ -59,6 +59,7 @@ short vkernel = 0;		//have we seen any "label" statements?
 short displaycon = 1;		//conio.inc
 short nohalt = 1;		//idle.inc
 
+char *default_cmd = NULL;	//"default" command line
 
 /* Empty refstring */
 const char *empty_string;
@@ -978,11 +979,26 @@ do_include:
 	    else
 		ipappend = atoi(skipspace(p + 8));
 	} else if (looking_at(p, "default")) {
-		/* default could be a kernel image or another label */
-		refstr_put(globaldefault);
-		globaldefault = refstrdup(skipspace(p + 7));
+	    /* default could be a kernel image or another label */
+	    refstr_put(globaldefault);
+	    globaldefault = refstrdup(skipspace(p + 7));
+
+	    /*
+	     * On the chance that "default" is actually a kernel image
+	     * and not a label, store a copy of it, but only if we
+	     * haven't seen a "ui" command. "ui" commands take
+	     * precendence over "default" commands.
+	     */
+	    if (defaultlevel < LEVEL_UI) {
+		defaultlevel = LEVEL_DEFAULT;
+		refstr_put(default_cmd);
+		default_cmd = refstrdup(globaldefault);
+	    }
 	} else if (looking_at(p, "ui")) {
 	    has_ui = 1;
+	    defaultlevel = LEVEL_UI;
+	    refstr_put(default_cmd);
+	    default_cmd = refstrdup(skipspace(p + 2));
 	}
 	
 	/*

@@ -12,6 +12,13 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+/*
+ * These values correspond to the "default" and "ui" commands
+ * respectively. "ui" takes precendence over "default".
+ */
+#define LEVEL_DEFAULT	1
+#define LEVEL_UI	2
+
 extern short uappendlen;	//bytes in append= command
 extern short ontimeoutlen;	//bytes in ontimeout command
 extern short onerrorlen;	//bytes in onerror command
@@ -25,5 +32,7 @@ extern short defaultlevel;	//the current level of default
 extern short vkernel;		//have we seen any "label" statements?
 extern short displaycon;	//conio.inc
 extern short nohalt;		//idle.inc
+
+extern char *default_cmd;	//"default" command line
 
 #endif /* __CONFIG_H__ */
