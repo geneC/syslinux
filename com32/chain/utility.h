@@ -20,7 +20,7 @@
 void error(const char *msg);
 int guid_is0(const struct guid *guid);
 void wait_key(void);
-uint32_t lba2chs(const struct disk_info *di, uint64_t lba, uint32_t mode);
+void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, uint32_t mode);
 uint32_t get_file_lba(const char *filename);
 int drvoff_detect(int type, unsigned int *off);
 int bpb_detect(const uint8_t *bpb, const char *tag);

@@ -46,7 +46,7 @@ void wait_key(void)
     } while (!cnt || (cnt < 0 && errno == EAGAIN));
 }
 
-uint32_t lba2chs(const struct disk_info *di, uint64_t lba, uint32_t mode)
+void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, uint32_t mode)
 {
     uint32_t c, h, s, t;
     uint32_t cs, hs, ss;
@@ -86,7 +86,9 @@ uint32_t lba2chs(const struct disk_info *di, uint64_t lba, uint32_t mode)
 	c = t / hs;
     }
 
-    return h | (s << 8) | ((c & 0x300) << 6) | ((c & 0xFF) << 16);
+    (*dst)[0] = h;
+    (*dst)[1] = s | ((c & 0x300) >> 2);
+    (*dst)[2] = c;
 }
 
 uint32_t get_file_lba(const char *filename)

@@ -416,8 +416,8 @@ static int setup_handover(const struct part_iter *iter,
 	len = ~0u;
 	if (iter->di.lbacnt < len)
 	    len = (uint32_t)iter->di.lbacnt;
-	*(uint32_t *)ha->start = lba2chs(&iter->di, 0, l2c_cadd);
-	*(uint32_t *)ha->end = lba2chs(&iter->di, len - 1, l2c_cadd);
+	lba2chs(&ha->start, &iter->di, 0, l2c_cadd);
+	lba2chs(&ha->end, &iter->di, len - 1, l2c_cadd);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xDA;	/* "Non-FS Data", anything is good here though ... */
 	ha->start_lba = 0;
@@ -435,8 +435,8 @@ static int setup_handover(const struct part_iter *iter,
 	    error("Could not build GPT hand-over record!\n");
 	    goto bail;
 	}
-	*(uint32_t *)ha->start = lba2chs(&iter->di, gp->lba_first, l2c_cadd);
-	*(uint32_t *)ha->end = lba2chs(&iter->di, gp->lba_last, l2c_cadd);
+	lba2chs(&ha->start, &iter->di, gp->lba_first, l2c_cadd);
+	lba2chs(&ha->end, &iter->di, gp->lba_last, l2c_cadd);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xED;
 	/* All bits set by default */
@@ -467,8 +467,8 @@ static int setup_handover(const struct part_iter *iter,
 	    error("Could not build MBR hand-over record!\n");
 	    goto bail;
 	}
-	*(uint32_t *)ha->start = lba2chs(&iter->di, iter->start_lba, l2c_cadd);
-	*(uint32_t *)ha->end = lba2chs(&iter->di, iter->start_lba + dp->length - 1, l2c_cadd);
+	lba2chs(&ha->start, &iter->di, iter->start_lba, l2c_cadd);
+	lba2chs(&ha->end, &iter->di, iter->start_lba + dp->length - 1, l2c_cadd);
 	ha->active_flag = dp->active_flag;
 	ha->ostype = dp->ostype;
 	ha->start_lba = (uint32_t)iter->start_lba;  /* fine, we iterate over legacy scheme */

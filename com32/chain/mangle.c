@@ -554,13 +554,8 @@ static int mpe_setchs(const struct disk_info *di,
     ochs1 = *(uint32_t *)dp->start;
     ochs2 = *(uint32_t *)dp->end;
 
-    *(uint32_t *)dp->start =
-	lba2chs(di, lba1, l2c_cadd) |
-	(*(uint32_t *)dp->start & 0xFF000000);
-
-    *(uint32_t *)dp->end =
-	lba2chs(di, lba1 + dp->length - 1, l2c_cadd) |
-	(*(uint32_t *)dp->end & 0xFF000000);
+    lba2chs(&dp->start, di, lba1, l2c_cadd);
+    lba2chs(&dp->end, di, lba1 + dp->length - 1, l2c_cadd);
 
     return
 	*(uint32_t *)dp->start != ochs1 ||
