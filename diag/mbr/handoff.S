@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------
  *
- *   Copyright 2010 Gene Cumm
+ *   Copyright 2010-2011 Gene Cumm
  *
  *   Portions from mbr.S:
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
@@ -30,7 +30,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * mbr_ho.S: MBR-like codeblock to display handoff data
+ * handoff.S: MBR/VBR-like codeblock to display handoff data
  *
  * Displays the values of DL, DS, SI, the contents of [DS:SI] (16 bytes),
  * the values of ES, DI, the contents of [ES:DI] (4 bytes), scans memory for
