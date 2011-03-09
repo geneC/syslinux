@@ -60,6 +60,7 @@ short displaycon = 1;		//conio.inc
 short nohalt = 1;		//idle.inc
 
 char *default_cmd = NULL;	//"default" command line
+char *onerror = NULL;		//"onerror" command line
 
 /* Empty refstring */
 const char *empty_string;
@@ -703,6 +704,8 @@ static void parse_config_file(FILE * f)
 		refstr_put(m->onerror);
 		m->onerror = refstrdup(skipspace(p + 7));
 		onerrorlen = strlen(m->onerror);
+		refstr_put(onerror);
+		onerror = refstrdup(m->onerror);
 	    } else if (looking_at(p, "master")) {
 		p = skipspace(p + 6);
 		if (looking_at(p, "passwd")) {
@@ -1030,6 +1033,12 @@ do_include:
 		nocomplete = atoi(skipspace(p + 10));
 	} else if (looking_at(p, "nohalt")) {
 		nohalt = atoi(skipspace(p + 8));
+	} else if (looking_at(p, "onerror")) {
+		refstr_put(m->onerror);
+		m->onerror = refstrdup(skipspace(p + 7));
+		onerrorlen = strlen(m->onerror);
+		refstr_put(onerror);
+		onerror = refstrdup(m->onerror);
 	}
 
 	/* serial setting, bps, flow control */

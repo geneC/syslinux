@@ -34,5 +34,6 @@ extern short displaycon;	//conio.inc
 extern short nohalt;		//idle.inc
 
 extern char *default_cmd;	//"default" command line
+extern char *onerror;		//"onerror" command line
 
 #endif /* __CONFIG_H__ */

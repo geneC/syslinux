@@ -29,6 +29,7 @@ static void enter_cmdline(void)
 static void load_kernel(void)
 {
 	enum kernel_type type;
+	const char *cmdline;
 
 	if (defaultlevel == LEVEL_UI)
 		type = KT_COM32;
@@ -36,6 +37,15 @@ static void load_kernel(void)
 		type = KT_KERNEL;
 
 	execute(default_cmd, type);
+
+	/*
+	 * If we fail to boot the kernel execute the "onerror" command
+	 * line.
+	 */
+	if (onerrorlen) {
+		rsprintf(&cmdline, "%s %s", onerror, default_cmd);
+		execute(cmdline, KT_COM32);
+	}
 }
 
 static int ldlinux_main(int argc, char **argv)
