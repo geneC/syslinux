@@ -28,7 +28,7 @@ all:	handoff.bin
 %.elf: %.o $(mbrdir)/mbr.ld
 	$(LD) $(LDFLAGS) -T $(mbrdir)/mbr.ld -e _start -o $@ $<
 
-%.bin: %.elf $(mbrdir)/checksize.pl
+%.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 	$(CHMOD) -x $@
 
