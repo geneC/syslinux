@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
  *   Significant portions copyright (C) 2010 Shao Miller
  *					[partition iteration, GPT, "fs"]
  *
@@ -988,7 +988,7 @@ static int find_by_guid(const struct guid *gpt_guid,
 #if DEBUG
 	gpt_dump(header);
 #endif
-	is_me = !memcmp(&header->disk_guid, &gpt_guid, sizeof(*gpt_guid));
+	is_me = !memcmp(&header->disk_guid, gpt_guid, sizeof(*gpt_guid));
 	free(header);
 	if (!is_me) {
 	    /* Check for a matching partition */
