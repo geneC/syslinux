@@ -1387,6 +1387,8 @@ int main(int argc, char *argv[])
 		   || !strncmp(argv[i], "mbr=", 4)
 		   || !strncmp(argv[i], "guid:", 5)
 		   || !strncmp(argv[i], "guid=", 5)
+		   || !strncmp(argv[i], "uuid:", 5)
+		   || !strncmp(argv[i], "uuid=", 5)
 		   || !strncmp(argv[i], "label:", 6)
 		   || !strncmp(argv[i], "label=", 6)
 		   || !strcmp(argv[i], "boot")
@@ -1425,7 +1427,8 @@ int main(int argc, char *argv[])
 	    error("Unable to find requested MBR signature\n");
 	    goto bail;
 	}
-    } else if (!strncmp(drivename, "guid", 4)) {
+    } else if (!strncmp(drivename, "guid", 4) ||
+	       !strncmp(drivename, "uuid", 4)) {
 	if (str_to_guid(drivename + 5, &gpt_guid))
 	    goto bail;
 	drive = find_by_guid(&gpt_guid, &cur_part);
