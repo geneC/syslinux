@@ -98,14 +98,13 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     x = y = 0;
 
     while (!done) {
-	if (redraw > 1 && pDraw_Menu != NULL) {
+	if (redraw > 1) {
 	    /* Clear and redraw whole screen */
 	    /* Enable ASCII on G0 and DEC VT on G1; do it in this order
 	       to avoid confusing the Linux console */
-	    /* clear_screen();
-	       draw_menu(-1, top, 1); */
 	    clear_screen();
-	    (*pDraw_Menu) (-1, top, 1);
+	    if (pDraw_Menu)
+		    (*pDraw_Menu) (-1, top, 1);
 	    prev_len = 0;
 	    // printf("\033[0m\033[2J\033[H");
 	}
