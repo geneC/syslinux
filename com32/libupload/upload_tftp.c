@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include <sys/times.h>
 
-#include "backend.h"
+#include "upload_backend.h"
 
 enum tftp_opcode {
     TFTP_RRQ	= 1,
@@ -107,7 +107,7 @@ done:
     return err;
 }
 
-static int be_tftp_write(struct backend *be)
+static int upload_tftp_write(struct upload_backend *be)
 {
     static uint16_t local_port = 0x4000;
     struct tftp_state tftp;
@@ -170,9 +170,9 @@ static int be_tftp_write(struct backend *be)
     return 0;
 }
 
-struct backend be_tftp = {
+struct upload_backend upload_tftp = {
     .name       = "tftp",
     .helpmsg    = "filename [tftp_server]",
     .minargs    = 1,
-    .write      = be_tftp_write,
+    .write      = upload_tftp_write,
 };

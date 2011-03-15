@@ -9,10 +9,10 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <zlib.h>
-#include "backend.h"
+#include "upload_backend.h"
 #include "ctime.h"
 
-int cpio_pad(struct backend *be)
+int cpio_pad(struct upload_backend *be)
 {
     static char pad[4];		/* Up to 4 zero bytes */
     if (be->dbytes & 3)
@@ -21,7 +21,7 @@ int cpio_pad(struct backend *be)
 	return 0;
 }
 
-int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
+int cpio_hdr(struct upload_backend *be, uint32_t mode, size_t datalen,
 	     const char *filename)
 {
     static uint32_t inode = 2;
@@ -52,12 +52,12 @@ int cpio_hdr(struct backend *be, uint32_t mode, size_t datalen,
     return rv;
 }
 
-int cpio_mkdir(struct backend *be, const char *filename)
+int cpio_mkdir(struct upload_backend *be, const char *filename)
 {
     return cpio_hdr(be, MODE_DIR, 0, filename);
 }
 
-int cpio_writefile(struct backend *be, const char *filename,
+int cpio_writefile(struct upload_backend *be, const char *filename,
 		   const void *data, size_t len)
 {
     int rv;
@@ -69,7 +69,7 @@ int cpio_writefile(struct backend *be, const char *filename,
     return rv;
 }
 
-int cpio_close(struct backend *be)
+int cpio_close(struct upload_backend *be)
 {
     return cpio_hdr(be, 0, 0, "TRAILER!!!");
 }

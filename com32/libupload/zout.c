@@ -8,12 +8,12 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <zlib.h>
-#include "backend.h"
+#include "upload_backend.h"
 #include "ctime.h"
 
 #define ALLOC_CHUNK	65536
 
-int init_data(struct backend *be, const char *argv[])
+int init_data(struct upload_backend *be, const char *argv[])
 {
     be->now = posix_time();
     be->argv = argv;
@@ -33,7 +33,7 @@ int init_data(struct backend *be, const char *argv[])
     return 0;
 }
 
-static int do_deflate(struct backend *be, int flush)
+static int do_deflate(struct upload_backend *be, int flush)
 {
     int rv;
     char *buf;
@@ -55,7 +55,7 @@ static int do_deflate(struct backend *be, int flush)
 }
 
 
-int write_data(struct backend *be, const void *buf, size_t len)
+int write_data(struct upload_backend *be, const void *buf, size_t len)
 {
     int rv = Z_OK;
 
@@ -75,7 +75,7 @@ int write_data(struct backend *be, const void *buf, size_t len)
 }
 
 /* Output the data and shut down the stream */
-int flush_data(struct backend *be)
+int flush_data(struct upload_backend *be)
 {
     int rv = Z_OK;
 
