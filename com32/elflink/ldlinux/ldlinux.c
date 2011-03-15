@@ -18,6 +18,8 @@ static void enter_cmdline(void)
 	/* Enter endless command line prompt, should support "exit" */
 	while (1) {
 		cmdline = edit_cmdline("syslinux$", 1, NULL, NULL);
+		if (!cmdline)
+			continue;
 		/* feng: give up the aux check here */
 		//aux = list_entry(cli_history_head.next, typeof(*aux), list);
 		//if (strcmp(aux->command, cmdline)) {
