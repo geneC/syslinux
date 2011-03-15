@@ -1,6 +1,7 @@
 #include <linux/list.h>
 #include <sys/times.h>
 #include <stdbool.h>
+#include <core.h>
 #include <core-elf.h>
 #include "cli.h"
 #include "console.h"
@@ -12,7 +13,6 @@
 
 static void enter_cmdline(void)
 {
-	struct cli_command  *aux;
 	const char *cmdline;
 
 	/* Enter endless command line prompt, should support "exit" */
