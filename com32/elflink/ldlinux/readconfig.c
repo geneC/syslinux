@@ -1124,7 +1124,6 @@ void parse_configs(char **argv)
     const char *filename;
     struct menu *m;
     struct menu_entry *me;
-    char *cmdline;
     dprintf("enter");
 
     empty_string = refstrdup("");

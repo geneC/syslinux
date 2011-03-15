@@ -16,6 +16,8 @@
 #include <dprintf.h>
 
 #include <com32.h>
+#include <sys/exec.h>
+#include "core.h"
 #include "core-elf.h"
 
 /* Must match enum kernel_type */

@@ -13,7 +13,7 @@
 static void enter_cmdline(void)
 {
 	struct cli_command  *aux;
-	char *cmdline;
+	const char *cmdline;
 
 	/* Enter endless command line prompt, should support "exit" */
 	while (1) {

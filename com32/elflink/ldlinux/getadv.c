@@ -39,7 +39,7 @@
 const void *syslinux_getadv(int tag, size_t * size)
 {
     const uint8_t *p;
-    size_t left, len;
+    size_t left;
 
     p = syslinux_adv_ptr();
     left = syslinux_adv_size();

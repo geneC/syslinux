@@ -418,7 +418,6 @@ void process_command(const char *cmd, bool history)
 	else
 		execute(temp_cmd, KT_KERNEL);
 
-cleanup:
 	free(argv);
 	free(temp_cmd);
 }
