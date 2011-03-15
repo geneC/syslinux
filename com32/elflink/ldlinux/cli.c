@@ -68,6 +68,65 @@ int mygetkey(clock_t timeout)
     }
 }
 
+static const char * cmd_reverse_search(int *cursor)
+{
+    int key;
+    int i = 0;
+    char buf[MAX_CMDLINE_LEN];
+    const char *p = NULL;
+    struct cli_command *last_found;
+    struct cli_command *last_good = NULL;
+
+    last_found = list_entry(cli_history_head.next, typeof(*last_found), list);
+
+    memset(buf, 0, MAX_CMDLINE_LEN);
+
+    printf("\033[1G\033[1;36m(reverse-i-search)`': \033[0m");
+    while (1) {
+        key = mygetkey(0);
+
+	if (key == KEY_CTRL('C')) {
+	    return NULL;
+	} else if (key == KEY_CTRL('R')) {
+	    if (i == 0)
+		continue; /* User typed nothing yet */
+	    /* User typed 'CTRL-R' again, so try the next */
+	    last_found = list_entry(last_found->list.next, typeof(*last_found), list);
+	} else if (key >= ' ' && key <= 'z') {
+	        buf[i++] = key;
+	} else {
+	    /* Treat other input chars as terminal */
+	    break;
+	}
+
+	while (last_found != &cli_history_head) {
+	    p = strstr(last_found->command, buf);
+	    if (p)
+	        break;
+	    last_found = list_entry(last_found->list.next, typeof(*last_found), list);
+	}
+
+	if (!p && !last_good) {
+	    return NULL;
+	} else if (!p) {
+	    continue;
+	} else {
+	    last_good = last_found;
+            *cursor = p - last_good->command;
+	}
+
+	printf("\033[?7l\033[?25l");
+	/* Didn't handle the line wrap case here */
+	printf("\033[1G\033[1;36m(reverse-i-search)\033[0m`%s': %s", 
+		buf, last_good->command ? : "");
+	printf("\033[K\r");
+    }
+
+    return last_good ? last_good->command : NULL;
+}
+
+
+
 const char *edit_cmdline(const char *input, int top /*, int width */ ,
 			 int (*pDraw_Menu) (int, int, int),
 			 void (*show_fkey) (int))
@@ -90,10 +149,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    width = 80;
     }
 
-    strncpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';
 
-    len = cursor = 0;//strlen(cmdline);
+    len = cursor = 0;
     prev_len = 0;
     x = y = 0;
 
@@ -319,6 +377,24 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		}
 	    }
 	    break;
+	case KEY_CTRL('R'):
+	    {
+	         /* 
+	          * Handle this case in another function, since it's 
+	          * a kind of special.
+	          */
+	        const char *p = cmd_reverse_search(&cursor);
+	        if (p) {
+	            strcpy(cmdline, p);
+		    len = strlen(cmdline);
+	        } else {
+	            cmdline[0] = '\0';
+		    len = 0;
+	        }
+	        redraw = 1;
+	    }
+	    break;
+
 	default:
 	    if (key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN - 1) {
 		if (cursor == len) {
