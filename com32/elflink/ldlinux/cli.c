@@ -93,7 +93,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     strncpy(cmdline, input, MAX_CMDLINE_LEN);
     cmdline[MAX_CMDLINE_LEN - 1] = '\0';
 
-    len = cursor = strlen(cmdline);
+    len = cursor = 0;//strlen(cmdline);
     prev_len = 0;
     x = y = 0;
 
@@ -118,9 +118,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    printf("\033[?7l\033[?25l");
 	    if (y)
 		printf("\033[%dA", y);
-	    printf("\033[1G\033[1;36m> \033[0m");
+	    printf("\033[1G\033[1;36m%s \033[0m", input);
 
-	    x = 2;
+	    x = strlen(input);
 	    y = 0;
 	    at = 0;
 	    while (at < prev_len) {
@@ -135,8 +135,8 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    }
 	    printf("\033[K\r");
 
-	    dy = y - (cursor + 2) / width;
-	    x = (cursor + 2) % width;
+	    dy = y - (cursor + strlen(input) + 1) / width;
+	    x = (cursor + strlen(input) + 1) % width;
 
 	    if (dy) {
 		printf("\033[%dA", dy);
