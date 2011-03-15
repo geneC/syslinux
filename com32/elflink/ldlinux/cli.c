@@ -369,9 +369,8 @@ void process_command(const char *cmd, bool history)
 	if (history) {
 		struct cli_command  *comm;
 
-		comm = (struct cli_command *)malloc(sizeof(struct cli_command *));
-		comm->command =
-			(char *)malloc(sizeof(char) * (strlen(cmd) + 1));
+		comm = malloc(sizeof(struct cli_command));
+		comm->command = malloc(sizeof(char) * (strlen(cmd) + 1));
 		strcpy(comm->command, cmd);
 		list_add(&(comm->list), &cli_history_head);
 	}
