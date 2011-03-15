@@ -285,6 +285,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		redraw = 1;
 	    }
 	    break;
+	case KEY_CTRL('P'):
 	case KEY_UP:
 	    {
 		if (!list_empty(&cli_history_head)) {
@@ -301,6 +302,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		}
 	    }
 	    break;
+	case KEY_CTRL('N'):
 	case KEY_DOWN:
 	    {
 		if (!list_empty(&cli_history_head)) {
