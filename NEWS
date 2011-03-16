@@ -37,6 +37,8 @@ Changes in 4.04:
 	  (Shao Miller, Gene Cumm).
 	* gpxe: add gpxelinuxk.0, based off of undionly.kpxe + new
 	  script (Gene Cumm).
+	* isohybrid: install the isohdpfx*.bin files to make isohybrid
+	  images in one step with GNU xorriso.
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
