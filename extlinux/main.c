@@ -216,7 +216,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     uint64_t totalbytes, totalsectors;
     int nsect;
     struct boot_sector *sbs;
-    char *dirpath, *subpath, *xdirpath, *xsubpath;
+    char *dirpath, *subpath, *xdirpath;
     int rv;
 
     dirpath = realpath(dir, NULL);
@@ -237,10 +237,8 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 	if (*subpath == '/') {
 	    if (subpath > dirpath) {
 		*subpath = '\0';
-		xsubpath = subpath+1;
 		xdirpath = dirpath;
 	    } else {
-		xsubpath = subpath;
 		xdirpath = "/";
 	    }
 	    if (lstat(xdirpath, &xdst) || dirst.st_dev != xdst.st_dev) {
