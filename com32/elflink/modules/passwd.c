@@ -14,6 +14,7 @@
 #include <xcrypt.h>
 #include <sha1.h>
 #include <base64.h>
+#include <core-elf.h>
 #include <sys/module.h>
 
 #include "menu.h"

@@ -12,6 +12,7 @@
 
 #include <consoles.h>
 #include <string.h>
+#include <core-elf.h>
 #include <syslinux/vesacon.h>
 #include <sys/module.h>
 #include "menu.h"
@@ -33,6 +34,8 @@ int draw_background(const char *what)
     else
 	return vesacon_load_background(what);
 #endif
+
+    return 0;
 }
 
 void set_background(const char *new_background)

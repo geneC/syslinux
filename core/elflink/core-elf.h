@@ -18,9 +18,9 @@ enum kernel_type {
     KT_CONFIG,			/* Configuration file */
 };
 
-extern char *append;
+extern const char *append;
 extern char *ippappend;
-extern char *globaldefault;
+extern const char *globaldefault;
 extern short onerrorlen;
 
 extern int new_linux_kernel(char *okernel, char *ocmdline);

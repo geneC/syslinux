@@ -13,7 +13,7 @@
 topdir = ../../..
 include ../modules/MCONFIG
 
-CFLAGS += -I../modules -I$(topdir)/core/elflink
+CFLAGS += -I../modules -I$(topdir)/core/elflink -I$(topdir)/core/include
 
 all: ldlinux.c32
 

@@ -208,4 +208,7 @@ void execute(const char *cmdline, enum kernel_type type);
 /* drain.c */
 void drain_keyboard(void);
 
+/* printmsg.c */
+int draw_message_file(const char *filename);
+
 #endif /* MENU_H */

@@ -33,7 +33,7 @@ extern short vkernel;		//have we seen any "label" statements?
 extern short displaycon;	//conio.inc
 extern short nohalt;		//idle.inc
 
-extern char *default_cmd;	//"default" command line
-extern char *onerror;		//"onerror" command line
+extern const char *default_cmd;	//"default" command line
+extern const char *onerror;	//"onerror" command line
 
 #endif /* __CONFIG_H__ */
