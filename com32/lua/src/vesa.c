@@ -13,10 +13,9 @@ int vesacon_load_background(const char *filename);
 static int vesa_getmodes(lua_State *L)
 {
   com32sys_t rm;
-  uint16_t mode, bestmode, *mode_ptr;
+  uint16_t mode, *mode_ptr;
   struct vesa_general_info *gi;
   struct vesa_mode_info *mi;
-  enum vesa_pixel_format bestpxf;
   int nmode = 1;
 
   /* Allocate space in the bounce buffer for these structures */
@@ -47,8 +46,6 @@ static int vesa_getmodes(lua_State *L)
   /* Search for a 640x480 mode with a suitable color and memory model... */
 
   mode_ptr = GET_PTR(gi->video_mode_ptr);
-  bestmode = 0;
-  bestpxf  = PXF_NONE;
 
   while ((mode = *mode_ptr++) != 0xFFFF) {
     mode &= 0x1FF;              /* The rest are attributes of sorts */
