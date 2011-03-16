@@ -2,7 +2,7 @@
 
 		   A suite of bootloaders for Linux
 
-	 Copyright 1994-2010 H. Peter Anvin and contributors
+	 Copyright 1994-2011 H. Peter Anvin and contributors
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
