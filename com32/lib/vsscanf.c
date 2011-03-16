@@ -69,7 +69,6 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
     } state = st_normal;
     char *sarg = NULL;		/* %s %c or %[ string argument */
     enum bail bail = bail_none;
-    int sign;
     int converted = 0;		/* Successful conversions */
     unsigned long matchmap[((1 << CHAR_BIT) + (LONG_BIT - 1)) / LONG_BIT];
     int matchinv = 0;		/* Is match map inverted? */
@@ -176,33 +175,27 @@ int vsscanf(const char *buffer, const char *format, va_list ap)
 #endif
 		    rank = rank_ptr;
 		    base = 0;
-		    sign = 0;
 		    goto scan_int;
 
 		case 'i':	/* Base-independent integer */
 		    base = 0;
-		    sign = 1;
 		    goto scan_int;
 
 		case 'd':	/* Decimal integer */
 		    base = 10;
-		    sign = 1;
 		    goto scan_int;
 
 		case 'o':	/* Octal integer */
 		    base = 8;
-		    sign = 0;
 		    goto scan_int;
 
 		case 'u':	/* Unsigned decimal integer */
 		    base = 10;
-		    sign = 0;
 		    goto scan_int;
 
 		case 'x':	/* Hexadecimal integer */
 		case 'X':
 		    base = 16;
-		    sign = 0;
 		    goto scan_int;
 
 		case 'n':	/* Number of characters consumed */

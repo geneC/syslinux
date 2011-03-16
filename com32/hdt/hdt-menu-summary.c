@@ -158,7 +158,6 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     if (hardware->modules_pcimap_return_code != -ENOMODULESPCIMAP) {
 	add_item("", "", OPT_SEP, "", 0);
 
-	bool kmod = false;
 	struct pci_device *pci_device;
 	char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
 			    MAX_KERNEL_MODULES_PER_PCI_DEVICE];
@@ -191,7 +190,6 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
 
 		add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 		menu->items_count++;
-		kmod = true;
 	    }
 	}
     }

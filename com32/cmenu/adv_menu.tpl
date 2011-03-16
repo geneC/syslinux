@@ -312,7 +312,7 @@ void runcommand(pt_menuitem mi)
    x = (pt_xtra) mi->extra_data;
    ipappend = (x ? x->ipappend : 0);
 
-   runsyslinuximage(line,x->ipappend);
+   runsyslinuximage(line,ipappend);
    free(line);
 }
 
