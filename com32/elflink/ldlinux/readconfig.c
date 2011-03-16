@@ -1056,7 +1056,6 @@ do_include:
 static int parse_one_config(const char *filename)
 {
 	FILE *f;
-	int i;
 
 	/*
 	if (!strcmp(filename, "~"))
@@ -1105,18 +1104,6 @@ static void resolve_gotos(void)
 	    }
 	}
     }
-}
-
-static void dump_menu(struct menu *menu)
-{
-	dprintf("will dump menu for %s:", menu->label);
-	printf("entries num: %d\n", menu->nentries);
-	printf("defentry: %d, nam = %s\n",
-		menu->defentry, menu->menu_entries[menu->defentry]->label);
-	printf("save: %d\n", menu->save);
-	//printf("", menu->);
-	//printf("", menu->);
-	//printf("", menu->);
 }
 
 void parse_configs(char **argv)
