@@ -190,6 +190,9 @@ static int sl_boot_linux(lua_State * L)
     int ret;
     char **argv, **argp, *arg, *p;
 
+    (void)mem_limit;
+    (void)video_mode;
+
     ret = __parse_argv(&argv, cmdline);
 
     newcmdline = malloc(strlen(kernel) + 12);
@@ -397,14 +400,12 @@ static int sl_boot_it(lua_State * L)
     const char *cmdline = luaL_optstring(L, 3, "");
     uint32_t mem_limit = luaL_optint(L, 4, 0);
     uint16_t video_mode = luaL_optint(L, 5, 0);
-    int ret;
     /* Preventing gcc to complain about unused variables */
-    video_mode=video_mode;
-    mem_limit=mem_limit;
+    (void)video_mode;
+    (void)mem_limit;
 
-    ret = syslinux_boot_linux(kernel->data, kernel->size, initramfs, (char *)cmdline);
-
-    return 0;
+    return syslinux_boot_linux(kernel->data, kernel->size,
+			       initramfs, (char *)cmdline);
 }
 
 static int sl_derivative(lua_State * L)
