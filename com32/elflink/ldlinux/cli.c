@@ -378,7 +378,7 @@ void process_command(const char *cmd, bool history)
 
 	//	dprintf("raw cmd = %s", cmd);
 	strcpy(temp_cmd, cmd);
-	module_name = strtok(cmd, COMMAND_DELIM);
+	module_name = strtok((char *)cmd, COMMAND_DELIM);
 	len_mn = strlen(module_name);
 
 	if (!strcmp(module_name + len_mn - 4, ".c32")) {
@@ -397,7 +397,7 @@ void process_command(const char *cmd, bool history)
 		} while (argc < MAX_COMMAND_ARGS);
 		argv[argc] = NULL;
 		module_load_dependencies(module_name, MODULES_DEP);
-		spawn_load(module_name, argv);
+		spawn_load(module_name, (const char **)argv);
 	} else if (!strcmp(module_name + len_mn - 2, ".0")) {
 		execute(cmd, KT_PXE);
 	} else if (!strcmp(module_name + len_mn - 3, ".bs")) {
