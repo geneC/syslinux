@@ -340,6 +340,5 @@ die:
 
 zerob:		/* Begin zeroing block to fill to desired length */
 		/* 420 bytes for FAT32 */
-zeroln		= (420 - (zerob - _start))
-	.=.+zeroln	/* prevents overflow */
+	.space	420 - (zerob - _start)
 zeroe:
