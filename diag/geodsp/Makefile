@@ -52,7 +52,7 @@ mk-lba-img: mk-lba-img.c
 	gcc -o $@ $<
 
 lba.img: mk-lba-img
-	$< $@
+	./$< $@
 
 tidy dist:
 	rm -Rf *.img
