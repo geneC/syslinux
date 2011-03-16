@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <com32.h>
 #include "sysdump.h"
-#include "../libupload/upload_backend.h"
 
 #define E820_CHUNK 128
 struct e820_info {

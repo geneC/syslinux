@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <sys/cpu.h>
 #include "sysdump.h"
-#include "../libupload/upload_backend.h"
 
 static char *lowmem;
 static size_t lowmem_len;

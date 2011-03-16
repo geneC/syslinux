@@ -1,7 +1,7 @@
 #ifndef SYSDUMP_H
 #define SYSDUMP_H
 
-struct upload_backend;
+#include <libupload/upload_backend.h>
 
 void dump_memory_map(struct upload_backend *);
 void snapshot_lowmem(void);

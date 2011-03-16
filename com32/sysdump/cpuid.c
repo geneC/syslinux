@@ -8,7 +8,6 @@
 #include <com32.h>
 #include <sys/cpu.h>
 #include "sysdump.h"
-#include "../libupload/upload_backend.h"
 
 struct cpuid_data {
     uint32_t eax, ebx, ecx, edx;

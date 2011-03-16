@@ -22,6 +22,8 @@ include ../MCONFIG
 LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a ../libupload/libcom32upload.a $(LIBGCC)
 LNXLIBS	   = ../libutil/libutil_lnx.a
 
+CFLAGS += -I$(com32) -I$(topdir)
+
 MODULES	  = sysdump.c32
 TESTFILES =
 

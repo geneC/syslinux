@@ -18,7 +18,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "sysdump.h"
-#include "../libupload/upload_backend.h"
 #include "rbtree.h"
 
 struct acpi_rsdp {

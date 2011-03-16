@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <sys/pci.h>
 #include "sysdump.h"
-#include "../libupload/upload_backend.h"
 
 static void dump_pci_device(struct upload_backend *be, pciaddr_t a, uint8_t hdrtype)
 {

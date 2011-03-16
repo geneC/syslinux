@@ -19,8 +19,7 @@
 #include <dprintf.h>
 #include <console.h>
 #include <sys/cpu.h>
-#include "../../version.h"
-#include "../libupload/upload_backend.h"
+#include <version.h>
 #include "sysdump.h"
 
 const char program[] = "sysdump";
