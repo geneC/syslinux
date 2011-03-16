@@ -93,7 +93,7 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
     int np;
     int desc_blocks, need_blocks;
     int need_ptrs;
-    addr_t desczone, descfree, descaddr, descoffs;
+    addr_t desczone, descfree, descaddr;
     int nmoves, nzero;
     com32sys_t ireg;
 
@@ -182,11 +182,13 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
     if (!dbuf)
 	goto bail;
 
-    descoffs = descaddr - (addr_t) dbuf;
-
 #if DEBUG
-    dprintf("nmoves = %d, nzero = %d, dbuf = %p, offs = 0x%08x\n",
-	    nmoves, nzero, dbuf, descoffs);
+    {
+	addr_t descoffs = descaddr - (addr_t) dbuf;
+
+	dprintf("nmoves = %d, nzero = %d, dbuf = %p, offs = 0x%08x\n",
+		nmoves, nzero, dbuf, descoffs);
+    }
 #endif
 
     /* Copy the move sequence into the descriptor buffer */
