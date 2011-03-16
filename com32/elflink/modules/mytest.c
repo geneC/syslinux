@@ -12,6 +12,7 @@
 #include <setjmp.h>
 #include <limits.h>
 #include <com32.h>
+#include <core-elf.h>
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <sys/module.h>

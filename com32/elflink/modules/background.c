@@ -12,6 +12,7 @@
 
 #include <consoles.h>
 #include <string.h>
+#include <core-elf.h>
 #include <syslinux/vesacon.h>
 #include <sys/module.h>
 #include "menu.h"

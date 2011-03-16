@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <core-elf.h>
 #include <sys/module.h>
 
 #include "menu.h"

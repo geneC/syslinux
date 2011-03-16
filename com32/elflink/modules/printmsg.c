@@ -26,6 +26,7 @@
 #ifdef __COM32__
 #include <com32.h>
 #endif
+#include <core-elf.h>
 
 #include "menu.h"
 
