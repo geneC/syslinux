@@ -10,8 +10,8 @@
 #include "core.h"
 #include "core-elf.h"
 
-char *globaldefault = NULL;
-char *append = NULL;
+const char *globaldefault = NULL;
+const char *append = NULL;
 
 /* Will be called from readconfig.c */
 int new_linux_kernel(char *okernel, char *ocmdline)

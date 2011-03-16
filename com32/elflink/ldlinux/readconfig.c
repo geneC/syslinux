@@ -59,8 +59,8 @@ short vkernel = 0;		//have we seen any "label" statements?
 short displaycon = 1;		//conio.inc
 short nohalt = 1;		//idle.inc
 
-char *default_cmd = NULL;	//"default" command line
-char *onerror = NULL;		//"onerror" command line
+const char *default_cmd = NULL;	//"default" command line
+const char *onerror = NULL;	//"onerror" command line
 
 /* Empty refstring */
 const char *empty_string;
@@ -75,7 +75,7 @@ long long totaltimeout = 0;
 
 /* Keep track of global default */
 static int has_ui = 0;		/* DEFAULT only counts if UI is found */
-extern char *globaldefault;
+extern const char *globaldefault;
 static bool menusave = false;	/* True if there is any "menu save" */
 
 /* Linked list of all entires, hidden or not; used by unlabel() */
@@ -568,7 +568,7 @@ uint32_t parse_argb(char **p)
  * same way as if the files had been concatenated together.
  */
 //static const char *append = NULL;
-extern char *append;
+extern const char *append;
 //static unsigned int ipappend = 0;
 unsigned int ipappend = 0;
 static struct labeldata ld;
