@@ -28,8 +28,14 @@ all:	handoff.bin
 %.elf: %.o $(mbrdir)/mbr.ld
 	$(LD) $(LDFLAGS) -T $(mbrdir)/mbr.ld -e _start -o $@ $<
 
-%.bin: %.elf
+%.bin: %.elf $(mbrdir)/checksize.pl
 	$(OBJCOPY) -O binary $< $@
+	$(PERL) checksize.pl $@
+	$(CHMOD) -x $@
+
+handoff.bin: handoff.elf $(mbrdir)/checksize.pl
+	$(OBJCOPY) -O binary $< $@
+	$(PERL) $(mbrdir)/checksize.pl $@ 420
 	$(CHMOD) -x $@
 
 mbr_bin.c: mbr.bin
