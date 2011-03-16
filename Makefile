@@ -72,6 +72,7 @@ INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		dos/syslinux.com \
 		mbr/*.bin $(MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe win64/syslinux64.exe
+INSTALL_DIAG  =	diag/mbr/handoff.bin
 
 # These directories manage their own installables
 INSTALLSUBDIRS = com32 utils dosutil
@@ -112,6 +113,8 @@ local-install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
 	install -m 644 -c $(INSTALL_AUX) $(INSTALLROOT)$(AUXDIR)
 	-install -m 644 -c $(INSTALL_AUX_OPT) $(INSTALLROOT)$(AUXDIR)
+	mkdir -m 755 -p $(INSTALLROOT)$(DIAGDIR)
+	install -m 644 -c $(INSTALL_DIAG) $(INSTALLROOT)$(DIAGDIR)
 	mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man1
 	install -m 644 -c man/*.1 $(INSTALLROOT)$(MANDIR)/man1
 	: mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man8

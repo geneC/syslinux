@@ -23,6 +23,7 @@ SBINDIR  = /sbin
 LIBDIR   = /usr/lib
 DATADIR  = /usr/share
 AUXDIR   = $(DATADIR)/syslinux
+DIAGDIR  = $(AUXDIR)/diag
 MANDIR	 = /usr/man
 INCDIR   = /usr/include
 TFTPBOOT = /tftpboot
