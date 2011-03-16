@@ -25,6 +25,18 @@ Changes in 4.04:
         * HDT: Release 0.4.1 to support ACPI parsing, 
           improved mutli-core/cpu reporting 
 	* LUA: Updating to 5.1.4-2
+	* SYSLINUX: core/diskstart.inc: Reset DS after checksum in case
+	  it isn't 0 (Gene Cumm).
+	* win64: Script update for additional mingw compiler names
+	  (Gene Cumm).
+	* diag: New directory for diagnostic-related tools.  Add a
+	  handoff MBR/VBR and geometry display images (Gene Cumm).
+	* MEMDISK: use "mem=" parameter to mark available memory above
+	  this point as reserved (core already does alignment) (Gene Cumm).
+	* MEMDISK: Additional disk probe checks and debug output
+	  (Shao Miller, Gene Cumm).
+	* gpxe: add gpxelinuxk.0, based off of undionly.kpxe + new
+	  script (Gene Cumm).
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
