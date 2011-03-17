@@ -1,0 +1,5 @@
+GeoDsp: Images to display the geometry as the BIOS has choosen to interpret it.  Both images are intended to be written to the first ~8MiB of a raw device (ie /dev/hda, /dev/sda) and be over one large cylinder of 255*63 512-byte sectors in size.
+
+GeoDsp1S is a one-sector variant containing all code in one sector that is intended to test behavior with a typical MBR/partition table layout.  A partition table should be written after writting an image.
+
+GeoDspMS is a multi sector variant intended to look like Syslinux installed on a file system on the raw device (as opposed to a file system within a partition).

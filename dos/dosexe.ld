@@ -27,11 +27,11 @@ SECTIONS
 	__payload_lma = .;
 
 	. = 0x100000000 - syslinux_ldlinux_size;
+	__payload_start = .;
 	.payload : AT (__payload_lma) {
-		 __payload_start = .;
 		 *(.payload)
-		 __payload_end = .;
 	}
+	__payload_end = .;
 	__payload_len = __payload_end - __payload_start;
 	__payload_dwords = __payload_len >> 2;
 
@@ -39,9 +39,10 @@ SECTIONS
 	__payload_sseg = (__payload_lma - __text_lma) >> 4;
 	_exe_text_seg  = (__text_lma - __header_size) >> 4;
 
-	__assert1 = ASSERT((__payload_len == syslinux_ldlinux_size),
-	"syslinux_ldlinux_size must equal the size of .payload");
-
+/*
+ *	__assert1 = ASSERT((__payload_len == syslinux_ldlinux_size),
+ *	"syslinux_ldlinux_size must equal the size of .payload");
+ */
 	. = 0;
 	.text : AT (__text_lma) {
 		*(.text .stub .text.* .gnu.linkonce.t.*)

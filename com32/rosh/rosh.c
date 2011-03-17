@@ -555,7 +555,6 @@ int rosh_ls_de_size(const char *filestr, struct dirent *de)
     char filestr2[ROSH_PATH_SZ];
     int fd2, file2pos;
     struct stat fdstat;
-    int status;
 
     filestr2[0] = 0;
     file2pos = -1;
@@ -566,7 +565,7 @@ int rosh_ls_de_size(const char *filestr, struct dirent *de)
     }
     strcpy(filestr2 + file2pos + 1, de->d_name);
     fd2 = open(filestr2, O_RDONLY);
-    status = fstat(fd2, &fdstat);
+    fstat(fd2, &fdstat);
     fd2 = close(fd2);
     de_size = (int)fdstat.st_size;
     return de_size;
@@ -602,6 +601,7 @@ int rosh_ls_de_size_mode(const char *filestr, struct dirent *de, mode_t * st_mod
     errno = 0;
     ROSH_DEBUG2("stat(%s) ", filestr2);
     status = stat(filestr2, &fdstat);
+    (void)status;
     ROSH_DEBUG2("\t--stat()=%d\terr=%d\n", status, errno);
     if (errno) {
 	rosh_error(errno, "ls:szmd.stat", de->d_name);
@@ -987,13 +987,12 @@ void rosh_more_buf(char *buf, int buflen, int rows, int cols, char *scrbuf)
 void rosh_more_fd(int fd, int rows, int cols, char *scrbuf)
 {
     struct stat fdstat;
-    int status;
     char *buf;
     int bufpos;
     int numrd;
     FILE *f;
 
-    status = fstat(fd, &fdstat);
+    fstat(fd, &fdstat);
     if (S_ISREG(fdstat.st_mode)) {
 	buf = malloc((int)fdstat.st_size);
 	if (buf != NULL) {

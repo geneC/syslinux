@@ -39,9 +39,7 @@ MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 # mingw suite installed
 BTARGET  = version.gen version.h version.mk
 BOBJECTS = $(BTARGET) \
-	mbr/mbr.bin mbr/altmbr.bin mbr/gptmbr.bin \
-	mbr/mbr_c.bin mbr/altmbr_c.bin mbr/gptmbr_c.bin \
-	mbr/mbr_f.bin mbr/altmbr_f.bin mbr/gptmbr_f.bin \
+	mbr/*.bin \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
 	gpxe/gpxelinux.0 dos/syslinux.com \
 	win32/syslinux.exe win64/syslinux64.exe \
@@ -55,7 +53,7 @@ BOBJECTS = $(BTARGET) \
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
 BSUBDIRS = codepage com32 lzo core memdisk modules mbr memdump gpxe sample \
-	   libinstaller dos win32 win64 dosutil
+	   diag libinstaller dos win32 win64 dosutil
 ITARGET  =
 IOBJECTS = $(ITARGET) \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \

@@ -92,19 +92,15 @@ static void show_kernel_modules(int argc __unused, char **argv __unused,
     struct pci_device *pci_device;
     char kernel_modules[LINUX_KERNEL_MODULE_SIZE *
 			MAX_KERNEL_MODULES_PER_PCI_DEVICE];
-    bool nopciids = false;
-    bool nomodulespcimap = false;
     char modules[MAX_PCI_CLASSES][256] = {{0}};
     char category_name[MAX_PCI_CLASSES][256] = {{0}};
 
     if (hardware->pci_ids_return_code == -ENOPCIIDS) {
-	nopciids = true;
 	more_printf(" Missing pci.ids, we can't compute the list\n");
 	return;
     }
 
     if (hardware->modules_pcimap_return_code == -ENOMODULESPCIMAP) {
-	nomodulespcimap = true;
 	more_printf(" Missing modules.pcimap, we can't compute the list\n");
 	return;
     }

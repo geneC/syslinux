@@ -95,6 +95,7 @@ int stat(const char *pathname, struct stat *buf)
 	if (fd != -1) {
 	    ROSH_DEBUG2_STAT("(%d)stat:fstat() ", fd);
 	    status = fstat(fd, buf);
+	    (void)status;
 	    ROSH_DEBUG2_STAT("stat:close() ");
 	    close(fd);
 	    ret = 0;

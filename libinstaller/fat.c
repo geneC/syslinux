@@ -42,14 +42,11 @@ void syslinux_make_bootsect(void *bs)
  */
 const char *syslinux_check_bootsect(const void *bs)
 {
-    int veryold;
     int sectorsize;
     long long sectors, fatsectors, dsectors;
     long long clusters;
     int rootdirents, clustersize;
     const struct boot_sector *sectbuf = bs;
-
-    veryold = 0;
 
     /* Must be 0xF0 or 0xF8..0xFF */
     if (get_8(&sectbuf->bsMedia) != 0xF0 && get_8(&sectbuf->bsMedia) < 0xF8)

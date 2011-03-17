@@ -332,6 +332,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
     udp_write.buffer_size = 4;
 
     err = pxe_call(PXENV_UDP_WRITE, &udp_write);
+    (void)err;
 #if 0
     printf("sent %s\n", err ? "FAILED" : "OK");
 #endif
