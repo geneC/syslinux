@@ -19,6 +19,8 @@
 
 TARGETS	= gpxelinux.0 gpxelinuxk.0
 
+PXEMAKE = $(MAKE) -C src NO_WERROR=1
+
 all: $(TARGETS)
 
 tidy:
@@ -33,16 +35,17 @@ spotless: clean dist
 
 installer:
 
-src/bin/undionly.kkpxe: pxelinux.gpxe ../core/pxelinux.0
-	$(MAKE) -C src bin/undionly.kkpxe NO_WERROR=1 \
-		EMBEDDED_IMAGE=../pxelinux.gpxe,../../core/pxelinux.0
+src/bin/blib.a:
+	$(PXEMAKE) bin/blib.a
+
+src/bin/undionly.kkpxe: src/bin/blib.a pxelinux.gpxe ../core/pxelinux.0
+	$(PXEMAKE) bin/undionly.kkpxe EMBEDDED_IMAGE=../pxelinux.gpxe,../../core/pxelinux.0
 
 gpxelinux.0: src/bin/undionly.kkpxe
 	cp -f $< $@
 
-src/bin/undionly.kpxe: pxelinuxk.gpxe ../core/pxelinux.0
-	$(MAKE) -C src bin/undionly.kpxe NO_WERROR=1 \
-		EMBEDDED_IMAGE=../pxelinuxk.gpxe,../../core/pxelinux.0
+src/bin/undionly.kpxe: src/bin/blib.a pxelinuxk.gpxe ../core/pxelinux.0
+	$(PXEMAKE) bin/undionly.kpxe EMBEDDED_IMAGE=../pxelinuxk.gpxe,../../core/pxelinux.0
 
 gpxelinuxk.0: src/bin/undionly.kpxe
 	cp -f $< $@
