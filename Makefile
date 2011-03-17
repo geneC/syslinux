@@ -65,8 +65,8 @@ INSTALL_BIN   =	mtools/syslinux
 # Things to install in /sbin
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
-INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
-		core/isolinux-debug.bin \
+INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 gpxe/gpxelinuxk.0 \
+		core/isolinux.bin core/isolinux-debug.bin \
 		dos/syslinux.com \
 		mbr/*.bin $(MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe win64/syslinux64.exe
