@@ -70,7 +70,8 @@ INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 core/isolinux.bin \
 		dos/syslinux.com \
 		mbr/*.bin $(MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe win64/syslinux64.exe
-INSTALL_DIAG  =	diag/mbr/handoff.bin
+INSTALL_DIAG  =	diag/mbr/handoff.bin \
+		diag/geodsp/geodsp1s.img.xz diag/geodsp/geodspms.img.xz
 
 # These directories manage their own installables
 INSTALLSUBDIRS = com32 utils dosutil
