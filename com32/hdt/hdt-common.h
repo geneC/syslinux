@@ -48,10 +48,11 @@
 #include "cpuid.h"
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
-#include "../lib/sys/vesa/vesa.h"
+#include <lib/sys/vesa/vesa.h>
 #include <vpd/vpd.h>
 #include <libansi.h>
 #include <acpi/acpi.h>
+#include <libupload/upload_backend.h>
 
 /* Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))
@@ -79,6 +80,8 @@
 /* The maximum number of lines */
 #define MAX_CLI_LINES 20
 #define MAX_VESA_CLI_LINES 24
+
+struct upload_backend *upload;
 
 /* Defines if the cli is quiet*/
 bool quiet;
@@ -236,4 +239,5 @@ int detect_vesa(struct s_hardware *hardware);
 void detect_memory(struct s_hardware *hardware);
 void init_console(struct s_hardware *hardware);
 void detect_hardware(struct s_hardware *hardware);
+void dump(struct s_hardware *hardware);
 #endif

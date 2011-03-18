@@ -19,8 +19,8 @@ topdir = ../..
 include ../MCONFIG
 
 LIBS	   = ../cmenu/libmenu/libmenu.a ../libutil/libutil_com.a \
-	     ../lib/libcom32.a $(LIBGCC)
-CFLAGS    += -I$(com32)/cmenu/libmenu
+	     ../lib/libcom32.a ../libupload/libcom32upload.a $(LIBGCC)
+CFLAGS    += -I$(com32)/cmenu/libmenu -I$(com32)
 
 MODULES	  = hdt.c32
 TESTFILES =
