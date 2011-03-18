@@ -15,16 +15,14 @@ Chain module can perform few basic tasks:
 It can chainload data from both GPT and DOS partitions, as well as boot the
 first sector from a raw disk.
 
-In more details, the flow of code is as follows:
+In more details, the rough overview of code is as follows:
 
 1.  Parse arguments.
 2.  Find drive and/or partition to boot from.
-3.  Hide / unhide systems and/or fix chs values in partition entries on the
-    drive syslinux is booting from.
+3.  Perform partition-level patching - for example hiding, unhiding, fixing chs values, etc.
 4.  Load a file to boot from.
 5.  Load a sector to boot from, if it doesn't conflict with #5.
-6.  Prepare handover area, if it doesn't conflict with #5 & #6, and syslinux is
-    booting a partition.
+6.  Prepare handover area, if it doesn't conflict with #5 & #6.
 7.  Prepare registers.
 8.  Patch loaded file if necessary.
 9.  Patch loaded sector if necessary.
@@ -36,7 +34,7 @@ jumps to 0:0x7c00.
 
 A "service-only" run is possible when either:
 
-- 'nochain' is in effect
+- 'stop' is in effect
 
 or
 
@@ -44,9 +42,9 @@ or
 
 This is useful for invocations such as:
 
-chain.c32 hdN M setbpb save nochain
-chain.c32 hdN fixchs nochain
-chain.c32 hdN unhideall nochain
+chain.c32 hdN M setbpb save stop
+chain.c32 hdN fixchs stop
+chain.c32 hdN unhideall stop
 
 Please see respective options for more details.
 
@@ -142,7 +140,7 @@ not performed, being meaningless in such case.
 	setbpb
 	*nosetbpb
 
-Microsoft side of the world is paritculary bitchy about certain BPB values.
+Microsoft side of the world is paritculary sensitive to certain BPB values.
 Depending on the system and chainloading method (sector or file), some or all
 of those fields must match reality - and after e.g. drive clonning or
 when using usb stick in different computers - that is often not the case.
@@ -168,10 +166,11 @@ useful to also fix its BPB values.
 
 Fixing BPB values only in memory might not be enough. This option allows
 writing of the corrected sector. You will probably want to use this option
-together with 'setbpb' or other ones using that implicitly. 
+together with 'setbpb'.
 
 - this option never applies to a loaded file
-- chain module will never save anything to disk by default
+- chain module will not save anything to disk by default (besides options such
+  as hide or fixchs - so options related directly to partition entries)
 - writing is only performed, if the values actually changed
 
 	*hand
@@ -230,13 +229,13 @@ stacks in memory (pxelinux only).
 This option will wait for a keypress right before continuing the chainloading.
 Useful to see warnings emited by the chain module.
 
-	*chain
-	nochain
-	nochain sets: nofile nomaps nohand
+	*nostop
+	stop
+	stop sets: nofile nomaps nohand
 
 It is possible to trigger a "service-only" run - The chain module will do
 everything requested as usual, but it will not perform the actual chainloading.
-'nochain' option disables handover, file loading and sector mapping, as these
+'stop' option disables handover, file loading and sector mapping, as these
 are pointless in such scenario (although file might be reenabled in some future
 version, if writing to actual files becomes possible). Mainly useful for
 options 'fixchs', '[un]hide[all]' and setbpb.

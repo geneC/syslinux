@@ -641,7 +641,7 @@ int main(int argc, char *argv[])
 	wait_key();
     }
 
-    if (ndata && opt.chain) /* boot only if we actually chainload */
+    if (ndata && !opt.stop) /* boot only if we actually chainload */
 	do_boot(data, ndata);
     else
 	error("Service-only run completed, exiting.\n");
