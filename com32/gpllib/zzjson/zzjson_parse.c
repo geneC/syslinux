@@ -254,15 +254,15 @@ static ZZJSON *parse_literal(ZZJSON_CONFIG *config, char *s, ZZJSON_TYPE t) {
 }
 
 static ZZJSON *parse_true(ZZJSON_CONFIG *config) {
-    return parse_literal(config, "true", ZZJSON_TRUE);
+    return parse_literal(config, (char *)"true", ZZJSON_TRUE);
 }
 
 static ZZJSON *parse_false(ZZJSON_CONFIG *config) {
-    return parse_literal(config, "false", ZZJSON_FALSE);
+    return parse_literal(config, (char *)"false", ZZJSON_FALSE);
 }
 
 static ZZJSON *parse_null(ZZJSON_CONFIG *config) {
-    return parse_literal(config, "null", ZZJSON_NULL);
+    return parse_literal(config, (char *)"null", ZZJSON_NULL);
 }
 
 static ZZJSON *parse_value(ZZJSON_CONFIG *config) {
