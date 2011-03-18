@@ -54,10 +54,9 @@ static int countlines(char *buffer)
 static void printtext(char *buf, int from)
 {
     char *f, *t;
-    int right, nlines, i;
+    int nlines, i;
 
     // clear window to print
-    right = nc - HELP_RIGHT_MARGIN;
     nlines = nr - HELP_BODY_ROW - HELP_BOTTOM_MARGIN - 1;
 
     f = findline(buf, from);
@@ -66,7 +65,8 @@ static void printtext(char *buf, int from)
     if (*f == '\n')
 	f++;			// start of from+1st line
     t = f;
-    while (i < nlines) {
+
+    for (i = 0; i < nlines; i++) {
         gotoxy(HELP_BODY_ROW + i, HELP_LEFT_MARGIN);
         clear_end_of_line();
         putchar(SO);
@@ -83,7 +83,6 @@ static void printtext(char *buf, int from)
         }
         putchar('\n');
         t++;
-        i++;
     }
 }
 

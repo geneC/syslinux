@@ -523,6 +523,8 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 			   sectors at the end of the image... */
 			xsectors++;
 		    }
+
+		    hd_geometry.type = type;
 		}
 	    } else {
 		/* Assume it is a hard disk image and scan for a partition table */
@@ -558,6 +560,8 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 			}
 		    }
 		}
+
+		hd_geometry.type = 0;
 	    }
 	}
 
@@ -566,8 +570,8 @@ static const struct geometry *get_disk_image_geometry(uint32_t where,
 	if (!max_s)
 	    max_s = xsectors > 2097152 ? 63 : 32;
 
-	hd_geometry.h = max_h;
-	hd_geometry.s = max_s;
+	hd_geometry.h    = max_h;
+	hd_geometry.s    = max_s;
     }
 
     if (!hd_geometry.c)
