@@ -28,6 +28,7 @@ LIBOBJS = \
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o zalloc.o						\
 	skipspace.o							\
+	chrreplace.o							\
 	\
 	lmalloc.o lstrdup.o						\
 	\
