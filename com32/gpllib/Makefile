@@ -6,9 +6,9 @@
 topdir = ../..
 include ../lib/MCONFIG
 
-REQFLAGS += -I../gplinclude
+REQFLAGS += -I../gplinclude -I../gplinclude/zzjson
 
-GPLDIRS := . disk dmi vpd acpi
+GPLDIRS := . disk dmi vpd acpi zzjson
 LIBOBJS := $(foreach dir,$(GPLDIRS),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
 
 BINDIR   = /usr/bin
