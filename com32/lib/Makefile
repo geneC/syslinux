@@ -29,6 +29,7 @@ LIBOBJS = \
 	vsscanf.o zalloc.o						\
 	skipspace.o							\
 	chrreplace.o							\
+	bufprintf.o							\
 	\
 	lmalloc.o lstrdup.o						\
 	\
