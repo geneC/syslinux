@@ -446,6 +446,7 @@ void detect_cpu(s_cpu * cpu)
     memset(&c.x86_capability, 0, sizeof(c.x86_capability));
     memset(&c.x86_vendor_id, 0, sizeof(c.x86_vendor_id));
     memset(&c.x86_model_id, 0, sizeof(c.x86_model_id));
+    memset(&cpu->flags, 0, sizeof(s_cpu_flags));
 
     if (!have_cpuid_p())
 	return;
