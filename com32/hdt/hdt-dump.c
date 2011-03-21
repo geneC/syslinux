@@ -30,8 +30,19 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-
+#include <bufprintf.h>
+#include <zzjson/zzjson.h>
 #include "hdt-common.h"
+
+#define add_i(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value))
+#define add_s(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_string(config, value))
+#define add_bool_true(name) *item = zzjson_object_append(config, *item, name, zzjson_create_true(config))
+#define add_bool_false(name) *item = zzjson_object_append(config, *item, name, zzjson_create_false(config))
+#define add_hi(value) add_i(#value,hardware->value)
+#define add_hs(value) add_s(#value,hardware->value)
+#define add_b(name,value) if (value==true) {add_bool_true((char *)name);} else {add_bool_false((char *)name);}
+
+static struct print_buf p_buf;
 
 static void compute_filename(struct s_hardware *hardware, char *filename, int size) {
 
@@ -57,12 +68,62 @@ static void compute_filename(struct s_hardware *hardware, char *filename, int si
 
 }
 
+void print_and_flush(ZZJSON_CONFIG *config, ZZJSON **item) {
+	zzjson_print(config, *item);
+        zzjson_free(config, *item);
+}
+
+void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
+
+        *item = zzjson_create_object(config, NULL); /* empty object */
+	add_hs(cpu.vendor);
+	add_hs(cpu.model);
+	add_hi(cpu.vendor_id);
+	add_hi(cpu.family);
+	add_hi(cpu.model_id);
+	add_hi(cpu.stepping);
+	add_hi(cpu.num_cores);
+	add_hi(cpu.l1_data_cache_size);
+	add_hi(cpu.l1_instruction_cache_size);
+	add_hi(cpu.l2_cache_size);
+	size_t i;
+	for (i = 0; i < cpu_flags_count; i++) {
+		char temp[128]={0};
+		snprintf(temp,sizeof(temp),"cpu.flags.%s",cpu_flags_names[i]);
+		add_b(temp,get_cpu_flag_value_from_name(&hardware->cpu,cpu_flags_names[i]));
+	}
+	print_and_flush(config,item);
+}
+
+int dumpprintf(FILE *p, const char *format, ...) {
+   va_list ap;
+   int rv;
+
+  (void) p;  
+   va_start(ap, format);
+   rv = vbufprintf(&p_buf,format, ap);
+   va_end(ap);
+   return rv;
+}
+
 /**
  * dump - dump info
  **/
 void dump(struct s_hardware *hardware)
 {
+    ZZJSON *json = NULL;
+    ZZJSON_CONFIG config = { ZZJSON_VERY_STRICT, NULL,
+		(int(*)(void*)) fgetc,
+		NULL,
+		malloc, calloc, free, realloc,
+		stderr, NULL, stdout,
+		(int(*)(void *,const char*,...)) dumpprintf,
+		(int(*)(int,void*)) fputc 
+    };
+
     detect_hardware(hardware);
+    dump_cpu(hardware, &config, &json);
+
 
     /* By now, we only support TFTP reporting */
     upload=&upload_tftp;
@@ -81,9 +142,12 @@ void dump(struct s_hardware *hardware)
     /* We initiate the cpio to send */
     cpio_init(upload,(const char **)arg);
 
-    cpio_writefile(upload,"test","test1",4);
+    cpio_writefile(upload,"cpu",p_buf.buf,p_buf.len);
 
     /* We close & flush the file to send */
     cpio_close(upload);
     flush_data(upload);
+    if (p_buf.buf) { 
+	    free(p_buf.buf); 
+    }
 }
