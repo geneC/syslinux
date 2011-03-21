@@ -119,6 +119,7 @@ void dump(struct s_hardware *hardware)
     cpio_init(upload,(const char **)arg);
 
     dump_cpu(hardware, &config, &json);
+    dump_pxe(hardware, &config, &json);
 
     /* We close & flush the file to send */
     cpio_close(upload);

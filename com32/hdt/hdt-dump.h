@@ -49,3 +49,4 @@ int dumpprintf(FILE *p, const char *format, ...);
 void flush (char *filename, ZZJSON_CONFIG *config, ZZJSON ** item);
 
 void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
+void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
