@@ -48,5 +48,6 @@ void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 		snprintf(temp,sizeof(temp),"cpu.flags.%s",cpu_flags_names[i]);
 		add_b(temp,get_cpu_flag_value_from_name(&hardware->cpu,cpu_flags_names[i]));
 	}
-	print_and_flush(config,item);
+
+	flush("cpu",config,item);
 }

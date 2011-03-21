@@ -46,5 +46,6 @@ extern struct print_buf p_buf;
 
 void print_and_flush(ZZJSON_CONFIG *config, ZZJSON **item);
 int dumpprintf(FILE *p, const char *format, ...);
+void flush (char *filename, ZZJSON_CONFIG *config, ZZJSON ** item);
 
 void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);

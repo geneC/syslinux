@@ -75,6 +75,15 @@ int dumpprintf(FILE *p, const char *format, ...) {
    return rv;
 }
 
+void flush (char *filename, ZZJSON_CONFIG *config, ZZJSON ** item) { 
+   print_and_flush(config,item);
+   cpio_writefile(upload,filename,p_buf.buf,p_buf.len);
+   if (p_buf.buf) { 
+      memset(p_buf.buf,0,p_buf.size);
+      free(p_buf.buf); 
+   }
+}
+
 /**
  * dump - dump info
  **/
@@ -91,7 +100,6 @@ void dump(struct s_hardware *hardware)
     };
 
     detect_hardware(hardware);
-    dump_cpu(hardware, &config, &json);
 
     /* By now, we only support TFTP reporting */
     upload=&upload_tftp;
@@ -110,12 +118,9 @@ void dump(struct s_hardware *hardware)
     /* We initiate the cpio to send */
     cpio_init(upload,(const char **)arg);
 
-    cpio_writefile(upload,"cpu",p_buf.buf,p_buf.len);
+    dump_cpu(hardware, &config, &json);
 
     /* We close & flush the file to send */
     cpio_close(upload);
     flush_data(upload);
-    if (p_buf.buf) { 
-	    free(p_buf.buf); 
-    }
 }
