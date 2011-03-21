@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 20011 Erwan Velu - All Rights Reserved
+ *   Copyright 2011 Erwan Velu - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -30,21 +30,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <bufprintf.h>
-#include <zzjson/zzjson.h>
 #include "hdt-common.h"
+#include "hdt-dump.h"
 
-#define add_i(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value))
-#define add_s(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_string(config, value))
-#define add_bool_true(name) *item = zzjson_object_append(config, *item, name, zzjson_create_true(config))
-#define add_bool_false(name) *item = zzjson_object_append(config, *item, name, zzjson_create_false(config))
-#define add_hi(value) add_i(#value,hardware->value)
-#define add_hs(value) add_s(#value,hardware->value)
-#define add_b(name,value) if (value==true) {add_bool_true((char *)name);} else {add_bool_false((char *)name);}
+struct print_buf p_buf;
 
-static struct print_buf p_buf;
-
-static void compute_filename(struct s_hardware *hardware, char *filename, int size) {
+void compute_filename(struct s_hardware *hardware, char *filename, int size) {
 
    snprintf(filename,size,"%s/","hdt");
 
@@ -71,28 +62,6 @@ static void compute_filename(struct s_hardware *hardware, char *filename, int si
 void print_and_flush(ZZJSON_CONFIG *config, ZZJSON **item) {
 	zzjson_print(config, *item);
         zzjson_free(config, *item);
-}
-
-void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
-
-        *item = zzjson_create_object(config, NULL); /* empty object */
-	add_hs(cpu.vendor);
-	add_hs(cpu.model);
-	add_hi(cpu.vendor_id);
-	add_hi(cpu.family);
-	add_hi(cpu.model_id);
-	add_hi(cpu.stepping);
-	add_hi(cpu.num_cores);
-	add_hi(cpu.l1_data_cache_size);
-	add_hi(cpu.l1_instruction_cache_size);
-	add_hi(cpu.l2_cache_size);
-	size_t i;
-	for (i = 0; i < cpu_flags_count; i++) {
-		char temp[128]={0};
-		snprintf(temp,sizeof(temp),"cpu.flags.%s",cpu_flags_names[i]);
-		add_b(temp,get_cpu_flag_value_from_name(&hardware->cpu,cpu_flags_names[i]));
-	}
-	print_and_flush(config,item);
 }
 
 int dumpprintf(FILE *p, const char *format, ...) {
@@ -123,7 +92,6 @@ void dump(struct s_hardware *hardware)
 
     detect_hardware(hardware);
     dump_cpu(hardware, &config, &json);
-
 
     /* By now, we only support TFTP reporting */
     upload=&upload_tftp;
