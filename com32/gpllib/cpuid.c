@@ -458,17 +458,11 @@ void set_generic_info(struct cpuinfo_x86 *c, s_cpu * cpu)
 void detect_cpu(s_cpu * cpu)
 {
     struct cpuinfo_x86 c;
+    memset(&c,0,sizeof(c));
     c.x86_clflush_size = 32;
-    c.x86_l1_data_cache_size = 0;
-    c.x86_l1_instruction_cache_size = 0;
-    c.x86_l2_cache_size = 0;
     c.x86_vendor = X86_VENDOR_UNKNOWN;
     c.cpuid_level = -1;		/* CPUID not detected */
-    c.x86_model = c.x86_mask = 0;	/* So far unknown... */
     c.x86_num_cores = 1;
-    memset(&c.x86_capability, 0, sizeof(c.x86_capability));
-    memset(&c.x86_vendor_id, 0, sizeof(c.x86_vendor_id));
-    memset(&c.x86_model_id, 0, sizeof(c.x86_model_id));
     memset(&cpu->flags, 0, sizeof(s_cpu_flags));
 
     if (!have_cpuid_p())
