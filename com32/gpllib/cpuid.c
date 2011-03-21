@@ -33,15 +33,15 @@ size_t cpu_flags_count = sizeof cpu_flags_names / sizeof *cpu_flags_names;
 struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = { };
 
 bool get_cpu_flag_value_from_name(s_cpu *cpu, const char * flag_name) {
-    size_t i;;
-    bool *flag=false;
+    size_t i;
+    bool cpu_flag_present=false, *flag_value = &cpu_flag_present;
 
     for (i = 0; i < cpu_flags_count; i++) {
 	if (strcmp(cpu_flags_names[i],flag_name) == 0) {
-        	flag = (bool *)((char *)&cpu->flags + cpu_flags_offset[i]);
+        	flag_value = (bool *)((char *)&cpu->flags + cpu_flags_offset[i]);
 	}
     }
-    return *flag;
+    return *flag_value;
 }
 
 
