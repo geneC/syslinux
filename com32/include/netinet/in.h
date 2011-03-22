@@ -53,4 +53,5 @@ struct in_addr {
     in_addr_t s_addr;
 };
 
+char * inet_ntoa (in_addr_t addr);
 #endif /* _NETINET_IN_H */
