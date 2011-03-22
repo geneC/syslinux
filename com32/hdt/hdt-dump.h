@@ -39,7 +39,7 @@
 #define add_bool_true(name) *item = zzjson_object_append(config, *item, name, zzjson_create_true(config))
 #define add_bool_false(name) *item = zzjson_object_append(config, *item, name, zzjson_create_false(config))
 #define add_hi(value) add_i(#value,hardware->value)
-#define add_hs(value) add_s(#value,hardware->value)
+#define add_hs(value) add_s(#value,(char *)hardware->value)
 #define add_b(name,value) if (value==true) {add_bool_true((char *)name);} else {add_bool_false((char *)name);}
 
 extern struct print_buf p_buf;
@@ -50,3 +50,4 @@ void flush (char *filename, ZZJSON_CONFIG *config, ZZJSON ** item);
 
 void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
+void dump_syslinux(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
