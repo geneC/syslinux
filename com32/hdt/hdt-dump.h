@@ -53,3 +53,4 @@ void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_syslinux(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_vpd(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
+void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);

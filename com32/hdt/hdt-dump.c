@@ -118,6 +118,7 @@ void dump(struct s_hardware *hardware)
     dump_pxe(hardware, &config, &json);
     dump_syslinux(hardware, &config, &json);
     dump_vpd(hardware, &config, &json);
+    dump_vesa(hardware, &config, &json);
 
     /* We close & flush the file to send */
     cpio_close(upload);
