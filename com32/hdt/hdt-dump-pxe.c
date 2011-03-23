@@ -33,45 +33,48 @@
 
 void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
-	if (hardware->is_pxe_valid == false) return;
         *item = zzjson_create_object(config, NULL); /* empty object */
-	char buffer[32] = {0};
-	snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.vendor_id);
-	add_s("pxe.vendor_id",buffer);
-	snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.product_id);
-	add_s("pxe.product_id",buffer);
-	snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.subvendor_id);
-	add_s("pxe.subvendor_id",buffer);
-	snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.subproduct_id);
-	add_s("pxe.subproduct_id",buffer);
+	add_hb(is_pxe_valid);
+	if (hardware->is_pxe_valid) {
+		char buffer[32] = {0};
+		snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.vendor_id);
+		add_s("pxe.vendor_id",buffer);
+		snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.product_id);
+		add_s("pxe.product_id",buffer);
+		snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.subvendor_id);
+		add_s("pxe.subvendor_id",buffer);
+		snprintf(buffer,sizeof(buffer),"0x%x",hardware->pxe.subproduct_id);
+		add_s("pxe.subproduct_id",buffer);
 
-	if (hardware->pci_ids_return_code == -ENOPCIIDS || (hardware->pxe.pci_device == NULL)) { 
-		add_s("Manufacturer_name","no_pci_ids_file or no device found");
-		add_s("Product_name","no_pci_ids_file or no device found");
-	} else {
-		add_s("Manufacturer_name", hardware->pxe.pci_device->dev_info->vendor_name);
-		add_s("Product_name", hardware->pxe.pci_device->dev_info->product_name);
-	}
+		if (hardware->pci_ids_return_code == -ENOPCIIDS || (hardware->pxe.pci_device == NULL)) { 
+			add_s("Manufacturer_name","no_pci_ids_file or no device found");
+			add_s("Product_name","no_pci_ids_file or no device found");
+		} else {
+			add_s("Manufacturer_name", hardware->pxe.pci_device->dev_info->vendor_name);
+			add_s("Product_name", hardware->pxe.pci_device->dev_info->product_name);
+		}
 
-	add_hi(pxe.rev);
-	add_hi(pxe.pci_bus);
-	add_hi(pxe.pci_dev);
-	add_hi(pxe.pci_func);
-	add_hi(pxe.base_class);
-	add_hi(pxe.sub_class);
-	add_hi(pxe.prog_intf);
-	add_hi(pxe.nictype);
-	add_hs(pxe.mac_addr);
-	char ip[16] = {0};
-	snprintf(ip,sizeof(ip), "%d.%d.%d.%d",
+		add_hi(pxe.rev);
+		add_hi(pxe.pci_bus);
+		add_hi(pxe.pci_dev);
+		add_hi(pxe.pci_func);
+		add_hi(pxe.base_class);
+		add_hi(pxe.sub_class);
+		add_hi(pxe.prog_intf);
+		add_hi(pxe.nictype);
+		add_hs(pxe.mac_addr);
+	
+		char ip[16] = {0};
+		snprintf(ip,sizeof(ip), "%d.%d.%d.%d",
 			hardware->pxe.ip_addr[0], 
 			hardware->pxe.ip_addr[1],
 			hardware->pxe.ip_addr[2],
 			hardware->pxe.ip_addr[3]);
-	add_s("pxe.client_ip",inet_ntoa(hardware->pxe.dhcpdata.cip));
-	add_s("pxe.next_server_ip",inet_ntoa(hardware->pxe.dhcpdata.sip));
-	add_s("pxe.relay_agent_ip",inet_ntoa(hardware->pxe.dhcpdata.gip));
-	add_s("pxe.ipaddr",ip);
-	add_b("gpxe_detected",is_gpxe());
+		add_s("pxe.client_ip",inet_ntoa(hardware->pxe.dhcpdata.cip));
+		add_s("pxe.next_server_ip",inet_ntoa(hardware->pxe.dhcpdata.sip));
+		add_s("pxe.relay_agent_ip",inet_ntoa(hardware->pxe.dhcpdata.gip));
+		add_s("pxe.ipaddr",ip);
+		add_b("gpxe_detected",is_gpxe());
+	}
 	flush("pxe",config,item);
 }
