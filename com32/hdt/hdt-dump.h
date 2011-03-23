@@ -41,6 +41,7 @@
 #define add_hi(value) add_i(#value,hardware->value)
 #define add_hs(value) add_s(#value,(char *)hardware->value)
 #define add_b(name,value) if (value==true) {add_bool_true((char *)name);} else {add_bool_false((char *)name);}
+#define add_hb(value) add_b(#value,hardware->value)
 
 extern struct print_buf p_buf;
 
@@ -51,3 +52,4 @@ void flush (char *filename, ZZJSON_CONFIG *config, ZZJSON ** item);
 void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_syslinux(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
+void dump_vpd(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
