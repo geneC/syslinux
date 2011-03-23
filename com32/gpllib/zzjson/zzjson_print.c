@@ -102,7 +102,7 @@ static int zzjson_print2(ZZJSON_CONFIG *config, ZZJSON *zzjson,
 
 int zzjson_print(ZZJSON_CONFIG *config, ZZJSON *zzjson) {
     int retval = zzjson_print2(config, zzjson, 0, 0);
-    if (retval >= 0) retval = config->putchar('\n', config->ohandle);
+//    if (retval >= 0) retval = config->putchar('\n', config->ohandle);
 #ifndef CONFIG_NO_ERROR_MESSAGES
     if (retval <  0) config->error(config->ehandle, "print: unable to print");
 #endif
