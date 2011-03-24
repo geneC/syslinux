@@ -34,13 +34,17 @@
 #include <zzjson/zzjson.h>
 #include "hdt-common.h"
 
+#define ADD_I(value) zzjson_create_number_i(config,value)
+#define ADD_S(value) zzjson_create_string(config,value)
+#define add_ai(name,value) *item = zzjson_array_append(config, *item, zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value)))
 #define add_i(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value))
 #define add_s(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_string(config, value))
-#define add_bool_true(name) *item = zzjson_object_append(config, *item, name, zzjson_create_true(config))
-#define add_bool_false(name) *item = zzjson_object_append(config, *item, name, zzjson_create_false(config))
+#define add_as(name,value) *item = zzjson_array_append(config, *item, zzjson_object_append(config, *item, name, zzjson_create_string(config, value)))
+#define add_bool_true(name) *item = zzjson_object_append(config, *item, (char *)name, zzjson_create_true(config))
+#define add_bool_false(name) *item = zzjson_object_append(config, *item, (char*)name, zzjson_create_false(config))
 #define add_hi(value) add_i(#value,hardware->value)
 #define add_hs(value) add_s(#value,(char *)hardware->value)
-#define add_b(name,value) if (value==true) {add_bool_true((char *)name);} else {add_bool_false((char *)name);}
+#define add_b(name,value) if (value==true) {add_bool_true(name);} else {add_bool_false(name);}
 #define add_hb(value) add_b(#value,hardware->value)
 
 extern struct print_buf p_buf;
@@ -54,3 +58,4 @@ void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 void dump_syslinux(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_vpd(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
+void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
