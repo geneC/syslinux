@@ -30,7 +30,50 @@
 #include "hdt-dump.h"
 #include "hdt-util.h"
 
-void show_disk(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item, int drive) {
+ZZJSON_CONFIG *config;
+ZZJSON **item;
+
+static void show_partition_information(struct driveinfo *drive_info,
+                                       struct part_entry *ptab,
+                                       int partition_offset,
+                                       int nb_partitions_seen) {
+    char size[11] = {0};
+    char bootloader_name[9] = {0};
+    char ostype[64]={0};
+    char *parttype;
+    unsigned int start, end;
+    bool bootable = false;
+
+    int i = nb_partitions_seen;
+    start = partition_offset;
+    end = start + ptab->length - 1;
+
+    if (ptab->length > 0)
+        sectors_to_size(ptab->length, size);
+
+    get_label(ptab->ostype, &parttype);
+    get_bootloader_string(drive_info, ptab, bootloader_name, 9);
+    if (ptab->active_flag == 0x80)
+	    bootable=true;
+
+    snprintf(ostype,sizeof(ostype),"%02X",ptab->ostype);
+
+    APPEND_ARRAY
+	    add_ai("partition->number",i)
+	    add_ai("partition->sector_start",start)
+	    add_ai("partition->sector_end",end)
+	    add_as("partition->size",size)
+	    add_as("partition->type",parttype)
+	    add_as("partition->os_type",ostype)
+    END_OF_APPEND;
+    free(parttype);
+}
+
+
+
+void show_disk(struct s_hardware *hardware, ZZJSON_CONFIG *conf, ZZJSON **it, int drive) {
+	config=conf;
+	item=it;
 	int i = drive - 0x80;
 	struct driveinfo *d = &hardware->disk_info[i];
 	char mbr_name[50]={0};
@@ -47,20 +90,32 @@ void show_disk(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 	zzjson_print(config, *item);
 	zzjson_free(config, *item);
 
-        *item = zzjson_create_object(config, NULL); /* empty object */
-	add_s("disk->number", disk);
-	add_i("disk->cylinders",d->legacy_max_cylinder + 1);
-	add_i("disk->heads",d->legacy_max_head + 1);
-	add_i("disk->sectors_per_track",d->legacy_sectors_per_track);
-	add_s("disk->edd_version",edd_version);
-	add_s("disk->size",disk_size);
-	add_i("disk->bytes_per_sector",(int)d->edd_params.bytes_per_sector);
-	add_i("disk->sectors_per_track",(int)d->edd_params.sectors_per_track);
-	add_s("disk->host_bus",remove_spaces((char *)d->edd_params.host_bus_type));
-	add_s("disk->interface_type",remove_spaces((char *)d->edd_params.interface_type));
-	add_s("disk->mbr_name",mbr_name);
-	add_i("disk->mbr_id",hardware->mbr_ids[i]);
+	CREATE_ARRAY
+		add_as("disk->number",disk) 
+		add_ai("disk->cylinders",d->legacy_max_cylinder +1) 
+		add_ai("disk->heads",d->legacy_max_head +1)
+		add_ai("disk->sectors_per_track",d->legacy_sectors_per_track)
+		add_as("disk->edd_version",edd_version)
+		add_as("disk->size",disk_size)
+		add_ai("disk->bytes_per_sector",(int)d->edd_params.bytes_per_sector)
+		add_ai("disk->sectors_per_track",(int)d->edd_params.sectors_per_track)
+		add_as("disk->host_bus",remove_spaces((char *)d->edd_params.host_bus_type))
+		add_as("disk->interface_type",remove_spaces((char *)d->edd_params.interface_type))
+		add_as("disk->mbr_name",mbr_name)
+		add_ai("disk->mbr_id",hardware->mbr_ids[i])
+	END_OF_ARRAY;
 
+	if (parse_partition_table(d, &show_partition_information)) {
+	        if (errno_disk) { 
+			APPEND_ARRAY
+				add_as("disk->error", "IO Error")
+			END_OF_APPEND;
+		} else  {
+			APPEND_ARRAY
+				add_as("disk->error", "Unrecognized Partition Layout")
+			END_OF_APPEND;
+		}
+	}
 }
 
 void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {

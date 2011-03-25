@@ -34,12 +34,14 @@
 #include <zzjson/zzjson.h>
 #include "hdt-common.h"
 
-#define ADD_I(value) zzjson_create_number_i(config,value)
-#define ADD_S(value) zzjson_create_string(config,value)
-#define add_ai(name,value) *item = zzjson_array_append(config, *item, zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value)))
+#define APPEND_ARRAY ZZJSON *temp_array; temp_array = zzjson_array_append(config, *item, zzjson_create_object(config,
+#define CREATE_ARRAY *item = zzjson_create_array(config, zzjson_create_object(config, 
+#define add_ai(name,value) name,zzjson_create_number_i(config,value),
+#define add_as(name,value) name,zzjson_create_string(config,value),
+#define END_OF_ARRAY NULL),NULL)
+#define END_OF_APPEND NULL)); *item=temp_array;
 #define add_i(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value))
 #define add_s(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_string(config, value))
-#define add_as(name,value) *item = zzjson_array_append(config, *item, zzjson_object_append(config, *item, name, zzjson_create_string(config, value)))
 #define add_bool_true(name) *item = zzjson_object_append(config, *item, (char *)name, zzjson_create_true(config))
 #define add_bool_false(name) *item = zzjson_object_append(config, *item, (char*)name, zzjson_create_false(config))
 #define add_hi(value) add_i(#value,hardware->value)
