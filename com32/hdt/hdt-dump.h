@@ -37,7 +37,9 @@
 #define APPEND_ARRAY ZZJSON *temp_array; temp_array = zzjson_array_append(config, *item, zzjson_create_object(config,
 #define CREATE_ARRAY *item = zzjson_create_array(config, zzjson_create_object(config, 
 #define add_ai(name,value) name,zzjson_create_number_i(config,value),
+#define add_ahi(value) add_ai(#value,hardware->value)
 #define add_as(name,value) name,zzjson_create_string(config,value),
+#define add_ahs(value) add_as(#value,hardware->value)
 #define END_OF_ARRAY NULL),NULL)
 #define END_OF_APPEND NULL)); *item=temp_array;
 #define add_i(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value))
