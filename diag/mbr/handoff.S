@@ -221,17 +221,17 @@ scn_pnp:
 	/* 0x506E5024 */
 	movw	$0x5024, %dx
 	movw	$0x506E, %bx
-ch_pnp:	es lodsw
+ch_pnp:	es lodsw	/* Check for $PnP */
 	cmpw	%dx, %ax
 	jne	ch_pnp_l
 	es lodsw
 	cmpw	%bx, %ax
 	je	pr_pnp
-ch_pnp_l:
+ch_pnp_l:		/* Check $PnP failed; loop to next address */
 	addw	$14, %si
 	andw	$0xFFF0, %si
 	loopw	ch_pnp
-	jmp	end
+	jmp	pnp_end
 pr_pnp:
 	pushw	%si
 	call	wrstr
@@ -244,8 +244,8 @@ pr_pnp:
 	andw	$0xFFF0, %dx
 	call	wrhexw
 #endif	/* DEBUG_PNP */
-
 	call	crlf
+pnp_end:
 
 end:
 	jmp	bootfail
