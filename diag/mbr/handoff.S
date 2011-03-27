@@ -56,6 +56,7 @@
 #define DEBUG_PNP	/* Scan for $PnP and show address */
 #define DEBUG_PAK	/* Press Any Key before boot fail */
 // #define DEBUG_ENTRY_REG	/* Store (manually as pusha is 80186) registers */
+// #define DEBUG_FDT	/* Print the floppy descriptor table; INT 1Eh*/
 
 #ifdef DEBUG_MARKER1
 	.macro ASCII_MARKER1 s:vararg
@@ -107,6 +108,10 @@ es_ds		= (es_si-2)
 es_bot		= (es_ds)
 
 BIOS_page	= 0x462
+
+int_1e		= (4*0x1e)
+int_1e_seg	= (int_1e)
+int_1e_off	= (int_1e+2)
 
 	.globl	_start
 _start:
@@ -246,6 +251,27 @@ pr_pnp:
 #endif	/* DEBUG_PNP */
 	call	crlf
 pnp_end:
+
+#ifdef DEBUG_FDT
+	/* INT 1Eh: Floppy Parameter Table Pointer */
+pr_1e:	call	wrstr
+	.ascii	"INT 1Eh: \0"
+	mov	$int_1e,%bx
+	les	(%bx),%di
+	pushw	%es
+	popw	%dx
+	call	wrhexw
+	movb	$':, %al
+	call	wrchr
+	pushw	%di
+	popw	%dx
+	call	wrhexw
+	call	crlf
+	/* [INT 1Eh] */
+	movw	$14, %cx
+	call	wrhexbses
+	call	crlf
+#endif	/* DEBUG_FDT */
 
 end:
 	jmp	bootfail
