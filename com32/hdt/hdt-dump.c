@@ -120,6 +120,7 @@ void dump(struct s_hardware *hardware)
     dump_vpd(hardware, &config, &json);
     dump_vesa(hardware, &config, &json);
     dump_disks(hardware, &config, &json);
+    dump_dmi(hardware, &config, &json);
 
     /* We close & flush the file to send */
     cpio_close(upload);
