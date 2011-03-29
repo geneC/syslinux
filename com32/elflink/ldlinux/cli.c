@@ -18,6 +18,7 @@
 #include "getkey.h"
 #include "menu.h"
 #include "cli.h"
+#include "config.h"
 
 static jmp_buf timeout_jump;
 
@@ -394,6 +395,26 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	        redraw = 1;
 	    }
 	    break;
+	case KEY_TAB:
+	    {
+		const char *p;
+		size_t len;
+
+		/* Label completion enabled? */
+		if (nocomplete)
+	            break;
+
+		p = cmdline;
+		len = 0;
+		while(*p && !my_isspace(*p)) {
+		    p++;
+		    len++;
+		}
+
+		print_labels(cmdline, len);
+		redraw = 1;
+		break;
+	    }
 
 	default:
 	    if (key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN - 1) {

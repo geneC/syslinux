@@ -420,6 +420,17 @@ static struct menu *end_submenu(void)
     return current_menu->parent ? current_menu->parent : current_menu;
 }
 
+void print_labels(const char *prefix, size_t len)
+{
+    struct menu_entry *me;
+
+    printf("\n");
+    for (me = all_entries; me; me = me->next ) {
+	if (!strncmp(prefix, me->label, len))
+	    printf(" %s\n", me->label);
+    }
+}
+
 static struct menu_entry *find_label(const char *str)
 {
     const char *p;
