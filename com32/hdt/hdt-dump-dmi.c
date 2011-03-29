@@ -29,6 +29,34 @@
 #include "hdt-common.h"
 #include "hdt-dump.h"
 
+void dump_hardware_security(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
+	if (!hardware->dmi.hardware_security.filled) {
+			APPEND_ARRAY
+				add_as("dmi.warning","No hardware security structure found")
+			END_OF_APPEND;
+			return;
+	}
+	
+	APPEND_ARRAY
+		add_ahs(dmi.hardware_security.power_on_passwd_status)
+		add_ahs(dmi.hardware_security.keyboard_passwd_status)
+		add_ahs(dmi.hardware_security.administrator_passwd_status)
+		add_ahs(dmi.hardware_security.front_panel_reset_status)
+	END_OF_APPEND;
+}
+
+void dump_oem_strings(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
+	if (strlen(hardware->dmi.oem_strings) == 0) {
+			APPEND_ARRAY
+				add_as("dmi.warning","No oem structure found")
+			END_OF_APPEND;
+			return;
+	}
+	APPEND_ARRAY
+		add_ahs(dmi.oem_strings)
+	END_OF_APPEND;
+}
+
 void dump_memory_size(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 	APPEND_ARRAY
 		add_ai("dmi.memory_size (KB)",hardware->detected_memory_size)
@@ -418,6 +446,8 @@ void dump_dmi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 	dump_memory_banks(hardware,config,item);
 	dump_memory_modules(hardware,config,item);
 	dump_memory_size(hardware,config,item);
+	dump_oem_strings(hardware,config,item);
+	dump_hardware_security(hardware,config,item);
 exit:
 	flush("dmi",config,item);
 }
