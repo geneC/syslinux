@@ -121,6 +121,7 @@ void dump(struct s_hardware *hardware)
     dump_vesa(hardware, &config, &json);
     dump_disks(hardware, &config, &json);
     dump_dmi(hardware, &config, &json);
+    dump_memory(hardware, &config, &json);
 
     /* We close & flush the file to send */
     cpio_close(upload);

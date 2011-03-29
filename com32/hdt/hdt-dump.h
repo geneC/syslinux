@@ -80,3 +80,4 @@ void dump_vpd(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_dmi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
+void dump_memory(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
