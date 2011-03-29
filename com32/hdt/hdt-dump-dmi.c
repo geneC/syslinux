@@ -38,6 +38,7 @@ void dump_hardware_security(struct s_hardware *hardware, ZZJSON_CONFIG *config, 
 	}
 	
 	APPEND_ARRAY
+		add_as("dmi.item","hardware_security")
 		add_ahs(dmi.hardware_security.power_on_passwd_status)
 		add_ahs(dmi.hardware_security.keyboard_passwd_status)
 		add_ahs(dmi.hardware_security.administrator_passwd_status)
@@ -48,17 +49,19 @@ void dump_hardware_security(struct s_hardware *hardware, ZZJSON_CONFIG *config, 
 void dump_oem_strings(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 	if (strlen(hardware->dmi.oem_strings) == 0) {
 			APPEND_ARRAY
-				add_as("dmi.warning","No oem structure found")
+				add_as("dmi.warning","No OEM structure found")
 			END_OF_APPEND;
 			return;
 	}
 	APPEND_ARRAY
+		add_as("dmi.item","OEM")
 		add_ahs(dmi.oem_strings)
 	END_OF_APPEND;
 }
 
 void dump_memory_size(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 	APPEND_ARRAY
+		add_as("dmi.item","memory size")
 		add_ai("dmi.memory_size (KB)",hardware->detected_memory_size)
 		add_ai("dmi.memory_size (MB)",(hardware->detected_memory_size + (1 << 9)) >> 10)
 	END_OF_APPEND;
