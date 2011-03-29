@@ -294,16 +294,31 @@ void dump_base_board(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON 
 		return;
 	}
 
-	APPEND_ARRAY
-	add_as("dmi.item","base_board")
-	add_ahs(dmi.base_board.manufacturer)
-	add_ahs(dmi.base_board.product_name)
-	add_ahs(dmi.base_board.version)
-	add_ahs(dmi.base_board.serial)
-	add_ahs(dmi.base_board.asset_tag)
-	add_ahs(dmi.base_board.location)
-	add_ahs(dmi.base_board.type)
-	END_OF_APPEND;
+	CREATE_TEMP_OBJECT;
+	add_ts("dmi.item","base_board");
+	add_ths(dmi.base_board.manufacturer);
+	add_ths(dmi.base_board.product_name);
+	add_ths(dmi.base_board.version);
+	add_ths(dmi.base_board.serial);
+	add_ths(dmi.base_board.asset_tag);
+	add_ths(dmi.base_board.location);
+	add_ths(dmi.base_board.type);
+	for (int i = 0; i < BASE_BOARD_NB_ELEMENTS; i++) {
+		if (((bool *) (&hardware->dmi.base_board.features))[i] == true) {
+			add_ts("dmi.base_board.features",(char *)base_board_features_strings[i]);
+		}
+	}
+
+	for (unsigned int i = 0; i < sizeof hardware->dmi.base_board.devices_information /
+		         sizeof *hardware->dmi.base_board.devices_information; i++) {
+	        if (strlen(hardware->dmi.base_board.devices_information[i].type)) {
+			add_ts("dmi.base_board.devices_information.type", hardware->dmi.base_board.devices_information[i].type);
+			add_ti("dmi.base_board.devices_information.status", hardware->dmi.base_board.devices_information[i].status);
+			add_ts("dmi.base_board.devices_information.description", hardware->dmi.base_board.devices_information[i].description);
+		}
+	}
+	
+	APPEND_TEMP_OBJECT_ARRAY;
 
 }
 
