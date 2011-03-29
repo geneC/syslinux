@@ -29,6 +29,33 @@
 #include "hdt-common.h"
 #include "hdt-dump.h"
 
+void dump_cache(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
+
+	if (hardware->dmi.cache_count == 0) {
+			APPEND_ARRAY
+				add_as("dmi.warning","No cache structure found")
+			END_OF_APPEND;
+			return;
+	}
+
+	for (int cache=0; cache<hardware->dmi.cache_count;cache++) {
+		APPEND_ARRAY
+		add_ai("Cache", cache)
+		add_as("dmi.cache.socket_designation", hardware->dmi.cache[cache].socket_designation)
+		add_as("dmi.cache.configuration", hardware->dmi.cache[cache].configuration)
+		add_as("dmi.cache.mode", hardware->dmi.cache[cache].mode)
+		add_as("dmi.cache.location", hardware->dmi.cache[cache].location)
+		add_ai("dmi.cache.installed_size (KB)", hardware->dmi.cache[cache].installed_size)
+		add_ai("dmi.cache.max_size (KB)", hardware->dmi.cache[cache].max_size)
+		add_as("dmi.cache.supported_sram_types", hardware->dmi.cache[cache].supported_sram_types)
+		add_as("dmi.cache.installed_sram_types", hardware->dmi.cache[cache].installed_sram_types)
+		add_ai("dmi.cache.speed (ns)", hardware->dmi.cache[cache].speed)
+		add_as("dmi.cache.error_correction_type", hardware->dmi.cache[cache].error_correction_type)
+		add_as("dmi.cache.system_type", hardware->dmi.cache[cache].system_type)
+		add_as("dmi.cache.associativity", hardware->dmi.cache[cache].associativity)
+		END_OF_APPEND;
+	}
+}
 void dump_memory_banks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
 	if (hardware->dmi.memory_count == 0) {
@@ -348,6 +375,7 @@ void dump_dmi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 	dump_battery(hardware,config,item);
 	dump_processor(hardware,config,item);
 	dump_memory_banks(hardware,config,item);
+	dump_cache(hardware,config,item);
 exit:
 	flush("dmi",config,item);
 }
