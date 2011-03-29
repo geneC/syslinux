@@ -29,6 +29,46 @@
 #include "hdt-common.h"
 #include "hdt-dump.h"
 
+void dump_memory_size(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
+	APPEND_ARRAY
+		add_ai("dmi.memory_size (KB)",hardware->detected_memory_size)
+		add_ai("dmi.memory_size (MB)",(hardware->detected_memory_size + (1 << 9)) >> 10)
+	END_OF_APPEND;
+}
+
+void dump_memory_modules(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
+
+	if (hardware->dmi.memory_module_count == 0) {
+			APPEND_ARRAY
+				add_as("dmi.warning","No memory module structure found")
+			END_OF_APPEND;
+			return;
+	}
+
+	for (int module=0; module<hardware->dmi.memory_module_count;module++) {
+		if (hardware->dmi.memory_module[module].filled == false) {
+			char msg[64]={0};
+			snprintf(msg,sizeof(msg),"Module %d doesn't contain any information", module);
+
+			APPEND_ARRAY
+				add_as("dmi.warning",msg)
+			END_OF_APPEND;
+			continue;
+		}
+
+		APPEND_ARRAY
+		add_ai("Memory module", module)
+		add_as("dmi.memory_module.socket_designation", hardware->dmi.memory_module[module].socket_designation)
+		add_as("dmi.memory_module.bank_connections", hardware->dmi.memory_module[module].bank_connections)
+		add_as("dmi.memory_module.speed", hardware->dmi.memory_module[module].speed)
+		add_as("dmi.memory_module.type", hardware->dmi.memory_module[module].type)
+		add_as("dmi.memory_module.installed_size", hardware->dmi.memory_module[module].installed_size)
+		add_as("dmi.memory_module.enabled_size", hardware->dmi.memory_module[module].enabled_size)
+		add_as("dmi.memory_module.error_status", hardware->dmi.memory_module[module].error_status)
+		END_OF_APPEND;
+	}
+}
+	
 void dump_cache(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
 	if (hardware->dmi.cache_count == 0) {
@@ -374,8 +414,10 @@ void dump_dmi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 	dump_ipmi(hardware,config,item);
 	dump_battery(hardware,config,item);
 	dump_processor(hardware,config,item);
-	dump_memory_banks(hardware,config,item);
 	dump_cache(hardware,config,item);
+	dump_memory_banks(hardware,config,item);
+	dump_memory_modules(hardware,config,item);
+	dump_memory_size(hardware,config,item);
 exit:
 	flush("dmi",config,item);
 }
