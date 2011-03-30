@@ -146,7 +146,6 @@ struct {
 } gfx;
 
 void *lowmem_buf;
-unsigned lowmem_buf_size;
 
 int timeout;
 
@@ -195,8 +194,6 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  lowmem_buf_size = LOWMEM_BUF_SIZE;
-
   sdi = syslinux_derivative_info();
 
   gfx_config.sector_shift = sdi->disk.sector_shift;
@@ -217,7 +214,7 @@ int main(int argc, char **argv)
   gfx_config.sysconfig_size = sizeof gfx_config;
   gfx_config.bootloader_seg = 0;	// apparently not needed
 
-  save_buf_size = lowmem_buf_size;
+  save_buf_size = LOWMEM_BUF_SIZE;
   save_buf = malloc(save_buf_size);
 
   if(argc < 2) {
@@ -539,7 +536,7 @@ int gfx_init(char *file)
   unsigned code_start, code_size, file_start, file_len, u;
   com32sys_t r;
   void *lowmem = lowmem_buf;
-  unsigned lowmem_size = lowmem_buf_size;
+  unsigned lowmem_size = LOWMEM_BUF_SIZE;
 
   progress_active = 0;
 
