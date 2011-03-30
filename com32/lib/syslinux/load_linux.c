@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -87,6 +87,13 @@ struct linux_header {
     uint8_t relocatable_kernel;
     uint8_t pad2[3];
     uint32_t cmdline_max_len;
+    uint32_t hardware_subarch;
+    uint64_t hardware_subarch_data;
+    uint32_t payload_offset;
+    uint32_t payload_length;
+    uint64_t setup_data;
+    uint64_t pref_address;
+    uint32_t init_size;
 } __packed;
 
 #define BOOT_MAGIC 0xAA55
@@ -272,6 +279,17 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     prot_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x100000 : 0x10000;
     prot_mode_size = kernel_size - real_mode_size;
 
+    if (hdr.version < 0x020a) {
+	/*
+	 * The 3* here is a total fudge factor... it's supposed to
+	 * account for the fact that the kernel needs to be
+	 * decompressed, and then followed by the BSS and BRK regions.
+	 * This doesn't, however, account for the fact that the kernel
+	 * is decompressed into a whole other place, either.
+	 */
+	hdr.init_size = 3 * prot_mode_size;
+    }
+
     if (!(hdr.loadflags & LOAD_HIGH) && prot_mode_size > 512 * 1024)
 	goto bail;		/* Kernel cannot be loaded low */
 
@@ -341,12 +359,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    if (start >= end)
 		continue;
 
-	    /* The 3* here is a total fudge factor... it's supposed to
-	       account for the fact that the kernel needs to be decompressed,
-	       and then followed by the BSS and BRK regions.  This doesn't,
-	       however, account for the fact that the kernel is decompressed
-	       into a whole other place, either. */
-	    if (end - start >= 3 * prot_mode_size) {
+	    if (end - start >= hdr.init_size) {
 		whdr->code32_start += start - prot_mode_base;
 		prot_mode_base = start;
 		ok = true;

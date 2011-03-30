@@ -754,9 +754,6 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	break;
     }
 
-    if (!ip)
-	return;			/* No server */
-
     buf++;			/* Point *past* the final NULL */
     memcpy(buf, rrq_tail, sizeof rrq_tail);
     buf += sizeof rrq_tail;
@@ -791,6 +788,9 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	}
     }
 #endif /* GPXE */
+
+    if (!ip)
+	    goto done;		/* No server */
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
     
