@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <minmax.h>
+#include <ctype.h>
 
 #include <syslinux/loadfile.h>
 #include <syslinux/config.h>
@@ -160,7 +161,6 @@ unsigned progress_active;
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void show_message(char *file);
 char *get_config_file_name(void);
-char *skip_spaces(char *s);
 char *skip_nonspaces(char *s);
 void chop_line(char *s);
 int read_config_file(const char *filename);
@@ -274,15 +274,6 @@ void show_message(char *file)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-char *skip_spaces(char *s)
-{
-  while(*s && (*s == ' ' || *s == '\t')) s++;
-
-  return s;
-}
-
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 char *skip_nonspaces(char *s)
 {
   while(*s && *s != ' ' && *s != '\t') s++;
@@ -336,11 +327,11 @@ int read_config_file(const char *filename)
 
   while((s = fgets(buf, sizeof buf, f))) {
     chop_line(s);
-    s = skip_spaces(s);
+    s = skipspace(s);
     if(!*s || *s == '#') continue;
     t = skip_nonspaces(s);
     if(*t) *t++ = 0;
-    t = skip_spaces(t);
+    t = skipspace(t);
 
     if(!strcasecmp(s, "endtext")) {
       text = 0;
@@ -410,10 +401,10 @@ int read_config_file(const char *filename)
     }
 
     if(!strcasecmp(s, "menu") && menu_ptr) {
-      s = skip_spaces(t);
+      s = skipspace(t);
       t = skip_nonspaces(s);
       if(*t) *t++ = 0;
-      t = skip_spaces(t);
+      t = skipspace(t);
 
       if(!strcasecmp(s, "label")) {
         menu_ptr->menu_label = strdup(t);
@@ -842,7 +833,7 @@ void boot(int index)
   // invalid index or menu entry
   if(!menu_ptr || !menu_ptr->menu_label) return;
 
-  arg = skip_spaces(cmdline);
+  arg = skipspace(cmdline);
   label_len = strlen(menu_ptr->menu_label);
 
   // if it does not start with label string, assume first word is kernel name
@@ -856,7 +847,7 @@ void boot(int index)
     arg += label_len;
   }
 
-  arg = skip_spaces(arg);
+  arg = skipspace(arg);
 
   // handle IPAPPEND
   if(menu_ptr->ipappend && (ipapp = atoi(menu_ptr->ipappend))) {
@@ -942,7 +933,7 @@ void boot_entry(menu_t *menu_ptr, char *arg)
   s = s0 = strdup(arg);
 
   while(*s && strncmp(s, "initrd=", sizeof "initrd=" - 1)) {
-    s = skip_spaces(skip_nonspaces(s));
+    s = skipspace(skip_nonspaces(s));
   }
 
   if(*s) {
