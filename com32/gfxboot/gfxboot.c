@@ -40,6 +40,7 @@
 // must be at least block size; can in theory be larger than 4k, but there's
 // not enough space left
 #define REALMODE_BUF_SIZE	4096
+#define LOWMEM_BUF_SIZE		65536
 
 // gfxboot working memory in MB
 #define	GFX_MEMORY_SIZE		7
@@ -61,7 +62,7 @@
 #define GFX_CB_PASSWORD_INIT	10
 #define GFX_CB_PASSWORD_DONE	11
 
-// real mode code chunk, will be placed into bounce buffer
+// real mode code chunk, will be placed into lowmem buffer
 extern const char realmode_callback_start[], realmode_callback_end[];
 
 // gets in the way
@@ -188,8 +189,13 @@ int main(int argc, char **argv)
 
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  lowmem_buf = __com32.cs_bounce;
-  lowmem_buf_size = __com32.cs_bounce_size;
+  lowmem_buf = lmalloc(LOWMEM_BUF_SIZE);
+  if (!lowmem_buf) {
+    printf("Could not allocate memory.\n");
+    return 1;
+  }
+
+  lowmem_buf_size = LOWMEM_BUF_SIZE;
 
   sdi = syslinux_derivative_info();
 
@@ -570,7 +576,7 @@ int gfx_init(char *file)
   u = (u + REALMODE_BUF_SIZE + 0xf) & ~0xf;
 
   if(u + code_size > lowmem_size) {
-    printf("bounce buffer too small: size %u, needed %u\n", lowmem_size, u + code_size);
+    printf("lowmem buffer too small: size %u, needed %u\n", lowmem_size, u + code_size);
     return 1;
   }
 
@@ -740,7 +746,7 @@ void gfx_progress_done(void)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Like read(2) but preserve bounce buffer.
+// Like read(2) but preserve lowmem buffer.
 //
 ssize_t save_read(int fd, void *buf, size_t size)
 {
