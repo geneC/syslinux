@@ -46,12 +46,12 @@
 #define END_OF_APPEND NULL)); *item=temp_array;
 
 // Macros to manipulate objects
-
 #define CREATE_NEW_OBJECT *item = zzjson_create_object(config, NULL);
+#define FLUSH_OBJECT zzjson_print(config, *item); zzjson_free(config, *item);
+
 // Macros to manipulate integers as objects
 #define add_i(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value))
 #define add_hi(value) add_i(#value,hardware->value)
-#define FLUSH_OBJECT zzjson_print(config, *item); zzjson_free(config, *item);
 
 // Macros to manipulate strings as objects
 #define add_s(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_string(config, value))
