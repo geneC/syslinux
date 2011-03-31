@@ -343,16 +343,84 @@ int spawn_load(const char *name,const char **argv)
 	*/
 }
 
+/*
+ * Avoid circular dependencies.
+ *
+ * It's possible that someone messed up the modules.dep file and that
+ * it includes circular dependencies, so we need to take steps here to
+ * avoid looping in module_load_dependencies() forever.
+ *
+ * We build a singly-linked list of modules that are in the middle of
+ * being loaded. When they have completed loading their entry is
+ * removed from this list in LIFO order (new entries are always added
+ * to the head of the list).
+ */
+struct loading_dep {
+	const char *name;
+	struct module_dep *next;
+};
+static struct loading_dep *loading_deps;
+
+/*
+ * Remember that because we insert elements in a LIFO order we need to
+ * start from the end of the list and work towards the front so that
+ * we print the modules in the order in which we tried to load them.
+ *
+ * Yay for recursive function calls.
+ */
+static void print_loading_dep(struct loading_dep *dep)
+{
+	if (dep) {
+		print_loading_dep(dep->next);
+		printf("\t\t\"%s\"\n", dep->name);
+	}
+}
+
 int module_load_dependencies(const char *name,const char *dep_file)
 {
 	FILE *d_file=fopen(dep_file,"r");
 	char line[2048],aux[2048],temp_name[MODULE_NAME_SIZE],slbz[24];
 	int i=0,j=0,res=0;
+	struct loading_dep *dep;
 
 	if(d_file==NULL)
 	{
 		DBG_PRINT("Could not open object file '%s'\n",dep_file);
 		return -1;
+	}
+
+	/*
+	 * Are we already in the middle of loading this module's
+	 * dependencies?
+	 */
+	for (dep = loading_deps; dep; dep = dep->next) {
+		if (!strcasecmp(dep->name, name))
+			break;	/* found */
+	}
+
+	if (dep) {
+		struct loading_dep *last, *prev;
+
+		/* Dup! */
+		printf("\t\tCircular depedency detected when loading "
+		       "modules!\n");
+		printf("\t\tModules dependency chain looks like this,\n\n");
+		print_loading_dep(loading_deps);
+		printf("\n\t\t... and we tried to load \"%s\" again\n", name);
+
+		return -1;
+	} else {
+		dep = malloc(sizeof(*dep));
+		if (!dep) {
+			printf("Failed to alloc memory for loading_dep\n");
+			return -1;
+		}
+		
+		dep->name = name;
+		dep->next = loading_deps;
+
+		/* Insert at the head of the list */
+		loading_deps = dep;
 	}
 
 	/* Note from feng:
@@ -401,12 +469,20 @@ int module_load_dependencies(const char *name,const char *dep_file)
 
 		if (strlen(temp_name)) {
 			char *argv[2] = { NULL, NULL };
+			int ret;
 
-			module_load_dependencies(temp_name, MODULES_DEP);
-			if (spawn_load(temp_name, argv) < 0)
-				continue;
+			ret = module_load_dependencies(temp_name,
+						       MODULES_DEP);
+			if (!ret) {
+				if (spawn_load(temp_name, argv) < 0)
+					continue;
+			}
 		}
 	}
+
+	/* Remove our entry from the head of loading_deps */
+	loading_deps = loading_deps->next;
+	free(dep);
 
 	return 0;
 }
