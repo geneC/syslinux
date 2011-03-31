@@ -32,7 +32,7 @@
 
 void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
-        *item = zzjson_create_object(config, NULL); /* empty object */
+	CREATE_NEW_OBJECT;
 	add_hb(is_vesa_valid);
 	if (hardware->is_vesa_valid) {
 		char buffer[64]={0};
@@ -50,9 +50,8 @@ void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 		        struct vesa_mode_info *mi = &hardware->vesa.vmi[i].mi;
 		        if ((mi->h_res == 0) || (mi->v_res == 0))
 				continue;
-		        zzjson_print(config, *item);
-		        zzjson_free(config, *item);
-        		*item = zzjson_create_object(config, NULL); /* empty object */
+			FLUSH_OBJECT;
+			CREATE_NEW_OBJECT;
 			memset(buffer,0,sizeof(buffer));
 			snprintf(buffer,sizeof(buffer),"0x%04x",hardware->vesa.vmi[i].mode + 0x200);
 			add_s("vesa.kernel_mode",buffer);
