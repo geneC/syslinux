@@ -36,4 +36,6 @@ extern short nohalt;		//idle.inc
 extern const char *default_cmd;	//"default" command line
 extern const char *onerror;	//"onerror" command line
 
+extern void cat_help_file(int key);
+
 #endif /* __CONFIG_H__ */

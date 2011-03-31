@@ -17,7 +17,7 @@ static void enter_cmdline(void)
 
 	/* Enter endless command line prompt, should support "exit" */
 	while (1) {
-		cmdline = edit_cmdline("syslinux$", 1, NULL, NULL);
+		cmdline = edit_cmdline("syslinux$", 1, NULL, cat_help_file);
 		if (!cmdline)
 			continue;
 		/* feng: give up the aux check here */
