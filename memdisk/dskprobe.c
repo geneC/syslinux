@@ -95,6 +95,7 @@ static int probe_int13h_08h(uint8_t drive, com32sys_t * regs)
 		    regs->ebx.b[0], regs->edx.b[0]);
     present = !(regs->eflags.l & 1) && !regs->eax.b[1];
     status = probe_int13h_01h(drive);
+    present = present && !(probe_int13h_01h_fail(status));
     dskprobe_printf("  P%d\n",  present);
     return present;
 }
@@ -135,6 +136,7 @@ static int probe_int13h_41h(uint8_t drive, com32sys_t * regs)
 		    regs->ecx.w[0], regs->edx.b[1]);
     present = !(regs->eflags.l & 1) && (regs->ebx.w[0] == 0xAA55);
     status = probe_int13h_01h(drive);
+    present = present && !(probe_int13h_01h_fail(status));
     dskprobe_printf("  P%d\n",  present);
     return present;
 }
