@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------
 ##   
 ##   Copyright 2008-2009 H. Peter Anvin - All Rights Reserved
-##   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+##   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ spotless: clean dist
 	rm -f $(TARGETS)
 
 installer:
+
+.NOTPARALLEL:
 
 src/bin/blib.a:
 	$(PXEMAKE) bin/blib.a
