@@ -46,8 +46,8 @@
 #define END_OF_APPEND NULL)); *item=temp_array;
 
 // Macros to manipulate objects
-#define CREATE_NEW_OBJECT *item = zzjson_create_object(config, NULL);
-#define FLUSH_OBJECT zzjson_print(config, *item); zzjson_free(config, *item);
+#define CREATE_NEW_OBJECT   *item = zzjson_create_object(config, NULL);
+#define FLUSH_OBJECT flush(config, item); 
 
 // Macros to manipulate integers as objects
 #define add_i(name,value) *item = zzjson_object_append(config, *item, name, zzjson_create_number_i(config, value))
@@ -63,19 +63,12 @@
 #define add_b(name,value) if (value==true) {add_bool_true(name);} else {add_bool_false(name);}
 #define add_hb(value) add_b(#value,hardware->value)
 
-// Macros to Temp Objects
-#define CREATE_TEMP_OBJECT ZZJSON *temp; temp=zzjson_create_object(config,NULL);
-#define add_ti(name,value) temp = zzjson_object_append(config, temp, name, zzjson_create_number_i(config, value))
-#define add_thi(value) add_ti(#value,hardware->value)
-#define add_ts(name,value) temp= zzjson_object_append(config, temp, name, zzjson_create_string(config, value))
-#define add_ths(value) add_ts(#value,(char *)hardware->value)
-#define APPEND_TEMP_OBJECT_ARRAY APPEND_OBJECT_ARRAY(temp);
-
 extern struct print_buf p_buf;
 
 void print_and_flush(ZZJSON_CONFIG *config, ZZJSON **item);
 int dumpprintf(FILE *p, const char *format, ...);
-void flush (char *filename, ZZJSON_CONFIG *config, ZZJSON ** item);
+void flush (ZZJSON_CONFIG *config, ZZJSON ** item);
+void to_cpio(char *filename);
 
 void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
