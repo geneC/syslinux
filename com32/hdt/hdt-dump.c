@@ -70,16 +70,21 @@ int dumpprintf(FILE *p, const char *format, ...) {
    return rv;
 }
 
-void flush (char *filename, ZZJSON_CONFIG *config, ZZJSON ** item) { 
-   zzjson_print(config, *item);
+void to_cpio(char *filename) { 
    cpio_writefile(upload,filename,p_buf.buf,p_buf.len);
-   if ((p_buf.buf) && (p_buf.size > 0)){ 
-      memset(p_buf.buf,0,p_buf.size);
+   if ((p_buf.buf) && (p_buf.len > 0)){ 
+      memset(p_buf.buf,0,p_buf.len);
       free(p_buf.buf); 
+      p_buf.buf=NULL;
       p_buf.size=0;
       p_buf.len=0;
    }
+}
+
+void flush (ZZJSON_CONFIG *config, ZZJSON ** item) { 
+   zzjson_print(config, *item);
    zzjson_free(config, *item);
+   *item=NULL;
 }
 
 /**
@@ -96,6 +101,8 @@ void dump(struct s_hardware *hardware)
 		(int(*)(void *,const char*,...)) dumpprintf,
 		(int(*)(int,void*)) fputc 
     };
+
+    memset(&p_buf,0,sizeof(p_buf));
 
     /* By now, we only support TFTP reporting */
     upload=&upload_tftp;
