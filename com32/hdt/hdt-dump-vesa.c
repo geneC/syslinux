@@ -37,7 +37,6 @@ void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 	if (hardware->is_vesa_valid) {
 		char buffer[64]={0};
 		snprintf(buffer,sizeof(buffer),"%d.%d", hardware->vesa.major_version, hardware->vesa.minor_version);
-		printf("buffer='%s'\n",buffer);
 		add_s("vesa.version",buffer);
 		add_hs(vesa.vendor);
 		add_hs(vesa.product);
