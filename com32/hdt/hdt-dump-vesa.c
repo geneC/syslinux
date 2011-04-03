@@ -37,6 +37,7 @@ void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 	if (hardware->is_vesa_valid) {
 		char buffer[64]={0};
 		snprintf(buffer,sizeof(buffer),"%d.%d", hardware->vesa.major_version, hardware->vesa.minor_version);
+		printf("buffer='%s'\n",buffer);
 		add_s("vesa.version",buffer);
 		add_hs(vesa.vendor);
 		add_hs(vesa.product);
@@ -46,11 +47,11 @@ void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 		snprintf(buffer,sizeof(buffer),"%d KB",hardware->vesa.total_memory*64);
 		add_s("vesa.memory",buffer);
 		add_i("vesa.modes",hardware->vesa.vmi_count);
+		FLUSH_OBJECT;
 		for (int i = 0; i < hardware->vesa.vmi_count; i++) {
 		        struct vesa_mode_info *mi = &hardware->vesa.vmi[i].mi;
 		        if ((mi->h_res == 0) || (mi->v_res == 0))
 				continue;
-			FLUSH_OBJECT;
 			CREATE_NEW_OBJECT;
 			memset(buffer,0,sizeof(buffer));
 			snprintf(buffer,sizeof(buffer),"0x%04x",hardware->vesa.vmi[i].mode + 0x200);
@@ -58,7 +59,10 @@ void dump_vesa(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 			add_i("vesa.hres",mi->h_res);
 			add_i("vesa.vres",mi->v_res);
 			add_i("vesa.bpp",mi->bpp);
+			FLUSH_OBJECT;
 		}
+	} else {
+		FLUSH_OBJECT;
 	}
-	flush("vesa",config,item);
+	to_cpio("vesa");
 }

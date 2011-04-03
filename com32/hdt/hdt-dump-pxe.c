@@ -33,7 +33,7 @@
 
 void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
-        *item = zzjson_create_object(config, NULL); /* empty object */
+	CREATE_NEW_OBJECT;
 	add_hb(is_pxe_valid);
 	if (hardware->is_pxe_valid) {
 		char buffer[32] = {0};
@@ -76,5 +76,6 @@ void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 		add_s("pxe.ipaddr",ip);
 		add_b("gpxe_detected",is_gpxe());
 	}
-	flush("pxe",config,item);
+	FLUSH_OBJECT;
+	to_cpio("pxe");
 }

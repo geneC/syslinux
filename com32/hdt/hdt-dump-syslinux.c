@@ -32,11 +32,12 @@
 
 void dump_syslinux(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
-        *item = zzjson_create_object(config, NULL); /* empty object */
+	CREATE_NEW_OBJECT;
 	add_hs(syslinux_fs);
 	add_hs(sv->version_string);
 	add_hi(sv->version);
 	add_hi(sv->max_api);
 	add_hs(sv->copyright_string);
-	flush("syslinux",config,item);
+	FLUSH_OBJECT
+	to_cpio("syslinux");
 }

@@ -34,41 +34,38 @@ void dump_88(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) 
 
 	(void) hardware;
 	int mem_size = 0;
+	CREATE_NEW_OBJECT;
 	if (detect_memory_88(&mem_size)) {
-		APPEND_ARRAY
-			add_as("memory.error","8800h memory configuration is invalid")
-		END_OF_APPEND;
+		add_s("memory.error","8800h memory configuration is invalid");
+		FLUSH_OBJECT
 		return;
 	}
 
-	APPEND_ARRAY
-	add_as("dmi.item","memory via 88")
-	add_ai("memory.size (KiB)", mem_size)
-	add_ai("memory.size (MiB)", mem_size >> 10)
-	END_OF_APPEND;
-
+	add_s("dmi.item","memory via 88");
+	add_i("memory.size (KiB)", mem_size);
+	add_i("memory.size (MiB)", mem_size >> 10);
+	FLUSH_OBJECT;
 }
 
 void dump_e801(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
 	(void) hardware;
 	int mem_low, mem_high = 0;
+	CREATE_NEW_OBJECT;
 	if (detect_memory_e801(&mem_low,&mem_high)) {
-		APPEND_ARRAY
-			add_as("memory.error","e801 memory configuration is invalid")
-		END_OF_APPEND;
+		add_s("memory.error","e801 memory configuration is invalid");
+		FLUSH_OBJECT;
 		return;
 	}
 
-	APPEND_ARRAY
-	add_as("dmi.item","memory via e801")
-	add_ai("memory.total.size (KiB)", mem_low + (mem_high << 6))
-	add_ai("memory.total.size (MiB)", (mem_low >> 10) + (mem_high >> 4))
-	add_ai("memory.low.size (KiB)", mem_low )
-	add_ai("memory.low.size (MiB)", mem_low >> 10)
-	add_ai("memory.high.size (KiB)", mem_high << 6)
-	add_ai("memory.high.size (MiB)", mem_high >> 4)
-	END_OF_APPEND;
+	add_s("dmi.item","memory via e801");
+	add_i("memory.total.size (KiB)", mem_low + (mem_high << 6));
+	add_i("memory.total.size (MiB)", (mem_low >> 10) + (mem_high >> 4));
+	add_i("memory.low.size (KiB)", mem_low );
+	add_i("memory.low.size (MiB)", mem_low >> 10);
+	add_i("memory.high.size (KiB)", mem_high << 6);
+	add_i("memory.high.size (MiB)", mem_high >> 4);
+	FLUSH_OBJECT;
 
 }
 void dump_e820(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
@@ -82,12 +79,12 @@ void dump_e820(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 	
 	detect_memory_e820(map, E820MAX, &count);
  	memsize = memsize_e820(map, count);
-
-	APPEND_ARRAY
-		add_as("dmi.item","memory via e820")
-		add_ai("memory.total.size (KiB)", memsize)
-		add_ai("memory.total.size (MiB)", (memsize + (1 << 9)) >> 10)
-	END_OF_APPEND;
+	
+	CREATE_NEW_OBJECT;
+		add_s("dmi.item","memory via e820");
+		add_i("memory.total.size (KiB)", memsize);
+		add_i("memory.total.size (MiB)", (memsize + (1 << 9)) >> 10);
+	FLUSH_OBJECT;
 
 	for (int i = 0; i < count; i++) {
 		get_type(map[i].type, type, sizeof(type));
@@ -97,12 +94,12 @@ void dump_e820(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 		snprintf(begin,sizeof(begin),"0x%016llx",map[i].addr);
 		snprintf(size,sizeof(size),"0x%016llx",map[i].size);
 		snprintf(end,sizeof(end),"0x%016llx",map[i].addr+map[i].size);
-		CREATE_TEMP_OBJECT
-			add_ts("memory.segment.start",begin);
-			add_ts("memory.segment.size ",size);
-			add_ts("memory.segment.end  ",end);
-			add_ts("memory.segment.type ",remove_spaces(type));
-		APPEND_TEMP_OBJECT_ARRAY;
+		CREATE_NEW_OBJECT;
+			add_s("memory.segment.start",begin);
+			add_s("memory.segment.size ",size);
+			add_s("memory.segment.end  ",end);
+			add_s("memory.segment.type ",remove_spaces(type));
+		FLUSH_OBJECT;
 	}
 
 	int nr = sanitize_e820_map(map, nm, count);
@@ -114,23 +111,23 @@ void dump_e820(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 		snprintf(begin,sizeof(begin),"0x%016llx",nm[i].addr);
 		snprintf(size,sizeof(size),"0x%016llx",nm[i].size);
 		snprintf(end,sizeof(end),"0x%016llx",nm[i].addr+nm[i].size);
-		CREATE_TEMP_OBJECT
-			add_ts("sanitized_memory.segment.start",begin);
-			add_ts("sanitized_memory.segment.size ",size);
-			add_ts("sanitized_memory.segment.end  ",end);
-			add_ts("sanitized_memory.segment.type ",remove_spaces(type));
-		APPEND_TEMP_OBJECT_ARRAY;
+		CREATE_NEW_OBJECT;
+			add_s("sanitized_memory.segment.start",begin);
+			add_s("sanitized_memory.segment.size ",size);
+			add_s("sanitized_memory.segment.end  ",end);
+			add_s("sanitized_memory.segment.type ",remove_spaces(type));
+		FLUSH_OBJECT;
 	}
 }
 
 void dump_memory(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
-	CREATE_ARRAY
-		add_as("Memory configuration","true")
-	END_OF_ARRAY;	
+	CREATE_NEW_OBJECT;
+		add_s("Memory configuration","true");
+	FLUSH_OBJECT;
 
 	dump_88(hardware,config,item);
 	dump_e801(hardware,config,item);
 	dump_e820(hardware,config,item);
-	flush("memory",config,item);
+	to_cpio("memory");
 }

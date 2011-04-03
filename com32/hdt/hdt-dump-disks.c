@@ -123,7 +123,7 @@ void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **ite
 	for (int drive = 0x80; drive < 0xff; drive++) {
 	        if (hardware->disk_info[drive - 0x80].cbios) {
 			if (found==false) {
-        			*item = zzjson_create_object(config, NULL); /* empty object */
+				CREATE_NEW_OBJECT;
 				add_b("disks->is_valid",true);
        				found=true;
 			}
@@ -132,8 +132,9 @@ void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **ite
 	}
 
 	if (found==false) {
-        	*item = zzjson_create_object(config, NULL); /* empty object */
+		CREATE_NEW_OBJECT;
 		add_b("disks->is_valid",false);
+		FLUSH_OBJECT;
 	}
-	flush("disks",config,item);
+	to_cpio("disks");
 }

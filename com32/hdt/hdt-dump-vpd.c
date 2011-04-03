@@ -31,8 +31,7 @@
 
 void dump_vpd(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
-        
-	*item = zzjson_create_object(config, NULL); /* empty object */
+	CREATE_NEW_OBJECT;
 	add_hb(is_vpd_valid);
     	if (hardware->is_vpd_valid) {
 		add_hs(vpd.bios_build_id);
@@ -43,5 +42,6 @@ void dump_vpd(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 		add_hs(vpd.motherboard_serial_number);
 		add_hs(vpd.machine_type_model);
 	}
-	flush("vpd",config,item);
+	FLUSH_OBJECT;
+	to_cpio("vpd");
 }

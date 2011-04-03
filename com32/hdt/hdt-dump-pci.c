@@ -54,10 +54,11 @@ void dump_pci(struct s_hardware *hardware, ZZJSON_CONFIG * config,
 
     nomodulesfile = nomodulespcimap && nomodulesalias;
 
-    *item = zzjson_create_object(config, NULL);	/* empty object */
+    CREATE_NEW_OBJECT;
 
     add_i("pci_device.count", hardware->nb_pci_devices);
 
+    FLUSH_OBJECT;
     /* For every detected pci device, compute its submenu */
     for_each_pci_func(pci_device, hardware->pci_domain) {
 	if (pci_device == NULL)
@@ -69,9 +70,7 @@ void dump_pci(struct s_hardware *hardware, ZZJSON_CONFIG * config,
 	char c[10] = { 0 };
 	char r[10] = { 0 };
 
-        zzjson_print(config, *item);
-        zzjson_free(config, *item);
-        *item = zzjson_create_object(config, NULL);	/* empty object */
+	CREATE_NEW_OBJECT;
 	bus = __pci_bus;
 	slot = __pci_slot;
 	func = __pci_func;
@@ -112,8 +111,8 @@ void dump_pci(struct s_hardware *hardware, ZZJSON_CONFIG * config,
 	add_s("pci_device.product_id", p);
 	add_s("pci_device.sub_vendor_id", sv);
 	add_s("pci_device.sub_product_id", sp);
-//	add_s("pci_device.class_id", c);
-//	add_s("pci_device.revision", r);
+	add_s("pci_device.class_id", c);
+	add_s("pci_device.revision", r);
 	if ((pci_device->dev_info->irq > 0)
 	    && (pci_device->dev_info->irq < 255))
 	    add_i("pci_device.irq", pci_device->dev_info->irq);
@@ -131,6 +130,7 @@ void dump_pci(struct s_hardware *hardware, ZZJSON_CONFIG * config,
 	    }
 	}
 	i++;
+	FLUSH_OBJECT;
     }
-    flush("pci", config, item);
+    to_cpio("pci");
 }

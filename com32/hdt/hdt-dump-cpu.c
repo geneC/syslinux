@@ -31,7 +31,7 @@
 
 void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 
-        *item = zzjson_create_object(config, NULL); /* empty object */
+        CREATE_NEW_OBJECT;
 	add_hs(cpu.vendor);
 	add_hs(cpu.model);
 	add_hi(cpu.vendor_id);
@@ -48,6 +48,6 @@ void dump_cpu(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 		snprintf(temp,sizeof(temp),"cpu.flags.%s",cpu_flags_names[i]);
 		add_b(temp,get_cpu_flag_value_from_name(&hardware->cpu,cpu_flags_names[i]));
 	}
-
-	flush("cpu",config,item);
+	FLUSH_OBJECT;
+	to_cpio("cpu");
 }

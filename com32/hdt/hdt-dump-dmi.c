@@ -420,6 +420,7 @@ void dump_dmi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 	add_hb(is_dmi_valid);
 
 	if (hardware->is_dmi_valid == false) {
+		FLUSH_OBJECT;
 		goto exit;
 	} else {
 		char buffer[8]={0};
@@ -442,5 +443,5 @@ void dump_dmi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 	dump_oem_strings(hardware,config,item);
 	dump_hardware_security(hardware,config,item);
 exit:
-	flush("dmi",config,item);
+	to_cpio("dmi");
 }
