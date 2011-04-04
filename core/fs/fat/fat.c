@@ -254,8 +254,10 @@ static void vfat_mangle_name(char *dst, const char *src)
     while (1) {
         if (dst == p)
             break;
-		if (*(dst-1) == '/' && dst-1 == p) /* it's the '/' case */
-			break;
+	if (*(dst-1) == '/' && dst-1 == p) /* it's the '/' case */
+		break;
+	if (dst-2 == p && *(dst-2) == '.' && *(dst-1) == '.' )	/* the '..' case */
+		break;
         if ((*(dst-1) != '/') && (*(dst-1) != '.'))
             break;
 
