@@ -54,7 +54,7 @@ static inline int __purefunc test_bit(long __bit, const void *__bitmap)
 {
     unsigned char __r;
     asm("btl %2,%1; setc %0"
-	: "=r" (__r)
+	: "=qm" (__r)
 	: "m" (*(const unsigned char *)__bitmap), "Ir" (__bit));
     return __r;
 }
