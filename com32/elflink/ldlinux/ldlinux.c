@@ -65,7 +65,7 @@ static int ldlinux_main(int argc, char **argv)
 	/*
 	 * Auto boot
 	 */
-	if (defaultlevel || !noescape) {
+	if (defaultlevel || noescape) {
 		if (defaultlevel) {
 			load_kernel();	/* Shouldn't return */
 		} else {
