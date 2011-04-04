@@ -48,6 +48,7 @@ Changes in 4.04:
 	* Include a set of diagnostics by Gene Cumm.
 	* Fixes for gcc 4.6 and binutils 2.21.51.
 	* chain.c32: Allow "uuid" as a synonym to "guid".
+	* Handle directory names starting with .. for vfat.
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
