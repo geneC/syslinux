@@ -37,8 +37,17 @@ Changes in 4.04:
 	  (Shao Miller, Gene Cumm).
 	* gpxe: add gpxelinuxk.0, based off of undionly.kpxe + new
 	  script (Gene Cumm).
-	* isohybrid: install the isohdpfx*.bin files to make isohybrid
-	  images in one step with GNU xorriso.
+	* isohybrid: install the isohdpfx*.bin/isohdppx*.bin files to
+	  make isohybrid images in one step with GNU xorriso.
+	* PXELINUX: disable a hack that would make localboot work on
+	  some machines, but break just about as many.  Some machines
+	  which worked with "localboot 0" in previous versions may
+	  need "localboot -1" in this one.  If you have a machine
+	  which requires "localboot -1", a copy of the dmidecode
+	  or sysdump output would be appreciated.
+	* Include a set of diagnostics by Gene Cumm.
+	* Fixes for gcc 4.6 and binutils 2.21.51.
+	* chain.c32: Allow "uuid" as a synonym to "guid".
 
 Changes in 4.03:
 	* Don't hang if no configuration file is found.
