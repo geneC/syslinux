@@ -79,3 +79,4 @@ void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **ite
 void dump_dmi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_memory(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
 void dump_pci(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
+void dump_acpi(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item);
