@@ -206,7 +206,7 @@ static void show_io_apic(s_madt * madt)
 	    break;
 	}
 
-	more_printf("IO_APIC[%d] : apic_id[0x%02x] adress[0x%08x] %s\n",
+	more_printf("IO_APIC[%d] : apic_id[0x%02x] address[0x%08x] %s\n",
 		    i, sio->io_apic_id, sio->io_apic_address, buffer);
     }
 }
