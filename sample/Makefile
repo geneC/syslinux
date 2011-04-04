@@ -15,6 +15,7 @@
 ##
 
 topdir = ..
+include $(topdir)/MCONFIG.embedded
 
 PPMTOLSS16 = $(topdir)/utils/ppmtolss16
 

@@ -80,6 +80,9 @@ kwdhash.gen: keywords genhash.pl
 %.raw: %.elf
 	$(OBJCOPY) -O binary -S $< $(@:.bin=.raw)
 
+# GNU make 3.82 gets confused by the first form
+.PRECIOUS: %.raw
+
 %.bin: %.raw $(PREPCORE)
 	$(PREPCORE) $< $@
 

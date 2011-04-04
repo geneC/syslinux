@@ -1,0 +1,7 @@
+floppy/memtest.bin
+floppy/pci.ids.gz
+floppy/syslinux.cfg
+*.img
+*.iso
+iso/
+*gz

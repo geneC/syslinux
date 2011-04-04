@@ -153,6 +153,8 @@ static int sl_run_command(lua_State * L)
 /* do default boot */
 static int sl_run_default(lua_State * L)
 {
+    /* Preventing GCC to complain against unused L */
+    L=L;
     syslinux_run_default();
     return 0;
 }
@@ -187,6 +189,9 @@ static int sl_boot_linux(lua_State * L)
 //  int ret, i;
     int ret;
     char **argv, **argp, *arg, *p;
+
+    (void)mem_limit;
+    (void)video_mode;
 
     ret = __parse_argv(&argv, cmdline);
 
@@ -321,7 +326,7 @@ static int sl_loadfile(lua_State * L)
     }
 
     file = malloc(sizeof(syslinux_file));
-    file->name = filename;
+    strlcpy(file->name,filename,sizeof(syslinux_file));
     file->size = file_len;
     file->data = file_data;
 
@@ -367,7 +372,7 @@ static int sl_initramfs_init(lua_State * L)
 
 static int sl_initramfs_load_archive(lua_State * L)
 {
-    const struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
+    struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
     const char *filename = luaL_checkstring(L, 2);
 
     if (initramfs_load_archive(initramfs, filename)) {
@@ -379,29 +384,28 @@ static int sl_initramfs_load_archive(lua_State * L)
 
 static int sl_initramfs_add_file(lua_State * L)
 {
-    const struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
-    const char *filename = luaL_checkstring(L, 2);
-    void *file_data;
+    struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
+    /* FIXME: This code is doing nothing */
+    //const char *filename = luaL_checkstring(L, 2);
+    void *file_data = NULL;
     size_t file_len = 0;
 
-    if (initramfs_add_file(initramfs, file_data, file_len, file_len,
-			   "/testfile1", 0, 0755))
-
-    return 0;
+    return initramfs_add_file(initramfs, file_data, file_len, file_len, "/testfile1", 0, 0755);
 }
 
 static int sl_boot_it(lua_State * L)
 {
     const syslinux_file *kernel = luaL_checkudata(L, 1, SYSLINUX_FILE);
-    const struct initramfs *initramfs = luaL_checkudata(L, 2, SYSLINUX_FILE);
+    struct initramfs *initramfs = luaL_checkudata(L, 2, SYSLINUX_FILE);
     const char *cmdline = luaL_optstring(L, 3, "");
     uint32_t mem_limit = luaL_optint(L, 4, 0);
     uint16_t video_mode = luaL_optint(L, 5, 0);
-    int ret;
+    /* Preventing gcc to complain about unused variables */
+    (void)video_mode;
+    (void)mem_limit;
 
-    ret = syslinux_boot_linux(kernel->data, kernel->size, initramfs, cmdline);
-
-    return 0;
+    return syslinux_boot_linux(kernel->data, kernel->size,
+			       initramfs, (char *)cmdline);
 }
 
 static int sl_derivative(lua_State * L)

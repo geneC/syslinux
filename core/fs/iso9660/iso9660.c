@@ -63,6 +63,8 @@ static void iso_mangle_name(char *dst, const char *src)
 
         if ( (*(dst-1) != '.') && (*(dst-1) != '/') )
             break;
+	if ((dst[-1] == '/') && ((dst - 1) == p))
+	    break;
 
         dst --;
         i ++;
@@ -116,9 +118,10 @@ static bool iso_compare_name(const char *de_name, size_t len,
     char iso_file_name[256];
     char *p = iso_file_name;
     char c1, c2;
-    size_t i;
+    int i;
     
     i = iso_convert_name(iso_file_name, de_name, len);
+    (void)i;
     dprintf("Compare: \"%s\" to \"%s\" (len %zu)\n",
 	    file_name, iso_file_name, i);
 

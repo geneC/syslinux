@@ -61,14 +61,22 @@ void detect_parameters(const int argc, const char *argv[],
 		       struct s_hardware *hardware)
 {
     /* Quiet mode - make the output more quiet */
-    quiet = false;
+    quiet = true;
 
     /* Vesa mode isn't set until we explictly call it */
     vesamode = false;
 
+    /* Automode isn't the default*/
+    automode = false;
+
+    /* Menu mode is the default*/
+    menumode = true;
+
     for (int i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "quiet", 5)) {
 	    quiet = true;
+	} else	if (!strncmp(argv[i], "verbose", 7)) {
+	    quiet = false;
 	} else if (!strncmp(argv[i], "modules_pcimap=", 15)) {
 	    strlcpy(hardware->modules_pcimap_path, argv[i] + 15,
 		    sizeof(hardware->modules_pcimap_path));
@@ -87,7 +95,7 @@ void detect_parameters(const int argc, const char *argv[],
 	    convert_isolinux_filename(hardware->memtest_label, hardware);
 	} else if (!strncmp(argv[i], "vesa", 4)) {
 	    vesamode = true;
-	    max_console_lines = MAX_CLI_LINES;
+	    max_console_lines = MAX_VESA_CLI_LINES;
 	    /* If the user defines a background image */
 	    if (!strncmp(argv[i], "vesa=", 5)) {
 		strlcpy(hardware->vesa_background, argv[i] + 5,
@@ -95,7 +103,9 @@ void detect_parameters(const int argc, const char *argv[],
 	    }
 	} else if (!strncmp(argv[i], "novesa", 6)) {
 	    vesamode = false;
-	    max_console_lines = MAX_VESA_CLI_LINES;
+	    max_console_lines = MAX_CLI_LINES;
+	} else if (!strncmp(argv[i], "nomenu", 6)) {
+	    menumode = false;
 	} else if (!strncmp(argv[i], "auto=", 5)) {
 	    /* The auto= parameter is separated in several argv[]
 	     * as it can contains spaces.
@@ -104,6 +114,7 @@ void detect_parameters(const int argc, const char *argv[],
 	     * i.e auto='show dmi; show pci'
 	     */
 
+	    automode=true;
 	    /* Extracting the first parameter */
 	    strcpy(hardware->auto_label, argv[i] + 6);
 	    strcat(hardware->auto_label, " ");
@@ -165,12 +176,15 @@ void init_hardware(struct s_hardware *hardware)
     hardware->vesa_detection = false;
     hardware->vpd_detection = false;
     hardware->memory_detection = false;
+    hardware->acpi_detection = false;
     hardware->nb_pci_devices = 0;
     hardware->is_dmi_valid = false;
     hardware->is_pxe_valid = false;
     hardware->is_vpd_valid = false;
+    hardware->is_acpi_valid = false;
     hardware->pci_domain = NULL;
     hardware->detected_memory_size = 0;
+    hardware->physical_cpu_count =1; /* we have at least one cpu */
 
     /* Cleaning structures */
     memset(hardware->disk_info, 0, sizeof(hardware->disk_info));
@@ -180,6 +194,7 @@ void init_hardware(struct s_hardware *hardware)
     memset(&hardware->pxe, 0, sizeof(struct s_pxe));
     memset(&hardware->vesa, 0, sizeof(struct s_vesa));
     memset(&hardware->vpd, 0, sizeof(s_vpd));
+    memset(&hardware->acpi, 0, sizeof(s_acpi));
     memset(hardware->syslinux_fs, 0, sizeof hardware->syslinux_fs);
     memset(hardware->pciids_path, 0, sizeof hardware->pciids_path);
     memset(hardware->modules_pcimap_path, 0,
@@ -214,6 +229,25 @@ int detect_dmi(struct s_hardware *hardware)
     parse_dmitable(&hardware->dmi);
     hardware->is_dmi_valid = true;
     return 0;
+}
+
+/*
+ * Detecting ACPI
+ * if yes, let's parse it
+ */
+int detect_acpi(struct s_hardware *hardware)
+{
+    int retval;
+    if (hardware->acpi_detection == true)
+	return -1;
+    hardware->acpi_detection = true;
+    if ((retval=parse_acpi(&hardware->acpi)) != ACPI_FOUND) {
+	hardware->is_acpi_valid = false;
+	return retval;
+    }
+
+    hardware->is_acpi_valid = true;
+    return retval;
 }
 
 /**
@@ -412,8 +446,6 @@ int detect_pxe(struct s_hardware *hardware)
 		return -1;
 		break;
 	    }
-	    /* Let's try to find the associated pci device */
-	    detect_pci(hardware);
 
 	    /* The firt pass try to find the exact pci device */
 	    hardware->pxe.pci_device = NULL;
@@ -515,8 +547,6 @@ void detect_pci(struct s_hardware *hardware)
 	get_module_name_from_alias(hardware->pci_domain,
 				   hardware->modules_alias_path);
 
-    /* We try to detect the pxe stuff to populate the PXE: field of pci devices */
-    detect_pxe(hardware);
 }
 
 void cpu_detect(struct s_hardware *hardware)
@@ -534,6 +564,10 @@ void cpu_detect(struct s_hardware *hardware)
      * That makes some weird display in console/menu
      * Let's remove that mulitple spaces */
     strlcpy(hardware->cpu.model,del_multi_spaces(hardware->cpu.model),sizeof(hardware->cpu.model));
+
+    if ((hardware->is_acpi_valid) && (hardware->acpi.madt.valid)) {
+    	hardware->physical_cpu_count=hardware->acpi.madt.processor_local_apic_count / hardware->cpu.num_cores;
+    }
     hardware->cpu_detection = true;
 }
 
@@ -627,9 +661,6 @@ char *del_multi_spaces(char *p)
 	     * the content from the second space*/
 	    strlcpy(p, p + 1, strlen(p + 1));
 
-	    /* The string is 1 char smaller */
-	    *(p + strlen(p) - 1) = '\0';
-
 	    /* Don't increment the pointer as we
 	     * changed the content of the current position*/
 	    continue;
@@ -664,3 +695,51 @@ void init_console(struct s_hardware *hardware)
     } else
 	console_ansi_raw();
 }
+
+void detect_hardware(struct s_hardware *hardware)
+{
+    if (!quiet)
+        more_printf("ACPI: Detecting\n");
+    detect_acpi(hardware);
+
+    if (!quiet)
+        more_printf("MEMORY: Detecting\n");
+    detect_memory(hardware);
+
+    if (!quiet)
+        more_printf("DMI: Detecting Table\n");
+    if (detect_dmi(hardware) == -ENODMITABLE) {
+        printf("DMI: ERROR ! Table not found ! \n");
+        printf("DMI: Many hardware components will not be detected ! \n");
+    } else {
+        if (!quiet)
+            more_printf("DMI: Table found ! (version %u.%u)\n",
+                        hardware->dmi.dmitable.major_version,
+                        hardware->dmi.dmitable.minor_version);
+    }
+
+    if (!quiet)
+        more_printf("CPU: Detecting\n");
+    cpu_detect(hardware);
+
+    if (!quiet)
+        more_printf("DISKS: Detecting\n");
+    detect_disks(hardware);
+
+    if (!quiet)
+        more_printf("VPD: Detecting\n");
+    detect_vpd(hardware);
+
+    detect_pci(hardware);
+    if (!quiet)
+        more_printf("PCI: %d Devices Found\n", hardware->nb_pci_devices);
+ 
+   if (!quiet)
+        more_printf("PXE: Detecting\n");
+    detect_pxe(hardware);
+
+    if (!quiet)
+        more_printf("VESA: Detecting\n");
+    detect_vesa(hardware);
+}
+

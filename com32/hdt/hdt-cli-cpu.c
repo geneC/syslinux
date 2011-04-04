@@ -38,12 +38,21 @@ void main_show_cpu(int argc __unused, char **argv __unused,
 		   struct s_hardware *hardware)
 {
     char features[81];
-    cpu_detect(hardware);
-    detect_dmi(hardware);
-    more_printf("CPU\n");
+    /* We know the total number of logical cores and we
+     * know the number of cores of the first CPU. Let's consider
+     * the system as symetrical, and so compute the number of
+     * physical CPUs. This is only possible if ACPI is present */
+    if (hardware->acpi.madt.processor_local_apic_count > 0) {
+	more_printf("CPU (%d logical / %d phys)\n",
+		    hardware->acpi.madt.processor_local_apic_count,
+		    hardware->physical_cpu_count);
+    } else
+	more_printf("CPU\n");
     more_printf(" Manufacturer : %s \n", hardware->cpu.vendor);
     more_printf(" Product      : %s \n", hardware->cpu.model);
     more_printf(" CPU Cores    : %d \n", hardware->cpu.num_cores);
+    if (hardware->dmi.processor.thread_count != 0)
+        more_printf(" CPU Threads  : %d \n", hardware->dmi.processor.thread_count);
     more_printf(" L2 Cache     : %dK\n", hardware->cpu.l2_cache_size);
 
     memset(features, 0, sizeof(features));
@@ -55,15 +64,24 @@ void main_show_cpu(int argc __unused, char **argv __unused,
 	strcat(features, "x86 32bit ");
     if (hardware->cpu.flags.smp)
 	strcat(features, "SMP ");
+
+    /* This CPU is featuring Intel or AMD Virtualisation Technology */
     if (hardware->cpu.flags.vmx || hardware->cpu.flags.svm)
 	strcat(features, "HwVIRT ");
 
     more_printf("%s\n", features);
 }
 
+/* Let's compute the cpu flags display
+ * We have to maximize the number of flags per line */
 static void show_flag(char *buffer, bool flag, char *flag_name, bool flush)
 {
     char output_buffer[81];
+    /* Flush is only set when no more flags are present
+     * When it's set, or if the line is complete,
+     * we have to end the string computation and display the line.
+     * Before adding the flag into the buffer, let's check that adding it
+     * will not overflow the rendering.*/
     if ((((strlen(buffer) + strlen(flag_name)) > 66) && flag) || flush) {
 	snprintf(output_buffer, sizeof output_buffer, "Flags     : %s\n",
 		 buffer);
@@ -72,6 +90,7 @@ static void show_flag(char *buffer, bool flag, char *flag_name, bool flush)
 	if (flush)
 	    return;
     }
+    /* Let's add the flag name only if the flag is present */
     if (flag)
 	strcat(buffer, flag_name);
 }
@@ -81,10 +100,24 @@ static void show_cpu(int argc __unused, char **argv __unused,
 {
     char buffer[81];
     reset_more_printf();
-    more_printf("CPU\n");
+    /* We know the total number of logical cores and we
+     * know the number of cores of the first CPU. Let's consider
+     * the system as symetrical, and so compute the number of
+     * physical CPUs. This is only possible if ACPI is present*/
+    if (hardware->acpi.madt.processor_local_apic_count > 0) {
+	more_printf("CPU (%d logical / %d phys)\n",
+		    hardware->acpi.madt.processor_local_apic_count,
+		    hardware->acpi.madt.processor_local_apic_count /
+		    hardware->cpu.num_cores);
+    } else
+	more_printf("CPU\n");
     more_printf("Vendor    : %s\n", hardware->cpu.vendor);
     more_printf("Model     : %s\n", hardware->cpu.model);
     more_printf("CPU Cores : %d\n", hardware->cpu.num_cores);
+    if (hardware->dmi.processor.core_enabled != 0)
+        more_printf("CPU Enable: %d\n", hardware->dmi.processor.core_enabled);
+    if (hardware->dmi.processor.thread_count != 0)
+        more_printf("CPU Thread: %d \n", hardware->dmi.processor.thread_count);
     more_printf("L1 Cache  : %dK + %dK (I + D) \n",
 		hardware->cpu.l1_instruction_cache_size,
 		hardware->cpu.l1_data_cache_size);
@@ -104,11 +137,13 @@ static void show_cpu(int argc __unused, char **argv __unused,
 		    hardware->dmi.processor.voltage_mv -
 		    ((hardware->dmi.processor.voltage_mv / 1000) * 1000));
     }
+
     if (hardware->cpu.flags.smp) {
 	more_printf("SMP       : yes\n");
     } else {
 	more_printf("SMP       : no\n");
     }
+
     if (hardware->cpu.flags.lm) {
 	more_printf("x86_64    : yes\n");
     } else {
@@ -121,6 +156,7 @@ static void show_cpu(int argc __unused, char **argv __unused,
 	more_printf("HwVirt    : no\n");
     }
 
+    /* Let's display the supported cpu flags */
     memset(buffer, 0, sizeof(buffer));
     show_flag(buffer, hardware->cpu.flags.fpu, "fpu ", false);
     show_flag(buffer, hardware->cpu.flags.vme, "vme ", false);
@@ -209,7 +245,7 @@ static void show_cpu(int argc __unused, char **argv __unused,
     show_flag(buffer, hardware->cpu.flags.ept, "ept ", false);
     show_flag(buffer, hardware->cpu.flags.vpid, "vpid ", false);
 
-    /* Let's flush the remaining flags */
+    /* No more flags, let's display the remaining flags */
     show_flag(buffer, false, "", true);
 }
 

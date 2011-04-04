@@ -140,11 +140,6 @@ first "label" command.) The default for \fIimage\fP is the same as \fIlabel\fP,
 and if no "append" is given the default is to use the global entry (if any).
 Use "append -" to use no options at all.  Up to 128 "label" entries are
 permitted.
-.TP
-.B Notes:
-Labels are mangled as if they were DOS filenames, and must be unique after
-mangling.  For example, two labels "v2.1.30" and "v2.1.31" will not be
-distinguishable.
 .IP
 The "image" doesn't have to be a Linux kernel; it can be a boot sector or a
 COMBOOT file (see below.)

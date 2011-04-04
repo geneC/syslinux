@@ -130,6 +130,28 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 	printf("\n");
     }
 
+    /* List finally the default modules of the hdt mode */
+    if (current_mode->mode != hdt_mode.mode &&
+	hdt_mode.default_modules && hdt_mode.default_modules->modules) {
+	j = 0;
+	while (hdt_mode.default_modules->modules[j].name) {
+	    /*
+	     * Any default command that is present in hdt mode but
+	     * not in the current mode is available. A default
+	     * command can be redefined in the current mode though.
+	     * This next call test this use case: if it is
+	     * overwritten, do not print it again.
+	     */
+	    find_cli_callback_descr(hdt_mode.default_modules->modules[j].name,
+				    current_mode->default_modules,
+				    &associated_module);
+	    if (associated_module == NULL)
+		printf("%s ", hdt_mode.default_modules->modules[j].name);
+	    j++;
+	}
+	printf("\n");
+    }
+
     /* List secondly the show modules of the mode */
     if (current_mode->show_modules && current_mode->show_modules->modules) {
 	printf("\nshow commands:\n");
@@ -152,27 +174,6 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 	printf("\n");
     }
 
-    /* List finally the default modules of the hdt mode */
-    if (current_mode->mode != hdt_mode.mode &&
-	hdt_mode.default_modules && hdt_mode.default_modules->modules) {
-	j = 0;
-	while (hdt_mode.default_modules->modules[j].name) {
-	    /*
-	     * Any default command that is present in hdt mode but
-	     * not in the current mode is available. A default
-	     * command can be redefined in the current mode though.
-	     * This next call test this use case: if it is
-	     * overwritten, do not print it again.
-	     */
-	    find_cli_callback_descr(hdt_mode.default_modules->modules[j].name,
-				    current_mode->default_modules,
-				    &associated_module);
-	    if (associated_module == NULL)
-		printf("%s ", hdt_mode.default_modules->modules[j].name);
-	    j++;
-	}
-	printf("\n");
-    }
 
     printf("\n");
     main_show_modes(argc, argv, hardware);
@@ -197,10 +198,6 @@ static void goto_menu(int argc __unused, char **argv __unused,
 void main_show_summary(int argc __unused, char **argv __unused,
 		       struct s_hardware *hardware)
 {
-    detect_pci(hardware);	/* pxe is detected in the pci */
-    detect_dmi(hardware);
-    cpu_detect(hardware);
-    detect_memory(hardware);
     reset_more_printf();
     clear_screen();
     main_show_cpu(argc, argv, hardware);
@@ -232,6 +229,7 @@ void main_show_hdt(int argc __unused, char **argv __unused,
     more_printf(" Product        : %s\n", PRODUCT_NAME);
     more_printf(" Version        : %s (%s)\n", VERSION, CODENAME);
     more_printf(" Website        : %s\n", WEBSITE_URL);
+    more_printf(" IRC Channel    : %s\n", IRC_CHANNEL);
     more_printf(" Mailing List   : %s\n", CONTACT);
     more_printf(" Project Leader : %s\n", AUTHOR);
     more_printf(" Core Developer : %s\n", CORE_DEVELOPER);
@@ -331,6 +329,10 @@ struct cli_callback_descr list_hdt_show_modules[] = {
     {
      .name = CLI_MEMORY,
      .exec = show_dmi_memory_modules,
+     },
+    {
+     .name = CLI_ACPI,
+     .exec = main_show_acpi,
      },
     {
      .name = "modes",

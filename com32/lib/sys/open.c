@@ -63,9 +63,13 @@ int open(const char *pathname, int flags, ...)
 	return -1;
 
     fp = &__file_info[fd];
+
     handle = open_file(pathname, &fp->i.fd);
-    if (handle < 0)
+    if (handle < 0) {
+	close(fd);
+	errno = ENOENT;
 	return -1;
+    }
 
     fp->i.offset = 0;
     fp->i.nbytes = 0;

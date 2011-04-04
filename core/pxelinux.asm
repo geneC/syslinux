@@ -365,6 +365,16 @@ pxenv:
 		pushfd
 		pushad
 
+		; We may be removing ourselves from memory
+		cmp bx,0073h		; PXENV_RESTART_TFTP
+		jz .disable_timer
+		cmp bx,00E5h		; gPXE PXENV_FILE_EXEC
+		jnz .store_stack
+
+.disable_timer:
+		call timer_cleanup
+
+.store_stack:
 		mov [cs:PXEStack],sp
 		mov [cs:PXEStack+2],ss
 		lss sp,[cs:InitStack]
@@ -391,6 +401,17 @@ pxenv:
 		; This clobbers the AX return, but we already saved it into
 		; the PXEStatus variable.
 		popad
+
+		; If the call failed, it could return.
+		cmp bx,0073h
+		jz .enable_timer
+		cmp bx,00E5h
+		jnz .pop_flags
+
+.enable_timer:
+		call timer_init
+
+.pop_flags:
 		popfd				; Restore flags (incl. IF, DF)
 		ret
 

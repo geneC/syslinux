@@ -9,6 +9,8 @@
 *.elf
 *.exe
 *.gen
+*.img
+*.img.xz
 *.lib
 *.lnx
 *.lo
@@ -29,6 +31,7 @@
 .\#*
 .depend
 /com32/lib/sys/vesa/alphatbl.c
+/diag/geodsp/mk-lba-img
 /extlinux/extlinux
 /memdisk/memdisk
 /mtools/syslinux

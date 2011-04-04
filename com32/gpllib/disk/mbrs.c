@@ -27,8 +27,6 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 
     switch (s_label) {
     case 0x0000:
-    case 0xfa33:
-    case 0xfab8:
     case 0xfabe:
 	strlcpy(buffer, "No bootloader", buffer_size - 1);
 	break;
@@ -39,7 +37,18 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 	strlcpy(buffer, "Acer 3", buffer_size - 1);
 	break;
     case 0x33c0:
-	strlcpy(buffer, "Windows", buffer_size - 1);
+	/* We need more than 2 bytes */
+	if (((label >> 8) & 0xff) == 0x8e)
+	    strlcpy(buffer, "Windows", buffer_size - 1);
+	else if (((label >> 8) & 0xff) == 0x90)
+	    strlcpy(buffer, "DiskCryptor", buffer_size - 1);
+	else if (((label >> 8) & 0xff) == 0xfa)
+	    strlcpy(buffer, "Syslinux", buffer_size - 1);
+	else
+	    strlcpy(buffer, "Unknown mbr", buffer_size - 1);
+	break;
+    case 0x33ed:
+	strlcpy(buffer, "Syslinux ISOhybrid", buffer_size - 1);
 	break;
     case 0x33ff:
 	strlcpy(buffer, "HP/Gateway", buffer_size - 1);
@@ -55,6 +64,9 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 	break;
     case 0xeb04:
 	strlcpy(buffer, "Solaris", buffer_size - 1);
+	break;
+    case 0xeb31:
+	strlcpy(buffer, "Paragon", buffer_size - 1);
 	break;
     case 0xeb48:
 	strlcpy(buffer, "Grub", buffer_size - 1);
@@ -78,12 +90,18 @@ void get_mbr_string(const uint32_t label, char *buffer, const int buffer_size)
 	break;
     case 0xfa31:
 	/* We need more than 2 bytes */
-	if (((label >> 8) & 0xff) == 0xc9)
-	    strlcpy(buffer, "Master Boot LoaDeR", buffer_size - 1);
-	else if (((label >> 8) & 0xff) == 0xc0)
+	if (((label >> 8) & 0xff) == 0xc0)
 	    strlcpy(buffer, "Syslinux", buffer_size - 1);
+	else if (((label >> 8) & 0xff) == 0xc9)
+	    strlcpy(buffer, "Master Boot LoaDeR", buffer_size - 1);
 	else
 	    strlcpy(buffer, "Unknown mbr", buffer_size - 1);
+	break;
+    case 0xfa33:
+	strlcpy(buffer, "MS-DOS 3.30 through Windows 95 (A)", buffer_size - 1);
+	break;
+    case 0xfab8:
+	strlcpy(buffer, "FreeDOS (eXtended FDisk)", buffer_size - 1);
 	break;
     case 0xfaeb:
 	strlcpy(buffer, "Lilo", buffer_size - 1);

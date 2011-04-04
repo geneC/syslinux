@@ -75,6 +75,9 @@ void sectors_to_size_dec(char *previous_unit, int *previous_size, char *unit,
     }
 }
 
+/* Return the human readable size of device
+ * This function avoid disk's size rounding while
+ * not using float as they aren't currently supported */
 void sectors_to_size_dec2(int sectors, char *buffer)
 {
     int b = (sectors / 2);

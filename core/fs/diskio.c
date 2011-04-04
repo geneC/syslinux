@@ -163,8 +163,6 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 
     memset(&reset, 0, sizeof reset);
 
-    ireg.edx.b[0] = disk->disk_number;
-
     lba += disk->part_start;
     while (count) {
 	chunk = count;
@@ -282,9 +280,9 @@ struct edd_disk_params {
     char      bus_type[4];
     char      if_type[8];
     uint8_t   if_path[8];
-    uint8_t   dev_path[8];
+    uint8_t   dev_path[16];
     uint8_t   _pad2;
-    uint8_t   devpath_csum;
+    uint8_t   devpath_csum;	/* Depends on devpath_len! */
 } __attribute__((packed));
 
 static inline bool is_power_of_2(uint32_t x)
@@ -356,6 +354,9 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
 	    hard_max_transfer = 127;
 
 	    /* Query EBIOS parameters */
+	    /* The memset() is needed once this function can be called
+	       more than once */
+	    /* memset(&edd_params, 0, sizeof edd_params);  */
 	    edd_params.len = sizeof edd_params;
 
 	    ireg.eax.b[1] = 0x48;

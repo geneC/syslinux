@@ -332,6 +332,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
     udp_write.buffer_size = 4;
 
     err = pxe_call(PXENV_UDP_WRITE, &udp_write);
+    (void)err;
 #if 0
     printf("sent %s\n", err ? "FAILED" : "OK");
 #endif
@@ -642,7 +643,21 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
  * @out: the lenght of this file, stores in file->file_len
  *
  */
+static void __pxe_searchdir(const char *filename, struct file *file);
+extern uint16_t PXERetry;
+
 static void pxe_searchdir(const char *filename, struct file *file)
+{
+    int i = PXERetry;
+
+    do {
+	dprintf("PXE: file = %p, retries left = %d: ", file, i);
+	__pxe_searchdir(filename, file);
+	dprintf("%s\n", file->inode ? "ok" : "failed");
+    } while (!file->inode && i--);
+}
+
+static void __pxe_searchdir(const char *filename, struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode;
@@ -739,9 +754,6 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	break;
     }
 
-    if (!ip)
-	return;			/* No server */
-
     buf++;			/* Point *past* the final NULL */
     memcpy(buf, rrq_tail, sizeof rrq_tail);
     buf += sizeof rrq_tail;
@@ -776,6 +788,9 @@ static void pxe_searchdir(const char *filename, struct file *file)
 	}
     }
 #endif /* GPXE */
+
+    if (!ip)
+	    goto done;		/* No server */
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
     

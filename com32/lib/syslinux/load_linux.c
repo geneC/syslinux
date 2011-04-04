@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -38,6 +38,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <minmax.h>
+#include <suffix_number.h>
 #include <syslinux/align.h>
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
@@ -86,6 +87,13 @@ struct linux_header {
     uint8_t relocatable_kernel;
     uint8_t pad2[3];
     uint32_t cmdline_max_len;
+    uint32_t hardware_subarch;
+    uint64_t hardware_subarch_data;
+    uint32_t payload_offset;
+    uint32_t payload_length;
+    uint64_t setup_data;
+    uint64_t pref_address;
+    uint32_t init_size;
 } __packed;
 
 #define BOOT_MAGIC 0xAA55
@@ -95,42 +103,6 @@ struct linux_header {
 /* loadflags */
 #define LOAD_HIGH	0x01
 #define CAN_USE_HEAP	0x80
-
-/* Get a value with a potential suffix (k/m/g/t/p/e) */
-static unsigned long long suffix_number(const char *str)
-{
-    char *ep;
-    unsigned long long v;
-    int shift;
-
-    v = strtoull(str, &ep, 0);
-    switch (*ep | 0x20) {
-    case 'k':
-	shift = 10;
-	break;
-    case 'm':
-	shift = 20;
-	break;
-    case 'g':
-	shift = 30;
-	break;
-    case 't':
-	shift = 40;
-	break;
-    case 'p':
-	shift = 50;
-	break;
-    case 'e':
-	shift = 60;
-	break;
-    default:
-	shift = 0;
-	break;
-    }
-    v <<= shift;
-
-    return v;
-}
 
 /* 
  * Find the last instance of a particular command line argument
@@ -307,6 +279,17 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     prot_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x100000 : 0x10000;
     prot_mode_size = kernel_size - real_mode_size;
 
+    if (hdr.version < 0x020a) {
+	/*
+	 * The 3* here is a total fudge factor... it's supposed to
+	 * account for the fact that the kernel needs to be
+	 * decompressed, and then followed by the BSS and BRK regions.
+	 * This doesn't, however, account for the fact that the kernel
+	 * is decompressed into a whole other place, either.
+	 */
+	hdr.init_size = 3 * prot_mode_size;
+    }
+
     if (!(hdr.loadflags & LOAD_HIGH) && prot_mode_size > 512 * 1024)
 	goto bail;		/* Kernel cannot be loaded low */
 
@@ -376,12 +359,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    if (start >= end)
 		continue;
 
-	    /* The 3* here is a total fudge factor... it's supposed to
-	       account for the fact that the kernel needs to be decompressed,
-	       and then followed by the BSS and BRK regions.  This doesn't,
-	       however, account for the fact that the kernel is decompressed
-	       into a whole other place, either. */
-	    if (end - start >= 3 * prot_mode_size) {
+	    if (end - start >= hdr.init_size) {
 		whdr->code32_start += start - prot_mode_base;
 		prot_mode_base = start;
 		ok = true;

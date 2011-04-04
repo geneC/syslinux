@@ -65,9 +65,8 @@ bootsec:
 	.text
 	.globl	_start
 _start:
-
+	.byte	0x33, 0xed	/* xorw	%bp, %bp */
 	cli
-	xorw	%bp, %bp
 	movw	%bp, %ss
 	movw	$stack, %sp
 	sti

@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -156,6 +157,7 @@ void memcpy_from_sl(void *dst, const void *src, size_t len);
 #endif
 
 #define LDLINUX_MAGIC	0x3eb202fe
+#define BS_MAGIC_VER	(0x1b << 9)
 
 /* Patch area for disk-based installers */
 struct patch_area {
@@ -214,7 +216,7 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[448];
+	    uint8_t Code[442];
 	} __attribute__ ((packed)) bs16;
 	struct {
 	    uint32_t FATSz32;
@@ -230,10 +232,12 @@ struct boot_sector {
 	    uint32_t VolumeID;
 	    char VolumeLabel[11];
 	    char FileSysType[8];
-	    uint8_t Code[420];
+	    uint8_t Code[414];
 	} __attribute__ ((packed)) bs32;
     } __attribute__ ((packed));
 
+    uint32_t bsMagic;
+    uint16_t bsForwardPtr;
     uint16_t bsSignature;
 } __attribute__ ((packed));
 

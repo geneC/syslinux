@@ -94,13 +94,23 @@ static size_t memlimit(void)
     return maxram;
 }
 
+static inline size_t get_page_size(void)
+{
+#ifdef _SC_PAGESIZE
+    return sysconf(_SC_PAGESIZE);
+#else
+    /* klibc, for one, doesn't have sysconf() due to excessive multiplex */
+    return getpagesize();
+#endif
+}
+
 int main(int argc, char *argv[])
 {
     const char *map;
     int memfd;
     size_t fbm;
     const char *ptr, *end;
-    size_t page = sysconf(_SC_PAGESIZE);
+    size_t page = get_page_size();
     size_t mapbase, maplen;
     int err = 1;
 

@@ -111,7 +111,6 @@ void main_show_disk(int argc, char **argv, struct s_hardware *hardware)
     char disk_size[11];
     char mbr_name[50];
 
-    detect_disks(hardware);
     reset_more_printf();
 
     if (!hardware->disk_info[i].cbios) {
@@ -161,7 +160,6 @@ void main_show_disks(int argc __unused, char **argv __unused,
 {
     bool found = false;
     reset_more_printf();
-    detect_disks(hardware);
 
     int first_one = 0;
     for (int drive = 0x80; drive < 0xff; drive++) {
@@ -189,7 +187,6 @@ void disks_summary(int argc __unused, char **argv __unused,
     int i = -1;
     bool found = false;
 
-    detect_disks(hardware);
     reset_more_printf();
 
     for (int drive = 0x80; drive < 0xff; drive++) {

@@ -48,7 +48,6 @@ int max_console_lines = MAX_CLI_LINES;
 int main(const int argc, const char *argv[])
 {
     char version_string[256];
-    const char *arg;
     struct s_hardware hardware;
 
     snprintf(version_string, sizeof version_string, "%s %s (%s)",
@@ -66,14 +65,16 @@ int main(const int argc, const char *argv[])
     /* Opening the Syslinux console */
     init_console(&hardware);
 
+    /* Detect hardware */
+    detect_hardware(&hardware);
+
     /* Clear the screen and reset position of the cursor */
     clear_screen();
     printf("\033[1;1H");
 
     printf("%s\n", version_string);
 
-    if ((arg = find_argument(argv + 1, "nomenu"))
-	|| (find_argument(argv + 1, "auto")))
+    if (!menumode || automode)
 	start_cli_mode(&hardware);
     else {
 	int return_code = start_menu_mode(&hardware, version_string);

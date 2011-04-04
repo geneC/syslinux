@@ -1,5 +1,5 @@
 /*
-** $Id: liolib.c,v 2.73.1.3 2008/01/18 17:47:43 roberto Exp $
+** $Id: liolib.c,v 2.73.1.4 2010/05/14 15:33:51 roberto Exp $
 ** Standard I/O (and system) library
 ** See Copyright Notice in lua.h
 */
@@ -180,7 +180,7 @@ static int io_popen (lua_State *L) {
 }
 
 
-#if 0
+#ifndef SYSLINUX
 static int io_tmpfile (lua_State *L) {
   FILE **pf = newfile(L);
   *pf = tmpfile();
@@ -271,14 +271,17 @@ static int io_lines (lua_State *L) {
 ** =======================================================
 */
 
-#if 0
+#ifndef SYSLINUX
 static int read_number (lua_State *L, FILE *f) {
   lua_Number d;
   if (fscanf(f, LUA_NUMBER_SCAN, &d) == 1) {
     lua_pushnumber(L, d);
     return 1;
   }
-  else return 0;  /* read fails */
+  else {
+    lua_pushnil(L);  /* "result" to be removed */
+    return 0;  /* read fails */
+  }
 }
 
 
@@ -312,7 +315,7 @@ static int read_line (lua_State *L, FILE *f) {
   }
 }
 
-#if 0				/* Not used */
+#ifndef SYSLINUX			/* Not used */
 static int read_chars (lua_State *L, FILE *f, size_t n) {
   size_t rlen;  /* how much to read */
   size_t nr;  /* number of chars actually read */
@@ -329,9 +332,7 @@ static int read_chars (lua_State *L, FILE *f, size_t n) {
   luaL_pushresult(&b);  /* close buffer */
   return (n == 0 || lua_objlen(L, -1) > 0);
 }
-#endif
 
-#if 0
 static int g_read (lua_State *L, FILE *f, int first) {
   int nargs = lua_gettop(L) - 1;
   int success;
@@ -440,7 +441,7 @@ static int f_write (lua_State *L) {
   return g_write(L, tofile(L), 2);
 }
 
-#if 0
+#ifndef SYSLINUX
 static int f_seek (lua_State *L) {
   static const int mode[] = {SEEK_SET, SEEK_CUR, SEEK_END};
   static const char *const modenames[] = {"set", "cur", "end", NULL};
@@ -455,10 +456,8 @@ static int f_seek (lua_State *L) {
     return 1;
   }
 }
-#endif
 
 
-#if 0
 static int f_setvbuf (lua_State *L) {
   static const int mode[] = {_IONBF, _IOFBF, _IOLBF};
   static const char *const modenames[] = {"no", "full", "line", NULL};
@@ -489,8 +488,10 @@ static const luaL_Reg iolib[] = {
   {"open", io_open},
   {"output", io_output},
   {"popen", io_popen},
-/*  {"read", io_read}, */
-/*  {"tmpfile", io_tmpfile}, */
+#ifndef SYSLINUX
+  {"read", io_read},
+  {"tmpfile", io_tmpfile},
+#endif
   {"type", io_type},
   {"write", io_write},
   {NULL, NULL}
@@ -501,9 +502,11 @@ static const luaL_Reg flib[] = {
   {"close", io_close},
   {"flush", f_flush},
   {"lines", f_lines},
-/*  {"read", f_read}, */
-/*  {"seek", f_seek}, */
-/*  {"setvbuf", f_setvbuf}, */
+#ifndef SYSLINUX
+  {"read", f_read},
+  {"seek", f_seek},
+  {"setvbuf", f_setvbuf},
+#endif
   {"write", f_write},
   {"__gc", io_gc},
   {"__tostring", io_tostring},

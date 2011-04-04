@@ -10,35 +10,12 @@
 
 int vesacon_load_background(const char *filename);
 
-static int __constfunc is_power_of_2(unsigned int x)
-{
-  return x && !(x & (x-1));
-}
-
-static int vesacon_paged_mode_ok(const struct vesa_mode_info *mi)
-{
-  int i;
-
-  if (!is_power_of_2(mi->win_size) ||
-      !is_power_of_2(mi->win_grain) ||
-      mi->win_grain > mi->win_size)
-    return 0;                   /* Impossible... */
-
-  for (i = 0; i < 2; i++) {
-    if ((mi->win_attr[i] & 0x05) == 0x05 && mi->win_seg[i])
-      return 1;                 /* Usable window */
-  }
-
-  return 0;                     /* Nope... */
-}
-
 static int vesa_getmodes(lua_State *L)
 {
   com32sys_t rm;
-  uint16_t mode, bestmode, *mode_ptr;
+  uint16_t mode, *mode_ptr;
   struct vesa_general_info *gi;
   struct vesa_mode_info *mi;
-  enum vesa_pixel_format bestpxf;
   int nmode = 1;
 
   /* Allocate space in the bounce buffer for these structures */
@@ -69,8 +46,6 @@ static int vesa_getmodes(lua_State *L)
   /* Search for a 640x480 mode with a suitable color and memory model... */
 
   mode_ptr = GET_PTR(gi->video_mode_ptr);
-  bestmode = 0;
-  bestpxf  = PXF_NONE;
 
   while ((mode = *mode_ptr++) != 0xFFFF) {
     mode &= 0x1FF;              /* The rest are attributes of sorts */
@@ -117,6 +92,8 @@ static int vesa_getmodes(lua_State *L)
 
 static int vesa_setmode(lua_State *L)
 {
+  /* Preventing GCC to complain about unused L*/
+  L=L;
   openconsole(&dev_rawcon_r, &dev_vesaserial_w);
 
   return 0;

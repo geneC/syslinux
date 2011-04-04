@@ -426,12 +426,10 @@ vk_check:
 		mov al,[VKernelBuf+vk_type]
 		mov [KernelType],al
 
-%if HAS_LOCALBOOT
 		; Is this a "localboot" pseudo-kernel?
 		cmp al,VK_LOCALBOOT		; al == KernelType
 		mov ax,[VKernelBuf+vk_rname]	; Possible localboot type
 		je local_boot
-%endif
 		jmp get_kernel
 
 .not_vk:

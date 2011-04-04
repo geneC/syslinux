@@ -2,7 +2,7 @@
 
 		   A suite of bootloaders for Linux
 
-	 Copyright 1994-2010 H. Peter Anvin and contributors
+	 Copyright 1994-2011 H. Peter Anvin and contributors
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
@@ -106,12 +106,11 @@ which requires root privilege.
 
    ++++ CONFIGURATION FILE ++++
 
+All options here apply to PXELINUX, ISOLINUX and EXTLINUX as well as
+SYSLINUX unless otherwise noted.  See the respective .txt files.
+
 All the configurable defaults in SYSLINUX can be changed by putting a
 file called "syslinux.cfg" in the root directory of the boot disk.
-
-This is a text file in either UNIX or DOS format, containing one or
-more of the following items (case is insensitive for keywords; upper
-case is used here to indicate that a word should be typed verbatim):
 
 Starting with version 3.35, the configuration file can also be in
 either the /boot/syslinux or /syslinux directories (searched in that
@@ -119,11 +118,13 @@ order.)  If that is the case, then all filenames are assumed to be
 relative to that same directory, unless preceded with a slash or
 backslash.
 
-All options here applies to PXELINUX, ISOLINUX and EXTLINUX as well as
-SYSLINUX unless otherwise noted.  See the respective .txt files.
+The configuration file is a text file in either UNIX or DOS format,
+containing one or more of the following items, each on its own line with
+optional leading whitespace.  Case is insensitive for keywords; upper
+case is used here to indicate that a word should be typed verbatim.
 
-# comment
-	A comment line.  The whitespace after the hash mark is mandatory.
+#comment
+	A comment line.
 
 INCLUDE filename
 	Inserts the contents of another file at this point in the
@@ -232,21 +233,25 @@ LABEL label
 	filetype, regardless of the filename.
 
 	CONFIG means restart the boot loader using a different
-	configuration file.
+	configuration file.  The configuration file is read, the
+	working directory is changed (if specified via an APPEND), then
+	the configuration file is parsed.
 
     APPEND -
         Append nothing.  APPEND with a single hyphen as argument in a
         LABEL section can be used to override a global APPEND.
 
-    LOCALBOOT type			[ISOLINUX, PXELINUX]
-	On PXELINUX, specifying "LOCALBOOT 0" instead of a "KERNEL"
-	option means invoking this particular label will cause a local
-	disk boot instead of booting a kernel.
+    LOCALBOOT type
+	Attempt a different local boot method.  The special value -1
+	causes the boot loader to report failure to the BIOS, which, on
+	recent BIOSes, should mean that the next boot device in the
+	boot sequence should be activated.  Values other than those
+	documented may produce undesired results.
 
-	The argument 0 means perform a normal boot.  The argument 4
+	On PXELINUX, "type" 0 means perform a normal boot.  "type" 4
 	will perform a local boot with the Universal Network Driver
 	Interface (UNDI) driver still resident in memory.  Finally,
-	the argument 5 will perform a local boot with the entire PXE
+	"type" 5 will perform a local boot with the entire PXE
 	stack, including the UNDI driver, still resident in memory.
 	All other values are undefined.  If you don't know what the
 	UNDI or PXE stacks are, don't worry -- you don't want them,
@@ -254,10 +259,7 @@ LABEL label
 
 	On ISOLINUX, the "type" specifies the local drive number to
 	boot from; 0x00 is the primary floppy drive and 0x80 is the
-	primary hard drive.  The special value -1 causes ISOLINUX to
-	report failure to the BIOS, which, on recent BIOSes, should
-	mean that the next boot device in the boot sequence should be
-	activated.
+	primary hard drive.
 
     INITRD initrd_file
 	Starting with version 3.71, an initrd can be specified in a

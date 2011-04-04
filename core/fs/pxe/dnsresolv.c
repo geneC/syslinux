@@ -215,7 +215,7 @@ uint32_t dns_resolv(const char *name)
     if (!dots) {
         p--; /* Remove final null */
         /* Uncompressed DNS label set so it ends in null */
-        strcpy(p, LocalDomain);
+        p = stpcpy(p, LocalDomain);
     }
 
     /* Fill the DNS query packet */
