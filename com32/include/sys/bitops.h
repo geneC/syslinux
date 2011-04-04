@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *   
- *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2010-2011 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -49,7 +49,7 @@ static inline void clr_bit(long __bit, void *__bitmap)
 static inline int __purefunc test_bit(long __bit, const void *__bitmap)
 {
     unsigned char __r;
-    asm("btl %2,%1; setnz %0"
+    asm("btl %2,%1; setc %0"
 	: "=r" (__r)
 	: "m" (__bitmap), "Ir" (__bit));
     return __r;
