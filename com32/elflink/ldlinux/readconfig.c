@@ -27,6 +27,7 @@
 
 #include "menu.h"
 #include "config.h"
+#include "getkey.h"
 
 const struct menu_parameter mparm[NPARAMS] = {
     [P_WIDTH] = {"width", 0},
@@ -420,6 +421,17 @@ static struct menu *end_submenu(void)
     return current_menu->parent ? current_menu->parent : current_menu;
 }
 
+void print_labels(const char *prefix, size_t len)
+{
+    struct menu_entry *me;
+
+    printf("\n");
+    for (me = all_entries; me; me = me->next ) {
+	if (!strncmp(prefix, me->label, len))
+	    printf(" %s\n", me->label);
+    }
+}
+
 static struct menu_entry *find_label(const char *str)
 {
     const char *p;
@@ -604,6 +616,78 @@ static char *is_message_name(char *cmdstr, enum message_number *msgnr)
     }
 
     return NULL;
+}
+
+static int cat_file(const char *filename)
+{
+	FILE *f;
+	char line[2048];
+
+	f = fopen(filename, "r");
+	if (!f)
+		return -1;
+
+	while (fgets(line, sizeof(line), f) != NULL)
+		printf("%s", line);
+
+	fclose(f);
+	return 0;
+}
+
+void cat_help_file(int key)
+{
+	struct menu *cm = current_menu;
+	int fkey;
+
+	switch (key) {
+	case KEY_F1:
+		fkey = 0;
+		break;
+	case KEY_F2:
+		fkey = 1;
+		break;
+	case KEY_F3:
+		fkey = 2;
+		break;
+	case KEY_F4:
+		fkey = 3;
+		break;
+	case KEY_F5:
+		fkey = 4;
+		break;
+	case KEY_F6:
+		fkey = 5;
+		break;
+	case KEY_F7:
+		fkey = 6;
+		break;
+	case KEY_F8:
+		fkey = 7;
+		break;
+	case KEY_F9:
+		fkey = 8;
+		break;
+	case KEY_F10:
+		fkey = 9;
+		break;
+	case KEY_F11:
+		fkey = 10;
+		break;
+	case KEY_F12:
+		fkey = 11;
+		break;
+	default:
+		fkey = -1;
+		break;
+	}
+
+	if (fkey == -1)
+		return;
+
+	if (cm->fkeyhelp[fkey].textname) {
+		printf("\n");
+		cat_file(cm->fkeyhelp[fkey].textname);
+	}
 }
 
 static char *is_fkey(char *cmdstr, int *fkeyno)

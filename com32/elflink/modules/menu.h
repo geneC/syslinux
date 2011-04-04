@@ -184,6 +184,8 @@ extern const int message_base_color, menu_color_table_size;
 int mygetkey(clock_t timeout);
 int show_message_file(const char *filename, const char *background);
 
+extern void print_labels(const char *prefix, size_t len);
+
 /* passwd.c */
 int passwd_compare(const char *passwd, const char *entry);
 
