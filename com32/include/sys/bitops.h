@@ -38,12 +38,16 @@
 
 static inline void set_bit(long __bit, void *__bitmap)
 {
-    asm volatile("btsl %1,%0" : "+m" (__bitmap) : "Ir" (__bit) : "memory");
+    asm volatile("btsl %1,%0"
+		 : "+m" (*(unsigned char *)__bitmap)
+		 : "Ir" (__bit) : "memory");
 }
 
 static inline void clr_bit(long __bit, void *__bitmap)
 {
-    asm volatile("btcl %1,%0" : "+m" (__bitmap) : "Ir" (__bit) : "memory");
+    asm volatile("btcl %1,%0"
+		 : "+m" (*(unsigned char *)__bitmap)
+		 : "Ir" (__bit) : "memory");
 }
 
 static inline int __purefunc test_bit(long __bit, const void *__bitmap)
@@ -51,7 +55,7 @@ static inline int __purefunc test_bit(long __bit, const void *__bitmap)
     unsigned char __r;
     asm("btl %2,%1; setc %0"
 	: "=r" (__r)
-	: "m" (__bitmap), "Ir" (__bit));
+	: "m" (*(const unsigned char *)__bitmap), "Ir" (__bit));
     return __r;
 }
 
