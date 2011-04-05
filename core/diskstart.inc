@@ -105,13 +105,15 @@ ldlinux_ent:
 ; Checksum data thus far
 ;
 		mov si,ldlinux_sys
-		mov cx,SECTOR_SIZE >> 2
+		mov cx,[bsBytesPerSec]
+		shr cx,2
 		mov edx,-LDLINUX_MAGIC
 .checksum:
 		lodsd
 		add edx,eax
 		loop .checksum
 		mov [CheckSum],edx		; Save intermediate result
+		mov ebx,edi			; Start of the next sector
 
 ;
 ; Tell the user if we're using EBIOS or CBIOS
@@ -127,6 +129,7 @@ print_bios:
 		call writestr_early
 
 		section .earlybss
+		alignb 2
 %define	HAVE_BIOSNAME 1
 BIOSName	resw 1
 
@@ -135,8 +138,9 @@ BIOSName	resw 1
 ; Now we read the rest of LDLINUX.SYS.
 ;
 load_rest:
+		push bx				; LSW of load address
+
 		lea esi,[SectorPtrs]
-		mov ebx,TEXT_START+2*SECTOR_SIZE ; Where we start loading
 		mov cx,[DataSectors]
 		dec cx				; Minus this sector
 
@@ -152,7 +156,7 @@ load_rest:
 		xor bx,bx
 		call getlinsec
 		pop ebx
-		shl ebp,SECTOR_SHIFT
+		imul bp,[bsBytesPerSec]		; Will be < 64K
 		add ebx,ebp
 		add si,10
 		jmp .get_chunk
@@ -165,9 +169,11 @@ load_rest:
 ; by the time we get to the end it should all cancel out.
 ;
 verify_checksum:
-		mov si,ldlinux_sys + SECTOR_SIZE
-		mov ecx,[LDLDwords]
-		sub ecx,SECTOR_SIZE >> 2
+		pop si				; LSW of load address
+		movzx eax,word [bsBytesPerSec]
+		shr ax,2
+		mov ecx,[LDLDwords]		; Total dwords
+		sub ecx,eax			; ... minus one sector
 		mov eax,[CheckSum]
 .checksum:
 		add eax,[si]
@@ -255,7 +261,7 @@ getlinsec_ebios:
 		add eax,edi			; Advance sector pointer
 		adc edx,0
 		sub bp,di			; Sectors left
-                shl di,SECTOR_SHIFT		; 512-byte sectors
+		imul di,[bsBytesPerSec]
                 add bx,di			; Advance buffer pointer
                 and bp,bp
                 jnz .loop
@@ -345,7 +351,7 @@ getlinsec_cbios:
 		jc .error
 .resume:
 		movzx ecx,al		; ECX <- sectors transferred
-		shl ax,SECTOR_SHIFT	; Convert sectors in AL to bytes in AX
+		imul ax,[bsBytesPerSec]	; Convert sectors in AL to bytes in AX
 		pop bx
 		add bx,ax
 		pop bp
@@ -429,8 +435,8 @@ rl_checkpt_off	equ ($-$$)
 ;
 		alignz 2
 MaxInitDataSize	equ 96 << 10
-MaxLMA		equ TEXT_START+SECTOR_SIZE+MaxInitDataSize
-SectorPtrs	zb 10*(MaxInitDataSize >> SECTOR_SHIFT)
+MaxLMA		equ LDLINUX_SYS+MaxInitDataSize
+SectorPtrs	zb 10*(MaxInitDataSize >> MIN_SECTOR_SHIFT)
 SectorPtrsEnd	equ $
 
 ; ----------------------------------------------------------------------------
