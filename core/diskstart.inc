@@ -23,6 +23,14 @@ Sect1Ptr1_VAL	equ 0xfeedface
 %include "diskboot.inc"
 
 ; ===========================================================================
+;  Padding after the (minimum) 512-byte boot sector so that the rest of
+;  the file has aligned sectors, even if they are larger than 512 bytes.
+; ===========================================================================
+
+		section .init
+align_pad	zb 512
+
+; ===========================================================================
 ;  Start of LDLINUX.SYS
 ; ===========================================================================
 
@@ -424,10 +432,10 @@ safedumpregs:
 
 rl_checkpt	equ $				; Must be <= 8000h
 
-rl_checkpt_off	equ ($-$$)
+rl_checkpt_off	equ $-ldlinux_sys
 %ifndef DEPEND
- %if rl_checkpt_off > 3F6h			; Need one extent
-  %assign rl_checkpt_overflow rl_checkpt_off - 3F6h
+ %if rl_checkpt_off > 512-10			; Need minimum one extent
+  %assign rl_checkpt_overflow rl_checkpt_off - (512-10)
   %error Sector 1 overflow by rl_checkpt_overflow bytes
  %endif
 %endif
