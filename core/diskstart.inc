@@ -126,7 +126,7 @@ ldlinux_ent:
 		add edx,eax
 		loop .checksum
 		mov [CheckSum],edx		; Save intermediate result
-		mov ebx,edi			; Start of the next sector
+		movzx ebx,si			; Start of the next sector
 
 ;
 ; Tell the user if we're using EBIOS or CBIOS
