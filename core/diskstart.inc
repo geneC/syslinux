@@ -76,6 +76,11 @@ Sect1Ptr1Ptr	dw Sect1Ptr1 - bootsec
 RAIDPatchPtr	dw kaboom.again - bootsec	; Patch to INT 18h in RAID mode
 
 ;
+; Pointer to the Syslinux banner
+;
+BannerPtr	dw syslinux_banner - LDLINUX_SYS
+
+;
 ; Base directory name and subvolume, if applicable.
 ;
 %define HAVE_CURRENTDIRNAME
