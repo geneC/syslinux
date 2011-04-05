@@ -20,8 +20,8 @@
 %ifndef _HEAD_INC
 %define _HEAD_INC
 
-%if __NASM_MAJOR__ < 2
- %error "NASM 2.00 or later required to compile correctly"
+%if __NASM_MAJOR__ < 2 || (__NASM_MAJOR__ == 2 && __NASM_MINOR__ < 3)
+ %error "NASM 2.03 or later required to compile correctly"
 %endif
 
 %include "macros.inc"
