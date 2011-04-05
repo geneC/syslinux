@@ -33,26 +33,29 @@
 static void generate_extents(struct syslinux_extent *ex, int nptrs,
 			     const sector_t *sectp, int nsect)
 {
-    uint32_t addr = 0x7c00 + 2*SECTOR_SIZE;
+    uint32_t addr = 0x8000;	/* ldlinux.sys starts loading here */
     uint32_t base;
     sector_t sect, lba;
     unsigned int len;
 
-    len = lba = base = 0;
+    base = addr;
+    len = lba = 0;
 
     memset(ex, 0, nptrs * sizeof *ex);
 
     while (nsect) {
 	sect = *sectp++;
 
-	if (len && sect == lba + len &&
-	    ((addr ^ (base + len * SECTOR_SIZE)) & 0xffff0000) == 0) {
-	    /* We can add to the current extent */
-	    len++;
-	    goto next;
-	}
-
 	if (len) {
+	    uint32_t xbytes = (len + 1) * SECTOR_SIZE;
+
+	    if (sect == lba + len && xbytes < 65536 &&
+		((addr ^ (base + xbytes - 1)) & 0xffff0000) == 0) {
+		/* We can add to the current extent */
+		len++;
+		goto next;
+	    }
+
 	    set_64_sl(&ex->lba, lba);
 	    set_16_sl(&ex->len, len);
 	    ex++;
