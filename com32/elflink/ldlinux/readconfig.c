@@ -432,7 +432,7 @@ void print_labels(const char *prefix, size_t len)
     }
 }
 
-static struct menu_entry *find_label(const char *str)
+struct menu_entry *find_label(const char *str)
 {
     const char *p;
     struct menu_entry *me;
