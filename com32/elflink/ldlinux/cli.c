@@ -141,8 +141,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     const char *ret;
     int width = 0;
     struct cli_command *comm_counter;
-    comm_counter =
-	list_entry(cli_history_head.next->prev, typeof(*comm_counter), list);
 
     if (!width) {
 	int height;
