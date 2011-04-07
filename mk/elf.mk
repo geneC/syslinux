@@ -11,7 +11,7 @@
 ## -----------------------------------------------------------------------
 
 ##
-## COM32 common configurables
+## ELF common configurables
 ##
 
 include $(MAKEDIR)/syslinux.mk
@@ -67,3 +67,5 @@ LNXLDFLAGS = -g
 %.lnx: %.lo $(LNXLIBS)
 	$(CC) $(LNXLDFLAGS) -o $@ $^
 
+%.c32: %.o
+	$(LD) $(LDFLAGS) -o $@ $^
