@@ -15,7 +15,8 @@
 ##
 
 topdir = ../..
-include ../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = ../libutil/libutil_lnx.a

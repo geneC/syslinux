@@ -20,7 +20,8 @@ MAKEFLAGS += -r
 MAKE      += -r
 
 topdir = ..
-include $(topdir)/MCONFIG.embedded
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/embedded.mk
 -include $(topdir)/version.mk
 
 OPTFLAGS =

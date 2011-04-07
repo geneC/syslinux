@@ -16,7 +16,8 @@
 ##
 
 topdir = ../../..
-include ../../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 LIBS	   = ../../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = 

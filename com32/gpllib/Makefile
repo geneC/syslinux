@@ -4,7 +4,8 @@
 
 # Include configuration rules
 topdir = ../..
-include ../lib/MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/lib.mk
 
 REQFLAGS += -I../gplinclude
 

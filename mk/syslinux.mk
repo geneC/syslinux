@@ -77,7 +77,7 @@ UMAKEDEPS = -Wp,-MT,$@,-MMD,$(dir $@).$(notdir $@).d
 
 # Items that are only appropriate during development; this file is
 # removed when tarballs are generated.
--include $(topdir)/MCONFIG.devel
+-include $(makefiledir)/devel.mk
 
 # Local additions, like -DDEBUG can go here
--include $(topdir)/MCONFIG.local
+-include $(makefiledir)/local.mk

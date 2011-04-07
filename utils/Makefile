@@ -15,7 +15,8 @@
 #
 
 topdir = ..
-include $(topdir)/MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/syslinux.mk
 
 CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 LDFLAGS  = -O2 -s

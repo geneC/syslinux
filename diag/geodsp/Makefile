@@ -19,7 +19,7 @@
 #
 
 topdir = ../..
-# include $(topdir)/MCONFIG.embedded
+# include $(topdir)/mk/embedded.mk
 coredir = $(topdir)/core
 
 BTARGET = geodsp1s.bin geodspms.bin mk-lba-img \

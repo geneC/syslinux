@@ -16,7 +16,8 @@
 ##
 
 topdir = ../..
-include ../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 MODULES	  = chain.c32 config.c32 ethersel.c32 dmitest.c32 cpuidtest.c32 \
 	    disk.c32 pcitest.c32 elf.c32 linux.c32 reboot.c32 pmload.c32 \
