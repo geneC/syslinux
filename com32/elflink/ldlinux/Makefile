@@ -11,7 +11,8 @@
 ## -----------------------------------------------------------------------
 
 topdir = ../../..
-include ../modules/MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/elf.mk
 
 CFLAGS += -I../modules -I$(topdir)/core/elflink -I$(topdir)/core/include
 
