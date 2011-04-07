@@ -22,8 +22,6 @@
 #include <console.h>
 #include <com32.h>
 
-#include <sys/module.h>
-
 struct e820_data {
     uint64_t base;
     uint64_t len;
@@ -124,10 +122,9 @@ static void dump_legacy(void)
 	   oreg.ecx.w[0], oreg.ecx.w[0], oreg.edx.w[0], oreg.edx.w[0] << 6);
 }
 
-static int meminfo_main(void)
+int main(int argc, char **argv)
 {
     dump_legacy();
     dump_e820();
     return 0;
 }
-MODULE_MAIN(meminfo_main);

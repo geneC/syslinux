@@ -97,7 +97,7 @@ static void enter_cmdline(void)
 	}
 }
 
-static int ldlinux_main(int argc, char **argv)
+int main(int argc, char **argv)
 {
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 
@@ -129,4 +129,3 @@ cmdline:
 
 	return 0;
 }
-MODULE_MAIN(ldlinux_main);

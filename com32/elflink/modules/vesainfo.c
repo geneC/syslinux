@@ -11,8 +11,6 @@
 #include <inttypes.h>
 #include "../lib/sys/vesa/vesa.h"
 
-#include <sys/module.h>
-
 /* Wait for a keypress */
 static void wait_key(void)
 {
@@ -85,9 +83,8 @@ exit:
 	return;
 }
 
-static int vesainfo_main(void)
+int main(int argc, char **argv)
 {
     print_modes();
     return 0;
 }
-MODULE_MAIN(vesainfo_main);

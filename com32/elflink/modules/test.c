@@ -45,12 +45,11 @@
 #include <console.h>
 #include <syslinux/loadfile.h>
 #include <syslinux/linux.h>
-#include <sys/module.h>
 #include <dprintf.h>
 
 //const char *progname = "test.c32";
 
-static int test_main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     const char *kernel_name;
     struct initramfs *initramfs;
@@ -108,5 +107,3 @@ bail:
     fprintf(stderr, "Kernel load failure (insufficient memory?)\n");
     return 1;
 }
-
-MODULE_MAIN(test_main);

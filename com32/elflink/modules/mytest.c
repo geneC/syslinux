@@ -15,16 +15,13 @@
 #include <core-elf.h>
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
-#include <sys/module.h>
 
 #include "menu.h"
 
-static int mytest_main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     console_ansi_raw();
     //edit_cmdline("",1);
     menu_main(argc, argv);
     return 0;
 }
-
-MODULE_MAIN(mytest_main);

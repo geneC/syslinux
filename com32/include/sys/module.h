@@ -97,7 +97,7 @@ struct elf_module {
 
 	module_init_t		*init_func;	// The initialization entry point
 	module_exit_t		*exit_func;	// The module finalization code
-	module_main_t		*main_func; // The main function (for executable modules)
+	module_main_t		main_func; // The main function (for executable modules)
 
 
 	void				*module_addr; // The module location in the memory
@@ -174,9 +174,6 @@ struct module_dep {
 
 #define MODULE_EXIT(fn) static module_exit_t __module_exit \
 	__used __attribute__((section(".dtors_modexit")))  = fn
-
-#define MODULE_MAIN(fn) static module_main_t __module_main \
-	__used __attribute__((section(".ctors_modmain")))  = fn
 
 #else
 

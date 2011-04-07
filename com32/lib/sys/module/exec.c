@@ -188,7 +188,7 @@ int spawnv(const char *name, const char **argv)
 	else if (!module->main_func)
 		ret_val = -1;
 	else
-		exit((*module->main_func)(argc, args)); /* Actually run! */
+		exit((module->main_func)(argc, args)); /* Actually run! */
 
 	// Clean up the allocation context
 	__free_tagged(module);
@@ -246,8 +246,8 @@ int spawn_load(const char *name,const char **argv)
 		 * type EXEC_MODULE, then just return. We don't reload
 		 * the module because that might cause us to re-run
 		 * the init functions, which will cause us to run the
-		 * MODULE_MAIN function, which will take control of
-		 * this process.
+		 * main function, which will take control of this
+		 * process.
 		 *
 		 * This can happen if some other EXEC_MODULE is
 		 * resolving a symbol that is exported by the current
@@ -318,7 +318,7 @@ int spawn_load(const char *name,const char **argv)
 		else if (!module->main_func)
 			ret_val = -1;
 		else
-			exit((*module->main_func)(argc, args)); /* Actually run! */
+			exit((module->main_func)(argc, args)); /* Actually run! */
 
 
 		// Clean up the allocation context
