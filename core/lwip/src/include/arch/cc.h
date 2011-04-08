@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <kaboom.h>
 
 #define BYTE_ORDER LITTLE_ENDIAN
 
@@ -16,9 +17,6 @@ typedef uint32_t u32_t;
 typedef int32_t  s32_t;
 
 typedef uintptr_t mem_ptr_t;
-
-extern __noreturn _kaboom(void);
-#define kaboom() _kaboom()
 
 #define PACK_STRUCT_STRUCT	__packed
 
