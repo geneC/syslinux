@@ -68,8 +68,6 @@ static void gpxecmd(const char **args)
 
 int main(int argc, const char *argv[])
 {
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     if (argc < 2) {
 	printf("Usage: gpxecmd command...\n");
 	return 1;

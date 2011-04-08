@@ -122,8 +122,6 @@ int main(int argc, char *argv[])
     size_t dhcplen;
     char **argp, *arg, *p;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     (void)argc;
     argp = argv + 1;
 

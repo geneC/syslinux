@@ -185,7 +185,6 @@ int main(int argc, char *argv[])
     struct match *list, *match;
     struct pci_domain *pci_domain;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
     pci_domain = pci_scan();
 
     if (pci_domain) {

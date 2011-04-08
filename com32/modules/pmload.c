@@ -204,8 +204,6 @@ int main(int argc, char *argv[])
     size_t data_len;
     addr_t where;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     if (argc < 3) {
 	error("Usage: pmload.c32 bin_file address arguments...\n");
 	return 1;

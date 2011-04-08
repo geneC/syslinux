@@ -160,8 +160,6 @@ int main(int argc, char *argv[])
     void *data;
     size_t data_len;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     if (argc != 2) {
 	error("Usage: sdi.c32 sdi_file\n");
 	return 1;

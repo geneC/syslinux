@@ -42,7 +42,6 @@ char display_line;
 int main(void)
 {
     s_cpu cpu;
-    openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
     for (;;) {
 	detect_cpu(&cpu);

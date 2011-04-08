@@ -27,8 +27,6 @@ int main(int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 
-	openconsole(&dev_null_r, &dev_stdcon_w);
-
 	for (int disk = 0x80; disk < 0xff; disk++) {
 		memset(d, 0, sizeof(struct driveinfo));
 		d->disk = disk;

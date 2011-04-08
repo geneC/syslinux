@@ -34,8 +34,6 @@ int main(int argc, char *argv[])
     uint32_t leaf, counter;
     uint32_t eax, ebx, ecx, edx;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     if (argc < 2 || argc > 4) {
 	printf("Usage: %s leaf [counter]\n", argv[0]);
 	exit(1);

@@ -117,8 +117,6 @@ static void dump_legacy(void)
 
 int main(void)
 {
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     dump_legacy();
     dump_e820();
 

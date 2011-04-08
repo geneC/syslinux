@@ -1314,8 +1314,6 @@ int main(int argc, char *argv[])
     addr_t load_base;
     static const char cmldr_signature[8] = "cmdcons";
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     drivename = "boot";
     partition = NULL;
 

@@ -179,7 +179,6 @@ int main(void)
 {
     char buffer[1024];
     s_dmi dmi;
-    openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
     if (dmi_iterate(&dmi) == -ENODMITABLE) {
 	printf("No DMI Structure found\n");

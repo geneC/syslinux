@@ -24,8 +24,6 @@
 
 int main(int argc, char *argv[])
 {
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     if (argc < 2 || argc > 3) {
 	fprintf(stderr, "Usage: config <filename> [<directory>]\n");
 	return 1;

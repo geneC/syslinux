@@ -25,8 +25,6 @@ int main(int argc, char *argv[])
     int i;
     struct in_addr addr;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     for (i = 1; i < argc; i++) {
 	addr = dnsresolve(argv[i]);
 

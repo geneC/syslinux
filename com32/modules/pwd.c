@@ -36,7 +36,6 @@ int main(void)
     int rv = 0;
     char pwd[PATH_MAX], *pwdptr;
 
-    openconsole(&dev_rawcon_r, &dev_stdcon_w);
     pwdptr = getcwd(pwd, PATH_MAX);
     if (pwdptr) {
        if (pwd[0] != 0)

@@ -27,8 +27,6 @@ int main(int argc, char *argv[])
     size_t map_size;
     void *kbdmap;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     if (argc != 2) {
 	error("Usage: kbdmap mapfile\n");
 	return 1;

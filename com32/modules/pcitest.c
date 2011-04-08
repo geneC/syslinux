@@ -108,8 +108,6 @@ int main(int argc, char *argv[])
     (void)argc;
     (void)argv;
 
-    openconsole(&dev_stdcon_r, &dev_stdcon_w);
-
     /* Scanning to detect pci buses and devices */
     printf("PCI: Scanning PCI BUS\n");
     pci_domain = pci_scan();

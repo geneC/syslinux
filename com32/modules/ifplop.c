@@ -144,8 +144,6 @@ int main(int argc, char *argv[])
     char **args[2];
     int arg = 0;
 
-    openconsole(&dev_null_r, &dev_stdcon_w);
-
     if (argc)
 	arg++;
     args[0] = &argv[arg];

@@ -75,8 +75,6 @@ static void print_modes(void)
 
 int main(void)
 {
-    openconsole(&dev_rawcon_r, &dev_stdcon_w);
-
     print_modes();
     return 0;
 }
