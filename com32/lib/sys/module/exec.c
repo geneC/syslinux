@@ -220,12 +220,25 @@ int spawnl(const char *name, const char *arg, ...)
 
 struct elf_module *cur_module;
 
-int spawn_load(const char *name,const char **argv)
+/*
+ * Load a module and runs its start function.
+ *
+ * For library modules the start function is module->init_func and for
+ * executable modules its module->main_func.
+ *
+ * "name" is the name of the module to load.
+ *
+ * "argv" and "argc" are only passed to module->main_func, for library
+ * modules these arguments can be NULL and 0, respectively.
+ *
+ * "argv" is an array of arguments to pass to module->main_func.
+ * argv[0] must be a pointer to "name" and argv[argc] must be NULL.
+ *
+ * "argc" is the number of arguments in "argv".
+ */
+int spawn_load(const char *name, int argc, char **argv)
 {
 	int res, ret_val = 0;
-	const char **arg;
-	int argc;
-	char **argp, **args;
 	struct elf_module *previous;
 	//malloc_tag_t prev_mem_tag;
 	struct elf_module *module = module_alloc(name);
@@ -237,6 +250,11 @@ int spawn_load(const char *name,const char **argv)
 
 	if (module == NULL)
 		return -1;
+
+	if (get_module_type(module) == EXEC_MODULE) {
+		if (!argc || !argv || strcmp(argv[0], name))
+			return -1;
+	}
 
 	if (!strcmp(cur_module->name, module->name)) {
 		dprintf("We is running this module %s already!", module->name);
@@ -295,21 +313,6 @@ int spawn_load(const char *name,const char **argv)
 		__syslinux_current = module;
 		//__mem_set_tag_global((malloc_tag_t)module);
 
-		// Generate a new process copy of argv (on the stack)
-		argc = 0;
-		for (arg = argv; *arg; arg++)
-			argc++;
-
-		args = alloca((argc+1) * sizeof(char *));
-
-		for (arg = argv, argp = args; *arg; arg++, argp++) {
-			size_t l = strlen(*arg)+1;
-			*argp = alloca(l);
-			memcpy(*argp, *arg, l);
-		}
-
-		*args = NULL;
-
 		// Execute the program
 		ret_val = setjmp(module->u.x.process_exit);
 
@@ -318,7 +321,7 @@ int spawn_load(const char *name,const char **argv)
 		else if (!module->main_func)
 			ret_val = -1;
 		else
-			exit((module->main_func)(argc, args)); /* Actually run! */
+			exit((module->main_func)(argc, argv)); /* Actually run! */
 
 
 		// Clean up the allocation context
@@ -468,13 +471,13 @@ int module_load_dependencies(const char *name,const char *dep_file)
 		i++;	/* skip a space */
 
 		if (strlen(temp_name)) {
-			char *argv[2] = { NULL, NULL };
+			char *argv[2] = { temp_name, NULL };
 			int ret;
 
 			ret = module_load_dependencies(temp_name,
 						       MODULES_DEP);
 			if (!ret) {
-				if (spawn_load(temp_name, argv) < 0)
+				if (spawn_load(temp_name, 1, argv) < 0)
 					continue;
 			}
 		}

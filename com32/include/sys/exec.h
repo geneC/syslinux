@@ -33,6 +33,7 @@
  * spawn_load - Load a library module or executes an executable one
  * @name	the name of the library/executable to use, including the extension
  * 			(e.g. 'sort.c32')
+ * @argc:	the number of string arguments in @argv
  * @argv:	a NULL-terminated vector of string arguments, starting with
  * 			the program name.
  *
@@ -40,7 +41,7 @@
  * kind of module it is ( executable or library ), after which is performs the
  * appropriate action, either spawning or simply loading the module into memory.
  */
-extern int spawn_load(const char *name,const char **argv);
+extern int spawn_load(const char *name, int argc, char **argv);
 
 extern int module_load_dependencies(const char*name,const char*dep_file);
 

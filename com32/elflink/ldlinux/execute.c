@@ -43,13 +43,10 @@ static inline int my_isspace(char c)
 
 void execute(const char *cmdline, enum kernel_type type)
 {
-	com32sys_t ireg;
 	const char *p, *const *pp;
-	char *q;
 	const char *kernel, *args;
-
-	/* work around for spawn_load parameter */
-	char *spawn_load_param[2] = { NULL, NULL};
+	com32sys_t ireg;
+	char *q;
 
 	memset(&ireg, 0, sizeof ireg);
 
@@ -87,18 +84,70 @@ void execute(const char *cmdline, enum kernel_type type)
 
 	if (type == KT_COM32) {
 		/* new entry for elf format c32 */
-		spawn_load_param[0] = args;
+		char **argv;
+		int i, argc;
+
+		q = args;
+		for (argc = 0; *q; q++) {
+			argc++;
+
+			/* Find the end of this arg */
+			while(*q && !my_isspace(*q))
+				q++;
+
+			/*
+			 * Now skip all whitespace between arguments.
+			 */
+			while (*q && my_isspace(*q))
+				q++;
+		}
+
+		/*
+		 * Generate a copy of argv on the stack as this is
+		 * traditionally where process arguments go.
+		 *
+		 * argv[0] must be the command name, so bump argc to
+		 * include argv[0].
+		 */
+		argc += 1;
+		argv = alloca(argc * sizeof(char *));
+		argv[0] = kernel;
+
+		for (q = args, i = 1; i < argc - 1; i++) {
+			char *start;
+			int len = 0;
+
+			start = q;
+
+			/* Find the end of this arg */
+			while(*q && !my_isspace(*q)) {
+				q++;
+				len++;
+			}
+
+			argv[i] = malloc(len + 1);
+			strncpy(argv[i], start, len);
+			argv[i][len] = '\0';
+
+			/*
+			 * Now skip all whitespace between arguments.
+			 */
+			while (*q && my_isspace(*q))
+				q++;
+		}
+
+		argv[argc] = NULL;
 		module_load_dependencies(kernel, "modules.dep");
-		spawn_load(kernel, spawn_load_param);
+		spawn_load(kernel, argc, argv);
 	} else if (type <= KT_KERNEL) {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */
 		new_linux_kernel(kernel, cmdline);
 	} else if (type == KT_CONFIG) {
 		/* kernel contains the config file name */
-		spawn_load_param[0] = args;
+		char *spawn_load_param[2] = { args, NULL };
 		module_load_dependencies("ui.c32", "modules.dep");
-		spawn_load(kernel, spawn_load_param);
+		spawn_load(kernel, 1, spawn_load_param);
 	} else {
 		/* process the image need int 22 support */
 		if (type == KT_LOCALBOOT) {

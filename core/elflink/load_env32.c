@@ -18,6 +18,8 @@
 #include "menu.h"
 #include "core-elf.h"
 
+#define LDLINUX	"ldlinux.c32"
+
 typedef void (*constructor_t) (void);
 constructor_t __ctors_start[], __ctors_end[];
 
@@ -68,10 +70,13 @@ static void call_constr(void)
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32(com32sys_t * regs)
 {
+	char *argv[] = { LDLINUX, NULL };
+
 	dprintf("Starting 32 bit elf module subsystem...\n");
 	call_constr();
 
 	init_module_subsystem(&core_module);
 
-	execute("ldlinux.c32", KT_COM32);
+	module_load_dependencies(LDLINUX, "modules.dep");
+	spawn_load(LDLINUX, 1, argv);
 }

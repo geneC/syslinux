@@ -19,7 +19,7 @@ CFLAGS += -I../modules -I$(topdir)/core/elflink -I$(topdir)/core/include
 all: ldlinux.c32
 
 ldlinux.c32 : ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o \
-		adv.o ipappend.o
+		adv.o ipappend.o execute.o kernel.o
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
