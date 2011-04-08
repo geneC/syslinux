@@ -3,7 +3,8 @@
 
 #include <stddef.h>
 #include <inttypes.h>
-#include "core.h"
+#include <stdbool.h>
+#include <timer.h>
 
 struct semaphore;
 

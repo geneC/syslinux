@@ -1,5 +1,6 @@
 #include "thread.h"
 #include <limits.h>
+#include <klibc/compiler.h>
 
 __noreturn __exit_thread(void)
 {
