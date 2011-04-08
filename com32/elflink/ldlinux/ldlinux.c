@@ -22,8 +22,7 @@ static void load_kernel(const char *kernel)
 {
 	struct menu_entry *me;
 	enum kernel_type type;
-	const char *cmdline;
-	char *kernel_name;
+	const char *cmdline, *p;
 	int len;
 
 	/* Virtual kernel? */
@@ -38,23 +37,25 @@ static void load_kernel(const char *kernel)
 	if (!allowimplicit)
 		goto bad_implicit;
 
-	kernel_name = strtok((char *)kernel, COMMAND_DELIM);
-	len = strlen(kernel_name);
+	/* Find the end of the command */
+	while (*p && !my_isspace(*p))
+		p++;
 
-	if (!strcmp(kernel_name + len - 4, ".c32")) {
+	len = p - kernel;
+	if (!strncmp(kernel + len - 4, ".c32", 4)) {
 		type = KT_COM32;
-	} else if (!strcmp(kernel_name + len - 2, ".0")) {
+	} else if (!strncmp(kernel + len - 2, ".0", 2)) {
 		type = KT_PXE;
-	} else if (!strcmp(kernel_name + len - 3, ".bs")) {
+	} else if (!strncmp(kernel + len - 3, ".bs", 3)) {
 		type = KT_BOOT;
-	} else if (!strcmp(kernel_name + len - 4, ".img")) {
+	} else if (!strncmp(kernel + len - 4, ".img", 4)) {
 		type = KT_FDIMAGE;
-	} else if (!strcmp(kernel_name + len - 4, ".bin")) {
+	} else if (!strncmp(kernel + len - 4, ".bin", 4)) {
 		type = KT_BOOT;
-	} else if (!strcmp(kernel_name + len - 4, ".bss")) {
+	} else if (!strncmp(kernel + len - 4, ".bss", 4)) {
 		type = KT_BSS;
-	} else if (!strcmp(kernel_name + len - 4, ".com")
-	       || !strcmp(kernel_name + len - 4, ".cbt")) {
+	} else if (!strncmp(kernel + len - 4, ".com", 4) ||
+		   !strncmp(kernel + len - 4, ".cbt", 4)) {
 		type = KT_COMBOOT;
 	}
 	/* use KT_KERNEL as default */
