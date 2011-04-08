@@ -1,9 +1,6 @@
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H__
 
-/* Disable most things so I can get lwip to build */
-#define NO_SYS 1
-#define LWIP_NETCONN 0
-#define LWIP_SOCKET 0
+#define SYS_LIGHTWEIGHT_PROT	1
 
 #endif /* __LWIPOPTS_H__ */
