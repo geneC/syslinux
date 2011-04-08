@@ -256,4 +256,8 @@ void free_port(uint16_t port);
 void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
 	       const char *filename);
 
+/* gpxeurl.c */
+void gpxe_open(struct inode *inode, const char *url);
+#define GPXE 1
+
 #endif /* pxe.h */
