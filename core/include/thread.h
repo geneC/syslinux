@@ -20,13 +20,11 @@ struct thread_block {
     bool timed_out;
 };
 
-struct sys_timeouts;
-
 struct thread {
     void *esp;			/* Must be first; stack pointer */
     struct thread_list  list;
     struct thread_block *blocked;
-    struct sys_timeouts *timeouts; /* For the benefit of lwIP */
+    void *pvt; 			/* For the benefit of lwIP */
     int prio;
 };
 
