@@ -39,9 +39,9 @@ BTARGET  = kwdhash.gen \
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
-CSRC	 := $(wildcard *.c */*.c */*/*.c)
-SSRC	 := $(wildcard *.S */*.S */*/*.S)
-CHDR	 := $(wildcard *.h)
+CSRC	 := $(shell find . -name '*.c' -print)
+SSRC	 := $(shell find . -name '*.S' -print)
+CHDR	 := $(shell find . -name '*.h' -print)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
@@ -125,10 +125,11 @@ install-all: install install-lib
 netinstall: installer
 
 tidy dist:
-	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
+	find . -type f \( -name '*.o' -o -name '*.a' -o -name '.*.d' \
+		-o -name '*.lst' \) -print | xargs -rt rm -f
+	rm -f codepage.cp *.elf stupid.* patch.offset .depend
 	rm -f *.elf.tmp *.sym
-	rm -f *.lsr *.lst *.map *.sec *.raw
-	rm -f */*.o */*/*.o */*.lst */*/*.lst */.*.d */*/.*.d
+	rm -f *.lsr *.map *.sec *.raw
 	rm -f $(OBSOLETE) $(LIB)
 
 clean: tidy
@@ -137,4 +138,4 @@ spotless: clean
 	rm -f $(BTARGET) *.bin *_bin.c
 
 # Include dependencies file
--include .*.d */.*.d */*/.*.d
+-include $(shell find . -name '.*.d' -print)
