@@ -5,6 +5,7 @@
 #include <com32.h>
 #include <syslinux/pmapi.h>
 #include <kaboom.h>
+#include <timer.h>
 
 extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];
@@ -59,22 +60,6 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
  */
 #define __hugebss __attribute__((nocommon,section(".hugebss"),aligned(4096)))
 
-
-/*
- * Basic timer function...
- */
-typedef uint32_t jiffies_t;
-extern volatile jiffies_t __jiffies, __ms_timer;
-static inline jiffies_t jiffies(void)
-{
-    return __jiffies;
-}
-typedef uint32_t mstime_t;
-typedef int32_t  mstimediff_t;
-static inline mstime_t ms_timer(void)
-{
-    return __ms_timer;
-}
 
 /*
  * Helper routine to return a specific set of flags
