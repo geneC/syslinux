@@ -485,7 +485,7 @@ static void fill_buffer(struct inode *inode)
     const uint8_t *timeout_ptr;
     uint8_t timeout;
     uint16_t buffersize;
-    uint32_t oldtime;
+    jiffies_t oldtime;
     void *data = NULL;
     static __lowmem struct s_PXENV_UDP_READ udp_read;
     struct pxe_pvt_inode *socket = PVT(inode);
@@ -520,7 +520,7 @@ static void fill_buffer(struct inode *inode)
         udp_read.d_port      = socket->tftp_localport;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err) {
-	    uint32_t now = jiffies();
+	    jiffies_t now = jiffies();
 
 	    if (now-oldtime >= timeout) {
 		oldtime = now;
@@ -678,8 +678,8 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     int buffersize;
     int rrq_len;
     const uint8_t  *timeout_ptr;
-    uint32_t timeout;
-    uint32_t oldtime;
+    jiffies_t timeout;
+    jiffies_t oldtime;
     uint16_t tid;
     uint16_t opcode;
     uint16_t blk_num;
@@ -822,7 +822,7 @@ wait_pkt:
         udp_read.d_port      = tid;
         err = pxe_call(PXENV_UDP_READ, &udp_read);
         if (err || udp_read.status) {
-	    uint32_t now = jiffies();
+	    jiffies_t now = jiffies();
 	    if (now - oldtime >= timeout)
 		goto sendreq;
         } else {

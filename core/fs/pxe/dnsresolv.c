@@ -182,7 +182,7 @@ uint32_t dns_resolv(const char *name)
     int ques, reps;    /* number of questions and replies */
     uint8_t timeout;
     const uint8_t *timeout_ptr = TimeoutTable;
-    uint32_t oldtime;
+    jiffies_t oldtime;
     uint32_t srv;
     uint32_t *srv_ptr;
     struct dnshdr *hd1 = (struct dnshdr *)DNSSendBuf;
