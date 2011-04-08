@@ -235,6 +235,7 @@ static inline uint32_t gateway(uint32_t ip)
 /* pxe.c */
 bool ip_ok(uint32_t);
 int pxe_call(int, void *);
+extern __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 
 /* dhcp_options.c */
 void parse_dhcp(int);
@@ -250,5 +251,9 @@ void pxe_idle_cleanup(void);
 /* socknum.c */
 uint16_t get_port(void);
 void free_port(uint16_t port);
+
+/* tftp.c */
+void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
+	       const char *filename);
 
 #endif /* pxe.h */
