@@ -163,6 +163,8 @@ struct pxe_pvt_inode {
     char    *tftp_dataptr;     /* Pointer to available data */
     uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
     uint8_t  tftp_unused[3];   /* Currently unused */
+    void (*fill_buffer)(struct inode *inode);
+    void (*close)(struct inode *inode);
     char     tftp_pktbuf[PKTBUF_SIZE];
 } __attribute__ ((packed));
 

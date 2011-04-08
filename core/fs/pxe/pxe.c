@@ -93,20 +93,21 @@ static void gpxe_close_file(struct inode *inode)
 }
 #endif
 
+static void tftp_close_file(struct inode *inode)
+{
+    struct pxe_pvt_inode *socket = PVT(inode);
+    if (socket->tftp_localport != 0) {
+	tftp_error(inode, 0, "No error, file close");
+    }
+}
+
 static void pxe_close_file(struct file *file)
 {
     struct inode *inode = file->inode;
     struct pxe_pvt_inode *socket = PVT(inode);
 
     if (!socket->tftp_goteof) {
-#if GPXE
-	if (socket->tftp_localport == 0xffff) {
-	    gpxe_close_file(inode);
-	} else
-#endif
-	if (socket->tftp_localport != 0) {
-	    tftp_error(inode, 0, "No error, file close");
-	}
+	socket->close(inode);
     }
 
     free_socket(inode);
@@ -421,7 +422,7 @@ static enum pxe_path_type pxe_path_type(const char *str)
  * @param: inode -> Inode pointer
  *
  */
-static void get_packet_gpxe(struct inode *inode)
+static void gpxe_get_packet(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     static __lowmem struct s_PXENV_FILE_READ file_read;
@@ -478,7 +479,7 @@ static void pxe_mangle_name(char *dst, const char *src)
  * Get a fresh packet if the buffer is drained, and we haven't hit
  * EOF yet.  The buffer should be filled immediately after draining!
  */
-static void fill_buffer(struct inode *inode)
+static void tftp_get_packet(struct inode *inode)
 {
     int err;
     int last_pkt;
@@ -489,16 +490,6 @@ static void fill_buffer(struct inode *inode)
     void *data = NULL;
     static __lowmem struct s_PXENV_UDP_READ udp_read;
     struct pxe_pvt_inode *socket = PVT(inode);
-
-    if (socket->tftp_bytesleft || socket->tftp_goteof)
-        return;
-
-#if GPXE
-    if (socket->tftp_localport == 0xffff) {
-        get_packet_gpxe(inode);
-        return;
-    }
-#endif
 
     /*
      * Start by ACKing the previous packet; this should cause
@@ -580,6 +571,19 @@ static void fill_buffer(struct inode *inode)
     }
 }
 
+/*
+ * Get a fresh packet if the buffer is drained, and we haven't hit
+ * EOF yet.  The buffer should be filled immediately after draining!
+ */
+static void fill_buffer(struct inode *inode)
+{
+    struct pxe_pvt_inode *socket = PVT(inode);
+    if (socket->tftp_bytesleft || socket->tftp_goteof)
+        return;
+
+    return socket->fill_buffer(inode);
+}
+
 
 /**
  * getfssec: Get multiple clusters from a file, given the starting cluster.
@@ -634,42 +638,58 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
     return bytes_read;
 }
 
+#if GPXE
+/**
+ * Open a url using gpxe
+ *
+ * @param:inode, the inode to store our state in
+ * @param:url, the url we want to open
+ *
+ * @out: open_file_t structure, stores in file->open_file
+ * @out: the lenght of this file, stores in file->file_len
+ *
+ */
+static void gpxe_open(struct inode *inode, const char *url)
+{
+    static __lowmem struct s_PXENV_FILE_OPEN file_open;
+    static char lowurl[2*FILENAME_MAX];
+    struct pxe_pvt_inode *socket = PVT(inode);
+    int err;
+
+    snprintf(lowurl, sizeof lowurl, "%s", url);
+    file_open.Status        = PXENV_STATUS_BAD_FUNC;
+    file_open.FileName      = FAR_PTR(lowurl);
+    err = pxe_call(PXENV_FILE_OPEN, &file_open);
+    if (err)
+	return; 
+
+    socket->fill_buffer = gpxe_get_packet;
+    socket->close = gpxe_close_file;
+    socket->tftp_remoteport = file_open.FileHandle;
+    inode->size = -1; /* This is not an error */
+}
+#endif
+
 /**
  * Open a TFTP connection to the server
  *
+ * @param:inode, the inode to store our state in
+ * @param:ip, the ip to contact to get the file
  * @param:filename, the file we wanna open
  *
  * @out: open_file_t structure, stores in file->open_file
  * @out: the lenght of this file, stores in file->file_len
  *
  */
-static void __pxe_searchdir(const char *filename, struct file *file);
-extern uint16_t PXERetry;
-
-static void pxe_searchdir(const char *filename, struct file *file)
+static void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port, const char *filename)
 {
-    int i = PXERetry;
-
-    do {
-	dprintf("PXE: file = %p, retries left = %d: ", file, i);
-	__pxe_searchdir(filename, file);
-	dprintf("%s\n", file->inode ? "ok" : "failed");
-    } while (!file->inode && i--);
-}
-
-static void __pxe_searchdir(const char *filename, struct file *file)
-{
-    struct fs_info *fs = file->fs;
-    struct inode *inode;
-    struct pxe_pvt_inode *socket;
+    struct pxe_pvt_inode *socket = PVT(inode);
     char *buf;
-    const char *np;
     char *p;
     char *options;
     char *data;
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
     static __lowmem struct s_PXENV_UDP_READ  udp_read;
-    static __lowmem struct s_PXENV_FILE_OPEN file_open;
     static const char rrq_tail[] = "octet\0""tsize\0""0\0""blksize\0""1408";
     static __lowmem char rrq_packet_buf[2+2*FILENAME_MAX+sizeof rrq_tail];
     const struct tftp_options *tftp_opt;
@@ -683,114 +703,22 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     uint16_t tid;
     uint16_t opcode;
     uint16_t blk_num;
-    uint32_t ip = 0;
     uint32_t opdata, *opdata_ptr;
-    enum pxe_path_type path_type;
-    char fullpath[2*FILENAME_MAX];
-    uint16_t server_port = TFTP_PORT;  /* TFTP server port */
 
-    inode = file->inode = NULL;
-	
+    socket->fill_buffer = tftp_get_packet;
+    socket->close = tftp_close_file;
+
     buf = rrq_packet_buf;
     *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
     buf += 2;
 
-    path_type = pxe_path_type(filename);
-    if (path_type == PXE_RELATIVE) {
-	snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
-	path_type = pxe_path_type(filename = fullpath);
-    }
-
-    switch (path_type) {
-    case PXE_RELATIVE:		/* Really shouldn't happen... */
-    case PXE_URL:
-	buf = stpcpy(buf, filename);
-	ip = IPInfo.serverip;	/* Default server */
-	break;
-
-    case PXE_HOMESERVER:
-	buf = stpcpy(buf, filename+2);
-	ip = IPInfo.serverip;
-	break;
-
-    case PXE_TFTP:
-	np = strchr(filename, ':');
-	buf = stpcpy(buf, np+2);
-	if (parse_dotquad(filename, &ip) != np)
-	    ip = dns_resolv(filename);
-	break;
-
-    case PXE_URL_TFTP:
-	np = filename + 7;
-	while (*np && *np != '/' && *np != ':')
-	    np++;
-	if (np > filename + 7) {
-	    if (parse_dotquad(filename + 7, &ip) != np)
-		ip = dns_resolv(filename + 7);
-	}
-	if (*np == ':') {
-	    np++;
-	    server_port = 0;
-	    while (*np >= '0' && *np <= '9')
-		server_port = server_port * 10 + *np++ - '0';
-	    server_port = server_port ? htons(server_port) : TFTP_PORT;
-	}
-	if (*np == '/')
-	    np++;		/* Do *NOT* eat more than one slash here... */
-	/*
-	 * The ; is because of a quirk in the TFTP URI spec (RFC
-	 * 3617); it is to be followed by TFTP modes, which we just ignore.
-	 */
-	while (*np && *np != ';') {
-	    int v;
-	    if (*np == '%' && (v = hexbyte(np+1)) > 0) {
-		*buf++ = v;
-		np += 3;
-	    } else {
-		*buf++ = *np++;
-	    }
-	}
-	*buf = '\0';
-	break;
-    }
+    buf = stpcpy(buf, filename);
 
     buf++;			/* Point *past* the final NULL */
     memcpy(buf, rrq_tail, sizeof rrq_tail);
     buf += sizeof rrq_tail;
 
     rrq_len = buf - rrq_packet_buf;
-
-    inode = allocate_socket(fs);
-    if (!inode)
-	return;			/* Allocation failure */
-    socket = PVT(inode);
-
-#if GPXE
-    if (path_type == PXE_URL) {
-	if (has_gpxe) {
-	    file_open.Status        = PXENV_STATUS_BAD_FUNC;
-	    file_open.FileName      = FAR_PTR(rrq_packet_buf + 2);
-	    err = pxe_call(PXENV_FILE_OPEN, &file_open);
-	    if (err)
-		goto done;
-	    
-	    socket->tftp_localport = -1;
-	    socket->tftp_remoteport = file_open.FileHandle;
-	    inode->size = -1;
-	    goto done;
-	} else {
-	    static bool already = false;
-	    if (!already) {
-		printf("URL syntax, but gPXE extensions not detected, "
-		       "trying plain TFTP...\n");
-		already = true;
-	    }
-	}
-    }
-#endif /* GPXE */
-
-    if (!ip)
-	    goto done;		/* No server */
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
     
@@ -964,13 +892,7 @@ wait_pkt:
 	printf("TFTP unknown opcode %d\n", ntohs(opcode));
 	goto err_reply;
     }
-
 done:
-    if (!inode->size) {
-        free_socket(inode);
-	return;
-    }
-    file->inode = inode;
     return;
 
 err_reply:
@@ -978,6 +900,133 @@ err_reply:
     tftp_error(inode, TFTP_EOPTNEG, "TFTP protocol error");
     printf("TFTP server sent an incomprehesible reply\n");
     kaboom();
+}
+
+/**
+ * Open the specified connection
+ *
+ * @param:filename, the file we wanna open
+ *
+ * @out: open_file_t structure, stores in file->open_file
+ * @out: the lenght of this file, stores in file->file_len
+ *
+ */
+static void __pxe_searchdir(const char *filename, struct file *file);
+extern uint16_t PXERetry;
+
+static void pxe_searchdir(const char *filename, struct file *file)
+{
+    int i = PXERetry;
+
+    do {
+	dprintf("PXE: file = %p, retries left = %d: ", file, i);
+	__pxe_searchdir(filename, file);
+	dprintf("%s\n", file->inode ? "ok" : "failed");
+    } while (!file->inode && i--);
+}
+static void __pxe_searchdir(const char *filename, struct file *file)
+{
+    struct fs_info *fs = file->fs;
+    struct inode *inode;
+    const char *np;
+    char *buf;
+    uint32_t ip = 0;
+    enum pxe_path_type path_type;
+    char fullpath[2*FILENAME_MAX];
+    uint16_t server_port = TFTP_PORT;  /* TFTP server port */
+
+    inode = file->inode = NULL;
+
+    path_type = pxe_path_type(filename);
+    if (path_type == PXE_RELATIVE) {
+	snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
+	path_type = pxe_path_type(filename = fullpath);
+    }
+
+    switch (path_type) {
+    case PXE_RELATIVE:		/* Really shouldn't happen... */
+    case PXE_URL:
+	ip = IPInfo.serverip;	/* Default server */
+	break;
+
+    case PXE_HOMESERVER:
+	filename = filename+2;
+	ip = IPInfo.serverip;
+	break;
+
+    case PXE_TFTP:
+	np = strchr(filename, ':');
+	if (parse_dotquad(filename, &ip) != np)
+	    ip = dns_resolv(filename);
+	filename = np+2;
+	break;
+
+    case PXE_URL_TFTP:
+	np = filename + 7;
+	while (*np && *np != '/' && *np != ':')
+	    np++;
+	if (np > filename + 7) {
+	    if (parse_dotquad(filename + 7, &ip) != np)
+		ip = dns_resolv(filename + 7);
+	}
+	if (*np == ':') {
+	    np++;
+	    server_port = 0;
+	    while (*np >= '0' && *np <= '9')
+		server_port = server_port * 10 + *np++ - '0';
+	    server_port = server_port ? htons(server_port) : TFTP_PORT;
+	}
+	if (*np == '/')
+	    np++;		/* Do *NOT* eat more than one slash here... */
+	/*
+	 * The ; is because of a quirk in the TFTP URI spec (RFC
+	 * 3617); it is to be followed by TFTP modes, which we just ignore.
+	 */
+	filename = buf = fullpath;
+	while (*np && *np != ';') {
+	    int v;
+	    if (*np == '%' && (v = hexbyte(np+1)) > 0) {
+		*buf++ = v;
+		np += 3;
+	    } else {
+		*buf++ = *np++;
+	    }
+	}
+	*buf = '\0';
+	break;
+    }
+
+    inode = allocate_socket(fs);
+    if (!inode)
+	return;			/* Allocation failure */
+
+#if GPXE
+    if (path_type == PXE_URL) {
+	if (has_gpxe) {
+	    gpxe_open(inode, filename);
+	    goto done;
+	} else {
+	    static bool already = false;
+	    if (!already) {
+		printf("URL syntax, but gPXE extensions not detected, "
+		       "trying plain TFTP...\n");
+		already = true;
+	    }
+	}
+    }
+#endif /* GPXE */
+
+    if (!ip)
+	    goto done;		/* No server */
+
+    tftp_open(inode, ip, server_port, filename);
+done:
+    if (!inode->size) {
+        free_socket(inode);
+	return;
+    }
+    file->inode = inode;
+    return;
 }
 
 
