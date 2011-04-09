@@ -61,7 +61,6 @@
 #include <inttypes.h>
 #include <string.h>
 #include <syslinux/pxe_api.h>
-#include <core.h>
 #include <dprintf.h>
 
 int pxe_call(int, void *);
