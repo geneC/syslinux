@@ -80,7 +80,7 @@ pxenv_undi_isr_buf:
 .pkttype:	resb 1
 .size		equ $-pxenv_undi_isr_buf
 
-		global pxe_irq_num
+		global pxe_irq_vector
 pxe_irq_vector	resb 1			; PXE IRQ vector
 		global pxe_irq_pending
 pxe_irq_pending	resb 1			; IRQ pending flag
