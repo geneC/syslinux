@@ -25,8 +25,8 @@
 
 #define LWIP_SOCKET			0
 
-#define MEM_LIBC_MALLOC			0
-#define MEMP_MEM_MALLOC			0
+#define MEM_LIBC_MALLOC			1
+#define MEMP_MEM_MALLOC			1
 
 #define MEMP_NUM_TCP_PCB		64
 #define MEMP_NUM_TCP_SEG		256
