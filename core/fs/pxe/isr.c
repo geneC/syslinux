@@ -23,6 +23,7 @@ static void pm_return(void)
     if (now != last_jiffies) {
 	last_jiffies = now;
 	__thread_process_timeouts();
+	__need_schedule = true; /* Switch threads if more than one runnable */
     }
 
     if (pxe_irq_pending) {
