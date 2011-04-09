@@ -28,7 +28,7 @@ struct thread *start_thread(const char *name, size_t stack_size, int prio,
 	return NULL;
 
     t = (struct thread *)stack;
-    stack = (char *)(t + 1);	/* After the thread structure */
+    stack += sizeof(struct thread);
 
     memset(t, 0, sizeof *t);
 
