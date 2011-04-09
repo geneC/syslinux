@@ -7,6 +7,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "core.h"
+#include "thread.h"
+
+extern struct semaphore __malloc_semaphore;
 
 /*
  * This is a temporary hack.  In Syslinux 5 this will be a pointer to
