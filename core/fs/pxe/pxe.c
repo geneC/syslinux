@@ -243,7 +243,7 @@ static int pxe_get_cached_info(int type)
     static __lowmem struct s_PXENV_GET_CACHED_INFO get_cached_info;
     printf(" %02x", type);
 
-    get_cached_info.Status      = 0;
+    memset(&get_cached_info, 0, sizeof get_cached_info);
     get_cached_info.PacketType  = type;
     get_cached_info.BufferSize  = 8192;
     get_cached_info.Buffer      = FAR_PTR(trackbuf);
