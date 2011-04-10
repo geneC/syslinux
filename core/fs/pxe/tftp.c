@@ -1,5 +1,6 @@
 #include <minmax.h>
 #include "pxe.h"
+#include "lwip/api.h"
 
 const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44,
@@ -30,6 +31,10 @@ static void tftp_close_file(struct inode *inode)
     if (socket->tftp_localport != 0) {
 	tftp_error(inode, 0, "No error, file close");
     }
+    if (socket->conn) {
+	netconn_delete(socket->conn);
+	socket->conn = NULL;
+    }
 }
 
 /**
@@ -42,12 +47,12 @@ static void tftp_close_file(struct inode *inode)
 static void tftp_error(struct inode *inode, uint16_t errnum,
 		       const char *errstr)
 {
-    static __lowmem struct {
+    static struct {
 	uint16_t err_op;
 	uint16_t err_num;
 	char err_msg[64];
     } __packed err_buf;
-    static __lowmem struct s_PXENV_UDP_WRITE udp_write;
+    struct netbuf *nbuf;
     int len = min(strlen(errstr), sizeof(err_buf.err_msg)-1);
     struct pxe_pvt_inode *socket = PVT(inode);
 
@@ -56,15 +61,11 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
     memcpy(err_buf.err_msg, errstr, len);
     err_buf.err_msg[len] = '\0';
 
-    udp_write.src_port    = socket->tftp_localport;
-    udp_write.dst_port    = socket->tftp_remoteport;
-    udp_write.ip          = socket->tftp_remoteip;
-    udp_write.gw          = gateway(udp_write.ip);
-    udp_write.buffer      = FAR_PTR(&err_buf);
-    udp_write.buffer_size = 4 + len + 1;
-
+    nbuf = netbuf_new();
+    netbuf_ref(nbuf, &err_buf, 4 + len + 1);
+    netconn_send(socket->conn, nbuf);
     /* If something goes wrong, there is nothing we can do, anyway... */
-    pxe_call(PXENV_UDP_WRITE, &udp_write);
+    netbuf_delete(nbuf);
 }
 
 /**
@@ -76,22 +77,19 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
  */
 static void ack_packet(struct inode *inode, uint16_t ack_num)
 {
-    int err;
-    static __lowmem uint16_t ack_packet_buf[2];
-    static __lowmem struct s_PXENV_UDP_WRITE udp_write;
+    err_t err;
+    static uint16_t ack_packet_buf[2];
+    struct netbuf *nbuf;
     struct pxe_pvt_inode *socket = PVT(inode);
 
     /* Packet number to ack */
     ack_packet_buf[0]     = TFTP_ACK;
     ack_packet_buf[1]     = ack_num;
-    udp_write.src_port    = socket->tftp_localport;
-    udp_write.dst_port    = socket->tftp_remoteport;
-    udp_write.ip          = socket->tftp_remoteip;
-    udp_write.gw          = gateway(udp_write.ip);
-    udp_write.buffer      = FAR_PTR(ack_packet_buf);
-    udp_write.buffer_size = 4;
 
-    err = pxe_call(PXENV_UDP_WRITE, &udp_write);
+    nbuf = netbuf_new();
+    netbuf_ref(nbuf, ack_packet_buf, 4);
+    err = netconn_send(socket->conn, nbuf);
+    netbuf_delete(nbuf);
     (void)err;
 #if 0
     printf("sent %s\n", err ? "FAILED" : "OK");
@@ -104,14 +102,14 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
  */
 static void tftp_get_packet(struct inode *inode)
 {
-    int err;
     int last_pkt;
     const uint8_t *timeout_ptr;
     uint8_t timeout;
     uint16_t buffersize;
     jiffies_t oldtime;
     void *data = NULL;
-    static __lowmem struct s_PXENV_UDP_READ udp_read;
+    struct netbuf *nbuf;
+    u16_t nbuf_len;
     struct pxe_pvt_inode *socket = PVT(inode);
 
     /*
@@ -126,14 +124,8 @@ static void tftp_get_packet(struct inode *inode)
     ack_packet(inode, socket->tftp_lastpkt);
 
     while (timeout) {
-        udp_read.buffer      = FAR_PTR(packet_buf);
-        udp_read.buffer_size = PKTBUF_SIZE;
-        udp_read.src_ip      = socket->tftp_remoteip;
-        udp_read.dest_ip     = IPInfo.myip;
-        udp_read.s_port      = socket->tftp_remoteport;
-        udp_read.d_port      = socket->tftp_localport;
-        err = pxe_call(PXENV_UDP_READ, &udp_read);
-        if (err) {
+	nbuf = netconn_recv(socket->conn);
+	if (!nbuf) {
 	    jiffies_t now = jiffies();
 
 	    if (now-oldtime >= timeout) {
@@ -144,10 +136,18 @@ static void tftp_get_packet(struct inode *inode)
 		goto ack_again;
 	    }
             continue;
-        }
+	}
 
-        if (udp_read.buffer_size < 4)  /* Bad size for a DATA packet */
-            continue;
+	netbuf_first(nbuf);
+	nbuf_len = 0;
+	nbuf_len = netbuf_len(nbuf);
+	if (nbuf_len <= PKTBUF_SIZE)
+	    netbuf_copy(nbuf, packet_buf, nbuf_len);
+	else
+	    nbuf_len = 0; /* impossible mtu < PKTBUF_SIZE */
+	netbuf_delete(nbuf);
+	if (nbuf_len < 4)  /* Bad size for a DATA packet */
+	    continue;
 
         data = packet_buf;
         if (*(uint16_t *)data != TFTP_DATA)    /* Not a data packet */
@@ -180,7 +180,7 @@ static void tftp_get_packet(struct inode *inode)
 
     /* It's the packet we want.  We're also EOF if the size < blocksize */
     socket->tftp_lastpkt = last_pkt;    /* Update last packet number */
-    buffersize = udp_read.buffer_size - 4;  /* Skip TFTP header */
+    buffersize = nbuf_len - 4;		/* Skip TFTP header */
     memcpy(socket->tftp_pktbuf, packet_buf + 4, buffersize);
     socket->tftp_dataptr = socket->tftp_pktbuf;
     socket->tftp_filepos += buffersize;
@@ -192,6 +192,7 @@ static void tftp_get_packet(struct inode *inode)
         /* Make sure we know we are at end of file */
         inode->size 		= socket->tftp_filepos;
         socket->tftp_goteof	= 1;
+        tftp_close_file(inode);
     }
 }
 
@@ -211,11 +212,11 @@ void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     char *buf;
+    struct netbuf *nbuf;
+    u16_t nbuf_len;
     char *p;
     char *options;
     char *data;
-    static __lowmem struct s_PXENV_UDP_WRITE udp_write;
-    static __lowmem struct s_PXENV_UDP_READ  udp_read;
     static const char rrq_tail[] = "octet\0""tsize\0""0\0""blksize\0""1408";
     static __lowmem char rrq_packet_buf[2+2*FILENAME_MAX+sizeof rrq_tail];
     const struct tftp_options *tftp_opt;
@@ -230,9 +231,21 @@ void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
     uint16_t opcode;
     uint16_t blk_num;
     uint32_t opdata, *opdata_ptr;
+    struct ip_addr addr;
 
     socket->fill_buffer = tftp_get_packet;
     socket->close = tftp_close_file;
+
+    socket->conn = netconn_new(NETCONN_UDP);
+    if (!socket->conn)
+	return;
+
+    socket->conn->recv_timeout = 15; /* A 15 ms recv timeout... */
+    err = netconn_bind(socket->conn, NULL, ntohs(socket->tftp_localport));
+    if (err) {
+	printf("netconn_bind error %d\n", err);
+	return;
+    }
 
     buf = rrq_packet_buf;
     *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
@@ -249,6 +262,7 @@ void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
     timeout_ptr = TimeoutTable;   /* Reset timeout */
     
 sendreq:
+    netconn_disconnect(socket->conn);
     timeout = *timeout_ptr++;
     if (!timeout)
 	return;			/* No file available... */
@@ -256,43 +270,44 @@ sendreq:
 
     socket->tftp_remoteip = ip;
     tid = socket->tftp_localport;   /* TID(local port No) */
-    udp_write.buffer    = FAR_PTR(rrq_packet_buf);
-    udp_write.ip        = ip;
-    udp_write.gw        = gateway(udp_write.ip);
-    udp_write.src_port  = tid;
-    udp_write.dst_port  = server_port;
-    udp_write.buffer_size = rrq_len;
-    pxe_call(PXENV_UDP_WRITE, &udp_write);
+    nbuf = netbuf_new();
+    netbuf_ref(nbuf, rrq_packet_buf, rrq_len);
+    addr.addr = ip;
+    netconn_sendto(socket->conn, nbuf, &addr, ntohs(server_port));
+    netbuf_delete(nbuf);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
-
 wait_pkt:
+    netconn_disconnect(socket->conn);
     for (;;) {
-        buf                  = packet_buf;
-	udp_read.status      = 0;
-        udp_read.buffer      = FAR_PTR(buf);
-        udp_read.buffer_size = PKTBUF_SIZE;
-        udp_read.dest_ip     = IPInfo.myip;
-        udp_read.d_port      = tid;
-        err = pxe_call(PXENV_UDP_READ, &udp_read);
-        if (err || udp_read.status) {
+	nbuf = netconn_recv(socket->conn);
+	if (!nbuf) {
 	    jiffies_t now = jiffies();
 	    if (now - oldtime >= timeout)
-		goto sendreq;
-        } else {
+		 goto sendreq;
+	} else {
 	    /* Make sure the packet actually came from the server */
-	    if (udp_read.src_ip == socket->tftp_remoteip)
-		break;
+	    bool ok_source;
+	    ok_source = netbuf_fromaddr(nbuf)->addr == socket->tftp_remoteip;
+	    nbuf_len = netbuf_len(nbuf);
+	    if (nbuf_len <= PKTBUF_SIZE)
+		netbuf_copy(nbuf, packet_buf, nbuf_len);
+	    else
+		nbuf_len = 0; /* impossible mtu < PKTBUF_SIZE */
+	    netbuf_delete(nbuf);
+	    if (ok_source)
+	        break;
 	}
     }
 
-    socket->tftp_remoteport = udp_read.s_port;
+    socket->tftp_remoteport = htons(netbuf_fromport(nbuf));
+    netconn_connect(socket->conn, netbuf_fromaddr(nbuf), netbuf_fromport(nbuf));
 
     /* filesize <- -1 == unknown */
     inode->size = -1;
     /* Default blksize unless blksize option negotiated */
     socket->tftp_blksize = TFTP_BLOCKSIZE;
-    buffersize = udp_read.buffer_size - 2;  /* bytes after opcode */
+    buffersize = nbuf_len - 2;	  /* bytes after opcode */
     if (buffersize < 0)
         goto wait_pkt;                     /* Garbled reply */
 
@@ -419,6 +434,10 @@ wait_pkt:
 	goto err_reply;
     }
 done:
+    if (!inode->size) {
+	netconn_delete(socket->conn);
+	socket->conn = NULL;
+    }
     return;
 
 err_reply:
