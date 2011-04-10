@@ -141,6 +141,7 @@ static void tftp_get_packet(struct inode *inode)
 		timeout = *timeout_ptr++;
 		if (!timeout)
 		    break;
+		goto ack_again;
 	    }
             continue;
         }
