@@ -1217,9 +1217,9 @@ static void network_init(void)
  */
 static int pxe_fs_init(struct fs_info *fs)
 {
-    extern void pxe_init_isr(void); /* XXX */
     (void)fs;    /* drop the compile warning message */
 
+    /* Prepare for handling pxe interrupts */
     pxe_init_isr();
 
     /* This block size is actually arbitrary... */

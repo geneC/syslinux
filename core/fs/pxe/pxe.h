@@ -232,6 +232,9 @@ static inline uint32_t gateway(uint32_t ip)
  * functions 
  */
 
+/* isr.c */
+void pxe_init_isr(void);
+
 /* pxe.c */
 bool ip_ok(uint32_t);
 int pxe_call(int, void *);
