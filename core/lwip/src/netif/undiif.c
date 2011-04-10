@@ -66,19 +66,7 @@ int pxe_call(int, void *);
 #define IFNAME0 'u'
 #define IFNAME1 'n'
 
-/**
- * Helper struct to hold private data used to operate your ethernet interface.
- * Keeping the ethernet address of the MAC in this struct is not necessary
- * as it is already kept in the struct netif.
- * But this is only an example, anyway...
- */
-struct undiif {
-  struct eth_addr *ethaddr;
-  /* Add whatever per-interface state that is needed here. */
-};
-
-/* Forward declarations. */
-static void  undiif_input(struct netif *netif);
+static struct netif *undi_netif;
 
 /**
  * In this function, the hardware should be initialized.
@@ -180,6 +168,14 @@ low_level_output(struct netif *netif, struct pbuf *p)
   return ERR_OK;
 }
 
+static void get_packet_fragment(t_PXENV_UNDI_ISR *isr)
+{
+  do {
+    isr->FuncFlag = PXENV_UNDI_ISR_IN_GET_NEXT;
+    pxe_call(PXENV_UNDI_ISR, &isr);
+  } while (isr->FuncFlag != PXENV_UNDI_ISR_OUT_RECEIVE);
+}
+
 /**
  * Should allocate a pbuf and transfer the bytes of the incoming
  * packet from the interface into the pbuf.
@@ -189,15 +185,15 @@ low_level_output(struct netif *netif, struct pbuf *p)
  *         NULL on memory error
  */
 static struct pbuf *
-low_level_input(struct netif *netif)
+low_level_input(t_PXENV_UNDI_ISR *isr)
 {
-  struct undiif *undiif = netif->state;
   struct pbuf *p, *q;
-  u16_t len;
+  const char *r;
+  int len;
 
   /* Obtain the size of the packet and put it into the "len"
      variable. */
-  len = 0;
+  len = isr->FrameLength;
 
 #if ETH_PAD_SIZE
   len += ETH_PAD_SIZE; /* allow room for Ethernet padding */
@@ -207,20 +203,40 @@ low_level_input(struct netif *netif)
   p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
 
   if (p != NULL) {
-
 #if ETH_PAD_SIZE
     pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
 #endif
 
-    /* We iterate over the pbuf chain until we have read the entire
-     * packet into the pbuf. */
-    for(q = p; q != NULL; q = q->next) {
-      /* Read enough bytes to fill this pbuf in the chain. The
+    /*
+     * We iterate over the pbuf chain until we have read the entire
+     * packet into the pbuf.
+     */
+    r = GET_PTR(isr->Frame);
+    for (q = p; q != NULL; q = q->next) {
+      /*
+       * Read enough bytes to fill this pbuf in the chain. The
        * available data in the pbuf is given by the q->len
-       * variable. */
-	// read data into(q->payload, q->len);
+       * variable.
+       */
+      char *s = q->payload;
+      int ql = q->len;
+
+      while (ql) {
+	int qb = isr->BufferLength < ql ? isr->BufferLength : ql;
+
+	if (!qb) {
+	  /*
+	   * Only received a partial frame, must get the next one...
+	   */
+	  get_packet_fragment(isr);
+	} else {
+	  memcpy(s, r, qb);
+	  s += qb;
+	  r += qb;
+	  ql -= qb;
+	}
+      }
     }
-    // acknowledge that packet has been read();
 
 #if ETH_PAD_SIZE
     pbuf_header(p, ETH_PAD_SIZE); /* reclaim the padding word */
@@ -228,7 +244,13 @@ low_level_input(struct netif *netif)
 
     LINK_STATS_INC(link.recv);
   } else {
-      // drop packet();
+    /*
+     * Dropped packet: we really should make sure we drain any partial
+     * frame here...
+     */
+    while ((len -= isr->BufferLength) > 0)
+      get_packet_fragment(isr);
+
     LINK_STATS_INC(link.memerr);
     LINK_STATS_INC(link.drop);
   }
@@ -245,17 +267,13 @@ low_level_input(struct netif *netif)
  *
  * @param netif the lwip network interface structure for this undiif
  */
-static void
-undiif_input(struct netif *netif)
+void undiif_input(t_PXENV_UNDI_ISR *isr)
 {
-  struct undiif *undiif;
   struct eth_hdr *ethhdr;
   struct pbuf *p;
 
-  undiif = netif->state;
-
   /* move received packet into a new pbuf */
-  p = low_level_input(netif);
+  p = low_level_input(isr);
   /* no packet could be read, silently ignore this */
   if (p == NULL) return;
   /* points to packet payload, which starts with an Ethernet header */
@@ -271,7 +289,7 @@ undiif_input(struct netif *netif)
   case ETHTYPE_PPPOE:
 #endif /* PPPOE_SUPPORT */
     /* full packet send to tcpip_thread to process */
-    if (netif->input(p, netif)!=ERR_OK)
+    if (undi_netif->input(p, undi_netif)!=ERR_OK)
      { LWIP_DEBUGF(NETIF_DEBUG, ("undiif_input: IP input error\n"));
        pbuf_free(p);
        p = NULL;
@@ -300,19 +318,13 @@ undiif_input(struct netif *netif)
 err_t
 undiif_init(struct netif *netif)
 {
-  struct undiif *undiif;
-
   LWIP_ASSERT("netif != NULL", (netif != NULL));
 
-  undiif = mem_malloc(sizeof(struct undiif));
-  if (undiif == NULL) {
-    LWIP_DEBUGF(NETIF_DEBUG, ("undiif_init: out of memory\n"));
-    return ERR_MEM;
-  }
+  undi_netif = netif;
 
 #if LWIP_NETIF_HOSTNAME
   /* Initialize interface hostname */
-  netif->hostname = "lwip";
+  netif->hostname = "undi";
 #endif /* LWIP_NETIF_HOSTNAME */
 
   /*
@@ -322,7 +334,7 @@ undiif_init(struct netif *netif)
    */
   NETIF_INIT_SNMP(netif, snmp_ifType_ethernet_csmacd, LINK_SPEED_OF_YOUR_NETIF_IN_BPS);
 
-  netif->state = undiif;
+  netif->state   = NULL;	/* Private pointer if we need it */
   netif->name[0] = IFNAME0;
   netif->name[1] = IFNAME1;
   /* We directly use etharp_output() here to save a function call.
@@ -331,8 +343,6 @@ undiif_init(struct netif *netif)
    * is available...) */
   netif->output = etharp_output;
   netif->linkoutput = low_level_output;
-
-  undiif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);
 
   /* initialize the hardware */
   low_level_init(netif);
