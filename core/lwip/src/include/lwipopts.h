@@ -1,6 +1,8 @@
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H__
 
+#include <byteswap.h>
+
 #define SYS_LIGHTWEIGHT_PROT	1
 #define LWIP_NETIF_API		1
 #define LWIP_DNS		1
@@ -54,5 +56,9 @@
  
 #define LWIP_STATS		1
 #define LWIP_STATS_DISPLAY	1
+
+#define LWIP_PLATFORM_BYTESWAP	1
+#define LWIP_PLATFORM_HTONS(x)	bswap_16(x)
+#define LWIP_PLATFORM_HTONL(x)	bswap_32(x)
 
 #endif /* __LWIPOPTS_H__ */
