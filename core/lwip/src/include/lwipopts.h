@@ -7,16 +7,6 @@
 #define LWIP_NETIF_API		1
 #define LWIP_DNS		1
 
-#define MEM_SIZE		(1 << 18)
-#if 0
-#define MEMP_OVERFLOW_CHECK	2 /* XXX: for debugging */
-#define MEMP_SANITY_CHECK	1 /* XXX: for debugging */
-#else
-#define MEMP_OVERFLOW_CHECK	0 /* XXX: for debugging */
-#define MEMP_SANITY_CHECK	0 /* XXX: for debugging */
-#endif
-#define MEM_USE_POOLS_TRY_BIGGER_POOL	1
-
 #define TCPIP_MBOX_SIZE         	512
 #define TCPIP_THREAD_PRIO		0
 #define TCPIP_THREAD_STACKSIZE		32768
@@ -27,8 +17,8 @@
 
 #define LWIP_SOCKET			0
 
-#define MEM_LIBC_MALLOC			1
-#define MEMP_MEM_MALLOC			1
+#define MEM_LIBC_MALLOC			0
+#define MEMP_MEM_MALLOC			0
 
 #define MEMP_NUM_TCP_PCB		64
 #define MEMP_NUM_TCP_SEG		256
