@@ -106,6 +106,12 @@ void detect_parameters(const int argc, const char *argv[],
 	    max_console_lines = MAX_CLI_LINES;
 	} else if (!strncmp(argv[i], "nomenu", 6)) {
 	    menumode = false;
+	} else if (!strncmp(argv[i], "dump_path=", 10)) {
+	    strlcpy(hardware->dump_path, argv[i] + 10,
+		    sizeof(hardware->dump_path));
+	} else if (!strncmp(argv[i], "tftp_ip=", 8)) {
+	    strlcpy(hardware->tftp_ip, argv[i] + 8,
+		    sizeof(hardware->tftp_ip));
 	} else if (!strncmp(argv[i], "auto=", 5)) {
 	    /* The auto= parameter is separated in several argv[]
 	     * as it can contains spaces.
@@ -203,7 +209,10 @@ void init_hardware(struct s_hardware *hardware)
 	   sizeof hardware->modules_alias_path);
     memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
     memset(hardware->auto_label, 0, sizeof hardware->auto_label);
+    memset(hardware->dump_path, 0, sizeof hardware->dump_path);
     memset(hardware->vesa_background, 0, sizeof hardware->vesa_background);
+    memset(hardware->tftp_ip, 0, sizeof hardware->tftp_ip);
+    strcat(hardware->dump_path, "hdt");
     strcat(hardware->pciids_path, "pci.ids");
     strcat(hardware->modules_pcimap_path, "modules.pcimap");
     strcat(hardware->modules_alias_path, "modules.alias");

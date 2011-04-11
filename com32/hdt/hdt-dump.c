@@ -37,7 +37,7 @@ struct print_buf p_buf;
 
 void compute_filename(struct s_hardware *hardware, char *filename, int size) {
 
-   snprintf(filename,size,"%s/","hdt");
+   snprintf(filename,size,"%s/",hardware->dump_path);
 
     if (hardware->is_pxe_valid) {
 	    strncat(filename, hardware->pxe.mac_addr, sizeof(hardware->pxe.mac_addr));
@@ -115,8 +115,13 @@ void dump(struct s_hardware *hardware)
 
     /* The filename */
     arg[0] = filename;
-    /* More to come */
-    arg[1] = NULL;
+    /* The server to upload the file */
+    if (strlen(hardware->tftp_ip) != 0) {
+	    arg[1] = hardware->tftp_ip;
+	    arg[2] = NULL;
+    } else {
+	    arg[1] = NULL;
+    }
 
     /* We initiate the cpio to send */
     cpio_init(upload,(const char **)arg);
