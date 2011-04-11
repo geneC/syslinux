@@ -6,6 +6,10 @@
 #define SYS_LIGHTWEIGHT_PROT	1
 #define LWIP_NETIF_API		1
 #define LWIP_DNS		1
+#define LWIP_UDP		1
+#define LWIP_TCP		1
+#define LWIP_SO_RCVTIMEO	1
+#define LWIP_ICMP		1
 
 #define TCPIP_MBOX_SIZE         	512
 #define TCPIP_THREAD_PRIO		0
