@@ -270,4 +270,7 @@ void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
 void gpxe_open(struct inode *inode, const char *url);
 #define GPXE 1
 
+/* http.c */
+void http_open(struct inode *inode, const char *url);
+
 #endif /* pxe.h */

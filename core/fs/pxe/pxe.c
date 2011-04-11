@@ -35,6 +35,7 @@ static struct url_open {
     const char *scheme;
     void (*open)(struct inode *inode, const char *url);
 } url_table[] = {
+    { "http", http_open },
     { NULL, NULL },
 };
 
