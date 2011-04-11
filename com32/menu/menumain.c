@@ -727,7 +727,7 @@ static const char *do_hidden_menu(void)
 	    key = mygetkey(this_timeout);
 
 	    if (key != KEY_NONE)
-		return NULL;	/* Key pressed */
+		return hide_key[key]; /* NULL if no MENU HIDEKEY in effect */
 
 	    timeout_left -= this_timeout;
 	}
