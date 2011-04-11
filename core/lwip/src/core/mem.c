@@ -259,7 +259,7 @@ plug_holes(struct mem *mem)
  * Zero the heap and initialize start, end and lowest-free
  */
 void
-mem_init(void)
+lwip_mem_init(void)
 {
   struct mem *mem;
 

@@ -370,7 +370,7 @@ Call these functions in the order of appearance:
   Not of much use since we set the NO_SYS 1 option in lwipopts.h,
   to be called for easy configuration changes.
 
-- mem_init()
+- lwip_mem_init()
 
   Initializes the dynamic memory heap defined by MEM_SIZE.
 

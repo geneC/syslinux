@@ -239,7 +239,7 @@ lwip_init(void)
   /* Modules initialization */
   stats_init();
   sys_init();
-  mem_init();
+  lwip_mem_init();
   memp_init();
   pbuf_init();
   netif_init();
