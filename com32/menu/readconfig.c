@@ -151,7 +151,7 @@ static char *get_word(char *str, const char **word)
     while (*p && !my_isspace(*p))
 	p++;
 
-    *word = q = refstr_alloc(p - str + 1);
+    *word = q = refstr_alloc(p - str);
     memcpy(q, str, p - str);
     /* refstr_alloc() already inserted a terminating NUL */
 
@@ -723,8 +723,7 @@ static void parse_config_file(FILE * f)
 	    } else if (looking_at(p, "hiddenkey")) {
 		const char *key_name;
 		int key;
-		p = skipspace(p + 7);
-		p = get_word(p, &key_name);
+		p = get_word(skipspace(p + 9), &key_name);
 		p = skipspace(p);
 		key = key_name_to_code(key_name);
 		refstr_put(key_name);
