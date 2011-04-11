@@ -6,10 +6,8 @@
 #include <minmax.h>
 #include <sys/cpu.h>
 #include "pxe.h"
-#if 1
-#include "lwip/api.h"
-#include "lwip/dns.h"
-#endif
+#include <lwip/api.h>
+#include <lwip/dns.h>
 
 static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
@@ -32,6 +30,13 @@ bool have_uuid = false;
 
 /* Common receive buffer */
 __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
+
+static struct url_open {
+    const char *scheme;
+    void (*open)(struct inode *inode, const char *url);
+} url_table[] = {
+    { NULL, NULL },
+};
 
 /*
  * Allocate a local UDP port structure and assign it a local port number.
@@ -184,7 +189,7 @@ static int gendotquad(char *dst, uint32_t ip)
  * return the the string address after the ip string
  *
  */
-static const char *parse_dotquad(const char *ip_str, uint32_t *res)
+const char *parse_dotquad(const char *ip_str, uint32_t *res)
 {
     const char *p = ip_str;
     uint8_t part = 0;
@@ -319,6 +324,30 @@ static void pxe_mangle_name(char *dst, const char *src)
 	*dst++ = *src++;
 
     *dst = '\0';
+}
+
+/*
+ * Read a single character from the specified pxe inode.
+ * Very useful for stepping through http streams and
+ * parsing their headers.
+ */
+int pxe_getc(struct inode *inode)
+{
+    struct pxe_pvt_inode *socket = PVT(inode);
+    unsigned char byte;
+
+    while (!socket->tftp_bytesleft) {
+	if (socket->tftp_goteof)
+	    return -1;
+
+	socket->fill_buffer(inode);
+    }
+
+    byte = *socket->tftp_dataptr;
+    socket->tftp_bytesleft -= 1;
+    socket->tftp_dataptr += 1;
+
+    return byte;
 }
 
 /*
@@ -486,6 +515,21 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     inode = allocate_socket(fs);
     if (!inode)
 	return;			/* Allocation failure */
+
+    if (path_type == PXE_URL) {
+	struct url_open *entry;
+	np = strchr(filename, ':');
+	
+	for (entry = url_table; entry->scheme; entry++) {
+	    int scheme_len = strlen(entry->scheme);
+	    if (scheme_len != (np - filename))
+	        continue;
+	    if (memcmp(entry->scheme, filename, scheme_len) != 0)
+	        continue;
+	    entry->open(inode, filename);
+	    goto done;
+	}
+    }
 
 #if GPXE
     if (path_type == PXE_URL) {

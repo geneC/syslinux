@@ -150,11 +150,13 @@ struct bootp_t {
 } __attribute__ ((packed));
 
 struct netconn;
+struct netbuf;
 /*
  * Our inode private information -- this includes the packet buffer!
  */
 struct pxe_pvt_inode {
     struct netconn *conn;      /* lwip network connection */
+    struct netbuf *buf;	       /* lwip cached buffer */
     uint16_t tftp_localport;   /* Local port number  (0=not in us)*/
     uint16_t tftp_remoteport;  /* Remote port number */
     uint32_t tftp_remoteip;    /* Remote IP address */
@@ -242,6 +244,8 @@ void pxe_poll(void);
 bool ip_ok(uint32_t);
 int pxe_call(int, void *);
 extern __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
+const char *parse_dotquad(const char *ip_str, uint32_t *res);
+int pxe_getc(struct inode *inode);
 
 /* dhcp_options.c */
 void parse_dhcp(int);
