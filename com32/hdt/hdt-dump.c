@@ -132,6 +132,7 @@ void dump(struct s_hardware *hardware)
     dump_pci(hardware, &config, &json);
     dump_acpi(hardware, &config, &json);
     dump_kernel(hardware, &config, &json);
+    dump_hdt(hardware, &config, &json);
 
     /* We close & flush the file to send */
     cpio_close(upload);
