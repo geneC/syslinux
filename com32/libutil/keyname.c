@@ -110,10 +110,8 @@ const char *key_code_to_name(int key)
     if (key < 0)
 	return NULL;
 
-    if (key < 0x100 && key != ' ') {
-	if (key == 0x7f) {
-	    return "^?";
-	} else if (key & 0x60) {
+    if (key > ' ' && key < 0x100) {
+	if (key & 0x60) {
 	    buf[0] = key;
 	    buf[1] = '\0';
 	} else {
@@ -127,6 +125,13 @@ const char *key_code_to_name(int key)
     for (name = key_names; name->string; name++) {
 	if (key == name->key)
 	    return name->string;
+    }
+
+    if (key < ' ') {
+	buf[0] = '^';
+	buf[1] = key | 0x40;
+	buf[2] = '\0';
+	return buf;
     }
 
     return NULL;
