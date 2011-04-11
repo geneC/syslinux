@@ -754,9 +754,6 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	break;
     }
 
-    if (!ip)
-	return;			/* No server */
-
     buf++;			/* Point *past* the final NULL */
     memcpy(buf, rrq_tail, sizeof rrq_tail);
     buf += sizeof rrq_tail;
@@ -791,6 +788,9 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	}
     }
 #endif /* GPXE */
+
+    if (!ip)
+	    goto done;		/* No server */
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
     
@@ -1576,6 +1576,11 @@ static int pxe_fs_init(struct fs_info *fs)
  * This manipulates the real-mode InitStack directly.  It relies on this
  * *not* being a currently active stack, i.e. the former
  * USE_PXE_PROVIDED_STACK no longer works.
+ *
+ * XXX: Disable this until we can find a better way to discriminate
+ * between BIOSes that are broken on BEV return and BIOSes which are
+ * broken on INT 18h.  Keying on the EFI CSM turns out to cause more
+ * problems than it solves.
  */
 extern far_ptr_t InitStack;
 
@@ -1595,9 +1600,10 @@ static inline bool is_efi(const struct efi_struct *efi)
     return (efi->magic == EFI_MAGIC) && (efi->len >= 83);
 }
 
-static void install_efi_csm_hack(void)
+static void install_int18_hack(void)
 {
-    static const uint8_t efi_csm_hack[] =
+#if 0
+    static const uint8_t int18_hack[] =
     {
 	0xcd, 0x18,			/* int $0x18 */
 	0xea, 0xf0, 0xff, 0x00, 0xf0,	/* ljmpw $0xf000,$0xfff0 */
@@ -1621,17 +1627,18 @@ static void install_efi_csm_hack(void)
 
 	if (efi) {
 	    uint8_t *src = GET_PTR(InitStack);
-	    uint8_t *dst = src - sizeof efi_csm_hack;
+	    uint8_t *dst = src - sizeof int18_hack;
 
 	    memmove(dst, src, 52);
-	    memcpy(dst+52, efi_csm_hack, sizeof efi_csm_hack);
-	    InitStack.offs -= sizeof efi_csm_hack;
+	    memcpy(dst+52, int18_hack, sizeof int18_hack);
+	    InitStack.offs -= sizeof int18_hack;
 
 	    /* Clobber the return address */
 	    *(uint16_t *)(dst+44) = OFFS_WRT(dst+52, InitStack.seg);
 	    *(uint16_t *)(dst+46) = InitStack.seg;
 	}
     }
+#endif
 }
 
 int reset_pxe(void)
@@ -1652,7 +1659,7 @@ int reset_pxe(void)
 	err = pxe_init(true);
     }
 
-    install_efi_csm_hack();
+    install_int18_hack();
     return err;
 }
 

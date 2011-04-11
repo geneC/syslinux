@@ -20,9 +20,8 @@
 
 enum flags {
     FL_SPLAT = 0x01,		/* Drop the value, do not assign */
-    FL_INV = 0x02,		/* Character-set with inverse */
-    FL_WIDTH = 0x04,		/* Field width specified */
-    FL_MINUS = 0x08,		/* Negative number */
+    FL_WIDTH = 0x02,		/* Field width specified */
+    FL_MINUS = 0x04,		/* Negative number */
 };
 
 enum ranks {
@@ -295,9 +294,10 @@ set_integer:
 	    break;
 
 	case st_match_init:	/* Initial state for %[ match */
-	    if (ch == '^' && !(flags & FL_INV)) {
+	    if (ch == '^' && !matchinv) {
 		matchinv = 1;
 	    } else {
+		range_start = (unsigned char)ch;
 		set_bit((unsigned char)ch, matchmap);
 		state = st_match;
 	    }
@@ -307,9 +307,9 @@ set_integer:
 	    if (ch == ']') {
 		goto match_run;
 	    } else if (ch == '-') {
-		range_start = (unsigned char)ch;
 		state = st_match_range;
 	    } else {
+		range_start = (unsigned char)ch;
 		set_bit((unsigned char)ch, matchmap);
 	    }
 	    break;
@@ -320,7 +320,7 @@ set_integer:
 		goto match_run;
 	    } else {
 		int i;
-		for (i = range_start; i < (unsigned char)ch; i++)
+		for (i = range_start; i <= (unsigned char)ch; i++)
 		    set_bit(i, matchmap);
 		state = st_match;
 	    }
