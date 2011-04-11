@@ -29,6 +29,7 @@ OBJS	  = $(patsubst %.c,%.o,$(wildcard *.c))
 VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
 VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')
+SUM_FILE  = hdt-$(VERSION).checksums
 
 MEMTEST_URL = http://memtest.org/download/4.20/memtest86+-4.20.bin
 MEMTEST     = memtest.bin
@@ -108,6 +109,10 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 
 release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso
 	mv hdt.c32 hdt_$(VERSION_C32).c32
+	md5sum hdt_$(VERSION_C32).c32 >$(SUM_FILE)
+	md5sum hdt-$(VERSION).iso >>$(SUM_FILE)
+	md5sum hdt-$(VERSION).img >>$(SUM_FILE)
+	md5sum hdt-$(VERSION).img.gz >>$(SUM_FILE)
 
 test: hdt.img
 	$(QEMU) -fda hdt.img
@@ -123,6 +128,7 @@ spotless: clean
 	rm -rf $(ISO_DIR)
 	rm -rf $(FLOPPY_DIR)/$(MEMTEST)
 	rm -rf $(FLOPPY_DIR)/pci.ids*
+	rm -rf $(SUM_FILE)
 	rm -f *~ \#*
 
 install:
