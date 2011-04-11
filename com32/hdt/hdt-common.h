@@ -59,6 +59,7 @@
 
 /* This two values are used for switching for the menu to the CLI mode */
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
+#define HDT_DUMP "hdt_dump"
 #define HDT_RETURN_TO_CLI 100
 #define MAX_VESA_MODES 255
 
