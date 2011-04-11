@@ -43,7 +43,7 @@ static void cooked_keys(void)
 	if (key >= 0x20 && key < 0x100) {
 	    putchar(key);
 	} else {
-	    printf("[%04x]", key);
+	    printf("[%s,%04x]", key_code_to_name(key), key);
 	}
     }
 }
