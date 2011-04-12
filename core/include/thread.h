@@ -32,6 +32,8 @@ struct thread {
 
 extern int __schedule_lock;
 extern bool __need_schedule;
+extern void (*sched_hook_func)(void);
+
 void __thread_process_timeouts(void);
 void __schedule(void);
 void __switch_to(struct thread *);

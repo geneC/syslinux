@@ -3,6 +3,7 @@
 
 int __schedule_lock;
 bool __need_schedule;
+void (*sched_hook_func)(void);
 
 /*
  * __schedule() should only be called with interrupts locked out!
@@ -15,6 +16,15 @@ void __schedule(void)
     if (__schedule_lock) {
 	__need_schedule = true;
 	return;
+    }
+
+    /* Possibly update the information on which we make
+     * scheduling decisions.
+     */
+    if (sched_hook_func) {
+	__schedule_lock++;
+	sched_hook_func();
+	__schedule_lock--;
     }
 
     __need_schedule = false;
