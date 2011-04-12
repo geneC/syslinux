@@ -53,34 +53,23 @@ bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old)
     return true;
 }
 
-static void pm_return(void)
+static void pxe_poll_wakeups(void)
 {
     static jiffies_t last_jiffies = 0;
     jiffies_t now = jiffies();
-    
-    __schedule_lock++;
 
     if (now != last_jiffies) {
 	last_jiffies = now;
 	__thread_process_timeouts();
-	__need_schedule = true; /* Switch threads if more than one runnable */
     }
-
+   
     if (pxe_irq_pending) {
 	pxe_irq_pending = 0;
-	if (pxe_receive_thread_sem.count <= 0)
-	  sem_up(&pxe_receive_thread_sem);
+	sem_up(&pxe_receive_thread_sem);
     }
-
-    __schedule_lock--;
-
-    if (__need_schedule)
-	__schedule();
 }
 
-void undiif_input(t_PXENV_UNDI_ISR *);
-
-void pxe_poll(void)
+static void pxe_process_irq(void)
 {
     static __lowmem t_PXENV_UNDI_ISR isr;
 
@@ -104,7 +93,7 @@ void pxe_poll(void)
     	break;
     
         case PXENV_UNDI_ISR_OUT_RECEIVE:
-    	undiif_input(&isr);
+	undiif_input(&isr);
     	break;
     	
         case PXENV_UNDI_ISR_OUT_BUSY:
@@ -126,13 +115,14 @@ static void pxe_receive_thread(void *dummy)
 
     for (;;) {
 	sem_down(&pxe_receive_thread_sem, 0);
-	pxe_poll();
+	pxe_process_irq();
     }
 }
 
 void pxe_init_isr(void)
 {
     start_idle_thread();
+    sched_hook_func = pxe_poll_wakeups;
     /*
      * Run the pxe receive thread at elevated priority, since the UNDI
      * stack is likely to have very limited memory available; therefore to
@@ -140,7 +130,7 @@ void pxe_init_isr(void)
      * manage, as soon as possible.
      */
     pxe_thread = start_thread("pxe receive", 16384, -20, pxe_receive_thread, NULL);
-    core_pm_hook = pm_return;
+    core_pm_hook = __schedule;
 }
 
 
@@ -149,6 +139,7 @@ void pxe_cleanup_isr(void)
     static __lowmem struct s_PXENV_UNDI_CLOSE undi_close;
     int err;
 
+    sched_hook_func = NULL;
     core_pm_hook = core_pm_null_hook;
     kill_thread(pxe_thread);
  

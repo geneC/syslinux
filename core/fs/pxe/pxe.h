@@ -244,7 +244,6 @@ extern far_ptr_t pxe_irq_chain;
 /* isr.c */
 void pxe_init_isr(void);
 void pxe_cleanup_isr(void);
-void pxe_poll(void);
 bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old);
 bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old);
 
@@ -257,6 +256,7 @@ int pxe_getc(struct inode *inode);
 
 /* undiif.c */
 int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw);
+void undiif_input(t_PXENV_UNDI_ISR *isr);
 
 /* dhcp_options.c */
 void parse_dhcp(int);
