@@ -128,7 +128,7 @@ spotless: clean
 	rm -rf $(ISO_DIR)
 	rm -rf $(FLOPPY_DIR)/$(MEMTEST)
 	rm -rf $(FLOPPY_DIR)/pci.ids*
-	rm -rf $(SUM_FILE)
+	rm -rf hdt-*checksums
 	rm -f *~ \#*
 
 install:
