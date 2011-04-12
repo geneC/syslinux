@@ -33,6 +33,8 @@
  * This file is part of the lwIP TCP/IP stack.
  *
  * Author: Adam Dunkels <adam@sics.se>
+ * Author: H. Peter Anvin <hpa@@zytor.com>
+ * Author: Eric Biederman <ebiederm@xmission.com>
  *
  */
 
@@ -64,13 +66,95 @@
 #include <syslinux/pxe_api.h>
 #include <dprintf.h>
 
+#if LWIP_AUTOIP
+#error "AUTOIP not supported"
+#endif
+#if ETH_PAD_SIZE
+#error "ETH_PAD_SIZE not supported"
+#endif
+
+/** the time an ARP entry stays valid after its last update,
+ *  for ARP_TMR_INTERVAL = 5000, this is
+ *  (240 * 5) seconds = 20 minutes.
+ */
+#define UNDIARP_MAXAGE 240
+/** the time an ARP entry stays pending after first request,
+ *  for ARP_TMR_INTERVAL = 5000, this is
+ *  (2 * 5) seconds = 10 seconds.
+ * 
+ *  @internal Keep this number at least 2, otherwise it might
+ *  run out instantly if the timeout occurs directly after a request.
+ */
+#define UNDIARP_MAXPENDING 2
+
+typedef u8_t hwaddr_t[NETIF_MAX_HWADDR_LEN];
+
+#ifdef PACK_STRUCT_USE_INCLUDES
+#  include "arch/bpstruct.h"
+#endif
+PACK_STRUCT_BEGIN
+/** the ARP message */
+struct arp_hdr {
+  PACK_STRUCT_FIELD(u16_t hwtype);
+  PACK_STRUCT_FIELD(u16_t proto);
+  PACK_STRUCT_FIELD(u16_t _hwlen_protolen);
+  PACK_STRUCT_FIELD(u16_t opcode);
+} PACK_STRUCT_STRUCT;
+PACK_STRUCT_END
+#ifdef PACK_STRUCT_USE_INCLUDES
+#  include "arch/epstruct.h"
+#endif
+
+static inline int arp_hdr_len(struct netif *netif)
+{
+  return sizeof(struct arp_hdr) + (netif->hwaddr_len + sizeof(uint32_t))*2;
+}
+
+enum undiarp_state {
+  UNDIARP_STATE_EMPTY = 0,
+  UNDIARP_STATE_PENDING,
+  UNDIARP_STATE_STABLE
+};
+
+struct undiarp_entry {
+#if ARP_QUEUEING
+  /** 
+   * Pointer to queue of pending outgoing packets on this ARP entry.
+   */
+  struct etharp_q_entry *q;
+#endif
+  struct ip_addr ipaddr;
+  u8_t hwaddr[NETIF_MAX_HWADDR_LEN];
+  enum undiarp_state state;
+  u8_t ctime;
+  struct netif *netif;
+};
+
 #define PKTBUF_SIZE	2048
 
 /* Define those to better describe your network interface. */
 #define IFNAME0 'u'
 #define IFNAME1 'n'
 
+static uint16_t undi_hw_type;
 static struct netif undi_netif;
+static struct undiarp_entry arp_table[ARP_TABLE_SIZE];
+#if !LWIP_NETIF_HWADDRHINT
+static u8_t undiarp_cached_entry;
+#endif
+
+/**
+ * Try hard to create a new entry - we want the IP address to appear in
+ * the cache (even if this means removing an active entry or so). */
+#define UNDIARP_TRY_HARD 1
+#define UNDIARP_FIND_ONLY  2
+
+
+static inline bool undi_is_ethernet(struct netif *netif)
+{
+   (void)netif;
+   return undi_hw_type == ETHER_TYPE;
+}
 
 /**
  * In this function, the hardware should be initialized.
@@ -93,6 +177,9 @@ low_level_init(struct netif *netif)
 	 undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
 	 undi_info.HwType);
 
+  /* Remember the hardware type for arp */
+  undi_hw_type = undi_info.HwType;
+
   /* set MAC hardware address length */
   netif->hwaddr_len = undi_info.HwAddrLen;
 
@@ -108,8 +195,10 @@ low_level_init(struct netif *netif)
   dprintf("\n");
 
   /* device capabilities */
+  netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_LINK_UP;
   /* don't set NETIF_FLAG_ETHARP if this device is not an ethernet one */
-  netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
+  if (undi_is_ethernet(netif))
+    netif->flags |= NETIF_FLAG_ETHARP;
 
   /* Install the interrupt vector */
   pxe_irq_vector = undi_info.IntNumber;
@@ -135,61 +224,634 @@ low_level_init(struct netif *netif)
  *       to become availale since the stack doesn't retry to send a packet
  *       dropped because of memory failure (except for the TCP timers).
  */
-
-/*
- * XXX: This assumes an Ethernet media type.
- */
 static err_t
-low_level_output(struct netif *netif, struct pbuf *p)
+undi_transmit(struct netif *netif, struct pbuf *pbuf,
+  hwaddr_t *dest, uint16_t undi_protocol)
 {
   struct pxe_xmit {
     t_PXENV_UNDI_TRANSMIT xmit;
     t_PXENV_UNDI_TBD tbd;
   };
   static __lowmem struct pxe_xmit pxe;
+  static __lowmem hwaddr_t low_dest;
   static __lowmem char pkt_buf[PKTBUF_SIZE];
-  char *r;
-  /* struct undiif *undiif = netif->state; */
-  struct pbuf *q;
-  static char eth_broadcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-  (void)netif;
+  /* Drop jumbo frames */
+  if ((pbuf->tot_len > sizeof(pkt_buf)) || (pbuf->tot_len > netif->mtu))
+    return ERR_ARG;
 
-#if ETH_PAD_SIZE
-  pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
-#endif
-
-  r = pkt_buf;
-  for (q = p; q != NULL; q = q->next) {
-    /* Send the data from the pbuf to the interface, one pbuf at a
-       time. The size of the data in each pbuf is kept in the ->len
-       variable. */
-    memcpy(r, q->payload, q->len);
-    r += q->len;
-  }
-
-  //printf("undiif_output, len = %d ", r - pkt_buf);
+  pbuf_copy_partial( pbuf, pkt_buf, pbuf->tot_len, 0);
+  if (dest)
+    memcpy(low_dest, dest, netif->hwaddr_len);
 
   do {
-      memset(&pxe, 0, sizeof pxe);
+    memset(&pxe, 0, sizeof pxe);
 
-      pxe.xmit.Protocol = 0;	/* XXX: P_UNKNOWN: MAC layer */
-      pxe.xmit.XmitFlag = !memcmp(pkt_buf, eth_broadcast, sizeof eth_broadcast);
-      pxe.xmit.DestAddr = FAR_PTR(&pxe.tbd); /* This is what gPXE does?? */
-      pxe.xmit.TBD = FAR_PTR(&pxe.tbd);
-      pxe.tbd.ImmedLength = r - pkt_buf;
-      pxe.tbd.Xmit = FAR_PTR(pkt_buf);
+    pxe.xmit.Protocol = undi_protocol;
+    pxe.xmit.XmitFlag = dest? XMT_DESTADDR : XMT_BROADCAST;
+    pxe.xmit.DestAddr = FAR_PTR(&low_dest);
+    pxe.xmit.TBD = FAR_PTR(&pxe.tbd);
+    pxe.tbd.ImmedLength = pbuf->tot_len;
+    pxe.tbd.Xmit = FAR_PTR(pkt_buf);
 
-      pxe_call(PXENV_UNDI_TRANSMIT, &pxe.xmit);
+    pxe_call(PXENV_UNDI_TRANSMIT, &pxe.xmit);
   } while (pxe.xmit.Status == PXENV_STATUS_OUT_OF_RESOURCES);
-
-#if ETH_PAD_SIZE
-  pbuf_header(p, ETH_PAD_SIZE); /* reclaim the padding word */
-#endif
 
   LINK_STATS_INC(link.xmit);
 
   return ERR_OK;
+}
+
+static err_t
+undi_send_unknown(struct netif *netif, struct pbuf *pbuf)
+{
+  return undi_transmit(netif, pbuf, NULL, P_UNKNOWN);
+}
+
+static err_t
+undi_send_ip(struct netif *netif, struct pbuf *pbuf, hwaddr_t  *dst)
+{
+  return undi_transmit(netif, pbuf, dst, P_IP);
+}
+
+static err_t
+undi_send_arp(struct netif *netif, struct pbuf *pbuf, hwaddr_t  *dst)
+{
+  return undi_transmit(netif, pbuf, dst, P_ARP);
+}
+
+/**
+ * Send an ARP request packet asking for ipaddr.
+ *
+ * @param netif the lwip network interface on which to send the request
+ * @param ipaddr the IP address for which to ask
+ * @return ERR_OK if the request has been sent
+ *         ERR_MEM if the ARP packet couldn't be allocated
+ *         any other err_t on failure
+ */
+static err_t
+undiarp_request(struct netif *netif, struct ip_addr *ipaddr)
+{
+  struct pbuf *p;
+  err_t result = ERR_OK;
+  struct arp_hdr *hdr;
+  u8_t *hdr_ptr;
+
+  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("etharp_request: sending ARP request.\n"));
+
+  /* allocate a pbuf for the outgoing ARP request packet */
+  p = pbuf_alloc(PBUF_RAW, arp_hdr_len(netif), PBUF_RAM);
+  /* could allocate a pbuf for an ARP request? */
+  if (p == NULL) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_SERIOUS,
+      ("etharp_raw: could not allocate pbuf for ARP request.\n"));
+    ETHARP_STATS_INC(etharp.memerr);
+    return ERR_MEM;
+  }
+  LWIP_ASSERT("check that first pbuf can hold arp_hdr_len bytesr",
+              (p->len >= arp_hdr_len(netif)));
+
+  hdr = p->payload;
+  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_request: sending raw ARP packet.\n"));
+  hdr->opcode = htons(ARP_REQUEST);
+  hdr->hwtype = htons(undi_hw_type);
+  hdr->proto = htons(ETHTYPE_IP);
+  /* set hwlen and protolen together */
+  hdr->_hwlen_protolen = htons((netif->hwaddr_len << 8) | sizeof(struct ip_addr));
+
+  hdr_ptr = (unsigned char *)(hdr + 1);
+  memcpy(hdr_ptr, netif->hwaddr, netif->hwaddr_len);
+  hdr_ptr += netif->hwaddr_len;
+  memcpy(hdr_ptr, &netif->ip_addr, 4);
+  hdr_ptr += 4;
+    memset(hdr_ptr, 0, netif->hwaddr_len);
+  hdr_ptr += netif->hwaddr_len;
+  memcpy(hdr_ptr, ipaddr, 4);
+  
+  /* send ARP query */
+  result = undi_send_arp(netif, p, NULL);
+  ETHARP_STATS_INC(etharp.xmit);
+  /* free ARP query packet */
+  pbuf_free(p);
+  p = NULL;
+  /* could not allocate pbuf for ARP request */
+
+  return result;
+}
+
+#if ARP_QUEUEING
+/**
+ * Free a complete queue of etharp entries
+ *
+ * @param q a qeueue of etharp_q_entry's to free
+ */
+static void
+free_undiarp_q(struct etharp_q_entry *q)
+{
+  struct etharp_q_entry *r;
+  LWIP_ASSERT("q != NULL", q != NULL);
+  LWIP_ASSERT("q->p != NULL", q->p != NULL);
+  while (q) {
+    r = q;
+    q = q->next;
+    LWIP_ASSERT("r->p != NULL", (r->p != NULL));
+    pbuf_free(r->p);
+    memp_free(MEMP_ARP_QUEUE, r);
+  }
+}
+#endif
+
+/**
+ * Clears expired entries in the ARP table.
+ *
+ * This function should be called every ETHARP_TMR_INTERVAL microseconds (5 seconds),
+ * in order to expire entries in the ARP table.
+ */
+void
+undiarp_tmr(void)
+{
+  u8_t i;
+
+  LWIP_DEBUGF(ETHARP_DEBUG, ("etharp_timer\n"));
+  /* remove expired entries from the ARP table */
+  for (i = 0; i < ARP_TABLE_SIZE; ++i) {
+    arp_table[i].ctime++;
+    if (((arp_table[i].state == UNDIARP_STATE_STABLE) &&
+         (arp_table[i].ctime >= UNDIARP_MAXAGE)) ||
+        ((arp_table[i].state == UNDIARP_STATE_PENDING)  &&
+         (arp_table[i].ctime >= UNDIARP_MAXPENDING))) {
+         /* pending or stable entry has become old! */
+      LWIP_DEBUGF(UNDIARP_DEBUG, ("etharp_timer: expired %s entry %"U16_F".\n",
+           arp_table[i].state == UNDIARP_STATE_STABLE ? "stable" : "pending", (u16_t)i));
+      /* clean up entries that have just been expired */
+      /* remove from SNMP ARP index tree */
+      snmp_delete_arpidx_tree(arp_table[i].netif, &arp_table[i].ipaddr);
+#if ARP_QUEUEING
+      /* and empty packet queue */
+      if (arp_table[i].q != NULL) {
+        /* remove all queued packets */
+        LWIP_DEBUGF(ETHARP_DEBUG, ("etharp_timer: freeing entry %"U16_F", packet queue %p.\n", (u16_t)i, (void *)(arp_table[i].q)));
+        free_undiarp_q(arp_table[i].q);
+        arp_table[i].q = NULL;
+      }
+#endif
+      /* recycle entry for re-use */      
+      arp_table[i].state = UNDIARP_STATE_EMPTY;
+    }
+#if ARP_QUEUEING
+    /* still pending entry? (not expired) */
+    if (arp_table[i].state == UNDIARP_STATE_PENDING) {
+        /* resend an ARP query here? */
+    }
+#endif
+  }
+}
+
+/**
+ * Search the ARP table for a matching or new entry.
+ * 
+ * If an IP address is given, return a pending or stable ARP entry that matches
+ * the address. If no match is found, create a new entry with this address set,
+ * but in state ETHARP_EMPTY. The caller must check and possibly change the
+ * state of the returned entry.
+ * 
+ * If ipaddr is NULL, return a initialized new entry in state ETHARP_EMPTY.
+ * 
+ * In all cases, attempt to create new entries from an empty entry. If no
+ * empty entries are available and UNDIARP_TRY_HARD flag is set, recycle
+ * old entries. Heuristic choose the least important entry for recycling.
+ *
+ * @param ipaddr IP address to find in ARP cache, or to add if not found.
+ * @param flags
+ * - UNDIARP_TRY_HARD: Try hard to create a entry by allowing recycling of
+ * active (stable or pending) entries.
+ *  
+ * @return The ARP entry index that matched or is created, ERR_MEM if no
+ * entry is found or could be recycled.
+ */
+static s8_t
+#if LWIP_NETIF_HWADDRHINT
+find_entry(struct ip_addr *ipaddr, u8_t flags, struct netif *netif)
+#else /* LWIP_NETIF_HWADDRHINT */
+find_entry(struct ip_addr *ipaddr, u8_t flags)
+#endif /* LWIP_NETIF_HWADDRHINT */
+{
+  s8_t old_pending = ARP_TABLE_SIZE, old_stable = ARP_TABLE_SIZE;
+  s8_t empty = ARP_TABLE_SIZE;
+  u8_t i = 0, age_pending = 0, age_stable = 0;
+#if ARP_QUEUEING
+  /* oldest entry with packets on queue */
+  s8_t old_queue = ARP_TABLE_SIZE;
+  /* its age */
+  u8_t age_queue = 0;
+#endif
+
+  /* First, test if the last call to this function asked for the
+   * same address. If so, we're really fast! */
+  if (ipaddr) {
+    /* ipaddr to search for was given */
+#if LWIP_NETIF_HWADDRHINT
+    if ((netif != NULL) && (netif->addr_hint != NULL)) {
+      /* per-pcb cached entry was given */
+      u8_t per_pcb_cache = *(netif->addr_hint);
+      if ((per_pcb_cache < ARP_TABLE_SIZE) && arp_table[per_pcb_cache].state == UNDIARP_STATE_STABLE) {
+        /* the per-pcb-cached entry is stable */
+        if (ip_addr_cmp(ipaddr, &arp_table[per_pcb_cache].ipaddr)) {
+          /* per-pcb cached entry was the right one! */
+          ETHARP_STATS_INC(etharp.cachehit);
+          return per_pcb_cache;
+        }
+      }
+    }
+#else /* #if LWIP_NETIF_HWADDRHINT */
+    if (arp_table[undiarp_cached_entry].state == UNDIARP_STATE_STABLE) {
+      /* the cached entry is stable */
+      if (ip_addr_cmp(ipaddr, &arp_table[undiarp_cached_entry].ipaddr)) {
+        /* cached entry was the right one! */
+        ETHARP_STATS_INC(etharp.cachehit);
+        return undiarp_cached_entry;
+      }
+    }
+#endif /* #if LWIP_NETIF_HWADDRHINT */
+  }
+
+  /**
+   * a) do a search through the cache, remember candidates
+   * b) select candidate entry
+   * c) create new entry
+   */
+
+  /* a) in a single search sweep, do all of this
+   * 1) remember the first empty entry (if any)
+   * 2) remember the oldest stable entry (if any)
+   * 3) remember the oldest pending entry without queued packets (if any)
+   * 4) remember the oldest pending entry with queued packets (if any)
+   * 5) search for a matching IP entry, either pending or stable
+   *    until 5 matches, or all entries are searched for.
+   */
+
+  for (i = 0; i < ARP_TABLE_SIZE; ++i) {
+    /* no empty entry found yet and now we do find one? */
+    if ((empty == ARP_TABLE_SIZE) && (arp_table[i].state == UNDIARP_STATE_EMPTY)) {
+      LWIP_DEBUGF(ETHARP_DEBUG, ("find_entry: found empty entry %"U16_F"\n", (u16_t)i));
+      /* remember first empty entry */
+      empty = i;
+    }
+    /* pending entry? */
+    else if (arp_table[i].state == UNDIARP_STATE_PENDING) {
+      /* if given, does IP address match IP address in ARP entry? */
+      if (ipaddr && ip_addr_cmp(ipaddr, &arp_table[i].ipaddr)) {
+        LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("find_entry: found matching pending entry %"U16_F"\n", (u16_t)i));
+        /* found exact IP address match, simply bail out */
+#if LWIP_NETIF_HWADDRHINT
+        NETIF_SET_HINT(netif, i);
+#else /* #if LWIP_NETIF_HWADDRHINT */
+        undiarp_cached_entry = i;
+#endif /* #if LWIP_NETIF_HWADDRHINT */
+        return i;
+#if ARP_QUEUEING
+      /* pending with queued packets? */
+      } else if (arp_table[i].q != NULL) {
+        if (arp_table[i].ctime >= age_queue) {
+          old_queue = i;
+          age_queue = arp_table[i].ctime;
+        }
+#endif
+      /* pending without queued packets? */
+      } else {
+        if (arp_table[i].ctime >= age_pending) {
+          old_pending = i;
+          age_pending = arp_table[i].ctime;
+        }
+      }        
+    }
+    /* stable entry? */
+    else if (arp_table[i].state == UNDIARP_STATE_STABLE) {
+      /* if given, does IP address match IP address in ARP entry? */
+      if (ipaddr && ip_addr_cmp(ipaddr, &arp_table[i].ipaddr)) {
+        LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("find_entry: found matching stable entry %"U16_F"\n", (u16_t)i));
+        /* found exact IP address match, simply bail out */
+#if LWIP_NETIF_HWADDRHINT
+        NETIF_SET_HINT(netif, i);
+#else /* #if LWIP_NETIF_HWADDRHINT */
+        undiarp_cached_entry = i;
+#endif /* #if LWIP_NETIF_HWADDRHINT */
+        return i;
+      /* remember entry with oldest stable entry in oldest, its age in maxtime */
+      } else if (arp_table[i].ctime >= age_stable) {
+        old_stable = i;
+        age_stable = arp_table[i].ctime;
+      }
+    }
+  }
+  /* { we have no match } => try to create a new entry */
+   
+  /* no empty entry found and not allowed to recycle? */
+  if (((empty == ARP_TABLE_SIZE) && ((flags & UNDIARP_TRY_HARD) == 0))
+      /* or don't create new entry, only search? */
+      || ((flags & UNDIARP_FIND_ONLY) != 0)) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("find_entry: no empty entry found and not allowed to recycle\n"));
+    return (s8_t)ERR_MEM;
+  }
+  
+  /* b) choose the least destructive entry to recycle:
+   * 1) empty entry
+   * 2) oldest stable entry
+   * 3) oldest pending entry without queued packets
+   * 4) oldest pending entry with queued packets
+   * 
+   * { UNDIARP_TRY_HARD is set at this point }
+   */ 
+
+  /* 1) empty entry available? */
+  if (empty < ARP_TABLE_SIZE) {
+    i = empty;
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("find_entry: selecting empty entry %"U16_F"\n", (u16_t)i));
+  }
+  /* 2) found recyclable stable entry? */
+  else if (old_stable < ARP_TABLE_SIZE) {
+    /* recycle oldest stable*/
+    i = old_stable;
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("find_entry: selecting oldest stable entry %"U16_F"\n", (u16_t)i));
+#if ARP_QUEUEING
+    /* no queued packets should exist on stable entries */
+    LWIP_ASSERT("arp_table[i].q == NULL", arp_table[i].q == NULL);
+#endif
+  /* 3) found recyclable pending entry without queued packets? */
+  } else if (old_pending < ARP_TABLE_SIZE) {
+    /* recycle oldest pending */
+    i = old_pending;
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("find_entry: selecting oldest pending entry %"U16_F" (without queue)\n", (u16_t)i));
+#if ARP_QUEUEING
+  /* 4) found recyclable pending entry with queued packets? */
+  } else if (old_queue < ARP_TABLE_SIZE) {
+    /* recycle oldest pending */
+    i = old_queue;
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("find_entry: selecting oldest pending entry %"U16_F", freeing packet queue %p\n", (u16_t)i, (void *)(arp_table[i].q)));
+    free_undiarp_q(arp_table[i].q);
+    arp_table[i].q = NULL;
+#endif
+    /* no empty or recyclable entries found */
+  } else {
+    return (s8_t)ERR_MEM;
+  }
+
+  /* { empty or recyclable entry found } */
+  LWIP_ASSERT("i < ARP_TABLE_SIZE", i < ARP_TABLE_SIZE);
+
+  if (arp_table[i].state != UNDIARP_STATE_EMPTY)
+  {
+    snmp_delete_arpidx_tree(arp_table[i].netif, &arp_table[i].ipaddr);
+  }
+  /* recycle entry (no-op for an already empty entry) */
+  arp_table[i].state = UNDIARP_STATE_EMPTY;
+
+  /* IP address given? */
+  if (ipaddr != NULL) {
+    /* set IP address */
+    ip_addr_set(&arp_table[i].ipaddr, ipaddr);
+  }
+  arp_table[i].ctime = 0;
+#if LWIP_NETIF_HWADDRHINT
+  NETIF_SET_HINT(netif, i);
+#else /* #if LWIP_NETIF_HWADDRHINT */
+  undiarp_cached_entry = i;
+#endif /* #if LWIP_NETIF_HWADDRHINT */
+  return (err_t)i;
+}
+
+
+/**
+ * Send an ARP request for the given IP address and/or queue a packet.
+ *
+ * If the IP address was not yet in the cache, a pending ARP cache entry
+ * is added and an ARP request is sent for the given address. The packet
+ * is queued on this entry.
+ *
+ * If the IP address was already pending in the cache, a new ARP request
+ * is sent for the given address. The packet is queued on this entry.
+ *
+ * If the IP address was already stable in the cache, and a packet is
+ * given, it is directly sent and no ARP request is sent out. 
+ * 
+ * If the IP address was already stable in the cache, and no packet is
+ * given, an ARP request is sent out.
+ * 
+ * @param netif The lwIP network interface on which ipaddr
+ * must be queried for.
+ * @param ipaddr The IP address to be resolved.
+ * @param q If non-NULL, a pbuf that must be delivered to the IP address.
+ * q is not freed by this function.
+ *
+ * @note q must only be ONE packet, not a packet queue!
+ *
+ * @return
+ * - ERR_BUF Could not make room for Ethernet header.
+ * - ERR_MEM Hardware address unknown, and no more ARP entries available
+ *   to query for address or queue the packet.
+ * - ERR_MEM Could not queue packet due to memory shortage.
+ * - ERR_RTE No route to destination (no gateway to external networks).
+ * - ERR_ARG Non-unicast address given, those will not appear in ARP cache.
+ *
+ */
+static err_t
+undiarp_query(struct netif *netif, struct ip_addr *ipaddr, struct pbuf *q)
+{
+  err_t result = ERR_MEM;
+  s8_t i; /* ARP entry index */
+
+  /* non-unicast address? */
+  if (ip_addr_isbroadcast(ipaddr, netif) ||
+      ip_addr_ismulticast(ipaddr) ||
+      ip_addr_isany(ipaddr)) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_query: will not add non-unicast IP address to ARP cache\n"));
+    return ERR_ARG;
+  }
+
+  /* find entry in ARP cache, ask to create entry if queueing packet */
+#if LWIP_NETIF_HWADDRHINT
+  i = find_entry(ipaddr, UNDIARP_TRY_HARD, netif);
+#else /* LWIP_NETIF_HWADDRHINT */
+  i = find_entry(ipaddr, UNDIARP_TRY_HARD);
+#endif /* LWIP_NETIF_HWADDRHINT */
+
+  /* could not find or create entry? */
+  if (i < 0) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_query: could not create ARP entry\n"));
+    if (q) {
+      LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_query: packet dropped\n"));
+      ETHARP_STATS_INC(etharp.memerr);
+    }
+    return (err_t)i;
+  }
+
+  /* mark a fresh entry as pending (we just sent a request) */
+  if (arp_table[i].state == UNDIARP_STATE_EMPTY) {
+    arp_table[i].state = UNDIARP_STATE_PENDING;
+  }
+
+  /* { i is either a STABLE or (new or existing) PENDING entry } */
+  LWIP_ASSERT("arp_table[i].state == PENDING or STABLE",
+  ((arp_table[i].state == UNDIARP_STATE_PENDING) ||
+   (arp_table[i].state == UNDIARP_STATE_STABLE)));
+
+  /* do we have a pending entry? or an implicit query request? */
+  if ((arp_table[i].state == UNDIARP_STATE_PENDING) || (q == NULL)) {
+    /* try to resolve it; send out ARP request */
+    result = undiarp_request(netif, ipaddr);
+    if (result != ERR_OK) {
+      /* ARP request couldn't be sent */
+      /* We don't re-send arp request in undiarp_tmr, but we still queue packets,
+         since this failure could be temporary, and the next packet calling
+         etharp_query again could lead to sending the queued packets. */
+    }
+  }
+  
+  /* packet given? */
+  if (q != NULL) {
+    /* stable entry? */
+    if (arp_table[i].state == UNDIARP_STATE_STABLE) {
+      /* we have a valid IP->hardware address mapping */
+      /* send the packet */
+      result = undi_send_ip(netif, q, &(arp_table[i].hwaddr));
+    /* pending entry? (either just created or already pending */
+    } else if (arp_table[i].state == UNDIARP_STATE_PENDING) {
+#if ARP_QUEUEING /* queue the given q packet */
+      struct pbuf *p;
+      int copy_needed = 0;
+      /* IF q includes a PBUF_REF, PBUF_POOL or PBUF_RAM, we have no choice but
+       * to copy the whole queue into a new PBUF_RAM (see bug #11400) 
+       * PBUF_ROMs can be left as they are, since ROM must not get changed. */
+      p = q;
+      while (p) {
+        LWIP_ASSERT("no packet queues allowed!", (p->len != p->tot_len) || (p->next == 0));
+        if(p->type != PBUF_ROM) {
+          copy_needed = 1;
+          break;
+        }
+        p = p->next;
+      }
+      if(copy_needed) {
+        /* copy the whole packet into new pbufs */
+        p = pbuf_alloc(PBUF_RAW, p->tot_len, PBUF_RAM);
+        if(p != NULL) {
+          if (pbuf_copy(p, q) != ERR_OK) {
+            pbuf_free(p);
+            p = NULL;
+          }
+        }
+      } else {
+        /* referencing the old pbuf is enough */
+        p = q;
+        pbuf_ref(p);
+      }
+      /* packet could be taken over? */
+      if (p != NULL) {
+        /* queue packet ... */
+        struct etharp_q_entry *new_entry;
+        /* allocate a new arp queue entry */
+        new_entry = memp_malloc(MEMP_ARP_QUEUE);
+        if (new_entry != NULL) {
+          new_entry->next = 0;
+          new_entry->p = p;
+          if(arp_table[i].q != NULL) {
+            /* queue was already existent, append the new entry to the end */
+            struct etharp_q_entry *r;
+            r = arp_table[i].q;
+            while (r->next != NULL) {
+              r = r->next;
+            }
+            r->next = new_entry;
+          } else {
+            /* queue did not exist, first item in queue */
+            arp_table[i].q = new_entry;
+          }
+          LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_query: queued packet %p on ARP entry %"S16_F"\n", (void *)q, (s16_t)i));
+          result = ERR_OK;
+        } else {
+          /* the pool MEMP_ARP_QUEUE is empty */
+          pbuf_free(p);
+          LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("etharp_query: could not queue a copy of PBUF_REF packet %p (out of memory)\n", (void *)q));
+          /* { result == ERR_MEM } through initialization */
+        }
+      } else {
+        ETHARP_STATS_INC(etharp.memerr);
+        LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("etharp_query: could not queue a copy of PBUF_REF packet %p (out of memory)\n", (void *)q));
+        /* { result == ERR_MEM } through initialization */
+      }
+#else /* ARP_QUEUEING == 0 */
+      /* q && state == PENDING && ARP_QUEUEING == 0 => result = ERR_MEM */
+      /* { result == ERR_MEM } through initialization */
+      LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("etharp_query: Ethernet destination address unknown, queueing disabled, packet %p dropped\n", (void *)q));
+#endif
+    }
+  }
+  return result;
+}
+
+/**
+ * Resolve and fill-in address header for outgoing IP packet.
+ *
+ * For IP multicast and broadcast, corresponding Ethernet addresses
+ * are selected and the packet is transmitted on the link.
+ *
+ * For unicast addresses, the packet is submitted to etharp_query(). In
+ * case the IP address is outside the local network, the IP address of
+ * the gateway is used.
+ *
+ * @param netif The lwIP network interface which the IP packet will be sent on.
+ * @param q The pbuf(s) containing the IP packet to be sent.
+ * @param ipaddr The IP address of the packet destination.
+ *
+ * @return
+ * - ERR_RTE No route to destination (no gateway to external networks),
+ * or the return type of either etharp_query() or etharp_send_ip().
+ */
+static err_t
+undiarp_output(struct netif *netif, struct pbuf *q, struct ip_addr *ipaddr)
+{
+  static __lowmem t_PXENV_UNDI_GET_MCAST_ADDR get_mcast;
+  hwaddr_t *dest;
+
+  if (undi_is_ethernet(netif))
+    return etharp_output(netif, q, ipaddr);
+
+  /* Assume unresolved hardware address */
+  dest = NULL;
+
+  /* Determine on destination hardware address. Broadcasts and multicasts
+   * are special, other IP addresses are looked up in the ARP table.
+   */
+  if (ip_addr_isbroadcast(ipaddr, netif)) {
+    dest = NULL;
+  }
+  else if (ip_addr_ismulticast(ipaddr)) {
+    memset(&get_mcast, 0, sizeof get_mcast);
+    memcpy(&get_mcast.InetAddr, ipaddr, sizeof(get_mcast.InetAddr));
+    pxe_call(PXENV_UNDI_GET_MCAST_ADDR, &get_mcast);
+    dest = (hwaddr_t *)&get_mcast.MediaAddr;
+  }
+  else {
+    /* outside local network? */
+    if (!ip_addr_netcmp(ipaddr, &netif->ip_addr, &netif->netmask)) {
+      /* interface has default gateway? */
+      if (netif->gw.addr != 0) {
+        /* send to hardware address of default gateway IP address */
+        ipaddr = &(netif->gw);
+      /* no default gateway available */
+      } else {
+        /* no route to destination error (default gateway missing) */
+        return ERR_RTE;
+      }
+    }
+    /* queue on destination Ethernet address belonging to ipaddr */
+    return undiarp_query(netif, ipaddr, q);
+  }
+  
+  /* continuation for multicast/broadcast destinations */
+  /* obtain source Ethernet address of the given interface */
+  /* send packet directly on the link */
+  return undi_send_ip(netif, q, dest);
 }
 
 static void get_packet_fragment(t_PXENV_UNDI_ISR *isr)
@@ -221,18 +883,10 @@ low_level_input(t_PXENV_UNDI_ISR *isr)
 
   //printf("undiif_input, len = %d\n", len);
 
-#if ETH_PAD_SIZE
-  len += ETH_PAD_SIZE; /* allow room for Ethernet padding */
-#endif
-
   /* We allocate a pbuf chain of pbufs from the pool. */
   p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
 
   if (p != NULL) {
-#if ETH_PAD_SIZE
-    pbuf_header(p, -ETH_PAD_SIZE); /* drop the padding word */
-#endif
-
     /*
      * We iterate over the pbuf chain until we have read the entire
      * packet into the pbuf.
@@ -265,10 +919,6 @@ low_level_input(t_PXENV_UNDI_ISR *isr)
       }
     }
 
-#if ETH_PAD_SIZE
-    pbuf_header(p, ETH_PAD_SIZE); /* reclaim the padding word */
-#endif
-
     LINK_STATS_INC(link.recv);
   } else {
     /*
@@ -285,6 +935,231 @@ low_level_input(t_PXENV_UNDI_ISR *isr)
   return p;
 }
 
+
+/**
+ * Update (or insert) a IP/MAC address pair in the ARP cache.
+ *
+ * If a pending entry is resolved, any queued packets will be sent
+ * at this point.
+ * 
+ * @param ipaddr IP address of the inserted ARP entry.
+ * @param ethaddr Ethernet address of the inserted ARP entry.
+ * @param flags Defines behaviour:
+ * - ETHARP_TRY_HARD Allows ARP to insert this as a new item. If not specified,
+ * only existing ARP entries will be updated.
+ *
+ * @return
+ * - ERR_OK Succesfully updated ARP cache.
+ * - ERR_MEM If we could not add a new ARP entry when ETHARP_TRY_HARD was set.
+ * - ERR_ARG Non-unicast address given, those will not appear in ARP cache.
+ *
+ * @see pbuf_free()
+ */
+static err_t
+update_arp_entry(struct netif *netif, struct ip_addr *ipaddr,
+		 hwaddr_t *lladdr, u8_t flags)
+{
+  s8_t i;
+  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("update_arp_entry()\n"));
+  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("update_arp_entry: %"U16_F".%"U16_F".%"U16_F".%"U16_F" - %02"X16_F":%02"X16_F":%02"X16_F":%02"X16_F":%02"X16_F":%02"X16_F"\n",
+                                        ip4_addr1(ipaddr), ip4_addr2(ipaddr), ip4_addr3(ipaddr), ip4_addr4(ipaddr), 
+                                        lladdr->addr[0], lladdr->addr[1], lladdr->addr[2],
+                                        lladdr->addr[3], lladdr->addr[4], lladdr->addr[5]));
+  /* non-unicast address? */
+  if (ip_addr_isany(ipaddr) ||
+      ip_addr_isbroadcast(ipaddr, netif) ||
+      ip_addr_ismulticast(ipaddr)) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("update_arp_entry: will not add non-unicast IP address to ARP cache\n"));
+    return ERR_ARG;
+  }
+  /* find or create ARP entry */
+#if LWIP_NETIF_HWADDRHINT
+  i = find_entry(ipaddr, flags, netif);
+#else /* LWIP_NETIF_HWADDRHINT */
+  i = find_entry(ipaddr, flags);
+#endif /* LWIP_NETIF_HWADDRHINT */
+  /* bail out if no entry could be found */
+  if (i < 0)
+    return (err_t)i;
+  
+  /* mark it stable */
+  arp_table[i].state = UNDIARP_STATE_STABLE;
+  /* record network interface */
+  arp_table[i].netif = netif;
+
+  /* insert in SNMP ARP index tree */
+  snmp_insert_arpidx_tree(netif, &arp_table[i].ipaddr);
+
+  LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("update_arp_entry: updating stable entry %"S16_F"\n", (s16_t)i));
+  /* update address */
+  memcpy(arp_table[i].hwaddr, lladdr, netif->hwaddr_len);
+
+  /* reset time stamp */
+  arp_table[i].ctime = 0;
+#if ARP_QUEUEING
+  /* this is where we will send out queued packets! */
+  while (arp_table[i].q != NULL) {
+    struct pbuf *p;
+    /* remember remainder of queue */
+    struct etharp_q_entry *q = arp_table[i].q;
+    /* pop first item off the queue */
+    arp_table[i].q = q->next;
+    /* get the packet pointer */
+    p = q->p;
+    /* now queue entry can be freed */
+    memp_free(MEMP_ARP_QUEUE, q);
+    /* send the queued IP packet */
+    undi_send_ip(netif, p, lladdr);
+    /* free the queued IP packet */
+    pbuf_free(p);
+  }
+#endif
+  return ERR_OK;
+}
+
+/**
+ * Responds to ARP requests to us. Upon ARP replies to us, add entry to cache  
+ * send out queued IP packets. Updates cache with snooped address pairs.
+ *
+ * Should be called for incoming ARP packets. The pbuf in the argument
+ * is freed by this function.
+ *
+ * @param netif The lwIP network interface on which the ARP packet pbuf arrived.
+ * @param ethaddr Ethernet address of netif.
+ * @param p The ARP packet that arrived on netif. Is freed by this function.
+ *
+ * @return NULL
+ *
+ * @see pbuf_free()
+ */
+static void
+undiarp_input(struct netif *netif, struct pbuf *p)
+{
+  struct arp_hdr *hdr;
+  /* these are aligned properly, whereas the ARP header fields might not be */
+  struct ip_addr sipaddr, dipaddr;
+  hwaddr_t hwaddr_remote;
+  u8_t *hdr_ptr;
+  u8_t for_us;
+
+  LWIP_ERROR("netif != NULL", (netif != NULL), return;);
+  
+  /* drop short ARP packets: we have to check for p->len instead of p->tot_len here
+     since a struct arp_hdr is pointed to p->payload, so it musn't be chained! */
+  if (p->len < arp_hdr_len(netif)) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
+      ("undiarp_input: packet dropped, too short (%"S16_F"/%"S16_F")\n", p->tot_len,
+      (s16_t)SIZEOF_ETHARP_PACKET));
+    printf("short arp packet\n");
+    ETHARP_STATS_INC(etharp.lenerr);
+    ETHARP_STATS_INC(etharp.drop);
+    pbuf_free(p);
+    return;
+  }
+
+  hdr = p->payload;
+  /* RFC 826 "Packet Reception": */
+  if ((hdr->hwtype != htons(undi_hw_type)) ||
+      (hdr->_hwlen_protolen != htons((netif->hwaddr_len << 8) | sizeof(struct ip_addr))) ||
+      (hdr->proto != htons(ETHTYPE_IP))) {
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
+      ("undiarp_input: packet dropped, wrong hw type, hwlen, proto, or protolen (%"U16_F"/%"U16_F"/%"U16_F"/%"U16_F"/%"U16_F")\n",
+      hdr->hwtype, ARPH_HWLEN(hdr), hdr->proto, ARPH_PROTOLEN(hdr)));
+    ETHARP_STATS_INC(etharp.proterr);
+    ETHARP_STATS_INC(etharp.drop);
+    printf("malformed arp packet\n");
+    pbuf_free(p);
+    return;
+  }
+  ETHARP_STATS_INC(etharp.recv);
+
+  /* Copy struct ip_addr2 to aligned ip_addr, to support compilers without
+   * structure packing (not using structure copy which breaks strict-aliasing rules). */
+  hdr_ptr = (unsigned char *)(hdr + 1);
+  memcpy(hwaddr_remote, hdr_ptr, netif->hwaddr_len);
+  hdr_ptr += netif->hwaddr_len;
+  memcpy(&sipaddr, hdr_ptr, sizeof(sipaddr));
+  hdr_ptr += sizeof(sipaddr);
+  hdr_ptr += netif->hwaddr_len;
+  memcpy(&dipaddr, hdr_ptr, sizeof(dipaddr));
+
+  /* this interface is not configured? */
+  if (netif->ip_addr.addr == 0) {
+    for_us = 0;
+  } else {
+    /* ARP packet directed to us? */
+    for_us = ip_addr_cmp(&dipaddr, &(netif->ip_addr));
+  }
+
+  /* ARP message directed to us? */
+  if (for_us) {
+    /* add IP address in ARP cache; assume requester wants to talk to us.
+     * can result in directly sending the queued packets for this host. */
+    update_arp_entry(netif, &sipaddr, &hwaddr_remote, UNDIARP_TRY_HARD);
+  /* ARP message not directed to us? */
+  } else {
+    /* update the source IP address in the cache, if present */
+    update_arp_entry(netif, &sipaddr, &hwaddr_remote, 0);
+  }
+
+  /* now act on the message itself */
+  switch (htons(hdr->opcode)) {
+  /* ARP request? */
+  case ARP_REQUEST:
+    /* ARP request. If it asked for our address, we send out a
+     * reply. In any case, we time-stamp any existing ARP entry,
+     * and possiby send out an IP packet that was queued on it. */
+
+    LWIP_DEBUGF (ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_input: incoming ARP request\n"));
+    /* ARP request for our address? */
+    if (for_us) {
+
+      LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_input: replying to ARP request for our IP address\n"));
+      /* Re-use pbuf to send ARP reply.
+         Since we are re-using an existing pbuf, we can't call etharp_raw since
+         that would allocate a new pbuf. */
+      hdr->opcode = htons(ARP_REPLY);
+      hdr_ptr = (unsigned char *)(hdr + 1);
+      memcpy(hdr_ptr, &netif->hwaddr, netif->hwaddr_len);
+      hdr_ptr += netif->hwaddr_len;
+      memcpy(hdr_ptr, &dipaddr, sizeof(dipaddr));
+      hdr_ptr += sizeof(dipaddr);
+      memcpy(hdr_ptr, &hwaddr_remote, netif->hwaddr_len);
+      hdr_ptr += netif->hwaddr_len;
+      memcpy(hdr_ptr, &sipaddr, sizeof(sipaddr));
+
+      /* return ARP reply */
+      undi_send_arp(netif, p, &hwaddr_remote);
+    /* we are not configured? */
+    } else if (netif->ip_addr.addr == 0) {
+      /* { for_us == 0 and netif->ip_addr.addr == 0 } */
+      LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_input: we are unconfigured, ARP request ignored.\n"));
+    /* request was not directed to us */
+    } else {
+      /* { for_us == 0 and netif->ip_addr.addr != 0 } */
+      LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_input: ARP request was not for us.\n"));
+    }
+    break;
+  case ARP_REPLY:
+    /* ARP reply. We already updated the ARP cache earlier. */
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_input: incoming ARP reply\n"));
+#if (LWIP_DHCP && DHCP_DOES_ARP_CHECK)
+    /* DHCP wants to know about ARP replies from any host with an
+     * IP address also offered to us by the DHCP server. We do not
+     * want to take a duplicate IP address on a single network.
+     * @todo How should we handle redundant (fail-over) interfaces? */
+    dhcp_arp_reply(netif, &sipaddr);
+#endif
+    break;
+  default:
+    LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_input: ARP unknown opcode type %"S16_F"\n", htons(hdr->opcode)));
+    ETHARP_STATS_INC(etharp.err);
+    break;
+  }
+  /* free ARP packet */
+  pbuf_free(p);
+}
+
 /**
  * This function should be called when a packet is ready to be read
  * from the interface. It uses the function low_level_input() that
@@ -296,37 +1171,70 @@ low_level_input(t_PXENV_UNDI_ISR *isr)
  */
 void undiif_input(t_PXENV_UNDI_ISR *isr)
 {
-  struct eth_hdr *ethhdr;
   struct pbuf *p;
+  u8_t undi_prot;
+  u16_t llhdr_len;
+
+  /* From the first isr capture the essential information */
+  undi_prot = isr->ProtType;
+  llhdr_len = isr->FrameHeaderLength;
 
   /* move received packet into a new pbuf */
   p = low_level_input(isr);
   /* no packet could be read, silently ignore this */
   if (p == NULL) return;
-  /* points to packet payload, which starts with an Ethernet header */
-  ethhdr = p->payload;
 
-  switch (htons(ethhdr->type)) {
-  /* IP or ARP packet? */
-  case ETHTYPE_IP:
-  case ETHTYPE_ARP:
+  if (undi_is_ethernet(&undi_netif)) {
+    /* points to packet payload, which starts with an Ethernet header */
+    struct eth_hdr *ethhdr = p->payload;
+    
+    switch (htons(ethhdr->type)) {
+    /* IP or ARP packet? */
+    case ETHTYPE_IP:
+    case ETHTYPE_ARP:
 #if PPPOE_SUPPORT
-  /* PPPoE packet? */
-  case ETHTYPE_PPPOEDISC:
-  case ETHTYPE_PPPOE:
+    /* PPPoE packet? */
+    case ETHTYPE_PPPOEDISC:
+    case ETHTYPE_PPPOE:
 #endif /* PPPOE_SUPPORT */
-    /* full packet send to tcpip_thread to process */
-    if (undi_netif.input(p, &undi_netif)!=ERR_OK)
-     { LWIP_DEBUGF(NETIF_DEBUG, ("undiif_input: IP input error\n"));
-       pbuf_free(p);
-       p = NULL;
-     }
-    break;
+      /* full packet send to tcpip_thread to process */
+      if (ethernet_input(p, &undi_netif)!=ERR_OK)
+       { LWIP_DEBUGF(NETIF_DEBUG, ("undiif_input: IP input error\n"));
+         pbuf_free(p);
+         p = NULL;
+       }
+      break;
 
-  default:
-    pbuf_free(p);
-    p = NULL;
-    break;
+    default:
+      pbuf_free(p);
+      p = NULL;
+      break;
+    }
+  } else {
+    if (pbuf_header(p, -(s16_t)llhdr_len)) {
+      LWIP_ASSERT("Can't move link level header in packet", 0);
+      pbuf_free(p);
+      p = NULL;
+    } else {
+      switch(undi_prot) {
+      case P_IP:
+        /* pass to IP layer */
+        ip_input(p, &undi_netif);
+        break;
+      
+      case P_ARP:
+        /* pass p to ARP module */
+        undiarp_input(&undi_netif, p);
+        break;
+
+      default:
+        ETHARP_STATS_INC(etharp.proterr);
+        ETHARP_STATS_INC(etharp.drop);
+        pbuf_free(p);
+        p = NULL;
+        break;
+      }
+    }
   }
 }
 
@@ -342,7 +1250,7 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
  *         ERR_MEM if private data couldn't be allocated
  *         any other err_t on error
  */
-static err_t
+err_t
 undiif_init(struct netif *netif)
 {
   LWIP_ASSERT("netif != NULL", (netif != NULL));
@@ -361,12 +1269,8 @@ undiif_init(struct netif *netif)
   netif->state   = NULL;	/* Private pointer if we need it */
   netif->name[0] = IFNAME0;
   netif->name[1] = IFNAME1;
-  /* We directly use etharp_output() here to save a function call.
-   * You can instead declare your own function an call etharp_output()
-   * from it if you have to do some checks before sending (e.g. if link
-   * is available...) */
-  netif->output = etharp_output;
-  netif->linkoutput = low_level_output;
+  netif->output = undiarp_output;
+  netif->linkoutput = undi_send_unknown;
 
   /* initialize the hardware */
   low_level_init(netif);
@@ -399,7 +1303,7 @@ err_t undi_tcpip_start(struct ip_addr *ipaddr,
 	 ((uint8_t *)gw)[2],
 	 ((uint8_t *)gw)[3]);
   err = netifapi_netif_add(&undi_netif, ipaddr, netmask, gw, NULL,
-			   undiif_init, ethernet_input);
+			   undiif_init, ip_input);
   if (err)
     return err;
 

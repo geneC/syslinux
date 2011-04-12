@@ -55,4 +55,5 @@
 #define LWIP_PLATFORM_HTONS(x)	bswap_16(x)
 #define LWIP_PLATFORM_HTONL(x)	bswap_32(x)
 
+void undiarp_tmr(void);
 #endif /* __LWIPOPTS_H__ */

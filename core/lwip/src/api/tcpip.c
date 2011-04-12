@@ -137,6 +137,7 @@ arp_timer(void *arg)
   LWIP_UNUSED_ARG(arg);
   LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip: etharp_tmr()\n"));
   etharp_tmr();
+  undiarp_tmr();
   sys_timeout(ARP_TMR_INTERVAL, arp_timer, NULL);
 }
 #endif /* LWIP_ARP */
