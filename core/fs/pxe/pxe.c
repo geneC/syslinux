@@ -1420,6 +1420,8 @@ void unload_pxe(void)
 	uint16_t Status;	/* All calls have this as the first member */
     } unload_call;
 
+    pxe_cleanup_isr();
+
     dprintf("FBM before unload = %d\n", BIOS_fbm);
 
     err = reset_pxe();
@@ -1438,7 +1440,8 @@ void unload_pxe(void)
 	memset(&unload_call, 0, sizeof unload_call);
 	err = pxe_call(api, &unload_call);
 	if (err || unload_call.Status != PXENV_STATUS_SUCCESS) {
-	    dprintf("PXE unload API call %04x failed\n", api);
+	    dprintf("PXE unload API call %04x failed: 0x%x\n",
+		     api, unload_call.Status);
 	    goto cant_free;
 	}
     }
