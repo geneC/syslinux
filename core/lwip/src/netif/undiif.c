@@ -72,6 +72,9 @@
 #if ETH_PAD_SIZE
 #error "ETH_PAD_SIZE not supported"
 #endif
+#if NETIF_MAX_HWADDR_LEN != MAC_MAX
+#errir "hwaddr_len mismatch"
+#endif
 
 /** the time an ARP entry stays valid after its last update,
  *  for ARP_TMR_INTERVAL = 5000, this is
@@ -136,7 +139,6 @@ struct undiarp_entry {
 #define IFNAME0 'u'
 #define IFNAME1 'n'
 
-static uint16_t undi_hw_type;
 static struct netif undi_netif;
 static struct undiarp_entry arp_table[ARP_TABLE_SIZE];
 #if !LWIP_NETIF_HWADDRHINT
@@ -153,7 +155,7 @@ static u8_t undiarp_cached_entry;
 static inline bool undi_is_ethernet(struct netif *netif)
 {
    (void)netif;
-   return undi_hw_type == ETHER_TYPE;
+   return MAC_type == ETHER_TYPE;
 }
 
 /**
@@ -177,14 +179,28 @@ low_level_init(struct netif *netif)
 	 undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
 	 undi_info.HwType);
 
-  /* Remember the hardware type for arp */
-  undi_hw_type = undi_info.HwType;
+  /* MAC_type and MAC_len should always match what is returned by
+   * PXENV_UNDI_GET_INFORMATION.  At the moment the both seem to be
+   * reliable but if they disagree that is a sign of a nasty bug
+   * somewhere so abort.
+   */
+  /* If we are in conflict abort */
+  if (MAC_type != undi_info.HwType) {
+    printf("HwType conflicit: %u != %u\n",
+	    MAC_type, undi_info.HwType);
+    kaboom();
+  }
+  if (MAC_len != undi_info.HwAddrLen) {
+     printf("HwAddrLen conflict: %u != %u\n",
+	     MAC_len, undi_info.HwAddrLen);
+     kaboom();
+  }
 
   /* set MAC hardware address length */
-  netif->hwaddr_len = undi_info.HwAddrLen;
+  netif->hwaddr_len = MAC_len;
 
   /* set MAC hardware address */
-  memcpy(netif->hwaddr, undi_info.CurrentNodeAddress, undi_info.HwAddrLen);
+  memcpy(netif->hwaddr, MAC, MAC_len);
 
   /* maximum transfer unit */
   netif->mtu = undi_info.MaxTranUnit;
@@ -314,7 +330,7 @@ undiarp_request(struct netif *netif, struct ip_addr *ipaddr)
   hdr = p->payload;
   LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("undiarp_request: sending raw ARP packet.\n"));
   hdr->opcode = htons(ARP_REQUEST);
-  hdr->hwtype = htons(undi_hw_type);
+  hdr->hwtype = htons(MAC_type);
   hdr->proto = htons(ETHTYPE_IP);
   /* set hwlen and protolen together */
   hdr->_hwlen_protolen = htons((netif->hwaddr_len << 8) | sizeof(struct ip_addr));
@@ -1059,7 +1075,7 @@ undiarp_input(struct netif *netif, struct pbuf *p)
 
   hdr = p->payload;
   /* RFC 826 "Packet Reception": */
-  if ((hdr->hwtype != htons(undi_hw_type)) ||
+  if ((hdr->hwtype != htons(MAC_type)) ||
       (hdr->_hwlen_protolen != htons((netif->hwaddr_len << 8) | sizeof(struct ip_addr))) ||
       (hdr->proto != htons(ETHTYPE_IP))) {
     LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
