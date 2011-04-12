@@ -255,6 +255,9 @@ extern __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 const char *parse_dotquad(const char *ip_str, uint32_t *res);
 int pxe_getc(struct inode *inode);
 
+/* undiif.c */
+int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw);
+
 /* dhcp_options.c */
 void parse_dhcp(int);
 

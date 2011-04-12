@@ -8,6 +8,7 @@
 #include "pxe.h"
 #include <lwip/api.h>
 #include <lwip/dns.h>
+#include <lwip/tcpip.h>
 
 static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
@@ -1027,24 +1028,6 @@ static void gpxe_init(void)
 }
 
 #if 0
-/*
- * Initialize UDP stack
- *
- */
-static void udp_init(void)
-{
-    int err;
-    static __lowmem struct s_PXENV_UDP_OPEN udp_open;
-    udp_open.src_ip = IPInfo.myip;
-    err = pxe_call(PXENV_UDP_OPEN, &udp_open);
-    if (err || udp_open.status) {
-        printf("Failed to initialize UDP stack ");
-        printf("%d\n", udp_open.status);
-	kaboom();
-    }
-}
-#endif
-
 static void undi_clear_stats(void)
 {
     static __lowmem t_PXENV_UNDI_CLEAR_STATISTICS clear;
@@ -1165,6 +1148,7 @@ static void lwip_test(void)
     for(;;)
 	asm volatile("hlt");
 }
+#endif
 
 /*
  * Network-specific initialization
@@ -1172,6 +1156,7 @@ static void lwip_test(void)
 static void network_init(void)
 {
     struct bootp_t *bp = (struct bootp_t *)trackbuf;
+    int err;
     int pkt_len;
     int i;
 
@@ -1229,14 +1214,15 @@ static void network_init(void)
     if ((DHCPMagic & 1) == 0)
         DHCPMagic = 0;
 
-#if 1					/* new stuff */
-    dprintf("undi_tcpip_start...\n");
-    extern err_t undi_tcpip_start(struct ip_addr *ipaddr,
-				  struct ip_addr *netmask,
-				  struct ip_addr *gw);
-    undi_tcpip_start((struct ip_addr *)&IPInfo.myip,
-	    	     (struct ip_addr *)&IPInfo.netmask,
-		     (struct ip_addr *)&IPInfo.gateway);
+    /* Initialize lwip */
+    tcpip_init(NULL, NULL);
+
+    /* Start up the undi driver for lwip */
+    err = undiif_start(IPInfo.myip, IPInfo.netmask, IPInfo.gateway);
+    if (err) {
+       printf("undiif driver failed to start: %d\n", err);
+       kaboom();
+    }
 
     for (i = 0; i < DNS_MAX_SERVERS; i++) {
 	/* Transfer the DNS information to lwip */
@@ -1248,12 +1234,6 @@ static void network_init(void)
 	       ((uint8_t *)&dns_server[i])[3]);
 	dns_setserver(i, (struct ip_addr *)&dns_server[i]);
     }
-
-    dprintf("lwip_test...\n");
-    lwip_test();
-#else
-    udp_init();
-#endif
 }
 
 /*

@@ -1250,7 +1250,7 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
  *         ERR_MEM if private data couldn't be allocated
  *         any other err_t on error
  */
-err_t
+static err_t
 undiif_init(struct netif *netif)
 {
   LWIP_ASSERT("netif != NULL", (netif != NULL));
@@ -1278,22 +1278,17 @@ undiif_init(struct netif *netif)
   return ERR_OK;
 }
 
-err_t undi_tcpip_start(struct ip_addr *ipaddr,
-		       struct ip_addr *netmask,
-		       struct ip_addr *gw)
+int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw)
 {
   err_t err;
-
-  // Start the TCP/IP thread & init stuff
-  tcpip_init(NULL, NULL);
 
   // This should be done *after* the threading system and receive thread
   // have both been started.
   dprintf("undi_netif: ip %d.%d.%d.%d netmask %d.%d.%d.%d gw %d.%d.%d.%d\n",
-	 ((uint8_t *)ipaddr)[0],
-	 ((uint8_t *)ipaddr)[1],
-	 ((uint8_t *)ipaddr)[2],
-	 ((uint8_t *)ipaddr)[3],
+	 ((uint8_t *)ip)[0],
+	 ((uint8_t *)ip)[1],
+	 ((uint8_t *)ip)[2],
+	 ((uint8_t *)ip)[3],
 	 ((uint8_t *)netmask)[0],
 	 ((uint8_t *)netmask)[1],
 	 ((uint8_t *)netmask)[2],
@@ -1302,8 +1297,9 @@ err_t undi_tcpip_start(struct ip_addr *ipaddr,
 	 ((uint8_t *)gw)[1],
 	 ((uint8_t *)gw)[2],
 	 ((uint8_t *)gw)[3]);
-  err = netifapi_netif_add(&undi_netif, ipaddr, netmask, gw, NULL,
-			   undiif_init, ip_input);
+  err = netifapi_netif_add(&undi_netif,
+    (struct ip_addr *)&ip, (struct ip_addr *)&netmask, (struct ip_addr *)gw,
+    NULL, undiif_init, ip_input);
   if (err)
     return err;
 
