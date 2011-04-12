@@ -158,6 +158,61 @@ static inline bool undi_is_ethernet(struct netif *netif)
    return MAC_type == ETHER_TYPE;
 }
 
+#if 0
+static void print_pbuf(struct pbuf *p)
+{
+   struct pbuf *q;
+   int off;
+
+   for( off = 0, q = p; q != NULL; q = q->next) {
+       unsigned char *byte, *end;
+       byte = q->payload;
+       end = byte + q->len;
+       for (; byte < end; byte++, off++ ) {
+	   if ((off & 0xf) == 0) {
+	       printf("%04x: ", off);
+	   }
+	   printf("%02x ", *byte);
+	   if ((off & 0xf) == 0xf) {
+	       printf("\n");
+	   }
+       }
+   }
+   printf("\n");
+}
+#endif
+
+#if 0
+static void print_arp_pbuf(struct netif *netif, struct pbuf *p)
+{
+  struct arp_hdr *hdr;
+  u8_t *hdr_ptr;
+  int i;
+
+  hdr = p->payload;
+  hdr_ptr = (unsigned char *)(hdr + 1);
+  /* Fixed fields */
+  printf("arp: %04x %04x %04x %04x ",
+	  hdr->hwtype,
+	  hdr->proto,
+	  hdr->_hwlen_protolen);
+  /* Source hardware address */
+  for(i = 0; i < netif->hwaddr_len; i++, hdr_ptr++) {
+    printf("%02x%c", *hdr_ptr,(i +1) == netif->hwaddr_len?' ':':');
+  }
+  /* Source ip address */
+  printf("%d.%d.%d.%d ", hdr_ptr[0], hdr_ptr[1], hdr_ptr[2], hdr_ptr[3]);
+  hdr_ptr += 4;
+  /* Destination hardware address */
+  for(i = 0; i < netif->hwaddr_len; i++, hdr_ptr++) {
+    printf("%02x%c", *hdr_ptr, (i +1) == netif->hwaddr_len?' ':':');
+  }
+  /* Destination ip address */
+  printf("%d.%d.%d.%d ", hdr_ptr[0], hdr_ptr[1], hdr_ptr[2], hdr_ptr[3]);
+  hdr_ptr += 4;
+}
+#endif
+
 /**
  * In this function, the hardware should be initialized.
  * Called from undiif_init().
