@@ -58,7 +58,7 @@ extern "C" {
 
 /** must be the maximum of all used hardware address lengths
     across all types of interfaces in use */
-#define NETIF_MAX_HWADDR_LEN 6U
+#define NETIF_MAX_HWADDR_LEN 20U
 
 /** TODO: define the use (where, when, whom) of netif flags */
 
