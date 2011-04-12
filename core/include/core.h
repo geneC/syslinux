@@ -21,6 +21,7 @@ extern char ConfigFile[];
 extern void getlinsec(void);
 
 /* pm.inc */
+void core_pm_null_hook(void);
 extern void (*core_pm_hook)(void);
 
 /* getc.inc */

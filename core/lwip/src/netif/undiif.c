@@ -57,13 +57,13 @@
 #include "netif/ppp_oe.h"
 #include "lwip/netifapi.h"
 #include "lwip/tcpip.h"
+#include "../../../fs/pxe/pxe.h"
 
 #include <inttypes.h>
 #include <string.h>
 #include <syslinux/pxe_api.h>
 #include <dprintf.h>
 
-int pxe_call(int, void *);
 #define PKTBUF_SIZE	2048
 
 /* Define those to better describe your network interface. */
@@ -79,24 +79,6 @@ static struct netif undi_netif;
  * @param netif the already initialized lwip network interface structure
  *        for this undiif
  */
-extern uint8_t pxe_irq_vector;
-extern void pxe_isr(void);
-
-/* XXX: move this somewhere sensible */
-static void install_irq_vector(uint8_t irq, void (*isr)(void))
-{
-  unsigned int vec;
-
-  if (irq < 8)
-    vec = irq + 0x08;
-  else if (irq < 16)
-    vec = (irq - 8) + 0x70;
-  else
-    return;			/* ERROR */
-  
-  *(uint32_t *)(vec << 2) = (uint32_t)isr;
-}
-
 static void
 low_level_init(struct netif *netif)
 {
@@ -131,7 +113,7 @@ low_level_init(struct netif *netif)
 
   /* Install the interrupt vector */
   pxe_irq_vector = undi_info.IntNumber;
-  install_irq_vector(pxe_irq_vector, pxe_isr);
+  install_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
 
   /* Open the UNDI stack - you'd think the BC would have done this... */
   undi_open.PktFilter = 0x0003;	/* FLTR_DIRECTED | FLTR_BRDCST */

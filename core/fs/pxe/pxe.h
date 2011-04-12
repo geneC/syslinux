@@ -236,9 +236,17 @@ static inline uint32_t gateway(uint32_t ip)
  * functions 
  */
 
+/* pxeisr.inc */
+extern uint8_t pxe_irq_vector;
+extern void pxe_isr(void);
+extern far_ptr_t pxe_irq_chain;
+
 /* isr.c */
 void pxe_init_isr(void);
+void pxe_cleanup_isr(void);
 void pxe_poll(void);
+bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old);
+bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old);
 
 /* pxe.c */
 bool ip_ok(uint32_t);

@@ -222,6 +222,7 @@ pm_irq:
 ; threaded derivatives to run the scheduler, or examine the result from
 ; interrupt routines.
 ;
+		global core_pm_null_hook
 core_pm_null_hook:
 		ret
 
