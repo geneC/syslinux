@@ -20,7 +20,6 @@ MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/com32.mk
 -include $(topdir)/version.mk
 
-LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = ../libutil/libutil_lnx.a
 
 MODULES	  = sysdump.c32
@@ -43,7 +42,7 @@ CFLAGS    += -DDATE='"$(DATE)"'
 
 all: $(MODULES) $(TESTFILES)
 
-sysdump.elf : $(OBJS) $(LIBS) $(C_LIBS)
+sysdump.elf : $(OBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
