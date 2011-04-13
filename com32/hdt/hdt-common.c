@@ -661,7 +661,7 @@ char *del_multi_spaces(char *p)
      * As we search for a double spacing
      * we have to be sure then string is
      * long enough to be processed */
-    while (*p && *p + 1) {
+    while (*p && *(p + 1)) {
 
 	/* If we have two consecutive spaces */
 	if ((*p == ' ') && (*(p + 1) == ' ')) {
