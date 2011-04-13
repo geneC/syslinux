@@ -33,7 +33,11 @@ LIBJPG_OBJS = \
 LIBVESA_OBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
-	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o
+	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
+	sys/vesa/i915resolution.o
+
+LIBMISC_OBJS = \
+	sys/libansi.o sys/gpxe.o
 
 LIBPCI_OBJS = \
 	pci/cfgtype.o pci/scan.o pci/bios.o				\
@@ -45,8 +49,11 @@ LIBSYSLINUX_OBJS = \
 	syslinux/features.o syslinux/config.o	\
 	syslinux/ipappend.o syslinux/dsinfo.o syslinux/version.o	\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
+	syslinux/pxe_dns.o						\
 	syslinux/adv.o syslinux/advwrite.o syslinux/getadv.o		\
-	syslinux/setadv.o
+	syslinux/setadv.o						\
+	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
+	syslinux/video/reportmode.o
 
 LIBLOAD_OBJS = \
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
@@ -69,7 +76,7 @@ DYNENTRY_OBJS = \
 ## CORE OBJECTS, INCLUDED IN THE ROOT COM32 MODULE
 LIBENTRY_OBJS = \
 	sys/intcall.o sys/farcall.o sys/cfarcall.o sys/zeroregs.o	\
-	sys/argv.o							\
+	sys/argv.o sys/sleep.o						\
 	sys/fileinfo.o sys/opendev.o sys/read.o sys/write.o sys/ftell.o \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/openmem.o					\
@@ -120,6 +127,7 @@ LIBOTHER_OBJS = \
 	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
 	strnlen.o							\
 	strncat.o strncmp.o strncpy.o strndup.o		\
+	strncasecmp.o							\
 	stpcpy.o stpncpy.o						\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
@@ -184,6 +192,7 @@ DYNLIBOBJS = \
 	$(LIBVESA_OBJS) \
 	$(LIBSYSLINUX_OBJS) \
 	$(LIBLOAD_OBJS) \
+	$(LIBMISC_OBJS) \
 	$(DYNENTRY_OBJS)
 
 
