@@ -120,9 +120,9 @@ static void compute_partition_information(struct driveinfo *drive_info,
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     }
 
-    snprintf(buffer, sizeof buffer, "Bootable    : %s",
+    snprintf(buffer, sizeof buffer, "Boot Flag   : %s",
 	     (ptab->active_flag == 0x80) ? "Yes" : "No");
-    snprintf(statbuffer, sizeof statbuffer, "Bootable: %s",
+    snprintf(statbuffer, sizeof statbuffer, "Boot Flag: %s",
 	     (ptab->active_flag == 0x80) ? "Yes" : "No");
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 
