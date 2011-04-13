@@ -96,6 +96,11 @@ static struct cpu_dev transmeta_cpu_dev = {
     .c_ident = {"GenuineTMx86", "TransmetaCPU"}
 };
 
+static struct cpu_dev nsc_cpu_dev = {
+    .c_vendor = "National Semiconductor",
+    .c_ident = {"Geode by NSC"}
+};
+
 void init_cpu_devs(void)
 {
     cpu_devs[X86_VENDOR_INTEL] = &intel_cpu_dev;
@@ -106,6 +111,7 @@ void init_cpu_devs(void)
     cpu_devs[X86_VENDOR_CENTAUR] = &centaur_cpu_dev;
     cpu_devs[X86_VENDOR_RISE] = &rise_cpu_dev;
     cpu_devs[X86_VENDOR_TRANSMETA] = &transmeta_cpu_dev;
+    cpu_devs[X86_VENDOR_NSC] = &nsc_cpu_dev;
 }
 
 void get_cpu_vendor(struct cpuinfo_x86 *c)
