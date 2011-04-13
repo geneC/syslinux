@@ -10,7 +10,7 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include "menu.h"
+#include "cmenu.h"
 #include "com32io.h"
 #include <stdlib.h>
 #include <console.h>

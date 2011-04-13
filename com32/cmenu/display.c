@@ -16,7 +16,7 @@
 
 #include "help.h"
 #include "com32io.h"
-#include "menu.h"
+#include "cmenu.h"
 #include "tui.h"
 #include <stdlib.h>
 #include <com32.h>

@@ -13,7 +13,7 @@
 #ifndef __HELP_H_
 #define __HELP_H_
 
-#include "menu.h"
+#include "cmenu.h"
 #include "com32io.h"
 #include "tui.h"
 #include <string.h>
