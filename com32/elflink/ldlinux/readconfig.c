@@ -22,7 +22,6 @@
 #include <com32.h>
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
-#include <core-elf.h>
 #include <dprintf.h>
 
 #include "menu.h"

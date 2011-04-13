@@ -2,7 +2,6 @@
 #include <sys/times.h>
 #include <stdbool.h>
 #include <core.h>
-#include <core-elf.h>
 #include "cli.h"
 #include "console.h"
 #include "com32.h"

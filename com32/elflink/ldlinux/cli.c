@@ -12,7 +12,6 @@
 #include <linux/list.h>
 #include <sys/exec.h>
 #include <sys/module.h>
-#include <core-elf.h>
 #include <dprintf.h>
 
 #include "getkey.h"

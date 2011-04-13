@@ -8,7 +8,6 @@
 #include <syslinux/linux.h>
 #include <syslinux/pxe.h>
 #include "core.h"
-#include "core-elf.h"
 
 const char *globaldefault = NULL;
 const char *append = NULL;

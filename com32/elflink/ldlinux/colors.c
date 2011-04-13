@@ -14,7 +14,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <colortbl.h>
-#include <core-elf.h>
 #include "menu.h"
 
 /*

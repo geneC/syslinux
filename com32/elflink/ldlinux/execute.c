@@ -18,7 +18,7 @@
 #include <com32.h>
 #include <sys/exec.h>
 #include "core.h"
-#include "core-elf.h"
+#include "menu.h"
 
 /* Must match enum kernel_type */
 const char *const kernel_types[] = {
@@ -35,11 +35,6 @@ const char *const kernel_types[] = {
     "config",
     NULL
 };
-
-static inline int my_isspace(char c)
-{
-    return (unsigned char)c <= ' ';
-}
 
 void execute(const char *cmdline, enum kernel_type type)
 {
