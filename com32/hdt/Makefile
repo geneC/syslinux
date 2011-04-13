@@ -45,6 +45,7 @@ FLOPPY_DIR		?= floppy
 PCI_IDS_FILE            ?= $(PWD)/$(FLOPPY_DIR)/pci.ids
 GZ_PCI_IDS_FILE         ?= $(PCI_IDS_FILE).gz
 MENU_COM32              ?= $(com32)/menu/menu.c32
+CHAIN_COM32             ?= $(com32)/modules/chain.c32
 ART_DIR                 ?= art/
 QEMU			?= qemu-kvm
 
@@ -56,7 +57,7 @@ hdt.elf : $(OBJS) $(LIBS) $(C_LIBS)
 memtest:
 	-[ ! -f $(FLOPPY_DIR)/$(MEMTEST) ] && $(WGET) $(MEMTEST_URL) -O $(FLOPPY_DIR)/$(MEMTEST)
 
-hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(MENU_COM32) memtest
+hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtools/syslinux $(MENU_COM32) memtest $(CHAIN_COM32)
 	rm -f hdt*.img
 	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg |\
 	$(SED) -e 's/%CODENAME%/$(CODENAME)/g' > $(FLOPPY_DIR)/syslinux.cfg
@@ -68,6 +69,7 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	-[ -f $(MODULES_PCIMAP_FILE) ] && cat $(MODULES_PCIMAP_FILE) | $(GZIPPROG) - -f | MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) - a:modules.pcimap
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) hdt.c32 a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(MENU_COM32) a:
+	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(CHAIN_COM32) a:
 	@ [ -f $(GZ_PCI_IDS_FILE) ] && MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(GZ_PCI_IDS_FILE) a:pci.ids || printf "\nThe $(GZ_PCI_IDS_FILE) file is missing and can be downloaded from http://pciids.sourceforge.net and gzipped in\nthe ./com32/hdt/$(FLOPPY_DIR) directory of the extracted Syslinux source.\n\n"
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/syslinux.cfg a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/$(MEMTEST) a:
@@ -90,6 +92,7 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	cp hdt.c32 $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(FLOPPY_DIR)/$(MEMTEST) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(MENU_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
+	cp $(CHAIN_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp -av $(ART_DIR)/backgnd.png $(ISO_DIR)/$(ISOLINUX_DIR)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
