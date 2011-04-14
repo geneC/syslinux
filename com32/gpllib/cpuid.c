@@ -101,6 +101,11 @@ static struct cpu_dev nsc_cpu_dev = {
     .c_ident = {"Geode by NSC"}
 };
 
+static struct cpu_dev unknown_cpu_dev = {
+    .c_vendor = "Unknown Vendor",
+    .c_ident = {"Unknown CPU"}
+};
+
 void init_cpu_devs(void)
 {
     cpu_devs[X86_VENDOR_INTEL] = &intel_cpu_dev;
@@ -112,6 +117,7 @@ void init_cpu_devs(void)
     cpu_devs[X86_VENDOR_RISE] = &rise_cpu_dev;
     cpu_devs[X86_VENDOR_TRANSMETA] = &transmeta_cpu_dev;
     cpu_devs[X86_VENDOR_NSC] = &nsc_cpu_dev;
+    cpu_devs[X86_VENDOR_UNKNOWN] = &unknown_cpu_dev;
 }
 
 void get_cpu_vendor(struct cpuinfo_x86 *c)
@@ -119,7 +125,7 @@ void get_cpu_vendor(struct cpuinfo_x86 *c)
     char *v = c->x86_vendor_id;
     int i;
     init_cpu_devs();
-    for (i = 0; i < X86_VENDOR_NUM; i++) {
+    for (i = 0; i < X86_VENDOR_NUM-1; i++) {
 	if (cpu_devs[i]) {
 	    if (!strcmp(v, cpu_devs[i]->c_ident[0]) ||
 		(cpu_devs[i]->c_ident[1] &&

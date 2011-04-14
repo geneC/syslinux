@@ -186,8 +186,8 @@ extern bool get_cpu_flag_value_from_name(s_cpu *cpu, const char * flag);
 #define X86_VENDOR_RISE 6
 #define X86_VENDOR_TRANSMETA 7
 #define X86_VENDOR_NSC 8
-#define X86_VENDOR_NUM 9
-#define X86_VENDOR_UNKNOWN 0xff
+#define X86_VENDOR_UNKNOWN 9 
+#define X86_VENDOR_NUM 10 
 
 #define cpu_has(c, bit)                test_bit(bit, (c)->x86_capability)
 
