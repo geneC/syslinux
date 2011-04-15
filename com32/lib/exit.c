@@ -54,6 +54,6 @@ __noreturn _Exit(int rv)
 
 __noreturn _exit(int rv)
 {
-    longjmp(__syslinux_current->u.x.process_exit, rv+1);
+    longjmp(__syslinux_current->u.x.process_exit, (uint8_t)rv+1);
 }
 
