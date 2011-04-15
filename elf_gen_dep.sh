@@ -23,6 +23,8 @@ do
 	sed -n -e "/UND/d" -e "/ABS/d" -e "/...[0-9] $/d" -e "/...[0-9] \./d" -e "/...[0-9]/p" $module.txt > $module.int 
 	sed -i -e "s/^.....//g" $module.int
 	sed -i -e "s/^\(.*\)$/\1 <$module>/g" $module.int
+	# Delete all whitespace
+	sed -i -e "s/^[ \t]*$//g" $module.int
 
 	cat $module.int >> all.txt
 done
