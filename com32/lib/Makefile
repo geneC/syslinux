@@ -212,7 +212,6 @@ libcom32.c32 : $(LIBOBJS)
 	rm -f $@
 	$(LD) -shared $(LDFLAGS) -o $@ $^
 
-$(LIBMODULE_OBJS) : CFLAGS += -DELF_DEBUG
 libcom32min.a : $(MINLIBOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
