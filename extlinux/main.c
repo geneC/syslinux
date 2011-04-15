@@ -766,7 +766,7 @@ int install_loader(const char *path, int update_only)
     if (devfd < 0)
 	return 1;
 
-    if (update_only && !already_installed(devfd)) {
+    if (update_only && !syslinux_already_installed(devfd)) {
 	fprintf(stderr, "%s: no previous syslinux boot sector found\n",
 		program);
 	close(devfd);
