@@ -85,7 +85,7 @@ resolve_sym ()
 			fi
 		else
 			#echo $symbol
-			sed -n -e "s/^$symbol <\(.*\)>/\1/p" all.txt >> resolve.tmp
+			sed -n -e "s/^$symbol <\(.*\)>/\1/p" all.txt | head -n1 >> resolve.tmp
 			#grep $symbol all.txt
 		fi
 	done
