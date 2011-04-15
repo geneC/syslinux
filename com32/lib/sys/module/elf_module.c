@@ -390,27 +390,20 @@ static int extract_operations(struct elf_module *module) {
 	Elf32_Sym *exit_sym = module_find_symbol(MODULE_ELF_EXIT_PTR, module);
 	Elf32_Sym *main_sym = module_find_symbol("main", module);
 
-	if (init_sym == NULL) {
-		DBG_PRINT("Cannot find initialization routine pointer.\n");
-		printf("Cannot find initialization routine pointer.\n");
-		return -1;
-	}
-	if (exit_sym == NULL) {
-		DBG_PRINT("Cannot find exit routine pointer.\n");
-		printf("Cannot find exit routine pointer.\n");
-		return -1;
+	if (init_sym) {
+		module->init_func = (module_init_t*)module_get_absolute(
+			init_sym->st_value, module);
+		if (*(module->init_func) == NULL) {
+			module->init_func = NULL;
+		}
 	}
 
-	module->init_func = (module_init_t*)module_get_absolute(
-								init_sym->st_value, module);
-	if (*(module->init_func) == NULL) {
-		module->init_func = NULL;
-	}
-
-	module->exit_func = (module_exit_t*)module_get_absolute(
-								exit_sym->st_value, module);
-	if (*(module->exit_func) == NULL) {
-		module->exit_func = NULL;
+	if (exit_sym) {
+		module->exit_func = (module_exit_t*)module_get_absolute(
+			exit_sym->st_value, module);
+		if (*(module->exit_func) == NULL) {
+			module->exit_func = NULL;
+		}
 	}
 
 	if (main_sym)
