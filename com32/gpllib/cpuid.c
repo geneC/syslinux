@@ -325,10 +325,13 @@ void detect_cyrix(struct cpuinfo_x86 *c) {
 			   dir0_msn = 7;
 			   break;
 	}
-	
-	strcpy(buf, Cx86_model[dir0_msn & 7]);
 
-	if (p) strcat(buf, p);
+	/* If the processor is unknown, we keep the model name we got
+	 * from the generic call */
+	if (dir0_msn < 7) {	
+		strcpy(buf, Cx86_model[dir0_msn & 7]);
+		if (p) strcat(buf, p);
+	}
 }
 
 void generic_identify(struct cpuinfo_x86 *c)
