@@ -22,6 +22,7 @@
 #include <cpufeature.h>
 #include <sys/bitops.h>
 #include <sys/cpu.h>
+#include <sys/io.h>
 #include <klibc/compiler.h>
 
 #define PAGE_SIZE 4096
@@ -191,6 +192,32 @@ extern bool get_cpu_flag_value_from_name(s_cpu *cpu, const char * flag);
 
 #define cpu_has(c, bit)                test_bit(bit, (c)->x86_capability)
 
+// Taken from asm/processor-flags.h
+// NSC/Cyrix CPU configuration register indexes
+#define CX86_CCR2       0xc2
+#define CX86_CCR3	0xc3
+#define CX86_DIR0       0xfe
+#define CX86_DIR1       0xff
+
+static const char Cx86_model[][9] = {
+	"Cx486", "Cx486", "5x86 ", "6x86", "MediaGX ", "6x86MX ",
+	"M II ", "Unknown"
+};
+
+static const char Cx486_name[][5] = {
+	"SLC", "DLC", "SLC2", "DLC2", "SRx", "DRx",
+	"SRx2", "DRx2"
+};
+
+static const char Cx486S_name[][4] = {
+	"S", "S2", "Se", "S2e"
+};
+
+static const char Cx486D_name[][4] = {
+	"DX", "DX2", "?", "?", "?", "DX4"
+};
+
+
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  *  Members of this structure are referenced in head.S, so think twice
@@ -274,6 +301,16 @@ struct intel_mp_floating {
     uint8_t mpf_feature4;	/* Unused (0)                   */
     uint8_t mpf_feature5;	/* Unused (0)                   */
 };
+
+static inline uint8_t getCx86(uint8_t reg) {
+	outb(reg, 0x22);
+	return inb(0x23);
+}
+
+static inline void setCx86(uint8_t reg, uint8_t data) {
+	outb(reg, 0x22);
+	outb(data, 0x23);
+}
 
 extern void get_cpu_vendor(struct cpuinfo_x86 *c);
 extern void detect_cpu(s_cpu * cpu);
