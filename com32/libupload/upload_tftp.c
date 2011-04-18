@@ -51,7 +51,7 @@ static int send_ack_packet(struct tftp_state *tftp,
     ireg.eax.w[0] = 0x0009;
 
     for (timeout = timeouts ; *timeout ; timeout++) {
-	memset(uw, 0, sizeof uw);
+	memset(uw, 0, sizeof *uw);
 	memcpy(uw+1, pkt, len);
 	uw->ip = tftp->srv_ip;
 	uw->gw = tftp->srv_gw;
@@ -69,7 +69,7 @@ static int send_ack_packet(struct tftp_state *tftp,
 	start = times(NULL);
 
 	do {
-	    memset(ur, 0, sizeof ur);
+	    memset(ur, 0, sizeof *ur);
 	    ur->src_ip = tftp->srv_ip;
 	    ur->dest_ip = tftp->my_ip;
 	    ur->s_port = tftp->srv_port;
