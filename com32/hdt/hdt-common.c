@@ -121,25 +121,19 @@ void detect_parameters(const int argc, const char *argv[],
 	     */
 
 	    automode=true;
+	    char *argument = (char*)argv[i]+6;
 	    /* Extracting the first parameter */
-	    strcpy(hardware->auto_label, argv[i] + 6);
-	    strcat(hardware->auto_label, " ");
-	    char *pos;
-	    i++;
+	    strcpy(hardware->auto_label, argument);
 
 	    /* While we can't find the other AUTO_DELIMITER, let's process the argv[] */
-	    while (((pos = strstr(argv[i], AUTO_DELIMITER)) == NULL)
-		   && (i < argc)) {
-		strcat(hardware->auto_label, argv[i]);
-		strcat(hardware->auto_label, " ");
+	    while ((strchr(argument, AUTO_DELIMITER) == NULL) && (i+1<argc)) {
 		i++;
-	    }
+	    	argument = (char *)argv[i];
+		strcat(hardware->auto_label, " ");
+		strcat(hardware->auto_label, argument);
+	    } 
 
-	    /* If we didn't reach the end of the line, let's grab the last item */
-	    if (i < argc) {
-		strcat(hardware->auto_label, argv[i]);
-		hardware->auto_label[strlen(hardware->auto_label) - 1] = 0;
-	    }
+	     hardware->auto_label[strlen(hardware->auto_label) - 1] = 0;
 	}
     }
 }

@@ -73,7 +73,7 @@
 /* The char that separate two commands */
 #define AUTO_SEPARATOR ";"
 /* The char that surround the list of commands */
-#define AUTO_DELIMITER "'"
+#define AUTO_DELIMITER '\'' 
 
 /* Graphic to load in background when using the vesa mode */
 #define CLI_DEFAULT_BACKGROUND "backgnd.png"
