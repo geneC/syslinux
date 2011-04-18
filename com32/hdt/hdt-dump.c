@@ -30,6 +30,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <getkey.h>
+#include <syslinux/config.h>
 #include "hdt-common.h"
 #include "hdt-dump.h"
 
@@ -92,6 +94,8 @@ void flush (ZZJSON_CONFIG *config, ZZJSON ** item) {
  **/
 void dump(struct s_hardware *hardware)
 {
+    const union syslinux_derivative_info *sdi = syslinux_derivative_info();
+    int err=0;
     ZZJSON *json = NULL;
     ZZJSON_CONFIG config = { ZZJSON_VERY_STRICT, NULL,
 		(int(*)(void*)) fgetc,
@@ -103,6 +107,8 @@ void dump(struct s_hardware *hardware)
     };
 
     memset(&p_buf,0,sizeof(p_buf));
+
+    more_printf("Preparing dump file\n");
 
     /* By now, we only support TFTP reporting */
     upload=&upload_tftp;
@@ -121,6 +127,13 @@ void dump(struct s_hardware *hardware)
 	    arg[2] = NULL;
     } else {
 	    arg[1] = NULL;
+	    snprintf(hardware->tftp_ip, sizeof(hardware->tftp_ip),
+			    "%u.%u.%u.%u",
+			    ((uint8_t *)&sdi->pxe.ipinfo->serverip)[0],
+			    ((uint8_t *)&sdi->pxe.ipinfo->serverip)[1],
+			    ((uint8_t *)&sdi->pxe.ipinfo->serverip)[2],
+			    ((uint8_t *)&sdi->pxe.ipinfo->serverip)[3]);
+
     }
 
     /* We initiate the cpio to send */
@@ -141,5 +154,13 @@ void dump(struct s_hardware *hardware)
 
     /* We close & flush the file to send */
     cpio_close(upload);
-    flush_data(upload);
+
+    if ((err=flush_data(upload)) != TFTP_OK) {
+	/* As we manage a tftp connection, let's display the associated error message */
+	more_printf("Dump failed !\n");
+	more_printf("TFTP ERROR on  : %s:/%s \n",hardware->tftp_ip, filename);
+	more_printf("TFTP ERROR msg : %s \n",tftp_string_error_message[-err]);
+    } else {
+	more_printf("Dump file sent at %s:/%s\n",hardware->tftp_ip, filename);
+    }
 }
