@@ -58,6 +58,7 @@ tidy dist:
 	rm -Rf *.img
 
 clean: tidy
-	rm -f $(BTARGET) *.lst *.bin *_bin.c
+	rm -f *.lst *.bin *_bin.c
 
 spotless: clean
+	rm -f $(BTARGET)

@@ -37,13 +37,13 @@ static void cooked_keys(void)
 	if (key == 0x03) {
 	    printf("[done]\n");
 	    exit(0);
-	} else if (key == '?')
+	} else if (key == '!')
 	    return;
 
 	if (key >= 0x20 && key < 0x100) {
 	    putchar(key);
 	} else {
-	    printf("[%04x]", key);
+	    printf("[%s,%04x]", key_code_to_name(key), key);
 	}
     }
 }
@@ -63,7 +63,8 @@ static void raw_keys(void)
 	} else if (key == '!')
 	    return;
 
-	printf("<%02x>", key);
+	if (key != EOF)
+	    printf("<%02x>", key);
     }
 }
 
@@ -72,7 +73,7 @@ int main(void)
     console_ansi_raw();
 
     printf("CLK_TCK = %d\n", (int)CLK_TCK);
-    printf("Press keys, end with Ctrl-C...\n");
+    printf("Press keys, end with Ctrl-C, ! changes from cooked to raw\n");
 
     for (;;) {
 	cooked_keys();
