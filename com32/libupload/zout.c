@@ -78,6 +78,7 @@ int write_data(struct upload_backend *be, const void *buf, size_t len)
 int flush_data(struct upload_backend *be)
 {
     int rv = Z_OK;
+    int err=-1;
 
     while (rv != Z_STREAM_END) {
 	rv = do_deflate(be, Z_FINISH);
@@ -85,15 +86,15 @@ int flush_data(struct upload_backend *be)
 	    return -1;
     }
 
-    printf("Uploading data, %u bytes... ", be->zbytes);
+//    printf("Uploading data, %u bytes... ", be->zbytes);
 
-    if (be->write(be))
-	return -1;
+    if ((err=be->write(be)) != 0)
+	return err;
 
     free(be->outbuf);
     be->outbuf = NULL;
     be->dbytes = be->zbytes = be->alloc = 0;
 
-    printf("done.\n");
+//    printf("done.\n");
     return 0;
 }

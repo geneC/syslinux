@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <zlib.h>
 #include "serial.h"
+#include "tftp.h"
 
 /* Backend flags */
 #define BE_NEEDLEN	0x01
