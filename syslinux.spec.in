@@ -11,7 +11,7 @@ Source0: ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/%{name}-%{VERSION}.t
 ExclusiveArch: i386 i486 i586 i686 athlon pentium4 x86_64
 Packager: H. Peter Anvin <hpa@zytor.com>
 Buildroot: %{_tmppath}/%{name}-%{VERSION}-root
-BuildPrereq: nasm >= 2.03, perl
+BuildRequires: nasm >= 2.03, perl
 Autoreq: 0
 %ifarch x86_64
 Requires: mtools, libc.so.6()(64bit)
@@ -94,6 +94,7 @@ rm -rf %{buildroot}
 %{_datadir}/syslinux/*.0
 %{_datadir}/syslinux/memdisk
 %{_datadir}/syslinux/dosutil/*
+%{_datadir}/syslinux/diag/*
 
 %files devel
 %{_datadir}/syslinux/com32

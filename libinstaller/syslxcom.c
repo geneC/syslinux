@@ -284,3 +284,16 @@ int sectmap(int fd, sector_t *sectors, int nsectors)
 
     return sectmap_fib(fd, sectors, nsectors);
 }
+
+/*
+ * SYSLINUX installs the string 'SYSLINUX' at offset 3 in the boot
+ * sector; this is consistent with FAT filesystems.  Earlier versions
+ * would install the string "EXTLINUX" instead, handle both.
+ */
+int syslinux_already_installed(int dev_fd)
+{
+    char buffer[8];
+
+    xpread(dev_fd, buffer, 8, 3);
+    return !memcmp(buffer, "SYSLINUX", 8) || !memcmp(buffer, "EXTLINUX", 8);
+}

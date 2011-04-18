@@ -503,19 +503,6 @@ int install_file(const char *path, int devfd, struct stat *rst)
 	return 1;
 }
 
-/*
- * SYSLINUX installs the string 'SYSLINUX' at offset 3 in the boot
- * sector; this is consistent with FAT filesystems.  Earlier versions
- * would install the string "EXTLINUX" instead, handle both.
- */
-int already_installed(int devfd)
-{
-    char buffer[8];
-
-    xpread(devfd, buffer, 8, 3);
-    return !memcmp(buffer, "SYSLINUX", 8) || !memcmp(buffer, "EXTLINUX", 8);
-}
-
 #ifdef __KLIBC__
 static char devname_buf[64];
 
@@ -766,7 +753,7 @@ int install_loader(const char *path, int update_only)
     if (devfd < 0)
 	return 1;
 
-    if (update_only && !already_installed(devfd)) {
+    if (update_only && !syslinux_already_installed(devfd)) {
 	fprintf(stderr, "%s: no previous syslinux boot sector found\n",
 		program);
 	close(devfd);

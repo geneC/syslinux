@@ -382,6 +382,10 @@ int main(int argc, char *argv[])
 	    sync();
 	    rmdir(mntpath);
 	    exit(0);
+    } else if (opt.update_only && !syslinux_already_installed(dev_fd)) {
+        fprintf(stderr, "%s: no previous syslinux boot sector found\n",
+                argv[0]);
+        exit(1);
 	} else {
 	    fprintf(stderr, "%s: please specify --install or --update for the future\n", argv[0]);
 	    opt.update_only = 0;
