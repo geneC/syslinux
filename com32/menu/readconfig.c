@@ -143,7 +143,7 @@ static char *looking_at(char *line, const char *kwd)
 }
 
 /* Get a single word into a new refstr; advances the input pointer */
-static char *get_word(char *str, const char **word)
+static char *get_word(char *str, char **word)
 {
     char *p = str;
     char *q;
@@ -721,16 +721,27 @@ static void parse_config_file(FILE * f)
 	    } else if ((ep = looking_at(p, "hidden"))) {
 		hiddenmenu = 1;
 	    } else if (looking_at(p, "hiddenkey")) {
-		const char *key_name;
+		char *key_name, *k, *ek;
+		const char *command;
 		int key;
 		p = get_word(skipspace(p + 9), &key_name);
-		p = skipspace(p);
-		key = key_name_to_code(key_name);
-		refstr_put(key_name);
-		if (key >= 0) {
-		    refstr_put(hide_key[key]);
-		    hide_key[key] = refstrdup(skipspace(p));
+		command = refstrdup(skipspace(p));
+		k = key_name;
+		for (;;) {
+		    ek = strchr(k+1, ',');
+		    if (ek)
+			*ek = '\0';
+		    key = key_name_to_code(k);
+		    if (key >= 0) {
+			refstr_put(hide_key[key]);
+			hide_key[key] = refstr_get(command);
+		    }
+		    if (!ek)
+			break;
+		    k = ek+1;
 		}
+		refstr_put(key_name);
+		refstr_put(command);
 	    } else if ((ep = looking_at(p, "clear"))) {
 		clearmenu = 1;
 	    } else if ((ep = is_message_name(p, &msgnr))) {
@@ -1064,6 +1075,7 @@ void parse_configs(char **argv)
     const char *filename;
     struct menu *m;
     struct menu_entry *me;
+    int k;
 
     empty_string = refstrdup("");
 
@@ -1124,5 +1136,11 @@ void parse_configs(char **argv)
 	    m->ontimeout = unlabel(m->ontimeout);
 	if (m->onerror)
 	    m->onerror = unlabel(m->onerror);
+    }
+
+    /* Final global initialization, with all labels known */
+    for (k = 0; k < KEY_MAX; k++) {
+	if (hide_key[k])
+	    hide_key[k] = unlabel(hide_key[k]);
     }
 }
