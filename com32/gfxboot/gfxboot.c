@@ -922,11 +922,15 @@ void boot_entry(menu_t *menu_ptr, char *arg)
     *skip_nonspaces(s) = 0;
     initrd_arg = s;
   }
+  else if(initrd_arg) {
+    free(s0);
+    initrd_arg = s0 = strdup(initrd_arg);
+  }
 
   if(initrd_arg) {
     initrd = initramfs_init();
 
-    while((t = strsep(&s, ","))) {
+    while((t = strsep(&initrd_arg, ","))) {
       initrd_buf = load_one(t, &initrd_size);
 
       if(!initrd_buf) {
