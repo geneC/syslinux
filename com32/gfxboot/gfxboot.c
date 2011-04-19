@@ -102,6 +102,8 @@ typedef struct __attribute__ ((packed)) {
   				//    0: GFX_CB_MENU_INIT accepts 32 bit addresses
   				//    1: knows about xmem_start, xmem_end
   uint16_t reserved_1;		// 62:
+  uint32_t gfxboot_cwd;		// 64: if set, points to current gfxboot working directory relative
+				//     to syslinux working directory
 } gfx_config_t;
 
 
@@ -181,6 +183,7 @@ int main(int argc, char **argv)
 {
   int menu_index;
   const union syslinux_derivative_info *sdi;
+  char working_dir[256];
 
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
@@ -222,6 +225,10 @@ int main(int argc, char **argv)
     if(argc > 2) show_message(argv[2]);
 
     return 0;
+  }
+
+  if(getcwd(working_dir, sizeof working_dir)) {
+    gfx_config.gfxboot_cwd = (uint32_t) working_dir;
   }
 
   if(gfx_init(argv[1])) {
@@ -806,6 +813,12 @@ void boot(int index)
   int i, label_len;
   unsigned ipapp;
   const struct syslinux_ipappend_strings *ipappend;
+  char *gfxboot_cwd = (char *) gfx_config.gfxboot_cwd;
+
+  if(gfxboot_cwd) {
+    chdir(gfxboot_cwd);
+    gfx_config.gfxboot_cwd = 0;
+  }
 
   for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next, index--) {
     if(!index) break;
