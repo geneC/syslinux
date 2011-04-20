@@ -113,8 +113,6 @@ void dump(struct s_hardware *hardware)
 
     memset(&p_buf,0,sizeof(p_buf));
 
-    more_printf("Preparing dump file\n");
-
     /* By now, we only support TFTP reporting */
     upload=&upload_tftp;
     upload->name="tftp";
