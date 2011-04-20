@@ -138,7 +138,7 @@ static int upload_tftp_write(struct upload_backend *be)
     struct tftp_state tftp;
     char buffer[512+4+6];
     int nlen;
-    int err=0;
+    int err=TFTP_OK;
     const union syslinux_derivative_info *sdi =
 	syslinux_derivative_info();
     const char *data = be->outbuf;
@@ -193,7 +193,7 @@ static int upload_tftp_write(struct upload_backend *be)
 	    return err;
     } while (chunk == 512);
 
-    return 0;
+    return TFTP_OK;
 }
 
 struct upload_backend upload_tftp = {
