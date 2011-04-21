@@ -28,7 +28,7 @@ TESTFILES =
 OBJS	  = $(patsubst %.c,%.o,$(wildcard *.c))
 VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
-VERSION_C32 = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')
+NODASH_VERSION = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')
 SUM_FILE  = hdt-$(VERSION).checksums
 
 MEMTEST_URL = http://memtest.org/download/4.20/memtest86+-4.20.bin
@@ -61,7 +61,7 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	rm -f hdt*.img
 	$(SED) -e 's/%VERSION%/$(VERSION)/g' $(FLOPPY_DIR)/hdt.cfg |\
 	$(SED) -e 's/%CODENAME%/$(CODENAME)/g' > $(FLOPPY_DIR)/syslinux.cfg
-	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MFORMAT) -v HDT_$(VERSION) -f 1440 -C a:
+	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MFORMAT) -v HDT_$(NODASH_VERSION) -f 1440 -C a:
 	$(topdir)/mtools/syslinux hdt.img
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
@@ -111,8 +111,8 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	ln -sf hdt-$(VERSION).iso hdt.iso
 
 release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso
-	mv hdt.c32 hdt_$(VERSION_C32).c32
-	md5sum hdt_$(VERSION_C32).c32 >$(SUM_FILE)
+	mv hdt.c32 hdt_$(NODASH_VERSION).c32
+	md5sum hdt_$(NODASH_VERSION).c32 >$(SUM_FILE)
 	md5sum hdt-$(VERSION).iso >>$(SUM_FILE)
 	md5sum hdt-$(VERSION).img >>$(SUM_FILE)
 	md5sum hdt-$(VERSION).img.gz >>$(SUM_FILE)
