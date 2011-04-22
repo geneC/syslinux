@@ -18,32 +18,35 @@ bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 {
     far_ptr_t *entry;
     unsigned int vec;
-  
+
     if (irq < 8)
 	vec = irq + 0x08;
     else if (irq < 16)
 	vec = (irq - 8) + 0x70;
     else
 	return false;
- 
+
     entry = (far_ptr_t *)(vec << 2);
     *old = *entry;
     entry->ptr = (uint32_t)isr;
     return true;
 }
 
-bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old)
+static bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old)
 {
     far_ptr_t *entry;
     unsigned int vec;
-   
+
+    if (!irq)
+	return true;		/* Nothing to uninstall */
+
     if (irq < 8)
 	vec = irq + 0x08;
     else if (irq < 16)
 	vec = (irq - 8) + 0x70;
     else
 	return false;
-  
+
     entry = (far_ptr_t *)(vec << 2);
 
     if (entry->ptr != (uint32_t)isr)
@@ -62,47 +65,57 @@ static void pxe_poll_wakeups(void)
 	last_jiffies = now;
 	__thread_process_timeouts();
     }
-   
+
     if (pxe_irq_pending) {
 	pxe_irq_pending = 0;
 	sem_up(&pxe_receive_thread_sem);
     }
 }
 
+static bool pxe_isr_poll(void)
+{
+    static __lowmem t_PXENV_UNDI_ISR isr;
+
+    isr.FuncFlag = PXENV_UNDI_ISR_IN_START;
+    pxe_call(PXENV_UNDI_ISR, &isr);
+
+    return isr.FuncFlag == PXENV_UNDI_ISR_OUT_OURS;
+}
+
 static void pxe_process_irq(void)
 {
     static __lowmem t_PXENV_UNDI_ISR isr;
 
-    uint16_t func = PXENV_UNDI_ISR_IN_PROCESS; /* First time */	
+    uint16_t func = PXENV_UNDI_ISR_IN_PROCESS; /* First time */
     bool done = false;
 
     while (!done) {
         memset(&isr, 0, sizeof isr);
         isr.FuncFlag = func;
         func = PXENV_UNDI_ISR_IN_GET_NEXT; /* Next time */
-    
+
         pxe_call(PXENV_UNDI_ISR, &isr);
-    
+
         switch (isr.FuncFlag) {
         case PXENV_UNDI_ISR_OUT_DONE:
 	    done = true;
 	    break;
-    
+
         case PXENV_UNDI_ISR_OUT_TRANSMIT:
 	    /* Transmit complete - nothing for us to do */
 	    break;
-    
+
         case PXENV_UNDI_ISR_OUT_RECEIVE:
 	    undiif_input(&isr);
 	    break;
-    	
+
         case PXENV_UNDI_ISR_OUT_BUSY:
-    	/* ISR busy, this should not happen */
+	/* ISR busy, this should not happen */
 	    done = true;
 	    break;
-    	
+
         default:
-    	/* Invalid return code, this should not happen */
+	/* Invalid return code, this should not happen */
 	    done = true;
 	    break;
         }
@@ -115,8 +128,14 @@ static void pxe_receive_thread(void *dummy)
 
     for (;;) {
 	sem_down(&pxe_receive_thread_sem, 0);
-	pxe_process_irq();
+	if (pxe_irq_vector || pxe_isr_poll())
+	    pxe_process_irq();
     }
+}
+
+static void pxe_do_isr_poll(void)
+{
+    sem_up(&pxe_receive_thread_sem);
 }
 
 void pxe_init_isr(void)
@@ -132,6 +151,11 @@ void pxe_init_isr(void)
     pxe_thread = start_thread("pxe receive", 16384, -20,
 			      pxe_receive_thread, NULL);
     core_pm_hook = __schedule;
+
+    if (!pxe_irq_vector) {
+	/* No IRQ vector, need to poll */
+	idle_hook = pxe_do_isr_poll;
+    }
 }
 
 
@@ -139,10 +163,11 @@ void pxe_cleanup_isr(void)
 {
     static __lowmem struct s_PXENV_UNDI_CLOSE undi_close;
 
+    idle_hook = NULL;
     sched_hook_func = NULL;
     core_pm_hook = core_pm_null_hook;
     kill_thread(pxe_thread);
- 
+
     memset(&undi_close, 0, sizeof(undi_close));
     pxe_call(PXENV_UNDI_CLOSE, &undi_close);
     uninstall_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);

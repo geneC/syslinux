@@ -95,4 +95,6 @@ void kill_thread(struct thread *);
 void start_idle_thread(void);
 void test_thread(void);
 
+extern void (*idle_hook)(void);
+
 #endif /* _THREAD_H */

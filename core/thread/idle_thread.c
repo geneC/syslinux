@@ -2,6 +2,8 @@
 #include <limits.h>
 #include <sys/cpu.h>
 
+void (*idle_hook)(void);
+
 static void idle_thread_func(void *dummy)
 {
     (void)dummy;
@@ -9,7 +11,10 @@ static void idle_thread_func(void *dummy)
 
     for (;;) {
 	thread_yield();
-	asm volatile("hlt");
+	if (idle_hook)
+	    idle_hook();
+	else
+	    asm volatile("hlt");
     }
 }
 

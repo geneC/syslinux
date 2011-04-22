@@ -224,15 +224,21 @@ static void
 low_level_init(struct netif *netif)
 {
   static __lowmem t_PXENV_UNDI_GET_INFORMATION undi_info;
+  static __lowmem t_PXENV_UNDI_GET_IFACE_INFO undi_iface;
   static __lowmem t_PXENV_UNDI_OPEN undi_open;
   int i;
   /* struct undiif *undiif = netif->state; */
 
   pxe_call(PXENV_UNDI_GET_INFORMATION, &undi_info);
+  pxe_call(PXENV_UNDI_GET_IFACE_INFO, &undi_iface);
 
-  dprintf("UNDI: baseio %04x int %d MTU %d type %d\n",
-	 undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
-	 undi_info.HwType);
+  dprintf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
+	  undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
+	  undi_info.HwType, undi_iface.IfaceType, undi_iface.ServiceFlags);
+
+  pxe_irq_vector = undi_info.IntNumber;
+  if (!(undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
+    pxe_irq_vector = 0;	/* Interrupts not supported */
 
   /* MAC_type and MAC_len should always match what is returned by
    * PXENV_UNDI_GET_INFORMATION.  At the moment the both seem to be
@@ -272,8 +278,8 @@ low_level_init(struct netif *netif)
     netif->flags |= NETIF_FLAG_ETHARP;
 
   /* Install the interrupt vector */
-  pxe_irq_vector = undi_info.IntNumber;
-  install_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
+  if (pxe_irq_vector)
+    install_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
 
   /* Open the UNDI stack - you'd think the BC would have done this... */
   undi_open.PktFilter = 0x0003;	/* FLTR_DIRECTED | FLTR_BRDCST */
