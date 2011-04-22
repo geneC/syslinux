@@ -110,7 +110,7 @@ ldlinux.bss: ldlinux.bin
 	dd if=$< of=$@ bs=512 count=1
 
 ldlinux.sys: ldlinux.bin
-	dd if=$< of=$@ bs=512 skip=1
+	dd if=$< of=$@ bs=512 skip=2
 
 codepage.cp: ../codepage/$(CODEPAGE).cp
 	cp -f $< $@

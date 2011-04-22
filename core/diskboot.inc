@@ -278,7 +278,7 @@ Sect1Ptr1	equ $-4
 		cmp dword [ldlinux_magic+4],LDLINUX_MAGIC^HEXDATE
 		jne kaboom
 
-		; Go for it!  This also normalizes CS:IP.
+		; Go for it!
 		jmp ldlinux_ent
 
 ;

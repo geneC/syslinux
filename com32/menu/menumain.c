@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -726,8 +726,11 @@ static const char *do_hidden_menu(void)
 	    this_timeout = min(timeout_left, CLK_TCK);
 	    key = mygetkey(this_timeout);
 
-	    if (key != KEY_NONE)
-		return NULL;	/* Key pressed */
+	    if (key != KEY_NONE) {
+		/* Clear the message from the screen */
+		print_timeout_message(0, HIDDEN_ROW, "");
+		return hide_key[key]; /* NULL if no MENU HIDEKEY in effect */
+	    }
 
 	    timeout_left -= this_timeout;
 	}
