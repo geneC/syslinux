@@ -227,7 +227,6 @@ void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
     const uint8_t  *timeout_ptr;
     jiffies_t timeout;
     jiffies_t oldtime;
-    uint16_t tid;
     uint16_t opcode;
     uint16_t blk_num;
     uint32_t opdata, *opdata_ptr;
@@ -269,7 +268,6 @@ sendreq:
     oldtime = jiffies();
 
     socket->tftp_remoteip = ip;
-    tid = socket->tftp_localport;   /* TID(local port No) */
     nbuf = netbuf_new();
     netbuf_ref(nbuf, rrq_packet_buf, rrq_len);
     addr.addr = ip;

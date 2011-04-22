@@ -137,13 +137,12 @@ void pxe_init_isr(void)
 void pxe_cleanup_isr(void)
 {
     static __lowmem struct s_PXENV_UNDI_CLOSE undi_close;
-    int err;
 
     sched_hook_func = NULL;
     core_pm_hook = core_pm_null_hook;
     kill_thread(pxe_thread);
  
     memset(&undi_close, 0, sizeof(undi_close));
-    err = pxe_call(PXENV_UNDI_CLOSE, &undi_close);
+    pxe_call(PXENV_UNDI_CLOSE, &undi_close);
     uninstall_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
 }
