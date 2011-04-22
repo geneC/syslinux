@@ -85,26 +85,26 @@ static void pxe_process_irq(void)
     
         switch (isr.FuncFlag) {
         case PXENV_UNDI_ISR_OUT_DONE:
-    	done = true;
-    	break;
+	    done = true;
+	    break;
     
         case PXENV_UNDI_ISR_OUT_TRANSMIT:
-    	/* Transmit complete - nothing for us to do */
-    	break;
+	    /* Transmit complete - nothing for us to do */
+	    break;
     
         case PXENV_UNDI_ISR_OUT_RECEIVE:
-	undiif_input(&isr);
-    	break;
+	    undiif_input(&isr);
+	    break;
     	
         case PXENV_UNDI_ISR_OUT_BUSY:
     	/* ISR busy, this should not happen */
-    	done = true;
-    	break;
+	    done = true;
+	    break;
     	
         default:
     	/* Invalid return code, this should not happen */
-    	done = true;
-    	break;
+	    done = true;
+	    break;
         }
     }
 }
@@ -129,7 +129,8 @@ void pxe_init_isr(void)
      * avoid packet loss we need to move it into memory that we ourselves
      * manage, as soon as possible.
      */
-    pxe_thread = start_thread("pxe receive", 16384, -20, pxe_receive_thread, NULL);
+    pxe_thread = start_thread("pxe receive", 16384, -20,
+			      pxe_receive_thread, NULL);
     core_pm_hook = __schedule;
 }
 
