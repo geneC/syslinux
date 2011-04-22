@@ -6,12 +6,14 @@ __switch_to:
 	pushl	%ebp
 	pushl	%esi
 	pushl	%edi
+	pushl	RealModeSSSP
 	pushl	errno			/* Hack! */
 	movl	%esp, (%edx)
 
 	movl	%eax, __current
 	movl	(%eax), %esp
 	popl	errno
+	popl	RealModeSSSP
 	popl	%edi
 	popl	%esi
 	popl	%ebp

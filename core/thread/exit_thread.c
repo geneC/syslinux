@@ -1,5 +1,6 @@
 #include "thread.h"
 #include <limits.h>
+#include <stdlib.h>
 #include <klibc/compiler.h>
 
 __noreturn __exit_thread(void)
@@ -12,6 +13,12 @@ __noreturn __exit_thread(void)
     /* Remove from the linked list */
     curr->list.prev->next = curr->list.next;
     curr->list.next->prev = curr->list.prev;
+
+    /* Free allocated stacks */
+    if (curr->stack)
+	free(curr->stack);
+    if (curr->rmstack)
+	free(curr->stack);
 
     /*
      * Note: __schedule() can explictly handle the case where

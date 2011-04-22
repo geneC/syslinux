@@ -26,6 +26,7 @@ struct thread {
     const char *name;		/* Name (for debugging) */
     struct thread_list  list;
     struct thread_block *blocked;
+    void *stack, *rmstack;	/* Stacks, iff allocated by malloc/lmalloc */
     void *pvt; 			/* For the benefit of lwIP */
     int prio;
 };
