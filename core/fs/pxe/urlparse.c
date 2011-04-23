@@ -27,8 +27,6 @@
 
 /*
  * urlparse.c
- *
- * Decompose a URL into its components.
  */
 
 #include <string.h>
@@ -36,6 +34,11 @@
 #include <stdio.h>
 #include "url.h"
 
+/*
+ * Decompose a URL into its components.  This is done in-place;
+ * this routine does not allocate any additional storage.  Freeing the
+ * original buffer frees all storage used.
+ */
 void parse_url(struct url_info *ui, char *url)
 {
     char *p = url;
@@ -97,6 +100,9 @@ void parse_url(struct url_info *ui, char *url)
     }
 }
 
+/*
+ * Escapes unsafe characters in a URL.  Returns a malloc'd buffer.
+ */
 char *url_escape_unsafe(const char *input)
 {
     const char *p = input;
@@ -136,6 +142,13 @@ static int hexdigit(char c)
     return -1;
 }
 
+/*
+ * Unescapes a buffer, optionally ending at an *unescaped* terminator
+ * (like ; for TFTP).  The unescaping is done in-place.
+ *
+ * If a terminator is reached, return a pointer to the first character
+ * after the terminator.
+ */
 char *url_unescape(char *buffer, char terminator)
 {
     char *p = buffer;
