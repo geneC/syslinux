@@ -16,7 +16,7 @@ __noreturn __exit_thread(void)
 
     /* Free allocated stacks (note: free(NULL) is permitted and safe). */
     free(curr->stack);
-    free(curr->stack);
+    free(curr->rmstack);
 
     /*
      * Note: __schedule() can explictly handle the case where
