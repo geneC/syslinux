@@ -6,6 +6,7 @@
 #include <minmax.h>
 #include <sys/cpu.h>
 #include "pxe.h"
+#include "thread.h"
 #include <lwip/api.h>
 #include <lwip/dns.h>
 #include <lwip/tcpip.h>
@@ -222,11 +223,14 @@ const char *parse_dotquad(const char *ip_str, uint32_t *res)
  */
 int pxe_call(int opcode, void *data)
 {
+    static DECLARE_INIT_SEMAPHORE(pxe_sem, 1);
     extern void pxenv(void);
     com32sys_t regs;
 
+    sem_down(&pxe_sem, 0);
+
 #if 0
-    printf("pxe_call op %04x data %p\n", opcode, data);
+    dprintf("pxe_call op %04x data %p\n", opcode, data);
 #endif
 
     memset(&regs, 0, sizeof regs);
@@ -234,6 +238,8 @@ int pxe_call(int opcode, void *data)
     regs.es       = SEG(data);
     regs.edi.w[0] = OFFS(data);
     call16(pxenv, &regs, &regs);
+
+    sem_up(&pxe_sem);
 
     return regs.eflags.l & EFLAGS_CF;  /* CF SET if fail */
 }
