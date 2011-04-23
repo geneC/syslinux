@@ -49,7 +49,7 @@ struct thread *start_thread(const char *name, size_t stack_size, int prio,
 
     sp->errno = 0;
     sp->rmss = SEG(rmstack);
-    sp->rmsp = OFFS_WRT(rmstack + REAL_MODE_STACK_SIZE, sp->rmss);
+    sp->rmsp = REAL_MODE_STACK_SIZE;
     sp->esi = (size_t)start_func;
     sp->edi = (size_t)func_arg;
     sp->ebx = irq_state();	/* Inherit the IRQ state from the spawner */
