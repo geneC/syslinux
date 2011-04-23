@@ -35,6 +35,26 @@
 #include "url.h"
 
 /*
+ * Return the type of a URL without modifying the string
+ */
+enum url_type url_type(const char *url)
+{
+    const char *q;
+
+    q = strchr(url, ':');
+    if (!q)
+	return URL_SUFFIX;
+
+    if (q[1] == '/' && q[2] == '/')
+	return URL_NORMAL;
+
+    if (q[1] == ':')
+	return URL_OLD_TFTP;
+
+    return URL_SUFFIX;
+}
+
+/*
  * Decompose a URL into its components.  This is done in-place;
  * this routine does not allocate any additional storage.  Freeing the
  * original buffer frees all storage used.
@@ -43,93 +63,91 @@ void parse_url(struct url_info *ui, char *url)
 {
     char *p = url;
     char *q, *r, *s;
+    int c;
 
     memset(ui, 0, sizeof *ui);
 
-    q = strstr(p, "://");
-    if (!q) {
-	q = strstr(p, "::");
+    q = strchr(p, ':');
+    if (q && (q[1] == '/' && q[2] == '/')) {
+	ui->type = URL_NORMAL;
+	
+	ui->scheme = p;
+	*q = '\0';
+	p = q+3;
+	
+	q = strchr(p, '/');
 	if (q) {
 	    *q = '\0';
-	    ui->scheme = "tftp";
-	    ui->host = p;
-	    ui->path = q+2;
-	    ui->type = URL_OLD_TFTP;
-	    return;
+	    ui->path = q+1;
+	    q = strchr(q+1, '#');
+	    if (q)
+		*q = '\0';
 	} else {
-	    ui->path = p;
-	    ui->type = URL_PREFIX;
-	    return;
+	    ui->path = "";
 	}
-    }
-
-    ui->type = URL_NORMAL;
-
-    ui->scheme = p;
-    *q = '\0';
-    p = q+3;
-
-    q = strchr(p, '/');
-    if (q) {
+	
+	r = strchr(p, '@');
+	if (r) {
+	    ui->user = p;
+	    *r = '\0';
+	    s = strchr(p, ':');
+	    if (s) {
+		*s = '\0';
+		ui->passwd = s+1;
+	    }
+	    p = r+1;
+	}
+	
+	ui->host = p;
+	r = strchr(p, ':');
+	if (r) {
+	    *r++ = '\0';
+	    ui->port = 0;
+	    while ((c = *r++)) {
+		c -= '0';
+		if (c > 9)
+		    break;
+		ui->port = ui->port * 10 + c;
+	    }
+	}
+    } else if (q && q[1] == ':') {
 	*q = '\0';
-	ui->path = q+1;
-	q = strchr(q+1, '#');
-	if (q)
-	    *q = '\0';
+	ui->scheme = "tftp";
+	ui->host = p;
+	ui->path = q+2;
+	ui->type = URL_OLD_TFTP;
     } else {
-	ui->path = "";
-    }
-
-    r = strchr(p, '@');
-    if (r) {
-	ui->user = p;
-	*r = '\0';
-	s = strchr(p, ':');
-	if (s) {
-	    *s = '\0';
-	    ui->passwd = s+1;
-	}
-	p = r+1;
-    }
-
-    ui->host = p;
-    r = strchr(p, ':');
-    if (r) {
-	*r = '\0';
-	ui->port = atoi(r+1);
+	ui->path = p;
+	ui->type = URL_SUFFIX;
     }
 }
 
 /*
- * Escapes unsafe characters in a URL.  Returns a malloc'd buffer.
+ * Escapes unsafe characters in a URL.
+ * This does *not* escape things like query characters!
+ * Returns the number of characters in the total output.
  */
-char *url_escape_unsafe(const char *input)
+size_t url_escape_unsafe(char *output, const char *input, size_t bufsize)
 {
-    const char *p = input;
+    static const char uchexchar[] = "0123456789ABCDEF";
+    const char *p;
     unsigned char c;
-    char *out, *q;
+    char *q;
     size_t n = 0;
 
-    while ((c = *p++)) {
-	if (c < ' ' || c > '~') {
-	    n += 3;		/* Need escaping */
+    q = output;
+    for (p = input; (c = *p); p++) {
+	if (c <= ' ' || c > '~') {
+	    if (++n < bufsize) *q++ = '%';
+	    if (++n < bufsize) *q++ = uchexchar[c >> 4];
+	    if (++n < bufsize) *q++ = uchexchar[c & 15];
 	} else {
-	    n++;
-	}
-    }
-
-    q = out = malloc(n+1);
-    while ((c = *p++)) {
-	if (c < ' ' || c > '~') {
-	    q += snprintf(q, 3, "%%%02X", c);
-	} else {
-	    *q++ = c;
+	    if (++n < bufsize) *q++ = c;
 	}
     }
 
     *q = '\0';
-
-    return out;
+    return n;
 }
 
 static int hexdigit(char c)

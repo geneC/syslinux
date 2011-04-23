@@ -5,11 +5,13 @@
 #include <fs.h>
 #include <minmax.h>
 #include <sys/cpu.h>
-#include "pxe.h"
-#include "thread.h"
 #include <lwip/api.h>
 #include <lwip/dns.h>
 #include <lwip/tcpip.h>
+#include "pxe.h"
+#include "thread.h"
+#include "url.h"
+#include "tftp.h"
 
 static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
@@ -33,10 +35,11 @@ bool have_uuid = false;
 /* Common receive buffer */
 __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 
-static struct url_open {
-    const char *scheme;
-    void (*open)(struct inode *inode, const char *url);
-} url_table[] = {
+static struct url_scheme {
+    const char *name;
+    void (*open)(struct url_info *url, struct inode *inode);
+} url_schemes[] = {
+    { "tftp", tftp_open },
     { "http", http_open },
     { NULL, NULL },
 };
@@ -125,18 +128,6 @@ static void uchexbytes(char *dst, const void *src, int count)
 }
 
 /*
- * Parse a single hexadecimal byte, which must be complete (two
- * digits).  This is used in URL parsing.
- */
-static int hexbyte(const char *p)
-{
-    if (!is_hex(p[0]) || !is_hex(p[1]))
-	return -1;
-    else
-	return (hexval(p[0]) << 4) + hexval(p[1]);
-}
-
-/*
  * Tests an IP address in _ip_ for validity; return with 0 for bad, 1 for good.
  * We used to refuse class E, but class E addresses are likely to become
  * assignable unicast addresses in the near future.
@@ -185,36 +176,6 @@ static int gendotquad(char *dst, uint32_t ip)
     *(--p) = 0;
 
     return p - dst;
-}
-
-/*
- * parse the ip_str and return the ip address with *res.
- * return the the string address after the ip string
- *
- */
-const char *parse_dotquad(const char *ip_str, uint32_t *res)
-{
-    const char *p = ip_str;
-    uint8_t part = 0;
-    uint32_t ip = 0;
-    int i;
-
-    for (i = 0; i < 4; i++) {
-        while (is_digit(*p)) {
-            part = part * 10 + *p - '0';
-            p++;
-        }
-        if (i != 3 && *p != '.')
-            return NULL;
-
-        ip = (ip << 8) | part;
-        part = 0;
-        p++;
-    }
-    p--;
-
-    *res = htonl(ip);
-    return p;
 }
 
 /*
@@ -270,58 +231,12 @@ static int pxe_get_cached_info(int type)
     return get_cached_info.BufferSize;
 }
 
-
-/*
- * Return the type of pathname passed.
- */
-enum pxe_path_type {
-    PXE_RELATIVE,		/* No :: or URL */
-    PXE_HOMESERVER,		/* Starting with :: */
-    PXE_TFTP,			/* host:: */
-    PXE_URL_TFTP,		/* tftp:// */
-    PXE_URL,			/* Absolute URL syntax */
-};
-
-static enum pxe_path_type pxe_path_type(const char *str)
-{
-    const char *p;
-    
-    p = str;
-
-    while (1) {
-	switch (*p) {
-	case ':':
-	    if (p[1] == ':') {
-		if (p == str)
-		    return PXE_HOMESERVER;
-		else
-		    return PXE_TFTP;
-	    } else if (p > str && p[1] == '/' && p[2] == '/') {
-		if (!strncasecmp(str, "tftp://", 7))
-		    return PXE_URL_TFTP;
-		else
-		    return PXE_URL;
-	    }
-
-	    /* else fall through */
-	case '/': case '!': case '@': case '#': case '%':
-	case '^': case '&': case '*': case '(': case ')':
-	case '[': case ']': case '{': case '}': case '\\':
-	case '|': case '=': case '`': case '~': case '\'':
-	case '\"': case ';': case '>': case '<': case '?':
-	case '\0':
-	    /* Any of these characters terminate the colon search */
-	    return PXE_RELATIVE;
-	default:
-	    break;
-	}
-	p++;
-    }
-}
-
 /*
  * mangle a filename pointed to by _src_ into a buffer pointed
  * to by _dst_; ends on encountering any whitespace.
+ *
+ * This deliberately does not attempt to do any conversion of
+ * pathname separators.
  *
  */
 static void pxe_mangle_name(char *dst, const char *src)
@@ -425,6 +340,17 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
     return bytes_read;
 }
 
+/*
+ * Assign an IP address to a URL
+ */
+void url_set_ip(struct url_info *url)
+{
+    url->ip = 0;
+    if (url->host)
+	url->ip = dns_resolv(url->host);
+    if (!url->ip)
+	url->ip = IPInfo.serverip;
+}
 
 /**
  * Open the specified connection
@@ -452,119 +378,37 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode;
-    const char *np;
-    char *buf;
-    uint32_t ip = 0;
-    enum pxe_path_type path_type;
     char fullpath[2*FILENAME_MAX];
-    uint16_t server_port = TFTP_PORT;  /* TFTP server port */
+    struct url_info url;
+    const struct url_scheme *us;
 
     inode = file->inode = NULL;
 
-    path_type = pxe_path_type(filename);
-    if (path_type == PXE_RELATIVE) {
+    strlcpy(fullpath, filename, sizeof fullpath);
+    parse_url(&url, fullpath);
+    if (url.type == URL_SUFFIX) {
 	snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
-	path_type = pxe_path_type(filename = fullpath);
-    }
-
-    switch (path_type) {
-    case PXE_RELATIVE:		/* Really shouldn't happen... */
-    case PXE_URL:
-	ip = IPInfo.serverip;	/* Default server */
-	break;
-
-    case PXE_HOMESERVER:
-	filename = filename+2;
-	ip = IPInfo.serverip;
-	break;
-
-    case PXE_TFTP:
-	np = strchr(filename, ':');
-	if (parse_dotquad(filename, &ip) != np)
-	    ip = dns_resolv(filename);
-	filename = np+2;
-	break;
-
-    case PXE_URL_TFTP:
-	np = filename + 7;
-	while (*np && *np != '/' && *np != ':')
-	    np++;
-	if (np > filename + 7) {
-	    if (parse_dotquad(filename + 7, &ip) != np)
-		ip = dns_resolv(filename + 7);
-	}
-	if (*np == ':') {
-	    np++;
-	    server_port = 0;
-	    while (*np >= '0' && *np <= '9')
-		server_port = server_port * 10 + *np++ - '0';
-	    server_port = server_port ? htons(server_port) : TFTP_PORT;
-	}
-	if (*np == '/')
-	    np++;		/* Do *NOT* eat more than one slash here... */
-	/*
-	 * The ; is because of a quirk in the TFTP URI spec (RFC
-	 * 3617); it is to be followed by TFTP modes, which we just ignore.
-	 */
-	filename = buf = fullpath;
-	while (*np && *np != ';') {
-	    int v;
-	    if (*np == '%' && (v = hexbyte(np+1)) > 0) {
-		*buf++ = v;
-		np += 3;
-	    } else {
-		*buf++ = *np++;
-	    }
-	}
-	*buf = '\0';
-	break;
+	parse_url(&url, fullpath);
     }
 
     inode = allocate_socket(fs);
     if (!inode)
 	return;			/* Allocation failure */
 
-    if (path_type == PXE_URL) {
-	struct url_open *entry;
-	np = strchr(filename, ':');
-	
-	for (entry = url_table; entry->scheme; entry++) {
-	    int scheme_len = strlen(entry->scheme);
-	    if (scheme_len != (np - filename))
-	        continue;
-	    if (memcmp(entry->scheme, filename, scheme_len) != 0)
-	        continue;
-	    entry->open(inode, filename);
-	    goto done;
+    url_set_ip(&url);
+
+    for (us = url_schemes; us->name; us++) {
+	if (!strcmp(us->name, url.scheme)) {
+	    us->open(&url, inode);
+	    break;
 	}
     }
 
-#if GPXE
-    if (path_type == PXE_URL) {
-	if (has_gpxe) {
-	    gpxe_open(inode, filename);
-	    goto done;
-	} else {
-	    static bool already = false;
-	    if (!already) {
-		printf("URL syntax, but gPXE extensions not detected, "
-		       "trying plain TFTP...\n");
-		already = true;
-	    }
-	}
-    }
-#endif /* GPXE */
-
-    if (!ip)
-	    goto done;		/* No server */
-
-    tftp_open(inode, ip, server_port, filename);
-done:
-    if (!inode->size) {
+    if (inode->size)
+	file->inode = inode;
+    else
         free_socket(inode);
-	return;
-    }
-    file->inode = inode;
+
     return;
 }
 
@@ -612,10 +456,8 @@ static void get_prefix(void)
 static size_t pxe_realpath(struct fs_info *fs, char *dst, const char *src,
 			   size_t bufsize)
 {
-    enum pxe_path_type path_type = pxe_path_type(src);
-
     return snprintf(dst, bufsize, "%s%s",
-		    path_type == PXE_RELATIVE ? fs->cwd_name : "", src);
+		    url_type(src) == URL_SUFFIX ? fs->cwd_name : "", src);
 }
 
 /*
@@ -624,9 +466,7 @@ static size_t pxe_realpath(struct fs_info *fs, char *dst, const char *src,
 static int pxe_chdir(struct fs_info *fs, const char *src)
 {
     /* The cwd for PXE is just a text prefix */
-    enum pxe_path_type path_type = pxe_path_type(src);
-
-    if (path_type == PXE_RELATIVE)
+    if (url_type(src) == URL_SUFFIX)
 	strlcat(fs->cwd_name, src, sizeof fs->cwd_name);
     else
 	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);

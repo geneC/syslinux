@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------
  *
  *   Copyright 1999-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 /*
  * Some basic defines...
  */
-#define TFTP_PORT        htons(69)              /* Default TFTP port */
 #define TFTP_BLOCKSIZE_LG2 9
 #define TFTP_BLOCKSIZE  (1 << TFTP_BLOCKSIZE_LG2)
 #define PKTBUF_SIZE     2048			/*  */
@@ -45,43 +44,16 @@ static inline int hexval(char c)
     return (c >= 'A') ? (c & ~0x20) - 'A' + 10 : (c - '0');
 }
 
-/*
- * TFTP operation codes
- */
-#define TFTP_RRQ	 htons(1)		// Read rest
-#define TFTP_WRQ	 htons(2)		// Write rest
-#define TFTP_DATA	 htons(3)		// Data packet
-#define TFTP_ACK	 htons(4)		// ACK packet
-#define TFTP_ERROR	 htons(5)		// ERROR packet
-#define TFTP_OACK	 htons(6)		// OACK packet
-
-/*
- * TFTP error codes
- */
-#define TFTP_EUNDEF	 htons(0)		// Unspecified error
-#define TFTP_ENOTFOUND	 htons(1)		// File not found
-#define TFTP_EACCESS	 htons(2)		// Access violation
-#define TFTP_ENOSPACE	 htons(3)		// Disk full
-#define TFTP_EBADOP	 htons(4)		// Invalid TFTP operation
-#define TFTP_EBADID	 htons(5)		// Unknown transfer
-#define TFTP_EEXISTS	 htons(6)		// File exists
-#define TFTP_ENOUSER	 htons(7)		// No such user
-#define TFTP_EOPTNEG	 htons(8)		// Option negotiation failure
-
-
 #define BOOTP_OPTION_MAGIC  htonl(0x63825363)
 #define MAC_MAX 32
 
 /* Defines for DNS */
-#define DNS_PORT	htons(53)		/* Default DNS port */
 #define DNS_MAX_PACKET	512			/* Defined by protocol */
 #define DNS_MAX_SERVERS 4			/* Max no of DNS servers */
-
 
 /*
  * structures 
  */
-
 struct pxenv_t {
     uint8_t    signature[6];	/* PXENV+ */
     uint16_t   version;
@@ -247,11 +219,12 @@ void pxe_cleanup_isr(void);
 bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old);
 
 /* pxe.c */
+struct url_info;
 bool ip_ok(uint32_t);
 int pxe_call(int, void *);
 extern __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
-const char *parse_dotquad(const char *ip_str, uint32_t *res);
 int pxe_getc(struct inode *inode);
+void url_set_ip(struct url_info *);
 
 /* undiif.c */
 int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw);
@@ -261,7 +234,6 @@ void undiif_input(t_PXENV_UNDI_ISR *isr);
 void parse_dhcp(int);
 
 /* dnsresolv.c */
-int dns_mangle(char **, const char *);
 uint32_t dns_resolv(const char *);
 
 /* idle.c */
@@ -273,14 +245,13 @@ uint16_t get_port(void);
 void free_port(uint16_t port);
 
 /* tftp.c */
-void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
-	       const char *filename);
+void tftp_open(struct url_info *url, struct inode *inode);
 
 /* gpxeurl.c */
 void gpxe_open(struct inode *inode, const char *url);
 #define GPXE 1
 
 /* http.c */
-void http_open(struct inode *inode, const char *url);
+void http_open(struct url_info *url, struct inode *inode);
 
 #endif /* pxe.h */

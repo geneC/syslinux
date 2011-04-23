@@ -50,42 +50,35 @@ struct dnsrr {
 
 uint32_t dns_server[DNS_MAX_SERVERS] = {0, };
 
-
 /*
- * Turn a string in _src_ into a DNS "label set" in _dst_; returns the
- * number of dots encountered. On return, *dst is updated.
+ * parse the ip_str and return the ip address with *res.
+ * return true if the whole string was consumed and the result
+ * was valid.
+ *
  */
-int dns_mangle(char **dst, const char *p)
+static bool parse_dotquad(const char *ip_str, uint32_t *res)
 {
-    char *q = *dst;
-    char *count_ptr;
-    char c;
-    int dots = 0;
+    const char *p = ip_str;
+    uint8_t part = 0;
+    uint32_t ip = 0;
+    int i;
 
-    count_ptr = q;
-    *q++ = 0;
-
-    while (1) {
-        c = *p++;
-        if (c == 0 || c == ':' || c == '/')
-            break;
-        if (c == '.') {
-            dots++;
-            count_ptr = q;
-            *q++ = 0;
-            continue;
+    for (i = 0; i < 4; i++) {
+        while (is_digit(*p)) {
+            part = part * 10 + *p - '0';
+            p++;
         }
+        if (i != 3 && *p != '.')
+            return false;
 
-        *count_ptr += 1;
-        *q++ = c;
+        ip = (ip << 8) | part;
+        part = 0;
+        p++;
     }
+    p--;
 
-    if (*count_ptr)
-        *q++ = 0;
-
-    /* update the strings */
-    *dst = q;
-    return dots;
+    *res = htonl(ip);
+    return *p == '\0';
 }
 
 /*
@@ -98,31 +91,21 @@ uint32_t dns_resolv(const char *name)
 {
     err_t err;
     struct ip_addr ip;
-    char dns_name[PKTBUF_SIZE];
-    const char *src;
-    char *dst;
+
+    /* If it is a valid dot quad, just return that value */
+    if (parse_dotquad(name, &ip.addr))
+	return ip.addr;
 
     /* Make sure we have at least one valid DNS server */
     if (!dns_getserver(0).addr)
 	return 0;
 
-    /* Copy the name to look up to ensure it is null terminated */
-    for (dst = dns_name, src = name; *src; src++, dst++) {
-	int ch = *src;
-	if (ch == '\0' || ch == ':' || ch == '/') {
-	    *dst = '\0';
-	    break;
-	}
-	*dst = ch;
-    }
-
-    err = netconn_gethostbyname(dns_name, &ip);
+    err = netconn_gethostbyname(name, &ip);
     if (err)
 	return 0;
 
     return ip.addr;
 }
-
 
 /*
  * the one should be called from ASM file

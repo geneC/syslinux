@@ -1,7 +1,10 @@
 #include <ctype.h>
+#include <lwip/api.h>
 #include "pxe.h"
 #include "../../../version.h"
-#include <lwip/api.h>
+#include "url.h"
+
+#define HTTP_PORT	80
 
 static void http_close_file(struct inode *inode)
 {
@@ -92,16 +95,14 @@ static bool append_ch(char *str, size_t size, size_t *pos, int ch)
     return success;
 }
 
-void http_open(struct inode *inode, const char *url)
+void http_open(struct url_info *url, struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
-    char header_buf[512];
+    char header_buf[4096];
     int header_len;
-    const char *host, *path, *next;
-    size_t host_len;
-    uint16_t port;
+    const char *next;
     char field_name[20];
-    char field_value[256];
+    char field_value[1024];
     size_t field_name_len, field_value_len;
     err_t err;
     enum state {
@@ -116,7 +117,7 @@ void http_open(struct inode *inode, const char *url)
 	st_eoh,
     } state;
     struct ip_addr addr;
-    char location[256];
+    char location[1024], new_url[1024];
     uint32_t content_length; /* same as inode->size */
     size_t response_size;
     int status;
@@ -130,49 +131,6 @@ void http_open(struct inode *inode, const char *url)
 restart:
     /* Reset all of the variables */
     inode->size = content_length = -1;
-    location[0] = '\0';
-    field_name[0] = '\0';
-    field_value[0] = '\0';
-    field_name_len = 0;
-    field_value_len = 0;
-    
-    /* Skip http:// */
-    host =  url + 7;
-
-    /* Find the end of the hostname */
-    next = host;
-    while (*next && *next != '/' && *next != ':')
-	next++;
-    host_len = next - host;
-
-    /* Obvious url formatting errors */
-    if (!*next || (!host_len && *next == ':'))
-	goto fail;
-
-    /* Compute the dest port */
-    port = 80;
-    if (*next == ':') {
-	port = 0;
-	for (next++; (*next >= '0' && *next <= '9'); next++)
-	    port = (port * 10) * (*next - '0');
-    }
-
-    /* Ensure I have properly parsed the port */
-    if (*next != '/')
-	goto fail;
-
-    path = next;
-
-    /* Resolve the hostname */
-    if (!host_len) {
-	addr.addr = IPInfo.serverip;
-    } else {
-	if (parse_dotquad(host, &addr.addr) != (host + host_len)) {
-	    addr.addr = dns_resolv(host);
-	    if (!addr.addr)
-		goto fail;
-	}
-    }
 
     /* Start the http connection */
     socket->conn = netconn_new(NETCONN_TCP);
@@ -181,23 +139,31 @@ restart:
         return;
     }
 
-    err = netconn_connect(socket->conn, &addr, port);
+    addr.addr = url->ip;
+    if (!url->port)
+	url->port = HTTP_PORT;
+    err = netconn_connect(socket->conn, &addr, url->port);
     if (err) {
 	printf("netconn_connect error %d\n", err);
 	goto fail;
     }
 
-    header_len = snprintf(header_buf, sizeof header_buf,
-				"GET %s HTTP/1.0\r\n"
-	    			"Host: %*.*s\r\n"
-	    			"User-Agent: PXELINUX/%s\r\n"
-	    			"Connection: close\r\n"
-				"\r\n",
-	    			path, host_len, host_len, host, VERSION_STR);
-
-    /* If we tried to overflow our buffer abort */
+    strcpy(header_buf, "GET /");
+    header_len = 5;
+    header_len += url_escape_unsafe(header_buf+5, url->path,
+				    sizeof header_buf - 5);
     if (header_len > sizeof header_buf)
-	goto fail;
+	goto fail;		/* Buffer overflow */
+    header_len += snprintf(header_buf + header_len,
+			   sizeof header_buf - header_len,
+			   " HTTP/1.0\r\n"
+			   "Host: %s\r\n"
+			   "User-Agent: PXELINUX/%s\r\n"
+			   "Connection: close\r\n"
+			   "\r\n",
+			   url->host, VERSION_STR);
+    if (header_len > sizeof header_buf)
+	goto fail;		/* Buffer overflow */
 
     err = netconn_write(socket->conn, header_buf, header_len, NETCONN_NOCOPY);
     if (err) {
@@ -210,6 +176,8 @@ restart:
     pos = 0;
     status = 0;
     response_size = 0;
+    field_value_len = 0;
+    field_name_len = 0;
 
     while (state != st_eoh) {
 	int ch = pxe_getc(inode);
@@ -360,7 +328,11 @@ restart:
 	redirect_count++;
 	if (redirect_count > 5)
 	    goto fail;
-	url = location;
+	strlcpy(new_url, location, sizeof new_url);
+	parse_url(url, new_url);
+	url_set_ip(url);
+	http_close_file(inode);
+	/* XXX: This needs to go all the way back to scheme selection */
 	goto restart;
 	break;
     default:

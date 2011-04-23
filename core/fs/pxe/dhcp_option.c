@@ -48,13 +48,8 @@ static void dns_servers(const void *data, int opt_len)
 
 static void local_domain(const void *data, int opt_len)
 {
-    char buffer[256];
-    char *ld = LocalDomain;
-
-    memcpy(buffer, data, opt_len);
-    buffer[opt_len] = 0;
-
-    dns_mangle(&ld, buffer);
+    memcpy(LocalDomain, data, opt_len);
+    LocalDomain[opt_len] = 0;
 }
 
 static void vendor_encaps(const void *data, int opt_len)

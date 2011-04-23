@@ -1,6 +1,8 @@
 #include <minmax.h>
+#include <lwip/api.h>
 #include "pxe.h"
-#include "lwip/api.h"
+#include "url.h"
+#include "tftp.h"
 
 const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44,
@@ -207,8 +209,7 @@ static void tftp_get_packet(struct inode *inode)
  * @out: the lenght of this file, stores in file->file_len
  *
  */
-void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
-	       const char *filename)
+void tftp_open(struct url_info *url, struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     char *buf;
@@ -232,6 +233,16 @@ void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
     uint32_t opdata, *opdata_ptr;
     struct ip_addr addr;
 
+    if (url->type != URL_OLD_TFTP) {
+	/*
+	 * The TFTP URL specification allows the TFTP to end with a
+	 * ;mode= which we just ignore.
+	 */
+	url_unescape(url->path, ';');
+    }
+    if (!url->port)
+	url->port = TFTP_PORT;
+
     socket->fill_buffer = tftp_get_packet;
     socket->close = tftp_close_file;
 
@@ -250,7 +261,7 @@ void tftp_open(struct inode *inode, uint32_t ip, uint16_t server_port,
     *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
     buf += 2;
 
-    buf = stpcpy(buf, filename);
+    buf = stpcpy(buf, url->path);
 
     buf++;			/* Point *past* the final NULL */
     memcpy(buf, rrq_tail, sizeof rrq_tail);
@@ -267,11 +278,10 @@ sendreq:
 	return;			/* No file available... */
     oldtime = jiffies();
 
-    socket->tftp_remoteip = ip;
     nbuf = netbuf_new();
     netbuf_ref(nbuf, rrq_packet_buf, rrq_len);
-    addr.addr = ip;
-    netconn_sendto(socket->conn, nbuf, &addr, ntohs(server_port));
+    addr.addr =  socket->tftp_remoteip = url->ip;
+    netconn_sendto(socket->conn, nbuf, &addr, url->port);
     netbuf_delete(nbuf);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
