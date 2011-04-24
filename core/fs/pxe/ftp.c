@@ -13,7 +13,6 @@
 #include <lwip/api.h>
 #include "pxe.h"
 #include "thread.h"
-#include "strbuf.h"
 #include "url.h"
 
 static int ftp_cmd_response(struct inode *inode, const char *cmd,
