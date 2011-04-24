@@ -37,7 +37,7 @@ __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 
 static struct url_scheme {
     const char *name;
-    void (*open)(struct url_info *url, struct inode *inode);
+    void (*open)(struct url_info *url, struct inode *inode, const char **redir);
 } url_schemes[] = {
     { "tftp", tftp_open },
     { "http", http_open },
@@ -382,27 +382,36 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     char fullpath[2*FILENAME_MAX];
     struct url_info url;
     const struct url_scheme *us;
+    int redirect_count = 0;
 
     inode = file->inode = NULL;
 
-    strlcpy(fullpath, filename, sizeof fullpath);
-    parse_url(&url, fullpath);
-    if (url.type == URL_SUFFIX) {
-	snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
-	parse_url(&url, fullpath);
-    }
-
-    inode = allocate_socket(fs);
-    if (!inode)
-	return;			/* Allocation failure */
-
-    url_set_ip(&url);
-
-    for (us = url_schemes; us->name; us++) {
-	if (!strcmp(us->name, url.scheme)) {
-	    us->open(&url, inode);
+    while (filename) {
+	if (redirect_count++ > 5)
 	    break;
+
+	strlcpy(fullpath, filename, sizeof fullpath);
+	parse_url(&url, fullpath);
+	if (url.type == URL_SUFFIX) {
+	    snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
+	    parse_url(&url, fullpath);
 	}
+
+	inode = allocate_socket(fs);
+	if (!inode)
+	    return;			/* Allocation failure */
+	
+	url_set_ip(&url);
+	
+	filename = NULL;
+	for (us = url_schemes; us->name; us++) {
+	    if (!strcmp(us->name, url.scheme)) {
+		us->open(&url, inode, &filename);
+		break;
+	    }
+	}
+
+	/* filename here is set on a redirect */
     }
 
     if (inode->size)

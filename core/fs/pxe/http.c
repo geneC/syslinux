@@ -45,7 +45,7 @@ static bool append_ch(char *str, size_t size, size_t *pos, int ch)
     return success;
 }
 
-void http_open(struct url_info *url, struct inode *inode)
+void http_open(struct url_info *url, struct inode *inode, const char **redir)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     char header_buf[4096];
@@ -67,18 +67,15 @@ void http_open(struct url_info *url, struct inode *inode)
 	st_eoh,
     } state;
     struct ip_addr addr;
-    char location[1024], new_url[1024];
+    static char location[FILENAME_MAX];
     uint32_t content_length; /* same as inode->size */
     size_t response_size;
     int status;
     int pos;
-    int redirect_count;
 
     socket->fill_buffer = tcp_fill_buffer;
     socket->close = tcp_close_file;
-    redirect_count = 0;
 
-restart:
     /* Reset all of the variables */
     inode->size = content_length = -1;
 
@@ -193,7 +190,7 @@ restart:
 		    /* Skip leading whitespace */
 		    while (isspace(*next))
 			next++;
-		    strcpy(location, next);
+		    strlcpy(location, next, sizeof location);
 		}
 		/* Start the field name and field value afress */
 		field_name_len = 1;
@@ -275,16 +272,8 @@ restart:
 	/* A redirect */
 	if (!location[0])
 	    goto fail;
-	redirect_count++;
-	if (redirect_count > 5)
-	    goto fail;
-	strlcpy(new_url, location, sizeof new_url);
-	parse_url(url, new_url);
-	url_set_ip(url);
-	tcp_close_file(inode);
-	/* XXX: This needs to go all the way back to scheme selection */
-	goto restart;
-	break;
+	*redir = location;
+	goto fail;
     default:
 	goto fail;
 	break;

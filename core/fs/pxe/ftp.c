@@ -169,7 +169,7 @@ static void ftp_close_file(struct inode *inode)
     ftp_free(inode);
 }
 
-void ftp_open(struct url_info *url, struct inode *inode)
+void ftp_open(struct url_info *url, struct inode *inode, const char **redir)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     struct pxe_pvt_inode *ctlsock;
@@ -179,6 +179,7 @@ void ftp_open(struct url_info *url, struct inode *inode)
     int resp;
     err_t err;
 
+    (void)redir;		/* FTP does not redirect */
     inode->size = 0;
 
     if (!url->port)

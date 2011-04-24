@@ -245,17 +245,17 @@ uint16_t get_port(void);
 void free_port(uint16_t port);
 
 /* tftp.c */
-void tftp_open(struct url_info *url, struct inode *inode);
+void tftp_open(struct url_info *url, struct inode *inode, const char **redir);
 
 /* gpxeurl.c */
 void gpxe_open(struct inode *inode, const char *url);
 #define GPXE 1
 
 /* http.c */
-void http_open(struct url_info *url, struct inode *inode);
+void http_open(struct url_info *url, struct inode *inode, const char **redir);
 
 /* ftp.c */
-void ftp_open(struct url_info *url, struct inode *inode);
+void ftp_open(struct url_info *url, struct inode *inode, const char **redir);
 
 /* tcp.c */
 void tcp_close_file(struct inode *inode);

@@ -210,7 +210,7 @@ static void tftp_get_packet(struct inode *inode)
  * @out: the lenght of this file, stores in file->file_len
  *
  */
-void tftp_open(struct url_info *url, struct inode *inode)
+void tftp_open(struct url_info *url, struct inode *inode, const char **redir)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     char *buf;
@@ -233,6 +233,8 @@ void tftp_open(struct url_info *url, struct inode *inode)
     uint16_t blk_num;
     uint32_t opdata, *opdata_ptr;
     struct ip_addr addr;
+
+    (void)redir;		/* TFTP does not redirect */
 
     if (url->type != URL_OLD_TFTP) {
 	/*
