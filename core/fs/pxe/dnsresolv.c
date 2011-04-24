@@ -92,6 +92,14 @@ uint32_t dns_resolv(const char *name)
     err_t err;
     struct ip_addr ip;
 
+    /*
+     * Return failure on an empty input... this can happen during
+     * some types of URL parsing, and this is the easiest place to
+     * check for it.
+     */
+    if (!name || !*name)
+	return 0;
+
     /* If it is a valid dot quad, just return that value */
     if (parse_dotquad(name, &ip.addr))
 	return ip.addr;
