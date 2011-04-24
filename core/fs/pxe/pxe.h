@@ -127,10 +127,9 @@ struct netbuf;
 struct pxe_pvt_inode {
     struct netconn *conn;      /* lwip network connection */
     struct netbuf *buf;	       /* lwip cached buffer */
-    uint16_t tftp_localport;   /* Local port number  (0=not in us)*/
     uint16_t tftp_remoteport;  /* Remote port number */
-    uint32_t tftp_remoteip;    /* Remote IP address */
-    uint32_t tftp_filepos;     /* bytes downloaded (includeing buffer) */
+    uint32_t tftp_remoteip;    /* Remote IP address (0 = disconnected) */
+    uint32_t tftp_filepos;     /* bytes downloaded (including buffer) */
     uint32_t tftp_blksize;     /* Block size for this connection(*) */
     uint16_t tftp_bytesleft;   /* Unclaimed data bytes */
     uint16_t tftp_lastpkt;     /* Sequence number of last packet (NBO) */
@@ -238,10 +237,6 @@ uint32_t dns_resolv(const char *);
 /* idle.c */
 void pxe_idle_init(void);
 void pxe_idle_cleanup(void);
-
-/* socknum.c */
-uint16_t get_port(void);
-void free_port(uint16_t port);
 
 /* tftp.c */
 void tftp_open(struct url_info *url, struct inode *inode, const char **redir);

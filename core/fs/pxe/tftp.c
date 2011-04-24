@@ -30,7 +30,7 @@ static void tftp_error(struct inode *file, uint16_t errnum,
 static void tftp_close_file(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
-    if (socket->tftp_localport != 0) {
+    if (socket->tftp_remoteip) {
 	tftp_error(inode, 0, "No error, file close");
     }
     if (socket->conn) {
@@ -242,22 +242,23 @@ void tftp_open(struct url_info *url, struct inode *inode, const char **redir)
 	 */
 	url_unescape(url->path, ';');
     }
+
     if (!url->port)
 	url->port = TFTP_PORT;
 
     socket->fill_buffer = tftp_get_packet;
     socket->close = tftp_close_file;
-
     socket->conn = netconn_new(NETCONN_UDP);
     if (!socket->conn)
 	return;
 
     socket->conn->recv_timeout = 15; /* A 15 ms recv timeout... */
-    err = netconn_bind(socket->conn, NULL, ntohs(socket->tftp_localport));
+    err = netconn_bind(socket->conn, NULL, 0);
     if (err) {
 	printf("netconn_bind error %d\n", err);
 	return;
     }
+    socket->tftp_remoteip = url->ip;
 
     buf = rrq_packet_buf;
     *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
@@ -282,7 +283,7 @@ sendreq:
 
     nbuf = netbuf_new();
     netbuf_ref(nbuf, rrq_packet_buf, rrq_len);
-    addr.addr =  socket->tftp_remoteip = url->ip;
+    addr.addr = socket->tftp_remoteip;
     netconn_sendto(socket->conn, nbuf, &addr, url->port);
     netbuf_delete(nbuf);
 

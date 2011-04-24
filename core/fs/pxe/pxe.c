@@ -56,8 +56,6 @@ static struct inode *allocate_socket(struct fs_info *fs)
     if (!inode) {
 	malloc_error("socket structure");
     } else {
-	struct pxe_pvt_inode *socket = PVT(inode);
-	socket->tftp_localport = get_port();
 	inode->mode = DT_REG;	/* No other types relevant for PXE */
     }
 
@@ -69,7 +67,6 @@ void free_socket(struct inode *inode)
     struct pxe_pvt_inode *socket = PVT(inode);
 
     free(socket->tftp_pktbuf);	/* If we allocated a buffer, free it now */
-    free_port(socket->tftp_localport);
     free_inode(inode);
 }
 
