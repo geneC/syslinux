@@ -25,13 +25,13 @@ void tcp_close_file(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
 
-    if (socket->buf) {
-	netbuf_delete(socket->buf);
-        socket->buf = NULL;
-    }
     if (socket->conn) {
 	netconn_delete(socket->conn);
 	socket->conn = NULL;
+    }
+    if (socket->buf) {
+	netbuf_delete(socket->buf);
+        socket->buf = NULL;
     }
 }
 
