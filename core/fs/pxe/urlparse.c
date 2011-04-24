@@ -174,7 +174,7 @@ char *url_unescape(char *buffer, char terminator)
     unsigned char c;
     int x, y;
 
-    while ((c = *p++)) {
+    while ((c = *p)) {
 	if (c == terminator) {
 	    *q = '\0';
 	    return p;
