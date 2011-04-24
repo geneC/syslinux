@@ -6,56 +6,6 @@
 
 #define HTTP_PORT	80
 
-static void http_close_file(struct inode *inode)
-{
-    struct pxe_pvt_inode *socket = PVT(inode);
-    if (socket->buf) {
-	netbuf_delete(socket->buf);
-        socket->buf = NULL;
-    }
-    if (socket->conn) {
-	netconn_delete(socket->conn);
-	socket->conn = NULL;
-    }
-}
-
-static void http_fill_buffer(struct inode *inode)
-{
-    struct pxe_pvt_inode *socket = PVT(inode);
-    void *data;
-    u16_t len;
-    err_t err;
-
-    /* Clean up or advance an inuse netbuf */
-    if (socket->buf) {
-	if (netbuf_next(socket->buf) < 0) {
-	    netbuf_delete(socket->buf);
-	    socket->buf = NULL;
-	}
-    }
-    /* If needed get a new netbuf */
-    if (!socket->buf) {
-	socket->buf = netconn_recv(socket->conn);
-	if (!socket->buf) {
-	    socket->tftp_goteof = 1;
-	    if (inode->size == -1)
-		inode->size = socket->tftp_filepos;
-	    http_close_file(inode);
-	    return;
-	}
-    }
-    /* Report the current fragment of the netbuf */
-    err = netbuf_data(socket->buf, &data, &len);
-    if (err) {
-	printf("netbuf_data err: %d\n", err);
-	kaboom();
-    }
-    socket->tftp_dataptr = data;
-    socket->tftp_filepos += len;
-    socket->tftp_bytesleft = len;
-    return;
-}
-
 static bool is_tspecial(int ch)
 {
     bool tspecial = false;
@@ -65,7 +15,7 @@ static bool is_tspecial(int ch)
     case '/':  case '[':  case ']':  case '?':  case '=':
     case '{':  case '}':  case ' ':  case '\t':
 	tspecial = true;
-    	break;
+	break;
     }
     return tspecial;
 }
@@ -86,7 +36,7 @@ static bool append_ch(char *str, size_t size, size_t *pos, int ch)
     bool success = true;
     if ((*pos + 1) >= size) {
 	*pos = 0;
-	success = false;    
+	success = false;
     } else {
 	str[*pos] = ch;
 	str[*pos + 1] = '\0';
@@ -124,8 +74,8 @@ void http_open(struct url_info *url, struct inode *inode)
     int pos;
     int redirect_count;
 
-    socket->fill_buffer = http_fill_buffer;
-    socket->close = http_close_file;
+    socket->fill_buffer = tcp_fill_buffer;
+    socket->close = tcp_close_file;
     redirect_count = 0;
 
 restart:
@@ -268,7 +218,7 @@ restart:
 	    /* Bogus cases try to recover */
 	    else if (ch == '\n')
 		state = st_fieldfirst;
-	    else 
+	    else
 		state = st_skipline;
 	    break;
 
@@ -300,7 +250,7 @@ restart:
 	    if (ch == '\n')
 		state = st_fieldfirst;
 	    break;
-	
+
 	case st_eoh:
 	   break; /* Should never happen */
 	}
@@ -331,7 +281,7 @@ restart:
 	strlcpy(new_url, location, sizeof new_url);
 	parse_url(url, new_url);
 	url_set_ip(url);
-	http_close_file(inode);
+	tcp_close_file(inode);
 	/* XXX: This needs to go all the way back to scheme selection */
 	goto restart;
 	break;
@@ -342,6 +292,6 @@ restart:
     return;
 fail:
     inode->size = 0;
-    http_close_file(inode);
+    tcp_close_file(inode);
     return;
 }

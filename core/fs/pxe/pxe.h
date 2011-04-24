@@ -52,7 +52,7 @@ static inline int hexval(char c)
 #define DNS_MAX_SERVERS 4			/* Max no of DNS servers */
 
 /*
- * structures 
+ * structures
  */
 struct pxenv_t {
     uint8_t    signature[6];	/* PXENV+ */
@@ -205,7 +205,7 @@ static inline uint32_t gateway(uint32_t ip)
 }
 
 /*
- * functions 
+ * functions
  */
 
 /* pxeisr.inc */
@@ -253,5 +253,9 @@ void gpxe_open(struct inode *inode, const char *url);
 
 /* http.c */
 void http_open(struct url_info *url, struct inode *inode);
+
+/* tcp.c */
+void tcp_close_file(struct inode *inode);
+void tcp_fill_buffer(struct inode *inode);
 
 #endif /* pxe.h */
