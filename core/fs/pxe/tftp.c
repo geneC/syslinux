@@ -30,7 +30,7 @@ static void tftp_error(struct inode *file, uint16_t errnum,
 static void tftp_close_file(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
-    if (socket->tftp_remoteip) {
+    if (!socket->tftp_goteof) {
 	tftp_error(inode, 0, "No error, file close");
     }
     if (socket->conn) {
@@ -258,7 +258,6 @@ void tftp_open(struct url_info *url, struct inode *inode, const char **redir)
 	printf("netconn_bind error %d\n", err);
 	return;
     }
-    socket->tftp_remoteip = url->ip;
 
     buf = rrq_packet_buf;
     *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
@@ -283,7 +282,7 @@ sendreq:
 
     nbuf = netbuf_new();
     netbuf_ref(nbuf, rrq_packet_buf, rrq_len);
-    addr.addr = socket->tftp_remoteip;
+    addr.addr = url->ip;
     netconn_sendto(socket->conn, nbuf, &addr, url->port);
     netbuf_delete(nbuf);
 
@@ -299,7 +298,7 @@ wait_pkt:
 	} else {
 	    /* Make sure the packet actually came from the server */
 	    bool ok_source;
-	    ok_source = netbuf_fromaddr(nbuf)->addr == socket->tftp_remoteip;
+	    ok_source = netbuf_fromaddr(nbuf)->addr == url->ip;
 	    nbuf_len = netbuf_len(nbuf);
 	    if (nbuf_len <= PKTBUF_SIZE)
 		netbuf_copy(nbuf, packet_buf, nbuf_len);
@@ -311,7 +310,6 @@ wait_pkt:
 	}
     }
 
-    socket->tftp_remoteport = htons(netbuf_fromport(nbuf));
     netconn_connect(socket->conn, netbuf_fromaddr(nbuf), netbuf_fromport(nbuf));
 
     /* filesize <- -1 == unknown */
@@ -328,7 +326,7 @@ wait_pkt:
     switch (opcode) {
     case TFTP_ERROR:
         inode->size = 0;
-        break;			/* ERROR reply; don't try again */
+	goto done;        /* ERROR reply; don't try again */
 
     case TFTP_DATA:
         /*
@@ -371,7 +369,7 @@ wait_pkt:
         socket->tftp_bytesleft = buffersize;
         socket->tftp_dataptr = socket->tftp_pktbuf;
         memcpy(socket->tftp_pktbuf, data, buffersize);
-	break;
+	goto done;
 
     case TFTP_OACK:
         /*
@@ -443,11 +441,15 @@ wait_pkt:
 	    *opdata_ptr = opdata;
 	}
 
+	if (socket->tftp_blksize < 64 || socket->tftp_blksize > PKTBUF_SIZE)
+	    goto err_reply;
+
 	/* Parsing successful, allocate buffer */
 	socket->tftp_pktbuf = malloc(socket->tftp_blksize);
 	if (!socket->tftp_pktbuf)
 	    goto err_reply;
-	break;
+	else
+	    goto done;
 
     default:
 	printf("TFTP unknown opcode %d\n", ntohs(opcode));

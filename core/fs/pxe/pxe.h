@@ -128,7 +128,6 @@ struct pxe_pvt_inode {
     struct netconn *conn;      /* lwip network connection */
     struct netbuf *buf;	       /* lwip cached buffer */
     uint16_t tftp_remoteport;  /* Remote port number */
-    uint32_t tftp_remoteip;    /* Remote IP address (0 = disconnected) */
     uint32_t tftp_filepos;     /* bytes downloaded (including buffer) */
     uint32_t tftp_blksize;     /* Block size for this connection(*) */
     uint16_t tftp_bytesleft;   /* Unclaimed data bytes */
