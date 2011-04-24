@@ -46,6 +46,15 @@
 #define TCP_SND_BUF		(4*TCP_MSS)
 #define LWIP_TCP_TIMESTAMPS	1
 
+/*
+ * IANA says to use dynamic port numbers above 49152, but some
+ * very high numbers are known to be (ab)used, too.
+ */
+#define TCP_LOCAL_PORT_RANGE_START 49152
+#define TCP_LOCAL_PORT_RANGE_END   57343
+#define UDP_LOCAL_PORT_RANGE_START 49152
+#define UDP_LOCAL_PORT_RANGE_END   57343
+
 #define ETHARP_TRUST_IP_MAC	0
  
 #define LWIP_STATS		1
