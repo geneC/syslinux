@@ -24,6 +24,7 @@
 void tcp_close_file(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
+
     if (socket->buf) {
 	netbuf_delete(socket->buf);
         socket->buf = NULL;
@@ -55,7 +56,7 @@ void tcp_fill_buffer(struct inode *inode)
 	    socket->tftp_goteof = 1;
 	    if (inode->size == -1)
 		inode->size = socket->tftp_filepos;
-	    tcp_close_file(inode);
+	    socket->close(inode);
 	    return;
 	}
     }
