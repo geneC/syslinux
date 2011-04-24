@@ -26,8 +26,6 @@
 /*
  * Some basic defines...
  */
-#define TFTP_BLOCKSIZE_LG2 9
-#define TFTP_BLOCKSIZE  (1 << TFTP_BLOCKSIZE_LG2)
 #define PKTBUF_SIZE     2048			/*  */
 
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
@@ -141,7 +139,7 @@ struct pxe_pvt_inode {
     uint8_t  tftp_unused[3];   /* Currently unused */
     void (*fill_buffer)(struct inode *inode);
     void (*close)(struct inode *inode);
-    char     tftp_pktbuf[PKTBUF_SIZE];
+    char    *tftp_pktbuf;      /* Packet buffer */
 } __attribute__ ((packed));
 
 #define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))

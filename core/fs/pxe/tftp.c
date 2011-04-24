@@ -37,6 +37,7 @@ static void tftp_close_file(struct inode *inode)
 	netconn_delete(socket->conn);
 	socket->conn = NULL;
     }
+    free(socket->tftp_pktbuf);
 }
 
 /**
@@ -313,7 +314,6 @@ wait_pkt:
 
     /* filesize <- -1 == unknown */
     inode->size = -1;
-    /* Default blksize unless blksize option negotiated */
     socket->tftp_blksize = TFTP_BLOCKSIZE;
     buffersize = nbuf_len - 2;	  /* bytes after opcode */
     if (buffersize < 0)
@@ -349,8 +349,13 @@ wait_pkt:
             goto wait_pkt;
         socket->tftp_lastpkt = blk_num;
         if (buffersize > TFTP_BLOCKSIZE)
-            goto err_reply;  /* Corrupt */
-        else if (buffersize < TFTP_BLOCKSIZE) {
+            goto err_reply;	/* Corrupt */
+
+	socket->tftp_pktbuf = malloc(TFTP_BLOCKSIZE);
+	if (!socket->tftp_pktbuf)
+	    goto err_reply;	/* Internal error */
+
+        if (buffersize < TFTP_BLOCKSIZE) {
             /*
              * This is the final EOF packet, already...
              * We know the filesize, but we also want to
@@ -435,23 +440,29 @@ wait_pkt:
             }
 	    *opdata_ptr = opdata;
 	}
+
+	/* Parsing successful, allocate buffer */
+	socket->tftp_pktbuf = malloc(socket->tftp_blksize);
+	if (!socket->tftp_pktbuf)
+	    goto err_reply;
 	break;
 
     default:
 	printf("TFTP unknown opcode %d\n", ntohs(opcode));
 	goto err_reply;
     }
+
+err_reply:
+    /* Build the TFTP error packet */
+    tftp_error(inode, TFTP_EOPTNEG, "TFTP protocol error");
+    inode->size = 0;
+
 done:
     if (!inode->size) {
+	free(socket->tftp_pktbuf);
 	netconn_delete(socket->conn);
 	socket->conn = NULL;
     }
     return;
 
-err_reply:
-    /* Build the TFTP error packet */
-    tftp_error(inode, TFTP_EOPTNEG, "TFTP protocol error");
-    printf("TFTP server sent an incomprehesible reply\n");
-    kaboom();
 }
-

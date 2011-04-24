@@ -8,6 +8,8 @@ static void gpxe_close_file(struct inode *inode)
 
     file_close.FileHandle = socket->tftp_remoteport;
     pxe_call(PXENV_FILE_CLOSE, &file_close);
+
+    free(socket->tftp_pktbuf);
 }
 
 /**
@@ -68,6 +70,10 @@ void gpxe_open(struct inode *inode, const char *url)
     struct pxe_pvt_inode *socket = PVT(inode);
     int err;
 
+    socket->tftp_pktbuf = malloc(PKTBUF_SIZE);
+    if (!socket->tftp_pktbuf)
+	return;
+
     snprintf(lowurl, sizeof lowurl, "%s", url);
     file_open.Status        = PXENV_STATUS_BAD_FUNC;
     file_open.FileName      = FAR_PTR(lowurl);
@@ -82,4 +88,3 @@ void gpxe_open(struct inode *inode, const char *url)
 }
 
 #endif /* GPXE */
-

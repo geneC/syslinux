@@ -23,6 +23,12 @@
 #define TFTP_PORT	 69
 
 /*
+ * TFTP default block size
+ */
+#define TFTP_BLOCKSIZE_LG2 9
+#define TFTP_BLOCKSIZE  (1 << TFTP_BLOCKSIZE_LG2)
+
+/*
  * TFTP operation codes
  */
 #define TFTP_RRQ	 htons(1)		// Read rest
