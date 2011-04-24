@@ -344,7 +344,7 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
 /*
  * Assign an IP address to a URL
  */
-void url_set_ip(struct url_info *url)
+static void url_set_ip(struct url_info *url)
 {
     url->ip = 0;
     if (url->host)

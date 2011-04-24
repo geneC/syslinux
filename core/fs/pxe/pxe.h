@@ -223,7 +223,6 @@ bool ip_ok(uint32_t);
 int pxe_call(int, void *);
 extern __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 int pxe_getc(struct inode *inode);
-void url_set_ip(struct url_info *);
 void free_socket(struct inode *inode);
 
 /* undiif.c */
