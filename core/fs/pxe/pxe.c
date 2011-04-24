@@ -68,6 +68,7 @@ void free_socket(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
 
+    free(socket->tftp_pktbuf);	/* If we allocated a buffer, free it now */
     free_port(socket->tftp_localport);
     free_inode(inode);
 }
@@ -380,9 +381,13 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     struct fs_info *fs = file->fs;
     struct inode *inode;
     char fullpath[2*FILENAME_MAX];
+#ifdef GPXE
+    char urlsave[2*FILENAME_MAX];
+#endif
     struct url_info url;
-    const struct url_scheme *us;
+    const struct url_scheme *us = NULL;
     int redirect_count = 0;
+    bool found_scheme = false;
 
     inode = file->inode = NULL;
 
@@ -391,9 +396,15 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	    break;
 
 	strlcpy(fullpath, filename, sizeof fullpath);
+#ifdef GPXE
+	strcpy(urlsave, fullpath);
+#endif
 	parse_url(&url, fullpath);
 	if (url.type == URL_SUFFIX) {
 	    snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
+#ifdef GPXE
+	    strcpy(urlsave, fullpath);
+#endif
 	    parse_url(&url, fullpath);
 	}
 
@@ -404,15 +415,24 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	url_set_ip(&url);
 	
 	filename = NULL;
+	found_scheme = false;
 	for (us = url_schemes; us->name; us++) {
 	    if (!strcmp(us->name, url.scheme)) {
 		us->open(&url, inode, &filename);
+		found_scheme = true;
 		break;
 	    }
 	}
 
 	/* filename here is set on a redirect */
     }
+
+#ifdef GPXE
+    if (!found_scheme) {
+	/* No URL scheme found, hand it to GPXE */
+	gpxe_open(inode, urlsave);
+    }
+#endif
 
     if (inode->size)
 	file->inode = inode;

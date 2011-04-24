@@ -37,7 +37,6 @@ static void tftp_close_file(struct inode *inode)
 	netconn_delete(socket->conn);
 	socket->conn = NULL;
     }
-    free(socket->tftp_pktbuf);
 }
 
 /**
@@ -461,10 +460,8 @@ err_reply:
 
 done:
     if (!inode->size) {
-	free(socket->tftp_pktbuf);
 	netconn_delete(socket->conn);
 	socket->conn = NULL;
     }
     return;
-
 }

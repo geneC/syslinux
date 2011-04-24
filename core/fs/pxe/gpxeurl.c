@@ -8,8 +8,6 @@ static void gpxe_close_file(struct inode *inode)
 
     file_close.FileHandle = socket->tftp_remoteport;
     pxe_call(PXENV_FILE_CLOSE, &file_close);
-
-    free(socket->tftp_pktbuf);
 }
 
 /**
