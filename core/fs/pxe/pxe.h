@@ -137,10 +137,11 @@ struct pxe_pvt_inode {
     char    *tftp_dataptr;     /* Pointer to available data */
     uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
     uint8_t  tftp_unused[3];   /* Currently unused */
+    char    *tftp_pktbuf;      /* Packet buffer */
+    struct inode *ctl;	       /* Control connection (for FTP) */
     void (*fill_buffer)(struct inode *inode);
     void (*close)(struct inode *inode);
-    char    *tftp_pktbuf;      /* Packet buffer */
-} __attribute__ ((packed));
+};
 
 #define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))
 
@@ -223,6 +224,7 @@ int pxe_call(int, void *);
 extern __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 int pxe_getc(struct inode *inode);
 void url_set_ip(struct url_info *);
+void free_socket(struct inode *inode);
 
 /* undiif.c */
 int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw);
@@ -251,6 +253,9 @@ void gpxe_open(struct inode *inode, const char *url);
 
 /* http.c */
 void http_open(struct url_info *url, struct inode *inode);
+
+/* ftp.c */
+void ftp_open(struct url_info *url, struct inode *inode);
 
 /* tcp.c */
 void tcp_close_file(struct inode *inode);

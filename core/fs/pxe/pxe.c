@@ -41,6 +41,7 @@ static struct url_scheme {
 } url_schemes[] = {
     { "tftp", tftp_open },
     { "http", http_open },
+    { "ftp",  ftp_open },
     { NULL, NULL },
 };
 
@@ -63,7 +64,7 @@ static struct inode *allocate_socket(struct fs_info *fs)
     return inode;
 }
 
-static void free_socket(struct inode *inode)
+void free_socket(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
 
