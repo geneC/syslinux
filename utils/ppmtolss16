@@ -229,7 +229,7 @@ for ( $y = 0 ; $y < $ysize ; $y++ ) {
     start_new_row();
     for ( $x = 0 ; $x < $xsize ; $x++ ) {
 	die "$0: Premature EOF at ($x,$y) of ($xsize,$ysize)\n"
-	    if ( !defined(@pnmrgb = getrgb($form)) );
+	    if ( !scalar(@pnmrgb = getrgb($form)) );
 	# Convert to 6-bit representation
 	$rgb = rgbconvert($pnmrgb[0], $pnmrgb[1], $pnmrgb[2], $maxmult);
 	$color_count{$rgb}++;
