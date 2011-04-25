@@ -67,10 +67,10 @@ int main(int argc, char *argv[])
 	}
 
 	lba = 0;
-	while ((len = fread(b, BPS, 1, stdin))) {
+	while ((len = fread(b, 1, BPS, stdin))) {
 		if (len < BPS)
 			memset((char *)b + len, 0, BPS - len);
-		fwrite(b, BPS, 1, f);
+		fwrite(b, 1, BPS, f);
 		lba++;
 	}
 
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 			for (i = 0; i < SECT_INT; i++)
 				b[i] = lba;
 		}
-		fwrite(b, BPS, 1, f);
+		fwrite(b, 1, BPS, f);
 		lba++;
 	}
 
