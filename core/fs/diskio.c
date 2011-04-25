@@ -7,6 +7,7 @@
 #include <fs.h>
 #include <disk.h>
 #include <ilog2.h>
+#include <minmax.h>
 
 #define RETRY_COUNT 6
 
@@ -396,24 +397,21 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
     return &disk;
 }
 
-
 /*
  * Initialize the device structure.
- *
- * NOTE: the disk cache needs to be revamped to support multiple devices...
  */
 struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
                             uint16_t bsHeads, uint16_t bsSecPerTrack,
 			    uint32_t MaxTransfer)
 {
     static struct device dev;
-    static __hugebss char diskcache[128*1024];
+    extern size_t HighMemSize, MallocStart;
 
     dev.disk = disk_init(devno, cdrom, part_start,
 			 bsHeads, bsSecPerTrack, MaxTransfer);
 
-    dev.cache_data = diskcache;
-    dev.cache_size = sizeof diskcache;
+    dev.cache_size = min(128*1024, (MallocStart-HighMemSize) >> 1);
+    dev.cache_data = malloc(dev.cache_size);
 
     return &dev;
 }
