@@ -74,6 +74,8 @@ int main(int argc, char *argv[])
 		lba++;
 	}
 
+	memset(b, 0, sizeof b);
+
 	while (lba < NUM_SECT) {
 		if (one) {
 			b[0] = lba;
