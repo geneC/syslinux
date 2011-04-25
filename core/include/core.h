@@ -57,12 +57,6 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
 #define __bss16  __attribute__((nocommon,section(".bss16")))
 
 /*
- * Section for very large aligned objects, not zeroed on startup
- */
-#define __hugebss __attribute__((nocommon,section(".hugebss"),aligned(4096)))
-
-
-/*
  * Helper routine to return a specific set of flags
  */
 static inline void set_flags(com32sys_t *regs, uint32_t flags)
