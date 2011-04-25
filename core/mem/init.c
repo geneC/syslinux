@@ -5,14 +5,16 @@
 
 struct free_arena_header __malloc_head[NHEAP];
 
-static __hugebss char main_heap[128 << 10];
 extern char __lowmem_heap[];
+size_t __bss16 MallocStart;
+extern size_t HighMemSize;
 
 void mem_init(void)
 {
     struct free_arena_header *fp;
     int i;
     uint16_t *bios_free_mem = (uint16_t *)0x413;
+    size_t main_heap_size;
 
     /* Initialize the head nodes */
 
@@ -24,10 +26,14 @@ void mem_init(void)
 	fp++;
     }
 
-    /* Initialize the main heap */
-    fp = (struct free_arena_header *)main_heap;
+    /* Initialize the main heap; give it 1/16 of high memory */
+    main_heap_size = (HighMemSize - 0x100000) >> 4;
+    MallocStart    = (HighMemSize - main_heap_size) & ~4095;
+    main_heap_size = (HighMemSize - MallocStart) & ARENA_SIZE_MASK;
+
+    fp = (struct free_arena_header *)MallocStart;
     fp->a.attrs = ARENA_TYPE_USED | (HEAP_MAIN << ARENA_HEAP_POS);
-    ARENA_SIZE_SET(fp->a.attrs, sizeof main_heap);
+    ARENA_SIZE_SET(fp->a.attrs, main_heap_size);
     __inject_free_block(fp);
 
     /* Initialize the lowmem heap */

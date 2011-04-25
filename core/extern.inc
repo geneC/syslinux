@@ -24,6 +24,9 @@
 	; newconfig.c
 	extern pm_is_config_file
 
+	; mem/init.c
+	extern MallocStart, mem_init
+
 %if IS_PXELINUX
 	; pxe.c
 	extern unload_pxe, reset_pxe

@@ -29,6 +29,12 @@ common_init:
 		jne kaboom
 
 ;
+; Initialize the malloc arena
+;
+		call highmemsize
+		pm_call mem_init
+
+;
 ; Initialize timer
 ;
 		call timer_init

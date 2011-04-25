@@ -154,7 +154,7 @@ display_labels:
 		mov cx,di
 		sub cx,command_line
 		call crlf
-		mov esi,[HighMemSize]		; Start from top of memory
+		mov esi,[MallocStart]		; Start from top of memory
 .scan:
 		cmp esi,[VKernelEnd]
 		jbe .not_vk
@@ -360,7 +360,7 @@ clin_opt_ok:
 ; Now check if it is a "virtual kernel"
 ;
 vk_check:
-		mov esi,[HighMemSize]		; Start from top of memory
+		mov esi,[MallocStart]		; Start from top of memory
 .scan:
 		cmp esi,[VKernelEnd]
 		jbe .not_vk

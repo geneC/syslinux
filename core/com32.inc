@@ -123,7 +123,7 @@ not_com32r_msg	db ': not a COM32R image', CR, LF, 0
 		;
 		; Danger, Will Robinson: it's not clear the use of
 		; core_xfer_buf is safe here.
-		global __entry_esp, __com32
+		global __entry_esp, __com32, HighMemSize
 		alignz 4
 __entry_esp:
 		dd 0				; Dummy to avoid _exit issues
