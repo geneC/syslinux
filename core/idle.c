@@ -1,5 +1,5 @@
-/* -*- fundamental -*- ---------------------------------------------------
- *
+/* ----------------------------------------------------------------------- *
+ *   
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
