@@ -349,20 +349,6 @@ SECTIONS
 	__bss_len = ABSOLUTE(__bss_end) - ABSOLUTE(__bss_start);
 	__bss_dwords = (__bss_len + 3) >> 2;
 
-	/* Very large objects which don't need to be zeroed */
-
-	__hugebss_vma = .;
-	__hugebss_lma = .;		/* Dummy */
-	.hugebss (NOLOAD) : AT (__hugebss_lma) {
-		__hugebss_start = .;
-		*(.hugebss)
-		*(.hugebss.*)
-		__hugebss_end = .;
-	}
-	__hugebss_len = ABSOLUTE(__hugebss_end) - ABSOLUTE(__hugebss_start);
-	__hugebss_dwords = (__hugebss_len + 3) >> 2;
-
-
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
 	__stack_lma = .;	/* Dummy */
