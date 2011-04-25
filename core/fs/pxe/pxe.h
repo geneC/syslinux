@@ -242,7 +242,7 @@ void tftp_open(struct url_info *url, struct inode *inode, const char **redir);
 
 /* gpxeurl.c */
 void gpxe_open(struct inode *inode, const char *url);
-#define GPXE 1
+#define GPXE 0
 
 /* http.c */
 void http_open(struct url_info *url, struct inode *inode, const char **redir);

@@ -3,8 +3,15 @@
 
 #include <stddef.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <timer.h>
+
+/* The idle thread runs at this priority */
+#define IDLE_THREAD_PRIORITY	INT_MAX
+
+/* This priority should normally be used for hardware-polling threads */
+#define POLL_THREAD_PRIORITY	(INT_MAX-1)
 
 struct semaphore;
 
@@ -94,7 +101,5 @@ void kill_thread(struct thread *);
 
 void start_idle_thread(void);
 void test_thread(void);
-
-extern void (*idle_hook)(void);
 
 #endif /* _THREAD_H */

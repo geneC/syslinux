@@ -378,7 +378,7 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     struct fs_info *fs = file->fs;
     struct inode *inode;
     char fullpath[2*FILENAME_MAX];
-#ifdef GPXE
+#if GPXE
     char urlsave[2*FILENAME_MAX];
 #endif
     struct url_info url;
@@ -393,13 +393,13 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	    break;
 
 	strlcpy(fullpath, filename, sizeof fullpath);
-#ifdef GPXE
+#if GPXE
 	strcpy(urlsave, fullpath);
 #endif
 	parse_url(&url, fullpath);
 	if (url.type == URL_SUFFIX) {
 	    snprintf(fullpath, sizeof fullpath, "%s%s", fs->cwd_name, filename);
-#ifdef GPXE
+#if GPXE
 	    strcpy(urlsave, fullpath);
 #endif
 	    parse_url(&url, fullpath);
@@ -424,12 +424,12 @@ static void __pxe_searchdir(const char *filename, struct file *file)
 	/* filename here is set on a redirect */
     }
 
-#ifdef GPXE
     if (!found_scheme) {
+#if GPXE
 	/* No URL scheme found, hand it to GPXE */
 	gpxe_open(inode, urlsave);
-    }
 #endif
+    }
 
     if (inode->size)
 	file->inode = inode;

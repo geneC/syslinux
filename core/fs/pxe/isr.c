@@ -12,7 +12,7 @@
 
 extern uint8_t pxe_irq_pending;
 static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
-static struct thread *pxe_thread;
+static struct thread *pxe_thread, *poll_thread;
 
 bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 {
@@ -72,16 +72,6 @@ static void pxe_poll_wakeups(void)
     }
 }
 
-static bool pxe_isr_poll(void)
-{
-    static __lowmem t_PXENV_UNDI_ISR isr;
-
-    isr.FuncFlag = PXENV_UNDI_ISR_IN_START;
-    pxe_call(PXENV_UNDI_ISR, &isr);
-
-    return isr.FuncFlag == PXENV_UNDI_ISR_OUT_OURS;
-}
-
 static void pxe_process_irq(void)
 {
     static __lowmem t_PXENV_UNDI_ISR isr;
@@ -128,14 +118,29 @@ static void pxe_receive_thread(void *dummy)
 
     for (;;) {
 	sem_down(&pxe_receive_thread_sem, 0);
-	if (pxe_irq_vector || pxe_isr_poll())
-	    pxe_process_irq();
+	pxe_process_irq();
     }
 }
 
-static void pxe_do_isr_poll(void)
+static bool pxe_isr_poll(void)
 {
-    sem_up(&pxe_receive_thread_sem);
+    static __lowmem t_PXENV_UNDI_ISR isr;
+
+    isr.FuncFlag = PXENV_UNDI_ISR_IN_START;
+    pxe_call(PXENV_UNDI_ISR, &isr);
+
+    return isr.FuncFlag == PXENV_UNDI_ISR_OUT_OURS;
+}
+
+static void pxe_poll_thread(void *dummy)
+{
+    (void)dummy;
+
+    for (;;) {
+	thread_yield();
+	if (pxe_isr_poll())
+	    sem_up(&pxe_receive_thread_sem);
+    }
 }
 
 void pxe_init_isr(void)
@@ -153,8 +158,9 @@ void pxe_init_isr(void)
     core_pm_hook = __schedule;
 
     if (!pxe_irq_vector) {
-	/* No IRQ vector, need to poll */
-	idle_hook = pxe_do_isr_poll;
+	/* No IRQ vector, need to poll. */
+	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
+				   pxe_poll_thread, NULL);
     }
 }
 
@@ -163,12 +169,14 @@ void pxe_cleanup_isr(void)
 {
     static __lowmem struct s_PXENV_UNDI_CLOSE undi_close;
 
-    idle_hook = NULL;
     sched_hook_func = NULL;
     core_pm_hook = core_pm_null_hook;
     kill_thread(pxe_thread);
 
     memset(&undi_close, 0, sizeof(undi_close));
     pxe_call(PXENV_UNDI_CLOSE, &undi_close);
-    uninstall_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
+    if (pxe_irq_vector)
+	uninstall_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
+    else
+	kill_thread(poll_thread);
 }
