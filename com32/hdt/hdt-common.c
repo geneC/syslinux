@@ -106,6 +106,12 @@ void detect_parameters(const int argc, const char *argv[],
 	    max_console_lines = MAX_CLI_LINES;
 	} else if (!strncmp(argv[i], "nomenu", 6)) {
 	    menumode = false;
+	} else if (!strncmp(argv[i], "dump_path=", 10)) {
+	    strlcpy(hardware->dump_path, argv[i] + 10,
+		    sizeof(hardware->dump_path));
+	} else if (!strncmp(argv[i], "tftp_ip=", 8)) {
+	    strlcpy(hardware->tftp_ip, argv[i] + 8,
+		    sizeof(hardware->tftp_ip));
 	} else if (!strncmp(argv[i], "auto=", 5)) {
 	    /* The auto= parameter is separated in several argv[]
 	     * as it can contains spaces.
@@ -115,25 +121,19 @@ void detect_parameters(const int argc, const char *argv[],
 	     */
 
 	    automode=true;
+	    char *argument = (char*)argv[i]+6;
 	    /* Extracting the first parameter */
-	    strcpy(hardware->auto_label, argv[i] + 6);
-	    strcat(hardware->auto_label, " ");
-	    char *pos;
-	    i++;
+	    strcpy(hardware->auto_label, argument);
 
 	    /* While we can't find the other AUTO_DELIMITER, let's process the argv[] */
-	    while (((pos = strstr(argv[i], AUTO_DELIMITER)) == NULL)
-		   && (i < argc)) {
-		strcat(hardware->auto_label, argv[i]);
-		strcat(hardware->auto_label, " ");
+	    while ((strchr(argument, AUTO_DELIMITER) == NULL) && (i+1<argc)) {
 		i++;
-	    }
+	    	argument = (char *)argv[i];
+		strcat(hardware->auto_label, " ");
+		strcat(hardware->auto_label, argument);
+	    } 
 
-	    /* If we didn't reach the end of the line, let's grab the last item */
-	    if (i < argc) {
-		strcat(hardware->auto_label, argv[i]);
-		hardware->auto_label[strlen(hardware->auto_label) - 1] = 0;
-	    }
+	     hardware->auto_label[strlen(hardware->auto_label) - 1] = 0;
 	}
     }
 }
@@ -203,7 +203,10 @@ void init_hardware(struct s_hardware *hardware)
 	   sizeof hardware->modules_alias_path);
     memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
     memset(hardware->auto_label, 0, sizeof hardware->auto_label);
+    memset(hardware->dump_path, 0, sizeof hardware->dump_path);
     memset(hardware->vesa_background, 0, sizeof hardware->vesa_background);
+    memset(hardware->tftp_ip, 0, sizeof hardware->tftp_ip);
+    strcat(hardware->dump_path, "hdt");
     strcat(hardware->pciids_path, "pci.ids");
     strcat(hardware->modules_pcimap_path, "modules.pcimap");
     strcat(hardware->modules_alias_path, "modules.alias");
@@ -652,7 +655,7 @@ char *del_multi_spaces(char *p)
      * As we search for a double spacing
      * we have to be sure then string is
      * long enough to be processed */
-    while (*p && *p + 1) {
+    while (*p && *(p + 1)) {
 
 	/* If we have two consecutive spaces */
 	if ((*p == ' ') && (*(p + 1) == ' ')) {

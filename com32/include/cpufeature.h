@@ -7,7 +7,7 @@
 #ifndef __ASM_I386_CPUFEATURE_H
 #define __ASM_I386_CPUFEATURE_H
 
-#define NCAPINTS	7	/* N 32-bit words worth of info */
+#define NCAPINTS	9	/* N 32-bit words worth of info */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (edx), word 0 */
 #define X86_FEATURE_FPU		(0*32+ 0)	/* Onboard FPU */

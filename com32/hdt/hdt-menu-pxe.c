@@ -34,7 +34,7 @@ void compute_PXE(struct s_my_menu *menu, struct s_hardware *hardware)
 {
     char buffer[SUBMENULEN + 1];
     char infobar[STATLEN + 1];
-    char gpxe[4];
+    char gpxe[4]={0};
 
     if (hardware->is_pxe_valid == false)
 	return;
@@ -113,8 +113,8 @@ void compute_PXE(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, infobar, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
-    if (is_gpxe()) strcat(gpxe,"Yes");
-    else strcat (gpxe,"No");
+    if (is_gpxe()) snprintf(gpxe,sizeof(gpxe),"%s","Yes");
+    else snprintf (gpxe, sizeof(gpxe), "%s", "No");
 
     snprintf(buffer, sizeof buffer, "gPXE Detected: %s", gpxe);
     snprintf(infobar, sizeof infobar, "gPXE Detected: %s", gpxe);

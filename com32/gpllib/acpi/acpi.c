@@ -32,6 +32,25 @@
 #include <memory.h>
 #include "acpi/acpi.h"
 
+/* M1PS flags have to be interpreted as strings */
+char *flags_to_string(char *buffer, uint16_t flags)
+{
+    memset(buffer, 0, sizeof(buffer));
+    strcpy(buffer, "default");
+    if ((flags & POLARITY_ACTIVE_HIGH) == POLARITY_ACTIVE_HIGH)
+	strcpy(buffer, "high");
+    else if ((flags & POLARITY_ACTIVE_LOW) == POLARITY_ACTIVE_LOW)
+	strcpy(buffer, "low");
+    if ((flags & TRIGGER_EDGE) == TRIGGER_EDGE)
+	strncat(buffer, " edge", 5);
+    else if ((flags & TRIGGER_LEVEL) == TRIGGER_LEVEL)
+	strncat(buffer, " level", 6);
+    else
+	strncat(buffer, " default", 8);
+
+    return buffer;
+}
+
 void dbg_printf(const char *fmt, ...)
 {
 	va_list args;

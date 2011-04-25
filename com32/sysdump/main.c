@@ -19,8 +19,7 @@
 #include <dprintf.h>
 #include <console.h>
 #include <sys/cpu.h>
-#include "../../version.h"
-#include "backend.h"
+#include <version.h>
 #include "sysdump.h"
 
 const char program[] = "sysdump";
@@ -32,7 +31,7 @@ __noreturn die(const char *msg)
     exit(1);
 }
 
-static void dump_all(struct backend *be, const char *argv[])
+static void dump_all(struct upload_backend *be, const char *argv[])
 {
     cpio_init(be, argv);
 
@@ -50,20 +49,20 @@ static void dump_all(struct backend *be, const char *argv[])
     flush_data(be);
 }
 
-static struct backend *backends[] =
+static struct upload_backend *upload_backends[] =
 {
-    &be_tftp,
-    &be_ymodem,
-    &be_srec,
+    &upload_tftp,
+    &upload_ymodem,
+    &upload_srec,
     NULL
 };
 
 __noreturn usage(void)
 {
-    struct backend **bep, *be;
+    struct upload_backend **bep, *be;
 
     printf("Usage:\n");
-    for (bep = backends ; (be = *bep) ; bep++)
+    for (bep = upload_backends ; (be = *bep) ; bep++)
 	printf("    %s %s %s\n", program, be->name, be->helpmsg);
 
     exit(1);
@@ -71,7 +70,7 @@ __noreturn usage(void)
 
 int main(int argc, char *argv[])
 {
-    struct backend **bep, *be;
+    struct upload_backend **bep, *be;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
     fputs(version, stdout);
@@ -79,7 +78,7 @@ int main(int argc, char *argv[])
     if (argc < 2)
 	usage();
 
-    for (bep = backends ; (be = *bep) ; bep++) {
+    for (bep = upload_backends ; (be = *bep) ; bep++) {
 	if (!strcmp(be->name, argv[1]))
 	    break;
     }

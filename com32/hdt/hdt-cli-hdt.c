@@ -250,6 +250,15 @@ static void do_reboot(int argc __unused, char **argv __unused,
     syslinux_reboot(1);
 }
 
+/**
+ * do_dump - dump info
+ **/
+static void do_dump(int argc __unused, char **argv __unused,
+		      struct s_hardware *hardware)
+{
+    dump(hardware);
+}
+
 /* Default hdt mode */
 struct cli_callback_descr list_hdt_default_modules[] = {
     {
@@ -275,6 +284,10 @@ struct cli_callback_descr list_hdt_default_modules[] = {
     {
      .name = CLI_HISTORY,
      .exec = print_history,
+     },
+    {
+     .name = CLI_DUMP,
+     .exec = do_dump,
      },
     {
      .name = NULL,
