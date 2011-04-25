@@ -21,26 +21,14 @@
 #define PXE_H
 
 #include <syslinux/pxe_api.h>
-#include "fs.h"			/* For MAX_OPEN, should go away */
+#include "fs.h"			/* Mostly for FILENAME_MAX */
 
 /*
  * Some basic defines...
  */
-#define PKTBUF_SIZE     2048			/*  */
+#define PKTBUF_SIZE     2048	/* Used mostly by the gPXE backend */
 
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
-
-static inline bool is_hex(char c)
-{
-    return (c >= '0' && c <= '9') ||
-	(c >= 'A' && c <= 'F') ||
-	(c >= 'a' && c <= 'f');
-}
-
-static inline int hexval(char c)
-{
-    return (c >= 'A') ? (c & ~0x20) - 'A' + 10 : (c - '0');
-}
 
 #define BOOTP_OPTION_MAGIC  htonl(0x63825363)
 #define MAC_MAX 32

@@ -11,12 +11,9 @@
 #include "disk.h"
 
 /*
- * Maximum number of open files.  This is *currently* constrained by the
- * fact that PXE needs to be able to fit all its packet buffers into a
- * 64K segment; this should be fixed by moving the packet buffers to high
- * memory.
+ * Maximum number of open files.
  */
-#define MAX_OPEN_LG2	5
+#define MAX_OPEN_LG2	7
 #define MAX_OPEN	(1 << MAX_OPEN_LG2)
 
 #define FILENAME_MAX_LG2 8
