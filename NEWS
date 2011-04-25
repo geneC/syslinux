@@ -5,7 +5,7 @@ to all derivatives.
 Changes in 4.10:
 	* PXELINUX: An entirely new network implementation based on
 	  the lwIP embedded TCP/IP stack.  As a result, plain PXELINUX
-	  can now support HTTP without gPXE/iPXE.
+	  can now support HTTP and FTP without gPXE/iPXE.
 
 Changes in 4.04:
 	* PXELINUX: Fix handling of unqualified DNS names.
