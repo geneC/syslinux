@@ -47,7 +47,7 @@ tidy dist:
 	rm -Rf *.lst *.img
 
 clean: tidy
-	rm -f *.bin mk-lba-img
+	rm -f mk-lba-img
 
 spotless: clean
 	rm -f $(BTARGET)
