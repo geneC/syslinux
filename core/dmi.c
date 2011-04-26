@@ -134,9 +134,12 @@ static const void *dmi_find_data(uint8_t type, uint8_t base, uint8_t length)
     offset = 0;
     tblcount = dmi->nstruc;
 
-    while (offset+2 < dmi->tbllen && tblcount) {
+    while (offset+6 <= dmi->tbllen && tblcount--) {
 	table = (const struct dmi_table *)(dmi->tbladdr + offset);
 
+	if (table->type == 127)	/* End of table */
+	    break;
+	
 	if (table->length < sizeof *table)
 	    break;		/* Invalid length */
 
@@ -146,12 +149,11 @@ static const void *dmi_find_data(uint8_t type, uint8_t base, uint8_t length)
 	    return (const char *)table + base;
 
 	/* Search for a double NUL terminating the string table */
-	while (offset+2 < dmi->tbllen &&
+	while (offset+2 <= dmi->tbllen &&
 	       *(const uint16_t *)(dmi->tbladdr + offset) != 0)
 	    offset++;
 
 	offset += 2;
-	tblcount--;
     }
 
     return NULL;
@@ -175,9 +177,12 @@ static const char *dmi_find_string(uint8_t type, uint8_t base)
     offset = 0;
     tblcount = dmi->nstruc;
 
-    while (offset+2 < dmi->tbllen && tblcount) {
+    while (offset+6 <= dmi->tbllen && tblcount--) {
 	table = (const struct dmi_table *)(dmi->tbladdr + offset);
 
+	if (table->type == 127)	/* End of table */
+	    break;
+	
 	if (table->length < sizeof *table)
 	    break;		/* Invalid length */
 
@@ -186,6 +191,7 @@ static const char *dmi_find_string(uint8_t type, uint8_t base)
 	if (table->type == type && base < table->length) {
 	    uint8_t index = ((const uint8_t *)table)[base];
 	    const char *p = (const char *)table + table->length;
+	    const char *str;
 	    char c;
 
 	    if (!index)
@@ -196,18 +202,24 @@ static const char *dmi_find_string(uint8_t type, uint8_t base)
 		    return NULL;
 
 		do {
-		    c = *p;
-		    if (++offset >= dmi->tbllen)
+		    if (offset++ >= dmi->tbllen)
 			return NULL;
-		    p++;
+		    c = *p++;
 		} while (c);
 	    }
 
-	    return p;
+	    /* Make sure the string is null-terminated */
+	    str = p;
+	    do {
+		if (offset++ >= dmi->tbllen)
+		    return NULL;
+		c = *p++;
+	    } while (c);
+	    return str;
 	}
 
 	/* Search for a double NUL terminating the string table */
-	while (offset+2 < dmi->tbllen &&
+	while (offset+2 <= dmi->tbllen &&
 	       *(const uint16_t *)(dmi->tbladdr + offset) != 0)
 	    offset++;
 
@@ -276,7 +288,7 @@ static const char *dmi_install_string(const char *pfx, const char *str)
 	return NULL;
     memcpy(q, pfx, pfxlen);
     q += pfxlen;
-    memcpy(q, str, ep-p);
+    memcpy(q, str, ep-str);
     q += (ep-p);
     *q = '\0';
 
