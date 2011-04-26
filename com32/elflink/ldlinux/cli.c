@@ -141,8 +141,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     const char *ret;
     int width = 0;
     struct cli_command *comm_counter;
-    comm_counter =
-	list_entry(cli_history_head.next->prev, typeof(*comm_counter), list);
 
     if (!width) {
 	int height;
@@ -447,76 +445,14 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     }
 
     printf("\033[?7h");
+
+    /* Add the command to the history */
+    comm_counter = malloc(sizeof(struct cli_command));
+    comm_counter->command = malloc(sizeof(char) * (strlen(ret) + 1));
+    strcpy(comm_counter->command, ret);
+    list_add(&(comm_counter->list), &cli_history_head);
+
     return ret;
-}
-
-void process_command(const char *cmd, bool history)
-{
-	char **argv = malloc((MAX_COMMAND_ARGS + 1) * sizeof(char *));
-	char *temp_cmd = (char *)malloc(sizeof(char) * (strlen(cmd) + 1));
-	int argc = 1, len_mn;
-	char *crt_arg, *module_name;
-
-	/* return if user only press enter */
-	if (cmd[0] == '\0') {
-		printf("\n");
-		return;
-	}
-	printf("\n");
-
-	if (history) {
-		struct cli_command  *comm;
-
-		comm = malloc(sizeof(struct cli_command));
-		comm->command = malloc(sizeof(char) * (strlen(cmd) + 1));
-		strcpy(comm->command, cmd);
-		list_add(&(comm->list), &cli_history_head);
-	}
-
-	//	dprintf("raw cmd = %s", cmd);
-	strcpy(temp_cmd, cmd);
-	module_name = strtok((char *)cmd, COMMAND_DELIM);
-	len_mn = strlen(module_name);
-
-	if (!strcmp(module_name + len_mn - 4, ".c32")) {
-		if (module_find(module_name) != NULL) {
-			/* make module re-enterable */
-		  //		dprintf("Module %s is already running");
-		}
-		do {
-			argv[0] = module_name;
-			crt_arg = strtok(NULL, COMMAND_DELIM);
-			if (crt_arg != NULL && strlen(crt_arg) > 0) {
-				argv[argc] = crt_arg;
-				argc++;
-			} else
-				break;
-		} while (argc < MAX_COMMAND_ARGS);
-		argv[argc] = NULL;
-		module_load_dependencies(module_name, MODULES_DEP);
-		spawn_load(module_name, (const char **)argv);
-	} else if (!strcmp(module_name + len_mn - 2, ".0")) {
-		execute(cmd, KT_PXE);
-	} else if (!strcmp(module_name + len_mn - 3, ".bs")) {
-	} else if (!strcmp(module_name + len_mn - 4, ".img")) {
-		execute(cmd, KT_FDIMAGE);
-	} else if (!strcmp(module_name + len_mn - 4, ".bin")) {
-	} else if (!strcmp(module_name + len_mn - 4, ".bss")) {
-		execute(cmd, KT_BSS);
-	} else if (!strcmp(module_name + len_mn - 4, ".com")
-	       || !strcmp(module_name + len_mn - 4, ".cbt")) {
-		execute(cmd, KT_COMBOOT);
-	} else if (!strcmp(module_name + len_mn - 4, ".cfg")
-	       || !strcmp(module_name + len_mn - 5, ".conf")
-	       || !strcmp(module_name + len_mn - 7, ".config")) {
-		execute(module_name, KT_CONFIG);
-	}
-	/* use KT_KERNEL as default */
-	else
-		execute(temp_cmd, KT_KERNEL);
-
-	free(argv);
-	free(temp_cmd);
 }
 
 static int cli_init(void)
