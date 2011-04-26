@@ -42,7 +42,7 @@ static void show_partition_information(struct driveinfo *drive_info,
     char ostype[64]={0};
     char *parttype;
     unsigned int start, end;
-    bool bootable = false;
+    char bootable[5] = {0};
 
     int i = nb_partitions_seen;
     start = partition_offset;
@@ -54,7 +54,9 @@ static void show_partition_information(struct driveinfo *drive_info,
     get_label(ptab->ostype, &parttype);
     get_bootloader_string(drive_info, ptab, bootloader_name, 9);
     if (ptab->active_flag == 0x80)
-	    bootable=true;
+    	snprintf(bootable,sizeof(bootable),"%s","true");
+    else
+	snprintf(bootable,sizeof(bootable),"%s","false");
 
     snprintf(ostype,sizeof(ostype),"%02X",ptab->ostype);
 
@@ -65,6 +67,7 @@ static void show_partition_information(struct driveinfo *drive_info,
 	    add_as("partition->size",size)
 	    add_as("partition->type",parttype)
 	    add_as("partition->os_type",ostype)
+	    add_as("partition->boot_flag",bootable)
     END_OF_APPEND;
     free(parttype);
 }
