@@ -1,3 +1,4 @@
+#include <syslinux/sysappend.h>
 #include <ctype.h>
 #include <lwip/api.h>
 #include "pxe.h"
@@ -45,6 +46,83 @@ static bool append_ch(char *str, size_t size, size_t *pos, int ch)
     return success;
 }
 
+static size_t cookie_len;
+static char *cookie_buf;
+
+static size_t http_do_bake_cookies(char *q)
+{
+    static const char uchexchar[16] = "0123456789ABCDEF";
+    int i;
+    size_t len;
+    size_t n = 0;
+    const char *p;
+    char c;
+    size_t qlen = q ? -1UL : 0;
+    bool first = true;
+
+    for (i = 0; i < SYSAPPEND_MAX; i++) {
+	if ((p = sysappend_strings[i])) {
+	    len = snprintf(q, qlen, "%s_Syslinux_", first ? "Cookie: " : "");
+	    if (q)
+		q += len;
+	    n += len;
+	    first = false;
+	    /* Copy string up to and including '=' */
+	    do {
+		c = *p++;
+		if (q)
+		    *q++ = c;
+		n++;
+	    } while (c != '=');
+	    while ((c = *p++)) {
+		if (c == ' ') {
+		    if (q)
+			*q++ = '+';
+		    n++;
+		} else if (is_token(c)) {
+		    if (q)
+			*q++ = c;
+		    n++;
+		} else {
+		    if (q) {
+			*q++ = '%';
+			*q++ = uchexchar[c >> 4];
+			*q++ = uchexchar[c & 15];
+		    }
+		    n += 3;
+		}
+	    }
+	    if (q)
+		*q++ = ';';
+	    n++;
+	}
+    }
+    if (!first) {
+	if (q) {
+	    *q++ = '\r';
+	    *q++ = '\n';
+	}
+	n += 2;
+    }
+    if (q)
+	*q = '\0';
+    
+    return n;
+}
+
+void http_bake_cookies(void)
+{
+    if (cookie_buf)
+	free(cookie_buf);
+
+    cookie_len = http_do_bake_cookies(NULL);
+    cookie_buf = malloc(cookie_len+1);
+    if (!cookie_buf)
+	return;
+
+    http_do_bake_cookies(cookie_buf);
+}
+
 void http_open(struct url_info *url, struct inode *inode, const char **redir)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
@@ -72,6 +150,10 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
     size_t response_size;
     int status;
     int pos;
+
+    /* XXX: make this an external call at the appropriate time instead */
+    if (!cookie_buf)
+	http_bake_cookies();
 
     socket->fill_buffer = tcp_fill_buffer;
     socket->close = tcp_close_file;
@@ -107,12 +189,15 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
 			   "Host: %s\r\n"
 			   "User-Agent: PXELINUX/%s\r\n"
 			   "Connection: close\r\n"
+			   "%s"
 			   "\r\n",
-			   url->host, VERSION_STR);
+			   url->host, VERSION_STR,
+			   cookie_buf ? cookie_buf : "");
     if (header_len > sizeof header_buf)
 	goto fail;		/* Buffer overflow */
 
-    err = netconn_write(socket->conn, header_buf, header_len, NETCONN_NOCOPY);
+    err = netconn_write(socket->conn, header_buf,
+			header_len, NETCONN_NOCOPY);
     if (err) {
 	printf("netconn_write error %d\n", err);
 	goto fail;
