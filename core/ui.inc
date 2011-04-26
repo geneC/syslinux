@@ -681,11 +681,8 @@ is_bad_image:
 %else
 is_bss_sector	equ is_bad_image
 %endif
-%if IS_ISOLINUX
-		; ok
-%else
-is_disk_image	equ is_bad_image
-%endif
+
+is_disk_image	equ is_bad_image	; No longer supported
 
 		section .data16
 boot_prompt	db 'boot: ', 0

@@ -7,6 +7,13 @@ Changes in 4.10:
 	  the lwIP embedded TCP/IP stack.  As a result, plain PXELINUX
 	  can now support HTTP and FTP without gPXE/iPXE.
 
+Changes in 4.05:
+	* HDT updated, and now supports uploading data to a TFTP
+	  server.
+	* ISOLINUX: remove the .img file support; it has been broken
+	  on virtually all systems since the beginning, and has been
+	  totally broken since 4.00 at least.  Use MEMDISK instead.
+
 Changes in 4.04:
 	* PXELINUX: Fix handling of unqualified DNS names.
 	* PXELINUX: Fix timer bug when PXELINUX might be unloaded
