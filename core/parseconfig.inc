@@ -81,6 +81,15 @@ pc_sysappend:	call getint
 		ret
 
 ;
+; "sendcookies" command
+;
+%if IS_PXELINUX
+pc_sendcookies:	call pc_setint32
+		pm_call http_bake_cookies
+		ret
+%endif
+
+;
 ; "localboot" command
 ;
 pc_localboot:	call getint

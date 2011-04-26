@@ -46,8 +46,10 @@ static bool append_ch(char *str, size_t size, size_t *pos, int ch)
     return success;
 }
 
-static size_t cookie_len;
-static char *cookie_buf;
+static size_t cookie_len, header_len;
+static char *cookie_buf, *header_buf;
+
+extern uint32_t SendCookies;
 
 static size_t http_do_bake_cookies(char *q)
 {
@@ -59,9 +61,10 @@ static size_t http_do_bake_cookies(char *q)
     char c;
     size_t qlen = q ? -1UL : 0;
     bool first = true;
+    uint32_t mask = SendCookies;
 
     for (i = 0; i < SYSAPPEND_MAX; i++) {
-	if ((p = sysappend_strings[i])) {
+	if ((mask & 1) && (p = sysappend_strings[i])) {
 	    len = snprintf(q, qlen, "%s_Syslinux_", first ? "Cookie: " : "");
 	    if (q)
 		q += len;
@@ -96,6 +99,7 @@ static size_t http_do_bake_cookies(char *q)
 		*q++ = ';';
 	    n++;
 	}
+	mask >>= 1;
     }
     if (!first) {
 	if (q) {
@@ -117,8 +121,20 @@ void http_bake_cookies(void)
 
     cookie_len = http_do_bake_cookies(NULL);
     cookie_buf = malloc(cookie_len+1);
-    if (!cookie_buf)
+    if (!cookie_buf) {
+	cookie_len = 0;
 	return;
+    }
+
+    if (header_buf)
+	free(header_buf);
+
+    header_len = cookie_len + 6*FILENAME_MAX + 256;
+    header_buf = malloc(header_len);
+    if (!header_buf) {
+	header_len = 0;
+	return;			/* Uh-oh... */
+    }
 
     http_do_bake_cookies(cookie_buf);
 }
@@ -126,8 +142,7 @@ void http_bake_cookies(void)
 void http_open(struct url_info *url, struct inode *inode, const char **redir)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
-    char header_buf[4096];
-    int header_len;
+    int header_bytes;
     const char *next;
     char field_name[20];
     char field_value[1024];
@@ -151,9 +166,8 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
     int status;
     int pos;
 
-    /* XXX: make this an external call at the appropriate time instead */
-    if (!cookie_buf)
-	http_bake_cookies();
+    if (!header_buf)
+	return;			/* http is broken... */
 
     socket->fill_buffer = tcp_fill_buffer;
     socket->close = tcp_close_file;
@@ -178,26 +192,25 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
     }
 
     strcpy(header_buf, "GET /");
-    header_len = 5;
-    header_len += url_escape_unsafe(header_buf+5, url->path,
+    header_bytes = 5;
+    header_bytes += url_escape_unsafe(header_buf+5, url->path,
 				    sizeof header_buf - 5);
-    if (header_len > sizeof header_buf)
+    if (header_bytes > header_len)
 	goto fail;		/* Buffer overflow */
-    header_len += snprintf(header_buf + header_len,
-			   sizeof header_buf - header_len,
-			   " HTTP/1.0\r\n"
-			   "Host: %s\r\n"
-			   "User-Agent: PXELINUX/%s\r\n"
-			   "Connection: close\r\n"
-			   "%s"
-			   "\r\n",
-			   url->host, VERSION_STR,
-			   cookie_buf ? cookie_buf : "");
-    if (header_len > sizeof header_buf)
+    header_bytes += snprintf(header_buf + header_bytes,
+			     header_len - header_bytes,
+			     " HTTP/1.0\r\n"
+			     "Host: %s\r\n"
+			     "User-Agent: PXELINUX/" VERSION_STR "\r\n"
+			     "Connection: close\r\n"
+			     "%s"
+			     "\r\n",
+			     url->host, cookie_buf ? cookie_buf : "");
+    if (header_bytes > sizeof header_buf)
 	goto fail;		/* Buffer overflow */
 
     err = netconn_write(socket->conn, header_buf,
-			header_len, NETCONN_NOCOPY);
+			header_bytes, NETCONN_NOCOPY);
     if (err) {
 	printf("netconn_write error %d\n", err);
 	goto fail;

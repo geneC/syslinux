@@ -95,5 +95,8 @@ keywd_table:
 		keyword ipappend,	pc_sysappend
 		keyword sysappend,	pc_sysappend
 		keyword localboot,	pc_localboot
+%if IS_PXELINUX
+		keyword sendcookies,	pc_sendcookies
+%endif
 
 keywd_count	equ ($-keywd_table)/keywd_size

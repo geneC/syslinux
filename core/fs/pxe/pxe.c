@@ -77,50 +77,6 @@ static void pxe_close_file(struct file *file)
     free_socket(inode);
 }
 
-/**
- * Take a nubmer of bytes in memory and convert to lower-case hxeadecimal
- *
- * @param: dst, output buffer
- * @param: src, input buffer
- * @param: count, number of bytes
- *
- */
-static void lchexbytes(char *dst, const void *src, int count)
-{
-    uint8_t half;
-    uint8_t c;
-    const uint8_t *s = src;
-
-    for(; count > 0; count--) {
-        c = *s++;
-        half   = ((c >> 4) & 0x0f) + '0';
-        *dst++ = half > '9' ? (half + 'a' - '9' - 1) : half;
-
-        half   = (c & 0x0f) + '0';
-        *dst++ = half > '9' ? (half + 'a' - '9' - 1) : half;
-    }
-}
-
-/*
- * just like the lchexbytes, except to upper-case
- *
- */
-static void uchexbytes(char *dst, const void *src, int count)
-{
-    uint8_t half;
-    uint8_t c;
-    const uint8_t *s = src;
-
-    for(; count > 0; count--) {
-        c = *s++;
-        half   = ((c >> 4) & 0x0f) + '0';
-        *dst++ = half > '9' ? (half + 'A' - '9' - 1) : half;
-
-        half   = (c & 0x0f) + '0';
-        *dst++ = half > '9' ? (half + 'A' - '9' - 1) : half;
-    }
-}
-
 /*
  * Tests an IP address in _ip_ for validity; return with 0 for bad, 1 for good.
  * We used to refuse class E, but class E addresses are likely to become
@@ -149,27 +105,11 @@ bool ip_ok(uint32_t ip)
  */
 static int gendotquad(char *dst, uint32_t ip)
 {
-    int part;
-    int i = 0, j;
-    char temp[4];
-    char *p = dst;
-
-    for (; i < 4; i++) {
-        j = 0;
-        part = ip & 0xff;
-        do {
-            temp[j++] = (part % 10) + '0';
-        }while(part /= 10);
-        for (; j > 0; j--)
-            *p++ = temp[j-1];
-        *p++ = '.';
-
-        ip >>= 8;
-    }
-    /* drop the last dot '.' and zero-terminate string*/
-    *(--p) = 0;
-
-    return p - dst;
+    return sprintf(dst, "%u.%u.%u.%u",
+		   ((const uint8_t *)&ip)[0],
+		   ((const uint8_t *)&ip)[1],
+		   ((const uint8_t *)&ip)[2],
+		   ((const uint8_t *)&ip)[3]);
 }
 
 /*
@@ -544,8 +484,8 @@ static int pxe_load_config(void)
     config_file = stpcpy(ConfigName, cfgprefix);
 
     /* Try loading by UUID */
-    if (sysappend_strings[SYSAPPEND_UUID]) {
-	strcpy(config_file, sysappend_strings[SYSAPPEND_UUID]+8);
+    if (sysappend_strings[SYSAPPEND_SYSUUID]) {
+	strcpy(config_file, sysappend_strings[SYSAPPEND_SYSUUID]+8);
 	if (try_load(ConfigName))
             return 0;
     }
@@ -556,7 +496,7 @@ static int pxe_load_config(void)
         return 0;
 
     /* Nope, try hexadecimal IP prefixes... */
-    uchexbytes(config_file, (uint8_t *)&IPInfo.myip, 4);
+    sprintf(config_file, "%08X", ntohl(IPInfo.myip));
     last = &config_file[8];
     while (tries) {
         *last = '\0';        /* Zero-terminate string */
@@ -591,36 +531,6 @@ static void make_bootif_string(void)
 	dst += sprintf(dst, "-%02x", *src++);
 
     sysappend_strings[SYSAPPEND_BOOTIF] = bootif_str;
-}
-/*
- * Generate the SYSUUID string, if we have one...
- */
-static void make_sysuuid_string(void)
-{
-    static char sysuuid_str[8+32+5];
-    static const uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
-    const uint8_t *src = uuid;
-    const uint8_t *uuid_ptr = uuid_dashes;
-    char *dst;
-
-    /* Try loading by UUID */
-    if (have_uuid) {
-	dst = stpcpy(sysuuid_str, "SYSUUID=");
-
-        while (*uuid_ptr) {
-	    int len = *uuid_ptr;
-
-            lchexbytes(dst, src, len);
-            dst += len * 2;
-            src += len;
-            uuid_ptr++;
-            *dst++ = '-';
-        }
-        /* Remove last dash and zero-terminate */
-	*--dst = '\0';
-
-	sysappend_strings[SYSAPPEND_UUID] = sysuuid_str;
-    }
 }
 
 /*
@@ -937,8 +847,11 @@ static void network_init(void)
     printf("\n");
 
     make_bootif_string();
-    make_sysuuid_string();
+    /* If DMI and DHCP disagree, which one should we set? */
+    if (have_uuid)
+	sysappend_set_uuid(uuid);
     ip_init();
+    http_bake_cookies();
     print_sysappend();
 
     /*

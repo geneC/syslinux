@@ -30,9 +30,12 @@
 	; sysappend.c
 	extern do_sysappend, print_sysappend
 
+	; dmi.c
+	extern dmi_init
+
 %if IS_PXELINUX
 	; pxe.c
-	extern unload_pxe, reset_pxe
+	extern unload_pxe, reset_pxe, http_bake_cookies
 %endif
 
 %endif ; EXTERN_INC

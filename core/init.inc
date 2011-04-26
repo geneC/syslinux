@@ -88,6 +88,12 @@ check_escapes:
 enough_ram:
 skip_checks:
 
+;
+; Scan the DMI tables for interesting information
+;
+		pm_call dmi_init
+
+
 		section .data16
 err_noram	db 'It appears your computer has less than '
 .size		db '000'

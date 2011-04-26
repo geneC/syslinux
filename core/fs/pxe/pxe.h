@@ -227,6 +227,7 @@ void gpxe_open(struct inode *inode, const char *url);
 
 /* http.c */
 void http_open(struct url_info *url, struct inode *inode, const char **redir);
+void http_bake_cookies(void);
 
 /* ftp.c */
 void ftp_open(struct url_info *url, struct inode *inode, const char **redir);

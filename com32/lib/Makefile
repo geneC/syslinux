@@ -134,7 +134,7 @@ LIBCOREOBJS = 	\
 	strlen.o stpcpy.o strcpy.o strcmp.o strlcpy.o strlcat.o		\
 	strchr.o strncmp.o strncpy.o					\
 	\
-	snprintf.o sprintf.o vsnprintf.o				\
+	asprintf.o snprintf.o sprintf.o vsnprintf.o			\
 	\
 	dprintf.o vdprintf.o						\
 	\
