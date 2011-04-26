@@ -232,6 +232,50 @@ static const struct sysappend_dmi_strings dmi_strings[] = {
     { NULL, 0, 0, 0 }
 };
 
+/*
+ * Install the string in the string table, if nonempty, after
+ * removing leading and trailing whitespace.
+ */
+static bool is_ctl_or_whitespace(char c)
+{
+    return (c <= ' ' || c == '\x7f');
+}
+
+static const char *dmi_install_string(const char *pfx, const char *str)
+{
+    const char *p, *ep;
+    size_t pfxlen;
+    char *nstr, *q;
+
+    if (!str)
+	return NULL;
+
+    while (*str && is_ctl_or_whitespace(*str))
+	str++;
+
+    if (!*str)
+	return NULL;
+
+    ep = p = str;
+    while (*p) {
+	if (!is_ctl_or_whitespace(*p))
+	    ep = str+1;
+	p++;
+    }
+
+    pfxlen = strlen(pfx);
+    q = nstr = malloc(pfxlen + (ep-p) + 1);
+    if (!nstr)
+	return NULL;
+    memcpy(q, pfx, pfxlen);
+    q += pfxlen;
+    memcpy(q, str, ep-p);
+    q += (ep-p);
+    *q = '\0';
+
+    return nstr;
+}
+
 void dmi_init(void)
 {
     const struct sysappend_dmi_strings *ds;
@@ -249,8 +293,6 @@ void dmi_init(void)
 	    free((char *)sysappend_strings[ds->sa]);
 	    sysappend_strings[ds->sa] = NULL;
 	}
-	if (str)
-	    asprintf((char **)&sysappend_strings[ds->sa],
-		     "%s%s", ds->prefix, str);
+	sysappend_strings[ds->sa] = dmi_install_string(ds->prefix, str);
     }
 }
