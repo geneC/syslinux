@@ -16,10 +16,10 @@
 ##
 
 topdir = ../..
-include ../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
-LIBS	   = ../cmenu/libmenu/libmenu.a ../libutil/libutil_com.a \
-	     ../lib/libcom32.a ../libupload/libcom32upload.a $(LIBGCC)
+LIBS      = ../cmenu/libmenu/libmenu.a ../libupload/libcom32upload.a
 CFLAGS    += -I$(com32)/cmenu/libmenu -I$(com32)
 
 MODULES	  = hdt.c32

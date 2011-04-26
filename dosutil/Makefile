@@ -2,7 +2,8 @@
 # OpenWatcom compile and link utility
 #
 topdir = ..
-include $(topdir)/MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/syslinux.mk
 
 WCL	= wcl
 WCLOPT	= -6 -osx -mt -bt=DOS -l=COM
