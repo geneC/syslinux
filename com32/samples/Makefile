@@ -15,7 +15,8 @@
 ##
 
 topdir = ../..
-include ../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 all:	hello.c32 resolv.c32 serialinfo.c32 \
 	localboot.c32 \

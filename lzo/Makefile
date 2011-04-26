@@ -11,7 +11,8 @@
 ## -----------------------------------------------------------------------
 
 topdir = ..
-include $(topdir)/MCONFIG.build
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/build.mk
 
 INCLUDES += -I./include
 

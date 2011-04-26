@@ -15,7 +15,8 @@
 ##
 
 topdir = ..
-include $(topdir)/MCONFIG.embedded
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/embedded.mk
 
 INCLUDES   = -I$(com32)/include
 

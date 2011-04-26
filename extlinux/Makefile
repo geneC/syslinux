@@ -15,7 +15,8 @@
 ##
 
 topdir = ..
-include $(topdir)/MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/syslinux.mk
 
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller

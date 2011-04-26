@@ -1,6 +1,7 @@
 # Include configuration rules
 topdir = ../..
-include ../lib/MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 REQFLAGS += -I./
 
