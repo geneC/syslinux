@@ -28,10 +28,12 @@
 
 #include <stdio.h>
 #include <netinet/in.h>
-char * inet_ntoa ( in_addr_t addr ) {
-	static char buf[16] = {0}; 
-	uint8_t *bytes = ( uint8_t * ) &addr;
-	
-	sprintf ( buf, "%d.%d.%d.%d", bytes[0], bytes[1], bytes[2], bytes[3] );
-	return buf;
+
+char *inet_ntoa(struct in_addr addr)
+{
+    static char buf[16];
+    const uint8_t *bytes = (const uint8_t *)&addr.s_addr;
+
+    sprintf(buf, "%u.%u.%u.%u", bytes[0], bytes[1], bytes[2], bytes[3]);
+    return buf;
 }

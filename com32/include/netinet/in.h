@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <klibc/compiler.h>
+#include <klibc/extern.h>
 
 #define __htons_macro(v) ((uint16_t)		  			\
 			  (((uint16_t)(v) << 8) | 			\
@@ -53,5 +54,6 @@ struct in_addr {
     in_addr_t s_addr;
 };
 
-char * inet_ntoa (in_addr_t addr);
+__extern char *inet_ntoa(struct in_addr);
+
 #endif /* _NETINET_IN_H */

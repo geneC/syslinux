@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 
 void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
+	struct in_addr in;
 
 	CREATE_NEW_OBJECT;
 	add_hb(is_pxe_valid);
@@ -64,16 +65,14 @@ void dump_pxe(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item)
 		add_hi(pxe.nictype);
 		add_hs(pxe.mac_addr);
 	
-		char ip[16] = {0};
-		snprintf(ip,sizeof(ip), "%d.%d.%d.%d",
-			hardware->pxe.ip_addr[0], 
-			hardware->pxe.ip_addr[1],
-			hardware->pxe.ip_addr[2],
-			hardware->pxe.ip_addr[3]);
-		add_s("pxe.client_ip",inet_ntoa(hardware->pxe.dhcpdata.cip));
-		add_s("pxe.next_server_ip",inet_ntoa(hardware->pxe.dhcpdata.sip));
-		add_s("pxe.relay_agent_ip",inet_ntoa(hardware->pxe.dhcpdata.gip));
-		add_s("pxe.ipaddr",ip);
+		in.s_addr = hardware->pxe.dhcpdata.cip;
+		add_s("pxe.client_ip", inet_ntoa(in));
+		in.s_addr = hardware->pxe.dhcpdata.sip;
+		add_s("pxe.next_server_ip",inet_ntoa(in));
+		in.s_addr = hardware->pxe.dhcpdata.gip;
+		add_s("pxe.relay_agent_ip",inet_ntoa(in));
+		memcpy(&in, hardware->pxe.ip_addr, sizeof in);
+		add_s("pxe.ipaddr",inet_ntoa(in));
 		add_b("gpxe_detected",is_gpxe());
 	}
 	FLUSH_OBJECT;
