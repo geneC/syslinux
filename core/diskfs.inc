@@ -84,31 +84,11 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		stosw
 
 ;
-; Now we're all set to start with our *real* business.	First load the
-; configuration file (if any) and parse it.
+; If we get to this point ldlinux.c32 failed to run. There's nothing
+; left to do but inform that user that something went wrong.
 ;
-; In previous versions I avoided using 32-bit registers because of a
-; rumour some BIOSes clobbered the upper half of 32-bit registers at
-; random.  I figure, though, that if there are any of those still left
-; they probably won't be trying to install Linux on them...
-;
-; The code is still ripe with 16-bitisms, though.  Not worth the hassle
-; to take'm out.  In fact, we may want to put them back if we're going
-; to boot ELKS at some point.
-;
+		jmp kaboom
 
-;
-; Load configuration file
-;
-		;feng
-		;pm_call pm_load_config
-		;jz no_config_file
-
-;
-; Now we have the config file open.  Parse the config file and
-; run the user interface.
-;
-		pm_call hello
 %include "ui.inc"
 
 ;
