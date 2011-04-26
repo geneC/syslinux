@@ -202,7 +202,7 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
 			     header_len - header_bytes,
 			     " HTTP/1.0\r\n"
 			     "Host: %s\r\n"
-			     "User-Agent: PXELINUX/" VERSION_STR "\r\n"
+			     "User-Agent: Syslinux/" VERSION_STR "\r\n"
 			     "Connection: close\r\n"
 			     "%s"
 			     "\r\n",
