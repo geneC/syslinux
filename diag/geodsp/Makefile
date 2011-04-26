@@ -39,7 +39,7 @@ all: $(BTARGET)
 %.img.xz: %.bin mk-lba-img
 	./mk-lba-img < $< | xz -0f > $@ || ( rm -f $@ ; false )
 
-%.img.gz: %.img
+%.img.gz: %.bin mk-lba-img
 	./mk-lba-img < $< | gzip -9 > $@ || ( rm -f $@ ; false )
 
 %.bin: %.asm $(coredir)/writehex.inc $(coredir)/macros.inc $(coredir)/diskboot.inc
