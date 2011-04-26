@@ -27,6 +27,9 @@
 	; mem/init.c
 	extern MallocStart, mem_init
 
+	; sysappend.c
+	extern do_sysappend, print_sysappend
+
 %if IS_PXELINUX
 	; pxe.c
 	extern unload_pxe, reset_pxe

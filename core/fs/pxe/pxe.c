@@ -20,14 +20,8 @@ uint8_t MAC[MAC_MAX];		   /* Actual MAC address */
 uint8_t MAC_len;                   /* MAC address len */
 uint8_t MAC_type;                  /* MAC address type */
 
-char __bss16 BOOTIFStr[7+3*(MAC_MAX+1)];
-#define MAC_str (BOOTIFStr+7)	/* The actual hardware address */
-char __bss16 SYSUUIDStr[8+32+5];
-#define UUID_str (SYSUUIDStr+8)	/* The actual UUID */
-
 char boot_file[256];		   /* From DHCP */
 char path_prefix[256];		   /* From DHCP */
-char dot_quad_buf[16];
 
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
@@ -550,14 +544,14 @@ static int pxe_load_config(void)
     config_file = stpcpy(ConfigName, cfgprefix);
 
     /* Try loading by UUID */
-    if (have_uuid) {
-	strcpy(config_file, UUID_str);
+    if (sysappend_strings[SYSAPPEND_UUID]) {
+	strcpy(config_file, sysappend_strings[SYSAPPEND_UUID]+8);
 	if (try_load(ConfigName))
             return 0;
     }
 
     /* Try loading by MAC address */
-    strcpy(config_file, MAC_str);
+    strcpy(config_file, sysappend_strings[SYSAPPEND_BOOTIF]+7);
     if (try_load(ConfigName))
         return 0;
 
@@ -586,30 +580,32 @@ static int pxe_load_config(void)
  */
 static void make_bootif_string(void)
 {
+    static char bootif_str[7+3*(MAC_MAX+1)];
     const uint8_t *src;
-    char *dst = BOOTIFStr;
+    char *dst = bootif_str;
     int i;
 
     dst += sprintf(dst, "BOOTIF=%02x", MAC_type);
     src = MAC;
     for (i = MAC_len; i; i--)
 	dst += sprintf(dst, "-%02x", *src++);
+
+    sysappend_strings[SYSAPPEND_BOOTIF] = bootif_str;
 }
 /*
  * Generate the SYSUUID string, if we have one...
  */
 static void make_sysuuid_string(void)
 {
+    static char sysuuid_str[8+32+5];
     static const uint8_t uuid_dashes[] = {4, 2, 2, 2, 6, 0};
     const uint8_t *src = uuid;
     const uint8_t *uuid_ptr = uuid_dashes;
     char *dst;
 
-    SYSUUIDStr[0] = '\0';	/* If nothing there... */
-
     /* Try loading by UUID */
     if (have_uuid) {
-	dst = stpcpy(SYSUUIDStr, "SYSUUID=");
+	dst = stpcpy(sysuuid_str, "SYSUUID=");
 
         while (*uuid_ptr) {
 	    int len = *uuid_ptr;
@@ -622,6 +618,8 @@ static void make_sysuuid_string(void)
         }
         /* Remove last dash and zero-terminate */
 	*--dst = '\0';
+
+	sysappend_strings[SYSAPPEND_UUID] = sysuuid_str;
     }
 }
 
@@ -630,21 +628,22 @@ static void make_sysuuid_string(void)
  * option into IPOption based on a DHCP packet in trackbuf.
  *
  */
-char __bss16 IPOption[3+4*16];
-
 static void genipopt(void)
 {
-    char *p = IPOption;
+    static char ip_option[3+4*16];
     const uint32_t *v = &IPInfo.myip;
+    char *p;
     int i;
 
-    p = stpcpy(p, "ip=");
+    p = stpcpy(ip_option, "ip=");
 
     for (i = 0; i < 4; i++) {
 	p += gendotquad(p, *v++);
 	*p++ = ':';
     }
     *--p = '\0';
+
+    sysappend_strings[SYSAPPEND_IP] = ip_option;
 }
 
 
@@ -652,29 +651,13 @@ static void genipopt(void)
 static void ip_init(void)
 {
     uint32_t ip = IPInfo.myip;
+    char dot_quad_buf[16];
 
     genipopt();
     gendotquad(dot_quad_buf, ip);
 
     ip = ntohl(ip);
     printf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
-}
-
-/*
- * Print the IPAPPEND strings, in order
- */
-extern const uint16_t IPAppends[];
-extern const char numIPAppends[];
-
-static void print_ipappend(void)
-{
-    size_t i;
-
-    for (i = 0; i < (size_t)numIPAppends; i++) {
-	const char *p = (const char *)(size_t)IPAppends[i];
-	if (*p)
-	    printf("%s\n", p);
-    }
 }
 
 /*
@@ -956,7 +939,7 @@ static void network_init(void)
     make_bootif_string();
     make_sysuuid_string();
     ip_init();
-    print_ipappend();
+    print_sysappend();
 
     /*
      * Check to see if we got any PXELINUX-specific DHCP options; in particular,

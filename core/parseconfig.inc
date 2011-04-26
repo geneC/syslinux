@@ -69,18 +69,16 @@ pc_append:      cmp byte [VKernel],0
 		ret
 
 ;
-; "ipappend" command (PXELINUX only)
+; "sysappend" command
 ;
-%if IS_PXELINUX
-pc_ipappend:	call getint
+pc_sysappend:	call getint
 		jc .err
 		cmp byte [VKernel],0
 		jne .vk
-		mov [IPAppend],bl
+		mov [SysAppends],ebx
 .err:		ret
-.vk:		mov [VKernelBuf+vk_ipappend],bl
+.vk:		mov [VKernelBuf+vk_sysappend],ebx
 		ret
-%endif
 
 ;
 ; "localboot" command
@@ -131,9 +129,17 @@ pc_totaltimeout:
 pc_setint16:
 		push ax
 		call getint
-		pop si
+		pop di
 		jc .err
 		mov [si],bx
+.err:		ret
+
+pc_setint32:
+		push ax
+		call getint
+		pop di
+		jc .err
+		mov [si],ebx
 .err:		ret
 
 ;
@@ -311,15 +317,13 @@ pc_label:	call commit_vk			; Commit any current vkernel
 		mov si,VKernelBuf+vk_vname	; By default, rname == mangled vname
 		mov di,VKernelBuf+vk_rname
 		pm_call pm_mangle_name
-		mov si,AppendBuf		; Default append==global append
+		mov si,AppendBuf		; append <- global append
 		mov di,VKernelBuf+vk_append
 		mov cx,[AppendLen]
 		mov [VKernelBuf+vk_appendlen],cx
 		rep movsb
-%if IS_PXELINUX					; PXELINUX only
-		mov al,[IPAppend]		; Default ipappend==global ipappend
-		mov [VKernelBuf+vk_ipappend],al
-%endif
+		mov eax,[SysAppends]		; sysappend <- global sysappend
+		mov [VKernelBuf+vk_sysappend],eax
 		ret
 
 ;
@@ -435,6 +439,14 @@ commit_vk:
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
 SerialNotice	db 1			; Only print this once
 
+%if IS_PXELINUX
+; This is a global option and is not reset when a config file is loaded
+; Is this the right thing to do?
+		alignz 4
+		global SendCookies
+SendCookies	dd -1			; Send all cookies
+%endif
+
 		section .bss16
 		alignb 4
 VKernelEnd	resd 1			; Lowest high memory address used
@@ -444,9 +456,11 @@ VKernelEnd	resd 1			; Lowest high memory address used
 HighMemRsvd	equ VKernelEnd
 					; by vkernels
 		section .config
+		global SysAppends
 		alignz 4
 KbdTimeout      dd 0                    ; Keyboard timeout (if any)
 TotalTimeout	dd 0			; Total timeout (if any)
+SysAppends	dd 0			; Default SYSAPPEND option
 AppendLen       dw 0                    ; Bytes in append= command
 OntimeoutLen	dw 0			; Bytes in ontimeout command
 OnerrorLen	dw 0			; Bytes in onerror command
@@ -461,10 +475,6 @@ DefaultLevel	dw 0			; The current level of default
 		global PXERetry
 PXERetry	dw 0			; Extra PXE retries
 VKernel		db 0			; Have we seen any "label" statements?
-
-%if IS_PXELINUX
-IPAppend	db 0			; Default IPAPPEND option
-%endif
 
 		section .uibss
                 alignb 4		; For the good of REP MOVSD

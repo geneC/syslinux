@@ -393,7 +393,7 @@ int read_config_file(const char *filename)
       continue;
     }
 
-    if(!strcasecmp(s, "ipappend")) {
+    if(!strcasecmp(s, "ipappend") || !strcasecmp(s, "sysappend")) {
       (menu_ptr ?: menu_default)->ipappend = strdup(t);
       continue;
     }

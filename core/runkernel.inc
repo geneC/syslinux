@@ -81,7 +81,7 @@ construct_cmdline:
 		call strcpy
 		mov byte [es:di-1],' '		; Follow by space
 
-		call do_ip_append		; Handle IPAppend
+		pm_call do_sysappend		; Handle sysappend
 
                 mov si,[CmdOptPtr]              ; Options from user input
 		call strcpy

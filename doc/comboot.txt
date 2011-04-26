@@ -735,7 +735,7 @@ AX=0016h [3.10] Run kernel image
 	Input:	AX	0016h
 		DS:SI	Filename of kernel image (zero-terminated string)
 		ES:BX	Command line (zero-terminated string)
-		ECX	IPAPPEND flags [PXELINUX]
+		ECX	Sysappend flags
 		EDX	Type of file (since 3.50)
 	Output:	Does not return if successful; returns with CF=1 if
 		the kernel image is not found.

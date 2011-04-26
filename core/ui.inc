@@ -115,10 +115,8 @@ not_ascii:
 		je display_labels
 		cmp al,'F' & 1Fh		; <Ctrl-F>
 		je set_func_flag
-%if IS_PXELINUX
 		cmp al,'N' & 1Fh		; <Ctrl-N>
-		je show_network_info
-%endif
+		je show_system_info
 		cmp al,'U' & 1Fh		; <Ctrl-U>
 		je kill_command			; Kill input line
 		cmp al,'V' & 1Fh		; <Ctrl-V>
@@ -269,24 +267,12 @@ fk_nofile:	pop di
 		jmp get_char
 
 ;
-; Show network info (in the form of the ipappend strings)
+; Show system info (in the form of the sysappend strings)
 ;
-%if IS_PXELINUX
-show_network_info:
-		push di				; Command line write pointer
+show_system_info:
 		call crlf
-		mov si,IPAppends		; See comboot.doc
-		mov cx,numIPAppends
-.loop:
-		lodsw
-		push si
-		mov si,ax
-		call writestr
-		call crlf
-		pop si
-		loop .loop
+		pm_call print_sysappend
 		jmp fk_wrcmd
-%endif
 
 ;
 ; Jump here to run the default command line
@@ -406,10 +392,8 @@ vk_check:
 		mov cx,FILENAME_MAX		; We need ECX == CX later
 		rep movsb
 		pop di
-%if IS_PXELINUX
-		mov al,[VKernelBuf+vk_ipappend]
-		mov [IPAppend],al
-%endif
+		mov eax,[VKernelBuf+vk_sysappend]
+		mov [SysAppends],eax
 		xor bx,bx			; Try only one version
 
 		mov al,[VKernelBuf+vk_type]
@@ -643,10 +627,6 @@ is_unknown_filetype:
 		je is_comboot_image
 		cmp ecx,'.c32'
 		je is_com32_image
-%if IS_ISOLINUX
-		cmp ecx,'.img'
-		je is_disk_image
-%endif
 		cmp ecx,'.bss'
 		je is_bss_sector
 		cmp ecx,'.bin'

@@ -31,7 +31,7 @@ make_plain_cmdline:
 		mov es,ax
 
 		mov di,[CmdLinePtr]
-		call do_ip_append
+		pm_call do_sysappend
 
 		mov si,[CmdOptPtr]
 
@@ -44,58 +44,3 @@ make_plain_cmdline:
 		pop es
 		ret
 
-;
-; Actual IPAppend strings...
-;
-%if IS_PXELINUX
-		extern IPOption, BOOTIFStr, SYSUUIDStr
-		global IPAppends, numIPAppends
-
-		section .data16
-		alignz 2
-IPAppends	dw IPOption
-		dw BOOTIFStr
-		dw SYSUUIDStr
-numIPAppends	equ ($-IPAppends)/2
-%else
-IPAppends	equ 0
-numIPAppends	equ 0
-%endif
-
-;
-; Handle "ipappend" strings, if applicable
-;
-; Assumes DS == CS; pushes output to ES:DI
-;
-		section .text16
-
-do_ip_append:
-%ifndef DEPEND
- %if numIPAppends > 0
-		push cx
-		push bx
-		push si
-
-		mov bx,IPAppends
-		mov cx,[IPAppend]
-		and cx,(1 << numIPAppends)-1
-.loop:
-		jcxz .done
-		mov si,[bx]
-		inc bx
-		inc bx
-		test cl,1
-		jz .not_this
-
-		call strcpy
-		mov byte [es:di-1],' '	; Replace final null with space
-.not_this:
-		shr cx,1
-		jmp .loop
-.done:
-		pop si
-		pop bx
-		pop cx
- %endif
-%endif
-		ret

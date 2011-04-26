@@ -677,14 +677,8 @@ comapi_configfile:
 		ret
 
 ;
-; INT 22h AX=000Fh	Get IPAPPEND strings
+; INT 22h AX=000Fh	Obsolete
 ;
-comapi_ipappend:
-		mov P_ES,cs
-		mov P_CX,numIPAppends
-		mov P_BX,IPAppends
-		clc
-		ret
 
 ;
 ; INT 22h AX=0010h	Resolve hostname
@@ -770,10 +764,8 @@ comapi_runkernel:
 		mov [Kernel_SI],si
 		mov [Kernel_EAX],eax
 
-%if IS_PXELINUX
-		mov al,P_CL
-		mov [IPAppend],al
-%endif
+		mov eax,P_ECX
+		mov [SysAppends],eax
 
 		call comboot_exit
 
@@ -952,7 +944,7 @@ int22_table:
 		dw comapi_cleanup	; 000C perform final cleanup
 		dw comapi_err		; 000D clean up then bootstrap
 		dw comapi_configfile	; 000E get name of config file
-		dw comapi_ipappend	; 000F get ipappend strings
+		dw comapi_err		; 000F get ipappend strings
 		dw comapi_dnsresolv	; 0010 resolve hostname
 		dw comapi_err		; 0011 maximum shuffle descriptors
 		dw comapi_err		; 0012 cleanup, shuffle and boot

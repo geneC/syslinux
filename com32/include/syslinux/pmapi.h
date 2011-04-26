@@ -74,6 +74,9 @@ struct com32_pmapi {
     /* Should be "const volatile", but gcc miscompiles that sometimes */
     volatile uint32_t *jiffies;
     volatile uint32_t *ms_timer;
+
+    const int sysappend_count;
+    const char * const *sysappend_strings;
 };
 
 #endif /* _SYSLINUX_PMAPI_H */

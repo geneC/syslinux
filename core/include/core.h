@@ -4,6 +4,7 @@
 #include <klibc/compiler.h>
 #include <com32.h>
 #include <syslinux/pmapi.h>
+#include <syslinux/sysappend.h>
 #include <kaboom.h>
 #include <timer.h>
 
@@ -42,6 +43,11 @@ extern void *pmapi_lmalloc(size_t);
 extern void *zalloc(size_t);
 extern void free(void *);
 extern void mem_init(void);
+
+/* sysappend.c */
+extern void print_sysappend(void);
+extern const char *sysappend_strings[SYSAPPEND_MAX];
+extern uint32_t SysAppends;
 
 void __cdecl core_intcall(uint8_t, const com32sys_t *, com32sys_t *);
 void __cdecl core_farcall(uint32_t, const com32sys_t *, com32sys_t *);

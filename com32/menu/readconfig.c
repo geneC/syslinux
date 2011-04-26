@@ -1015,7 +1015,7 @@ do_include:
 	    m->ontimeout = refstrdup(skipspace(p + 9));
 	} else if (looking_at(p, "allowoptions")) {
 	    m->allowedit = !!atoi(skipspace(p + 12));
-	} else if (looking_at(p, "ipappend")) {
+	} else if (looking_at(p, "ipappend") || looking_at(p, "sysappend")) {
 	    if (ld.label)
 		ld.ipappend = atoi(skipspace(p + 8));
 	    else

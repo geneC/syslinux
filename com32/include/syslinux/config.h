@@ -39,7 +39,7 @@
 #include <com32.h>
 
 enum syslinux_filesystem {
-    SYSLINUX_FS_UNKNOWN = 0x30,
+    SYSLINUX_FS_UNKNOWN  = 0x30,
     SYSLINUX_FS_SYSLINUX = 0x31,
     SYSLINUX_FS_PXELINUX = 0x32,
     SYSLINUX_FS_ISOLINUX = 0x33,

@@ -155,9 +155,6 @@ extern char boot_file[];
 extern char path_prefix[];
 extern char LocalDomain[];
 
-extern char IPOption[];
-extern char dot_quad_buf[];
-
 extern uint32_t dns_server[];
 
 extern uint16_t APIVer;

@@ -39,25 +39,6 @@ TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
 
-;
-; The following structure is used for "virtual kernels"; i.e. LILO-style
-; option labels.  The options we permit here are `kernel' and `append
-; Since there is no room in the bottom 64K for all of these, we
-; stick them in high memory and copy them down before we need them.
-;
-		struc vkernel
-vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
-vk_rname:	resb FILENAME_MAX	; Real name
-vk_ipappend:	resb 1			; "IPAPPEND" flag
-vk_type:	resb 1			; Type of file
-vk_appendlen:	resw 1
-		alignb 4
-vk_append:	resb max_cmd_len+1	; Command line
-		alignb 4
-vk_end:		equ $			; Should be <= vk_size
-		endstruc
-
-
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
 ; ---------------------------------------------------------------------------

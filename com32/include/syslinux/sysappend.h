@@ -1,6 +1,5 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *   Copyright 2011 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
@@ -27,21 +26,19 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/ipappend.c
+ * syslinux/sysappend.h
  *
- * Get ipappend strings
+ * List of the Syslinux sysappend strings
  */
 
-#include <syslinux/sysappend.h>
-#include <syslinux/config.h>
-#include <syslinux/pmapi.h>
-#include <klibc/compiler.h>
-#include <com32.h>
+#ifndef _SYSLINUX_SYSAPPEND_H
+#define _SYSLINUX_SYSAPPEND_H
 
-struct syslinux_ipappend_strings __syslinux_ipappend_strings;
+enum syslinux_sysappend {
+    SYSAPPEND_IP,		/* PXELINUX: ip= address */
+    SYSAPPEND_BOOTIF,		/* PXELINUX: BOOTIF= address */
+    SYSAPPEND_UUID,		/* System UUID from PXE or DMI */
+    SYSAPPEND_MAX		/* Total number of strings */
+};
 
-void __constructor __syslinux_get_ipappend_strings(void)
-{
-    __syslinux_ipappend_strings.count = __com32.cs_pm->sysappend_count;
-    __syslinux_ipappend_strings.ptr   = __com32.cs_pm->sysappend_strings;
-}
+#endif

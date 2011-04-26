@@ -153,9 +153,12 @@ APPEND options...
         usually permitting explicitly entered kernel options to override
         them.  This is the equivalent of the LILO "append" option.
 
-IPAPPEND flag_val			[PXELINUX only]
-	The IPAPPEND option is available only on PXELINUX.  The
-	flag_val is an OR of the following options:
+SYSAPPEND flag_val
+IPAPPEND flag_val
+
+	The SYSAPPEND option was introduced in Syslinux 4.10; it is an
+	enhancement of a previous option IPAPPEND which was only
+	available on PXELINUX.
 
 	1: indicates that an option of the following format
 	should be generated and added to the kernel command line:
@@ -169,6 +172,8 @@ IPAPPEND flag_val			[PXELINUX only]
 	the lease acquired by the PXE BIOS will expire, making the
 	IP address available for reuse by the DHCP server.
 
+	This option is empty for non-PXELINUX.
+
 	2: indicates that an option of the following format
 	should be generated and added to the kernel command line:
 
@@ -179,6 +184,8 @@ IPAPPEND flag_val			[PXELINUX only]
 
 	This allows an initrd program to determine from which
 	interface the system booted.
+
+	This option is empty for non-PXELINUX.
 
 	4: indicates that an option of the following format
 	should be generated and added to the kernel command line:
@@ -191,10 +198,11 @@ IPAPPEND flag_val			[PXELINUX only]
 LABEL label
     KERNEL image
     APPEND options...
-    IPAPPEND flag_val			[PXELINUX only]
+    SYSAPPEND flag_val			[4.10+]
+    IPAPPEND flag_val			[4.10+ or PXELINUX only]
 	Indicates that if "label" is entered as the kernel to boot,
         Syslinux should instead boot "image", and the specified APPEND
-	and IPAPPEND options should be used instead of the ones
+	and SYSAPPEND options should be used instead of the ones
         specified in the global section of the file (before the first
         LABEL command.)  The default for "image" is the same as
         "label", and if no APPEND is given the default is to use the
