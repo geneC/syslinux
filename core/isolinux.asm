@@ -52,22 +52,6 @@ vk_append:	resb max_cmd_len+1	; Command line
 vk_end:		equ $			; Should be <= vk_size
 		endstruc
 
-;
-; File structure.  This holds the information for each currently open file.
-;
-		struc open_file_t
-file_sector	resd 1			; Sector pointer (0 = structure free)
-file_bytesleft	resd 1			; Number of bytes left
-file_left	resd 1			; Number of sectors left
-		resd 1			; Unused
-		endstruc
-
-%ifndef DEPEND
-%if (open_file_t_size & (open_file_t_size-1))
-%error "open_file_t is not a power of 2"
-%endif
-%endif
-
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
 ; ---------------------------------------------------------------------------
