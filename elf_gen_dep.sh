@@ -51,6 +51,7 @@ rm_cr ()
 		echo $line | grep extlinux > /dev/null && continue
 		echo $line | grep isolinux > /dev/null && continue
 		echo $line | grep pxelinux > /dev/null && continue
+		echo $line | grep ldlinux > /dev/null && continue
 
 		all_dep=$all_dep$space$line
 		echo $all_dep > rmcr.tmp

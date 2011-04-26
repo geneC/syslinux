@@ -55,7 +55,8 @@ LNXLDFLAGS = -g
 
 C_LIBS	   = $(com32)/libutil/libutil_com.c32 $(GPLLIB) \
 	     $(com32)/lib/libcom32.c32 $(LIBGCC)
-C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
+C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a \
+	     $(com32)/elflink/ldlinux/ldlinux_lnx.a
 
 .SUFFIXES: .lss .c .o
 

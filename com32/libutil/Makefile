@@ -33,7 +33,7 @@ topdir = ../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
 
-LIBOBJS	   = ansiline.o ansiraw.o get_key.o keyname.o \
+LIBOBJS	   = ansiline.o ansiraw.o keyname.o \
 	     sha1hash.o unbase64.o \
 	     md5.o crypt-md5.o sha256crypt.o sha512crypt.o base64.o \
 	     quicksort.o
