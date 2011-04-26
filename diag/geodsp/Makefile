@@ -24,16 +24,11 @@ coredir = $(topdir)/core
 
 BTARGET = geodsp1s.bin geodspms.bin \
 	geodsp1s.img.xz geodspms.img.xz
-#	lba-1s.img.xz lba-ms.img.xz
-  # lba-1s.img lba-ms.img
 
 NASMOPT = -i $(coredir)/ -Ox -f bin
 NASMOPT += -w+orphan-labels
 
 all: $(BTARGET)
-
-.PRECIOUS: %.img
-# .PRECIOUS: lba-%.img
 
 # Higher compression levels result in larger files
 %.img.xz: %.bin mk-lba-img
@@ -49,10 +44,10 @@ mk-lba-img: mk-lba-img.c
 	gcc -g -O -o $@ $<
 
 tidy dist:
-	rm -Rf *.img
+	rm -Rf *.lst *.img
 
 clean: tidy
-	rm -f *.lst *.bin *_bin.c mk-lba-img
+	rm -f *.bin mk-lba-img
 
 spotless: clean
 	rm -f $(BTARGET)
