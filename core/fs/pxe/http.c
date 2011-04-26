@@ -185,6 +185,7 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
     addr.addr = url->ip;
     if (!url->port)
 	url->port = HTTP_PORT;
+
     err = netconn_connect(socket->conn, &addr, url->port);
     if (err) {
 	printf("netconn_connect error %d\n", err);
@@ -194,7 +195,7 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
     strcpy(header_buf, "GET /");
     header_bytes = 5;
     header_bytes += url_escape_unsafe(header_buf+5, url->path,
-				    sizeof header_buf - 5);
+				      sizeof header_buf - 5);
     if (header_bytes > header_len)
 	goto fail;		/* Buffer overflow */
     header_bytes += snprintf(header_buf + header_bytes,
@@ -206,7 +207,7 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
 			     "%s"
 			     "\r\n",
 			     url->host, cookie_buf ? cookie_buf : "");
-    if (header_bytes > sizeof header_buf)
+    if (header_bytes > header_len)
 	goto fail;		/* Buffer overflow */
 
     err = netconn_write(socket->conn, header_buf,
