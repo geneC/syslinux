@@ -440,7 +440,7 @@ static void build_default_huffman_tables(struct jdec_private *priv)
 
 static void print_SOF(const unsigned char *stream)
 {
-#if DEBUG
+#if JPEG_DEBUG
   int width, height, nr_components, precision;
   const char *nr_components_to_string[] = {
      "????",
@@ -664,7 +664,7 @@ static int parse_DRI(struct jdec_private *priv, const unsigned char *stream)
 
   priv->restart_interval = be16_to_cpu(stream+2);
 
-#if DEBUG
+#if JPEG_DEBUG
   trace("Restart interval = %d\n", priv->restart_interval);
 #endif
 

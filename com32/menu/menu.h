@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <colortbl.h>
 #include <stdbool.h>
+#include <getkey.h>
 #include "refstr.h"
 
 /* #define DEBUG 1 */
@@ -186,6 +187,7 @@ extern int shiftkey;
 extern int hiddenmenu;
 extern int clearmenu;
 extern long long totaltimeout;
+extern const char *hide_key[KEY_MAX];
 
 void parse_configs(char **argv);
 int draw_background(const char *filename);

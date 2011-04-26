@@ -17,7 +17,8 @@
 
 topdir = ../..
 mbrdir = $(topdir)/mbr
-include $(topdir)/MCONFIG.embedded
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/embedded.mk
 
 all:	handoff.bin
 

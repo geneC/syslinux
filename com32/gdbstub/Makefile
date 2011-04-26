@@ -15,7 +15,8 @@
 ##
 
 topdir = ../..
-include ../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 CFLAGS += -fPIE
 

@@ -12,7 +12,8 @@
 ## -----------------------------------------------------------------------
 
 topdir = ../..
-include ../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 MODULES	  = gfxboot.c32
 

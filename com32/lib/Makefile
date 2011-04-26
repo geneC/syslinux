@@ -4,8 +4,9 @@
 
 # Include configuration rules
 NOGPL := 1
-topdir = ../..
-include MCONFIG
+topdir = ../../
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/lib.mk
 
 ## OPTIONAL OBJECTS, AVAILABLE AS DYNAMIC LINKED MODULES
 # PNG library object files
@@ -126,6 +127,9 @@ LIBOTHER_OBJS = \
 	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
 	vsscanf.o							\
 	skipspace.o							\
+	chrreplace.o							\
+	bufprintf.o							\
+	inet.o								\
 	\
 	lmalloc.o lstrdup.o						\
 	\

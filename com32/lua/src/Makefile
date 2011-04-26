@@ -16,9 +16,9 @@
 ##
 
 topdir = ../../..
-include ../../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
-LIBS	   = ../../lib/libcom32.a $(LIBGCC)
 LNXLIBS	   = 
 
 # Temporarily allow warnings not being treated as errors
@@ -54,7 +54,7 @@ $(LIBLUA) : $(LIBLUA_OBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-lua.elf : $(OBJS) $(LIBLUA) $(LIBS) $(C_LIBS)
+lua.elf : $(OBJS) $(LIBLUA) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

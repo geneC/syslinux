@@ -30,8 +30,8 @@ LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
 ; This indicates the general format of the last few bytes in the boot sector
 BS_MAGIC_VER	equ 0x1b << 9
 
-SECTOR_SHIFT	equ 9
-SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
+MIN_SECTOR_SHIFT	equ 9
+MIN_SECTOR_SIZE		equ (1 << MIN_SECTOR_SHIFT)
 
 ;
 ; The following structure is used for "virtual kernels"; i.e. LILO-style

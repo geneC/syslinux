@@ -1,10 +1,9 @@
 #include <string.h>
 #include <stdio.h>
-#include "../lib/sys/vesa/vesa.h"
-#include "backend.h"
+#include <lib/sys/vesa/vesa.h>
 #include "sysdump.h"
 
-void dump_vesa_tables(struct backend *be)
+void dump_vesa_tables(struct upload_backend *be)
 {
     com32sys_t rm;
     struct vesa_info *vip;

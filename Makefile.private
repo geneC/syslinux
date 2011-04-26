@@ -18,7 +18,7 @@
 .PHONY: official release
 
 # These files are removed when tarballs are generated.
-PRIVATE = Makefile.private MCONFIG.devel
+PRIVATE = Makefile.private mk/devel.mk
 
 GIT_DIR ?= .git
 ABS_GIT_DIR := $(shell cd '$(GIT_DIR)' 2>/dev/null && pwd)

@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <inttypes.h>
-#include "backend.h"
+#include "upload_backend.h"
 #include "serial.h"
 
 enum {
@@ -98,7 +98,7 @@ static void send_ack(struct ymodem_state *ym, const uint8_t *blk, size_t bytes)
     } while (ack_buf == NAK);
 }
 
-static int be_ymodem_write(struct backend *be)
+static int upload_ymodem_write(struct upload_backend *be)
 {
     static const uint8_t eot_buf = EOT;
     uint8_t ack_buf;
@@ -167,9 +167,9 @@ static int be_ymodem_write(struct backend *be)
     return 0;
 }
 
-struct backend be_ymodem = {
+struct upload_backend upload_ymodem = {
     .name       = "ymodem",
     .helpmsg    = "filename [port [speed]]",
     .minargs    = 1,
-    .write      = be_ymodem_write,
+    .write      = upload_ymodem_write,
 };

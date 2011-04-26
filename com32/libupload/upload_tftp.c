@@ -8,8 +8,7 @@
 #include <syslinux/config.h>
 #include <netinet/in.h>
 #include <sys/times.h>
-
-#include "backend.h"
+#include "upload_backend.h"
 
 enum tftp_opcode {
     TFTP_RRQ	= 1,
@@ -19,6 +18,12 @@ enum tftp_opcode {
     TFTP_ERROR	= 5,
 };
 
+struct tftp_error {
+	uint16_t opcode;
+	uint16_t errcode;
+	char errmsg[0];
+} __attribute__ (( packed ));
+
 struct tftp_state {
     uint32_t my_ip;
     uint32_t srv_ip;
@@ -26,6 +31,21 @@ struct tftp_state {
     uint16_t my_port;
     uint16_t srv_port;
     uint16_t seq;
+};
+
+const char *tftp_string_error_message[]={
+"",
+"File not found",
+"Access Denied",
+"Disk Full",
+"Illegal Operation",
+"Unknown Transfert ID",
+"File already exists",
+"Unknown User",
+"Negociation failed",
+"Unable to resolve hostname", // not in RFC
+"Unable to connect", // not in RFC
+"No Error",
 };
 
 #define RCV_BUF	2048
@@ -51,7 +71,7 @@ static int send_ack_packet(struct tftp_state *tftp,
     ireg.eax.w[0] = 0x0009;
 
     for (timeout = timeouts ; *timeout ; timeout++) {
-	memset(uw, 0, sizeof uw);
+	memset(uw, 0, sizeof *uw);
 	memcpy(uw+1, pkt, len);
 	uw->ip = tftp->srv_ip;
 	uw->gw = tftp->srv_gw;
@@ -69,7 +89,7 @@ static int send_ack_packet(struct tftp_state *tftp,
 	start = times(NULL);
 
 	do {
-	    memset(ur, 0, sizeof ur);
+	    memset(ur, 0, sizeof *ur);
 	    ur->src_ip = tftp->srv_ip;
 	    ur->dest_ip = tftp->my_ip;
 	    ur->s_port = tftp->srv_port;
@@ -91,9 +111,14 @@ static int send_ack_packet(struct tftp_state *tftp,
 		if (ntohs(xb[0]) == TFTP_ACK &&
 		    ntohs(xb[1]) == tftp->seq) {
 		    tftp->srv_port = ur->s_port;
-		    err = 0;		/* All good! */
+		    err = TFTP_OK;		/* All good! */
 		    goto done;
-		} else if (ntohs(xb[1]) == TFTP_ERROR) {
+		} else if (ntohs(xb[0]) == TFTP_ERROR) {
+		    struct tftp_error *te = (struct tftp_error *)(ur+1);
+		    if (te->errcode == TFTP_ERR_UNKNOWN_ERROR) {
+		    	tftp_string_error_message[TFTP_ERR_UNKNOWN_ERROR]=strdup(te->errmsg);
+		    }
+ 		    err=-ntohs(te->errcode); // Return the associated error code
 		    goto done;
 		}
 	    }
@@ -107,12 +132,13 @@ done:
     return err;
 }
 
-static int be_tftp_write(struct backend *be)
+static int upload_tftp_write(struct upload_backend *be)
 {
     static uint16_t local_port = 0x4000;
     struct tftp_state tftp;
     char buffer[512+4+6];
     int nlen;
+    int err=TFTP_OK;
     const union syslinux_derivative_info *sdi =
 	syslinux_derivative_info();
     const char *data = be->outbuf;
@@ -129,30 +155,30 @@ static int be_tftp_write(struct backend *be)
     if (be->argv[1]) {
 	tftp.srv_ip   = pxe_dns(be->argv[1]);
 	if (!tftp.srv_ip) {
-	    printf("\nUnable to resolve hostname: %s\n", be->argv[1]);
-	    return -1;
+//	    printf("\nUnable to resolve hostname: %s\n", be->argv[1]);
+	    return -TFTP_ERR_UNABLE_TO_RESOLVE;
 	}
     } else {
 	tftp.srv_ip   = sdi->pxe.ipinfo->serverip;
 	if (!tftp.srv_ip) {
-	    printf("\nNo server IP address\n");
-	    return -1;
+//	    printf("\nNo server IP address\n");
+	    return -TFTP_ERR_UNABLE_TO_CONNECT;
 	}
     }
 
-    printf("server %u.%u.%u.%u... ",
+/*    printf("server %u.%u.%u.%u... ",
 	   ((uint8_t *)&tftp.srv_ip)[0],
 	   ((uint8_t *)&tftp.srv_ip)[1],
 	   ((uint8_t *)&tftp.srv_ip)[2],
-	   ((uint8_t *)&tftp.srv_ip)[3]);
+	   ((uint8_t *)&tftp.srv_ip)[3]);*/
 
     buffer[0] = 0;
     buffer[1] = TFTP_WRQ;
     nlen = strlcpy(buffer+2, be->argv[0], 512);
     memcpy(buffer+3+nlen, "octet", 6);
 
-    if (send_ack_packet(&tftp, buffer, 2+nlen+1+6))
-	return -1;
+    if ((err=send_ack_packet(&tftp, buffer, 2+nlen+1+6))!=TFTP_OK)
+	return err;
 
     do {
 	chunk = len >= 512 ? 512 : len;
@@ -163,16 +189,16 @@ static int be_tftp_write(struct backend *be)
 	data += chunk;
 	len -= chunk;
 
-	if (send_ack_packet(&tftp, buffer, chunk+4))
-	    return -1;
+	if ((err=send_ack_packet(&tftp, buffer, chunk+4))!=TFTP_OK)
+	    return err;
     } while (chunk == 512);
 
-    return 0;
+    return TFTP_OK;
 }
 
-struct backend be_tftp = {
+struct upload_backend upload_tftp = {
     .name       = "tftp",
     .helpmsg    = "filename [tftp_server]",
     .minargs    = 1,
-    .write      = be_tftp_write,
+    .write      = upload_tftp_write,
 };

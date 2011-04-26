@@ -152,7 +152,7 @@ enum std_markers {
 
 #define SANITY_CHECK 1
 
-#if DEBUG
+#if JPEG_DEBUG
 #define error(fmt, args...) do { \
    snprintf(error_string, sizeof(error_string), fmt, ## args); \
    return -1; \

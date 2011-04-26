@@ -20,7 +20,30 @@
 #include <string.h>
 #include "cpuid.h"
 
+const char *cpu_flags_names[] = {
+    CPU_FLAGS(STRUCT_MEMBER_NAMES)
+};
+
+size_t cpu_flags_offset[] = {
+    CPU_FLAGS(STRUCTURE_MEMBER_OFFSETS)
+};
+
+size_t cpu_flags_count = sizeof cpu_flags_names / sizeof *cpu_flags_names;
+
 struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = { };
+
+bool get_cpu_flag_value_from_name(s_cpu *cpu, const char * flag_name) {
+    size_t i;
+    bool cpu_flag_present=false, *flag_value = &cpu_flag_present;
+
+    for (i = 0; i < cpu_flags_count; i++) {
+	if (strcmp(cpu_flags_names[i],flag_name) == 0) {
+        	flag_value = (bool *)((char *)&cpu->flags + cpu_flags_offset[i]);
+	}
+    }
+    return *flag_value;
+}
+
 
 /*
 * CPUID functions returning a single datum
@@ -73,6 +96,48 @@ static struct cpu_dev transmeta_cpu_dev = {
     .c_ident = {"GenuineTMx86", "TransmetaCPU"}
 };
 
+static struct cpu_dev nsc_cpu_dev = {
+    .c_vendor = "National Semiconductor",
+    .c_ident = {"Geode by NSC"}
+};
+
+static struct cpu_dev unknown_cpu_dev = {
+    .c_vendor = "Unknown Vendor",
+    .c_ident = {"Unknown CPU"}
+};
+
+/*
+ * Read NSC/Cyrix DEVID registers (DIR) to get more detailed info. about the CPU
+ */
+void do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
+{
+	unsigned char ccr2, ccr3;
+
+	/* we test for DEVID by checking whether CCR3 is writable */
+	ccr3 = getCx86(CX86_CCR3);
+	setCx86(CX86_CCR3, ccr3 ^ 0x80);
+	getCx86(0xc0);   /* dummy to change bus */
+
+	if (getCx86(CX86_CCR3) == ccr3) {       /* no DEVID regs. */
+		ccr2 = getCx86(CX86_CCR2);
+		setCx86(CX86_CCR2, ccr2 ^ 0x04);
+		getCx86(0xc0);  /* dummy */
+
+		if (getCx86(CX86_CCR2) == ccr2) /* old Cx486SLC/DLC */
+			*dir0 = 0xfd;
+		else {                          /* Cx486S A step */
+			setCx86(CX86_CCR2, ccr2);
+			*dir0 = 0xfe;
+		}
+	} else {
+		setCx86(CX86_CCR3, ccr3);  /* restore CCR3 */
+
+		/* read DIR0 and DIR1 CPU registers */
+		*dir0 = getCx86(CX86_DIR0);
+		*dir1 = getCx86(CX86_DIR1);
+	}
+}
+
 void init_cpu_devs(void)
 {
     cpu_devs[X86_VENDOR_INTEL] = &intel_cpu_dev;
@@ -83,6 +148,8 @@ void init_cpu_devs(void)
     cpu_devs[X86_VENDOR_CENTAUR] = &centaur_cpu_dev;
     cpu_devs[X86_VENDOR_RISE] = &rise_cpu_dev;
     cpu_devs[X86_VENDOR_TRANSMETA] = &transmeta_cpu_dev;
+    cpu_devs[X86_VENDOR_NSC] = &nsc_cpu_dev;
+    cpu_devs[X86_VENDOR_UNKNOWN] = &unknown_cpu_dev;
 }
 
 void get_cpu_vendor(struct cpuinfo_x86 *c)
@@ -90,7 +157,7 @@ void get_cpu_vendor(struct cpuinfo_x86 *c)
     char *v = c->x86_vendor_id;
     int i;
     init_cpu_devs();
-    for (i = 0; i < X86_VENDOR_NUM; i++) {
+    for (i = 0; i < X86_VENDOR_NUM-1; i++) {
 	if (cpu_devs[i]) {
 	    if (!strcmp(v, cpu_devs[i]->c_ident[0]) ||
 		(cpu_devs[i]->c_ident[1] &&
@@ -177,6 +244,96 @@ void detect_cache(uint32_t xlvl, struct cpuinfo_x86 *c)
     c->x86_l2_cache_size = l2size;
 }
 
+void detect_cyrix(struct cpuinfo_x86 *c) {
+	unsigned char dir0, dir0_msn, dir0_lsn, dir1 = 0;
+        char *buf = c->x86_model_id;
+	char Cx86_cb[] = "?.5x Core/Bus Clock";
+	const char cyrix_model_mult1[] = "12??43";
+	const char cyrix_model_mult2[] = "12233445";
+        const char *p = NULL;
+
+	do_cyrix_devid(&dir0, &dir1);
+	dir0_msn = dir0 >> 4; /* identifies CPU "family"   */
+	dir0_lsn = dir0 & 0xf;                /* model or clock multiplier */
+	c->x86_model = (dir1 >> 4) + 1;
+        c->x86_mask = dir1 & 0xf;
+	switch (dir0_msn) {
+		unsigned char tmp;
+
+	        case 0: /* Cx486SLC/DLC/SRx/DRx */
+                	 p = Cx486_name[dir0_lsn & 7];
+			 break;
+	
+		case 1: /* Cx486S/DX/DX2/DX4 */
+	                 p = (dir0_lsn & 8) ? Cx486D_name[dir0_lsn & 5] : Cx486S_name[dir0_lsn & 3];
+			 break;
+
+	         case 2: /* 5x86 */
+	                 Cx86_cb[2] = cyrix_model_mult1[dir0_lsn & 5];
+			 p = Cx86_cb+2;
+			 break;
+
+		case 3: /* 6x86/6x86L */
+			   Cx86_cb[1] = ' ';
+			   Cx86_cb[2] = cyrix_model_mult1[dir0_lsn & 5];
+			   if (dir1 > 0x21) { /* 686L */
+				   Cx86_cb[0] = 'L';
+				   p = Cx86_cb;
+				   (c->x86_model)++;
+			   } else             /* 686 */
+				   p = Cx86_cb+1;
+			   
+			   c->coma_bug = 1;
+			   break;
+		case 4:
+	                   c->x86_l1_data_cache_size = 16; /* Yep 16K integrated cache thats it */
+			   if (c->cpuid_level != 2) { /* Media GX */
+				   Cx86_cb[2] = (dir0_lsn & 1) ? '3' : '4';
+				   p = Cx86_cb+2;
+			   }
+			   break;
+		
+		case 5: /* 6x86MX/M II */
+			   if (dir1 > 7) {
+				   dir0_msn++;  /* M II */
+			   } else {
+	                           c->coma_bug = 1;      /* 6x86MX, it has the bug. */
+			   }
+
+			   tmp = (!(dir0_lsn & 7) || dir0_lsn & 1) ? 2 : 0;
+			   Cx86_cb[tmp] = cyrix_model_mult2[dir0_lsn & 7];
+			   p = Cx86_cb+tmp;
+			   if (((dir1 & 0x0f) > 4) || ((dir1 & 0xf0) == 0x20))
+				   (c->x86_model)++;
+			   break;
+		
+		case 0xf:  /* Cyrix 486 without DEVID registers */
+			   switch (dir0_lsn) {
+				   case 0xd:  /* either a 486SLC or DLC w/o DEVID */
+					   dir0_msn = 0; 
+					   p = Cx486_name[(c->hard_math) ? 1 : 0];
+					   break;
+				   
+				   case 0xe:  /* a 486S A step */
+					   dir0_msn = 0;
+					   p = Cx486S_name[0];
+					   break;
+			   }
+			   break;
+			   
+		default:
+			   dir0_msn = 7;
+			   break;
+	}
+
+	/* If the processor is unknown, we keep the model name we got
+	 * from the generic call */
+	if (dir0_msn < 7) {	
+		strcpy(buf, Cx86_model[dir0_msn & 7]);
+		if (p) strcat(buf, p);
+	}
+}
+
 void generic_identify(struct cpuinfo_x86 *c)
 {
     uint32_t tfms, xlvl;
@@ -220,6 +377,13 @@ void generic_identify(struct cpuinfo_x86 *c)
 	}
 	if (xlvl >= 0x80000004)
 	    get_model_name(c);	/* Default name */
+    }
+
+    /* Specific detection code */
+    switch (c->x86_vendor) {
+	    case X86_VENDOR_CYRIX:
+	    case X86_VENDOR_NSC: detect_cyrix(c); break;
+	    default: break;
     }
 
     /* Detecting the number of cores */
@@ -435,17 +599,12 @@ void set_generic_info(struct cpuinfo_x86 *c, s_cpu * cpu)
 void detect_cpu(s_cpu * cpu)
 {
     struct cpuinfo_x86 c;
+    memset(&c,0,sizeof(c));
     c.x86_clflush_size = 32;
-    c.x86_l1_data_cache_size = 0;
-    c.x86_l1_instruction_cache_size = 0;
-    c.x86_l2_cache_size = 0;
     c.x86_vendor = X86_VENDOR_UNKNOWN;
     c.cpuid_level = -1;		/* CPUID not detected */
-    c.x86_model = c.x86_mask = 0;	/* So far unknown... */
     c.x86_num_cores = 1;
-    memset(&c.x86_capability, 0, sizeof(c.x86_capability));
-    memset(&c.x86_vendor_id, 0, sizeof(c.x86_vendor_id));
-    memset(&c.x86_model_id, 0, sizeof(c.x86_model_id));
+    memset(&cpu->flags, 0, sizeof(s_cpu_flags));
 
     if (!have_cpuid_p())
 	return;

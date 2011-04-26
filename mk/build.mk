@@ -14,7 +14,7 @@
 ## Right now we don't distinguish between "build" system and the "host"
 ## system, although we really should...
 ##
-include $(topdir)/MCONFIG
+include $(MAKEDIR)/syslinux.mk
 
 OPTFLAGS   = -g -Os
 INCLUDES   =
