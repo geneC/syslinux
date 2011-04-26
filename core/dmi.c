@@ -225,10 +225,17 @@ struct sysappend_dmi_strings {
 };
 
 static const struct sysappend_dmi_strings dmi_strings[] = {
-    { "SYSVENDOR=",  SYSAPPEND_SYSVENDOR,  1, 0x04 },
-    { "SYSPRODUCT=", SYSAPPEND_SYSPRODUCT, 1, 0x05 },
-    { "SYSVERSION=", SYSAPPEND_SYSVERSION, 1, 0x06 },
-    { "SYSSERIAL=",  SYSAPPEND_SYSSERIAL,  1, 0x07 },
+    { "SYSVENDOR=",  SYSAPPEND_VENDOR,  1, 0x04 },
+    { "SYSPRODUCT=", SYSAPPEND_PRODUCT, 1, 0x05 },
+    { "SYSVERSION=", SYSAPPEND_VERSION, 1, 0x06 },
+    { "SYSSERIAL=",  SYSAPPEND_SERIAL,  1, 0x07 },
+    { "SYSSKU=",     SYSAPPEND_SKU,     1, 0x19 },
+    { "SYSFAMILY=",  SYSAPPEND_FAMILY,  1, 0x1a },
+    { "MBVENDOR=",   SYSAPPEND_VENDOR,  2, 0x04 },
+    { "MBPRODUCT=",  SYSAPPEND_PRODUCT, 2, 0x05 },
+    { "MBVERSION=",  SYSAPPEND_VERSION, 2, 0x06 },
+    { "MBSERIAL=",   SYSAPPEND_SERIAL,  2, 0x07 },
+    { "MBASSET=",    SYSAPPEND_ASSET,   2, 0x08 },
     { NULL, 0, 0, 0 }
 };
 
@@ -287,12 +294,9 @@ void dmi_init(void)
     sysappend_set_uuid(dmi_find_data(1, 0x08, 16));
 
     for (ds = dmi_strings; ds->prefix; ds++) {
-	const char *str = dmi_find_string(ds->index, ds->offset);
-
-	if (sysappend_strings[ds->sa]) {
-	    free((char *)sysappend_strings[ds->sa]);
-	    sysappend_strings[ds->sa] = NULL;
+	if (!sysappend_strings[ds->sa]) {
+	    const char *str = dmi_find_string(ds->index, ds->offset);
+	    sysappend_strings[ds->sa] = dmi_install_string(ds->prefix, str);
 	}
-	sysappend_strings[ds->sa] = dmi_install_string(ds->prefix, str);
     }
 }
