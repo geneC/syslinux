@@ -8,6 +8,7 @@
 #include <lwip/api.h>
 #include <lwip/dns.h>
 #include <lwip/tcpip.h>
+#include <lwip/opt.h>
 #include "pxe.h"
 #include "thread.h"
 #include "url.h"

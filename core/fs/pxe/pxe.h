@@ -33,10 +33,6 @@
 #define BOOTP_OPTION_MAGIC  htonl(0x63825363)
 #define MAC_MAX 32
 
-/* Defines for DNS */
-#define DNS_MAX_PACKET	512			/* Defined by protocol */
-#define DNS_MAX_SERVERS 4			/* Max no of DNS servers */
-
 /*
  * structures
  */
