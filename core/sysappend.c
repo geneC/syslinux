@@ -25,7 +25,7 @@ const char *sysappend_strings[SYSAPPEND_MAX];
 
 /*
  * Copy a string, converting whitespace characters to underscores
- * and compacting them.
+ * and compacting them.  Return a pointer to the final null.
  */
 static char *copy_and_mangle(char *dst, const char *src)
 {
