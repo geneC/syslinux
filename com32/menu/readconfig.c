@@ -298,7 +298,7 @@ static char *copy_sysappend_string(char *dst, const char *src)
     char *end = dst;
     char c;
 
-    while ((c = *src)) {
+    while ((c = *src++)) {
 	if (c <= ' ' && c == '\x7f') {
 	    if (!was_space)
 		*dst++ = '_';
