@@ -17,7 +17,7 @@
 
 topdir = ../..
 MAKEDIR = $(topdir)/mk
-include $(MAKEDIR)/com32.mk
+include $(MAKEDIR)/elf.mk
 -include $(topdir)/version.mk
 
 LIBS	   = ../libupload/libcom32upload.a
@@ -45,11 +45,11 @@ CFLAGS    += -DDATE='"$(DATE)"'
 
 all: $(MODULES) $(TESTFILES)
 
-sysdump.elf : $(OBJS) $(LIBS) $(C_LIBS)
+sysdump.c32 : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
-	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
+	rm -f *.o *.lo *.a *.lst .*.d *.tmp
 
 clean: tidy
 	rm -f *.lnx

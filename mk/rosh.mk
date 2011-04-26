@@ -15,7 +15,7 @@
 ##
 
 ## Include the COM32 common configurables
-include $(MAKEDIR)/com32.mk
+include $(MAKEDIR)/elf.mk
 
 # CFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
 # 	     -fomit-frame-pointer -D__COM32__ \

@@ -1,4 +1,4 @@
-SUBDIRS = libupload tools lib gpllib libutil modules mboot menu samples elflink elflink/modules rosh cmenu \
+SUBDIRS = libupload tools lib gpllib libutil modules mboot menu samples elflink rosh cmenu \
 	  hdt gfxboot sysdump lua/src elflink/ldlinux
 
 all tidy dist clean spotless install:

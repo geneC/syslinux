@@ -31,19 +31,18 @@
 
 topdir = ../..
 MAKEDIR = $(topdir)/mk
-include $(MAKEDIR)/com32.mk
+include $(MAKEDIR)/elf.mk
 
 LIBOBJS	   = ansiline.o ansiraw.o get_key.o keyname.o \
 	     sha1hash.o unbase64.o \
-	     md5.o crypt-md5.o sha256crypt.o sha512crypt.o base64.o
+	     md5.o crypt-md5.o sha256crypt.o sha512crypt.o base64.o \
+	     quicksort.o
 LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
-all: libutil_com.a libutil_lnx.a
+all: libutil_com.c32 libutil_lnx.a
 
-libutil_com.a: $(LIBOBJS)
-	rm -f $@
-	$(AR) cq $@ $(LIBOBJS)
-	$(RANLIB) $@
+libutil_com.c32: $(LIBOBJS)
+	$(LD) $(LDFLAGS) -o $@ $^
 
 libutil_lnx.a: $(LNXLIBOBJS)
 	rm -f $@

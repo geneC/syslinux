@@ -14,7 +14,7 @@ topdir = ../../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
 
-CFLAGS += -I../modules -I$(topdir)/core/elflink -I$(topdir)/core/include
+CFLAGS += -I$(topdir)/core/elflink -I$(topdir)/core/include
 
 all: ldlinux.c32
 

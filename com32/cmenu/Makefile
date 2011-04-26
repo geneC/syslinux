@@ -18,11 +18,11 @@
 NOGPL := 1
 
 # This must be defined before com32.mk is included
-LIBS   = libmenu/libmenu.a
+LIBS   = libmenu/libmenu.c32
 
 topdir = ../..
 MAKEDIR = $(topdir)/mk
-include $(MAKEDIR)/com32.mk
+include $(MAKEDIR)/elf.mk
 
 CFLAGS	  += -I./libmenu
 
@@ -32,7 +32,7 @@ LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 CMENUS = $(patsubst %.c,%.c32,$(wildcard *.c))
 IMENUS = $(patsubst %.menu,%.c32,$(wildcard *.menu))
 
-MENUS = $(CMENUS) $(IMENUS)
+MENUS = $(CMENUS) $(IMENUS) $(LIBS)
 
 .SUFFIXES: .S .c .o .elf .c32 .menu
 
@@ -42,16 +42,14 @@ MENUS = $(CMENUS) $(IMENUS)
 
 all: menus
 
-libmenu/libmenu.a: $(LIBMENU)
-	-rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
+libmenu/libmenu.c32: $(LIBMENU)
+	$(LD) -shared $(LDFLAGS) -o $@ $^
 
 tidy dist:
-	rm -f *.o *.lo *.a *.lst *.elf .*.d */.*.d
+	rm -f *.o *.lo *.c32 *.lst *.elf .*.d */.*.d
 
 libclean:
-	rm -f libmenu/*.o libmenu/*.a
+	rm -f libmenu/*.o libmenu/*.c32
 
 clean: tidy menuclean libclean
 	rm -f *.lss *.c32 *.com

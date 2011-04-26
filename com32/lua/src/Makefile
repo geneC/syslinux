@@ -17,7 +17,7 @@
 
 topdir = ../../..
 MAKEDIR = $(topdir)/mk
-include $(MAKEDIR)/com32.mk
+include $(MAKEDIR)/elf.mk
 
 LNXLIBS	   = 
 
@@ -30,7 +30,7 @@ TESTFILES =
 
 OBJS	  = lua.o
 
-LIBLUA    = liblua.a
+LIBLUA    = liblua.c32
 
 LIBLUA_OBJS := lapi.o lcode.o ldebug.o ldo.o ldump.o lfunc.o
 LIBLUA_OBJS += lgc.o llex.o lmem.o  lobject.o lopcodes.o lparser.o
@@ -50,15 +50,13 @@ CFLAGS += -DLUA_ANSI
 all: $(MODULES) $(TESTFILES)
 
 $(LIBLUA) : $(LIBLUA_OBJS)
-	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
+	$(LD) -shared $(LDFLAGS) -o $@ $^
 
-lua.elf : $(OBJS) $(LIBLUA) $(C_LIBS)
+lua.c32 : $(OBJS) $(LIBLUA) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
-	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
+	rm -f *.o *.lo *.lst *.elf .*.d *.tmp
 
 clean: tidy
 	rm -f *.lnx

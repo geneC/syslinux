@@ -197,7 +197,6 @@ DYNLIBOBJS = \
 
 
 LIBOBJS = \
-	$(MINLIBOBJS) \
 	$(DYNLIBOBJS)
 
 BINDIR   = /usr/bin
@@ -207,12 +206,11 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.a libcom32min.a
+all: libcom32.c32 libcom32min.a
 
-libcom32.a : $(LIBOBJS)
+libcom32.c32 : $(LIBOBJS)
 	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
+	$(LD) -shared $(LDFLAGS) -o $@ $^
 
 $(LIBMODULE_OBJS) : CFLAGS += -DELF_DEBUG
 libcom32min.a : $(MINLIBOBJS)
@@ -231,7 +229,7 @@ spotless: clean
 
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
-	install -m 644 libcom32.a com32.ld $(INSTALLROOT)$(COM32DIR)
+	install -m 644 com32.ld $(INSTALLROOT)$(COM32DIR)
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
 	cp -r ../include $(INSTALLROOT)$(COM32DIR)
 

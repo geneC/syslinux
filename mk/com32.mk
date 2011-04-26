@@ -64,7 +64,7 @@ LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
 C_LIBS	   = $(com32)/libutil/libutil_com.a $(GPLLIB) \
-	     $(com32)/lib/libcom32.a $(LIBGCC)
+	     $(com32)/lib/libcom32.c32 $(LIBGCC)
 C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 
 .SUFFIXES: .lss .c .lo .o .elf .c32 .lnx

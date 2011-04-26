@@ -6,15 +6,6 @@
  */
 
 #include <stdlib.h>
-#include <sys/module.h>
-
-/**
- * sort_init - Module entry point.
- */
-static int sort_init(void)
-{
-    return 0;			// Nothing to do; return success
-}
 
 static inline void swap(int *x, int *y)
 {
@@ -66,15 +57,3 @@ void quick_sort(int *nums, int count)
 {
     quick_sort_range(nums, 0, count - 1);
 }
-
-/**
- * sort_exit - Module exit point.
- */
-static void sort_exit(void)
-{
-    // Nothing to do
-}
-
-// Define entry and exit points.
-MODULE_INIT(sort_init);
-MODULE_EXIT(sort_exit);

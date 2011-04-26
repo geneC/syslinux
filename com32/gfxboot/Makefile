@@ -13,13 +13,13 @@
 
 topdir = ../..
 MAKEDIR = $(topdir)/mk
-include $(MAKEDIR)/com32.mk
+include $(MAKEDIR)/elf.mk
 
 MODULES	  = gfxboot.c32
 
 all: $(MODULES)
 
-gfxboot.elf : gfxboot.o realmode_callback.o $(LIBS) $(C_LIBS)
+gfxboot.c32 : gfxboot.o realmode_callback.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 realmode_callback.o: realmode_callback.asm
@@ -31,7 +31,7 @@ realmode_callback.o: realmode_callback.asm
 	  $*.tmp $@
 
 tidy dist:
-	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
+	rm -f *.o *.lo *.a *.lst .*.d *.tmp
 
 clean: tidy
 	rm -f *.lnx

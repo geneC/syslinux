@@ -16,7 +16,7 @@
 
 topdir = ../..
 MAKEDIR = $(topdir)/mk
-include $(MAKEDIR)/com32.mk
+include $(MAKEDIR)/elf.mk
 
 LNXLIBS	   = ../libutil/libutil_lnx.a
 
