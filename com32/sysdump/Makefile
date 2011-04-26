@@ -19,8 +19,10 @@ topdir = ../..
 include ../MCONFIG
 -include $(topdir)/version.mk
 
-LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a $(LIBGCC)
+LIBS	   = ../libutil/libutil_com.a ../lib/libcom32.a ../libupload/libcom32upload.a $(LIBGCC)
 LNXLIBS	   = ../libutil/libutil_lnx.a
+
+CFLAGS += -I$(com32) -I$(topdir)
 
 MODULES	  = sysdump.c32
 TESTFILES =

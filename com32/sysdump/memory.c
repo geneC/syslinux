@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <sys/cpu.h>
 #include "sysdump.h"
-#include "backend.h"
 
 static char *lowmem;
 static size_t lowmem_len;
@@ -29,7 +28,7 @@ void snapshot_lowmem(void)
     }
 }
 
-static void dump_memory_range(struct backend *be, const void *where,
+static void dump_memory_range(struct upload_backend *be, const void *where,
 			      const void *addr, size_t len)
 {
     char filename[32];
@@ -38,7 +37,7 @@ static void dump_memory_range(struct backend *be, const void *where,
     cpio_writefile(be, filename, where, len);
 }
 
-void dump_memory(struct backend *be)
+void dump_memory(struct upload_backend *be)
 {
     printf("Dumping memory... ");
 

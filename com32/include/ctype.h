@@ -117,5 +117,6 @@ __ctype_inline int tolower(int __c)
 }
 
 __extern char *skipspace(const char *p);
+__extern void chrreplace(char *source, char old, char new);
 
 #endif /* _CTYPE_H */

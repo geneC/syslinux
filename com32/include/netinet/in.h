@@ -3,8 +3,9 @@
 
 /* COM32 will be running on an i386 platform */
 
-#include <stdint.h>
 #include <klibc/compiler.h>
+#include <klibc/extern.h>
+#include <stdint.h>
 #include <byteswap.h>
 
 #define htons(x) bswap_16(x)
@@ -20,5 +21,7 @@ typedef uint16_t in_port_t;
 struct in_addr {
     in_addr_t s_addr;
 };
+
+__extern char *inet_ntoa(struct in_addr);
 
 #endif /* _NETINET_IN_H */

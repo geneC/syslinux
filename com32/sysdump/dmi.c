@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "sysdump.h"
-#include "backend.h"
 
 struct dmi_header {
     char signature[5];
@@ -60,7 +59,7 @@ static bool is_smbios(size_t dptr)
 	is_old_dmi(dptr+16);
 }
 
-static void dump_smbios(struct backend *be, size_t dptr)
+static void dump_smbios(struct upload_backend *be, size_t dptr)
 {
     const struct smbios_header *smb = (void *)dptr;
     struct smbios_header smx = *smb;
@@ -82,7 +81,7 @@ static void dump_smbios(struct backend *be, size_t dptr)
     write_data(be, (const void *)smb->dmi.tbladdr, smb->dmi.tbllen);
 }
 
-static void dump_old_dmi(struct backend *be, size_t dptr)
+static void dump_old_dmi(struct upload_backend *be, size_t dptr)
 {
     const struct dmi_header *dmi = (void *)dptr;
     struct fake {
@@ -108,7 +107,7 @@ static void dump_old_dmi(struct backend *be, size_t dptr)
     write_data(be, (const void *)dmi->tbladdr, dmi->tbllen);
 }
 
-void dump_dmi(struct backend *be)
+void dump_dmi(struct upload_backend *be)
 {
     size_t dptr;
 

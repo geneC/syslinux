@@ -120,9 +120,9 @@ static void compute_partition_information(struct driveinfo *drive_info,
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     }
 
-    snprintf(buffer, sizeof buffer, "Bootable    : %s",
+    snprintf(buffer, sizeof buffer, "Boot Flag   : %s",
 	     (ptab->active_flag == 0x80) ? "Yes" : "No");
-    snprintf(statbuffer, sizeof statbuffer, "Bootable: %s",
+    snprintf(statbuffer, sizeof statbuffer, "Boot Flag: %s",
 	     (ptab->active_flag == 0x80) ? "Yes" : "No");
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 
@@ -243,12 +243,12 @@ void compute_disks(struct s_hdt_menu *menu, struct s_hardware *hardware)
     if (hardware->disks_count == 0)
 	return;
 
-    for (int i = 0; i < hardware->disks_count; i++) {
-	if (!hardware->disk_info[i].cbios)
+    for (int drive = 0x80; drive < 0xff; drive++) {
+	if (!hardware->disk_info[drive - 0x80].cbios)
 	    continue;		/* Invalid geometry */
 	compute_disk_module
 	    ((struct s_my_menu *)&(menu->disk_sub_menu), nb_sub_disk_menu,
-	     hardware, i);
+	     hardware, drive - 0x80);
 	nb_sub_disk_menu++;
     }
 
