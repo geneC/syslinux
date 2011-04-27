@@ -32,6 +32,7 @@ LIBOBJS = \
 	chrreplace.o							\
 	bufprintf.o							\
 	inet.o								\
+	strreplace.o								\
 	\
 	lmalloc.o lstrdup.o						\
 	\
