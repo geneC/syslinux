@@ -15,7 +15,6 @@
 #include <sys/exec.h>
 #include <sys/module.h>
 #include "common.h"
-#include "menu.h"
 
 #define LDLINUX	"ldlinux.c32"
 
