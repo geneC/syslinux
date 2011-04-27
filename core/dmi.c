@@ -283,13 +283,13 @@ static const char *dmi_install_string(const char *pfx, const char *str)
     }
 
     pfxlen = strlen(pfx);
-    q = nstr = malloc(pfxlen + (ep-p) + 1);
+    q = nstr = malloc(pfxlen + (ep-str) + 1);
     if (!nstr)
 	return NULL;
     memcpy(q, pfx, pfxlen);
     q += pfxlen;
     memcpy(q, str, ep-str);
-    q += (ep-p);
+    q += (ep-str);
     *q = '\0';
 
     return nstr;
