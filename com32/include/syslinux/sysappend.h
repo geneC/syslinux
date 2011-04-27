@@ -49,6 +49,9 @@ enum syslinux_sysappend {
     SYSAPPEND_MBVERSION,	/* System or MB version from DMI */
     SYSAPPEND_MBSERIAL,		/* System or MB serial from DMI */
     SYSAPPEND_MBASSET,		/* MB asset tag from DMI */
+    SYSAPPEND_BIOSVENDOR,	/* BIOS vendor */
+    SYSAPPEND_BIOSVERSION,	/* BIOS version string */
+    SYSAPPEND_SYSFF,		/* System form factor */
     SYSAPPEND_MAX		/* Total number of strings */
 };
 

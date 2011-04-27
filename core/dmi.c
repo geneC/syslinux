@@ -237,17 +237,19 @@ struct sysappend_dmi_strings {
 };
 
 static const struct sysappend_dmi_strings dmi_strings[] = {
-    { "SYSVENDOR=",  SYSAPPEND_SYSVENDOR,  1, 0x04 },
-    { "SYSPRODUCT=", SYSAPPEND_SYSPRODUCT, 1, 0x05 },
-    { "SYSVERSION=", SYSAPPEND_SYSVERSION, 1, 0x06 },
-    { "SYSSERIAL=",  SYSAPPEND_SYSSERIAL,  1, 0x07 },
-    { "SYSSKU=",     SYSAPPEND_SYSSKU,     1, 0x19 },
-    { "SYSFAMILY=",  SYSAPPEND_SYSFAMILY,  1, 0x1a },
-    { "MBVENDOR=",   SYSAPPEND_MBVENDOR,   2, 0x04 },
-    { "MBPRODUCT=",  SYSAPPEND_MBPRODUCT,  2, 0x05 },
-    { "MBVERSION=",  SYSAPPEND_MBVERSION,  2, 0x06 },
-    { "MBSERIAL=",   SYSAPPEND_MBSERIAL,   2, 0x07 },
-    { "MBASSET=",    SYSAPPEND_MBASSET,    2, 0x08 },
+    { "SYSVENDOR=",   SYSAPPEND_SYSVENDOR,   1, 0x04 },
+    { "SYSPRODUCT=",  SYSAPPEND_SYSPRODUCT,  1, 0x05 },
+    { "SYSVERSION=",  SYSAPPEND_SYSVERSION,  1, 0x06 },
+    { "SYSSERIAL=",   SYSAPPEND_SYSSERIAL,   1, 0x07 },
+    { "SYSSKU=",      SYSAPPEND_SYSSKU,      1, 0x19 },
+    { "SYSFAMILY=",   SYSAPPEND_SYSFAMILY,   1, 0x1a },
+    { "MBVENDOR=",    SYSAPPEND_MBVENDOR,    2, 0x04 },
+    { "MBPRODUCT=",   SYSAPPEND_MBPRODUCT,   2, 0x05 },
+    { "MBVERSION=",   SYSAPPEND_MBVERSION,   2, 0x06 },
+    { "MBSERIAL=",    SYSAPPEND_MBSERIAL,    2, 0x07 },
+    { "MBASSET=",     SYSAPPEND_MBASSET,     2, 0x08 },
+    { "BIOSVENDOR=",  SYSAPPEND_BIOSVENDOR,  0, 0x04 },
+    { "BIOSVERSION=", SYSAPPEND_BIOSVERSION, 0, 0x05 },
     { NULL, 0, 0, 0 }
 };
 
@@ -295,6 +297,17 @@ static const char *dmi_install_string(const char *pfx, const char *str)
     return nstr;
 }
 
+static void sysappend_set_sysff(const uint8_t *type)
+{
+    static char sysff_str[] = "SYSFF=000";
+
+    if (!type || !*type)
+	return;
+    
+    sprintf(sysff_str+6, "%u", *type & 0x7f);
+    sysappend_strings[SYSAPPEND_SYSFF] = sysff_str;
+}
+
 void dmi_init(void)
 {
     const struct sysappend_dmi_strings *ds;
@@ -304,6 +317,7 @@ void dmi_init(void)
 	return;
 
     sysappend_set_uuid(dmi_find_data(1, 0x08, 16));
+    sysappend_set_sysff(dmi_find_data(3, 0x05, 1));
 
     for (ds = dmi_strings; ds->prefix; ds++) {
 	if (!sysappend_strings[ds->sa]) {

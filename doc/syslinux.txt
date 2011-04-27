@@ -212,9 +212,47 @@ IPAPPEND bitmask
 	0x0400	MBVERSION=	Motherboard version
 	0x0800	MBSERIAL=	Motherboard serial number
 	0x1000	MBASSET=	Motherboard asset tag
+	0x2000  BIOSVENDOR=	BIOS vendor name
+	0x4000	BIOSVERSION=	BIOS version
+	0x8000	SYSFF=		System form factor
 
 	If these strings contain whitespace they it is replaced with
 	underscores (_).
+
+	The system form factor value is a number defined in the SMBIOS
+	specification, available at http://www.dmtf.org/.  As of
+	version 2.7.1 of the specification, the following values are
+	defined:
+
+	  1	Other
+	  2	Unknown
+	  3	Desktop
+	  4	Low profile desktop
+	  5	Pizza box
+	  6	Mini tower
+	  7	Tower
+	  8	Portble
+	  9	Laptop
+	 10	Notebook
+	 11	Handheld
+	 12	Docking station
+	 13	All-in-one
+	 14	Subnotebook
+	 15	Space-saving
+	 16	Lunch box
+	 17	Main server chassis
+	 18	Expansion chassis
+	 19	Subchassis
+	 20	Bus expansion chassis
+	 21	Peripheral chassis
+	 22	RAID chassis
+	 23	Rack mount chasss
+	 24	Sealed-case PC
+	 25	Multi-system chassis
+	 26	Compact PCI
+	 27	Advanced TCI
+	 28	Blade
+	 29	Blade enclosure
 
 SENDCOOKIES bitmask			[PXELINUX only]
 
