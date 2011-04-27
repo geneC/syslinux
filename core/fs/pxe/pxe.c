@@ -851,8 +851,8 @@ static void network_init(void)
     if (have_uuid)
 	sysappend_set_uuid(uuid);
     ip_init();
-    http_bake_cookies();
     print_sysappend();
+    http_bake_cookies();
 
     /*
      * Check to see if we got any PXELINUX-specific DHCP options; in particular,
@@ -873,12 +873,6 @@ static void network_init(void)
 
     for (i = 0; i < DNS_MAX_SERVERS; i++) {
 	/* Transfer the DNS information to lwip */
-	dprintf("DNS server %d = %d.%d.%d.%d\n",
-	       i,
-	       ((uint8_t *)&dns_server[i])[0],
-	       ((uint8_t *)&dns_server[i])[1],
-	       ((uint8_t *)&dns_server[i])[2],
-	       ((uint8_t *)&dns_server[i])[3]);
 	dns_setserver(i, (struct ip_addr *)&dns_server[i]);
     }
 }
@@ -893,10 +887,6 @@ static int pxe_fs_init(struct fs_info *fs)
 
     /* Prepare for handling pxe interrupts */
     pxe_init_isr();
-
-    /* This block size is actually arbitrary... */
-    fs->sector_shift = fs->block_shift = TFTP_BLOCKSIZE_LG2;
-    fs->sector_size  = fs->block_size  = 1 << TFTP_BLOCKSIZE_LG2;
 
     /* This block size is actually arbitrary... */
     fs->sector_shift = fs->block_shift = TFTP_BLOCKSIZE_LG2;
