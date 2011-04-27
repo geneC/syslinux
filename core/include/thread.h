@@ -19,6 +19,16 @@ struct thread_list {
     struct thread_list *next, *prev;
 };
 
+/*
+ * Stack frame used by __switch_to, see thread_asm.S
+ */
+struct thread_stack {
+    int errno;
+    uint16_t rmsp, rmss;
+    uint32_t edi, esi, ebp, ebx;
+    void (*eip)(void);
+};
+
 struct thread_block {
     struct thread_list list;
     struct thread *thread;
@@ -29,7 +39,7 @@ struct thread_block {
 };
 
 struct thread {
-    void *esp;			/* Must be first; stack pointer */
+    struct thread_stack *esp;	/* Must be first; stack pointer */
     const char *name;		/* Name (for debugging) */
     struct thread_list  list;
     struct thread_block *blocked;

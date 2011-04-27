@@ -8,16 +8,6 @@
 
 extern void __start_thread(void);
 
-/*
- * Stack frame used by __switch_to, see thread_asm.S
- */
-struct thread_stack {
-    int errno;
-    uint16_t rmsp, rmss;
-    uint32_t edi, esi, ebp, ebx;
-    void (*eip)(void);
-};
-
 struct thread *start_thread(const char *name, size_t stack_size, int prio,
 			    void (*start_func)(void *), void *func_arg)
 {
