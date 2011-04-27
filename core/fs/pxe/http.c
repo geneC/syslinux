@@ -59,17 +59,24 @@ static size_t http_do_bake_cookies(char *q)
     size_t n = 0;
     const char *p;
     char c;
-    size_t qlen = q ? -1UL : 0;
     bool first = true;
     uint32_t mask = SendCookies;
 
     for (i = 0; i < SYSAPPEND_MAX; i++) {
 	if ((mask & 1) && (p = sysappend_strings[i])) {
-	    len = snprintf(q, qlen, "%s_Syslinux_", first ? "Cookie: " : "");
-	    if (q)
-		q += len;
-	    n += len;
-	    first = false;
+	    if (first) {
+		if (q) {
+		    strcpy(q, "Cookie: ");
+		    q += 8;
+		}
+		n += 8;
+		first = false;
+	    }
+	    if (q) {
+		strcpy(q, "_Syslinux_");
+		q += 10;
+	    }
+	    n += 10;
 	    /* Copy string up to and including '=' */
 	    do {
 		c = *p++;
@@ -195,8 +202,8 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
     strcpy(header_buf, "GET /");
     header_bytes = 5;
     header_bytes += url_escape_unsafe(header_buf+5, url->path,
-				      sizeof header_buf - 5);
-    if (header_bytes > header_len)
+				      header_len - 5);
+    if (header_bytes >= header_len)
 	goto fail;		/* Buffer overflow */
     header_bytes += snprintf(header_buf + header_bytes,
 			     header_len - header_bytes,
@@ -207,7 +214,7 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
 			     "%s"
 			     "\r\n",
 			     url->host, cookie_buf ? cookie_buf : "");
-    if (header_bytes > header_len)
+    if (header_bytes >= header_len)
 	goto fail;		/* Buffer overflow */
 
     err = netconn_write(socket->conn, header_buf,
