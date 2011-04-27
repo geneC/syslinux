@@ -278,7 +278,7 @@ static const char *dmi_install_string(const char *pfx, const char *str)
     ep = p = str;
     while (*p) {
 	if (!is_ctl_or_whitespace(*p))
-	    ep = str+1;
+	    ep = p+1;
 	p++;
     }
 
