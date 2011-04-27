@@ -237,17 +237,17 @@ struct sysappend_dmi_strings {
 };
 
 static const struct sysappend_dmi_strings dmi_strings[] = {
-    { "SYSVENDOR=",  SYSAPPEND_VENDOR,  1, 0x04 },
-    { "SYSPRODUCT=", SYSAPPEND_PRODUCT, 1, 0x05 },
-    { "SYSVERSION=", SYSAPPEND_VERSION, 1, 0x06 },
-    { "SYSSERIAL=",  SYSAPPEND_SERIAL,  1, 0x07 },
-    { "SYSSKU=",     SYSAPPEND_SKU,     1, 0x19 },
-    { "SYSFAMILY=",  SYSAPPEND_FAMILY,  1, 0x1a },
-    { "MBVENDOR=",   SYSAPPEND_VENDOR,  2, 0x04 },
-    { "MBPRODUCT=",  SYSAPPEND_PRODUCT, 2, 0x05 },
-    { "MBVERSION=",  SYSAPPEND_VERSION, 2, 0x06 },
-    { "MBSERIAL=",   SYSAPPEND_SERIAL,  2, 0x07 },
-    { "MBASSET=",    SYSAPPEND_ASSET,   2, 0x08 },
+    { "SYSVENDOR=",  SYSAPPEND_SYSVENDOR,  1, 0x04 },
+    { "SYSPRODUCT=", SYSAPPEND_SYSPRODUCT, 1, 0x05 },
+    { "SYSVERSION=", SYSAPPEND_SYSVERSION, 1, 0x06 },
+    { "SYSSERIAL=",  SYSAPPEND_SYSSERIAL,  1, 0x07 },
+    { "SYSSKU=",     SYSAPPEND_SYSSKU,     1, 0x19 },
+    { "SYSFAMILY=",  SYSAPPEND_SYSFAMILY,  1, 0x1a },
+    { "MBVENDOR=",   SYSAPPEND_MBVENDOR,   2, 0x04 },
+    { "MBPRODUCT=",  SYSAPPEND_MBPRODUCT,  2, 0x05 },
+    { "MBVERSION=",  SYSAPPEND_MBVERSION,  2, 0x06 },
+    { "MBSERIAL=",   SYSAPPEND_MBSERIAL,   2, 0x07 },
+    { "MBASSET=",    SYSAPPEND_MBASSET,    2, 0x08 },
     { NULL, 0, 0, 0 }
 };
 

@@ -38,13 +38,17 @@ enum syslinux_sysappend {
     SYSAPPEND_IP,		/* PXELINUX: ip= address */
     SYSAPPEND_BOOTIF,		/* PXELINUX: BOOTIF= address */
     SYSAPPEND_SYSUUID,		/* System UUID from PXE or DMI */
-    SYSAPPEND_VENDOR,		/* System or MB vendor from DMI */
-    SYSAPPEND_PRODUCT,		/* System or MB product from DMI */
-    SYSAPPEND_VERSION,		/* System or MB version from DMI */
-    SYSAPPEND_SERIAL,		/* System or MB serial from DMI */
-    SYSAPPEND_SKU,		/* System SKU from DMI */
-    SYSAPPEND_FAMILY,		/* System family from DMI */
-    SYSAPPEND_ASSET,		/* MB asset tag from DMI */
+    SYSAPPEND_SYSVENDOR,	/* System or MB vendor from DMI */
+    SYSAPPEND_SYSPRODUCT,	/* System or MB product from DMI */
+    SYSAPPEND_SYSVERSION,	/* System or MB version from DMI */
+    SYSAPPEND_SYSSERIAL,	/* System or MB serial from DMI */
+    SYSAPPEND_SYSSKU,		/* System SKU from DMI */
+    SYSAPPEND_SYSFAMILY,	/* System family from DMI */
+    SYSAPPEND_MBVENDOR,		/* System or MB vendor from DMI */
+    SYSAPPEND_MBPRODUCT,	/* System or MB product from DMI */
+    SYSAPPEND_MBVERSION,	/* System or MB version from DMI */
+    SYSAPPEND_MBSERIAL,		/* System or MB serial from DMI */
+    SYSAPPEND_MBASSET,		/* MB asset tag from DMI */
     SYSAPPEND_MAX		/* Total number of strings */
 };
 
