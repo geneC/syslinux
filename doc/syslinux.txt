@@ -153,8 +153,8 @@ APPEND options...
         usually permitting explicitly entered kernel options to override
         them.  This is the equivalent of the LILO "append" option.
 
-SYSAPPEND flag_val
-IPAPPEND flag_val
+SYSAPPEND bitmask
+IPAPPEND bitmask
 
 	The SYSAPPEND option was introduced in Syslinux 4.10; it is an
 	enhancement of a previous option IPAPPEND which was only
@@ -194,6 +194,40 @@ IPAPPEND flag_val
 
 	... in lower case hexadecimal in the format normally used for
 	UUIDs (same as for the configuration file; see pxelinux.txt.)
+	This may not be available if no valid UUID is found on the
+	system.
+
+	The following strings are derived from DMI/SMBIOS information
+	if available; these are all new in version 4.10:
+	
+	Bit	String		Significance
+	-------------------------------------------------------------
+	0x0008	SYSVENDOR=	System vendor name
+	0x0010	SYSPRODUCT=	System product name
+	0x0020	SYSVERSION=	System version
+	0x0040	SYSSERIAL=	System serial number
+	0x0080	SYSSKU=		System SKU
+	0x0100	SYSFAMILY=	System family
+	0x0200	MBVENDOR=	Motherboard vendor name
+	0x0400	MBVERSION=	Motherboard version
+	0x0800	MBSERIAL=	Motherboard serial number
+	0x1000	MBASSET=	Motherboard asset tag
+
+	If these strings contain whitespace they it is replaced with
+	underscores (_).
+
+SENDCOOKIES bitmask			[PXELINUX only]
+
+	When downloading files over http, the SYSAPPEND strings are
+	prepended with _Syslinux_ and sent to the server as cookies.
+	The cookies are URL-encoded; whitespace is *not* replaced with
+	underscores.
+
+	This command limits the cookies send; 0 means no cookies.  The
+	default is -1, meaning send all cookies.
+
+	This option is "sticky" and is not automatically reset when
+	loading a new configuration file with the CONFIG command.
 
 LABEL label
     KERNEL image
@@ -378,6 +412,9 @@ SERIAL port [[baudrate] flowcontrol]
 	Enabling interrupts (setting the 0x008 bit) may give better
 	responsiveness without setting the NOHALT option, but could
 	potentially cause problems with buggy BIOSes.
+
+	This option is "sticky" and is not automatically reset when
+	loading a new configuration file with the CONFIG command.
 
 NOHALT flag_val
 	If flag_val is 1, don't halt the processor while idle.

@@ -3,11 +3,15 @@
     A bootloader for Linux using the PXE network booting protocol
 
        Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+       Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
 
 This program is provided under the terms of the GNU General Public
 License, version 2 or, at your option, any later version.  There is no
 warranty, neither expressed nor implied, to the function of this
 program.  Please see the included file COPYING for details.
+
+This documentation file is slightly out of date; please check the NEWS
+file for changes.
 
 ----------------------------------------------------------------------
 
@@ -99,25 +103,22 @@ boot, if you have such a setup.  MTFTP server setup is beyond the
 scope of this document.
 
 
-    ++++ gPXE-ENHANCED VARIANTS ++++
+    ++++ HTTP AND FTP DOWNLOADS ++++
 
-gPXE can be used to enhance PXELINUX's functionality to also include
-HTTP transfers, greatly increasing load speed and allowing for standard
-HTTP scripts to present PXELINUX's configuration file.  pxelinux.0 is
-the plain variant.  gpxelinux.0 (included as of 3.70) is gPXE's
-undionly.kkpxe, pxelinux.0 and a script to run pxelinux.0.  gpxelinuxk.0
-(included as of 4.04) is gPXE's undionly.kpxe, pxelinux.0 and a script
-to run pxelinux.0.  gpxelinuxk.0 should only be used with systems that
-are incompatible with gpxelinux.0 as it prevents certain functionality
-from working (LOCALBOOT with a type not equal to -1) and is incompatible
-with certain hardware, PXE stacks and network setups.
+Since version 4.10, native pxelinux.0 can support HTTP and FTP
+transfers, greatly increasing load speed and allowing for standard
+HTTP scripts to present PXELINUX's configuration file.  To use http or
+ftp, use standard URL syntax as filename; use the DHCP options below
+to transmit a suitable URL prefix to the client, or use the
+"pxelinux-options" tool provided in the utils directory to program it
+directly into the pxelinux.0 file.
 
 
     ++++ SETTING UP THE TFTP SERVER ++++
 
-PXELINUX currently requires that the boot server has a TFTP server
-which supports the "tsize" TFTP option (RFC 1784/RFC 2349).  The
-"tftp-hpa" TFTP server, which support options, is available at:
+For best results, use a TFTP server which supports the "tsize" TFTP
+option (RFC 1784/RFC 2349).  The "tftp-hpa" TFTP server, which support
+options, is available at:
 
 	http://www.kernel.org/pub/software/network/tftp/
 	ftp://www.kernel.org/pub/software/network/tftp/
@@ -343,7 +344,15 @@ If you used this from a client whose Ethernet address was
 "/tftpboot/pxelinux.cfg/1:58:fa:84:cf:55:e".
 
 
-    ++++ ALTERNATE TFTP SERVERS ++++
+    ++++ HARDCODED OPTIONS ++++
+
+Since version 3.83, the program "pxelinux-options" can be used to
+hard-code DHCP options into the pxelinux.0 image file; this is
+sometimes useful when the DHCP server is under different
+administrative control.
+
+
+    ++++ ALTERNATE TFTP SERVERS AND URL SYNTAX ++++
 
 PXELINUX supports the following special pathname conventions:
 
@@ -364,6 +373,8 @@ IP address::filename		(e.g. 192.0.2.1::filename)
 usage.  However, if you happen to have an environment for which the
 special treatment of :: is a problem, please contact the Syslinux
 mailing list.
+
+Since version 4.00, PXELINUX also supports standard URL syntax.
 
 
     ++++ SOME NOTES ++++
