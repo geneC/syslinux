@@ -14,7 +14,7 @@ extern uint8_t pxe_irq_pending;
 static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
 static struct thread *pxe_thread, *poll_thread;
 
-bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
+static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 {
     far_ptr_t *entry;
     unsigned int vec;
@@ -143,6 +143,9 @@ static void pxe_poll_thread(void *dummy)
     }
 }
 
+/*
+ * This does preparations and enables the PXE thread
+ */
 void pxe_init_isr(void)
 {
     start_idle_thread();
@@ -156,14 +159,19 @@ void pxe_init_isr(void)
     pxe_thread = start_thread("pxe receive", 16384, -20,
 			      pxe_receive_thread, NULL);
     core_pm_hook = __schedule;
-
-    if (!pxe_irq_vector) {
-	/* No IRQ vector, need to poll. */
-	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
-				   pxe_poll_thread, NULL);
-    }
 }
 
+/*
+ * Actually start the interrupt routine inside the UNDI stack
+ */
+void pxe_start_isr(void)
+{
+    if (pxe_irq_vector)
+	install_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
+    else
+	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
+				   pxe_poll_thread, NULL);
+}
 
 void pxe_cleanup_isr(void)
 {

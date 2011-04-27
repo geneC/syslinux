@@ -278,8 +278,7 @@ low_level_init(struct netif *netif)
     netif->flags |= NETIF_FLAG_ETHARP;
 
   /* Install the interrupt vector */
-  if (pxe_irq_vector)
-    install_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
+  pxe_start_isr();
 
   /* Open the UNDI stack - you'd think the BC would have done this... */
   undi_open.PktFilter = 0x0003;	/* FLTR_DIRECTED | FLTR_BRDCST */
