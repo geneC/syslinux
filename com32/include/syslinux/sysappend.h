@@ -38,6 +38,7 @@ enum syslinux_sysappend {
     SYSAPPEND_IP,		/* PXELINUX: ip= address */
     SYSAPPEND_BOOTIF,		/* PXELINUX: BOOTIF= address */
     SYSAPPEND_SYSUUID,		/* System UUID from PXE or DMI */
+    SYSAPPEND_CPU,		/* CPU features */
     SYSAPPEND_SYSVENDOR,	/* System or MB vendor from DMI */
     SYSAPPEND_SYSPRODUCT,	/* System or MB product from DMI */
     SYSAPPEND_SYSVERSION,	/* System or MB version from DMI */

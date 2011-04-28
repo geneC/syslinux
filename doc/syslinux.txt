@@ -197,24 +197,42 @@ IPAPPEND bitmask
 	This may not be available if no valid UUID is found on the
 	system.
 
+	8: indicate the CPU family and certain particularly
+	significant CPU feature bits:
+
+		CPU=<family><features>
+
+	The <family> is a single digit from 3 (i386) to 6 (i686 or
+	higher.)  The following CPU feature are currently reported;
+	additional flags may be added in the future:
+
+		P	Physical Address Extension (PAE)
+		V	Intel Virtualization Technology (VT/VMX)
+		T	Intel Trusted Exection Technology (TXT/SMX)
+		X	Execution Disable (XD/NX)
+		L	Long Mode (x86-64)
+		S	AMD SMX virtualization
+	
+	This was added in 4.10.
+
 	The following strings are derived from DMI/SMBIOS information
 	if available; these are all new in version 4.10:
 	
 	Bit	String		Significance
 	-------------------------------------------------------------
-	0x0008	SYSVENDOR=	System vendor name
-	0x0010	SYSPRODUCT=	System product name
-	0x0020	SYSVERSION=	System version
-	0x0040	SYSSERIAL=	System serial number
-	0x0080	SYSSKU=		System SKU
-	0x0100	SYSFAMILY=	System family
-	0x0200	MBVENDOR=	Motherboard vendor name
-	0x0400	MBVERSION=	Motherboard version
-	0x0800	MBSERIAL=	Motherboard serial number
-	0x1000	MBASSET=	Motherboard asset tag
-	0x2000  BIOSVENDOR=	BIOS vendor name
-	0x4000	BIOSVERSION=	BIOS version
-	0x8000	SYSFF=		System form factor
+	0x00010	SYSVENDOR=	System vendor name
+	0x00020	SYSPRODUCT=	System product name
+	0x00040	SYSVERSION=	System version
+	0x00080	SYSSERIAL=	System serial number
+	0x00100	SYSSKU=		System SKU
+	0x00200	SYSFAMILY=	System family
+	0x00400	MBVENDOR=	Motherboard vendor name
+	0x00800	MBVERSION=	Motherboard version
+	0x01000	MBSERIAL=	Motherboard serial number
+	0x02000	MBASSET=	Motherboard asset tag
+	0x04000 BIOSVENDOR=	BIOS vendor name
+	0x08000	BIOSVERSION=	BIOS version
+	0x10000	SYSFF=		System form factor
 
 	If these strings contain whitespace they it is replaced with
 	underscores (_).

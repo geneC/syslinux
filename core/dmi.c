@@ -31,6 +31,8 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <sys/bitops.h>
+#include <sys/cpu.h>
 #include <syslinux/sysappend.h>
 #include "core.h"
 
@@ -308,9 +310,62 @@ static void sysappend_set_sysff(const uint8_t *type)
     sysappend_strings[SYSAPPEND_SYSFF] = sysff_str;
 }
 
+struct cpuflag {
+    uint8_t bit;
+    char flag;
+};
+
+static void sysappend_set_cpu(void)
+{
+    static char cpu_str[6+6] = "CPU=";
+    char *p = cpu_str + 4;
+    static const struct cpuflag cpuflags[] = {
+	{ 0*32+ 6, 'P' }, /* PAE */
+	{ 1*32+ 5, 'V' }, /* VMX */
+	{ 1*32+ 6, 'T' }, /* SMX (TXT) */
+	{ 2*32+20, 'X' }, /* XD/NX */
+	{ 2*32+29, 'L' }, /* Long mode (x86-64) */
+	{ 3*32+ 2, 'S' }, /* SVM */
+	{ 0, 0 }
+    };
+    const struct cpuflag *cf;
+
+    /* Not technically from DMI, but it fit here... */
+
+    if (!cpu_has_eflag(EFLAGS_ID)) {
+	/* No CPUID */
+	*p++ = cpu_has_eflag(EFLAGS_AC) ? '4' : '3';
+    } else {
+	uint32_t flags[4], eax, ebx, family;
+	uint32_t std_level, ext_level;
+
+	cpuid(1, &eax, &ebx, &flags[1], &flags[0]);
+	family = (eax & 0x0ff00f00) >> 8;
+	*p++ = family >= 6 ? '6' : family + '0';
+	
+	ext_level = cpuid_eax(0x80000000);
+	if (ext_level >= 0x80000001 && ext_level <= 0x8000ffff) {
+	    cpuid(0x80000001, &eax, &ebx, &flags[3], &flags[2]);
+	} else {
+	    flags[2] = flags[3] = 0;
+	}
+
+	for (cf = cpuflags; cf->flag; cf++) {
+	    if (test_bit(cf->bit, flags))
+		*p++ = cf->flag;
+	}
+    }
+
+    *p = '\0';
+
+    sysappend_strings[SYSAPPEND_CPU] = cpu_str;
+}
+
 void dmi_init(void)
 {
     const struct sysappend_dmi_strings *ds;
+
+    sysappend_set_cpu();
 
     dmi_find_header();
     if (!dmi)
