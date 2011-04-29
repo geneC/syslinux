@@ -19,7 +19,8 @@
 #
 
 topdir = ../..
-# include $(topdir)/mk/embedded.mk
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/embedded.mk
 coredir = $(topdir)/core
 
 BTARGET = geodsp1s.bin geodspms.bin \
@@ -27,21 +28,22 @@ BTARGET = geodsp1s.bin geodspms.bin \
 
 NASMOPT = -i $(coredir)/ -Ox -f bin
 NASMOPT += -w+orphan-labels
+CFLAGS = -g -O
 
 all: $(BTARGET)
 
 # Higher compression levels result in larger files
 %.img.xz: %.bin mk-lba-img
-	./mk-lba-img < $< | xz -0f > $@ || ( rm -f $@ ; false )
+	./mk-lba-img < $< | $(XZ) -0f > $@ || ( rm -f $@ ; false )
 
 %.img.gz: %.bin mk-lba-img
-	./mk-lba-img < $< | gzip -9 > $@ || ( rm -f $@ ; false )
+	./mk-lba-img < $< | $(GZIP) -9 > $@ || ( rm -f $@ ; false )
 
 %.bin: %.asm $(coredir)/writehex.inc $(coredir)/macros.inc $(coredir)/diskboot.inc
-	nasm $(NASMOPT) -o $@ -l $(@:.bin=.lst) $<
+	$(NASM) $(NASMOPT) -o $@ -l $(@:.bin=.lst) $<
 
 mk-lba-img: mk-lba-img.c
-	gcc -g -O -o $@ $<
+	$(CC) $(CFLAGS) -o $@ $<
 
 tidy dist:
 	rm -Rf *.lst *.img

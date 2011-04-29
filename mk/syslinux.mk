@@ -54,6 +54,7 @@ AR       = ar
 NM       = nm
 RANLIB   = ranlib
 GZIPPROG = gzip
+XZ	 = xz
 PNGTOPNM = pngtopnm
 MCOPY    = mcopy
 MFORMAT  = mformat
