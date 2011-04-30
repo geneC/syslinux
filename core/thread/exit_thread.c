@@ -3,12 +3,17 @@
 #include <stdlib.h>
 #include <klibc/compiler.h>
 
+extern int __schedule_lock;
+
 __noreturn __exit_thread(void)
 {
     irq_state_t irq;
     struct thread *curr = current();
 
     irq = irq_save();
+
+    if (__schedule_lock)
+	kaboom();		/* Uh-oh... */
 
     /* Remove from the linked list */
     curr->list.prev->next = curr->list.next;
