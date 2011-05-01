@@ -284,7 +284,7 @@ static void *read_sectors(uint64_t lba, uint8_t count)
 	inreg.eax.b[0] = count;
 	inreg.eax.b[1] = 0x02;	/* Read */
 	inreg.ecx.b[1] = c;
-	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
+	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s + 1);
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = disk_info.disk;
 	inreg.ebx.w[0] = OFFS(buf);
@@ -342,7 +342,7 @@ static int write_sector(unsigned int lba, const void *data)
 
 	inreg.eax.w[0] = 0x0301;	/* Write one sector */
 	inreg.ecx.b[1] = c;
-	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
+	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s + 1);
 	inreg.edx.b[1] = h;
 	inreg.edx.b[0] = disk_info.disk;
 	inreg.ebx.w[0] = OFFS(buf);
@@ -422,10 +422,7 @@ static void mbr_part_dump(const struct part_entry *part)
 	    chs_head(part->end),
 	    chs_sector(part->end),
 	    chs_sector(part->end),
-	    part->start_lba,
-	    part->start_lba,
-	    part->length,
-	    part->length);
+	    part->start_lba, part->start_lba, part->length, part->length);
 }
 
 /* A DOS MBR */
@@ -625,7 +622,8 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 
     /* Update parameters to reflect this new partition.  Re-use iterator */
     part->lba_data = table[part->private.mbr_index].start_lba;
-    dprintf("Partition %d primary lba %u\n", part->private.mbr_index, part->lba_data);
+    dprintf("Partition %d primary lba %u\n", part->private.mbr_index,
+	    part->lba_data);
     part->index = part->private.mbr_index + 1;
     part->record = table + part->private.mbr_index;
     return part;
@@ -1427,8 +1425,7 @@ int main(int argc, char *argv[])
 	    error("Unable to find requested MBR signature\n");
 	    goto bail;
 	}
-    } else if (!strncmp(drivename, "guid", 4) ||
-	       !strncmp(drivename, "uuid", 4)) {
+    } else if (!strncmp(drivename, "guid", 4) || !strncmp(drivename, "uuid", 4)) {
 	if (str_to_guid(drivename + 5, &gpt_guid))
 	    goto bail;
 	drive = find_by_guid(&gpt_guid, &cur_part);
@@ -1639,7 +1636,7 @@ int main(int argc, char *argv[])
 		char config_file[89];
 		/* 0x270: start of code (after jump from 0x200) */
 		char codestart[1];
-	    } __attribute__ ((packed)) *stage2;
+	    } __attribute__ ((packed)) * stage2;
 
 	    if (data[ndata].size < sizeof(struct grub_stage2_patch_area)) {
 		error
@@ -1726,7 +1723,8 @@ int main(int argc, char *argv[])
 	    dprintf("  fs_lba offset is %d\n", fs_lba);
 	    /* DRMK only uses a DWORD */
 	    if (fs_lba > 0xffffffff) {
-		error("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
+		error
+		    ("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
 	    }
 	    regs.ss = regs.fs = regs.gs = 0;	/* Used before initialized */
 	    if (!realloc(data[ndata].data, tsize)) {
