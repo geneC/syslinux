@@ -107,6 +107,9 @@
  *
  * keeppxe
  *	keep the PXE and UNDI stacks in memory (PXELINUX only).
+ *
+ * freeldr=<loader>
+ *  loads ReactOS' FreeLdr.sys to 0:8000 and jumps to the PE entry-point
  */
 
 #include <com32.h>
@@ -132,6 +135,7 @@ static struct options {
     bool isolinux;
     bool cmldr;
     bool grub;
+    bool freeldr;
     bool grldr;
     const char *grubcfg;
     bool swap;
@@ -1278,6 +1282,7 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          ntldr=<loader>     Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
          cmldr=<loader>     Load Recovery Console of Windows NT/2K/XP/2003\n\
          freedos=<loader>   Load FreeDOS KERNEL.SYS\n\
+         freeldr=<loader>   Load ReactOS' FREELDR.SYS\n\
          msdos=<loader>     Load MS-DOS IO.SYS\n\
          pcdos=<loader>     Load PC-DOS IBMBIO.COM\n\
          drmk=<loader>      Load DRMK DELLBIO.BIN\n\
@@ -1346,6 +1351,11 @@ int main(int argc, char *argv[])
 	    opt.seg = 0x60;	/* FREEDOS wants this address */
 	    opt.loadfile = argv[i] + 8;
 	    opt.sethidden = true;
+	} else if (!strncmp(argv[i], "freeldr=", 8)) {
+	    opt.loadfile = argv[i] + 8;
+	    opt.sethidden = true;
+	    /* The FreeLdr PE wants to be at 0:8000 */
+	    opt.freeldr = true;
 	} else if (!strncmp(argv[i], "msdos=", 6) ||
 		   !strncmp(argv[i], "pcdos=", 6)) {
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
@@ -1416,6 +1426,13 @@ int main(int argc, char *argv[])
 	regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = opt.seg;
     } else {
 	regs.ip = regs.esp.l = 0x7c00;
+    }
+
+    if (opt.freeldr) {
+	/* Load to 0800:0000, which happens to be 0000:8000 */
+	opt.seg = 0x800;
+	/* TODO: Properly parse the PE.  Right now, this is hard-coded */
+	regs.ip = 0x8100;
     }
 
     hd = 0;
