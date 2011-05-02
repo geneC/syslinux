@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <timer.h>
+#include <sys/cpu.h>
 
 /* The idle thread runs at this priority */
 #define IDLE_THREAD_PRIORITY	INT_MAX

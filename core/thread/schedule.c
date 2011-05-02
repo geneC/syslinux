@@ -1,5 +1,6 @@
 #include <sys/cpu.h>
 #include "thread.h"
+#include "core.h"
 
 void (*sched_hook_func)(void);
 

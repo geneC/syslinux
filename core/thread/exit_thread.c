@@ -1,14 +1,14 @@
-#include "thread.h"
 #include <limits.h>
 #include <stdlib.h>
 #include <klibc/compiler.h>
+#include "thread.h"
+#include "core.h"
 
 __noreturn __exit_thread(void)
 {
-    irq_state_t irq;
     struct thread *curr = current();
 
-    irq = irq_save();
+    cli();
 
     /* Remove from the linked list */
     curr->list.prev->next = curr->list.next;
