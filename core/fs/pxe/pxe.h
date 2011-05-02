@@ -175,18 +175,6 @@ extern uint16_t BIOS_fbm;
 extern const uint8_t TimeoutTable[];
 
 /*
- * Compute the suitable gateway for a specific route -- too many
- * vendor PXE stacks don't do this correctly...
- */
-static inline uint32_t gateway(uint32_t ip)
-{
-    if ((ip ^ IPInfo.myip) & IPInfo.netmask)
-	return IPInfo.gateway;
-    else
-	return 0;
-}
-
-/*
  * functions
  */
 
