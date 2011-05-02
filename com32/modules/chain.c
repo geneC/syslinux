@@ -49,8 +49,11 @@
  *	loads the file <loader> **from the Syslinux filesystem**
  *	instead of loading the boot sector.
  *
- * seg=<segment>
- *	loads at and jumps to <seg>:0000 instead of 0000:7C00.
+ * seg=<segment>[:<offset>][{+@}entry]
+ *	loads at <segment>:<offset> and jumps to <seg>:<entry> instead
+ *	of the default 0000:7C00.  <offset> and <entry> default to 0 and +0
+ *	repectively.  If <entry> start with + (rather than @) then the
+ *	entry point address is added to the offset.
  *
  * isolinux=<loader>
  *	chainload another version/build of the ISOLINUX bootloader and patch
@@ -132,10 +135,11 @@ static struct options {
     const char *loadfile;
     uint16_t keeppxe;
     uint16_t seg;
+    uint16_t offs;
+    uint16_t entry;
     bool isolinux;
     bool cmldr;
     bool grub;
-    bool freeldr;
     bool grldr;
     const char *grubcfg;
     bool swap;
@@ -1289,7 +1293,8 @@ Options: file=<loader>      Load and execute file, instead of boot sector\n\
          grub=<loader>      Load GRUB Legacy stage2\n\
          grubcfg=<filename> Set alternative config filename for GRUB Legacy\n\
          grldr=<loader>     Load GRUB4DOS grldr\n\
-         seg=<segment>      Jump to <seg>:0000, instead of 0000:7C00\n\
+         seg=<seg>          Jump to <seg>:0000, instead of 0000:7C00\n\
+         seg=<seg>[:<offs>][{+@}<entry>] also specified offset and entrypoint\n\
          swap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
          hide               Hide primary partitions, except selected partition\n\
          sethidden          Set the FAT/NTFS hidden sectors field\n\
@@ -1325,49 +1330,88 @@ int main(int argc, char *argv[])
     /* Prepare the register set */
     memset(&regs, 0, sizeof regs);
 
+    opt.seg   = 0;
+    opt.offs  = 0x7c00;
+    opt.entry = 0x7c00;
+
     for (i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "file=", 5)) {
 	    opt.loadfile = argv[i] + 5;
 	} else if (!strncmp(argv[i], "seg=", 4)) {
-	    uint32_t segval = strtoul(argv[i] + 4, NULL, 0);
-	    if (segval < 0x50 || segval > 0x9f000) {
-		error("Invalid segment\n");
+	    uint32_t v;
+	    bool add_entry = true;
+	    char *ep, *p = argv[i] + 4;
+	    
+	    v = strtoul(p, &ep, 0);
+	    if (ep == p || v < 0x50 || v > 0x9f000) {
+		error("seg: Invalid segment\n");
 		goto bail;
 	    }
-	    opt.seg = segval;
+	    opt.seg = v;
+	    opt.offs = opt.entry = 0;
+	    if (*ep == ':') {
+		p = ep+1;
+		v = strtoul(p, &ep, 0);
+		if (ep == p) {
+		    error("seg: Invalid offset\n");
+		    goto bail;
+		}
+		opt.offs = v;
+	    }
+	    if (*ep == '@' || *ep == '+') {
+		add_entry = (*ep == '+');
+		p = ep+1;
+		v = strtoul(p, &ep, 0);
+		if (ep == p) {
+		    error("seg: Invalid entry point\n");
+		    goto bail;
+		}
+		opt.entry = v;
+	    }
+	    if (add_entry)
+		opt.entry += opt.offs;
 	} else if (!strncmp(argv[i], "isolinux=", 9)) {
 	    opt.loadfile = argv[i] + 9;
 	    opt.isolinux = true;
 	} else if (!strncmp(argv[i], "ntldr=", 6)) {
 	    opt.seg = 0x2000;	/* NTLDR wants this address */
+	    opt.offs = opt.entry = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
 	    opt.seg = 0x2000;	/* CMLDR wants this address */
+	    opt.offs = opt.entry = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.cmldr = true;
 	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.seg = 0x60;	/* FREEDOS wants this address */
+	    opt.offs = opt.entry = 0;
 	    opt.loadfile = argv[i] + 8;
 	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "freeldr=", 8)) {
 	    opt.loadfile = argv[i] + 8;
 	    opt.sethidden = true;
 	    /* The FreeLdr PE wants to be at 0:8000 */
-	    opt.freeldr = true;
+	    opt.seg = 0;
+	    opt.offs = 0x8000;
+	    /* TODO: Properly parse the PE.  Right now, this is hard-coded */
+	    opt.entry = 0x8100;
 	} else if (!strncmp(argv[i], "msdos=", 6) ||
 		   !strncmp(argv[i], "pcdos=", 6)) {
 	    opt.seg = 0x70;	/* MS-DOS 2.0+ wants this address */
+	    opt.offs = opt.entry = 0;
 	    opt.loadfile = argv[i] + 6;
 	    opt.sethidden = true;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.seg = 0x70;	/* DRMK wants this address */
+	    opt.offs = opt.entry = 0;
 	    opt.loadfile = argv[i] + 5;
 	    opt.sethidden = true;
 	    opt.drmk = true;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.seg = 0x800;	/* stage2 wants this address */
+	    opt.offs = opt.entry = 0;
 	    opt.loadfile = argv[i] + 5;
 	    opt.grub = true;
 	} else if (!strncmp(argv[i], "grubcfg=", 8)) {
@@ -1422,18 +1466,20 @@ int main(int argc, char *argv[])
 	goto bail;
     }
 
-    if (opt.seg) {
-	regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = opt.seg;
-    } else {
-	regs.ip = regs.esp.l = 0x7c00;
-    }
+    /*
+     * Set up initial register values
+     */
+    regs.es = regs.cs = regs.ss = regs.ds = regs.fs = regs.gs = opt.seg;
+    regs.ip = opt.entry;
 
-    if (opt.freeldr) {
-	/* Load to 0800:0000, which happens to be 0000:8000 */
-	opt.seg = 0x800;
-	/* TODO: Properly parse the PE.  Right now, this is hard-coded */
-	regs.ip = 0x8100;
-    }
+    /* 
+     * For the special case of the standard 0:7C00 entry point, put
+     * the stack below; otherwise leave the stack pointer at the end
+     * of the segment (sp = 0).
+     */
+    if (opt.seg == 0 && opt.offs == 0x7c00)
+	regs.esp.l = 0x7c00;
+
 
     hd = 0;
     if (!strncmp(drivename, "mbr", 3)) {
@@ -1544,7 +1590,7 @@ int main(int argc, char *argv[])
     }
 
     /* Do the actual chainloading */
-    load_base = opt.seg ? (opt.seg << 4) : 0x7c00;
+    load_base = (opt.seg << 4) + opt.offs;
 
     if (opt.loadfile) {
 	fputs("Loading the boot file...\n", stdout);
