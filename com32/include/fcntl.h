@@ -14,6 +14,7 @@
 #define	O_RDONLY	1
 #define O_WRONLY	2
 #define O_RDWR		3
+#define O_DIRECTORY	010
 #define O_CREAT		0100
 #define O_EXCL		0200
 #define O_TRUNC		01000
