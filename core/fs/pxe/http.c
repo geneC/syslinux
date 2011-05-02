@@ -55,7 +55,6 @@ static size_t http_do_bake_cookies(char *q)
 {
     static const char uchexchar[16] = "0123456789ABCDEF";
     int i;
-    size_t len;
     size_t n = 0;
     const char *p;
     char c;
