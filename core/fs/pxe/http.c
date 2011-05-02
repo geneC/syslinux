@@ -145,7 +145,8 @@ void http_bake_cookies(void)
     http_do_bake_cookies(cookie_buf);
 }
 
-void http_open(struct url_info *url, struct inode *inode, const char **redir)
+void http_open(struct url_info *url, int flags, struct inode *inode,
+	       const char **redir)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     int header_bytes;
@@ -171,6 +172,8 @@ void http_open(struct url_info *url, struct inode *inode, const char **redir)
     size_t response_size;
     int status;
     int pos;
+
+    (void)flags;
 
     if (!header_buf)
 	return;			/* http is broken... */

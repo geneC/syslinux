@@ -4,6 +4,7 @@
 #include <core.h>
 #include <fs.h>
 #include <minmax.h>
+#include <fcntl.h>
 #include <sys/cpu.h>
 #include <lwip/api.h>
 #include <lwip/dns.h>
@@ -32,13 +33,15 @@ __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 
 static struct url_scheme {
     const char *name;
-    void (*open)(struct url_info *url, struct inode *inode, const char **redir);
+    void (*open)(struct url_info *, int, struct inode *, const char **);
+    int ok_flags;
 } url_schemes[] = {
-    { "tftp", tftp_open },
-    { "http", http_open },
-    { "ftp",  ftp_open },
-    { NULL, NULL },
+    { "tftp", tftp_open, 0 },
+    { "http", http_open, O_DIRECTORY },
+    { "ftp",  ftp_open,  0 },
+    { NULL, NULL, 0 },
 };
+#define OK_FLAGS_MASK	(O_DIRECTORY|O_WRONLY)
 
 /*
  * Allocate a local UDP port structure and assign it a local port number.
@@ -321,8 +324,6 @@ static void __pxe_searchdir(const char *filename, int flags, struct file *file)
     int redirect_count = 0;
     bool found_scheme = false;
 
-    (void)flags;
-
     inode = file->inode = NULL;
 
     while (filename) {
@@ -352,7 +353,8 @@ static void __pxe_searchdir(const char *filename, int flags, struct file *file)
 	found_scheme = false;
 	for (us = url_schemes; us->name; us++) {
 	    if (!strcmp(us->name, url.scheme)) {
-		us->open(&url, inode, &filename);
+		if (((flags ^ us->ok_flags) & OK_FLAGS_MASK) == 0)
+		    us->open(&url, flags, inode, &filename);
 		found_scheme = true;
 		break;
 	    }

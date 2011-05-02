@@ -219,18 +219,21 @@ void pxe_idle_init(void);
 void pxe_idle_cleanup(void);
 
 /* tftp.c */
-void tftp_open(struct url_info *url, struct inode *inode, const char **redir);
+void tftp_open(struct url_info *url, int flags, struct inode *inode,
+	       const char **redir);
 
 /* gpxeurl.c */
 void gpxe_open(struct inode *inode, const char *url);
 #define GPXE 0
 
 /* http.c */
-void http_open(struct url_info *url, struct inode *inode, const char **redir);
+void http_open(struct url_info *url, int flags, struct inode *inode,
+	       const char **redir);
 void http_bake_cookies(void);
 
 /* ftp.c */
-void ftp_open(struct url_info *url, struct inode *inode, const char **redir);
+void ftp_open(struct url_info *url, int flags, struct inode *inode,
+	      const char **redir);
 
 /* tcp.c */
 void tcp_close_file(struct inode *inode);
