@@ -337,7 +337,7 @@ static void sysappend_set_cpu(void)
 	*p++ = cpu_has_eflag(EFLAGS_AC) ? '4' : '3';
     } else {
 	uint32_t flags[4], eax, ebx, family;
-	uint32_t std_level, ext_level;
+	uint32_t ext_level;
 
 	cpuid(1, &eax, &ebx, &flags[1], &flags[0]);
 	family = (eax & 0x0ff00f00) >> 8;
