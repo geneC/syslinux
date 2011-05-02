@@ -156,8 +156,6 @@ static void ftp_close_file(struct inode *inode)
     struct pxe_pvt_inode *ctlsock;
     int resp;
 
-    //printf("In ftp_close_file\n");
-
     ctlsock = socket->ctl ? PVT(socket->ctl) : NULL;
     if (ctlsock->conn) {
 	resp = ftp_cmd_response(socket->ctl, "QUIT", NULL, NULL, NULL);
@@ -167,6 +165,11 @@ static void ftp_close_file(struct inode *inode)
     }
     ftp_free(inode);
 }
+
+static const struct pxe_conn_ops ftp_conn_ops = {
+    .fill_buffer	= tcp_fill_buffer,
+    .close		= ftp_close_file,
+};
 
 void ftp_open(struct url_info *url, int flags, struct inode *inode,
 	      const char **redir)
@@ -189,17 +192,14 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
 
     url_unescape(url->path, 0);
 
-    socket->fill_buffer = tcp_fill_buffer;
-    socket->close = ftp_close_file;
+    socket->ops = &ftp_conn_ops;
 
-    /* Allocate a socket for the control connection */
+    /* Set up the control connection */
     socket->ctl = alloc_inode(inode->fs, 0, sizeof(struct pxe_pvt_inode));
     if (!socket->ctl)
 	return;
     ctlsock = PVT(socket->ctl);
-    ctlsock->fill_buffer = tcp_fill_buffer;
-    ctlsock->close = tcp_close_file;
-
+    ctlsock->ops = &tcp_conn_ops; /* The control connection is just TCP */
     ctlsock->conn = netconn_new(NETCONN_TCP);
     if (!ctlsock->conn)
 	goto err_free;

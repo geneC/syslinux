@@ -56,7 +56,7 @@ void tcp_fill_buffer(struct inode *inode)
 	    socket->tftp_goteof = 1;
 	    if (inode->size == -1)
 		inode->size = socket->tftp_filepos;
-	    socket->close(inode);
+	    socket->ops->close(inode);
 	    return;
 	}
     }
@@ -71,3 +71,8 @@ void tcp_fill_buffer(struct inode *inode)
     socket->tftp_bytesleft = len;
     return;
 }
+
+const struct pxe_conn_ops tcp_conn_ops = {
+    .fill_buffer	= tcp_fill_buffer,
+    .close		= tcp_close_file,
+};

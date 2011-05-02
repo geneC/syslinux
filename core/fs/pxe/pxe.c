@@ -74,7 +74,7 @@ static void pxe_close_file(struct file *file)
     struct pxe_pvt_inode *socket = PVT(inode);
 
     if (!socket->tftp_goteof) {
-	socket->close(inode);
+	socket->ops->close(inode);
     }
 
     free_socket(inode);
@@ -200,7 +200,7 @@ int pxe_getc(struct inode *inode)
 	if (socket->tftp_goteof)
 	    return -1;
 
-	socket->fill_buffer(inode);
+	socket->ops->fill_buffer(inode);
     }
 
     byte = *socket->tftp_dataptr;
@@ -220,7 +220,7 @@ static void fill_buffer(struct inode *inode)
     if (socket->tftp_bytesleft || socket->tftp_goteof)
         return;
 
-    return socket->fill_buffer(inode);
+    return socket->ops->fill_buffer(inode);
 }
 
 

@@ -108,6 +108,11 @@ struct netbuf;
 /*
  * Our inode private information -- this includes the packet buffer!
  */
+struct pxe_conn_ops {
+    void (*fill_buffer)(struct inode *inode);
+    void (*close)(struct inode *inode);
+};    
+
 struct pxe_pvt_inode {
     struct netconn *conn;      /* lwip network connection */
     struct netbuf *buf;	       /* lwip cached buffer */
@@ -121,8 +126,7 @@ struct pxe_pvt_inode {
     uint8_t  tftp_unused[3];   /* Currently unused */
     char    *tftp_pktbuf;      /* Packet buffer */
     struct inode *ctl;	       /* Control connection (for FTP) */
-    void (*fill_buffer)(struct inode *inode);
-    void (*close)(struct inode *inode);
+    const struct pxe_conn_ops *ops;
 };
 
 #define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))
@@ -238,5 +242,6 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
 /* tcp.c */
 void tcp_close_file(struct inode *inode);
 void tcp_fill_buffer(struct inode *inode);
+const struct pxe_conn_ops tcp_conn_ops;
 
 #endif /* pxe.h */

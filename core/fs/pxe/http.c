@@ -178,8 +178,8 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     if (!header_buf)
 	return;			/* http is broken... */
 
-    socket->fill_buffer = tcp_fill_buffer;
-    socket->close = tcp_close_file;
+    /* This is a straightforward TCP connection after headers */
+    socket->ops = &tcp_conn_ops;
 
     /* Reset all of the variables */
     inode->size = content_length = -1;

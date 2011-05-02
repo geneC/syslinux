@@ -198,6 +198,11 @@ static void tftp_get_packet(struct inode *inode)
     }
 }
 
+const struct pxe_conn_ops tftp_conn_ops = {
+    .fill_buffer	= tftp_get_packet,
+    .close		= tftp_close_file,
+};
+
 /**
  * Open a TFTP connection to the server
  *
@@ -248,8 +253,7 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
     if (!url->port)
 	url->port = TFTP_PORT;
 
-    socket->fill_buffer = tftp_get_packet;
-    socket->close = tftp_close_file;
+    socket->ops = &tftp_conn_ops;
     socket->conn = netconn_new(NETCONN_UDP);
     if (!socket->conn)
 	return;
