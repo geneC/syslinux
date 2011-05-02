@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <fcntl.h>
 #include <dprintf.h>
 #include "fs.h"
 #include "cache.h"
@@ -186,7 +187,7 @@ void pm_searchdir(com32sys_t *regs)
     char *name = MK_PTR(regs->ds, regs->edi.w[0]);
     int rv;
 
-    rv = searchdir(name);
+    rv = searchdir(name, O_RDONLY);
     if (rv < 0) {
 	regs->esi.w[0]  = 0;
 	regs->eax.l     = 0;
@@ -198,7 +199,7 @@ void pm_searchdir(com32sys_t *regs)
     }
 }
 
-int searchdir(const char *name)
+int searchdir(const char *name, int flags)
 {
     struct inode *inode = NULL;
     struct inode *parent = NULL;
@@ -213,7 +214,7 @@ int searchdir(const char *name)
 
     /* if we have ->searchdir method, call it */
     if (file->fs->fs_ops->searchdir) {
-	file->fs->fs_ops->searchdir(name, file);
+	file->fs->fs_ops->searchdir(name, flags, file);
 
 	if (file->inode)
 	    return file_to_handle(file);
@@ -343,14 +344,14 @@ err_no_close:
     return -1;
 }
 
-int open_file(const char *name, struct com32_filedata *filedata)
+int open_file(const char *name, int flags, struct com32_filedata *filedata)
 {
     int rv;
     struct file *file;
     char mangled_name[FILENAME_MAX];
 
     mangle_name(mangled_name, name);
-    rv = searchdir(mangled_name);
+    rv = searchdir(mangled_name, flags);
 
     if (rv < 0)
 	return rv;
@@ -377,7 +378,7 @@ void pm_open_file(com32sys_t *regs)
     char mangled_name[FILENAME_MAX];
 
     mangle_name(mangled_name, name);
-    rv = searchdir(mangled_name);
+    rv = searchdir(mangled_name, O_RDONLY);
     if (rv < 0) {
 	regs->eflags.l |= EFLAGS_CF;
     } else {

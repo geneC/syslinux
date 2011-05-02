@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <fcntl.h>
 #include "fs.h"
 #include "cache.h"
 
@@ -79,7 +80,7 @@ int chdir(const char *src)
 	return this_fs->fs_ops->chdir(this_fs, src);
 
     /* Otherwise it is a "conventional filesystem" */
-    rv = searchdir(src);
+    rv = searchdir(src, O_RDONLY|O_DIRECTORY);
     if (rv < 0)
 	return rv;
 

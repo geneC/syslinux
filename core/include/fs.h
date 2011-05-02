@@ -52,7 +52,7 @@ struct fs_ops {
     enum fs_flags fs_flags;
     
     int      (*fs_init)(struct fs_info *);
-    void     (*searchdir)(const char *, struct file *);
+    void     (*searchdir)(const char *, int, struct file *);
     uint32_t (*getfssec)(struct file *, char *, int, bool *);
     void     (*close_file)(struct file *);
     void     (*mangle_name)(char *, const char *);
@@ -179,10 +179,10 @@ static inline struct file *handle_to_file(uint16_t handle)
 void pm_mangle_name(com32sys_t *);
 void pm_searchdir(com32sys_t *);
 void mangle_name(char *, const char *);
-int searchdir(const char *name);
+int searchdir(const char *name, int flags);
 void _close_file(struct file *);
 size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors);
-int open_file(const char *name, struct com32_filedata *filedata);
+int open_file(const char *name, int flags, struct com32_filedata *filedata);
 void pm_open_file(com32sys_t *);
 void close_file(uint16_t handle);
 void pm_close_file(com32sys_t *);

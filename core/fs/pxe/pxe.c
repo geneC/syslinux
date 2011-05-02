@@ -295,20 +295,20 @@ static void url_set_ip(struct url_info *url)
  * @out: the lenght of this file, stores in file->file_len
  *
  */
-static void __pxe_searchdir(const char *filename, struct file *file);
+static void __pxe_searchdir(const char *filename, int flags, struct file *file);
 extern uint16_t PXERetry;
 
-static void pxe_searchdir(const char *filename, struct file *file)
+static void pxe_searchdir(const char *filename, int flags, struct file *file)
 {
     int i = PXERetry;
 
     do {
 	dprintf("PXE: file = %p, retries left = %d: ", file, i);
-	__pxe_searchdir(filename, file);
+	__pxe_searchdir(filename, flags, file);
 	dprintf("%s\n", file->inode ? "ok" : "failed");
     } while (!file->inode && i--);
 }
-static void __pxe_searchdir(const char *filename, struct file *file)
+static void __pxe_searchdir(const char *filename, int flags, struct file *file)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode;
@@ -320,6 +320,8 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     const struct url_scheme *us = NULL;
     int redirect_count = 0;
     bool found_scheme = false;
+
+    (void)flags;
 
     inode = file->inode = NULL;
 
