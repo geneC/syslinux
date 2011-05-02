@@ -28,9 +28,6 @@ static bool has_gpxe;
 static uint32_t gpxe_funcs;
 bool have_uuid = false;
 
-/* Common receive buffer */
-__lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
-
 static struct url_scheme {
     const char *name;
     void (*open)(struct url_info *, int, struct inode *, const char **);

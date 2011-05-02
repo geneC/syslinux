@@ -120,7 +120,7 @@ struct pxe_pvt_inode {
     uint32_t tftp_filepos;     /* bytes downloaded (including buffer) */
     uint32_t tftp_blksize;     /* Block size for this connection(*) */
     uint16_t tftp_bytesleft;   /* Unclaimed data bytes */
-    uint16_t tftp_lastpkt;     /* Sequence number of last packet (NBO) */
+    uint16_t tftp_lastpkt;     /* Sequence number of last packet (HBO) */
     char    *tftp_dataptr;     /* Pointer to available data */
     uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
     uint8_t  tftp_unused[3];   /* Currently unused */
@@ -192,7 +192,6 @@ void pxe_cleanup_isr(void);
 struct url_info;
 bool ip_ok(uint32_t);
 int pxe_call(int, void *);
-extern __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 int pxe_getc(struct inode *inode);
 void free_socket(struct inode *inode);
 

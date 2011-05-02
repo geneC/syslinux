@@ -12,6 +12,11 @@ struct tftp_options {
     const char *str_ptr;        /* string pointer */
     size_t      offset;		/* offset into socket structre */
 };
+struct tftp_packet {
+    uint16_t opcode;
+    uint16_t serial;
+    char data[];
+};
 
 #define IFIELD(x)	offsetof(struct inode, x)
 #define PFIELD(x)	(offsetof(struct inode, pvt) + \
@@ -74,7 +79,7 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
  * Send ACK packet. This is a common operation and so is worth canning.
  *
  * @param: inode,   Inode pointer
- * @param: ack_num, Packet # to ack (network byte order)
+ * @param: ack_num, Packet # to ack (host byte order)
  *
  */
 static void ack_packet(struct inode *inode, uint16_t ack_num)
@@ -86,7 +91,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
 
     /* Packet number to ack */
     ack_packet_buf[0]     = TFTP_ACK;
-    ack_packet_buf[1]     = ack_num;
+    ack_packet_buf[1]     = htons(ack_num);
 
     nbuf = netbuf_new();
     netbuf_ref(nbuf, ack_packet_buf, 4);
@@ -108,8 +113,9 @@ static void tftp_get_packet(struct inode *inode)
     const uint8_t *timeout_ptr;
     uint8_t timeout;
     uint16_t buffersize;
+    uint16_t serial;
     jiffies_t oldtime;
-    void *data = NULL;
+    struct tftp_packet *pkt = NULL;
     struct netbuf *nbuf;
     u16_t nbuf_len;
     struct pxe_pvt_inode *socket = PVT(inode);
@@ -143,16 +149,16 @@ static void tftp_get_packet(struct inode *inode)
 	netbuf_first(nbuf);
 	nbuf_len = 0;
 	nbuf_len = netbuf_len(nbuf);
-	if (nbuf_len <= PKTBUF_SIZE)
-	    netbuf_copy(nbuf, packet_buf, nbuf_len);
+	if (nbuf_len <= socket->tftp_blksize + 4)
+	    netbuf_copy(nbuf, socket->tftp_pktbuf, nbuf_len);
 	else
-	    nbuf_len = 0; /* impossible mtu < PKTBUF_SIZE */
+	    nbuf_len = 0;	/* invalid packet */
 	netbuf_delete(nbuf);
-	if (nbuf_len < 4)  /* Bad size for a DATA packet */
+	if (nbuf_len < 4)	/* Bad size for a DATA packet */
 	    continue;
 
-        data = packet_buf;
-        if (*(uint16_t *)data != TFTP_DATA)    /* Not a data packet */
+        pkt = (struct tftp_packet *)(socket->tftp_pktbuf);
+        if (pkt->opcode != TFTP_DATA)    /* Not a data packet */
             continue;
 
         /* If goes here, recevie OK, break */
@@ -164,10 +170,9 @@ static void tftp_get_packet(struct inode *inode)
 	kaboom();
 
     last_pkt = socket->tftp_lastpkt;
-    last_pkt = ntohs(last_pkt);       /* Host byte order */
     last_pkt++;
-    last_pkt = htons(last_pkt);       /* Network byte order */
-    if (*(uint16_t *)(data + 2) != last_pkt) {
+    serial = ntohs(pkt->serial);
+    if (serial != last_pkt) {
         /*
          * Wrong packet, ACK the packet and try again.
          * This is presumably because the ACK got lost,
@@ -183,13 +188,12 @@ static void tftp_get_packet(struct inode *inode)
     /* It's the packet we want.  We're also EOF if the size < blocksize */
     socket->tftp_lastpkt = last_pkt;    /* Update last packet number */
     buffersize = nbuf_len - 4;		/* Skip TFTP header */
-    memcpy(socket->tftp_pktbuf, packet_buf + 4, buffersize);
-    socket->tftp_dataptr = socket->tftp_pktbuf;
+    socket->tftp_dataptr = socket->tftp_pktbuf + 4;
     socket->tftp_filepos += buffersize;
     socket->tftp_bytesleft = buffersize;
     if (buffersize < socket->tftp_blksize) {
         /* it's the last block, ACK packet immediately */
-        ack_packet(inode, *(uint16_t *)(data + 2));
+        ack_packet(inode, serial);
 
         /* Make sure we know we are at end of file */
         inode->size 		= socket->tftp_filepos;
@@ -225,7 +229,8 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
     char *options;
     char *data;
     static const char rrq_tail[] = "octet\0""tsize\0""0\0""blksize\0""1408";
-    static __lowmem char rrq_packet_buf[2+2*FILENAME_MAX+sizeof rrq_tail];
+    char rrq_packet_buf[2+2*FILENAME_MAX+sizeof rrq_tail];
+    char reply_packet_buf[PKTBUF_SIZE];
     const struct tftp_options *tftp_opt;
     int i = 0;
     int err;
@@ -307,7 +312,7 @@ wait_pkt:
 	    ok_source = netbuf_fromaddr(nbuf)->addr == url->ip;
 	    nbuf_len = netbuf_len(nbuf);
 	    if (nbuf_len <= PKTBUF_SIZE)
-		netbuf_copy(nbuf, packet_buf, nbuf_len);
+		netbuf_copy(nbuf, reply_packet_buf, nbuf_len);
 	    else
 		nbuf_len = 0; /* impossible mtu < PKTBUF_SIZE */
 	    netbuf_delete(nbuf);
@@ -328,7 +333,7 @@ wait_pkt:
     /*
      * Get the opcode type, and parse it
      */
-    opcode = *(uint16_t *)packet_buf;
+    opcode = *(uint16_t *)reply_packet_buf;
     switch (opcode) {
     case TFTP_ERROR:
         inode->size = 0;
@@ -348,16 +353,16 @@ wait_pkt:
         buffersize -= 2;
         if (buffersize < 0)
             goto wait_pkt;
-        data = packet_buf + 2;
-        blk_num = *(uint16_t *)data;
+        data = reply_packet_buf + 2;
+        blk_num = ntohs(*(uint16_t *)data);
         data += 2;
-        if (blk_num != htons(1))
+        if (blk_num != 1)
             goto wait_pkt;
         socket->tftp_lastpkt = blk_num;
         if (buffersize > TFTP_BLOCKSIZE)
             goto err_reply;	/* Corrupt */
 
-	socket->tftp_pktbuf = malloc(TFTP_BLOCKSIZE);
+	socket->tftp_pktbuf = malloc(TFTP_BLOCKSIZE + 4);
 	if (!socket->tftp_pktbuf)
 	    goto err_reply;	/* Internal error */
 
@@ -383,7 +388,7 @@ wait_pkt:
          * and packet sizes.
          */
 
-        options = packet_buf + 2;
+        options = reply_packet_buf + 2;
 	p = options;
 
 	while (buffersize) {
@@ -451,7 +456,7 @@ wait_pkt:
 	    goto err_reply;
 
 	/* Parsing successful, allocate buffer */
-	socket->tftp_pktbuf = malloc(socket->tftp_blksize);
+	socket->tftp_pktbuf = malloc(socket->tftp_blksize + 4);
 	if (!socket->tftp_pktbuf)
 	    goto err_reply;
 	else
