@@ -350,7 +350,7 @@ static void __pxe_searchdir(const char *filename, int flags, struct file *file)
 	found_scheme = false;
 	for (us = url_schemes; us->name; us++) {
 	    if (!strcmp(us->name, url.scheme)) {
-		if (((flags ^ us->ok_flags) & OK_FLAGS_MASK) == 0)
+		if ((flags & ~us->ok_flags & OK_FLAGS_MASK) == 0)
 		    us->open(&url, flags, inode, &filename);
 		found_scheme = true;
 		break;
