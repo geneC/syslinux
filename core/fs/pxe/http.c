@@ -145,6 +145,12 @@ void http_bake_cookies(void)
     http_do_bake_cookies(cookie_buf);
 }
 
+static const struct pxe_conn_ops http_conn_ops = {
+    .fill_buffer	= tcp_fill_buffer,
+    .close		= tcp_close_file,
+    .readdir		= http_readdir,
+};
+
 void http_open(struct url_info *url, int flags, struct inode *inode,
 	       const char **redir)
 {
@@ -179,7 +185,7 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
 	return;			/* http is broken... */
 
     /* This is a straightforward TCP connection after headers */
-    socket->ops = &tcp_conn_ops;
+    socket->ops = &http_conn_ops;
 
     /* Reset all of the variables */
     inode->size = content_length = -1;

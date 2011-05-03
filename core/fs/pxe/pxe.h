@@ -111,6 +111,7 @@ struct netbuf;
 struct pxe_conn_ops {
     void (*fill_buffer)(struct inode *inode);
     void (*close)(struct inode *inode);
+    int (*readdir)(struct inode *inode, struct dirent *dirent);
 };    
 
 struct pxe_pvt_inode {
@@ -221,6 +222,9 @@ void gpxe_open(struct inode *inode, const char *url);
 void http_open(struct url_info *url, int flags, struct inode *inode,
 	       const char **redir);
 void http_bake_cookies(void);
+
+/* http_readdir.c */
+int http_readdir(struct inode *inode, struct dirent *dirent);
 
 /* ftp.c */
 void ftp_open(struct url_info *url, int flags, struct inode *inode,

@@ -5,7 +5,8 @@ to all derivatives.
 Changes in 4.10:
 	* PXELINUX: An entirely new network implementation based on
 	  the lwIP embedded TCP/IP stack.  As a result, plain PXELINUX
-	  can now support HTTP and FTP without gPXE/iPXE.
+	  can now support HTTP and FTP without gPXE/iPXE.  ls/readdir
+	  functionality is supported over http with an indexing webserver.
 	* Rename the "ipappend" option to "sysappend" ("ipappend" is
 	  still accepted as an alias) and make it available for all
 	  derivatives.  Add additional strings derived from the system

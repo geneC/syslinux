@@ -367,10 +367,12 @@ static void __pxe_searchdir(const char *filename, int flags, struct file *file)
 #endif
     }
 
-    if (inode->size)
+    if (inode->size) {
 	file->inode = inode;
-    else
+	file->inode->mode = (flags & O_DIRECTORY) ? DT_DIR : DT_REG;
+    } else {
         free_socket(inode);
+    }
 
     return;
 }
@@ -1091,6 +1093,17 @@ cant_free:
     return;
 }
 
+static int pxe_readdir(struct file *file, struct dirent *dirent)
+{
+    struct inode *inode = file->inode;
+    struct pxe_pvt_inode *socket = PVT(inode);
+
+    if (socket->ops->readdir)
+	return socket->ops->readdir(inode, dirent);
+    else
+	return -1;		/* No such operation */
+}
+
 const struct fs_ops pxe_fs_ops = {
     .fs_name       = "pxe",
     .fs_flags      = FS_NODEV,
@@ -1102,4 +1115,5 @@ const struct fs_ops pxe_fs_ops = {
     .close_file    = pxe_close_file,
     .mangle_name   = pxe_mangle_name,
     .load_config   = pxe_load_config,
+    .readdir	   = pxe_readdir,
 };

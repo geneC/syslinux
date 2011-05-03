@@ -133,6 +133,7 @@ LIBCOREOBJS = 	\
 	memcpy.o mempcpy.o memset.o memcmp.o memmove.o			\
 	strlen.o stpcpy.o strcpy.o strcmp.o strlcpy.o strlcat.o		\
 	strchr.o strncmp.o strncpy.o					\
+	ctypes.o strtoul.o strntoumax.o					\
 	\
 	asprintf.o snprintf.o sprintf.o vsnprintf.o			\
 	\
