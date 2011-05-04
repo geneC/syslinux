@@ -230,6 +230,9 @@ int http_readdir(struct inode *inode, struct dirent *dirent);
 void ftp_open(struct url_info *url, int flags, struct inode *inode,
 	      const char **redir);
 
+/* ftp_readdir.c */
+int ftp_readdir(struct inode *inode, struct dirent *dirent);
+
 /* tcp.c */
 void tcp_close_file(struct inode *inode);
 void tcp_fill_buffer(struct inode *inode);

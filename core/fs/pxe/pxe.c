@@ -35,7 +35,7 @@ static struct url_scheme {
 } url_schemes[] = {
     { "tftp", tftp_open, 0 },
     { "http", http_open, O_DIRECTORY },
-    { "ftp",  ftp_open,  0 },
+    { "ftp",  ftp_open,  O_DIRECTORY },
     { NULL, NULL, 0 },
 };
 #define OK_FLAGS_MASK	(O_DIRECTORY|O_WRONLY)

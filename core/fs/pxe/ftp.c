@@ -1,16 +1,28 @@
+/* ----------------------------------------------------------------------- *
+ *   
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
+ *   Boston MA 02110-1301, USA; either version 2 of the License, or
+ *   (at your option) any later version; incorporated herein by reference.
+ *
+ * ----------------------------------------------------------------------- */
+
 /*
  * ftp.c
  */
-
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <core.h>
-#include <fs.h>
+#include <fcntl.h>
 #include <minmax.h>
 #include <sys/cpu.h>
 #include <netinet/in.h>
 #include <lwip/api.h>
+#include "core.h"
+#include "fs.h"
 #include "pxe.h"
 #include "thread.h"
 #include "url.h"
@@ -169,6 +181,7 @@ static void ftp_close_file(struct inode *inode)
 static const struct pxe_conn_ops ftp_conn_ops = {
     .fill_buffer	= tcp_fill_buffer,
     .close		= ftp_close_file,
+    .readdir		= ftp_readdir,
 };
 
 void ftp_open(struct url_info *url, int flags, struct inode *inode,
@@ -183,7 +196,6 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     err_t err;
 
     (void)redir;		/* FTP does not redirect */
-    (void)flags;
 
     inode->size = 0;
 
@@ -229,9 +241,11 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
 	    goto err_disconnect;
     }
 
-    resp = ftp_cmd_response(socket->ctl, "TYPE", "I", NULL, NULL);
-    if (resp != 200)
-	goto err_disconnect;
+    if (!(flags & O_DIRECTORY)) {
+	resp = ftp_cmd_response(socket->ctl, "TYPE", "I", NULL, NULL);
+	if (resp != 200)
+	    goto err_disconnect;
+    }
 
     resp = ftp_cmd_response(socket->ctl, "PASV", NULL, pasv_data, &pasv_bytes);
     //printf("%u PASV %u bytes %u,%u,%u,%u,%u,%u\n",
@@ -248,7 +262,9 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     if (err)
 	goto err_disconnect;
 
-    resp = ftp_cmd_response(socket->ctl, "RETR", url->path, NULL, NULL);
+    resp = ftp_cmd_response(socket->ctl,
+			    (flags & O_DIRECTORY) ? "LIST" : "RETR",
+			    url->path, NULL, NULL);
     if (resp != 125 && resp != 150)
 	goto err_disconnect;
 
