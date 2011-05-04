@@ -37,7 +37,7 @@
 /* Print ACPI's table header in a defined formating */
 static void show_header(void *address, s_acpi_description_header * h)
 {
-    more_printf("%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%p\n",
+    more_printf("%-4s v%03x %-6s %-8s 0x%08x %-7s 0x%08x @ 0x%p\n",
 		h->signature, h->revision, h->oem_id, h->oem_table_id,
 		h->oem_revision, h->creator_id, h->creator_revision, address)
 }
@@ -158,25 +158,6 @@ static void show_local_apic(s_madt * madt)
     }
 }
 
-/* M1PS flags have to be interpreted as strings */
-static char *flags_to_string(char *buffer, uint16_t flags)
-{
-    memset(buffer, 0, sizeof(buffer));
-    strcpy(buffer, "default");
-    if ((flags & POLARITY_ACTIVE_HIGH) == POLARITY_ACTIVE_HIGH)
-	strcpy(buffer, "high");
-    else if ((flags & POLARITY_ACTIVE_LOW) == POLARITY_ACTIVE_LOW)
-	strcpy(buffer, "low");
-    if ((flags & TRIGGER_EDGE) == TRIGGER_EDGE)
-	strncat(buffer, " edge", 5);
-    else if ((flags & TRIGGER_LEVEL) == TRIGGER_LEVEL)
-	strncat(buffer, " level", 6);
-    else
-	strncat(buffer, " default", 8);
-
-    return buffer;
-}
-
 /* Display the local apic NMI configuration */
 static void show_local_apic_nmi(s_madt * madt)
 {
@@ -225,7 +206,7 @@ static void show_io_apic(s_madt * madt)
 	    break;
 	}
 
-	more_printf("IO_APIC[%d] : apic_id[0x%02x] adress[0x%08x] %s\n",
+	more_printf("IO_APIC[%d] : apic_id[0x%02x] address[0x%08x] %s\n",
 		    i, sio->io_apic_id, sio->io_apic_address, buffer);
     }
 }

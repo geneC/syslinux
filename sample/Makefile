@@ -15,7 +15,8 @@
 ##
 
 topdir = ..
-include $(topdir)/MCONFIG.embedded
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/embedded.mk
 
 PPMTOLSS16 = $(topdir)/utils/ppmtolss16
 

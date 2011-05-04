@@ -75,6 +75,10 @@
 #define KEY_INSERT	0x0128
 #define KEY_DELETE	0x0129
 
+#define KEY_MAX		0x012a
+
 int get_key(FILE *, clock_t);
+int key_name_to_code(const char *);
+const char *key_code_to_name(int);
 
 #endif /* LIBUTIL_GETKEY_H */

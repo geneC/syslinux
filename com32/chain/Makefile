@@ -13,7 +13,8 @@
 
 
 topdir = ../..
-include ../MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/com32.mk
 
 OBJS = chain.o partiter.o utility.o options.o mangle.o
 

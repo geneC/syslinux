@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <minmax.h>
+#include <ctype.h>
 
 #include <syslinux/loadfile.h>
 #include <syslinux/config.h>
@@ -39,6 +40,7 @@
 // must be at least block size; can in theory be larger than 4k, but there's
 // not enough space left
 #define REALMODE_BUF_SIZE	4096
+#define LOWMEM_BUF_SIZE		65536
 
 // gfxboot working memory in MB
 #define	GFX_MEMORY_SIZE		7
@@ -60,7 +62,7 @@
 #define GFX_CB_PASSWORD_INIT	10
 #define GFX_CB_PASSWORD_DONE	11
 
-// real mode code chunk, will be placed into bounce buffer
+// real mode code chunk, will be placed into lowmem buffer
 extern const char realmode_callback_start[], realmode_callback_end[];
 
 // gets in the way
@@ -100,6 +102,8 @@ typedef struct __attribute__ ((packed)) {
   				//    0: GFX_CB_MENU_INIT accepts 32 bit addresses
   				//    1: knows about xmem_start, xmem_end
   uint16_t reserved_1;		// 62:
+  uint32_t gfxboot_cwd;		// 64: if set, points to current gfxboot working directory relative
+				//     to syslinux working directory
 } gfx_config_t;
 
 
@@ -144,14 +148,10 @@ struct {
 } gfx;
 
 void *lowmem_buf;
-unsigned lowmem_buf_size;
 
 int timeout;
 
 char cmdline[MAX_CMDLINE_LEN];
-
-void *save_buf;
-unsigned save_buf_size;
 
 // progress bar is visible
 unsigned progress_active;
@@ -160,7 +160,6 @@ unsigned progress_active;
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 void show_message(char *file);
 char *get_config_file_name(void);
-char *skip_spaces(char *s);
 char *skip_nonspaces(char *s);
 void chop_line(char *s);
 int read_config_file(const char *filename);
@@ -174,7 +173,6 @@ void gfx_infobox(int type, char *str1, char *str2);
 void gfx_progress_init(ssize_t kernel_size, char *label);
 void gfx_progress_update(ssize_t size);
 void gfx_progress_done(void);
-ssize_t save_read(int fd, void *buf, size_t size);
 void *load_one(char *file, ssize_t *file_size);
 void boot(int index);
 void boot_entry(menu_t *menu_ptr, char *arg);
@@ -185,11 +183,15 @@ int main(int argc, char **argv)
 {
   int menu_index;
   const union syslinux_derivative_info *sdi;
+  char working_dir[256];
 
   openconsole(&dev_stdcon_r, &dev_stdcon_w);
 
-  lowmem_buf = __com32.cs_bounce;
-  lowmem_buf_size = __com32.cs_bounce_size;
+  lowmem_buf = lmalloc(LOWMEM_BUF_SIZE);
+  if (!lowmem_buf) {
+    printf("Could not allocate memory.\n");
+    return 1;
+  }
 
   sdi = syslinux_derivative_info();
 
@@ -211,9 +213,6 @@ int main(int argc, char **argv)
   gfx_config.sysconfig_size = sizeof gfx_config;
   gfx_config.bootloader_seg = 0;	// apparently not needed
 
-  save_buf_size = lowmem_buf_size;
-  save_buf = malloc(save_buf_size);
-
   if(argc < 2) {
     printf("Usage: gfxboot.c32 bootlogo_file [message_file]\n");
     if(argc > 2) show_message(argv[2]);
@@ -226,6 +225,10 @@ int main(int argc, char **argv)
     if(argc > 2) show_message(argv[2]);
 
     return 0;
+  }
+
+  if(getcwd(working_dir, sizeof working_dir)) {
+    gfx_config.gfxboot_cwd = (uint32_t) working_dir;
   }
 
   if(gfx_init(argv[1])) {
@@ -270,15 +273,6 @@ void show_message(char *file)
   }
 
   fclose(f);
-}
-
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-char *skip_spaces(char *s)
-{
-  while(*s && (*s == ' ' || *s == '\t')) s++;
-
-  return s;
 }
 
 
@@ -336,11 +330,11 @@ int read_config_file(const char *filename)
 
   while((s = fgets(buf, sizeof buf, f))) {
     chop_line(s);
-    s = skip_spaces(s);
+    s = skipspace(s);
     if(!*s || *s == '#') continue;
     t = skip_nonspaces(s);
     if(*t) *t++ = 0;
-    t = skip_spaces(t);
+    t = skipspace(t);
 
     if(!strcasecmp(s, "endtext")) {
       text = 0;
@@ -410,10 +404,10 @@ int read_config_file(const char *filename)
     }
 
     if(!strcasecmp(s, "menu") && menu_ptr) {
-      s = skip_spaces(t);
+      s = skipspace(t);
       t = skip_nonspaces(s);
       if(*t) *t++ = 0;
-      t = skip_spaces(t);
+      t = skipspace(t);
 
       if(!strcasecmp(s, "label")) {
         menu_ptr->menu_label = strdup(t);
@@ -542,7 +536,7 @@ int gfx_init(char *file)
   unsigned code_start, code_size, file_start, file_len, u;
   com32sys_t r;
   void *lowmem = lowmem_buf;
-  unsigned lowmem_size = lowmem_buf_size;
+  unsigned lowmem_size = LOWMEM_BUF_SIZE;
 
   progress_active = 0;
 
@@ -579,7 +573,7 @@ int gfx_init(char *file)
   u = (u + REALMODE_BUF_SIZE + 0xf) & ~0xf;
 
   if(u + code_size > lowmem_size) {
-    printf("bounce buffer too small: size %u, needed %u\n", lowmem_size, u + code_size);
+    printf("lowmem buffer too small: size %u, needed %u\n", lowmem_size, u + code_size);
     return 1;
   }
 
@@ -749,21 +743,6 @@ void gfx_progress_done(void)
 
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Like read(2) but preserve bounce buffer.
-//
-ssize_t save_read(int fd, void *buf, size_t size)
-{
-  ssize_t i;
-
-  memcpy(save_buf, lowmem_buf, save_buf_size);
-  i = read(fd, buf, size);
-  memcpy(lowmem_buf, save_buf, save_buf_size);
-
-  return i;
-}
-
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Read file and update progress bar.
 //
 void *load_one(char *file, ssize_t *file_size)
@@ -790,7 +769,7 @@ void *load_one(char *file, ssize_t *file_size)
   if(size) {
     buf = malloc(size);
     for(i = 1, cur = 0 ; cur < size && i > 0; cur += i) {
-      i = save_read(fd, buf + cur, min(CHUNK_SIZE, size - cur));
+      i = read(fd, buf + cur, min(CHUNK_SIZE, size - cur));
       if(i == -1) break;
       gfx_progress_update(i);
     }
@@ -798,7 +777,7 @@ void *load_one(char *file, ssize_t *file_size)
   else {
     do {
       buf = realloc(buf, size + CHUNK_SIZE);
-      i = save_read(fd, buf + size, CHUNK_SIZE);
+      i = read(fd, buf + size, CHUNK_SIZE);
       if(i == -1) break;
       size += i;
       gfx_progress_update(i);
@@ -834,6 +813,12 @@ void boot(int index)
   int i, label_len;
   unsigned ipapp;
   const struct syslinux_ipappend_strings *ipappend;
+  char *gfxboot_cwd = (char *) gfx_config.gfxboot_cwd;
+
+  if(gfxboot_cwd) {
+    chdir(gfxboot_cwd);
+    gfx_config.gfxboot_cwd = 0;
+  }
 
   for(menu_ptr = menu; menu_ptr; menu_ptr = menu_ptr->next, index--) {
     if(!index) break;
@@ -842,7 +827,7 @@ void boot(int index)
   // invalid index or menu entry
   if(!menu_ptr || !menu_ptr->menu_label) return;
 
-  arg = skip_spaces(cmdline);
+  arg = skipspace(cmdline);
   label_len = strlen(menu_ptr->menu_label);
 
   // if it does not start with label string, assume first word is kernel name
@@ -856,7 +841,7 @@ void boot(int index)
     arg += label_len;
   }
 
-  arg = skip_spaces(arg);
+  arg = skipspace(arg);
 
   // handle IPAPPEND
   if(menu_ptr->ipappend && (ipapp = atoi(menu_ptr->ipappend))) {
@@ -942,7 +927,7 @@ void boot_entry(menu_t *menu_ptr, char *arg)
   s = s0 = strdup(arg);
 
   while(*s && strncmp(s, "initrd=", sizeof "initrd=" - 1)) {
-    s = skip_spaces(skip_nonspaces(s));
+    s = skipspace(skip_nonspaces(s));
   }
 
   if(*s) {
@@ -950,11 +935,15 @@ void boot_entry(menu_t *menu_ptr, char *arg)
     *skip_nonspaces(s) = 0;
     initrd_arg = s;
   }
+  else if(initrd_arg) {
+    free(s0);
+    initrd_arg = s0 = strdup(initrd_arg);
+  }
 
   if(initrd_arg) {
     initrd = initramfs_init();
 
-    while((t = strsep(&s, ","))) {
+    while((t = strsep(&initrd_arg, ","))) {
       initrd_buf = load_one(t, &initrd_size);
 
       if(!initrd_buf) {

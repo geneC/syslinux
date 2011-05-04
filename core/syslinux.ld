@@ -36,7 +36,7 @@ SECTIONS
 		*(.earlybss)
 		__earlybss_end = .;
 	}
-	__earlybss_len = __earlybss_end - __earlybss_start;
+	__earlybss_len = ABSOLUTE(__earlybss_end) - ABSOLUTE(__earlybss_start);
 	__earlybss_dwords = (__earlybss_len + 3) >> 2;
 
 	. = ALIGN(4);
@@ -45,7 +45,7 @@ SECTIONS
 		*(.bss16)
 		__bss16_end = .;
 	}
-	__bss16_len = __bss16_end - __bss16_start;
+	__bss16_len = ABSOLUTE(__bss16_end) - ABSOLUTE(__bss16_start);
 	__bss16_dwords = (__bss16_len + 3) >> 2;
 
 	. = ALIGN(4);
@@ -54,7 +54,7 @@ SECTIONS
 		*(.config)
 		__config_end = .;
 	}
-	__config_len = __config_end - __config_start;
+	__config_len = ABSOLUTE(__config_end) - ABSOLUTE(__config_start);
 	__config_dwords = (__config_len + 3) >> 2;
 
 	/* Generated and/or copied code */
@@ -65,7 +65,7 @@ SECTIONS
 		*(.replacestub)
 		__replacestub_end = .;
 	}
-	__replacestub_len = __replacestub_end - __replacestub_start;
+	__replacestub_len = ABSOLUTE(__replacestub_end) - ABSOLUTE(__replacestub_start);
 	__replacestub_dwords = (__replacestub_len + 3) >> 2;
 
 	. = ALIGN(16);
@@ -75,7 +75,7 @@ SECTIONS
 		*(.gentextnr)
 		__gentextnr_end = .;
 	}
-	__gentextnr_len = __gentextnr_end - __gentextnr_start;
+	__gentextnr_len = ABSOLUTE(__gentextnr_end) - ABSOLUTE(__gentextnr_start);
 	__gentextnr_dwords = (__gentextnr_len + 3) >> 2;
 
 	. = STACK_BASE;
@@ -84,7 +84,7 @@ SECTIONS
 		. += STACK_LEN;
 		__stack16_end = .;
 	}
-	__stack16_len = __stack16_end - __stack16_start;
+	__stack16_len = ABSOLUTE(__stack16_end) - ABSOLUTE(__stack16_start);
 	__stack16_dwords = (__stack16_len + 3) >> 2;
 
 	/* Initialized sections */
@@ -96,7 +96,7 @@ SECTIONS
 		*(.init)
 		__init_end = .;
 	}
-	__init_len = __init_end - __init_start;
+	__init_len = ABSOLUTE(__init_end) - ABSOLUTE(__init_start);
 	__init_dwords = (__init_len + 3) >> 2;
 
 	.text16 : {
@@ -105,7 +105,7 @@ SECTIONS
 		*(.text16)
 		__text16_end = .;
 	}
-	__text16_len = __text16_end - __text16_start;
+	__text16_len = ABSOLUTE(__text16_end) - ABSOLUTE(__text16_start);
 	__text16_dwords = (__text16_len + 3) >> 2;
 
 	/*
@@ -119,7 +119,7 @@ SECTIONS
 		*(.textnr)
 		__textnr_end = .;
 	}
-	__textnr_len = __textnr_end - __textnr_start;
+	__textnr_len = ABSOLUTE(__textnr_end) - ABSOLUTE(__textnr_start);
 	__textnr_dwords = (__textnr_len + 3) >> 2;
 
 	. = ALIGN(16);
@@ -131,7 +131,7 @@ SECTIONS
 		*(.bcopyxx.text)
 		__bcopyxx_text_end = .;
 	}
-	__bcopyxx_text_len = __bcopyxx_text_end - __bcopyxx_text_start;
+	__bcopyxx_text_len = ABSOLUTE(__bcopyxx_text_end) - ABSOLUTE(__bcopyxx_text_start);
 	__bcopyxx_text_dwords = (__bcopyxx_text_len + 3) >> 2;
 
 	.bcopyxx.data : {
@@ -139,11 +139,11 @@ SECTIONS
 		*(.bcopyxx.text)
 		__bcopyxx_data_end = .;
 	}
-	__bcopyxx_data_len = __bcopyxx_data_end - __bcopyxx_data_start;
+	__bcopyxx_data_len = ABSOLUTE(__bcopyxx_data_end) - ABSOLUTE(__bcopyxx_data_start);
 	__bcopyxx_data_dwords = (__bcopyxx_data_len + 3) >> 2;
 
 	__bcopyxx_end = .;
-	__bcopyxx_len = __bcopyxx_end - __bcopyxx_start;
+	__bcopyxx_len = ABSOLUTE(__bcopyxx_end) - ABSOLUTE(__bcopyxx_start);
 	__bcopyxx_dwords = (__bcopyxx_len + 3) >> 2;
 
 	. = ALIGN(4);
@@ -152,7 +152,7 @@ SECTIONS
 	      *(.data16)
 	      __data16_end = .;
 	}
-	__data16_len = __data16_end - __data16_start;
+	__data16_len = ABSOLUTE(__data16_end) - ABSOLUTE(__data16_start);
 	__data16_dwords = (__data16_len + 3) >> 2;
 
 	. = ALIGN(4);
@@ -176,7 +176,7 @@ SECTIONS
 		*(.adv)
 		__adv_end = .;
 	}
-	__adv_len = __adv_end - __adv_start;
+	__adv_len = ABSOLUTE(__adv_end) - ABSOLUTE(__adv_start);
 	__adv_dwords = (__adv_len + 3) >> 2;
 
 	/* Late uninitialized sections */
@@ -187,7 +187,7 @@ SECTIONS
 		*(.uibss)
 		__uibss_end = .;
 	}
-	__uibss_len = __uibss_end - __uibss_start;
+	__uibss_len = ABSOLUTE(__uibss_end) - ABSOLUTE(__uibss_start);
 	__uibss_dwords = (__uibss_len + 3) >> 2;
 
 	_end16 = .;
@@ -220,7 +220,7 @@ SECTIONS
 		*(.auxseg)
 		__auxseg_end = .;
 	}
-	__auxseg_len = __auxseg_end - __auxseg_start;
+	__auxseg_len = ABSOLUTE(__auxseg_end) - ABSOLUTE(__auxseg_start);
 	__auxseg_dwords = (__auxseg_len + 3) >> 2;
 	aux_seg = __auxseg_start >> 4;
 
@@ -232,12 +232,12 @@ SECTIONS
 		*(.lowmem)
 		__lowmem_end = .;
 	}
-	__lowmem_len = __lowmem_end - __lowmem_start;
+	__lowmem_len = ABSOLUTE(__lowmem_end) - ABSOLUTE(__lowmem_start);
 	__lowmem_dwords = (__lowmem_len + 3) >> 2;
 
 	__high_clear_end = .;
 
-	__high_clear_len = __high_clear_end - __high_clear_start;
+	__high_clear_len = ABSOLUTE(__high_clear_end) - ABSOLUTE(__high_clear_start);
 	__high_clear_dwords = (__high_clear_len + 3) >> 2;
 
 	/* Start of the lowmem heap */
@@ -325,7 +325,7 @@ SECTIONS
 	}
 
 	__pm_code_end = .;
-	__pm_code_len = __pm_code_end - __pm_code_start;
+	__pm_code_len = ABSOLUTE(__pm_code_end) - ABSOLUTE(__pm_code_start);
 	__pm_code_dwords = (__pm_code_len + 3) >> 2;
 
 	. = ALIGN(128);
@@ -339,7 +339,7 @@ SECTIONS
 		*(COMMON)
 		__bss_end = .;
 	}
-	__bss_len = __bss_end - __bss_start;
+	__bss_len = ABSOLUTE(__bss_end) - ABSOLUTE(__bss_start);
 	__bss_dwords = (__bss_len + 3) >> 2;
 
 	/* Very large objects which don't need to be zeroed */
@@ -352,7 +352,7 @@ SECTIONS
 		*(.hugebss.*)
 		__hugebss_end = .;
 	}
-	__hugebss_len = __hugebss_end - __hugebss_start;
+	__hugebss_len = ABSOLUTE(__hugebss_end) - ABSOLUTE(__hugebss_start);
 	__hugebss_dwords = (__hugebss_len + 3) >> 2;
 
 
@@ -364,7 +364,7 @@ SECTIONS
 		*(.stack)
 		__stack_end = .;
 	}
-	__stack_len = __stack_end - __stack_start;
+	__stack_len = ABSOLUTE(__stack_end) - ABSOLUTE(__stack_start);
 	__stack_dwords = (__stack_len + 3) >> 2;
 
 	_end = .;

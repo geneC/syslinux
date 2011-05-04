@@ -15,7 +15,8 @@
 # Main Makefile for SYSLINUX
 #
 topdir = .
-include $(topdir)/MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/syslinux.mk
 -include $(topdir)/version.mk
 
 #

@@ -23,13 +23,21 @@ Sect1Ptr1_VAL	equ 0xfeedface
 %include "diskboot.inc"
 
 ; ===========================================================================
+;  Padding after the (minimum) 512-byte boot sector so that the rest of
+;  the file has aligned sectors, even if they are larger than 512 bytes.
+; ===========================================================================
+
+		section .init
+align_pad	zb 512
+
+; ===========================================================================
 ;  Start of LDLINUX.SYS
 ; ===========================================================================
 
 LDLINUX_SYS	equ ($-$$)+TEXT_START
 ldlinux_sys:
 
-syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
+early_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', 0
 		db CR, LF, 1Ah	; EOF if we "type" this in DOS
 
 		alignz 8
@@ -76,6 +84,11 @@ Sect1Ptr1Ptr	dw Sect1Ptr1 - bootsec
 RAIDPatchPtr	dw kaboom.again - bootsec	; Patch to INT 18h in RAID mode
 
 ;
+; Pointer to the Syslinux banner
+;
+BannerPtr	dw syslinux_banner - LDLINUX_SYS
+
+;
 ; Base directory name and subvolume, if applicable.
 ;
 %define HAVE_CURRENTDIRNAME
@@ -98,20 +111,22 @@ ldlinux_ent:
 ;
 ; Tell the user we got this far
 ;
-		mov si,syslinux_banner
+		mov si,early_banner
 		call writestr_early
 
 ;
 ; Checksum data thus far
 ;
 		mov si,ldlinux_sys
-		mov cx,SECTOR_SIZE >> 2
+		mov cx,[bsBytesPerSec]
+		shr cx,2
 		mov edx,-LDLINUX_MAGIC
 .checksum:
 		lodsd
 		add edx,eax
 		loop .checksum
 		mov [CheckSum],edx		; Save intermediate result
+		movzx ebx,si			; Start of the next sector
 
 ;
 ; Tell the user if we're using EBIOS or CBIOS
@@ -127,6 +142,7 @@ print_bios:
 		call writestr_early
 
 		section .earlybss
+		alignb 2
 %define	HAVE_BIOSNAME 1
 BIOSName	resw 1
 
@@ -135,8 +151,9 @@ BIOSName	resw 1
 ; Now we read the rest of LDLINUX.SYS.
 ;
 load_rest:
+		push bx				; LSW of load address
+
 		lea esi,[SectorPtrs]
-		mov ebx,TEXT_START+2*SECTOR_SIZE ; Where we start loading
 		mov cx,[DataSectors]
 		dec cx				; Minus this sector
 
@@ -152,7 +169,7 @@ load_rest:
 		xor bx,bx
 		call getlinsec
 		pop ebx
-		shl ebp,SECTOR_SHIFT
+		imul bp,[bsBytesPerSec]		; Will be < 64K
 		add ebx,ebp
 		add si,10
 		jmp .get_chunk
@@ -165,9 +182,11 @@ load_rest:
 ; by the time we get to the end it should all cancel out.
 ;
 verify_checksum:
-		mov si,ldlinux_sys + SECTOR_SIZE
-		mov ecx,[LDLDwords]
-		sub ecx,SECTOR_SIZE >> 2
+		pop si				; LSW of load address
+		movzx eax,word [bsBytesPerSec]
+		shr ax,2
+		mov ecx,[LDLDwords]		; Total dwords
+		sub ecx,eax			; ... minus one sector
 		mov eax,[CheckSum]
 .checksum:
 		add eax,[si]
@@ -255,7 +274,7 @@ getlinsec_ebios:
 		add eax,edi			; Advance sector pointer
 		adc edx,0
 		sub bp,di			; Sectors left
-                shl di,SECTOR_SHIFT		; 512-byte sectors
+		imul di,[bsBytesPerSec]
                 add bx,di			; Advance buffer pointer
                 and bp,bp
                 jnz .loop
@@ -345,7 +364,7 @@ getlinsec_cbios:
 		jc .error
 .resume:
 		movzx ecx,al		; ECX <- sectors transferred
-		shl ax,SECTOR_SHIFT	; Convert sectors in AL to bytes in AX
+		imul ax,[bsBytesPerSec]	; Convert sectors in AL to bytes in AX
 		pop bx
 		add bx,ax
 		pop bp
@@ -413,10 +432,10 @@ safedumpregs:
 
 rl_checkpt	equ $				; Must be <= 8000h
 
-rl_checkpt_off	equ ($-$$)
+rl_checkpt_off	equ $-ldlinux_sys
 %ifndef DEPEND
- %if rl_checkpt_off > 3F6h			; Need one extent
-  %assign rl_checkpt_overflow rl_checkpt_off - 3F6h
+ %if rl_checkpt_off > 512-10			; Need minimum one extent
+  %assign rl_checkpt_overflow rl_checkpt_off - (512-10)
   %error Sector 1 overflow by rl_checkpt_overflow bytes
  %endif
 %endif
@@ -429,8 +448,8 @@ rl_checkpt_off	equ ($-$$)
 ;
 		alignz 2
 MaxInitDataSize	equ 96 << 10
-MaxLMA		equ TEXT_START+SECTOR_SIZE+MaxInitDataSize
-SectorPtrs	zb 10*(MaxInitDataSize >> SECTOR_SHIFT)
+MaxLMA		equ LDLINUX_SYS+MaxInitDataSize
+SectorPtrs	zb 10*(MaxInitDataSize >> MIN_SECTOR_SHIFT)
 SectorPtrsEnd	equ $
 
 ; ----------------------------------------------------------------------------
@@ -446,6 +465,9 @@ all_read:
 ; Let the user (and programmer!) know we got this far.  This used to be
 ; in Sector 1, but makes a lot more sense here.
 ;
+		mov si,late_banner
+		call writestr_early
+
 		mov si,copyright_str
 		call writestr_early
 
@@ -486,5 +508,12 @@ expand_super:
 
 		section .bss16
 SuperInfo	resq 16			; The first 16 bytes expanded 8 times
+
+;
+; Banner information not needed in sector 1
+;
+		section .data16
+syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR
+late_banner	db ' ', DATE_STR, 0
 
 		section .text16

@@ -32,7 +32,7 @@ void compute_table(struct s_my_menu *menu, void *address, s_acpi_description_hea
     char buffer[SUBMENULEN + 1] = { 0 };
     char statbuffer[STATLEN + 1] = { 0 };
 
-    snprintf(buffer, sizeof buffer, "%-4s v%03x %-6s %-7s %-7s %08x", 
+    snprintf(buffer, sizeof buffer, "%-4s v%03x %-6s %-8s %-7s %08x", 
 		    h->signature, h->revision, h->oem_id, h->oem_table_id, h->creator_id, h->creator_revision);
     snprintf(statbuffer, sizeof statbuffer, "%-4s v%03x %-6s %-7s 0x%08x %-4s    0x%08x @ 0x%p", 
 		    h->signature, h->revision, h->oem_id, h->oem_table_id,
@@ -52,7 +52,7 @@ static void compute_acpi_tables(struct s_my_menu *menu,
 
     char buffer[SUBMENULEN + 1] = { 0 };
 
-    snprintf(buffer, sizeof buffer, "%-4s %-4s %-6s %-7s %-7s %-8s", 
+    snprintf(buffer, sizeof buffer, "%-4s %-4s %-6s %-8s %-7s %-8s", 
 		    "ACPI", "rev", "oem", "table_id", "creator", "creator_rev");
     add_item(buffer, "Description", OPT_INACTIVE, NULL, 0);
     menu->items_count++;

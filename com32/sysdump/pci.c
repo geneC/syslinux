@@ -7,9 +7,8 @@
 #include <stdlib.h>
 #include <sys/pci.h>
 #include "sysdump.h"
-#include "backend.h"
 
-static void dump_pci_device(struct backend *be, pciaddr_t a, uint8_t hdrtype)
+static void dump_pci_device(struct upload_backend *be, pciaddr_t a, uint8_t hdrtype)
 {
     unsigned int bus  = pci_bus(a);
     unsigned int dev  = pci_dev(a);
@@ -31,7 +30,7 @@ static void dump_pci_device(struct backend *be, pciaddr_t a, uint8_t hdrtype)
     cpio_writefile(be, filename, data, sizeof data);
 }
 
-void dump_pci(struct backend *be)
+void dump_pci(struct upload_backend *be)
 {
     int cfgtype;
     unsigned int nbus, ndev, nfunc, maxfunc;

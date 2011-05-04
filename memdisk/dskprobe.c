@@ -49,17 +49,54 @@ static void probe_any(uint8_t func, uint8_t drive, com32sys_t * regs)
 }
 
 /**
+ * Determine if the return from probe_int13h_01h indicates a failure; a
+ * return of zero indicates no known failure.
+ */
+static int probe_int13h_01h_fail(int istatus)
+{
+    int status = 0;
+
+    if (istatus >= 256)
+	status = istatus;
+    else
+	switch (istatus) {
+	case 1: status = istatus;
+	}
+    return status;
+}
+
+/**
+ * INT 0x13, AH == 0x01: Get status of last command.
+ */
+static int probe_int13h_01h(uint8_t drive)
+{
+    int status;
+    com32sys_t regs;
+
+    memset(&regs, 0, sizeof regs);
+    probe_any(0x01, drive, &regs);
+    status = (regs.eflags.l & 1) * 256 + regs.eax.b[1];
+    dskprobe_printf("  AH01: CF%d AH%02x", regs.eflags.l & 1, regs.eax.b[1]);
+    return status;
+}
+
+/**
  * INT 0x13, AH == 0x08: Get drive parameters.
  */
 static int probe_int13h_08h(uint8_t drive, com32sys_t * regs)
 {
     int present;
+    int status;
 
     memset(regs, 0, sizeof *regs);
     probe_any(0x08, drive, regs);
-    present = !(regs->eflags.l & 1);
-    dskprobe_printf("  AH08: CF%d BL%02x DL%02x\n", regs->eflags.l & 1,
+    dskprobe_printf("  AH08: CF%d AH%02x AL%02x BL%02x DL%02x    ",
+		    regs->eflags.l & 1, regs->eax.b[1], regs->eax.b[0],
 		    regs->ebx.b[0], regs->edx.b[0]);
+    present = !(regs->eflags.l & 1) && !regs->eax.b[1];
+    status = probe_int13h_01h(drive);
+    present = present && !(probe_int13h_01h_fail(status));
+    dskprobe_printf("  P%d\n",  present);
     return present;
 }
 
@@ -69,12 +106,17 @@ static int probe_int13h_08h(uint8_t drive, com32sys_t * regs)
 static int probe_int13h_15h(uint8_t drive, com32sys_t * regs)
 {
     int present;
+    int status;
 
     memset(regs, 0, sizeof *regs);
     probe_any(0x15, drive, regs);
+    dskprobe_printf("  AH15: CF%d AH%02x AL%02x CX%04x DX%04x",
+		    regs->eflags.l & 1, regs->eax.b[1], regs->eax.b[0],
+		    regs->ecx.w[0], regs->edx.w[0]);
     present = !(regs->eflags.l & 1) && regs->eax.b[1];
-    dskprobe_printf("  AH15: CF%d AH%02x\n", regs->eflags.l & 1,
-		    regs->eax.b[1]);
+    status = probe_int13h_01h(drive);
+    present = present && !(probe_int13h_01h_fail(status));
+    dskprobe_printf("  P%d\n",  present);
     return present;
 }
 
@@ -84,13 +126,18 @@ static int probe_int13h_15h(uint8_t drive, com32sys_t * regs)
 static int probe_int13h_41h(uint8_t drive, com32sys_t * regs)
 {
     int present;
+    int status;
 
     memset(regs, 0, sizeof *regs);
     regs->ebx.w[0] = 0x55AA;	/* BX == 0x55AA */
     probe_any(0x41, drive, regs);
-    present = !(regs->eflags.l & 1);
-    dskprobe_printf("  AH41: CF%d BX%04x AH%02x DH%02x\n", regs->eflags.l & 1,
-		    regs->ebx.w[0], regs->eax.b[1], regs->edx.b[1]);
+    dskprobe_printf("  AH41: CF%d AH%02x BX%04x CX%04x DH%02x",
+		    regs->eflags.l & 1, regs->eax.b[1], regs->ebx.w[0],
+		    regs->ecx.w[0], regs->edx.b[1]);
+    present = !(regs->eflags.l & 1) && (regs->ebx.w[0] == 0xAA55);
+    status = probe_int13h_01h(drive);
+    present = present && !(probe_int13h_01h_fail(status));
+    dskprobe_printf("  P%d\n",  present);
     return present;
 }
 

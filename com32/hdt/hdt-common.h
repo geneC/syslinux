@@ -48,16 +48,18 @@
 #include "cpuid.h"
 #include "dmi/dmi.h"
 #include "hdt-ata.h"
-#include "../lib/sys/vesa/vesa.h"
+#include <lib/sys/vesa/vesa.h>
 #include <vpd/vpd.h>
 #include <libansi.h>
 #include <acpi/acpi.h>
+#include <libupload/upload_backend.h>
 
 /* Declare a variable or data structure as unused. */
 #define __unused __attribute__ (( unused ))
 
 /* This two values are used for switching for the menu to the CLI mode */
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
+#define HDT_DUMP "hdt_dump"
 #define HDT_RETURN_TO_CLI 100
 #define MAX_VESA_MODES 255
 
@@ -71,7 +73,7 @@
 /* The char that separate two commands */
 #define AUTO_SEPARATOR ";"
 /* The char that surround the list of commands */
-#define AUTO_DELIMITER "'"
+#define AUTO_DELIMITER '\'' 
 
 /* Graphic to load in background when using the vesa mode */
 #define CLI_DEFAULT_BACKGROUND "backgnd.png"
@@ -79,6 +81,8 @@
 /* The maximum number of lines */
 #define MAX_CLI_LINES 20
 #define MAX_VESA_CLI_LINES 24
+
+struct upload_backend *upload;
 
 /* Defines if the cli is quiet*/
 bool quiet;
@@ -209,6 +213,8 @@ struct s_hardware {
     char modules_pcimap_path[255];
     char modules_alias_path[255];
     char pciids_path[255];
+    char dump_path[255]; /* Dump path on the tftp server */
+    char tftp_ip[255];   /* IP address of tftp server (dump mode) */
     char memtest_label[255];
     char auto_label[AUTO_COMMAND_SIZE];
     char vesa_background[255];
@@ -236,4 +242,5 @@ int detect_vesa(struct s_hardware *hardware);
 void detect_memory(struct s_hardware *hardware);
 void init_console(struct s_hardware *hardware);
 void detect_hardware(struct s_hardware *hardware);
+void dump(struct s_hardware *hardware);
 #endif

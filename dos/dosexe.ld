@@ -27,12 +27,12 @@ SECTIONS
 	__payload_lma = .;
 
 	. = 0x100000000 - syslinux_ldlinux_size;
-	__payload_start = .;
 	.payload : AT (__payload_lma) {
+		 __payload_start = .;
 		 *(.payload)
+		 __payload_end = .;
 	}
-	__payload_end = .;
-	__payload_len = __payload_end - __payload_start;
+	__payload_len = ABSOLUTE(__payload_end) - ABSOLUTE(__payload_start);
 	__payload_dwords = __payload_len >> 2;
 
 	__text_lma = __payload_lma + syslinux_ldlinux_size;

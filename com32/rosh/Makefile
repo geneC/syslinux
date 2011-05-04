@@ -17,7 +17,8 @@
 ##
 
 topdir = ../..
-include MCONFIG
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/rosh.mk
 
 # from com32/sysdump/Makefile
 # The DATE is set on the make command line when building binaries for

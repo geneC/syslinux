@@ -19,45 +19,37 @@
 #
 
 topdir = ../..
-# include $(topdir)/MCONFIG.embedded
+MAKEDIR = $(topdir)/mk
+include $(MAKEDIR)/embedded.mk
 coredir = $(topdir)/core
 
-BTARGET = geodsp1s.bin geodspms.bin mk-lba-img \
+BTARGET = geodsp1s.bin geodspms.bin \
 	geodsp1s.img.xz geodspms.img.xz
-#	lba-1s.img.xz lba-ms.img.xz
-  # lba-1s.img lba-ms.img
 
 NASMOPT = -i $(coredir)/ -Ox -f bin
 NASMOPT += -w+orphan-labels
+CFLAGS = -g -O
 
 all: $(BTARGET)
 
-.PRECIOUS: %.img
-# .PRECIOUS: lba-%.img
-
 # Higher compression levels result in larger files
-%.img.xz: %.img
-	xz -k0f $<
+%.img.xz: %.bin mk-lba-img
+	./mk-lba-img < $< | $(XZ) -0f > $@ || ( rm -f $@ ; false )
 
-%.img.gz: %.img
-	gzip -9c $< > $@
-
-%.img: %.bin lba.img
-	(cp -a lba.img $@ && dd conv=notrunc if=$< of=$@) || rm -f $@
+%.img.gz: %.bin mk-lba-img
+	./mk-lba-img < $< | $(GZIP) -9 > $@ || ( rm -f $@ ; false )
 
 %.bin: %.asm $(coredir)/writehex.inc $(coredir)/macros.inc $(coredir)/diskboot.inc
-	nasm $(NASMOPT) -o $@ -l $(@:.bin=.lst) $<
+	$(NASM) $(NASMOPT) -o $@ -l $(@:.bin=.lst) $<
 
 mk-lba-img: mk-lba-img.c
-	gcc -o $@ $<
-
-lba.img: mk-lba-img
-	./$< $@
+	$(CC) $(CFLAGS) -o $@ $<
 
 tidy dist:
-	rm -Rf *.img
+	rm -Rf *.lst *.img
 
 clean: tidy
-	rm -f $(BTARGET) *.lst *.bin *_bin.c
+	rm -f mk-lba-img
 
 spotless: clean
+	rm -f $(BTARGET)

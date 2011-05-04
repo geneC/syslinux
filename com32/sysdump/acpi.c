@@ -18,7 +18,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "sysdump.h"
-#include "backend.h"
 #include "rbtree.h"
 
 struct acpi_rsdp {
@@ -151,7 +150,7 @@ static const struct acpi_rsdp *find_rsdp(void)
     return scan_for_rsdp(0xe0000, 0x100000);
 }
 
-static void dump_table(struct backend *be,
+static void dump_table(struct upload_backend *be,
 		       const char name[], const void *ptr, uint32_t len)
 {
     char namebuf[64];
@@ -171,7 +170,7 @@ static void dump_table(struct backend *be,
     write_data(be, ptr, len);
 }
 
-static void dump_rsdt(struct backend *be, const struct acpi_rsdp *rsdp)
+static void dump_rsdt(struct upload_backend *be, const struct acpi_rsdp *rsdp)
 {
     const struct acpi_rsdt *rsdt;
     uint32_t i, n;
@@ -196,7 +195,7 @@ static void dump_rsdt(struct backend *be, const struct acpi_rsdp *rsdp)
     }
 }
 
-static void dump_xsdt(struct backend *be, const struct acpi_rsdp *rsdp)
+static void dump_xsdt(struct upload_backend *be, const struct acpi_rsdp *rsdp)
 {
     const struct acpi_xsdt *xsdt;
     uint32_t rsdp_len = rsdp->rev > 0 ? rsdp->len : 20;
@@ -231,7 +230,7 @@ static void dump_xsdt(struct backend *be, const struct acpi_rsdp *rsdp)
     }
 }
 
-void dump_acpi(struct backend *be)
+void dump_acpi(struct upload_backend *be)
 {
     const struct acpi_rsdp *rsdp;
     uint32_t rsdp_len;

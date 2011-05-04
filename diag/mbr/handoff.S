@@ -56,6 +56,7 @@
 #define DEBUG_PNP	/* Scan for $PnP and show address */
 #define DEBUG_PAK	/* Press Any Key before boot fail */
 // #define DEBUG_ENTRY_REG	/* Store (manually as pusha is 80186) registers */
+// #define DEBUG_FDT	/* Print the floppy descriptor table; INT 1Eh*/
 
 #ifdef DEBUG_MARKER1
 	.macro ASCII_MARKER1 s:vararg
@@ -107,6 +108,10 @@ es_ds		= (es_si-2)
 es_bot		= (es_ds)
 
 BIOS_page	= 0x462
+
+int_1e		= (4*0x1e)
+int_1e_seg	= (int_1e)
+int_1e_off	= (int_1e+2)
 
 	.globl	_start
 _start:
@@ -221,17 +226,17 @@ scn_pnp:
 	/* 0x506E5024 */
 	movw	$0x5024, %dx
 	movw	$0x506E, %bx
-ch_pnp:	es lodsw
+ch_pnp:	es lodsw	/* Check for $PnP */
 	cmpw	%dx, %ax
 	jne	ch_pnp_l
 	es lodsw
 	cmpw	%bx, %ax
 	je	pr_pnp
-ch_pnp_l:
+ch_pnp_l:		/* Check $PnP failed; loop to next address */
 	addw	$14, %si
 	andw	$0xFFF0, %si
 	loopw	ch_pnp
-	jmp	end
+	jmp	pnp_end
 pr_pnp:
 	pushw	%si
 	call	wrstr
@@ -244,8 +249,29 @@ pr_pnp:
 	andw	$0xFFF0, %dx
 	call	wrhexw
 #endif	/* DEBUG_PNP */
-
 	call	crlf
+pnp_end:
+
+#ifdef DEBUG_FDT
+	/* INT 1Eh: Floppy Parameter Table Pointer */
+pr_1e:	call	wrstr
+	.ascii	"INT 1Eh: \0"
+	mov	$int_1e,%bx
+	les	(%bx),%di
+	pushw	%es
+	popw	%dx
+	call	wrhexw
+	movb	$':, %al
+	call	wrchr
+	pushw	%di
+	popw	%dx
+	call	wrhexw
+	call	crlf
+	/* [INT 1Eh] */
+	movw	$14, %cx
+	call	wrhexbses
+	call	crlf
+#endif	/* DEBUG_FDT */
 
 end:
 	jmp	bootfail
