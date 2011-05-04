@@ -232,9 +232,9 @@ low_level_init(struct netif *netif)
   pxe_call(PXENV_UNDI_GET_INFORMATION, &undi_info);
   pxe_call(PXENV_UNDI_GET_IFACE_INFO, &undi_iface);
 
-  dprintf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
-	  undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
-	  undi_info.HwType, undi_iface.IfaceType, undi_iface.ServiceFlags);
+  printf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
+	 undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
+	 undi_info.HwType, undi_iface.IfaceType, undi_iface.ServiceFlags);
 
   pxe_irq_vector = undi_info.IntNumber;
   if (!(undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
