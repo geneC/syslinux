@@ -80,19 +80,16 @@ static int ftp_cmd_response(struct inode *inode, const char *cmd,
     done = false;
 
     while ((c = pxe_getc(inode)) >= 0) {
-	//printf("%c", c);
-
 	if (c == '\n') {
-	    pos = 0;
 	    if (done) {
 		if (pn) {
 		    pn += ps;
 		    if (pn_ptr)
 			*pn_ptr = pn;
 		}
-		//printf("FTP response: %u\n", code);
 		return code;
 	    }
+	    pos = code = 0;
 	    first_line = false;
 	    continue;
 	}
@@ -248,9 +245,6 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     }
 
     resp = ftp_cmd_response(socket->ctl, "PASV", NULL, pasv_data, &pasv_bytes);
-    //printf("%u PASV %u bytes %u,%u,%u,%u,%u,%u\n",
-    //resp, pasv_bytes, pasv_data[0], pasv_data[1], pasv_data[2],
-    //pasv_data[3], pasv_data[4], pasv_data[5]);
     if (resp != 227 || pasv_bytes != 6)
 	goto err_disconnect;
 
