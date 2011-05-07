@@ -82,15 +82,17 @@ static bool parse_dotquad(const char *ip_str, uint32_t *res)
 }
 
 /*
- * Actual resolver function
- * Points to a null-terminated or :-terminated string in _name_
- * and returns the ip addr in _ip_ if it exists and can be found.
- * If _ip_ = 0 on exit, the lookup failed. _name_ will be updated
+ * Actual resolver function.
+ *
+ * Points to a null-terminated in _name_ and returns the ip addr in
+ * _ip_ if it exists and can be found.  If _ip_ = 0 on exit, the
+ * lookup failed. _name_ will be updated
  */
 uint32_t dns_resolv(const char *name)
 {
     err_t err;
     struct ip_addr ip;
+    char fullname[512];
 
     /*
      * Return failure on an empty input... this can happen during
@@ -107,6 +109,12 @@ uint32_t dns_resolv(const char *name)
     /* Make sure we have at least one valid DNS server */
     if (!dns_getserver(0).addr)
 	return 0;
+
+    /* Is it a local (unqualified) domain name? */
+    if (!strchr(name, '.') && LocalDomain[0]) {
+	snprintf(fullname, sizeof fullname, "%s.%s", name, LocalDomain);
+	name = fullname;
+    }
 
     err = netconn_gethostbyname(name, &ip);
     if (err)
