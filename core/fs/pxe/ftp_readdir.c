@@ -32,6 +32,7 @@ static int dirtype(char type)
     case 'b':
 	return DT_BLK;
     case '-':
+    case '0' ... '9':		/* Some DOS FTP stacks */
 	return DT_REG;
     case 'l':
 	return DT_LNK;
