@@ -223,22 +223,8 @@ static void print_arp_pbuf(struct netif *netif, struct pbuf *p)
 static void
 low_level_init(struct netif *netif)
 {
-  static __lowmem t_PXENV_UNDI_GET_INFORMATION undi_info;
-  static __lowmem t_PXENV_UNDI_GET_IFACE_INFO undi_iface;
   static __lowmem t_PXENV_UNDI_OPEN undi_open;
   int i;
-  /* struct undiif *undiif = netif->state; */
-
-  pxe_call(PXENV_UNDI_GET_INFORMATION, &undi_info);
-  pxe_call(PXENV_UNDI_GET_IFACE_INFO, &undi_iface);
-
-  printf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
-	 undi_info.BaseIo, undi_info.IntNumber, undi_info.MaxTranUnit,
-	 undi_info.HwType, undi_iface.IfaceType, undi_iface.ServiceFlags);
-
-  pxe_irq_vector = undi_info.IntNumber;
-  if (!(undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
-    pxe_irq_vector = 0;	/* Interrupts not supported */
 
   /* MAC_type and MAC_len should always match what is returned by
    * PXENV_UNDI_GET_INFORMATION.  At the moment the both seem to be
@@ -246,14 +232,14 @@ low_level_init(struct netif *netif)
    * somewhere so abort.
    */
   /* If we are in conflict abort */
-  if (MAC_type != undi_info.HwType) {
+  if (MAC_type != pxe_undi_info.HwType) {
     printf("HwType conflicit: %u != %u\n",
-	    MAC_type, undi_info.HwType);
+	    MAC_type, pxe_undi_info.HwType);
     kaboom();
   }
-  if (MAC_len != undi_info.HwAddrLen) {
+  if (MAC_len != pxe_undi_info.HwAddrLen) {
      printf("HwAddrLen conflict: %u != %u\n",
-	     MAC_len, undi_info.HwAddrLen);
+	     MAC_len, pxe_undi_info.HwAddrLen);
      kaboom();
   }
 
@@ -264,7 +250,7 @@ low_level_init(struct netif *netif)
   memcpy(netif->hwaddr, MAC, MAC_len);
 
   /* maximum transfer unit */
-  netif->mtu = undi_info.MaxTranUnit;
+  netif->mtu = pxe_undi_info.MaxTranUnit;
 
   dprintf("UNDI: hw address");
   for (i = 0; i < netif->hwaddr_len; i++)

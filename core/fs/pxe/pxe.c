@@ -15,6 +15,9 @@
 #include "url.h"
 #include "tftp.h"
 
+__lowmem t_PXENV_UNDI_GET_INFORMATION pxe_undi_info;
+__lowmem t_PXENV_UNDI_GET_IFACE_INFO  pxe_undi_iface;
+
 static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
 uint8_t MAC[MAC_MAX];		   /* Actual MAC address */
@@ -774,6 +777,15 @@ static int pxe_init(bool quiet)
 
     real_base_mem = max(code_seg, data_seg) >> 6; /* Convert to kilobytes */
 
+    /* Probe UNDI information */
+    pxe_call(PXENV_UNDI_GET_INFORMATION, &pxe_undi_info);
+    pxe_call(PXENV_UNDI_GET_IFACE_INFO,  &pxe_undi_iface);
+    
+    printf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
+	   pxe_undi_info.BaseIo, pxe_undi_info.IntNumber,
+	   pxe_undi_info.MaxTranUnit, pxe_undi_info.HwType,
+	   pxe_undi_iface.IfaceType, pxe_undi_iface.ServiceFlags);
+
     return 0;
 }
 
@@ -854,7 +866,7 @@ static void network_init(void)
     if (have_uuid)
 	sysappend_set_uuid(uuid);
     ip_init();
-    print_sysappend();
+    /* print_sysappend(); */
     http_bake_cookies();
 
     /*

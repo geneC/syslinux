@@ -148,6 +148,9 @@ struct ip_info {
  */
 extern struct ip_info IPInfo;
 
+extern t_PXENV_UNDI_GET_INFORMATION pxe_undi_info;
+extern t_PXENV_UNDI_GET_IFACE_INFO  pxe_undi_iface;
+
 extern uint8_t MAC[];
 extern char BOOTIFStr[];
 extern uint8_t MAC_len;

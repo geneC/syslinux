@@ -29,6 +29,10 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     entry = (far_ptr_t *)(vec << 2);
     *old = *entry;
     entry->ptr = (uint32_t)isr;
+
+    printf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
+	   old->seg, old->offs, entry->seg, entry->offs);
+
     return true;
 }
 
@@ -166,9 +170,13 @@ void pxe_init_isr(void)
  */
 void pxe_start_isr(void)
 {
-    if (pxe_irq_vector)
-	install_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
-    else
+    pxe_irq_vector = pxe_undi_info.IntNumber; /* Used in 16-bit code */
+
+    if (pxe_undi_info.IntNumber)
+	install_irq_vector(pxe_undi_info.IntNumber, pxe_isr, &pxe_irq_chain);
+    
+    if (!pxe_undi_info.IntNumber ||
+	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
 	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
 				   pxe_poll_thread, NULL);
 }
@@ -183,8 +191,8 @@ void pxe_cleanup_isr(void)
 
     memset(&undi_close, 0, sizeof(undi_close));
     pxe_call(PXENV_UNDI_CLOSE, &undi_close);
-    if (pxe_irq_vector)
-	uninstall_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
-    else
+    if (pxe_undi_info.IntNumber)
+	uninstall_irq_vector(pxe_undi_info.IntNumber, pxe_isr, &pxe_irq_chain);
+    if (poll_thread)
 	kill_thread(poll_thread);
 }
