@@ -140,7 +140,7 @@ pc_setint16:
 		call getint
 		pop di
 		jc .err
-		mov [si],bx
+		mov [di],bx
 .err:		ret
 
 pc_setint32:
@@ -148,7 +148,7 @@ pc_setint32:
 		call getint
 		pop di
 		jc .err
-		mov [si],ebx
+		mov [di],ebx
 .err:		ret
 
 ;
