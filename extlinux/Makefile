@@ -22,7 +22,7 @@ OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = $(GCCWARN) -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
 	   $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = # -s
+LDFLAGS	 = 
 
 SRCS     = main.c \
 	   ../libinstaller/syslxmod.c \

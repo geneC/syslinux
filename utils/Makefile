@@ -19,7 +19,7 @@ MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/syslinux.mk
 
 CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-LDFLAGS  = -O2 -s
+LDFLAGS  = -O2
 
 TARGETS	 = mkdiskimage isohybrid gethostip memdiskfind
 TARGETS += isohybrid.pl  # about to be obsoleted

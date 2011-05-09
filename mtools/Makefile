@@ -5,7 +5,7 @@ include $(MAKEDIR)/syslinux.mk
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libfat -I../libinstaller
 CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -s
+LDFLAGS	 = 
 
 SRCS     = syslinux.c \
 	   ../libinstaller/fat.c \
