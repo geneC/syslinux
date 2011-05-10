@@ -37,6 +37,9 @@ installer: syslinux
 syslinux: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
+strip:
+	$(STRIP) syslinux
+
 %.o: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 %.i: %.c

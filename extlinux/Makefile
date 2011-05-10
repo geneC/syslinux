@@ -54,6 +54,9 @@ installer: extlinux
 extlinux: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
+strip:
+	$(STRIP) extlinux
+
 %.o: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 %.i: %.c

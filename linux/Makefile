@@ -57,6 +57,9 @@ syslinux: $(OBJS)
 syslinux-nomtools: syslinux
 	ln -f $< $@
 
+strip:
+	$(STRIP) syslinux syslinux-nomtools
+
 %.o: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 %.i: %.c
