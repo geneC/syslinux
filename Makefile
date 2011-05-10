@@ -98,6 +98,13 @@ installer:
 
 installer-local: $(ITARGET) $(BINFILES)
 
+strip:
+	$(MAKE) strip-local
+	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i strip ; done
+	-ls -l $(BOBJECTS) $(IOBJECTS)
+
+strip-local:
+
 version.gen: version version.pl
 	$(PERL) version.pl $< $@ '%define < @'
 version.h: version version.pl

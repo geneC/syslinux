@@ -53,6 +53,7 @@ OBJCOPY  = objcopy
 AR       = ar
 NM       = nm
 RANLIB   = ranlib
+STRIP	 = strip
 GZIPPROG = gzip
 XZ	 = xz
 PNGTOPNM = pngtopnm
