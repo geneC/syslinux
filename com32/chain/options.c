@@ -86,7 +86,7 @@ Usage:\n\
     nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
     nowarn               Wait for a keypress to continue chainloading\n\
                          - useful to see emited warnings\n\
-    nostop               Actually perform the chainloading\n\
+    nobreak              Actually perform the chainloading\n\
 ", "\
 \nOptions continued ...\n\
     file=<file>          Load and execute <file>\n\
@@ -122,10 +122,10 @@ Usage:\n\
 void opt_set_defs(void)
 {
     memset(&opt, 0, sizeof(opt));
-    opt.sect = true;	/* by def. load sector */
-    opt.maps = true;	/* by def. map sector */
-    opt.hand = true;	/* by def. prepare handover */
-    opt.stop = false;	/* by def. do chainload */
+    opt.sect = true;	    /* by def. load sector */
+    opt.maps = true;	    /* by def. map sector */
+    opt.hand = true;	    /* by def. prepare handover */
+    opt.brkchain = false;   /* by def. do chainload */
     opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";
 #ifdef DEBUG
@@ -300,10 +300,10 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {
 	    opt.warn = false;
-	} else if (!strcmp(argv[i], "nostop")) {
-	    opt.stop = false;
-	} else if (!strcmp(argv[i], "stop")) {
-	    opt.stop = true;
+	} else if (!strcmp(argv[i], "nobreak")) {
+	    opt.brkchain = false;
+	} else if (!strcmp(argv[i], "break")) {
+	    opt.brkchain = true;
 	    opt.file = NULL;
 	    opt.maps = false;
 	    opt.hand = false;

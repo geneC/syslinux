@@ -32,7 +32,7 @@ struct options {
     bool filebpb;
     bool fixchs;
     bool warn;
-    bool stop;
+    bool brkchain;
     uint16_t keeppxe;
     struct syslinux_rm_regs regs;
 };

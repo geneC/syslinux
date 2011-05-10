@@ -34,7 +34,7 @@ jumps to 0:0x7c00.
 
 A "service-only" run is possible when either:
 
-- 'stop' is in effect
+- 'break' is in effect
 
 or
 
@@ -42,9 +42,9 @@ or
 
 This is useful for invocations such as:
 
-chain.c32 hdN M setbpb save stop
-chain.c32 hdN fixchs stop
-chain.c32 hdN unhideall stop
+chain.c32 hdN M setbpb save break
+chain.c32 hdN fixchs break
+chain.c32 hdN unhideall break
 
 Please see respective options for more details.
 
@@ -229,13 +229,13 @@ stacks in memory (pxelinux only).
 This option will wait for a keypress right before continuing the chainloading.
 Useful to see warnings emited by the chain module.
 
-	*nostop
-	stop
-	stop sets: nofile nomaps nohand
+	*nobreak
+	break
+	break sets: nofile nomaps nohand
 
 It is possible to trigger a "service-only" run - The chain module will do
 everything requested as usual, but it will not perform the actual chainloading.
-'stop' option disables handover, file loading and sector mapping, as these
+'break' option disables handover, file loading and sector mapping, as these
 are pointless in such scenario (although file might be reenabled in some future
 version, if writing to actual files becomes possible). Mainly useful for
 options 'fixchs', '[un]hide[all]' and setbpb.
