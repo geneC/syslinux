@@ -105,9 +105,9 @@ options 'sect=' and 'seg='), the file will cause sector to not be loaded at all
 	seg=<segment>:<offset>:<ip>
 	*seg=0:0x7c00:0x7c00
 
-This triplet lets you alter the addresses a file will use. Loading is done to
-<segment:offset>, jumping to <segment:ip>. When you chainload some other
-bootloader or kernel, it's almost always mandatory.
+This triplet lets you alter the addresses a file will use. It's loaded at
+<segment:offset>, the entry point is at <segment:ip>. When you chainload some
+other bootloader or kernel, it's almost always mandatory.
 
 The defaults, if option is not specified, are 0:0x7c00:0x7c00
 If any of the fields are ommited (e.g. 0x2000::), they default to 0.
@@ -117,10 +117,10 @@ If any of the fields are ommited (e.g. 0x2000::), they default to 0.
 	*sect=0:0x7c00:0x7c00
 	nosect sets: nomaps
 
-This triplet lets you alter the addresses a sector will use. File is loaded at
-<segment:offset>, the jump is made to <segment:ip>. This option is mostly used
-in tandem with 'file=' and 'seg=' options, as some loaders/kernels will expect
-relocated sector at some particular address (e.g. DRKM).
+This triplet lets you alter the addresses a sector will use. It's loaded at
+<segment:offset>, the entry point is at <segment:ip>. This option is mostly
+used in tandem with 'file=' and 'seg=' options, as some loaders/kernels will
+expect relocated sector at some particular address (e.g. DRKM).
 
 'nosect' will cause sector to not be loaded at all. In plenty cases, when a file
 is being chainloaded, sector is not necessary.
