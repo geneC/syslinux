@@ -95,6 +95,7 @@ Usage:\n\
                          - ommited o/i values default to 0\n\
     isolinux=<loader>    Load another version of ISOLINUX\n\
     ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
+    reactos=<loader>     Load ReactOS's loader\n\
     cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003\n\
     freedos=<loader>     Load FreeDOS KERNEL.SYS\n\
     msdos=<loader>       Load MS-DOS 2.xx - 6.xx IO.SYS\n\
@@ -166,6 +167,20 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.foff = 0;
 	    opt.fip = 0;
 	    opt.file = argv[i] + 6;
+	    opt.setbpb = true;
+	    /* opt.save = true; */
+	    opt.hand = false;
+	} else if (!strncmp(argv[i], "reactos=", 8)) {
+	    /*
+	     * settings based on commit
+	     *   ad4cf1470977f648ee1dd45e97939589ccb0393c
+	     * note, conflicts with:
+	     *   http://reactos.freedoors.org/Reactos%200.3.13/ReactOS-0.3.13-REL-src/boot/freeldr/notes.txt
+	     */
+	    opt.fseg = 0;
+	    opt.foff = 0x8000;
+	    opt.fip = 0x8100;
+	    opt.file = argv[i] + 8;
 	    opt.setbpb = true;
 	    /* opt.save = true; */
 	    opt.hand = false;
