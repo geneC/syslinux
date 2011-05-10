@@ -139,4 +139,27 @@ static inline void sti(void)
     asm volatile("sti");
 }
 
+typedef unsigned long irq_state_t;
+
+static inline irq_state_t irq_state(void)
+{
+    irq_state_t __st;
+
+    asm volatile("pushfl ; popl %0" : "=rm" (__st));
+    return __st;
+}
+
+static inline irq_state_t irq_save(void)
+{
+    irq_state_t __st = irq_state();
+    cli();
+    return __st;
+}
+
+static inline void irq_restore(irq_state_t __st)
+{
+    asm volatile("pushl %0 ; popfl" : : "rm" (__st));
+}
+
+
 #endif

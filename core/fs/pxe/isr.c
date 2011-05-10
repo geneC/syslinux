@@ -9,6 +9,8 @@
 #include "thread.h"
 #include "pxe.h"
 #include <string.h>
+#include <sys/cpu.h>
+#include <sys/io.h>
 
 extern uint8_t pxe_irq_pending;
 static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
@@ -18,6 +20,9 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 {
     far_ptr_t *entry;
     unsigned int vec;
+    uint8_t mask;
+    uint16_t maskreg;
+    irq_state_t irqstate;
 
     if (irq < 8)
 	vec = irq + 0x08;
@@ -26,9 +31,19 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     else
 	return false;
 
+    irqstate = irq_save();
+
     entry = (far_ptr_t *)(vec << 2);
     *old = *entry;
     entry->ptr = (uint32_t)isr;
+
+    /* Enable this interrupt at the PIC level, just in case... */
+    maskreg = 0x21 + ((irq & 8) << (7-3));
+    mask = inb(maskreg);
+    mask &= ~(1 << (irq & 3));
+    outb(mask, maskreg);
+
+    irq_restore(irqstate);
 
     printf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
 	   old->seg, old->offs, entry->seg, entry->offs);

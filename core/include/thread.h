@@ -80,29 +80,6 @@ mstime_t sem_down(struct semaphore *, mstime_t);
 void sem_up(struct semaphore *);
 void sem_init(struct semaphore *, int);
 
-typedef unsigned long irq_state_t;
-
-static inline irq_state_t irq_state(void)
-{
-    irq_state_t __st;
-
-    asm volatile("pushfl ; popl %0" : "=rm" (__st));
-    return __st;
-}
-
-static inline irq_state_t irq_save(void)
-{
-    irq_state_t __st;
-
-    asm volatile("pushfl ; popl %0 ; cli" : "=rm" (__st));
-    return __st;
-}
-
-static inline void irq_restore(irq_state_t __st)
-{
-    asm volatile("pushl %0 ; popfl" : : "rm" (__st));
-}
-
 struct thread *start_thread(const char *name, size_t stack_size, int prio,
 			    void (*start_func)(void *), void *func_arg);
 void __exit_thread(void);
