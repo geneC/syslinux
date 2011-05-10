@@ -196,7 +196,7 @@ void pxe_start_isr(void)
 				   pxe_poll_thread, NULL);
 }
 
-void pxe_cleanup_isr(void)
+int reset_pxe(void)
 {
     static __lowmem struct s_PXENV_UNDI_CLOSE undi_close;
 
@@ -210,4 +210,6 @@ void pxe_cleanup_isr(void)
 	uninstall_irq_vector(pxe_undi_info.IntNumber, pxe_isr, &pxe_irq_chain);
     if (poll_thread)
 	kill_thread(poll_thread);
+
+    return undi_close.Status;
 }

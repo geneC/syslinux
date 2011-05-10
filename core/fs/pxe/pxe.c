@@ -963,9 +963,9 @@ static inline bool is_efi(const struct efi_struct *efi)
     return (efi->magic == EFI_MAGIC) && (efi->len >= 83);
 }
 
+#if 0
 static void install_int18_hack(void)
 {
-#if 0
     static const uint8_t int18_hack[] =
     {
 	0xcd, 0x18,			/* int $0x18 */
@@ -1001,30 +1001,8 @@ static void install_int18_hack(void)
 	    *(uint16_t *)(dst+46) = InitStack.seg;
 	}
     }
+}
 #endif
-}
-
-int reset_pxe(void)
-{
-    static __lowmem struct s_PXENV_UDP_CLOSE udp_close;
-    extern void gpxe_unload(void);
-    int err = 0;
-
-    pxe_idle_cleanup();
-
-    pxe_call(PXENV_UDP_CLOSE, &udp_close);
-
-    if (gpxe_funcs & 0x80) {
-	/* gPXE special unload implemented */
-	call16(gpxe_unload, &zero_regs, NULL);
-
-	/* Locate the actual vendor stack... */
-	err = pxe_init(true);
-    }
-
-    install_int18_hack();
-    return err;
-}
 
 /*
  * This function unloads the PXE and UNDI stacks and
@@ -1052,13 +1030,11 @@ void unload_pxe(void)
 	uint16_t Status;	/* All calls have this as the first member */
     } unload_call;
 
-    pxe_cleanup_isr();
+    printf("Called unload_pxe()...\n");
 
     dprintf("FBM before unload = %d\n", BIOS_fbm);
 
     err = reset_pxe();
-
-    dprintf("FBM after reset_pxe = %d, err = %d\n", BIOS_fbm, err);
 
     /* If we want to keep PXE around, we still need to reset it */
     if (KeepPXE || err)

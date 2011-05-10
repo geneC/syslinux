@@ -190,7 +190,7 @@ extern far_ptr_t pxe_irq_chain;
 /* isr.c */
 void pxe_init_isr(void);
 void pxe_start_isr(void);
-void pxe_cleanup_isr(void);
+int reset_pxe(void);
 
 /* pxe.c */
 struct url_info;
