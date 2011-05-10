@@ -38,6 +38,7 @@ burn: isolinux.iso
 official:
 	$(MAKE) spotless CC='$(CC) -m32'
 	$(MAKE) all CC='$(CC) -m32'
+	$(MAKE) strip CC='$(CC) -m32'
 	$(MAKE) dist CC='$(CC) -m32'
 
 release:
