@@ -206,6 +206,10 @@ int reset_pxe(void)
 
     memset(&undi_close, 0, sizeof(undi_close));
     pxe_call(PXENV_UNDI_CLOSE, &undi_close);
+
+    if (undi_close.Status)
+	printf("PXENV_UNDI_CLOSE failed: 0x%x\n", undi_close.Status);
+
     if (pxe_undi_info.IntNumber)
 	uninstall_irq_vector(pxe_undi_info.IntNumber, pxe_isr, &pxe_irq_chain);
     if (poll_thread)

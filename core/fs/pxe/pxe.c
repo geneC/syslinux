@@ -1011,6 +1011,12 @@ static void install_int18_hack(void)
 void unload_pxe(void)
 {
     /* PXE unload sequences */
+    /*
+     * iPXE does:
+     * UNDI_SHUTDOWN, UNDI_CLEANUP, STOP_UNDI
+     * Older Syslinux did:
+     * UDP_CLOSE, UNDI_SHUTDOWN, UNLOAD_STACK, STOP_UNDI/UNDI_CLEANUP
+     */
     static const uint8_t new_api_unload[] = {
 	PXENV_UNDI_SHUTDOWN, PXENV_UNLOAD_STACK, PXENV_STOP_UNDI, 0
     };
@@ -1048,8 +1054,8 @@ void unload_pxe(void)
 	memset(&unload_call, 0, sizeof unload_call);
 	err = pxe_call(api, &unload_call);
 	if (err || unload_call.Status != PXENV_STATUS_SUCCESS) {
-	    dprintf("PXE unload API call %04x failed: 0x%x\n",
-		     api, unload_call.Status);
+	    printf("PXE unload API call %04x failed: 0x%x\n",
+		   api, unload_call.Status);
 	    goto cant_free;
 	}
     }
