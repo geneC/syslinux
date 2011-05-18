@@ -119,4 +119,27 @@ __extern void perror(const char *);
 
 __extern int rename(const char *, const char *);
 
+/*
+ * unhexchar: Convert a hexadecimal digit to the equivalent number
+ *
+ * Returns 0 if 'data' was converted succesfully, -1 otherwise.
+ */
+static inline int unhexchar(char *data)
+{
+	char num = *data;
+
+	if (num >= '0' && num <= '9') {
+		*data = num - '0';
+		return 0;
+	} else {
+		num |= 0x20;	/* upper case -> lower case */
+		if (num >= 'a' && num <= 'f') {
+			*data = num - 'a' - 10;
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 #endif /* _STDIO_H */
