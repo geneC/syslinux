@@ -405,7 +405,7 @@ void pxechain_init(struct pxelinux_opt *pxe)
 void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
     pxe_bootp_t *bootp0, *bootp1;
-    uint8_t *d0, d1;
+    uint8_t *d0, *d1;
 
     if (pxe->pkt1.d)
 	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
@@ -434,13 +434,11 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     bootp1->sip = pxe->fip;
     d0 = bootp0->vendor.d + 4;	/* Skip the magic */
     d1 = bootp1->vendor.d + 4;
-    if ((pxe.opt52 & 1) == 0) {
+    if ((pxe->opt52 & 1) == 0) {
 	strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
 	bootp1->bootfile[127] = 0;
     } else {	/* Need Option 67 */
     }
-    if (argc >= 1)
-	t = argv[0];
 }
 
 /* dhcp_copy_pkt_to_pxe: Copy packet to PXE's BC data for a ptype packet
@@ -643,8 +641,8 @@ int main(int argc, char *argv[])
 	    argc = 1;*/
     }
     if (argc == 2) {
-	if ((strcmp(argv[1], "-h") == 0) || ((strcmp(argv[1], "-?") == 0))
-		|| (strcmp(argv[1], "--help") == 0)) {
+	if ((strcasecmp(argv[1], "-h") == 0) || ((strcmp(argv[1], "-?") == 0))
+		|| (strcasecmp(argv[1], "--help") == 0)) {
 	    argc = 1;
 	} else {
 	    rv = pxechain(argc - 1, &argv[1]);
