@@ -37,6 +37,8 @@
 #include <stdint.h>
 #include <syslinux/pxe.h>
 #include <sys/gpxe.h>
+#include <unistd.h>
+#include <getkey.h>
 
 /*
 #include <ctype.h>
@@ -78,6 +80,7 @@ struct payload {
     addr_t s;	/* size in bytes */
 };
 
+/* named to match RFC2131/2132 */
 struct pxelinux_opt {
     const char *fn;	/* Filename as passed to us */
     in_addr_t fip;	/* fn's IP component */
@@ -86,6 +89,7 @@ struct pxelinux_opt {
     char *prefix;
     uint32_t reboot;
     uint8_t opt52;	/* DHCP Option Overload value */
+    uint32_t wait;	/* Additional decision to wait before boot */
     struct payload pkt0, pkt1;	/* original and modified packets */
 };
 
@@ -398,7 +402,7 @@ void pxechain_init(struct pxelinux_opt *pxe)
     /* Init for paranoia */
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
-    pxe->opt52 = 0;
+    pxe->opt52 = pxe->wait = 0;
     pxechain_fill_pkt(pxe);
 }
 
@@ -406,6 +410,8 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
     pxe_bootp_t *bootp0, *bootp1;
     uint8_t *d0, *d1;
+    int arg;
+    const char optstr[] = "c:p:t:w";
 
     if (pxe->pkt1.d)
 	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
@@ -413,14 +419,25 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	pxe->fip = 0;
     /* Fill */
     pxe->fn = argv[0];
-    if (argc > 1) {
-	if (strcmp(argv[1], "--") != 0)
-	    pxe->cfg = argv[1];
-	if (argc > 2) {
-	    if (strcmp(argv[2], "--") != 0)
-		pxe->prefix = argv[2];
-	    if ((argc = 4) && (strcmp(argv[3], "--") != 0))
-		pxe->reboot = strtoul(argv[3], NULL, 0);
+    while ((arg = getopt(argc, argv, optstr)) >= 0) {
+	dprintf("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
+	switch(arg) {
+	case 'c':	/* config */
+	    pxe->cfg = optarg;
+	    break;
+	case 'p':	/* prefix */
+	    pxe->prefix = optarg;
+	    break;
+	case 't':	/* timeout */
+	    pxe->reboot = (uint32_t)atoi(optarg);
+	    break;
+	case 'w':	/* wait */
+	    pxe->wait = 1;
+	    if (optarg)
+		pxe->wait = (uint32_t)atoi(optarg);
+	    break;
+	default:
+	    break;
 	}
     }
     pxechain_parse_fn(pxe->fn, &(pxe->fip), &(pxe->fp));
@@ -500,6 +517,7 @@ int pxechain(int argc, char *argv[])
     int rv, opos;
     struct data_area file;
     struct syslinux_rm_regs regs;
+    int inc;
 
     pxechain_init(&pxe);
     bootp0 = (pxe_bootp_t *)(pxe.pkt0.d);
@@ -532,6 +550,13 @@ int pxechain(int argc, char *argv[])
 //     --copy patched copy into cache
     dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.s, PXENV_PACKET_TYPE_CACHED_REPLY);
 //     --try boot
+    if (pxe.wait) {	/*  || true */
+	printf("Press any key to continue. ");
+	inc = KEY_NONE;
+	while (inc == KEY_NONE)
+	    inc = get_key(stdin, 6000);
+	puts("");
+    }
     if (true) {
 	puts("  Attempting to boot...");
 	do_boot(&file, 1, &regs);
@@ -629,8 +654,7 @@ int main(int argc, char *argv[])
     const struct syslinux_version *sv;
 
     /* Initialization */
-    openconsole(&dev_null_r, &dev_stdcon_w);
-//     console_ansi_raw();
+    console_ansi_raw();
     sv = syslinux_version();
     if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
 	printf("%s: May only run in PXELINUX\n", app_name_str);
