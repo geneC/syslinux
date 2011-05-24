@@ -668,15 +668,6 @@ is_unknown_filetype:
 		; Otherwise Linux kernel
 		jmp is_linux_kernel
 
-is_config_file:
-		push si
-		call make_plain_cmdline
-		pm_call pm_is_config_file
-		pop si
-		call openfd
-		call reset_config
-		jmp load_config_file
-
 ; This is an image type we can't deal with
 is_bad_image:
 		mov si,err_badimage
@@ -718,11 +709,10 @@ kerneltype_table:
 		dw is_disk_image	; VK_FDIMAGE
 		dw is_comboot_image	; VK_COMBOOT
 		dw is_com32_image	; VK_COM32
-		dw is_config_file	; VK_CONFIG
 %endif
 
 		section .bss16
-		global CmdOptPtr
+		global CmdOptPtr, KbdMap
 		alignb 4
 ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
 ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
@@ -731,6 +721,7 @@ CmdOptPtr       resw 1			; Pointer to first option on cmd line
 KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
+KbdMap		resb 256		; Keyboard map
 		global KernelName
 KernelName	resb FILENAME_MAX	; Mangled name for kernel
 		section .config
@@ -739,24 +730,27 @@ PXERetry	dw 0			; Extra PXE retries
 		section .data16
 		global SerialNotice
 SerialNotice	db 1			; Only print this once
+%if IS_PXELINUX
+		extern IPOption
+		global IPAppends, numIPAppends
+		alignz 2
+IPAppends	dw IPOption
+numIPAppends	equ ($-IPAppends)/2
+%else
+IPAppends	equ 0
+numIPAppends	equ 0
+%endif
 
 		section .text16
-;
-; Linux kernel loading code is common.
-;
-%include "runkernel.inc"
-
 ;
 ; COMBOOT-loading code
 ;
 %include "comboot.inc"
 %include "com32.inc"
-%include "cmdline.inc"
 
 ;
 ; Boot sector loading code
 ;
-%include "bootsect.inc"
 
 ;
 ; Abort loading code
@@ -765,3 +759,5 @@ SerialNotice	db 1			; Only print this once
 ;
 ; Hardware cleanup common code
 ;
+
+%include "localboot.inc"

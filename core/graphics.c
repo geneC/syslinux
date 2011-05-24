@@ -363,12 +363,6 @@ void vgashowcursor(void)
 
 void pm_usingvga(com32sys_t *regs)
 {
-	if (regs->eax.w[0] > 0x0F) {
-		/* Unknown flags = failure */
-		set_flags(regs, EFLAGS_CF);
-		return;
-	}
-
 	UsingVGA = regs->eax.b[0];
 	GXPixCols = regs->ecx.w[0];
 	GXPixRows = regs->edx.w[0];

@@ -37,7 +37,7 @@ do_idle:
 		push si
 		push cx
 		mov si,hlt_err
-		call writestr
+		pm_call pm_writestr
 		mov si,sp
 		add si,10
 		mov cx,16
@@ -50,7 +50,7 @@ do_idle:
 		pm_call pm_writechr
 		jmp .errloop
 .endloop:
-		call crlf
+		pm_call crlf
 		pop cx
 		pop si
 		sti

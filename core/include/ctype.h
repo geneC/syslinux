@@ -22,4 +22,9 @@ static inline int tolower(int c)
     return c;
 }
 
+static inline int isspace(int c)
+{
+	return c <= ' ';
+}
+
 #endif /* CTYPE_H */

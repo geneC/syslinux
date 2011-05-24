@@ -275,37 +275,6 @@ ROOT_FS_OPS:
 %include "ui.inc"
 
 ;
-; Boot to the local disk by returning the appropriate PXE magic.
-; AX contains the appropriate return code.
-;
-local_boot:
-		push cs
-		pop ds
-		mov [LocalBootType],ax
-		call vgaclearmode
-		mov si,localboot_msg
-		call writestr_early
-		; Restore the environment we were called with
-		pm_call reset_pxe
-		call cleanup_hardware
-		lss sp,[InitStack]
-		pop gs
-		pop fs
-		pop es
-		pop ds
-		popad
-		mov ax,[cs:LocalBootType]
-		cmp ax,-1			; localboot -1 == INT 18h
-		je .int18
-		popfd
-		retf				; Return to PXE
-.int18:
-		popfd
-		int 18h
-		jmp 0F000h:0FFF0h
-		hlt
-
-;
 ; kaboom: write a message and bail out.  Wait for quite a while,
 ;	  or a user keypress, then do a hard reboot.
 ;
@@ -519,7 +488,6 @@ pxe_file_exit_hook:
 ; -----------------------------------------------------------------------------
 
 %include "common.inc"		; Universal modules
-%include "rawcon.inc"		; Console I/O w/o using the console functions
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -535,23 +503,6 @@ err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset.
 bailmsg		equ err_bootfailed
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
 syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
-
-;
-; Config file keyword table
-;
-%include "keywords.inc"
-
-;
-; Extensions to search for (in *forward* order).
-; (.bs and .bss16 are disabled for PXELINUX, since they are not supported)
-;
-		alignz 4
-exten_table:	db '.cbt'		; COMBOOT (specific)
-		db '.0', 0, 0		; PXE bootstrap program
-		db '.com'		; COMBOOT (same as DOS)
-		db '.c32'		; COM32
-exten_table_end:
-		dd 0, 0			; Need 8 null bytes here
 
 ;
 ; Misc initialized (data) variables

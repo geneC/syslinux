@@ -15,6 +15,8 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <fs.h>
+#include <ctype.h>
+#include <alloca.h>
 
 #include <sys/exec.h>
 #include <sys/module.h>
@@ -111,4 +113,71 @@ void load_env32(com32sys_t * regs)
 
 	if (!search_config(&fp->i.fd, search_directories, filenames))
 		spawn_load(LDLINUX, 1, argv);
+}
+
+int create_args_and_load(char *cmdline)
+{
+	char *p, **argv;
+	int argc;
+	int i;
+
+	if (!cmdline)
+		return -1;
+
+	for (argc = 0, p = cmdline; *p; argc++) {
+		/* Find the end of this arg */
+		while(*p && !isspace(*p))
+			p++;
+
+		/*
+		 * Now skip all whitespace between arguments.
+		 */
+		while (*p && isspace(*p))
+			p++;
+	}
+
+	/*
+	 * Generate a copy of argv on the stack as this is
+	 * traditionally where process arguments go.
+	 *
+	 * argv[0] must be the command name.
+	 */
+	argv = alloca(argc * sizeof(char *));
+
+	for (i = 0, p = cmdline; i < argc; i++) {
+		char *start;
+		int len = 0;
+
+		start = p;
+
+		/* Find the end of this arg */
+		while(*p && !isspace(*p)) {
+			p++;
+			len++;
+		}
+
+		argv[i] = malloc(len + 1);
+		strncpy(argv[i], start, len);
+		argv[i][len] = '\0';
+
+		/*
+		 * Now skip all whitespace between arguments.
+		 */
+		while (*p && isspace(*p))
+			p++;
+	}
+
+	/* NUL-terminate */
+	argv[argc] = NULL;
+
+	return spawn_load(argv[0], argc, argv);
+}
+
+void pm_env32_run(com32sys_t *regs)
+{
+	char *cmdline;
+
+	cmdline = MK_PTR(regs->es, regs->ebx.w[0]);
+	if (create_args_and_load(cmdline) < 0)
+		printf("Failed to run com32 module\n");
 }

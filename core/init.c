@@ -63,8 +63,13 @@ static inline void bios_timer_init(void)
 
 void init(com32sys_t *regs)
 {
+	int i;
+
 	/* Initialize timer */
 	bios_timer_init();
+
+	for (i = 0; i < 256; i++)
+		KbdMap[i] = i;
 
 	adjust_screen();
 	printf_init();

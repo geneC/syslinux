@@ -16,7 +16,7 @@
 	extern abort_load_new
 
 	; elflink/load_env32.c
-	extern load_env32
+	extern load_env32, pm_env32_run
 
 	; memscan.c
 	extern highmem_init
@@ -71,5 +71,8 @@
 
 	; font.c
 	extern pm_getchar, pm_adjust_screen, pm_usingvga, pm_userfont
+
+	; localboot.c
+	extern pm_local_boot
 
 %endif ; EXTERN_INC

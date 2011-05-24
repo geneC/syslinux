@@ -30,22 +30,11 @@ common_init:
 
 		extern init
 		pm_call init
-;
-; Initialize configuration information
-;
-		call reset_config
 
 ;
 ; Set up the COMBOOT APIs
 ;
 		call comboot_setup_api
-
-;
-; Inite the memmory subsystem
-;
-;		pm_call mem_init
-		mov eax,[HighMemSize]
-		mov [VKernelEnd],eax
 
 		section .text16
 ;

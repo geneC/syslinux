@@ -16,7 +16,6 @@
 ;;
 ;; Common code for running a COMBOOT image
 ;;
-
 		section .text16
 
 ; Parameter registers definition; this is the definition
@@ -60,83 +59,6 @@
 %define		P_EDI		dword [bp]
 %define		P_DI		word [bp]
 %define		P_HDI		word [bp+2]
-
-; Looks like a COMBOOT image but too large
-comboot_too_large:
-		pm_call pm_close_file
-		mov si,err_comlarge
-		call writestr
-		jmp enter_command
-
-;
-; Load a COMBOOT image.  A COMBOOT image is basically a DOS .COM file,
-; except that it may, of course, not contain any DOS system calls.  We
-; do, however, allow the execution of INT 20h to return to SYSLINUX.
-;
-is_comboot_image:
-		push si			; Save file handle
-
-		call make_plain_cmdline
-
-		call comboot_setup_api
-
-		mov cx,comboot_seg
-		mov es,cx
-
-		xor di,di
-		mov cx,64		; 256 bytes (size of PSP)
-		xor eax,eax		; Clear PSP
-		rep stosd
-
-		mov word [es:0], 020CDh	; INT 20h instruction
-		; First non-free paragraph
-		; This is valid because comboot_seg == real_mode_seg
-		; == the highest segment used by all derivatives
-		int 12h			; Get DOS memory size
-		shl ax,6		; Kilobytes -> paragraphs
-		mov word [es:02h],ax
-
-%ifndef DEPEND
-%if real_mode_seg != comboot_seg
-%error "This code assumes real_mode_seg == comboot_seg"
-%endif
-%endif
-		; Copy the command line from high memory
-		mov si,cmd_line_here
-		mov cx,125		; Max cmdline len (minus space and CR)
-		mov di,081h		; Offset in PSP for command line
-		mov al,' '		; DOS command lines begin with a space
-		stosb
-
-.loop:		es lodsb
-		and al,al
-		jz .done
-		stosb
-		loop .loop
-.done:
-
-		mov al,0Dh		; CR after last character
-		stosb
-		mov ax,di
-		sub al,82h		; Include space but not CR
-		mov [es:80h],al		; Store command line length
-
-		; Now actually load the file...
-		pop si			; File handle
-		mov bx,100h		; Load at <seg>:0100h
-		mov cx,0FF00h		; Maximum number of bytes
-		pm_call getfsbytes
-		cmp ecx,65536-256-2	; Maximum size
-		ja comboot_too_large
-
-		; And invoke the program...
-		mov ax,es
-		mov ds,ax
-		mov ss,ax
-		xor sp,sp
-		push word 0		; Return to address 0 -> exit
-
-		jmp comboot_seg:100h	; Run it
 
 ;
 ; Set up the COMBOOT API interrupt vectors.  This is now done at
@@ -239,7 +161,7 @@ comboot_int21:	sti
 		mov es,bp
 		mov bp,sp			; Set up stack frame
 
-		call _adjust_screen		; The COMBOOT program might have changed the screen
+		pm_call pm_adjust_screen	; The COMBOOT program might hav changed the screen
 
 		mov cx,int21_count
 		mov si,int21_table
@@ -277,17 +199,17 @@ comboot_bogus:	pop dx			; Interrupt number
 		jmp comboot_exit_msg
 comboot_bogus_tail:
 		xchg ax,dx
-		call writehex2		; Interrupt number
+		pm_call pm_writehex2		; Interrupt number
 		mov al,' '
-		call writechr
+		pm_call pm_writechr
 		xchg ax,dx
-		call writehex4		; Function number (AX)
+		pm_call pm_writehex4		; Function number (AX)
 		mov al,' '
-		call writechr
+		pm_call pm_writechr
 		mov eax,edi
-		call writehex8		; CS:IP of the origin
-		call crlf
-		jmp enter_command
+		pm_call pm_writehex8		; CS:IP of the origin
+		pm_call crlf
+		jmp kaboom
 
 ; Proper return vector
 ; Note: this gets invoked both via INT 21h and directly via INT 20h.
@@ -310,12 +232,12 @@ comboot_exit_msg:
 		pop bx			; Return address
 		RESET_STACK_AND_SEGS si	; Contains sti, cld
 		pm_call comboot_cleanup_lowmem
-		call _adjust_screen	; The COMBOOT program might have changed the screen
+		pm_call pm_adjust_screen; The COMBOOT program might have change the screen
 		jcxz .nomsg
 		mov si,KernelName
-		call writestr
+		pm_call pm_writestr
 		mov si,cx
-		call writestr
+		pm_call pm_writestr
 .nomsg:
 		jmp bx
 
@@ -323,22 +245,22 @@ comboot_exit_msg:
 ; INT 21h system calls
 ;
 comboot_getkey:				; 01 = get key with echo
-		call vgashowcursor
+		pm_call vgashowcursor
 		call comboot_getchar
-		call vgahidecursor
-		call writechr
+		pm_call vgahidecursor
+		pm_call pm_writechr
 		clc
 		ret
 
 comboot_writechr:			; 02 = writechr
 		mov al,P_DL
-		call writechr
+		pm_call pm_writechr
 		clc
 		ret
 
 comboot_writeserial:			; 04 = write serial port
 		mov al,P_DL
-		call write_serial
+		pm_call pm_write_serial
 		clc
 		ret
 
@@ -353,7 +275,7 @@ comboot_writestr:			; 09 = write DOS string
 .loop:		es lodsb
 		cmp al,'$'		; End string with $ - bizarre
 		je .done
-		call writechr
+		pm_call pm_writechr
 		jmp short .loop
 .done:		clc
 		ret
@@ -361,7 +283,7 @@ comboot_writestr:			; 09 = write DOS string
 comboot_checkkey:			; 0B = check keyboard status
 		cmp byte [APIKeyFlag],00h
 		jnz .waiting
-		call pollchar
+		pm_call pm_pollchar
 .waiting:	setz al
 		dec al			; AL = 0FFh if present, 0 if not
 		mov P_AL,al
@@ -380,7 +302,7 @@ comboot_checkver:			; 30 = check DOS version
 comboot_getchar:
 		cmp byte [APIKeyFlag],00h
 		jne .queued
-		call getchar		; If not queued get input
+		pm_call pm_getchar	; If not queued get input
 		and al,al		; Function key?  (CF <- 0)
 		jnz .done
 		mov [APIKeyWait],ah	; High part of key
@@ -406,7 +328,7 @@ comboot_int28:
 comboot_int29:
 		sti
 		cld
-		call writechr			; Preserves registers!
+		pm_call pm_writechr
 		iret
 
 ;
@@ -426,7 +348,7 @@ comboot_int22:
 		mov es,bp
 		mov bp,sp			; Set up stack frame
 
-		call _adjust_screen		; The COMBOOT program might have changed the screen
+		pm_call pm_adjust_screen	; The COMBOOT program might hav changed the screen
 
 		cmp ax,int22_count
 		jb .ok
@@ -475,7 +397,7 @@ comapi_nop:
 comapi_writestr:
 		mov ds,P_ES
 		mov si,P_BX
-		call writestr
+		pm_call pm_writestr
 		clc
 		ret
 
@@ -486,12 +408,10 @@ comapi_writestr:
 ; ES:BX as if it had been entered by the user.
 ;
 comapi_run:
-		mov ds,P_ES
-		mov si,P_BX
-		mov di,command_line
-		call strcpy
-		push load_kernel		; Run a new kernel
-		jmp comboot_exit		; Terminate task, clean up
+		mov es,P_ES
+		mov bx,P_BX
+		pm_call pm_env32_run
+		ret
 
 ;
 ; INT 22h AX=0004h	Run default command
@@ -509,7 +429,7 @@ comapi_run_default:
 ; Puts the video in standard text mode
 ;
 comapi_textmode:
-		call vgaclearmode
+		pm_call vgaclearmode
 		clc
 		ret
 
@@ -615,19 +535,10 @@ comapi_derinfo:
 ; INT 22h AX=000Bh	Get Serial Console Configuration
 ;
 comapi_serialcfg:
-		mov ax,[SerialPort]
+		pm_call pm_serialcfg
 		mov P_DX,ax
-		mov ax,[BaudDivisor]
-		mov P_CX,ax
-		mov ax,[FlowControl]
-		or al,ah
-		mov ah,[FlowIgnore]
-		shr ah,4
-		test byte [DisplayCon],01h
-		jnz .normalconsole
-		or ah,80h
-.normalconsole:
-		mov P_BX,ax
+		mov P_CX,cx
+		mov P_BX,bx
 		clc
 		ret
 
@@ -647,7 +558,7 @@ comapi_cleanup:
 		mov eax,[OrigFDCTabPtr]
 		mov [fdctab],eax
 %endif
-		call cleanup_hardware
+		pm_call cleanup_hardware
 		clc
 		ret
 
@@ -655,18 +566,7 @@ comapi_cleanup:
 ; INT 22h AX=000Dh	Clean up then replace bootstrap
 ;
 comapi_chainboot:
-		call comapi_cleanup
-		mov eax,P_EDI
-		mov [trackbuf+4],eax		; Copy from
-		mov eax,P_ECX
-		mov [trackbuf+8],eax		; Total bytes
-		mov eax,7C00h
-		mov [trackbuf],eax		; Copy to
-		push eax			; Entry point on stack
-		mov esi,P_ESI
-		mov edx,P_EBX
-		mov bx,P_DS
-		jmp replace_bootstrap_one
+		ret
 
 ;
 ; INT 22h AX=000Eh	Get configuration file name
@@ -726,7 +626,8 @@ comapi_idle:
 ;
 comapi_localboot:
 		mov ax,P_DX
-		jmp local_boot
+		pm_call pm_local_boot
+		ret
 
 ;
 ; INT 22h AX=0015h	Feature flags
@@ -742,57 +643,7 @@ comapi_features:
 ; INT 22h AX=0016h	Run kernel image
 ;
 comapi_runkernel:
-		mov al,P_DL
-		cmp al,VK_TYPES-1
-		ja .error
-		mov [KernelType],al
-
-		; It's not just possible, but quite likely, that ES:BX
-		; points into real_mode_seg or xfer_buf_seg, so we
-		; need to exercise some special care here... use
-		; VKernelBuf for temporary storage.
-		push ds
-		mov ds,P_ES
-		mov si,P_BX
-		mov di,VKernelBuf
-		call strcpy
-		pop ds
-
-		push ds
-		mov ds,P_DS
-		mov si,P_SI
-		mov di,KernelName
-		pm_call pm_mangle_name
-		pop ds
-		pm_call pm_searchdir
-		jz comapi_err
-
-		; The kernel image was found, so we can load it...
-		mov [Kernel_SI],si
-		mov [Kernel_EAX],eax
-
-%if IS_PXELINUX
-		mov al,P_CL
-		mov [IPAppend],al
-%endif
-
-		call comboot_exit
-
-.finish:
-		; Copy the command line into its proper place
-		push es
-		mov dx,real_mode_seg
-		mov es,dx
-		mov si,VKernelBuf
-		mov di,cmd_line_here
-		call strcpy
-		mov word [es:di-1],' '	; Simulate APPEND: space plus null
-		pop es
-		mov [CmdLinePtr],di
-		mov word [CmdOptPtr],zero_string
-		jmp kernel_good_saved
-
-.error		equ comapi_usingvga.error
+		ret
 
 ;
 ; INT 22h AX=0017h  Report video mode change
@@ -801,15 +652,9 @@ comapi_usingvga:
 		mov ax,P_BX
 		cmp ax,0Fh		; Unknown flags = failure
 		ja .error
-		mov [UsingVGA],al
 		mov cx,P_CX
 		mov dx,P_DX
-		mov [GXPixCols],cx
-		mov [GXPixRows],dx
-		test al,08h
-		jnz .notext
-		call _adjust_screen
-.notext:
+		pm_call pm_usingvga
 		clc
 		ret
 .error:
@@ -828,7 +673,6 @@ comapi_userfont:
 		mov P_BX,aux.fontbuf
 
 .done:		; CF=0 here
-		mov P_AL,al
 		ret
 
 ;

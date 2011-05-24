@@ -98,15 +98,15 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 
 kaboom2:
 		mov si,err_bootfailed
-		call writestr
+		pm_call pm_writestr
 		cmp byte [kaboom.again+1],18h	; INT 18h version?
 		je .int18
-		call getchar
-		call vgaclearmode
+		pm_call pm_getchar
+		pm_call vgaclearmode
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 .int18:
-		call vgaclearmode
+		pm_call vgaclearmode
 		int 18h
 .noreg:		jmp short .noreg	; Nynorsk
 
@@ -115,8 +115,6 @@ kaboom2:
 ; -----------------------------------------------------------------------------
 
 %include "common.inc"		; Universal modules
-%include "writestr.inc"		; String output
-%include "localboot.inc"	; Disk-based local boot
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -129,25 +127,6 @@ copyright_str   db ' Copyright (C) 1994-'
 		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: please change disks and press '
 		db 'a key to continue.', CR, LF, 0
-
-;
-; Config file keyword table
-;
-%include "keywords.inc"
-
-;
-; Extensions to search for (in *forward* order).
-;
-		alignz 4
-exten_table:	db '.cbt'		; COMBOOT (specific)
-%if IS_SYSLINUX
-		db '.bss'		; Boot sector (add superblock)
-%endif
-		db '.bs', 0		; Boot sector
-		db '.com'		; COMBOOT (same as DOS)
-		db '.c32'		; COM32
-exten_table_end:
-		dd 0, 0			; Need 8 null bytes here
 
 ;
 ; Misc initialized (data) variables

@@ -1206,8 +1206,6 @@ debug_tracer:	pushad
 ; -----------------------------------------------------------------------------
 
 %include "common.inc"		; Universal modules
-%include "rawcon.inc"		; Console I/O w/o using the console functions
-%include "localboot.inc"	; Disk-based local boot
 
 ; -----------------------------------------------------------------------------
 ;  Begin data section
@@ -1215,19 +1213,3 @@ debug_tracer:	pushad
 
 		section .data16
 err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
-
-;
-; Config file keyword table
-;
-%include "keywords.inc"
-
-;
-; Extensions to search for (in *forward* order).
-;
-		alignz 4
-exten_table:	db '.cbt'		; COMBOOT (specific)
-		db '.bin'		; CD boot sector
-		db '.com'		; COMBOOT (same as DOS)
-		db '.c32'		; COM32
-exten_table_end:
-		dd 0, 0			; Need 8 null bytes here

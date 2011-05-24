@@ -36,6 +36,8 @@ const char *const kernel_types[] = {
     NULL
 };
 
+extern int create_args_and_load(char *);
+
 void execute(const char *cmdline, enum kernel_type type)
 {
 	const char *p, *const *pp;
@@ -79,60 +81,8 @@ void execute(const char *cmdline, enum kernel_type type)
 
 	if (type == KT_COM32) {
 		/* new entry for elf format c32 */
-		char **argv;
-		int i, argc;
-
-		q = args;
-		for (argc = 0; *q; q++) {
-			argc++;
-
-			/* Find the end of this arg */
-			while(*q && !my_isspace(*q))
-				q++;
-
-			/*
-			 * Now skip all whitespace between arguments.
-			 */
-			while (*q && my_isspace(*q))
-				q++;
-		}
-
-		/*
-		 * Generate a copy of argv on the stack as this is
-		 * traditionally where process arguments go.
-		 *
-		 * argv[0] must be the command name, so bump argc to
-		 * include argv[0].
-		 */
-		argc += 1;
-		argv = alloca(argc * sizeof(char *));
-		argv[0] = kernel;
-
-		for (q = args, i = 1; i < argc - 1; i++) {
-			char *start;
-			int len = 0;
-
-			start = q;
-
-			/* Find the end of this arg */
-			while(*q && !my_isspace(*q)) {
-				q++;
-				len++;
-			}
-
-			argv[i] = malloc(len + 1);
-			strncpy(argv[i], start, len);
-			argv[i][len] = '\0';
-
-			/*
-			 * Now skip all whitespace between arguments.
-			 */
-			while (*q && my_isspace(*q))
-				q++;
-		}
-
-		argv[argc] = NULL;
-		spawn_load(kernel, argc, argv);
+		lfree(kernel);
+		create_args_and_load(cmdline);
 	} else if (type == KT_KERNEL) {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */

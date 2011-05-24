@@ -54,8 +54,6 @@ void msg_initvars(void);
 static void msg_setfg(char data);
 static void msg_putchar(char ch);
 
-uint8_t KbdMap[256];	/* Keyboard map */
-
 /*
  * loadkeys:	Load a LILO-style keymap
  *

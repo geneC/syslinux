@@ -4,6 +4,8 @@
 #include <core.h>
 #include <fs.h>
 
+char ConfigName[FILENAME_MAX];
+
 /*
  * Common implementation of load_config
  *
