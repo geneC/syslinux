@@ -1154,7 +1154,7 @@ static int parse_one_config(const char *filename)
 	if (f)
 		goto config_found;
 
-	f = fopen("isolinux.cfg", "r");
+	f = fopen("isolinux/isolinux.cfg", "r");
 	if (f)
 		goto config_found;
 
