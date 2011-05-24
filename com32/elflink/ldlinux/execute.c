@@ -134,7 +134,7 @@ void execute(const char *cmdline, enum kernel_type type)
 		argv[argc] = NULL;
 		module_load_dependencies(kernel, "modules.dep");
 		spawn_load(kernel, argc, argv);
-	} else if (type <= KT_KERNEL) {
+	} else if (type == KT_KERNEL) {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */
 		new_linux_kernel(kernel, cmdline);
@@ -148,14 +148,15 @@ void execute(const char *cmdline, enum kernel_type type)
 		if (type == KT_LOCALBOOT) {
 			ireg.eax.w[0] = 0x0014;	/* Local boot */
 			ireg.edx.w[0] = strtoul(kernel, NULL, 0);
+		} else {
+			ireg.eax.w[0] = 0x0016;	/* Run kernel image */
+			ireg.esi.w[0] = OFFS(kernel);
+			ireg.ds = SEG(kernel);
+			ireg.ebx.w[0] = OFFS(args);
+			ireg.es = SEG(args);
+			ireg.edx.l = type - KT_KERNEL;
+			/* ireg.ecx.l    = 0; *//* We do ipappend "manually" */
 		}
-		ireg.eax.w[0] = 0x0016;	/* Run kernel image */
-		ireg.esi.w[0] = OFFS(kernel);
-		ireg.ds = SEG(kernel);
-		ireg.ebx.w[0] = OFFS(args);
-		ireg.es = SEG(args);
-		ireg.edx.l = type - KT_KERNEL;
-		/* ireg.ecx.l    = 0; *//* We do ipappend "manually" */
 
 		__intcall(0x22, &ireg, NULL);
 	}

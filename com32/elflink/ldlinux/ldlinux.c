@@ -27,8 +27,13 @@ static void load_kernel(const char *kernel)
 	/* Virtual kernel? */
 	me = find_label(kernel);
 	if (me) {
-		/* XXX we don't handle LOCALBOOT yet */
-		execute(me->cmdline, KT_KERNEL);
+		enum kernel_type type = KT_KERNEL;
+
+		/* cmdline contains type specifier */
+		if (me->cmdline[0] == '.')
+			type = KT_NONE;
+
+		execute(me->cmdline, type);
 		/* We shouldn't return */
 		goto bad_kernel;
 	}
