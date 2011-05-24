@@ -51,7 +51,9 @@
 #include <syslinux/config.h>
 */
 
-#define DEBUG
+#define DEBUG 1
+
+#define dprintf0(f, ...)		((void)0)
 
 #ifdef DEBUG
 #  define dprintf			printf
@@ -65,12 +67,18 @@
 #  define dprint_pxe_vendor_raw(p, l)	((void)0)
 #endif
 
+#define dprintf_opt_cp	dprintf0
+#define dprintf_opt_inj	dprintf
+
 #define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
 
 #define STACK_SPLIT	11
 
 /* same as pxelinux.asm REBOOT_TIME */
 #define REBOOT_TIME	300
+
+#define NUM_DHCP_OPTS	256
+#define DHCP_OPT_LEN_MAX	256
 
 const char app_name_str[] = "pxechn.c32";
 
@@ -80,7 +88,11 @@ struct payload {
     addr_t s;	/* size in bytes */
 };
 
-/* named to match RFC2131/2132 */
+struct cpayload {
+    const char *d;
+    addr_t s;
+};
+
 struct pxelinux_opt {
     const char *fn;	/* Filename as passed to us */
     in_addr_t fip;	/* fn's IP component */
@@ -174,6 +186,17 @@ void pxe_error(int ierr, const char *evt, const char *msg)
     else if (evt)
 	printf("Error while %s: ", evt);
     printf("%d:%s\n", ierr, strerror(ierr));
+}
+
+int pressanykey(void) {
+    int inc;
+
+    printf("Press any key to continue. ");
+    inc = KEY_NONE;
+    while (inc == KEY_NONE)
+	inc = get_key(stdin, 6000);
+    puts("");
+    return inc;
 }
 
 int dhcp_find_opt(pxe_bootp_t *p, size_t len, uint8_t opt)
@@ -327,13 +350,11 @@ int pxechain_parse_fn(const char fn[], in_addr_t *fip, const char *fp[])
     if (csep) {
 	if (csep[1] == ':') {	/* IP::FN */
 	    *fp = &csep[2];
+	    rv = 1;
 	    if (fn[0] != ':') {
 		hlen = csep - fn;
 		memcpy(host, fn, hlen);
 		host[hlen] = 0;
-		rv = 1;
-	    } else {	/* assume plain filename */
-		csep = NULL;
 	    }
 	} else if ((csep[1] == '/') && (csep[2] == '/')) {
 		/* URL: proto://host:port/path/file */
@@ -365,7 +386,7 @@ int pxechain_parse_fn(const char fn[], in_addr_t *fip, const char *fp[])
 	tip = pxe_dns(host);
     if (tip != 0)
 	*fip = tip;
-    dprintf("  host '%s'\n  fp   '%s'\n  fip  %08x\n", host, *fp, ntohl(*fip));
+    dprintf0("  host '%s'\n  fp   '%s'\n  fip  %08x\n", host, *fp, ntohl(*fip));
     return rv;
 }
 
@@ -406,13 +427,15 @@ void pxechain_init(struct pxelinux_opt *pxe)
     pxechain_fill_pkt(pxe);
 }
 
-void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
+void pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
+			 struct cpayload opts[])
 {
-    pxe_bootp_t *bootp0, *bootp1;
-    uint8_t *d0, *d1;
     int arg;
     const char optstr[] = "c:p:t:w";
 
+    for (arg = 0; arg < NUM_DHCP_OPTS; arg++) {
+	opts[arg].s = DHCP_OPT_LEN_MAX;
+    }
     if (pxe->pkt1.d)
 	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
     else
@@ -420,16 +443,20 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     /* Fill */
     pxe->fn = argv[0];
     while ((arg = getopt(argc, argv, optstr)) >= 0) {
-	dprintf("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
+	dprintf0("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
 	case 'c':	/* config */
-	    pxe->cfg = optarg;
+	    opts[209].d = pxe->cfg = optarg;
+	    opts[209].s = strlen(optarg);
 	    break;
 	case 'p':	/* prefix */
-	    pxe->prefix = optarg;
+	    opts[210].d = pxe->prefix = optarg;
+	    opts[210].s = strlen(optarg);
 	    break;
 	case 't':	/* timeout */
 	    pxe->reboot = (uint32_t)atoi(optarg);
+	    opts[211].d = (void *)(pxe->reboot);
+	    opts[211].s = 4;
 	    break;
 	case 'w':	/* wait */
 	    pxe->wait = 1;
@@ -441,6 +468,23 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	}
     }
     pxechain_parse_fn(pxe->fn, &(pxe->fip), &(pxe->fp));
+}
+
+void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
+{
+    pxe_bootp_t *bootp0, *bootp1;
+    uint8_t *d0, *d0e, *d1, *d1e;
+    int i;
+    struct cpayload *opts;
+
+    opts = calloc(256, sizeof(struct cpayload));
+    if (!opts) {
+	error("Could not allocate for options\n");
+	return;
+    }
+    /* We'll use opts[i].s==DHCP_OPT_LEN_MAX to indicate
+       an uninitialized option */
+    pxechain_parse_args(argc, argv, pxe, opts);
 //     --rebuild copy #1 applying new options in order ensuring an option is only specified once in patched packet
     /* Parse the filename to understand if a PXE parameter update is needed. */
     /* How does BKO do this for HTTP? option 209/210 */
@@ -450,12 +494,53 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     bootp1 = (pxe_bootp_t *)(pxe->pkt1.d);
     bootp1->sip = pxe->fip;
     d0 = bootp0->vendor.d + 4;	/* Skip the magic */
+    d0e = (uint8_t *)bootp0 + pxe->pkt0.s - 4;	/* space for opt52,end */
     d1 = bootp1->vendor.d + 4;
+    d1e = (uint8_t *)bootp1 + pxe->pkt1.s - 4;
     if ((pxe->opt52 & 1) == 0) {
 	strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
 	bootp1->bootfile[127] = 0;
     } else {	/* Need Option 67 */
+	opts[67].s = strlen(pxe->fp);
+	opts[67].d = pxe->fp;
     }
+    i = 0;
+    while (*d0 != 255) {
+	switch (*d0) {
+	case 0:	/* Don't bother with padding */
+	    break;
+	default:	/* Copy as-is if we did nothing with it */
+	    if (opts[*d0].s == DHCP_OPT_LEN_MAX) {
+		dprintf_opt_cp("Copying %d, %d bytes\n", *d0, *(d0 + 1) + 2);
+		memcpy(d1, d0, *(d0 + 1) + 2);
+		d1 += *(d0 + 1) + 2;
+	    }
+	}
+	if (*d0)
+	    d0 += *(d0 + 1) + 2;
+	else
+	    d0++;
+	if (d0 > d0e) {
+	    error("Unterminated DHCP packet found");
+	    break;
+	}
+    }
+    for (i=0; i < NUM_DHCP_OPTS; i++) {
+	if (opts[i].s < DHCP_OPT_LEN_MAX) { /* valid length */
+	    /* Copy in but check for length safety */
+	    if (d1 + opts[i].s < d1e) {
+		dprintf_opt_inj("Injecting %d, %d bytes\n", i, opts[i].s);
+		*(d1++) = i;
+		*(d1++) = opts[i].s;
+		memcpy(d1, opts[i].d, opts[i].s);
+		d1 += opts[i].s;
+	    } else {
+		dprintf("Limit of Options field before %d\n", i);
+		break;
+	    }
+	}
+    }
+    *d1 = NUM_DHCP_OPTS - 1;
 }
 
 /* dhcp_copy_pkt_to_pxe: Copy packet to PXE's BC data for a ptype packet
@@ -517,7 +602,6 @@ int pxechain(int argc, char *argv[])
     int rv, opos;
     struct data_area file;
     struct syslinux_rm_regs regs;
-    int inc;
 
     pxechain_init(&pxe);
     bootp0 = (pxe_bootp_t *)(pxe.pkt0.d);
@@ -550,12 +634,10 @@ int pxechain(int argc, char *argv[])
 //     --copy patched copy into cache
     dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.s, PXENV_PACKET_TYPE_CACHED_REPLY);
 //     --try boot
+    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.d), pxe.pkt1.s);
+//     dprint_pxe_vendor_blk((pxe_bootp_t *)(pxe.pkt1.d), pxe.pkt1.s);
     if (pxe.wait) {	/*  || true */
-	printf("Press any key to continue. ");
-	inc = KEY_NONE;
-	while (inc == KEY_NONE)
-	    inc = get_key(stdin, 6000);
-	puts("");
+	pressanykey();
     }
     if (true) {
 	puts("  Attempting to boot...");
