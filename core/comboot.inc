@@ -915,6 +915,13 @@ comapi_shufraw:
 		mov ecx,P_ECX
 		jmp shuffle_and_boot_raw
 
+;
+; INT 22h AX=0025h	Initialize the ADV structure
+;
+comapi_initadv:
+		call adv_init
+		ret
+
 		section .data16
 
 %macro		int21 2
@@ -974,6 +981,7 @@ int22_table:
 		dw comapi_err		; 0022 close directory
 		dw comapi_shufsize	; 0023 query shuffler size
 		dw comapi_shufraw	; 0024 cleanup, shuffle and boot raw
+		dw comapi_initadv	; 0025 initialize adv structure
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0

@@ -33,14 +33,20 @@
 
 #include <syslinux/adv.h>
 #include <klibc/compiler.h>
+#include <inttypes.h>
 #include <com32.h>
 
 void *__syslinux_adv_ptr;
 size_t __syslinux_adv_size;
 
-void __constructor __syslinux_get_adv(void)
+extern void adv_init(void);
+void __constructor __syslinux_init(void)
 {
     static com32sys_t reg;
+
+    /* Initialize the ADV structure */
+    reg.eax.w[0] = 0x0025;
+    __intcall(0x22, &reg, NULL);
 
     reg.eax.w[0] = 0x001c;
     __intcall(0x22, &reg, &reg);

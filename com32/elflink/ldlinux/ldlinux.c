@@ -7,6 +7,7 @@
 #include "com32.h"
 #include "menu.h"
 #include "config.h"
+#include "syslinux/adv.h"
 
 #include <sys/module.h>
 
@@ -103,11 +104,43 @@ static void enter_cmdline(void)
 
 int main(int argc, char **argv)
 {
+	com32sys_t ireg, oreg;
+	uint8_t *adv;
+	int count = 0;
+
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 
 	parse_configs(NULL);
 
-	/* TODO: ADV */
+	__syslinux_init();
+	adv = syslinux_getadv(ADV_BOOTONCE, &count);
+	if (adv && count) {
+		/*
+		 * We apparently have a boot-once set; clear it and
+		 * then execute the boot-once.
+		 */
+		uint8_t *src, *dst, *cmdline;
+		int i;
+
+		src = adv;
+		cmdline = dst = malloc(count + 1);
+		if (!dst) {
+			printf("Failed to allocate memory for ADV\n");
+			goto cmdline;
+		}
+
+		for (i = 0; i < count; i++)
+			*dst++ = *src++;
+		*dst = '\0';	/* Null-terminate */
+
+		/* Clear the boot-once data from the ADV */
+		if (!syslinux_setadv(ADV_BOOTONCE, 0, NULL))
+			syslinux_adv_write();
+
+		load_kernel(cmdline); /* Shouldn't return */
+		goto cmdline;
+	}
+
 	/* TODO: Check KbdFlags? */
 
 	if (forceprompt)
