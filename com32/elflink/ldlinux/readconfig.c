@@ -1105,7 +1105,7 @@ do_include:
 	else if (looking_at(p, "implicit")) {
 		allowimplicit = atoi(skipspace(p + 8));
 	} else if (looking_at(p, "prompt")) {
-		forceprompt = atoi(skipspace(p + 8));
+		forceprompt = atoi(skipspace(p + 6));
 	} else if (looking_at(p, "console")) {
 		displaycon = atoi(skipspace(p + 7));
 	} else if (looking_at(p, "allowoptions")) {
