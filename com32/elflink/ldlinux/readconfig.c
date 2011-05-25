@@ -582,6 +582,7 @@ uint32_t parse_argb(char **p)
 extern const char *append;
 //static unsigned int ipappend = 0;
 unsigned int ipappend = 0;
+extern uint16_t PXERetry;
 static struct labeldata ld;
 
 static int parse_one_config(const char *filename);
@@ -1123,6 +1124,9 @@ do_include:
 		refstr_put(onerror);
 		onerror = refstrdup(m->onerror);
 	}
+
+	else if (looking_at(p, "pxeretry"))
+		PXERetry = atoi(skipspace(p + 8));
 
 	/* serial setting, bps, flow control */
 	else if (looking_at(p, "serial")) {
