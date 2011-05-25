@@ -38,7 +38,7 @@
 struct syslinux_ipappend_strings __syslinux_ipappend_strings;
 static const char *syslinux_ipappend_string_list[32];
 
-void __constructor __syslinux_get_ipappend_strings(void)
+void __syslinux_get_ipappend_strings(void)
 {
     static com32sys_t reg;
     int i;
