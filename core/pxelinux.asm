@@ -264,10 +264,9 @@ ROOT_FS_OPS:
 %endmacro
 
 ;
-; Load configuration file
+; Jump to 32-bit ELF space
 ;
-                pm_call pm_load_config
-		jz no_config_file
+		pm_call load_env32
 
 ;
 ; Now we have the config file open.  Parse the config file and
