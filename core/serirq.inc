@@ -96,6 +96,7 @@ IRQMask		resw 1			; PIC IRQ mask status
 
 		section .text16
 
+		global sirq_install
 sirq_install:
 		pushad
 
@@ -155,6 +156,7 @@ sirq_install:
 		popad
 		ret
 
+		global sirq_cleanup_nowipe
 sirq_cleanup_nowipe:
 		pushad
 		push ds

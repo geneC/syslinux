@@ -518,6 +518,7 @@ writestr_early	equ writestr
 
 		section .data16
 
+		global copyright_str, syslinux_banner
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
 		db ' H. Peter Anvin et al', CR, LF, 0

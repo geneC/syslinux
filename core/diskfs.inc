@@ -125,6 +125,7 @@ kaboom2:
 ; -----------------------------------------------------------------------------
 
 		section .data16
+		global copyright_str
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
 		db ' H. Peter Anvin et al', CR, LF, 0

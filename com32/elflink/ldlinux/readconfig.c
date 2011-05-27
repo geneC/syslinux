@@ -11,6 +11,7 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include <sys/io.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -23,10 +24,12 @@
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <dprintf.h>
+#include <ctype.h>
 
 #include "menu.h"
 #include "config.h"
 #include "getkey.h"
+#include "core.h"
 
 const struct menu_parameter mparm[NPARAMS] = {
     [P_WIDTH] = {"width", 0},
@@ -111,14 +114,6 @@ static struct menu *find_menu(const char *label)
 }
 
 #define MAX_LINE 4096
-
-static char *skipspace(char *p)
-{
-    while (*p && my_isspace(*p))
-	p++;
-
-    return p;
-}
 
 /* Strip ^ from a string, returning a new reference to the same refstring
    if none present */
@@ -709,6 +704,30 @@ static char *is_fkey(char *cmdstr, int *fkeyno)
     return q;
 }
 
+extern uint8_t FlowIgnore;
+extern uint8_t FlowInput;
+extern uint8_t FlowOutput;
+extern uint16_t SerialPort;
+extern uint16_t BaudDivisor;
+extern uint8_t SerialNotice;
+
+#define DEFAULT_BAUD	9600
+#define BAUD_DIVISOR	115200
+#define serial_base	0x0400
+
+extern void sirq_cleanup_nowipe(void);
+extern void sirq_install(void);
+extern void write_serial_str(void);
+
+static inline void io_delay(void)
+{
+	outb(0, 0x80);
+	outb(0, 0x80);
+}
+
+extern char syslinux_banner[];
+extern char copyright_str[];
+
 static void parse_config_file(FILE * f)
 {
     char line[MAX_LINE], *p, *ep, ch;
@@ -1130,10 +1149,126 @@ do_include:
 
 	/* serial setting, bps, flow control */
 	else if (looking_at(p, "serial")) {
-		/* core/conio.inc
-		 * should be able to find some code in com32
-		 */
+		com32sys_t ireg;
+		uint16_t port, flow;
+		uint32_t baud;
 
+		p = skipspace(p + 6);
+		port = atoi(p);
+
+		while (isalnum(*p))
+			p++;
+		p = skipspace(p);
+
+		/* Default to no flow control */
+		FlowOutput = 0;
+		FlowInput = 0;
+
+		baud = DEFAULT_BAUD;
+		if (isalnum(*p)) {
+			uint8_t ignore;
+
+			/* setup baud */
+			baud = atoi(p);
+			while (isalnum(*p))
+				p++;
+			p = skipspace(p);
+
+			ignore = 0;
+			flow = 0;
+			if (isalnum(*p)) {
+				/* flow control */
+				flow = atoi(p);
+				ignore = ((flow & 0x0F00) >> 4);
+			}
+
+			FlowIgnore = ignore;
+			flow = ((flow & 0xff) << 8) | (flow & 0xff);
+			flow &= 0xF00B;
+			FlowOutput = (flow & 0xff);
+			FlowInput = ((flow & 0xff00) >> 8);
+		}
+
+		/*
+		 * Parse baud
+		 */
+		if (baud < 75) {
+			/* < 75 baud == bogus */
+			SerialPort = 0;
+			continue;
+		}
+
+		baud = BAUD_DIVISOR / baud;
+		baud &= 0xffff;
+		BaudDivisor = baud;
+
+		/*
+		 * If port > 3 then port is I/O addr
+		 */
+		if (port <= 3) {
+			/* Get the I/O port from the BIOS */
+			port <<= 1;
+			port = *(volatile uint16_t *)serial_base;
+		}
+
+		
+		SerialPort = port;
+
+		/*
+		 * Begin code to actually set up the serial port
+		 */
+		memset(&ireg, 0, sizeof(ireg));
+		call16(sirq_cleanup_nowipe, &ireg, NULL);
+
+		outb(0x83, port + 3); /* Enable DLAB */
+		io_delay();
+
+		outb((baud & 0xff), port); /* write divisor to LS */
+		io_delay();
+
+		outb(((baud & 0xff00) >> 8), port + 1); /* write to MS */
+		io_delay();
+
+		outb(0x03, port + 3); /* Disable DLAB */
+		io_delay();
+
+		/*
+		 * Read back LCR (detect missing hw). If nothing here
+		 * we'll read 00 or FF.
+		 */
+		if (inb(port + 3) != 0x03) {
+			/* Assume serial port busted */
+			SerialPort = 0;
+			continue;
+		}
+
+		outb(0x01, port + 2); /* Enable FIFOs if present */
+		io_delay();
+
+		/* Disable FIFO if unusable */
+		if (inb(port + 2) < 0x0C0) {
+			outb(0, port + 2);
+			io_delay();
+		}
+
+		/* Assert bits in MCR */
+		outb(FlowOutput, port + 4);
+		io_delay();
+
+		/* Enable interrupts if requested */
+		if (FlowOutput & 0x8)
+			call16(sirq_install, &ireg, NULL);
+
+		/* Show some life */
+		if (SerialNotice != 0) {
+			SerialNotice = 0;
+
+			ireg.esi.w[0] = syslinux_banner;
+			call16(write_serial_str, &ireg, NULL);
+
+			ireg.esi.w[0] = copyright_str;
+			call16(write_serial_str, &ireg, NULL);
+		}
 	} else if (looking_at(p, "say")) {
 		printf("%s\n", p + 4);
 	}
@@ -1163,6 +1298,10 @@ static int parse_one_config(const char *filename)
 		goto config_found;
 
 	f = fopen("syslinux.cfg", "r");
+	if (f)
+		goto config_found;
+
+	f = fopen("pxelinux.cfg/default", "r");
 	if (f)
 		goto config_found;
 
