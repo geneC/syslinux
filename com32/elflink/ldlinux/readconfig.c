@@ -30,6 +30,7 @@
 #include "config.h"
 #include "getkey.h"
 #include "core.h"
+#include "fs.h"
 
 const struct menu_parameter mparm[NPARAMS] = {
     [P_WIDTH] = {"width", 0},
@@ -725,6 +726,8 @@ static inline void io_delay(void)
 	outb(0, 0x80);
 }
 
+extern void get_msg_file(void);
+
 extern char syslinux_banner[];
 extern char copyright_str[];
 
@@ -1112,7 +1115,25 @@ do_include:
 	 * display/font/kbdmap are rather similar, open a file then do sth
 	 */
 	else if (looking_at(p, "display")) {
+		com32sys_t reg;
+		char *filename, *dst = KernelName;
+		size_t len = FILENAME_MAX - 1;
 
+		filename = refstrdup(skipspace(p + 7));
+
+		while (len-- && not_whitespace(*filename))
+			*dst++ = *filename++;
+		*dst = '\0';
+
+		memset(&reg, 0, sizeof(reg));
+		reg.edi.w[0] = OFFS_WRT(KernelName, 0);
+		call16(core_open, &reg, &reg);
+		if (!(reg.eflags.l & EFLAGS_ZF))
+			call16(get_msg_file, &reg, NULL);
+		else
+			printf("File not found\n");
+
+		refstr_put(filename);
 	} else if (looking_at(p, "font")) {
 
 	} else if (looking_at(p, "kbdmap")) {

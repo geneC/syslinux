@@ -53,6 +53,7 @@ loadkeys:
 ;
 ;		Assumes CS == DS == ES.
 ;
+		global get_msg_file
 get_msg_file:
                 mov byte [TextAttribute],07h	; Default grey on white
 		mov byte [DisplayMask],07h	; Display text in all modes
