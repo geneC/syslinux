@@ -728,6 +728,7 @@ static inline void io_delay(void)
 
 extern void get_msg_file(void);
 extern void loadfont(void);
+extern void loadkeys(void);
 
 extern char syslinux_banner[];
 extern char copyright_str[];
@@ -1156,7 +1157,25 @@ do_include:
 
 		refstr_put(filename);
 	} else if (looking_at(p, "kbdmap")) {
+		com32sys_t reg;
+		char *filename, *dst = KernelName;
+		size_t len = FILENAME_MAX - 1;
 
+		filename = refstrdup(skipspace(p + 4));
+
+		while (len-- && not_whitespace(*filename))
+			*dst++ = *filename++;
+		*dst = '\0';
+
+		memset(&reg, 0, sizeof(reg));
+		reg.edi.w[0] = OFFS_WRT(KernelName, 0);
+		call16(core_open, &reg, &reg);
+		if (!(reg.eflags.l & EFLAGS_ZF))
+			call16(loadkeys, &reg, NULL);
+		else
+			printf("File not found\n");
+
+		refstr_put(filename);
 	}
 	/*
 	 * subset 2:  pc_setint16

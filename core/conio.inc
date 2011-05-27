@@ -26,6 +26,7 @@
 ;
 		section .text16
 
+		global loadkeys
 loadkeys:
 		mov cx,256
 		mov di,trackbuf
