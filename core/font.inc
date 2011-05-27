@@ -25,6 +25,7 @@
 ;
 loadfont.err:	jmp close			; Tailcall the close routine
 
+		global loadfont
 loadfont:
 		mov di,trackbuf
 		mov cx,4
