@@ -1,10 +1,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <dprintf.h>
 #include "malloc.h"
-
-#include <stdio.h>
+#include "core.h"
 #include <syslinux/memscan.h>
 
 struct free_arena_header __core_malloc_head[NHEAP];
@@ -18,6 +16,8 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 {
 	struct free_arena_header *fp;
 	addr_t end;
+
+	(void)data;
 
 	dprintf("start = %x, len = %x, is_ram = %d", start, len, is_ram);
 
@@ -45,11 +45,11 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 	return 0;
 }
 
+#if 0
 static void mpool_dump(enum heap heap)
 {
 	struct free_arena_header *head = &__core_malloc_head[heap];
 	struct free_arena_header *fp;
-	void *p = NULL;
 	int size, type, i = 0;
 	addr_t start, end;
 
@@ -64,6 +64,7 @@ static void mpool_dump(enum heap heap)
 		fp = fp->next_free;
 	}
 }
+#endif
 
 void mem_init(void)
 {
@@ -92,7 +93,6 @@ void mem_init(void)
 	__inject_free_block(fp);
 
 	/* Initialize the main heap */
-	__com32.cs_memsize = free_high_memory;
+	__com32.cs_memsize = (size_t)free_high_memory;
 	syslinux_scan_memory(scan_highmem_area, NULL);
-
 }
