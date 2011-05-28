@@ -2,7 +2,14 @@
 #define CORE_H
 
 #include <klibc/compiler.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <dprintf.h>
 #include <com32.h>
+#include <errno.h>
 #include <syslinux/pmapi.h>
 
 extern char core_xfer_buf[65536];
