@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <dprintf.h>
+#include "core.h"
 #include "fs.h"
 #include "cache.h"
 
@@ -74,19 +75,11 @@ void _close_file(struct file *file)
 }
 
 /*
- * Convert between a 16-bit file handle and a file structure
+ * Find and open the configuration file
  */
-
-void pm_load_config(com32sys_t *regs)
+int open_config(struct com32_filedata *filedata)
 {
-    int err;
-
-    err = this_fs->fs_ops->load_config();
-
-    if (err)
-	printf("ERROR: No configuration file found\n");
-
-    set_flags(regs, err ? EFLAGS_ZF : 0);
+    return this_fs->fs_ops->open_config(filedata);
 }
 
 void pm_mangle_name(com32sys_t *regs)

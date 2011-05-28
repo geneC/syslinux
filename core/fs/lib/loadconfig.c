@@ -11,7 +11,7 @@
  * directory, followed by a set of fallback directories.  If found,
  * set the current working directory to match.
  */
-int generic_load_config(void)
+int generic_open_config(struct com32_filedata *filedata)
 {
     static const char *search_directories[] = {
 	NULL,			/* CurrentDirName */
@@ -30,5 +30,5 @@ int generic_load_config(void)
 
     dprintf("CurrentDirName: \"%s\"\n", CurrentDirName);
 
-    return search_config(search_directories, filenames);
+    return search_config(filedata, search_directories, filenames);
 }

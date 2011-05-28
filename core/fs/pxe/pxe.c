@@ -1047,33 +1047,8 @@ static int pxe_chdir(struct fs_info *fs, const char *src)
     return 0;
 }
 
- /*
-  * try to load a config file, if found, return 1, or return 0
-  *
-  */
-static int try_load(char *config_name)
-{
-    com32sys_t regs;
-
-    printf("Trying to load: %-50s  ", config_name);
-    pxe_mangle_name(KernelName, config_name);
-
-    memset(&regs, 0, sizeof regs);
-    regs.edi.w[0] = OFFS_WRT(KernelName, 0);
-    call16(core_open, &regs, &regs);
-    if (regs.eflags.l & EFLAGS_ZF) {
-	strcpy(ConfigName, KernelName);
-        printf("\r");
-        return 0;
-    } else {
-        printf("ok\n");
-        return 1;
-    }
-}
-
-
-/* Load the config file, return 1 if failed, or 0 */
-static int pxe_load_config(void)
+/* Load the config file, return -1 if failed, or 0 */
+static int pxe_open_config(struct com32_filedata *filedata)
 {
     const char *cfgprefix = "pxelinux.cfg/";
     const char *default_str = "default";
@@ -1084,7 +1059,7 @@ static int pxe_load_config(void)
     get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
-	if (try_load(ConfigName))
+	if (!open_file(ConfigName, filedata))
 	    return 0;
     }
 
@@ -1096,13 +1071,13 @@ static int pxe_load_config(void)
     /* Try loading by UUID */
     if (have_uuid) {
 	strcpy(config_file, UUID_str);
-	if (try_load(ConfigName))
+	if (!open_file(ConfigName, filedata))
             return 0;
     }
 
     /* Try loading by MAC address */
     strcpy(config_file, MAC_str);
-    if (try_load(ConfigName))
+    if (!open_file(ConfigName, filedata))
         return 0;
 
     /* Nope, try hexadecimal IP prefixes... */
@@ -1110,7 +1085,7 @@ static int pxe_load_config(void)
     last = &config_file[8];
     while (tries) {
         *last = '\0';        /* Zero-terminate string */
-	if (try_load(ConfigName))
+	if (!open_file(ConfigName, filedata))
             return 0;
         last--;           /* Drop one character */
         tries--;
@@ -1118,7 +1093,7 @@ static int pxe_load_config(void)
 
     /* Final attempt: "default" string */
     strcpy(config_file, default_str);
-    if (try_load(ConfigName))
+    if (!open_file(ConfigName, filedata))
         return 0;
 
     printf("%-68s\n", "Unable to locate configuration file");
@@ -1749,5 +1724,5 @@ const struct fs_ops pxe_fs_ops = {
     .getfssec      = pxe_getfssec,
     .close_file    = pxe_close_file,
     .mangle_name   = pxe_mangle_name,
-    .load_config   = pxe_load_config,
+    .open_config   = pxe_open_config,
 };

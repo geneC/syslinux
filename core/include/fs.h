@@ -61,7 +61,7 @@ struct fs_ops {
     void     (*mangle_name)(char *, const char *);
     size_t   (*realpath)(struct fs_info *, char *, const char *, size_t);
     int      (*chdir)(struct fs_info *, const char *);
-    int      (*load_config)(void);
+    int      (*open_config)(struct com32_filedata *);
 
     struct inode * (*iget_root)(struct fs_info *);
     struct inode * (*iget)(const char *, struct inode *);
@@ -211,8 +211,9 @@ char *core_getcwd(char *buf, size_t size);
 void generic_mangle_name(char *, const char *);
 
 /* loadconfig.c */
-int search_config(const char *search_directores[], const char *filenames[]);
-int generic_load_config(void);
+int search_config(struct com32_filedata *filedata,
+		  const char *search_directores[], const char *filenames[]);
+int generic_open_config(struct com32_filedata *filedata);
 
 /* close.c */
 void generic_close_file(struct file *file);
