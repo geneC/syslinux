@@ -103,6 +103,7 @@ struct pxelinux_opt {
     uint8_t opt52;	/* DHCP Option Overload value */
     uint32_t wait;	/* Additional decision to wait before boot */
     struct payload pkt0, pkt1;	/* original and modified packets */
+    char host[256];	/* 63 bytes per label; 255 max total */
 };
 
 
@@ -337,15 +338,13 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
  *		4 HTTPS URL
  *		-1 if fn is another URL type
  */
-int pxechain_parse_fn(const char fn[], in_addr_t *fip, const char *fp[])
+int pxechain_parse_fn(const char fn[], in_addr_t *fip, char *host, const char *fp[])
 {
-    char host[256];	/* 63 bytes per label; 255 max total */
     in_addr_t tip = 0;
     char *csep, *ssep;	/* Colon, Slash separator positions */
     int hlen;
     int rv = 0;
 
-    host[0] = 0;
     csep = strchr(fn, ':');
     if (csep) {
 	if (csep[1] == ':') {	/* IP::FN */
@@ -424,6 +423,7 @@ void pxechain_init(struct pxelinux_opt *pxe)
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
     pxe->opt52 = pxe->wait = 0;
+    pxe->host[0] = pxe->host[255] = 0;
     pxechain_fill_pkt(pxe);
 }
 
@@ -467,7 +467,7 @@ void pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	}
     }
-    pxechain_parse_fn(pxe->fn, &(pxe->fip), &(pxe->fp));
+    pxechain_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
 }
 
 void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
@@ -524,6 +524,11 @@ void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	    error("Unterminated DHCP packet found");
 	    break;
 	}
+    }
+    opts[66].s = strlen(pxe->host);
+    opts[66].d = pxe->host;
+    if ((pxe->opt52 & 2) != 0) {
+	memcpy(bootp1->Sname, pxe->host, opts[66].s);
     }
     for (i=0; i < NUM_DHCP_OPTS; i++) {
 	if (opts[i].s < DHCP_OPT_LEN_MAX) { /* valid length */
@@ -667,7 +672,7 @@ int pxe_restart(const char *ifn)
 	pxe.fip = ( (pxe_bootp_t *)(pxe.pkt1.d) )->sip;
     else
 	pxe.fip = 0;
-    rv = pxechain_parse_fn(pxe.fn, &(pxe.fip), &(pxe.fp));
+    rv = pxechain_parse_fn(pxe.fn, &(pxe.fip), pxe.host, &(pxe.fp));
     if ((rv > 2) || (rv < 0)) {
 	printf("%s: ERROR: Unparsable filename argument: '%s'\n\n", app_name_str, pxe.fn);
 	goto ret;
