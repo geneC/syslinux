@@ -69,9 +69,15 @@ check_escapes:
 		shr edx,10
 		cmp ax,dx
 		jae enough_ram
-		mov ax,dx
 		mov si,err_noram
 		mov cl,10
+		push dx
+		div cl
+		add [si+err_noram.need-err_noram+2],ah
+		cbw
+		div cl
+		add [si+err_noram.need-err_noram],ax
+		pop ax
 		div cl
 		add [si+err_noram.size-err_noram+2],ah
 		cbw
@@ -83,15 +89,15 @@ enough_ram:
 skip_checks:
 
 		section .data16
-err_noram	db 'It appears your computer has less than '
+err_noram	db 'It appears your computer has only '
 .size		db '000'
-		db 'K of low ("DOS")'
-		db CR, LF
-		db 'RAM.  Syslinux needs at least this amount to boot.  If you get'
-		db CR, LF
-		db 'this message in error, hold down the Ctrl key while'
-		db CR, LF
-		db 'booting, and I will take your word for it.', CR, LF, 0
+		db 'K of low ("DOS") RAM.', CR, LF
+		db 'This version of Syslinux needs '
+.need		db '000'
+		db 'K to boot.  If you get this', CR, LF
+		db 'message in error, hold down the Ctrl key while'
+		db 'booting, and I', CR, LF
+		db 'will take your word for it.', CR, LF, 0
 
 		section .text16
 ;

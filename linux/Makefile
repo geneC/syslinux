@@ -18,7 +18,7 @@ topdir = ..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/syslinux.mk
 
-OPTFLAGS = -g -O0 -Dalloca=malloc
+OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = 
@@ -56,6 +56,9 @@ syslinux: $(OBJS)
 
 syslinux-nomtools: syslinux
 	ln -f $< $@
+
+strip:
+	$(STRIP) syslinux syslinux-nomtools
 
 %.o: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
