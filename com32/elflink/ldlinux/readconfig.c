@@ -23,6 +23,7 @@
 #include <syslinux/adv.h>
 #include <syslinux/config.h>
 #include <dprintf.h>
+#include <fs.h>
 
 #include "menu.h"
 #include "config.h"
@@ -1132,6 +1133,23 @@ do_include:
 
 	} else if (looking_at(p, "say")) {
 		printf("%s\n", p + 4);
+	} else if (looking_at(p, "path")) {
+		/* PATH-based lookup */
+		char *new_path, *_p;
+		size_t len, new_len;
+
+		new_path = refstrdup(skipspace(p + 4));
+		len = strlen(PATH);
+		new_len = strlen(new_path);
+		_p = realloc(PATH, len + new_len + 2);
+		if (_p) {
+			strncpy(_p, PATH, len);
+			_p[len++] = ':';
+			strncpy(_p + len, new_path, new_len);
+			_p[len + new_len] = '\0';
+			PATH = _p;
+		} else
+			printf("Failed to realloc PATH\n");
 	}
     }
 }
