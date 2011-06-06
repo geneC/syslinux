@@ -27,6 +27,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 
 char *strreplace( const char *string, const char *string_to_replace, const char *string_to_insert ){
   char *token = NULL;
