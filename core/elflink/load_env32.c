@@ -75,6 +75,5 @@ void load_env32(com32sys_t * regs)
 
 	init_module_subsystem(&core_module);
 
-	module_load_dependencies(LDLINUX, "modules.dep");
 	spawn_load(LDLINUX, 1, argv);
 }
