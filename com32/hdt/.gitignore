@@ -5,3 +5,4 @@ floppy/syslinux.cfg
 *.iso
 iso/
 *gz
+hdt*checksums
