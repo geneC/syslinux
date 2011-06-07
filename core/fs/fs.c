@@ -1,8 +1,10 @@
+#include <sys/file.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <dprintf.h>
 #include "core.h"
+#include "dev.h"
 #include "fs.h"
 #include "cache.h"
 
@@ -74,12 +76,33 @@ void _close_file(struct file *file)
     free_file(file);
 }
 
+extern const struct input_dev __file_dev;
+
 /*
  * Find and open the configuration file
  */
-int open_config(struct com32_filedata *filedata)
+int open_config(void)
 {
-    return this_fs->fs_ops->open_config(filedata);
+    int fd, handle;
+    struct file_info *fp;
+
+    fd = opendev(&__file_dev, NULL, O_RDONLY);
+    if (fd < 0)
+	return -1;
+
+    fp = &__file_info[fd];
+
+    handle = this_fs->fs_ops->open_config(&fp->i.fd);
+    if (handle < 0) {
+	close(fd);
+	errno = ENOENT;
+	return -1;
+    }
+
+    fp->i.offset = 0;
+    fp->i.nbytes = 0;
+
+    return fd;
 }
 
 void pm_mangle_name(com32sys_t *regs)

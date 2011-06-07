@@ -12,6 +12,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <sys/io.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -25,6 +26,7 @@
 #include <syslinux/config.h>
 #include <dprintf.h>
 #include <ctype.h>
+#include <core.h>
 
 #include "menu.h"
 #include "config.h"
@@ -1336,38 +1338,21 @@ do_include:
 
 static int parse_one_config(const char *filename)
 {
+	const char *mode = "r";
 	FILE *f;
+	int fd;
 
-	/*
-	if (!strcmp(filename, "~"))
-		filename = syslinux_config_file();
-	*/
+	if (!filename)
+		fd = open_config();
+	else
+		fd = open(filename, O_RDONLY);
 
-	f = fopen(filename, "r");
-	if (f)
-		goto config_found;
+	if (fd < 0)
+		return fd;
 
-	/* force to use hard coded config file name */
-	f = fopen("extlinux.conf", "r");
-	if (f)
-		goto config_found;
-
-	f = fopen("isolinux/isolinux.cfg", "r");
-	if (f)
-		goto config_found;
-
-	f = fopen("syslinux.cfg", "r");
-	if (f)
-		goto config_found;
-
-	f = fopen("pxelinux.cfg/default", "r");
-	if (f)
-		goto config_found;
-
-	return -1;
-config_found:
+	f = fdopen(fd, mode);
 	parse_config_file(f);
-	fclose(f);
+
 	return 0;
 }
 
@@ -1416,7 +1401,7 @@ void parse_configs(char **argv)
     current_menu = root_menu;
 
     if (!argv || !*argv) {
-	parse_one_config("~");
+	parse_one_config(NULL);
     } else {
 	while ((filename = *argv++)) {
 		dprintf("Parsing config: %s", filename);

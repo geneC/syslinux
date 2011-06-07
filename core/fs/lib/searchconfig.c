@@ -26,7 +26,7 @@ int search_config(struct com32_filedata *filedata,
 		     sf);
 	    realpath(ConfigName, confignamebuf, FILENAME_MAX);
 	    dprintf("Config search: %s\n", ConfigName);
-	    if (!open_file(ConfigName, filedata)) {
+	    if (open_file(ConfigName, filedata) >= 0) {
 		chdir(sd);
 		return 0;	/* Got it */
 	    }
