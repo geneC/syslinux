@@ -32,7 +32,8 @@ LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \
 # LIBFLAGS += -DPNG_NO_FLOATING_POINT_SUPPORTED
 
 REQFLAGS  = $(GCCOPT) -g -mregparm=3 -DREGPARM=3 -D__COM32__ \
-	    -nostdinc -iwithprefix include -I. -I./sys -I../include
+	    -nostdinc -iwithprefix include -I. -I./sys -I../include \
+	    -I../../core/include
 OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 \
 	    -falign-labels=0 -ffast-math -fomit-frame-pointer
 WARNFLAGS = $(GCCWARN) -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline

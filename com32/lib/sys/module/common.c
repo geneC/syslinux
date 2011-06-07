@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <elf.h>
 #include <string.h>
+#include <fs.h>
 
 #include <linux/list.h>
 #include <sys/module.h>
@@ -56,13 +57,45 @@ void print_elf_symbols(struct elf_module *module) {
 }
 #endif //ELF_DEBUG
 
+static FILE *findpath(char *name)
+{
+	char path[FILENAME_MAX];
+	FILE *f;
+	char *p, *n;
+	int i;
+
+	p = PATH;
+again:
+	i = 0;
+	while (*p && *p != ':' && i < FILENAME_MAX) {
+		path[i++] = *p++;
+	}
+
+	if (*p == ':')
+		p++;
+
+	n = name;
+	while (*n && i < FILENAME_MAX)
+		path[i++] = *n++;
+	path[i] = '\0';
+
+	f = fopen(path, "rb");
+	if (f)
+		return f;
+
+	if (p >= PATH && p < PATH + strlen(PATH))
+		goto again;
+
+	return NULL;
+}
+
 /*
  * Image files manipulation routines
  */
 
 int image_load(struct elf_module *module)
 {
-	module->u.l._file = fopen(module->name, "rb");
+	module->u.l._file = findpath(module->name);
 
 	if (module->u.l._file == NULL) {
 		DBG_PRINT("Could not open object file '%s'\n", module->name);

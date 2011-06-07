@@ -178,6 +178,8 @@ static inline struct file *handle_to_file(uint16_t handle)
     return handle ? &files[handle-1] : NULL;
 }
 
+extern char *PATH;
+
 /* fs.c */
 void pm_mangle_name(com32sys_t *);
 void pm_searchdir(com32sys_t *);

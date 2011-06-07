@@ -8,6 +8,8 @@
 #include "fs.h"
 #include "cache.h"
 
+char *PATH = "/:/bin/";
+
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;		/* Root filesystem */
 
