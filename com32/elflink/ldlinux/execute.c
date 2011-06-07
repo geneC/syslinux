@@ -132,7 +132,6 @@ void execute(const char *cmdline, enum kernel_type type)
 		}
 
 		argv[argc] = NULL;
-		module_load_dependencies(kernel, "modules.dep");
 		spawn_load(kernel, argc, argv);
 	} else if (type == KT_KERNEL) {
 		/* Need add one item for kernel load, as we don't use
@@ -141,7 +140,6 @@ void execute(const char *cmdline, enum kernel_type type)
 	} else if (type == KT_CONFIG) {
 		/* kernel contains the config file name */
 		char *spawn_load_param[2] = { args, NULL };
-		module_load_dependencies("ui.c32", "modules.dep");
 		spawn_load(kernel, 1, spawn_load_param);
 	} else {
 		/* process the image need int 22 support */
