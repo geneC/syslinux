@@ -264,6 +264,11 @@ ROOT_FS_OPS:
 %endmacro
 
 ;
+; Jump to 32-bit ELF space
+;
+		pm_call load_env32
+
+;
 ; Now we have the config file open.  Parse the config file and
 ; run the user interface.
 ;
@@ -513,6 +518,7 @@ writestr_early	equ writestr
 
 		section .data16
 
+		global copyright_str, syslinux_banner
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR
 		db ' H. Peter Anvin et al', CR, LF, 0

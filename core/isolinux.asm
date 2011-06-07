@@ -1034,6 +1034,7 @@ writestr_early	equ writestr
 ; Data that needs to be in the first sector
 ; -----------------------------------------------------------------------------
 
+		global syslinux_banner, copyright_str
 syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
 copyright_str   db ' Copyright (C) 1994-'
 		asciidec YEAR

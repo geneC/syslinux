@@ -432,6 +432,7 @@ commit_vk:
 		ret
 
 		section .data16
+		global SerialNotice
 vk_overflow_msg	db 'Out of memory parsing config file', CR, LF, 0
 SerialNotice	db 1			; Only print this once
 

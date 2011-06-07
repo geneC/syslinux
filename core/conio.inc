@@ -26,6 +26,7 @@
 ;
 		section .text16
 
+		global loadkeys
 loadkeys:
 		mov cx,256
 		mov di,trackbuf
@@ -53,6 +54,7 @@ loadkeys:
 ;
 ;		Assumes CS == DS == ES.
 ;
+		global get_msg_file
 get_msg_file:
                 mov byte [TextAttribute],07h	; Default grey on white
 		mov byte [DisplayMask],07h	; Display text in all modes
@@ -274,6 +276,7 @@ write_serial_str_displaymask:
 		test byte [DisplayMask], 04h
 		jz write_serial_str.end
 
+		global write_serial_str
 write_serial_str:
 .loop		lodsb
 		and al,al
@@ -415,6 +418,7 @@ VidRows         resb 1			; Rows on screen-1
 ; loading a new config file to undo this setting.
 		section .data16
 		alignz 4
+		global SerialPort, BaudDivisor, FlowIgnore, FlowInput, FlowOutput
 SerialPort	dw 0			; Serial port base (or 0 for no serial port)
 BaudDivisor	dw 115200/9600		; Baud rate divisor
 FlowControl	equ $

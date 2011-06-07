@@ -21,6 +21,8 @@ extern char ConfigName[];
 extern char KernelName[];
 extern char cmd_line[];
 extern char ConfigFile[];
+extern char syslinux_banner[];
+extern char copyright_str[];
 
 /* diskstart.inc isolinux.asm*/
 extern void getlinsec(void);

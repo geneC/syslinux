@@ -514,6 +514,7 @@ SuperInfo	resq 16			; The first 16 bytes expanded 8 times
 ; Banner information not needed in sector 1
 ;
 		section .data16
+		global syslinux_banner
 syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR
 late_banner	db ' ', DATE_STR, 0
 
