@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2010 Gene Cumm - All Rights Reserved
+ *   Copyright 2010-2011 Gene Cumm - All Rights Reserved
  *
  *   Portions from chain.c:
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
@@ -40,6 +40,8 @@
 #include <unistd.h>
 #include <getkey.h>
 
+#include <dhcp.h>
+
 /*
 #include <ctype.h>
 #include <string.h>
@@ -56,11 +58,13 @@
 #define dprintf0(f, ...)		((void)0)
 
 #ifdef DEBUG
+#  define dpressanykey			pressanykey
 #  define dprintf			printf
 #  define dprint_pxe_bootp_t		print_pxe_bootp_t
 #  define dprint_pxe_vendor_blk		print_pxe_vendor_blk
 #  define dprint_pxe_vendor_raw		print_pxe_vendor_raw
 #else
+#  define dpressanykey(void)		((void)0)
 #  define dprintf(f, ...)		((void)0)
 #  define dprint_pxe_bootp_t(p, l)	((void)0)
 #  define dprint_pxe_vendor_blk(p, l)	((void)0)
@@ -82,27 +86,16 @@
 
 const char app_name_str[] = "pxechn.c32";
 
-/* A generic payload struct */
-struct payload {
-    char *d;	/* pointer to Data */
-    addr_t s;	/* size in bytes */
-};
-
-struct cpayload {
-    const char *d;
-    addr_t s;
-};
-
 struct pxelinux_opt {
-    const char *fn;	/* Filename as passed to us */
+    char *fn;	/* Filename as passed to us */
     in_addr_t fip;	/* fn's IP component */
-    const char *fp;	/* fn's path component */
+    char *fp;	/* fn's path component */
     char *cfg;
     char *prefix;
     uint32_t reboot;
     uint8_t opt52;	/* DHCP Option Overload value */
     uint32_t wait;	/* Additional decision to wait before boot */
-    struct payload pkt0, pkt1;	/* original and modified packets */
+    struct dhcp_option pkt0, pkt1;	/* original and modified packets */
     char host[256];	/* 63 bytes per label; 255 max total */
 };
 
@@ -274,7 +267,7 @@ void print_pxe_vendor_blk(pxe_bootp_t *p, size_t len)
 	vlen = 0;
     for (i = 4; i < vlen; i++) {
 	if (d[i])	/* Skip the padding */
-	    printf("\n    @%03X-%2d", i, d[i]);
+	    printf("\n    @%03X-%3d", i, d[i]);
 	if (d[i] == 255)	/* End of list */
 	    break;
 	if (d[i]) {
@@ -329,6 +322,7 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
     regs->eax.l = regs->ecx.l = regs->edx.l = 0;
 }
 
+//FIXME: To a library
 /* Parse a filename into an IPv4 address and filename pointer
  *	returns	Based on the interpretation of fn
  *		0 regular file name
@@ -338,7 +332,7 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
  *		4 HTTPS URL
  *		-1 if fn is another URL type
  */
-int pxechain_parse_fn(const char fn[], in_addr_t *fip, char *host, const char *fp[])
+int pxechain_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 {
     in_addr_t tip = 0;
     char *csep, *ssep;	/* Colon, Slash separator positions */
@@ -394,26 +388,27 @@ void pxechain_fill_pkt(struct pxelinux_opt *pxe)
     int rv = -1;
     /* PXENV_PACKET_TYPE_DHCP_DISCOVER PXENV_PACKET_TYPE_DHCP_ACK PXENV_PACKET_TYPE_CACHED_REPLY */
 /*    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK,
-	    (void **)&(pxe->pkt0.d), &(pxe->pkt0.s)))
-	dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.d));*/
+	    (void **)&(pxe->pkt0.data), &(pxe->pkt0.len)))
+	dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.data));*/
     if (!pxe_get_cached_info(PXENV_PACKET_TYPE_CACHED_REPLY,
-	    (void **)&(pxe->pkt0.d), &(pxe->pkt0.s))) {
-	pxe->pkt1.d = malloc(2048);
-	if (pxe->pkt1.d) {
-	    memcpy(pxe->pkt1.d, pxe->pkt0.d, pxe->pkt0.s);
-	    pxe->pkt1.s = pxe->pkt0.s;
+	    (void **)&(pxe->pkt0.data), (size_t *)&(pxe->pkt0.len))) {
+	pxe->pkt1.data = malloc(2048);
+	if (pxe->pkt1.data) {
+	    memcpy(pxe->pkt1.data, pxe->pkt0.data, pxe->pkt0.len);
+	    pxe->pkt1.len = pxe->pkt0.len;
 	    rv = 0;
-	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.d), pxe->pkt0.s);
+	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.data), pxe->pkt0.len);
+	    dpressanykey();
 	} else {
 	    printf("%s: ERROR: Unable to malloc() for second packet\n", app_name_str);
-	    free(pxe->pkt0.d);
+	    free(pxe->pkt0.data);
 	}
     } else {
 	printf("%s: ERROR: Unable to retrieve first packet\n", app_name_str);
     }
     if (rv <= -1) {
-	pxe->pkt0.d = pxe->pkt1.d = NULL;
-	pxe->pkt0.s = pxe->pkt1.s = 0;
+	pxe->pkt0.data = pxe->pkt1.data = NULL;
+	pxe->pkt0.len = pxe->pkt1.len = 0;
     }
 }
 
@@ -427,17 +422,14 @@ void pxechain_init(struct pxelinux_opt *pxe)
     pxechain_fill_pkt(pxe);
 }
 
-void pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
-			 struct cpayload opts[])
+int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
+			 struct dhcp_option opts[])
 {
     int arg;
     const char optstr[] = "c:p:t:w";
 
-    for (arg = 0; arg < NUM_DHCP_OPTS; arg++) {
-	opts[arg].s = DHCP_OPT_LEN_MAX;
-    }
-    if (pxe->pkt1.d)
-	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.d) )->sip;
+    if (pxe->pkt1.data)
+	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.data) )->sip;
     else
 	pxe->fip = 0;
     /* Fill */
@@ -446,17 +438,17 @@ void pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	dprintf0("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
 	case 'c':	/* config */
-	    opts[209].d = pxe->cfg = optarg;
-	    opts[209].s = strlen(optarg);
+	    opts[209].data = pxe->cfg = optarg;
+	    opts[209].len = strlen(optarg);
 	    break;
 	case 'p':	/* prefix */
-	    opts[210].d = pxe->prefix = optarg;
-	    opts[210].s = strlen(optarg);
+	    opts[210].data = pxe->prefix = optarg;
+	    opts[210].len = strlen(optarg);
 	    break;
 	case 't':	/* timeout */
 	    pxe->reboot = (uint32_t)atoi(optarg);
-	    opts[211].d = (void *)(pxe->reboot);
-	    opts[211].s = 4;
+	    opts[211].data = (void *)(pxe->reboot);
+	    opts[211].len = 4;
 	    break;
 	case 'w':	/* wait */
 	    pxe->wait = 1;
@@ -468,84 +460,45 @@ void pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	}
     }
     pxechain_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
+    return 0;
 }
 
-void pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
+int pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
     pxe_bootp_t *bootp0, *bootp1;
-    uint8_t *d0, *d0e, *d1, *d1e;
+//    uint8_t *d0, *d0e, *d1, *d1e;
     int i;
-    struct cpayload *opts;
+    int ret = 0;
+    struct dhcp_option *opts;
 
-    opts = calloc(256, sizeof(struct cpayload));
+    opts = calloc(256, sizeof(struct dhcp_packet));
     if (!opts) {
 	error("Could not allocate for options\n");
-	return;
+	return -1;
     }
-    /* We'll use opts[i].s==DHCP_OPT_LEN_MAX to indicate
-       an uninitialized option */
-    pxechain_parse_args(argc, argv, pxe, opts);
-//     --rebuild copy #1 applying new options in order ensuring an option is only specified once in patched packet
-    /* Parse the filename to understand if a PXE parameter update is needed. */
-    /* How does BKO do this for HTTP? option 209/210 */
-
+    for (i = 0; i < NUM_DHCP_OPTS; i++) {
+	opts[i].len = -1;
+    }
     /* Start filling packet #1 */
-    bootp0 = (pxe_bootp_t *)(pxe->pkt0.d);
-    bootp1 = (pxe_bootp_t *)(pxe->pkt1.d);
+    bootp0 = (pxe_bootp_t *)(pxe->pkt0.data);
+    bootp1 = (pxe_bootp_t *)(pxe->pkt1.data);
+
+    ret = dhcp_unpack_packet(bootp0, pxe->pkt0.len, opts);
+    if (ret) {
+	error("Could not unpack packet\n");
+	return ret;
+    }
+
+    ret = pxechain_parse_args(argc, argv, pxe, opts);
     bootp1->sip = pxe->fip;
-    d0 = bootp0->vendor.d + 4;	/* Skip the magic */
-    d0e = (uint8_t *)bootp0 + pxe->pkt0.s - 4;	/* space for opt52,end */
-    d1 = bootp1->vendor.d + 4;
-    d1e = (uint8_t *)bootp1 + pxe->pkt1.s - 4;
-    if ((pxe->opt52 & 1) == 0) {
-	strncpy((char *)(bootp1->bootfile), pxe->fp, 127);
-	bootp1->bootfile[127] = 0;
-    } else {	/* Need Option 67 */
-	opts[67].s = strlen(pxe->fp);
-	opts[67].d = pxe->fp;
-    }
-    i = 0;
-    while (*d0 != 255) {
-	switch (*d0) {
-	case 0:	/* Don't bother with padding */
-	    break;
-	default:	/* Copy as-is if we did nothing with it */
-	    if (opts[*d0].s == DHCP_OPT_LEN_MAX) {
-		dprintf_opt_cp("Copying %d, %d bytes\n", *d0, *(d0 + 1) + 2);
-		memcpy(d1, d0, *(d0 + 1) + 2);
-		d1 += *(d0 + 1) + 2;
-	    }
-	}
-	if (*d0)
-	    d0 += *(d0 + 1) + 2;
-	else
-	    d0++;
-	if (d0 > d0e) {
-	    error("Unterminated DHCP packet found");
-	    break;
-	}
-    }
-    opts[66].s = strlen(pxe->host);
-    opts[66].d = pxe->host;
-    if ((pxe->opt52 & 2) != 0) {
-	memcpy(bootp1->Sname, pxe->host, opts[66].s);
-    }
-    for (i=0; i < NUM_DHCP_OPTS; i++) {
-	if (opts[i].s < DHCP_OPT_LEN_MAX) { /* valid length */
-	    /* Copy in but check for length safety */
-	    if (d1 + opts[i].s < d1e) {
-		dprintf_opt_inj("Injecting %d, %d bytes\n", i, opts[i].s);
-		*(d1++) = i;
-		*(d1++) = opts[i].s;
-		memcpy(d1, opts[i].d, opts[i].s);
-		d1 += opts[i].s;
-	    } else {
-		dprintf("Limit of Options field before %d\n", i);
-		break;
-	    }
-	}
-    }
-    *d1 = NUM_DHCP_OPTS - 1;
+    opts[67].len = strlen(pxe->fp);
+    opts[67].data = pxe->fp;
+    opts[66].len = strlen(pxe->host);
+    opts[66].data = pxe->host;
+
+    ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->pkt1.len), opts);
+
+    return ret;
 }
 
 /* dhcp_copy_pkt_to_pxe: Copy packet to PXE's BC data for a ptype packet
@@ -609,10 +562,10 @@ int pxechain(int argc, char *argv[])
     struct syslinux_rm_regs regs;
 
     pxechain_init(&pxe);
-    bootp0 = (pxe_bootp_t *)(pxe.pkt0.d);
-    bootp1 = (pxe_bootp_t *)(pxe.pkt1.d);
+    bootp0 = (pxe_bootp_t *)(pxe.pkt0.data);
+    bootp1 = (pxe_bootp_t *)(pxe.pkt1.data);
 
-    if ((opos = dhcp_find_opt(bootp0, pxe.pkt0.s, 52)) >= 0) {
+    if ((opos = dhcp_find_opt(bootp0, pxe.pkt0.len, 52)) >= 0) {
 	pxe.opt52 = bootp0->vendor.d[opos + 2];
     }
     if ((pxe.opt52 & 1) != 0) {	/* Only exclude bootfile */
@@ -637,19 +590,21 @@ int pxechain(int argc, char *argv[])
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
 //     --copy patched copy into cache
-    dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.s, PXENV_PACKET_TYPE_CACHED_REPLY);
+    dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.len, PXENV_PACKET_TYPE_CACHED_REPLY);
 //     --try boot
-    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.d), pxe.pkt1.s);
-//     dprint_pxe_vendor_blk((pxe_bootp_t *)(pxe.pkt1.d), pxe.pkt1.s);
+    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
+//     dprint_pxe_vendor_blk((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
     if (pxe.wait) {	/*  || true */
 	pressanykey();
+    } else {
+	dpressanykey();
     }
     if (true) {
 	puts("  Attempting to boot...");
 	do_boot(&file, 1, &regs);
     }
 //     --if failed, copy backup back in and abort
-    dhcp_copy_pkt_to_pxe(bootp0, pxe.pkt0.s, PXENV_PACKET_TYPE_CACHED_REPLY);
+    dhcp_copy_pkt_to_pxe(bootp0, pxe.pkt0.len, PXENV_PACKET_TYPE_CACHED_REPLY);
 ret:
     return rv;
 }
@@ -659,7 +614,7 @@ ret:
  *	ifn	Name of file to chainload to in a format PXELINUX understands
  *		This must strictly be TFTP or relative file
  */
-int pxe_restart(const char *ifn)
+int pxe_restart(char *ifn)
 {
     int rv = 0;
     struct pxelinux_opt pxe;
@@ -668,8 +623,8 @@ int pxe_restart(const char *ifn)
 
     pxe.fn = ifn;
     pxechain_fill_pkt(&pxe);
-    if (pxe.pkt1.d)
-	pxe.fip = ( (pxe_bootp_t *)(pxe.pkt1.d) )->sip;
+    if (pxe.pkt1.data)
+	pxe.fip = ( (pxe_bootp_t *)(pxe.pkt1.data) )->sip;
     else
 	pxe.fip = 0;
     rv = pxechain_parse_fn(pxe.fn, &(pxe.fip), pxe.host, &(pxe.fp));
