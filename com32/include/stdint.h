@@ -43,13 +43,21 @@ typedef unsigned long long uint_fast64_t;
 
 /* Pointer types */
 
-typedef int32_t intptr_t;
-typedef uint32_t uintptr_t;
+typedef signed long intptr_t;
+typedef unsigned long uintptr_t;
 
 /* Maximal types */
 
 typedef int64_t intmax_t;
 typedef uint64_t uintmax_t;
+
+/* Rank definitions, used in inttypes.h */
+#define __PRIFAST_RANK	""
+#define __SCNFAST_RANK	""
+#define __PRIPTR_RANK	"l"
+#define __SCNPTR_RANK	"l"
+#define __PRI64_RANK    "ll"
+#define __SCN64_RANK    "ll"
 
 /*
  * To be strictly correct...
