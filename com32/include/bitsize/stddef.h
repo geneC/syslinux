@@ -6,7 +6,7 @@
 #define _BITSIZE_STDDEF_H
 
 #define _SIZE_T
-typedef unsigned long size_t;
+typedef unsigned int size_t;
 
 #define _PTRDIFF_T
 typedef signed long ptrdiff_t;
