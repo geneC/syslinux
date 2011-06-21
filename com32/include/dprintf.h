@@ -17,6 +17,13 @@ void dprintf(const char *, ...);
 void vdprintf(const char *, va_list);
 # endif
 
+#else
+
+# define dprintf(fmt, ...)	((void)(0))
+# define vdprintf(fmt, ap)	((void)(0))
+
+#endif /* DEBUG */
+
 # if DEBUG >= 2
 /* Really verbose debugging... */
 #  define dprintf2  dprintf
@@ -25,12 +32,5 @@ void vdprintf(const char *, va_list);
 #  define dprintf2(fmt, ...)	((void)(0))
 #  define vdprintf2(fmt, ap)	((void)(0))
 # endif
-
-#else
-
-# define dprintf(fmt, ...)	((void)(0))
-# define vdprintf(fmt, ap)	((void)(0))
-
-#endif /* DEBUG */
 
 #endif /* _DPRINTF_H */
