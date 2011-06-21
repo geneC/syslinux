@@ -39,25 +39,9 @@
 #include <inttypes.h>
 #include <com32.h>
 #include <minmax.h>
+#include <dprintf.h>
 #include <syslinux/movebits.h>
 #include <klibc/compiler.h>
-
-#ifndef DEBUG
-# define DEBUG 0
-#endif
-
-#define dprintf(f, ...) ((void)0)
-#define dprintf2(f, ...) ((void)0)
-
-#if DEBUG
-# include <stdio.h>
-# undef dprintf
-# define dprintf printf
-# if DEBUG > 1
-#  undef dprintf2
-#  define dprintf2 printf
-# endif
-#endif
 
 struct shuffle_descriptor {
     uint32_t dst, src, len;
