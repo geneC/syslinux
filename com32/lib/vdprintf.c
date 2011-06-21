@@ -2,8 +2,6 @@
  * vdprintf.c
  */
 
-#ifdef DEBUG
-
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -13,6 +11,8 @@
 #include <sys/cpu.h>
 
 #include <dprintf.h>
+
+#ifndef vdprintf
 
 #define BUFFER_SIZE	4096
 
@@ -115,4 +115,4 @@ void vdprintf(const char *format, va_list ap)
 	debug_putc(*p++);
 }
 
-#endif /* DEBUG */
+#endif /* vdprintf */

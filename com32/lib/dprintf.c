@@ -4,11 +4,9 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-
-#ifdef DEBUG
-
 #include <dprintf.h>
 
+#ifndef dprintf
 void dprintf(const char *format, ...)
 {
     va_list ap;
@@ -17,5 +15,4 @@ void dprintf(const char *format, ...)
     vdprintf(format, ap);
     va_end(ap);
 }
-
 #endif
