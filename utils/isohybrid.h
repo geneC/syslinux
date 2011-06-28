@@ -20,7 +20,7 @@
  *
  */
 
-#define VERSION     "0.11"
+#define VERSION     "0.12"
 #define BUFSIZE     2048
 #define MBRSIZE      432
 
