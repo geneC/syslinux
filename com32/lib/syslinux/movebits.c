@@ -228,10 +228,8 @@ static void shuffle_dealias(struct syslinux_movelist **fraglist,
     addr_t ps, pe, xs, xe, delta;
     bool advance;
 
-#if DEBUG
     dprintf("Before alias resolution:\n");
-    syslinux_dump_movelist(stdout, *fraglist);
-#endif
+    syslinux_dump_movelist(*fraglist);
 
     *postcopy = NULL;
 
@@ -302,12 +300,10 @@ restart:
 	;
     }
 
-#if DEBUG
     dprintf("After alias resolution:\n");
-    syslinux_dump_movelist(stdout, *fraglist);
+    syslinux_dump_movelist(*fraglist);
     dprintf("Post-shuffle copies:\n");
-    syslinux_dump_movelist(stdout, *postcopy);
-#endif
+    syslinux_dump_movelist(*postcopy);
 }
 
 /*
@@ -435,12 +431,10 @@ nomem:
     /* As long as there are unprocessed fragments in the chain... */
     while ((fp = &frags, f = *fp)) {
 
-#if DEBUG
 	dprintf("Current free list:\n");
-	syslinux_dump_memmap(stdout, mmap);
+	syslinux_dump_memmap(mmap);
 	dprintf("Current frag list:\n");
-	syslinux_dump_movelist(stdout, frags);
-#endif
+	syslinux_dump_movelist(frags);
 
 	/* Scan for fragments which can be discarded without action. */
 	if (f->src == f->dst) {
@@ -678,16 +672,16 @@ int main(int argc, char *argv[])
 
     *fep = NULL;
 
-    printf("Input move list:\n");
-    syslinux_dump_movelist(stdout, frags);
-    printf("Input free list:\n");
-    syslinux_dump_memmap(stdout, memmap);
+    dprintf("Input move list:\n");
+    syslinux_dump_movelist(frags);
+    dprintf("Input free list:\n");
+    syslinux_dump_memmap(memmap);
 
     if (syslinux_compute_movelist(&moves, frags, memmap)) {
 	printf("Failed to compute a move sequence\n");
 	return 1;
     } else {
-	printf("Final move list:\n");
+	dprintf("Final move list:\n");
 	syslinux_dump_movelist(stdout, moves);
 	return 0;
     }

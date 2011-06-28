@@ -28,20 +28,22 @@
 /*
  * dump_mmap.c
  *
- * Writes a syslinux_memmap out to a specified file.  This is
- * intended for debugging.
+ * Writes a syslinux_memmap out to a dprintf.
  */
 
 #include <stdio.h>
+#include <dprintf.h>
 #include <syslinux/movebits.h>
 
-void syslinux_dump_memmap(FILE * file, struct syslinux_memmap *memmap)
+#ifdef DEBUG
+void syslinux_dump_memmap(struct syslinux_memmap *memmap)
 {
-    fprintf(file, "%10s %10s %10s\n"
+    dprintf("%10s %10s %10s\n"
 	    "--------------------------------\n", "Start", "Length", "Type");
     while (memmap->next) {
-	fprintf(file, "0x%08x 0x%08x %10d\n", memmap->start,
+	dprintf("0x%08x 0x%08x %10d\n", memmap->start,
 		memmap->next->start - memmap->start, memmap->type);
 	memmap = memmap->next;
     }
 }
+#endif

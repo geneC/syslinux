@@ -82,10 +82,8 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
     struct syslinux_memmap *range;
     enum syslinux_memmap_types oldtype;
 
-#if DEBUG
     dprintf("Input memmap:\n");
-    syslinux_dump_memmap(stdout, *list);
-#endif
+    syslinux_dump_memmap(*list);
 
     /* Remove this to make len == 0 mean all of memory */
     if (len == 0)
@@ -150,10 +148,8 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
 	}
     }
 
-#if DEBUG
     dprintf("After adding (%#x,%#x,%d):\n", start, len, type);
-    syslinux_dump_memmap(stdout, *list);
-#endif
+    syslinux_dump_memmap(*list);
 
     return 0;
 }
