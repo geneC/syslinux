@@ -112,7 +112,7 @@ static int sysfs_get_offset(int devfd, unsigned long *start)
 
     if ((size_t)snprintf(sysfs_name, sizeof sysfs_name,
 			 "/sys/dev/block/%u:%u/start",
-			 major(st.st_dev), minor(st.st_dev))
+			 major(st.st_rdev), minor(st.st_rdev))
 	>= sizeof sysfs_name)
 	return -1;
 
@@ -153,7 +153,7 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 
     memset(geo, 0, sizeof *geo);
 
-    if (!ioctl(devfd, HDIO_GETGEO, &geo)) {
+    if (!ioctl(devfd, HDIO_GETGEO, geo)) {
 	goto ok;
     } else if (!ioctl(devfd, FDGETPRM, &fd_str)) {
 	geo->heads = fd_str.head;

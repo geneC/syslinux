@@ -39,21 +39,7 @@
 #include <stdlib.h>
 #include <syslinux/align.h>
 #include <syslinux/movebits.h>
-
-#ifndef DEBUG
-# ifdef TEST
-#  define DEBUG 1
-# else
-#  define DEBUG 0
-# endif
-#endif
-
-#if DEBUG
-# include <stdio.h>
-# define dprintf printf
-#else
-# define dprintf(...) ((void)0)
-#endif
+#include <dprintf.h>
 
 /*
  * Create an empty syslinux_memmap list.
@@ -96,10 +82,8 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
     struct syslinux_memmap *range;
     enum syslinux_memmap_types oldtype;
 
-#if DEBUG
     dprintf("Input memmap:\n");
-    syslinux_dump_memmap(stdout, *list);
-#endif
+    syslinux_dump_memmap(*list);
 
     /* Remove this to make len == 0 mean all of memory */
     if (len == 0)
@@ -164,10 +148,8 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
 	}
     }
 
-#if DEBUG
     dprintf("After adding (%#x,%#x,%d):\n", start, len, type);
-    syslinux_dump_memmap(stdout, *list);
-#endif
+    syslinux_dump_memmap(*list);
 
     return 0;
 }
