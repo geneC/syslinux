@@ -43,16 +43,7 @@
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
-
-#ifndef DEBUG
-# define DEBUG 0
-#endif
-#if DEBUG
-# include <stdio.h>
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
+#include <dprintf.h>
 
 struct linux_header {
     uint8_t boot_sector_1[0x0020];

@@ -48,21 +48,7 @@
 #include <stdbool.h>
 
 #include <syslinux/movebits.h>
-
-#ifndef DEBUG
-# ifdef TEST
-#  define DEBUG 1
-# else
-#  define DEBUG 0
-# endif
-#endif
-
-#if DEBUG
-# include <stdio.h>
-# define dprintf printf
-#else
-# define dprintf(...) ((void)0)
-#endif
+#include <dprintf.h>
 
 static jmp_buf new_movelist_bail;
 
