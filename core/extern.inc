@@ -33,6 +33,24 @@
 	; dmi.c
 	extern dmi_init
 
+%ifdef DEBUG
+	; debug.c
+	extern pm_debug_msg
+
+  %macro dprint 1+
+	push ax
+	call %%fwd
+	db %1
+	db 0
+%%fwd:	pop ax
+	pm_call pm_debug_msg
+	pop ax
+  %endmacro
+%else
+  %macro dprint 1+
+  %endmacro
+%endif
+
 %if IS_PXELINUX
 	; pxe.c
 	extern unload_pxe, reset_pxe, http_bake_cookies
