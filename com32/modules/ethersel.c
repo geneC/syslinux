@@ -38,12 +38,7 @@
 #include <com32.h>
 #include <syslinux/boot.h>
 #include <syslinux/config.h>
-
-#ifdef DEBUG
-# define dprintf printf
-#else
-# define dprintf(...) ((void)0)
-#endif
+#include <dprintf.h>
 
 #define MAX_LINE 512
 

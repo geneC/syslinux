@@ -39,21 +39,7 @@
 #include <stdlib.h>
 #include <syslinux/align.h>
 #include <syslinux/movebits.h>
-
-#ifndef DEBUG
-# ifdef TEST
-#  define DEBUG 1
-# else
-#  define DEBUG 0
-# endif
-#endif
-
-#if DEBUG
-# include <stdio.h>
-# define dprintf printf
-#else
-# define dprintf(...) ((void)0)
-#endif
+#include <dprintf.h>
 
 /*
  * Create an empty syslinux_memmap list.
