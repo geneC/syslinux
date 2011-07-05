@@ -31,6 +31,7 @@
 #include "sysexits.h"
 #include "syslxopt.h"
 #include "syslxint.h"
+#include "syslxfs.h"
 
 char *program = "syslinux.com";		/* Name of program */
 uint16_t dos_version;
@@ -638,7 +639,7 @@ int main(int argc, char *argv[])
     /*
      * Check to see that what we got was indeed an MS-DOS boot sector/superblock
      */
-    if ((errmsg = syslinux_check_bootsect(sectbuf))) {
+    if ((errmsg = syslinux_check_bootsect(sectbuf, NULL))) {
 	unlock_device(0);
 	puts(errmsg);
 	putchar('\n');
@@ -749,7 +750,7 @@ int main(int argc, char *argv[])
     read_device(dev_fd, sectbuf, 1, 0);
 
     /* Copy the syslinux code into the boot sector */
-    syslinux_make_bootsect(sectbuf);
+    syslinux_make_bootsect(sectbuf, VFAT);
 
     /* Write new boot sector */
     if (opt.bootsecfile) {

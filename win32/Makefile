@@ -49,7 +49,7 @@ WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) \
 
 SRCS     = ../win/syslinux.c
 OBJS     = $(patsubst %.c,%.obj,$(notdir $(SRCS)))
-LIBSRC   = ../libinstaller/fat.c \
+LIBSRC   = ../libinstaller/fs.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/setadv.c \

@@ -30,6 +30,7 @@
 #include <errno.h>
 #include "syslxint.h"
 #include "syslxcom.h"
+#include "syslxfs.h"
 
 unsigned char syslinux_adv[2 * ADV_SIZE];
 
