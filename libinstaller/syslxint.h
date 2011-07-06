@@ -247,4 +247,13 @@ struct boot_sector {
 #define bsCodeLen   (offsetof(struct boot_sector, bsSignature) - \
 		     offsetof(struct boot_sector, bsCode))
 
+static inline int fat_check_sb_fields(const struct boot_sector *sb)
+{
+    return sb->bsResSectors && sb->bsFATs &&
+            (!memcmp(sb->bs16.FileSysType, "FAT12   ", 8) ||
+             !memcmp(sb->bs16.FileSysType, "FAT16   ", 8) ||
+             !memcmp(sb->bs16.FileSysType, "FAT     ", 8) ||
+             !memcmp(sb->bs32.FileSysType, "FAT32   ", 8));
+}
+
 #endif /* SYSLXINT_H */

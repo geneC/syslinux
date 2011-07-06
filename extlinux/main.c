@@ -347,9 +347,7 @@ int install_bootblock(int fd, const char *device)
 		perror("reading fat superblock");
 		return 1;
 	}
-	if (sb3.bsResSectors && sb3.bsFATs &&
-	    (strstr(sb3.bs16.FileSysType, "FAT") ||
-	     strstr(sb3.bs32.FileSysType, "FAT")))
+	if (fat_check_sb_fields(&sb3))
 		ok = true;
     }
     if (!ok) {
