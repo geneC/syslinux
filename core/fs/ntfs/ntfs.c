@@ -44,6 +44,17 @@ static inline int ntfs_check_sb_fields(const struct ntfs_bpb *sb)
              !memcmp(sb->oem_name, "MSWIN4.1", 8));
 }
 
+static inline struct inode *new_ntfs_inode(struct fs_info *fs)
+{
+    struct inode *inode;
+
+    inode = alloc_inode(fs, 0, sizeof(struct ntfs_inode));
+    if (!inode)
+        malloc_error("inode structure");
+
+    return inode;
+}
+
 /* Initialize the filesystem metadata and return block size in bits */
 static int ntfs_fs_init(struct fs_info *fs)
 {

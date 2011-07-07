@@ -61,4 +61,36 @@ struct ntfs_sb_info {
 
 } __attribute__((packed));
 
+/* The NTFS in-memory inode structure */
+struct ntfs_inode {
+    int64_t initialized_size;
+    int64_t allocated_size;
+    unsigned long mft_no;   /* Number of the mft record / inode */
+    uint16_t seq_no;        /* Sequence number of the mft record */
+    uint32_t type;          /* Attribute type of this inode */
+    uint16_t *name;
+    uint32_t name_len;
+    uint32_t attr_list_size;
+    uint8_t *attr_list;
+    union {
+        struct {    /* It is a directory, $MFT, or an index inode */
+            uint32_t block_size;
+            uint32_t vcn_size;
+            uint32_t collation_rule;
+            uint8_t block_size_shift;    /* log2 of the above */
+            uint8_t vcn_size_shift;      /* log2 of the above */
+        } index;
+        struct { /* It is a compressed/sparse file/attribute inode */
+            int64_t size;
+            uint32_t block_size;
+            uint8_t block_size_bits;
+            uint8_t block_clusters;
+        } compressed;
+    } itype;
+    uint32_t start_cluster; /* Starting cluster address */
+    sector_t start;         /* Starting sector */
+    sector_t offset;        /* Current sector offset */
+    sector_t here;          /* Sector corresponding to offset */
+};
+
 #endif /* _NTFS_H_ */
