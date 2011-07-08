@@ -28,6 +28,14 @@
 #include "codepage.h"
 #include "ntfs.h"
 
+#define for_each_mft_record(fs, data, block) \
+    for ((data) = get_right_block((fs), (block)); \
+            (block) < NTFS_SB((fs))->mft_size && \
+            ((const MFT_RECORD *)(data))->magic == NTFS_MAGIC_FILE; \
+            (block) += ((const MFT_RECORD *)(data))->bytes_allocated >> \
+                                                        BLOCK_SHIFT((fs)), \
+            (data) = get_right_block((fs), (block)))
+
 /* Check if there are specific zero fields in an NTFS boot sector */
 static inline int ntfs_check_zero_fields(const struct ntfs_bpb *sb)
 {
@@ -53,6 +61,12 @@ static inline struct inode *new_ntfs_inode(struct fs_info *fs)
         malloc_error("inode structure");
 
     return inode;
+}
+
+static inline const void *get_right_block(struct fs_info *fs,
+                                                        block_t block)
+{
+    return get_cache(fs->fs_dev, NTFS_SB(fs)->mft + block);
 }
 
 /* Initialize the filesystem metadata and return block size in bits */
