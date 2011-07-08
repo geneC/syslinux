@@ -561,4 +561,6 @@ static inline struct ntfs_sb_info *NTFS_SB(struct fs_info *fs)
     return fs->fs_info;
 }
 
+#define NTFS_PVT(i) ((struct ntfs_inode *)((i)->pvt))
+
 #endif /* _NTFS_H_ */

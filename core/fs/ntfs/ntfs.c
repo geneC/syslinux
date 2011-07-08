@@ -69,6 +69,125 @@ static inline const void *get_right_block(struct fs_info *fs,
     return get_cache(fs->fs_dev, NTFS_SB(fs)->mft + block);
 }
 
+static MFT_RECORD *mft_record_lookup(uint32_t file, struct fs_info *fs,
+                                                        sector_t *block)
+{
+    const uint8_t *data;
+    MFT_RECORD *mrec;
+
+    for_each_mft_record(fs, data, *block) {
+        mrec = (MFT_RECORD *)data;
+        if (mrec->mft_record_no == file)
+            return mrec;
+    }
+
+    return NULL;
+}
+
+static ATTR_RECORD *attr_lookup(uint32_t type, const MFT_RECORD *mrec)
+{
+    ATTR_RECORD *attr;
+
+    /* sanity check */
+    if (!mrec || type == NTFS_AT_END)
+        return NULL;
+
+    attr = (ATTR_RECORD *)((uint8_t *)mrec + mrec->attrs_offset);
+    /* walk through the file attribute records */
+    for (;; attr = (ATTR_RECORD *)((uint8_t *)attr + attr->len)) {
+        if (attr->type == NTFS_AT_END)
+            return NULL;
+
+        if (attr->type == type)
+            break;
+    }
+
+    return attr;
+}
+
+static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
+                                struct inode *inode)
+{
+    MFT_RECORD *mrec;
+    sector_t block = 0;
+    ATTR_RECORD *attr;
+    uint32_t len;
+    INDEX_ROOT *ir;
+    uint32_t clust_size;
+
+    mrec = mft_record_lookup(mft_no, fs, &block);
+    if (!mrec) {
+        printf("No MFT record found!\n");
+        goto out;
+    }
+
+    NTFS_PVT(inode)->mft_no = mft_no;
+    NTFS_PVT(inode)->seq_no = mrec->seq_no;
+
+    NTFS_PVT(inode)->start_cluster = block >> NTFS_SB(fs)->clust_shift;
+    NTFS_PVT(inode)->here = block;
+
+    attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
+    if (!attr) {
+        printf("No attribute found!\n");
+        goto out;
+    }
+
+    NTFS_PVT(inode)->type = attr->type;
+
+    /* note: INDEX_ROOT is always resident */
+    ir = (INDEX_ROOT *)((uint8_t *)attr +
+                                attr->data.resident.value_offset);
+    len = attr->data.resident.value_len;
+    if ((uint8_t *)ir + len > (uint8_t *)mrec + NTFS_SB(fs)->mft_record_size) {
+        printf("Index is corrupt!\n");
+        goto out;
+    }
+
+    NTFS_PVT(inode)->itype.index.collation_rule = ir->collation_rule;
+    NTFS_PVT(inode)->itype.index.block_size = ir->index_block_size;
+    NTFS_PVT(inode)->itype.index.block_size_shift =
+                        ilog2(NTFS_PVT(inode)->itype.index.block_size);
+
+    /* determine the size of a vcn in the index */
+    clust_size = NTFS_PVT(inode)->itype.index.block_size;
+    if (NTFS_SB(fs)->clust_size <= clust_size) {
+        NTFS_PVT(inode)->itype.index.vcn_size = NTFS_SB(fs)->clust_size;
+        NTFS_PVT(inode)->itype.index.vcn_size_shift = NTFS_SB(fs)->clust_shift;
+    } else {
+        NTFS_PVT(inode)->itype.index.vcn_size = BLOCK_SIZE(fs);
+        NTFS_PVT(inode)->itype.index.vcn_size_shift = BLOCK_SHIFT(fs);
+    }
+
+    inode->mode = DT_DIR;
+
+    return 0;
+
+out:
+    return -1;
+}
+
+static struct inode *ntfs_iget_root(struct fs_info *fs)
+{
+    struct inode *inode = new_ntfs_inode(fs);
+    int err;
+
+    inode->fs = fs;
+
+    err = index_inode_setup(fs, FILE_root, inode);
+    if (err)
+        goto free_out;
+
+    NTFS_PVT(inode)->start = NTFS_PVT(inode)->here;
+
+    return inode;
+
+free_out:
+    free(inode);
+
+    return NULL;
+}
+
 /* Initialize the filesystem metadata and return block size in bits */
 static int ntfs_fs_init(struct fs_info *fs)
 {
@@ -124,7 +243,7 @@ const struct fs_ops ntfs_fs_ops = {
     .mangle_name    = NULL,
     .load_config    = NULL,
     .readdir        = NULL,
-    .iget_root      = NULL,
+    .iget_root      = ntfs_iget_root,
     .iget           = NULL,
     .next_extent    = NULL,
 };
