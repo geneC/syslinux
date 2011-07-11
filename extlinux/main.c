@@ -112,7 +112,7 @@ static int sysfs_get_offset(int devfd, unsigned long *start)
 
     if ((size_t)snprintf(sysfs_name, sizeof sysfs_name,
 			 "/sys/dev/block/%u:%u/start",
-			 major(st.st_dev), minor(st.st_dev))
+			 major(st.st_rdev), minor(st.st_rdev))
 	>= sizeof sysfs_name)
 	return -1;
 
@@ -153,7 +153,7 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 
     memset(geo, 0, sizeof *geo);
 
-    if (!ioctl(devfd, HDIO_GETGEO, &geo)) {
+    if (!ioctl(devfd, HDIO_GETGEO, geo)) {
 	goto ok;
     } else if (!ioctl(devfd, FDGETPRM, &fd_str)) {
 	geo->heads = fd_str.head;
@@ -347,9 +347,7 @@ int install_bootblock(int fd, const char *device)
 		perror("reading fat superblock");
 		return 1;
 	}
-	if (sb3.bsResSectors && sb3.bsFATs &&
-	    (strstr(sb3.bs16.FileSysType, "FAT") ||
-	     strstr(sb3.bs32.FileSysType, "FAT")))
+	if (fat_check_sb_fields(&sb3))
 		ok = true;
     }
     if (!ok) {

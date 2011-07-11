@@ -43,16 +43,7 @@
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
-
-#ifndef DEBUG
-# define DEBUG 0
-#endif
-#if DEBUG
-# include <stdio.h>
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
+#include <dprintf.h>
 
 struct linux_header {
     uint8_t boot_sector_1[0x0020];
@@ -318,10 +309,8 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     if (!mmap || !amap)
 	goto bail;
 
-#if DEBUG
     dprintf("Initial memory map:\n");
-    syslinux_dump_memmap(stdout, mmap);
-#endif
+    syslinux_dump_memmap(mmap);
 
     /* If the user has specified a memory limit, mark that as unavailable.
        Question: should we mark this off-limit in the mmap as well (meaning
@@ -468,16 +457,14 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     /* Linux is OK with sp = 0 = 64K, but perhaps other things aren't... */
     regs.esp.w[0] = min(cmdline_offset, (size_t) 0xfff0);
 
-#if DEBUG
     dprintf("Final memory map:\n");
-    syslinux_dump_memmap(stdout, mmap);
+    syslinux_dump_memmap(mmap);
 
     dprintf("Final available map:\n");
-    syslinux_dump_memmap(stdout, amap);
+    syslinux_dump_memmap(amap);
 
     dprintf("Initial movelist:\n");
-    syslinux_dump_movelist(stdout, fraglist);
-#endif
+    syslinux_dump_movelist(fraglist);
 
     syslinux_shuffle_boot_rm(fraglist, mmap, 0, &regs);
 

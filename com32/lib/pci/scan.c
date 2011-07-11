@@ -41,12 +41,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <syslinux/zio.h>
-
-#ifdef DEBUG
-# define dprintf printf
-#else
-# define dprintf(...) ((void)0)
-#endif
+#include <dprintf.h>
 
 #define MAX_LINE 512
 

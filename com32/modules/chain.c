@@ -569,7 +569,8 @@ static struct disk_part_iter *next_ebr_part(struct disk_part_iter *part)
     }
     /* Success */
     part->lba_data = ebr_table[0].start_lba + ebr_lba;
-    dprintf("Partition %d logical lba %u\n", part->index, part->lba_data);
+    dprintf("Partition %d logical lba %"PRIu64"\n",
+	    part->index, part->lba_data);
     part->index++;
     part->record = ebr_table;
     return part;
@@ -630,8 +631,8 @@ static struct disk_part_iter *next_mbr_part(struct disk_part_iter *part)
 
     /* Update parameters to reflect this new partition.  Re-use iterator */
     part->lba_data = table[part->private.mbr_index].start_lba;
-    dprintf("Partition %d primary lba %u\n", part->private.mbr_index,
-	    part->lba_data);
+    dprintf("Partition %d primary lba %"PRIu64"\n",
+	    part->private.mbr_index, part->lba_data);
     part->index = part->private.mbr_index + 1;
     part->record = table + part->private.mbr_index;
     return part;
@@ -1783,7 +1784,7 @@ int main(int argc, char *argv[])
 	     * fs_lba should be verified against the disk as some DRMK
 	     * variants will check and fail if it does not match
 	     */
-	    dprintf("  fs_lba offset is %d\n", fs_lba);
+	    dprintf("  fs_lba offset is %"PRIu64"\n", fs_lba);
 	    /* DRMK only uses a DWORD */
 	    if (fs_lba > 0xffffffff) {
 		error
