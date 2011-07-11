@@ -42,7 +42,7 @@ static void show_partition_information(struct driveinfo *drive_info,
     char ostype[64]={0};
     char *parttype;
     unsigned int start, end;
-    char bootable[5] = {0};
+    char bootable[6] = {0};
 
     int i = nb_partitions_seen;
     start = partition_offset;
