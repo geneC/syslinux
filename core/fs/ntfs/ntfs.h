@@ -72,6 +72,18 @@ struct ntfs_inode {
     uint32_t name_len;
     uint32_t attr_list_size;
     uint8_t *attr_list;
+    uint8_t non_resident;
+    union {                 /* Non-resident $DATA attribute */
+        struct {            /* Used only if non_resident flags isn't set */
+            uint32_t offset;    /* Data offset */
+        } resident;
+        struct {            /* Used only if non_resident is set */
+            uint64_t start_vcn; /* Starting Virtual Cluster Number */
+            uint64_t next_vcn;  /* Next Virtual Cluster Number */
+            uint8_t vcn_no;     /* Number of Virtual Cluster Numbers */
+            int64_t lcn;        /* Logical Cluster Number offset */
+        } non_resident;
+    } data;
     union {
         struct {    /* It is a directory, $MFT, or an index inode */
             uint32_t block_size;
