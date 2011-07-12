@@ -1064,7 +1064,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
 
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
-	if (!open_file(ConfigName, filedata))
+	if (open_file(ConfigName, filedata) >= 0)
 	    return 0;
     }
 
@@ -1076,13 +1076,13 @@ static int pxe_open_config(struct com32_filedata *filedata)
     /* Try loading by UUID */
     if (have_uuid) {
 	strcpy(config_file, UUID_str);
-	if (!open_file(ConfigName, filedata))
+	if (open_file(ConfigName, filedata) >= 0)
             return 0;
     }
 
     /* Try loading by MAC address */
     strcpy(config_file, MAC_str);
-    if (!open_file(ConfigName, filedata))
+    if (open_file(ConfigName, filedata) >= 0)
         return 0;
 
     /* Nope, try hexadecimal IP prefixes... */
@@ -1090,7 +1090,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
     last = &config_file[8];
     while (tries) {
         *last = '\0';        /* Zero-terminate string */
-	if (!open_file(ConfigName, filedata))
+	if (open_file(ConfigName, filedata) >= 0)
             return 0;
         last--;           /* Drop one character */
         tries--;
@@ -1098,7 +1098,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
 
     /* Final attempt: "default" string */
     strcpy(config_file, default_str);
-    if (!open_file(ConfigName, filedata))
+    if (open_file(ConfigName, filedata) >= 0)
         return 0;
 
     printf("%-68s\n", "Unable to locate configuration file");
