@@ -98,6 +98,7 @@ struct file_info {
 };
 
 extern struct file_info __file_info[NFILES];
+extern const struct input_dev __file_dev;
 
 /* Line input discipline */
 ssize_t __line_input(struct file_info *fp, char *buf, size_t bufsize,

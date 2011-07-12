@@ -1047,6 +1047,12 @@ static int pxe_chdir(struct fs_info *fs, const char *src)
     return 0;
 }
 
+static int pxe_chdir_start(void)
+{
+	get_prefix();
+	return 0;
+}
+
 /* Load the config file, return -1 if failed, or 0 */
 static int pxe_open_config(struct com32_filedata *filedata)
 {
@@ -1056,7 +1062,6 @@ static int pxe_open_config(struct com32_filedata *filedata)
     char *last;
     int tries = 8;
 
-    get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
 	if (!open_file(ConfigName, filedata))
@@ -1724,5 +1729,6 @@ const struct fs_ops pxe_fs_ops = {
     .getfssec      = pxe_getfssec,
     .close_file    = pxe_close_file,
     .mangle_name   = pxe_mangle_name,
+    .chdir_start   = pxe_chdir_start,
     .open_config   = pxe_open_config,
 };

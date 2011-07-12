@@ -11,6 +11,10 @@
 #include <linux/list.h>
 #include <netinet/in.h>
 #include <sys/cpu.h>
+#include <core.h>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <fs.h>
 
 #include <sys/exec.h>
 #include <sys/module.h>
@@ -68,7 +72,23 @@ static void call_constr(void)
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32(com32sys_t * regs)
 {
+	struct file_info *fp;
+	int fd;
 	char *argv[] = { LDLINUX, NULL };
+
+	static const char *search_directories[] = {
+		"/boot/isolinux",
+		"/isolinux",
+		"/boot/syslinux",
+		"/syslinux",
+		"/",
+		NULL
+	};
+
+	static const char *filenames[] = {
+		LDLINUX,
+		NULL
+	};
 
 	dprintf("Starting 32 bit elf module subsystem...\n");
 	call_constr();
@@ -76,4 +96,19 @@ void load_env32(com32sys_t * regs)
 	init_module_subsystem(&core_module);
 
 	spawn_load(LDLINUX, 1, argv);
+
+	/*
+	 * If we failed to load LDLINUX it could be because our
+	 * current working directory isn't the install directory. Try
+	 * a bit harder to find LDLINUX. If search_config() succeeds
+	 * in finding LDLINUX it will set the cwd.
+	 */
+	fd = opendev(&__file_dev, NULL, O_RDONLY);
+	if (fd < 0)
+		return;
+
+	fp = &__file_info[fd];
+
+	if (!search_config(&fp->i.fd, search_directories, filenames))
+		spawn_load(LDLINUX, 1, argv);
 }

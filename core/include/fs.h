@@ -61,6 +61,7 @@ struct fs_ops {
     void     (*mangle_name)(char *, const char *);
     size_t   (*realpath)(struct fs_info *, char *, const char *, size_t);
     int      (*chdir)(struct fs_info *, const char *);
+    int      (*chdir_start)(void);
     int      (*open_config)(struct com32_filedata *);
 
     struct inode * (*iget_root)(struct fs_info *);
@@ -208,6 +209,9 @@ char *core_getcwd(char *buf, size_t size);
 /*
  * Generic functions that filesystem drivers may choose to use
  */
+
+/* chdir.c */
+int generic_chdir_start(void);
 
 /* mangle.c */
 void generic_mangle_name(char *, const char *);
