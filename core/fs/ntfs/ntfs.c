@@ -600,6 +600,90 @@ index_err:
     goto out;
 }
 
+/*
+ * Convert an UTF-16LE longname to the system codepage; return
+ * the length on success or -1 on failure.
+ */
+static int ntfs_cvt_longname(char *entry_name, const uint16_t *long_name)
+{
+    struct unicache {
+        uint16_t utf16;
+        uint8_t cp;
+    };
+    static struct unicache unicache[256];
+    struct unicache *uc;
+    uint16_t cp;
+    unsigned int c;
+    char *p = entry_name;
+
+    do {
+        cp = *long_name++;
+        uc = &unicache[cp % 256];
+
+        if (__likely(uc->utf16 == cp)) {
+            *p++ = uc->cp;
+        } else {
+            for (c = 0; c < 512; c++) {
+                if (codepage.uni[0][c] == cp) {
+                    uc->utf16 = cp;
+                    *p++ = uc->cp = (uint8_t)c;
+                    goto found;
+                }
+            }
+
+            return -1;
+            found:
+                ;
+        }
+    } while (cp);
+
+    return (p - entry_name) - 1;
+}
+
+static int ntfs_readdir(struct file *file, struct dirent *dirent)
+{
+    struct fs_info *fs = file->fs;
+    struct inode *inode = file->inode;
+    MFT_RECORD *mrec;
+    sector_t block = 0;
+    ATTR_RECORD *attr;
+    FILE_NAME_ATTR *fn;
+    char filename[NTFS_MAX_FILE_NAME_LEN + 1];
+    int len;
+
+    mrec = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block);
+    if (!mrec) {
+        dprintf("No MFT record found!\n");
+        goto out;
+    }
+
+    attr = attr_lookup(NTFS_AT_FILENAME, mrec);
+    if (!attr) {
+        dprintf("No attribute found!\n");
+        goto out;
+    }
+
+    fn = (FILE_NAME_ATTR *)((uint8_t *)attr +
+                            attr->data.resident.value_offset);
+
+    len = ntfs_cvt_longname(filename, fn->file_name);
+    if (len < 0 || len != fn->file_name_len) {
+        dprintf("Failed on converting UTF-16LE LFN to OEM LFN\n");
+        goto out;
+    }
+
+    dirent->d_ino = NTFS_PVT(inode)->mft_no;
+    dirent->d_off = file->offset;
+    dirent->d_reclen = offsetof(struct dirent, d_name) + len + 1;
+    dirent->d_type = get_inode_mode(mrec);
+    memcpy(dirent->d_name, filename, len + 1);
+
+    return 0;
+
+out:
+    return -1;
+}
+
 static struct inode *ntfs_iget(const char *dname, struct inode *parent)
 {
     return index_lookup(dname, parent);
@@ -680,7 +764,7 @@ const struct fs_ops ntfs_fs_ops = {
     .close_file     = NULL,
     .mangle_name    = NULL,
     .load_config    = NULL,
-    .readdir        = NULL,
+    .readdir        = ntfs_readdir,
     .iget_root      = ntfs_iget_root,
     .iget           = ntfs_iget,
     .next_extent    = NULL,
