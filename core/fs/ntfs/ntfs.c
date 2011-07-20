@@ -258,41 +258,18 @@ out:
     return -1;
 }
 
-static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
-                                struct inode *inode)
+static enum dirent_type get_inode_mode(MFT_RECORD *mrec)
 {
-    MFT_RECORD *mrec;
-    sector_t block = 0;
     ATTR_RECORD *attr;
     FILE_NAME_ATTR *fn;
     bool infile = false;
     uint32_t dir_mask, root_mask, file_mask;
     uint32_t dir, root, file;
-    uint32_t len;
-    INDEX_ROOT *ir;
-    uint32_t clust_size;
-    uint8_t *attr_len;
-    struct mapping_chunk chunk;
-    uint8_t *stream;
-    uint32_t offset;
-    int err;
-
-    mrec = mft_record_lookup(mft_no, fs, &block);
-    if (!mrec) {
-        dprintf("No MFT record found!\n");
-        goto out;
-    }
-
-    NTFS_PVT(inode)->mft_no = mft_no;
-    NTFS_PVT(inode)->seq_no = mrec->seq_no;
-
-    NTFS_PVT(inode)->start_cluster = block >> NTFS_SB(fs)->clust_shift;
-    NTFS_PVT(inode)->here = block;
 
     attr = attr_lookup(NTFS_AT_FILENAME, mrec);
     if (!attr) {
         dprintf("No attribute found!\n");
-        goto out;
+        return DT_UNKNOWN;
     }
 
     fn = (FILE_NAME_ATTR *)((uint8_t *)attr +
@@ -316,7 +293,44 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     if (((!dir && root) || (!dir && !root)) && !file)
         infile = true;
 
-    if (!infile) {    /* directory stuff */
+    return infile ? DT_REG : DT_DIR;
+}
+
+static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
+                                struct inode *inode)
+{
+    MFT_RECORD *mrec;
+    sector_t block = 0;
+    ATTR_RECORD *attr;
+    enum dirent_type d_type;
+    uint32_t len;
+    INDEX_ROOT *ir;
+    uint32_t clust_size;
+    uint8_t *attr_len;
+    struct mapping_chunk chunk;
+    uint8_t *stream;
+    uint32_t offset;
+    int err;
+
+    mrec = mft_record_lookup(mft_no, fs, &block);
+    if (!mrec) {
+        dprintf("No MFT record found!\n");
+        goto out;
+    }
+
+    NTFS_PVT(inode)->mft_no = mft_no;
+    NTFS_PVT(inode)->seq_no = mrec->seq_no;
+
+    NTFS_PVT(inode)->start_cluster = block >> NTFS_SB(fs)->clust_shift;
+    NTFS_PVT(inode)->here = block;
+
+    d_type = get_inode_mode(mrec);
+    if (d_type == DT_UNKNOWN) {
+        dprintf("Failed on determining inode's mode\n");
+        goto out;
+    }
+
+    if (d_type == DT_DIR) {    /* directory stuff */
         dprintf("Got a directory.\n");
         attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
         if (!attr) {
@@ -349,9 +363,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             NTFS_PVT(inode)->itype.index.vcn_size = BLOCK_SIZE(fs);
             NTFS_PVT(inode)->itype.index.vcn_size_shift = BLOCK_SHIFT(fs);
         }
-
-        inode->mode = DT_DIR;
-    } else {        /* file stuff */
+    } else if (d_type == DT_REG) {        /* file stuff */
         dprintf("Got a file.\n");
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
@@ -401,9 +413,9 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             NTFS_PVT(inode)->data.non_resident.lcn = chunk.cur_lcn;
             inode->size = attr->data.non_resident.initialized_size;
         }
-
-        inode->mode = DT_REG;
     }
+
+    inode->mode = d_type;
 
     return 0;
 
