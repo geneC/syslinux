@@ -640,6 +640,115 @@ static int ntfs_cvt_longname(char *entry_name, const uint16_t *long_name)
     return (p - entry_name) - 1;
 }
 
+static int ntfs_next_extent(struct inode *inode, uint32_t lstart)
+{
+    struct fs_info *fs = inode->fs;
+    struct ntfs_sb_info *sbi = NTFS_SB(fs);
+    uint32_t mcluster = lstart >> sbi->clust_shift;
+    uint32_t tcluster;
+    const uint32_t cluster_bytes = UINT32_C(1) << sbi->clust_byte_shift;
+    sector_t pstart;
+    const uint32_t blk_size = BLOCK_SIZE(fs);
+    const uint32_t blk_shift = BLOCK_SHIFT(fs);
+
+    tcluster = (inode->size + cluster_bytes - 1) >> sbi->clust_byte_shift;
+    if (mcluster >= tcluster)
+        goto out;       /* Requested cluster beyond end of file */
+
+    if (!NTFS_PVT(inode)->non_resident)
+        pstart = sbi->mft + NTFS_PVT(inode)->here;
+    else
+        pstart = NTFS_PVT(inode)->data.non_resident.lcn << sbi->clust_shift;
+
+    inode->next_extent.len = (inode->size + blk_size - 1) >> blk_shift;
+    inode->next_extent.pstart = pstart;
+
+    return 0;
+
+out:
+    return -1;
+}
+
+static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
+                                bool *have_more)
+{
+    uint32_t ret;
+    struct inode *inode = file->inode;
+    uint8_t non_resident;
+    struct fs_info *fs = file->fs;
+    struct disk *disk = fs->fs_dev->disk;
+    sector_t block;
+    MFT_RECORD *mrec;
+    ATTR_RECORD *attr;
+    uint8_t *usa_start;
+    uint16_t usa_no;
+    uint8_t *usa_end;
+    char data[1024];
+    char *pbuf;
+    char *p;
+    uint16_t val;
+
+    non_resident = NTFS_PVT(inode)->non_resident;
+
+    ret = generic_getfssec(file, buf, sectors, have_more);
+    if (!ret)
+        return ret;
+
+    if (!non_resident) {
+        block = NTFS_SB(file->fs)->mft + NTFS_PVT(inode)->here;
+
+        /* read the whole MFT Record into our data buffer */
+        disk->rdwr_sectors(disk, data, block, 2, 0);
+
+        mrec = (MFT_RECORD *)&data[0];
+        if (mrec->magic != NTFS_MAGIC_FILE) {
+            printf("No MFT record found!\n");
+            goto out;
+        }
+
+        /* get the Update Sequence Array */
+        usa_start = (uint8_t *)mrec + mrec->usa_ofs; /* there it is! grr... */
+        usa_no = *(uint16_t *)usa_start;
+        usa_end = (uint8_t *)usa_start + mrec->usa_count + 1;
+
+        attr = attr_lookup(NTFS_AT_DATA, mrec);
+        if (!attr) {
+            printf("No attribute found!\n");
+            goto out;
+        }
+
+        pbuf = (char *)attr + attr->data.resident.value_offset;
+
+        /* pbuf now points to the data offset, so let's copy it into
+         * buf
+         */
+        memcpy(buf, pbuf, inode->size);
+
+        p = buf;
+        usa_start += 2;    /* make it to point to the fixups */
+        while (*p) {
+            val = *p | *(p + 1);
+            if (val == usa_no) {
+                if (usa_start != usa_end && usa_start + 1 != usa_end) {
+                    *p++ = *usa_start++;
+                    *p++ = *usa_start++;
+                } else {
+                    p++;
+                }
+            } else {
+                p++;
+            }
+        }
+
+        ret = inode->size;
+    }
+
+    return ret;
+
+out:
+    return 0;
+}
+
 static int ntfs_readdir(struct file *file, struct dirent *dirent)
 {
     struct fs_info *fs = file->fs;
@@ -650,6 +759,8 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     FILE_NAME_ATTR *fn;
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
     int len;
+
+    printf("here!\n");
 
     mrec = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block);
     if (!mrec) {
@@ -760,12 +871,12 @@ const struct fs_ops ntfs_fs_ops = {
     .fs_flags       = FS_USEMEM | FS_THISIND,
     .fs_init        = ntfs_fs_init,
     .searchdir      = NULL,
-    .getfssec       = NULL,
-    .close_file     = NULL,
-    .mangle_name    = NULL,
-    .load_config    = NULL,
+    .getfssec       = ntfs_getfssec,
+    .close_file     = generic_close_file,
+    .mangle_name    = generic_mangle_name,
+    .load_config    = generic_load_config,
     .readdir        = ntfs_readdir,
     .iget_root      = ntfs_iget_root,
     .iget           = ntfs_iget,
-    .next_extent    = NULL,
+    .next_extent    = ntfs_next_extent,
 };
