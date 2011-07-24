@@ -669,6 +669,37 @@ out:
     return -1;
 }
 
+/* Fixups reallocation */
+static void fixups_realloc(void *buf, MFT_RECORD *mrec)
+{
+    uint8_t *usa_start;
+    uint16_t usa_no;
+    uint8_t *usa_end;
+    char *p;
+    uint16_t val;
+
+    /* get the Update Sequence Array */
+    usa_start = (uint8_t *)mrec + mrec->usa_ofs; /* there it is! grr... */
+    usa_no = *(uint16_t *)usa_start;
+    usa_end = (uint8_t *)usa_start + mrec->usa_count + 1;
+
+    p = (char *)buf;
+    usa_start += 2;    /* make it to point to the fixups */
+    while (*p) {
+        val = *p | *(p + 1);
+        if (val == usa_no) {
+            if (usa_start < usa_end && usa_start + 1 < usa_end) {
+                *p++ = *usa_start++;
+                *p++ = *usa_start++;
+            } else {
+                p++;
+            }
+        } else {
+            p++;
+        }
+    }
+}
+
 static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
                                 bool *have_more)
 {
@@ -680,13 +711,8 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     sector_t block;
     MFT_RECORD *mrec;
     ATTR_RECORD *attr;
-    uint8_t *usa_start;
-    uint16_t usa_no;
-    uint8_t *usa_end;
     char data[1024];
     char *pbuf;
-    char *p;
-    uint16_t val;
 
     non_resident = NTFS_PVT(inode)->non_resident;
 
@@ -706,11 +732,6 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
             goto out;
         }
 
-        /* get the Update Sequence Array */
-        usa_start = (uint8_t *)mrec + mrec->usa_ofs; /* there it is! grr... */
-        usa_no = *(uint16_t *)usa_start;
-        usa_end = (uint8_t *)usa_start + mrec->usa_count + 1;
-
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
             printf("No attribute found!\n");
@@ -724,21 +745,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
          */
         memcpy(buf, pbuf, inode->size);
 
-        p = buf;
-        usa_start += 2;    /* make it to point to the fixups */
-        while (*p) {
-            val = *p | *(p + 1);
-            if (val == usa_no) {
-                if (usa_start != usa_end && usa_start + 1 != usa_end) {
-                    *p++ = *usa_start++;
-                    *p++ = *usa_start++;
-                } else {
-                    p++;
-                }
-            } else {
-                p++;
-            }
-        }
+        fixups_realloc(buf, mrec);
 
         ret = inode->size;
     }
