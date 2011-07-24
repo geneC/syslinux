@@ -707,12 +707,10 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     struct inode *inode = file->inode;
     uint8_t non_resident;
     struct fs_info *fs = file->fs;
-    struct disk *disk = fs->fs_dev->disk;
     sector_t block;
     MFT_RECORD *mrec;
     ATTR_RECORD *attr;
-    char data[1024];
-    char *pbuf;
+    char *data;
 
     non_resident = NTFS_PVT(inode)->non_resident;
 
@@ -723,10 +721,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     if (!non_resident) {
         block = NTFS_SB(file->fs)->mft + NTFS_PVT(inode)->here;
 
-        /* read the whole MFT Record into our data buffer */
-        disk->rdwr_sectors(disk, data, block, 2, 0);
-
-        mrec = (MFT_RECORD *)&data[0];
+        mrec = (MFT_RECORD *)get_cache(fs->fs_dev, block);
         if (mrec->magic != NTFS_MAGIC_FILE) {
             printf("No MFT record found!\n");
             goto out;
@@ -738,12 +733,10 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
             goto out;
         }
 
-        pbuf = (char *)attr + attr->data.resident.value_offset;
+        data = (char *)attr + attr->data.resident.value_offset;
 
-        /* pbuf now points to the data offset, so let's copy it into
-         * buf
-         */
-        memcpy(buf, pbuf, inode->size);
+        /* data now points to the data offset, so let's copy it into buf */
+        memcpy(buf, data, inode->size);
 
         fixups_realloc(buf, mrec);
 
@@ -841,9 +834,8 @@ static int ntfs_fs_init(struct fs_info *fs)
     if (!ntfs_check_sb_fields(&ntfs))
         return -1;
 
-    SECTOR_SHIFT(fs) = BLOCK_SHIFT(fs) = disk->sector_shift;
+    SECTOR_SHIFT(fs) = disk->sector_shift;
     SECTOR_SIZE(fs) = 1 << SECTOR_SHIFT(fs);
-    fs->block_size = 1 << BLOCK_SHIFT(fs);
 
     sbi = malloc(sizeof(*sbi));
     if (!sbi)
@@ -859,6 +851,12 @@ static int ntfs_fs_init(struct fs_info *fs)
                                             sbi->clust_byte_shift;
     sbi->root = sbi->mft + sbi->mft_size;
 
+    /* Note: we need at least 1 KiB to read the whole MFT record, so the block
+     * shift will be at least 10 for now.
+     */
+    BLOCK_SHIFT(fs) = sbi->clust_shift > 10 ? sbi->clust_shift : 10;
+    BLOCK_SIZE(fs) = 1 << BLOCK_SHIFT(fs);
+
     sbi->mft = ntfs.mft_lclust << sbi->clust_shift;
     /* 16 MFT entries reserved for metadata files (approximately 16 KiB) */
     sbi->mft_size = (ntfs.clust_per_mft_record << sbi->clust_shift) << 4;
@@ -867,7 +865,7 @@ static int ntfs_fs_init(struct fs_info *fs)
     if (sbi->clusters > 0xFFFFFFFFFFF4ULL)
         sbi->clusters = 0xFFFFFFFFFFF4ULL;
 
-	/* Initialize the cache */
+    /* Initialize the cache */
     cache_init(fs->fs_dev, BLOCK_SHIFT(fs));
 
     return BLOCK_SHIFT(fs);
