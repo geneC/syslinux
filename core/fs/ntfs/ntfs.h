@@ -35,7 +35,7 @@ struct ntfs_bpb {
     uint64_t total_sectors;
     uint64_t mft_lclust;
     uint64_t mft_mirr_lclust;
-    uint8_t clust_per_mft_record;
+    int8_t clust_per_mft_record;
     uint8_t unused_4[3];
     uint8_t clust_per_idx_buf;
     uint8_t unused_5[3];
@@ -46,8 +46,7 @@ struct ntfs_bpb {
 } __attribute__((packed));
 
 struct ntfs_sb_info {
-    sector_t mft;                   /* The MFT region */
-    sector_t root;                  /* The root dir region */
+    block_t mft_block;              /* The first MFT record block */
 
     unsigned mft_size;              /* The MFT size in sectors */
     unsigned mft_record_size;       /* MFT record size in bytes */
