@@ -49,7 +49,7 @@ struct ntfs_sb_info {
     block_t mft_block;              /* The first MFT record block */
 
     unsigned mft_size;              /* The MFT size in sectors */
-    unsigned mft_record_size;       /* MFT record size in bytes */
+    uint64_t mft_record_size;       /* MFT record size in bytes */
 
     unsigned long long clusters;    /* Total number of clusters */
 
