@@ -61,44 +61,35 @@ static inline const void *get_right_block(struct fs_info *fs,
     return get_cache(fs->fs_dev, NTFS_SB(fs)->mft_block + block);
 }
 
-static int fixups_copyback(struct fs_info *fs, void *buf, NTFS_RECORD *nrec,
-                            uint64_t size)
+static int fixups_writeback(struct fs_info *fs, NTFS_RECORD *nrec)
 {
-    uint8_t *usa_start;
+    uint16_t *usa;
     uint16_t usa_no;
-    uint8_t *usa_end;
-    unsigned sectors;
-    uint64_t offset = 0;
-    uint16_t *val;
-    const unsigned byte_shift = 8;
+    uint16_t usa_count;
+    uint16_t *block;
 
     if (nrec->magic != NTFS_MAGIC_FILE && nrec->magic != NTFS_MAGIC_INDX) {
-        printf("Not a NTFS record\n");
+        printf("Not a valid NTFS record\n");
         goto out;
     }
 
-    /* sectors per block */
-    sectors = size >> SECTOR_SHIFT(fs);
+    /* get the Update Sequence Array offset */
+    usa = (uint16_t *)((uint8_t *)nrec + nrec->usa_ofs);
+    /* get the Update Sequence Array Number and skip it */
+    usa_no = *usa++;
+    /* get the Update Sequene Array count */
+    usa_count = nrec->usa_count - 1;    /* exclude the USA number */
+    /* make it to point to the last two bytes of the RECORD's first sector */
+    block = (uint16_t *)((uint8_t *)nrec + SECTOR_SIZE(fs) - 2);
 
-    /* get the Update Sequence Array start address */
-    usa_start = (uint8_t *)nrec + nrec->usa_ofs;
-    /* get the Update Sequence Number */
-    usa_no = *(uint16_t *)usa_start;
-    /* get the Update Sequence Array end address */
-    usa_end = usa_start + nrec->usa_count + 1;
+    while (usa_count) {
+        if (*block != usa_no)
+            goto out;
 
-    do {
-        offset += SECTOR_SIZE(fs) - 2;
-
-        val = (uint16_t *)((uint8_t *)buf + offset);
-        /* compare it against the last two bytes of every sector */
-        if (*val == usa_no) {
-            if (usa_start < usa_end && usa_start + 1 < usa_end) {
-                *val = *usa_start++;
-                *val <<= byte_shift | *usa_start++;
-            }
-        }
-    } while ((offset + SECTOR_SIZE(fs)) >> SECTOR_SHIFT(fs) < sectors);
+        *block = *usa++;
+        block = (uint16_t *)((uint8_t *)block + SECTOR_SIZE(fs));
+        usa_count--;
+    }
 
     return 0;
 
@@ -113,16 +104,16 @@ static int64_t mft_record_lookup(uint32_t file, struct fs_info *fs,
     const uint8_t *ret;
     int err;
     const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
-    const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
     MFT_RECORD *mrec;
 
     goto jump_in;
 
     for (;;) {
-        err = fixups_copyback(fs, (uint8_t *)data + offset,
-                                (NTFS_RECORD *)data, mft_record_size);
-        if (err)
+        err = fixups_writeback(fs, (NTFS_RECORD *)((uint8_t *)data + offset));
+        if (err) {
+            printf("Error in fixups_writeback()\n");
             break;
+        }
 
         mrec = (MFT_RECORD *)((uint8_t *)data + offset);
         if (mrec->mft_record_no == file)
@@ -199,18 +190,6 @@ static bool ntfs_match_longname(const char *str, unsigned long mft_no,
     len = fn->file_name_len;
     match = fn->file_name;
 
-    /*
-    if (!strcmp("syslinux", str)) {
-        const char *s = (const char *)fn->file_name;
-        printf("Filename:                   ");
-        while (*s) {
-            printf("%c", *s);
-            s += 2;
-        }
-        printf("\n");
-    }
-    */
-
     while (len) {
         cp = *match++;
         len--;
@@ -253,6 +232,19 @@ struct mapping_chunk {
     uint32_t flags;     /* Specific flags of this chunk */
 };
 
+static inline uint8_t *mapping_chunk_init(ATTR_RECORD *attr,
+                                    struct mapping_chunk *chunk,
+                                    uint32_t *offset)
+{
+    memset(chunk, 0, sizeof(*chunk));
+    chunk->cur_vcn = attr->data.non_resident.lowest_vcn;
+    chunk->cur_lcn = 0LL;
+
+    *offset = 0U;
+
+    return (uint8_t *)attr + attr->data.non_resident.mapping_pairs_offset;
+}
+
 /* Parse data runs.
  *
  * return 0 on success or -1 on failure.
@@ -270,6 +262,8 @@ static int parse_data_run(const void *stream, uint32_t *offset,
     int mask;
     uint8_t val;
     int64_t res;
+
+    (void)attr_len;
 
     chunk->flags &= ~MAP_MASK;
 
@@ -411,7 +405,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     }
 
     if (d_type == DT_DIR) {    /* directory stuff */
-        printf("Got a directory.\n");
+        dprintf("Got a directory.\n");
         attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
         if (!attr) {
             dprintf("No attribute found!\n");
@@ -446,7 +440,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             NTFS_PVT(inode)->itype.index.vcn_size_shift = BLOCK_SHIFT(fs);
         }
     } else if (d_type == DT_REG) {        /* file stuff */
-        printf("Got a file.\n");
+        dprintf("Got a file.\n");
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
             dprintf("No attribute found!\n");
@@ -474,7 +468,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             for (;;) {
                 err = parse_data_run(stream, &droffset, attr_len, &chunk);
                 if (err) {
-                    printf("Non-resident $DATA attribute without any run\n");
+                    printf("parse_data_run()\n");
                     goto out;
                 }
 
@@ -517,15 +511,18 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
     INDEX_ROOT *ir;
     uint32_t len;
     INDEX_ENTRY *ie;
-    uint8_t vcn_count;
     uint8_t *ret;
     INDEX_BLOCK *iblock;
-    int64_t vcn;
+    int err;
     uint8_t *stream;
     uint8_t *attr_len;
     struct mapping_chunk chunk;
     uint32_t droffset;
-    int err;
+    struct mapping_chunk *chunks;
+    unsigned chunks_count;
+    unsigned i;
+    int64_t vcn;
+    int64_t lcn;
     struct inode *inode;
 
     block = NTFS_PVT(dir)->start;
@@ -597,83 +594,105 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
 
     attr_len = (uint8_t *)attr + attr->len;
 
-    memset((void *)&chunk, 0, sizeof(chunk));
-    chunk.cur_vcn = attr->data.non_resident.lowest_vcn;
-    chunk.cur_lcn = 0LL;
-
-    stream = (uint8_t *)attr + attr->data.non_resident.mapping_pairs_offset;
-    droffset = 0U;
-
-    for (;;) {
+    stream = mapping_chunk_init(attr, &chunk, &droffset);
+    chunks_count = 0;
+    do {
         err = parse_data_run(stream, &droffset, attr_len, &chunk);
         if (err)
-            goto not_found;
+            break;
 
         if (chunk.flags & MAP_UNALLOCATED)
             continue;
-        if (chunk.flags & MAP_END)
+
+        if (chunk.flags & MAP_ALLOCATED)
+            chunks_count++;
+
+    } while (!(chunk.flags & MAP_END));
+
+    if (!chunks_count) {
+        printf("No data runs found, but claims non-resident attribute\n");
+        goto out;
+    }
+
+    chunks = malloc(chunks_count * sizeof *chunks);
+    if (!chunks)
+        malloc_error("mapping_chunk structure");
+
+    stream = mapping_chunk_init(attr, &chunk, &droffset);
+    i = 0;
+    do {
+        err = parse_data_run(stream, &droffset, attr_len, &chunk);
+        if (err)
             break;
 
+        if (chunk.flags & MAP_UNALLOCATED)
+            continue;
+
         if (chunk.flags & MAP_ALLOCATED) {
-            chunk.cur_lcn = 0x24de8;
-            printf("%d cluster(s) starting at 0x%X\n", chunk.vcn_len,
+            dprintf("%d cluster(s) starting at 0x%X\n", chunk.vcn_len,
                     chunk.cur_lcn);
-
-            vcn_count = 0;
-            vcn = chunk.cur_vcn;        /* HUMMMMMMM!!!!! */
-            while (vcn_count++ < chunk.vcn_len) {
-                block = ((chunk.cur_lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
-                        SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
-
-                ret = (uint8_t *)get_cache(fs->fs_dev, block);
-                if (!ret) {
-                    printf("get_cache() returned NULL\n");
-                    goto not_found;
-                }
-
-                memcpy(data, ret, blk_size);
-
-                err = fixups_copyback(fs, data, (NTFS_RECORD *)data, blk_size);
-                if (err)
-                    goto not_found;
-
-                iblock = (INDEX_BLOCK *)data;
-                if (iblock->magic != NTFS_MAGIC_INDX) {
-                    printf("Not a valid INDX record\n");
-                    goto not_found;
-                }
-
-                ie = (INDEX_ENTRY *)((uint8_t *)&iblock->index +
-                                            iblock->index.entries_offset);
-                for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
-                    /* bounds checks */
-                    if ((uint8_t *)ie < (uint8_t *)iblock || (uint8_t *)ie +
-                        sizeof(INDEX_ENTRY_HEADER) >
-                        (uint8_t *)&iblock->index + iblock->index.index_len ||
-                        (uint8_t *)ie + ie->len >
-                        (uint8_t *)&iblock->index + iblock->index.index_len)
-                        goto index_err;
-
-                    /* last entry cannot contain a key */
-                    if (ie->flags & INDEX_ENTRY_END)
-                        break;
-
-                    if (ntfs_match_longname(dname, ie->data.dir.indexed_file,
-                                            fs)) {
-                        dprintf("Filename matches up!\n");
-                        dprintf("MFT record number = %d\n",
-                                ie->data.dir.indexed_file);
-                        goto found;
-                    }
-                }
-
-                ++vcn;  /* go to the next VCN */
-            }
+            memcpy(&chunks[i++], &chunk, sizeof chunk);
         }
+
+    } while (!(chunk.flags & MAP_END));
+
+    i = 0;
+    while (chunks_count--) {
+        vcn = 0;
+        lcn = chunks[i].cur_lcn;
+        while (vcn < chunks[i].vcn_len) {
+            block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
+                    SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
+
+            ret = (uint8_t *)get_cache(fs->fs_dev, block);
+            if (!ret) {
+                printf("get_cache() returned NULL\n");
+                goto not_found;
+            }
+
+            memcpy(data, ret, blk_size);
+
+            err = fixups_writeback(fs, (NTFS_RECORD *)&data[0]);
+            if (err) {
+                printf("Error in fixups_writeback()\n");
+                goto not_found;
+            }
+
+            iblock = (INDEX_BLOCK *)&data[0];
+            if (iblock->magic != NTFS_MAGIC_INDX) {
+                printf("Not a valid INDX record\n");
+                goto not_found;
+            }
+
+            ie = (INDEX_ENTRY *)((uint8_t *)&iblock->index +
+                                        iblock->index.entries_offset);
+            for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
+                /* bounds checks */
+                if ((uint8_t *)ie < (uint8_t *)iblock || (uint8_t *)ie +
+                    sizeof(INDEX_ENTRY_HEADER) >
+                    (uint8_t *)&iblock->index + iblock->index.index_len ||
+                    (uint8_t *)ie + ie->len >
+                    (uint8_t *)&iblock->index + iblock->index.index_len)
+                    goto index_err;
+
+                /* last entry cannot contain a key */
+                if (ie->flags & INDEX_ENTRY_END)
+                    break;
+
+                if (ntfs_match_longname(dname, ie->data.dir.indexed_file, fs)) {
+                    dprintf("Filename matches up!\n");
+                    goto found;
+                }
+            }
+
+            vcn++;  /* go to the next VCN */
+        }
+
+        i++;        /* go to the next chunk */
     }
 
 not_found:
-    dprintf("Index not found\n");
+    printf("Index not found\n");
 
 out:
     printf("%s not found!\n", dname);
@@ -782,7 +801,6 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     MFT_RECORD *mrec;
     ATTR_RECORD *attr;
     char *p;
-    int err;
 
     non_resident = NTFS_PVT(inode)->non_resident;
 
@@ -794,7 +812,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
         dprintf("mft_no:     %d\n", NTFS_PVT(inode)->mft_no);
         offset = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block, &data);
         if (offset < 0) {
-            dprintf("No MFT record found!\n");
+            printf("No MFT record found!\n");
             goto out;
         }
 
@@ -802,18 +820,14 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
 
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
-            dprintf("No attribute found!\n");
+            printf("No attribute found!\n");
             goto out;
         }
 
-        p = (char *)attr + attr->data.resident.value_offset;
+        p = (char *)((uint8_t *)attr + attr->data.resident.value_offset);
 
         /* p now points to the data offset, so let's copy it into buf */
         memcpy(buf, p, inode->size);
-
-        err = fixups_copyback(fs, buf, (NTFS_RECORD *)mrec, inode->size);
-        if (err)
-            goto out;
 
         ret = inode->size;
     }
@@ -837,11 +851,9 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
     int len;
 
-    printf("in readdir()\n");
-
     offset = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block, &data);
     if (offset < 0) {
-        dprintf("No MFT record found!\n");
+        printf("No MFT record found!\n");
         goto out;
     }
 
@@ -849,7 +861,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 
     attr = attr_lookup(NTFS_AT_FILENAME, mrec);
     if (!attr) {
-        dprintf("No attribute found!\n");
+        printf("No attribute found!\n");
         goto out;
     }
 
@@ -858,7 +870,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 
     len = ntfs_cvt_longname(filename, fn->file_name);
     if (len < 0 || len != fn->file_name_len) {
-        dprintf("Failed on converting UTF-16LE LFN to OEM LFN\n");
+        printf("Failed on converting UTF-16LE LFN to OEM LFN\n");
         goto out;
     }
 
