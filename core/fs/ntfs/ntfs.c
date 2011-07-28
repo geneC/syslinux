@@ -177,7 +177,7 @@ static bool ntfs_match_longname(const char *str, const uint16_t *match, int len)
         goto out;
 
     while (len--)
-        if (*match++ != 0xffff)
+        if (*match++ != 0xFFFF)
             goto out;
 
     return true;
@@ -282,7 +282,7 @@ static enum dirent_type get_inode_mode(MFT_RECORD *mrec)
 
     attr = attr_lookup(NTFS_AT_FILENAME, mrec);
     if (!attr) {
-        dprintf("No attribute found.\n");
+        printf("No attribute found.\n");
         return DT_UNKNOWN;
     }
 
@@ -310,13 +310,12 @@ static enum dirent_type get_inode_mode(MFT_RECORD *mrec)
     return infile ? DT_REG : DT_DIR;
 }
 
-static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
-                                struct inode *inode)
+static int index_inode_setup(struct fs_info *fs, block_t start_block,
+                            unsigned long mft_no, struct inode *inode)
 {
     uint8_t data[BLOCK_SIZE(fs)];
     int64_t offset;
     MFT_RECORD *mrec;
-    block_t block = 0;
     ATTR_RECORD *attr;
     enum dirent_type d_type;
     uint32_t len;
@@ -328,7 +327,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     uint8_t *stream;
     uint32_t droffset;
 
-    offset = mft_record_lookup(mft_no, fs, &block, &data);
+    offset = mft_record_lookup(mft_no, fs, &start_block, &data);
     if (offset < 0) {
         printf("No MFT record found.\n");
         goto out;
@@ -339,8 +338,8 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     NTFS_PVT(inode)->mft_no = mft_no;
     NTFS_PVT(inode)->seq_no = mrec->seq_no;
 
-    NTFS_PVT(inode)->start_cluster = block >> NTFS_SB(fs)->clust_shift;
-    NTFS_PVT(inode)->here = block;
+    NTFS_PVT(inode)->start_cluster = start_block >> NTFS_SB(fs)->clust_shift;
+    NTFS_PVT(inode)->here = start_block;
 
     d_type = get_inode_mode(mrec);
     if (d_type == DT_UNKNOWN) {
@@ -352,7 +351,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
         dprintf("Got a directory.\n");
         attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
         if (!attr) {
-            dprintf("No attribute found.\n");
+            printf("No attribute found.\n");
             goto out;
         }
 
@@ -385,7 +384,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
         dprintf("Got a file.\n");
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
-            dprintf("No attribute found.\n");
+            printf("No attribute found.\n");
             goto out;
         }
 
@@ -470,7 +469,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
 
     attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
     if (!attr) {
-        dprintf("No attribute found.\n");
+        printf("No attribute found.\n");
         goto out;
     }
 
@@ -629,14 +628,15 @@ not_found:
     dprintf("Index not found\n");
 
 out:
-    dprintf("%s not found!\n", dname);
+    printf("%s not found!\n", dname);
 
     return NULL;
 
 found:
     dprintf("Index found\n");
     inode = new_ntfs_inode(fs);
-    err = index_inode_setup(fs, ie->data.dir.indexed_file, inode);
+    err = index_inode_setup(fs, NTFS_PVT(dir)->here, ie->data.dir.indexed_file,
+                            inode);
     if (err) {
         free(inode);
         goto out;
@@ -731,7 +731,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     struct fs_info *fs = file->fs;
     uint8_t data[BLOCK_SIZE(fs)];
     struct inode *inode = file->inode;
-    block_t block = 0;
+    block_t block;
     MFT_RECORD *mrec;
     ATTR_RECORD *attr;
     char *p;
@@ -743,7 +743,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
         return ret;
 
     if (!non_resident) {
-        dprintf("mft_no:     %d\n", NTFS_PVT(inode)->mft_no);
+        block = NTFS_PVT(inode)->here;
         offset = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block, &data);
         if (offset < 0) {
             printf("No MFT record found.\n");
@@ -832,7 +832,7 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
 
     inode->fs = fs;
 
-    err = index_inode_setup(fs, FILE_root, inode);
+    err = index_inode_setup(fs, 0, FILE_root, inode);
     if (err)
         goto free_out;
 
