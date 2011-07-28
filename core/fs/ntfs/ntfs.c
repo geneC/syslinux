@@ -589,7 +589,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
             continue;
 
         if (chunk.flags & MAP_ALLOCATED) {
-            printf("%d cluster(s) starting at 0x%X\n", chunk.len, chunk.lcn);
+            dprintf("%d cluster(s) starting at 0x%X\n", chunk.len, chunk.lcn);
             memcpy(&chunks[i++], &chunk, sizeof chunk);
         }
 
@@ -654,12 +654,12 @@ not_found:
     dprintf("Index not found\n");
 
 out:
-    printf("%s not found!\n", dname);
+    dprintf("%s not found!\n", dname);
 
     return NULL;
 
 found:
-    dprintf("--------------- Found index -------------------\n");
+    dprintf("Index found\n");
     inode = new_ntfs_inode(fs);
     err = index_inode_setup(fs, ie->data.dir.indexed_file, inode);
     if (err) {
@@ -667,7 +667,7 @@ found:
         goto out;
     }
 
-    printf("%s found!\n", dname);
+    dprintf("%s found!\n", dname);
 
     return inode;
 
@@ -834,7 +834,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     }
 
     dirent->d_ino = NTFS_PVT(inode)->mft_no;
-    dirent->d_off = file->offset;
+    dirent->d_off = file->offset++;
     dirent->d_reclen = offsetof(struct dirent, d_name) + len + 1;
     dirent->d_type = get_inode_mode(mrec);
     memcpy(dirent->d_name, filename, len + 1);

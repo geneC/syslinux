@@ -67,10 +67,6 @@ struct ntfs_inode {
     unsigned long mft_no;   /* Number of the mft record / inode */
     uint16_t seq_no;        /* Sequence number of the mft record */
     uint32_t type;          /* Attribute type of this inode */
-    uint16_t *name;
-    uint32_t name_len;
-    uint32_t attr_list_size;
-    uint8_t *attr_list;
     uint8_t non_resident;
     union {                 /* Non-resident $DATA attribute */
         struct {            /* Used only if non_resident flags isn't set */
@@ -89,12 +85,6 @@ struct ntfs_inode {
             uint8_t block_size_shift;    /* log2 of the above */
             uint8_t vcn_size_shift;      /* log2 of the above */
         } index;
-        struct { /* It is a compressed/sparse file/attribute inode */
-            int64_t size;
-            uint32_t block_size;
-            uint8_t block_size_bits;
-            uint8_t block_clusters;
-        } compressed;
     } itype;
     uint32_t start_cluster; /* Starting cluster address */
     sector_t start;         /* Starting sector */
@@ -221,12 +211,6 @@ typedef enum {
     FILE_reserved15     = 15,
     FILE_reserved16     = 16,
 } NTFS_SYSTEM_FILES;
-
-/* MFT record flags */
-enum {
-    MFT_RECORD_IN_USE       = 0x0001,
-    MFT_RECORD_IS_DIRECTORY = 0x0002,
-} __attribute__((__packed__));
 
 typedef struct {
     uint32_t magic;
@@ -398,41 +382,6 @@ typedef struct {
     uint8_t file_name_type;
     uint16_t file_name[0];          /* File name in Unicode */
 } __attribute__((__packed__)) FILE_NAME_ATTR;
-
-/* GUID structure */
-typedef struct {
-    uint32_t data0;
-    uint16_t data1;
-    uint16_t data2;
-    uint8_t data3[8];
-} __attribute__((__packed__)) GUID;
-
-typedef struct {
-    uint64_t mft_ref;
-    union {
-        struct {
-            GUID birth_vol_id;
-            GUID birth_obj_id;
-            GUID domain_id;
-        } __attribute__((__packed__)) origin;
-        uint8_t extended_info[48];
-    } __attribute__((__packed__)) opt;
-} __attribute__((__packed__)) OBJ_ID_INDEX_DATA;
-
-/* Attribute: Object ID (NTFS 3.0+) (0x40)
- * Note: always resident
- */
-typedef struct {
-    GUID object_id;
-    union {
-        struct {
-            GUID birth_vol_id;
-            GUID birth_obj_id;
-            GUID domain_id;
-        } __attribute__((__packed__)) origin;
-        uint8_t extended_info[48];
-    } __attribute__((__packed__)) opt;
-} __attribute__((__packed__)) OBJECT_ID_ATTR;
 
 /* Attribute: Volume Name (0x60)
  * Note: always resident
