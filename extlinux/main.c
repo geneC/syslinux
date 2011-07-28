@@ -558,7 +558,6 @@ static char * get_default_subvol(char * rootdir, char * subvol)
     unsigned long off = 0;
     int name_len;
     char *name;
-    u64 dir_id;
     char dirname[4096];
     u64 defaultsubvolid = 0;
 
@@ -716,14 +715,12 @@ static char * get_default_subvol(char * rootdir, char * subvol)
                ref = (struct btrfs_root_ref *)(args.buf + off);
                name_len = ref->name_len;
                name = (char *)(ref + 1);
-               dir_id = ref->dirid;
 
-               /*add_root(&root_lookup, sh->objectid, sh->offset,
-                        dir_id, name, name_len);*/
                if (sh->objectid == defaultsubvolid) {
                    strncpy(subvol, name, name_len);
                    subvol[name_len] = '\0';
-                   dprintf("The default subvolume: %s, ID: %llu\n", subvol, sh->objectid);
+                   dprintf("The default subvolume: %s, ID: %llu\n",
+			   subvol, sh->objectid);
                    break;
                }
 
