@@ -74,6 +74,15 @@ again:
 	if (*p == ':')
 		p++;
 
+	if (!strcmp(path, ".")) {
+		if (!core_getcwd(path, sizeof(path))) {
+			DBG_PRINT("Could not get cwd\n");
+			return NULL;
+		}
+
+		i = strlen(path);
+	}
+
 	n = name;
 	while (*n && i < FILENAME_MAX)
 		path[i++] = *n++;

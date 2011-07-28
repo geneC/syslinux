@@ -8,7 +8,7 @@
 #include "fs.h"
 #include "cache.h"
 
-char *PATH = "/:/bin/";
+char *PATH = ".:/bin/";
 
 /* The currently mounted filesystem */
 struct fs_info *this_fs = NULL;		/* Root filesystem */
@@ -77,8 +77,6 @@ void _close_file(struct file *file)
 	file->fs->fs_ops->close_file(file);
     free_file(file);
 }
-
-extern const struct input_dev __file_dev;
 
 /*
  * Find and open the configuration file
@@ -488,6 +486,11 @@ void fs_init(com32sys_t *regs)
     if (fs.fs_ops->iget_root) {
 	fs.root = fs.fs_ops->iget_root(&fs);
 	fs.cwd = get_inode(fs.root);
+    }
+
+    if (fs.fs_ops->chdir_start) {
+	    if (fs.fs_ops->chdir_start() < 0)
+		    printf("Failed to chdir to start directory\n");
     }
 
     SectorShift = fs.sector_shift;
