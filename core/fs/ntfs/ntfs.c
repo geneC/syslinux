@@ -158,7 +158,7 @@ static ATTR_RECORD *attr_lookup(uint32_t type, const MFT_RECORD *mrec)
 static bool ntfs_match_longname(const char *str, unsigned long mft_no,
                                     struct fs_info *fs)
 {
-    uint8_t data[1 << BLOCK_SHIFT(fs)];
+    uint8_t data[BLOCK_SIZE(fs)];
     int64_t offset;
     MFT_RECORD *mrec;
     block_t block = 0;
@@ -173,7 +173,7 @@ static bool ntfs_match_longname(const char *str, unsigned long mft_no,
 
     offset = mft_record_lookup(mft_no, fs, &block, &data);
     if (offset < 0) {
-        printf("No MFT record found!\n");
+        printf("No MFT record found.\n");
         goto out;
     }
 
@@ -181,7 +181,7 @@ static bool ntfs_match_longname(const char *str, unsigned long mft_no,
 
     attr = attr_lookup(NTFS_AT_FILENAME, mrec);
     if (!attr) {
-        printf("No attribute found!\n");
+        printf("No attribute found.\n");
         goto out;
     }
 
@@ -217,7 +217,7 @@ static inline uint8_t *mapping_chunk_init(ATTR_RECORD *attr,
                                     struct mapping_chunk *chunk,
                                     uint32_t *offset)
 {
-    memset(chunk, 0, sizeof(*chunk));
+    memset(chunk, 0, sizeof *chunk);
     *offset = 0U;
 
     return (uint8_t *)attr + attr->data.non_resident.mapping_pairs_offset;
@@ -309,7 +309,7 @@ static enum dirent_type get_inode_mode(MFT_RECORD *mrec)
 
     attr = attr_lookup(NTFS_AT_FILENAME, mrec);
     if (!attr) {
-        dprintf("No attribute found!\n");
+        dprintf("No attribute found.\n");
         return DT_UNKNOWN;
     }
 
@@ -340,7 +340,7 @@ static enum dirent_type get_inode_mode(MFT_RECORD *mrec)
 static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
                                 struct inode *inode)
 {
-    uint8_t data[1 << BLOCK_SHIFT(fs)];
+    uint8_t data[BLOCK_SIZE(fs)];
     int64_t offset;
     MFT_RECORD *mrec;
     block_t block = 0;
@@ -357,7 +357,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
 
     offset = mft_record_lookup(mft_no, fs, &block, &data);
     if (offset < 0) {
-        dprintf("No MFT record found!\n");
+        printf("No MFT record found.\n");
         goto out;
     }
 
@@ -379,7 +379,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
         dprintf("Got a directory.\n");
         attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
         if (!attr) {
-            dprintf("No attribute found!\n");
+            dprintf("No attribute found.\n");
             goto out;
         }
 
@@ -412,7 +412,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
         dprintf("Got a file.\n");
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
-            dprintf("No attribute found!\n");
+            dprintf("No attribute found.\n");
             goto out;
         }
 
@@ -462,7 +462,7 @@ out:
 static struct inode *index_lookup(const char *dname, struct inode *dir)
 {
     struct fs_info *fs = dir->fs;
-    const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
+    const uint64_t blk_size = BLOCK_SIZE(fs);
     uint8_t data[blk_size];
     int64_t offset;
     MFT_RECORD *mrec;
@@ -489,7 +489,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
     dprintf("index_lookup() - mft record number: %d\n", NTFS_PVT(dir)->mft_no);
     offset = mft_record_lookup(NTFS_PVT(dir)->mft_no, fs, &block, &data);
     if (offset < 0) {
-        dprintf("No MFT record found!\n");
+        printf("No MFT record found.\n");
         goto out;
     }
 
@@ -497,7 +497,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
 
     attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
     if (!attr) {
-        dprintf("No attribute found!\n");
+        dprintf("No attribute found.\n");
         goto out;
     }
 
@@ -535,7 +535,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
 
     /* check for the presence of a child node */
     if (!(ie->flags & INDEX_ENTRY_NODE)) {
-        dprintf("No child node, aborting...\n");
+        printf("No child node, aborting...\n");
         goto out;
     }
 
@@ -543,7 +543,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
 
     attr = attr_lookup(NTFS_AT_INDEX_ALLOCATION, mrec);
     if (!attr) {
-        printf("No attribute found!\n");
+        printf("No attribute found.\n");
         goto out;
     }
 
@@ -754,7 +754,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     uint32_t ret;
     int64_t offset;
     struct fs_info *fs = file->fs;
-    uint8_t data[1 << BLOCK_SHIFT(fs)];
+    uint8_t data[BLOCK_SIZE(fs)];
     struct inode *inode = file->inode;
     block_t block = 0;
     MFT_RECORD *mrec;
@@ -771,7 +771,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
         dprintf("mft_no:     %d\n", NTFS_PVT(inode)->mft_no);
         offset = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block, &data);
         if (offset < 0) {
-            printf("No MFT record found!\n");
+            printf("No MFT record found.\n");
             goto out;
         }
 
@@ -779,7 +779,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
 
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
-            printf("No attribute found!\n");
+            printf("No attribute found.\n");
             goto out;
         }
 
@@ -801,7 +801,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 {
     int64_t offset;
     struct fs_info *fs = file->fs;
-    uint8_t data[1 << BLOCK_SHIFT(fs)];
+    uint8_t data[BLOCK_SIZE(fs)];
     MFT_RECORD *mrec;
     struct inode *inode = file->inode;
     block_t block = 0;
@@ -812,7 +812,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 
     offset = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block, &data);
     if (offset < 0) {
-        printf("No MFT record found!\n");
+        printf("No MFT record found.\n");
         goto out;
     }
 
@@ -820,7 +820,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 
     attr = attr_lookup(NTFS_AT_FILENAME, mrec);
     if (!attr) {
-        printf("No attribute found!\n");
+        printf("No attribute found.\n");
         goto out;
     }
 
@@ -899,7 +899,7 @@ static int ntfs_fs_init(struct fs_info *fs)
     SECTOR_SIZE(fs) = 1 << SECTOR_SHIFT(fs);
     BLOCK_SIZE(fs) = 1 << BLOCK_SHIFT(fs);
 
-    sbi = malloc(sizeof(*sbi));
+    sbi = malloc(sizeof *sbi);
     if (!sbi)
         malloc_error("ntfs_sb_info structure");
 
