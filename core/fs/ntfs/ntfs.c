@@ -82,13 +82,12 @@ static int fixups_writeback(struct fs_info *fs, NTFS_RECORD *nrec)
     /* make it to point to the last two bytes of the RECORD's first sector */
     block = (uint16_t *)((uint8_t *)nrec + SECTOR_SIZE(fs) - 2);
 
-    while (usa_count) {
+    while (usa_count--) {
         if (*block != usa_no)
             goto out;
 
         *block = *usa++;
         block = (uint16_t *)((uint8_t *)block + SECTOR_SIZE(fs));
-        usa_count--;
     }
 
     return 0;
@@ -214,32 +213,11 @@ out:
     return false;
 }
 
-enum {
-    MAP_UNSPEC,
-    MAP_START           = 1 << 0,
-    MAP_END             = 1 << 1,
-    MAP_ALLOCATED       = 1 << 2,
-    MAP_UNALLOCATED     = 1 << 3,
-    MAP_MASK            = 0x0000000F,
-};
-
-struct mapping_chunk {
-    uint64_t cur_vcn;   /* Current Virtual Cluster Number */
-    uint8_t vcn_len;    /* Virtual Cluster Number length in bytes */
-    uint64_t next_vcn;  /* Next Virtual Cluster Number */
-    uint8_t lcn_len;    /* Logical Cluster Number length in bytes */
-    int64_t cur_lcn;    /* Logical Cluster Number offset */
-    uint32_t flags;     /* Specific flags of this chunk */
-};
-
 static inline uint8_t *mapping_chunk_init(ATTR_RECORD *attr,
                                     struct mapping_chunk *chunk,
                                     uint32_t *offset)
 {
     memset(chunk, 0, sizeof(*chunk));
-    chunk->cur_vcn = attr->data.non_resident.lowest_vcn;
-    chunk->cur_lcn = 0LL;
-
     *offset = 0U;
 
     return (uint8_t *)attr + attr->data.non_resident.mapping_pairs_offset;
@@ -276,17 +254,12 @@ static int parse_data_run(const void *stream, uint32_t *offset,
     if (!*offset)
         chunk->flags |= MAP_START;  /* initial chunk */
 
-    chunk->cur_vcn = chunk->next_vcn;
-
     count = *buf;
     v = count & 0x0F;
     l = count >> 4;
 
     if (v > 8 || l > 8) /* more than 8 bytes ? */
         goto out;
-
-    chunk->vcn_len = v;
-    chunk->lcn_len = l;
 
     byte = (uint8_t *)buf + v;
     count = v;
@@ -298,7 +271,7 @@ static int parse_data_run(const void *stream, uint32_t *offset,
         res = (res << byte_shift) | ((val + mask) ^ mask);
     }
 
-    chunk->next_vcn += res;
+    chunk->len = res;   /* get length data */
 
     byte = (uint8_t *)buf + v + l;
     count = l;
@@ -311,14 +284,12 @@ static int parse_data_run(const void *stream, uint32_t *offset,
     while (count--)
         res = (res << byte_shift) | *byte--;
 
-    chunk->cur_lcn += res;
-    if (!chunk->cur_lcn) {  /* is LCN 0 ? */
-        /* then VCNS from cur_vcn to next_vcn - 1 are unallocated */
+    chunk->lcn += res;
+    /* are VCNS from cur_vcn to next_vcn - 1 unallocated ? */
+    if (!chunk->lcn)
         chunk->flags |= MAP_UNALLOCATED;
-    } else {
-        /* otherwise they're all allocated */
+    else
         chunk->flags |= MAP_ALLOCATED;
-    }
 
     *offset += v + l + 1;
 
@@ -412,8 +383,6 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             goto out;
         }
 
-        printf("here!\n");
-
         /* note: INDEX_ROOT is always resident */
         ir = (INDEX_ROOT *)((uint8_t *)attr +
                                     attr->data.resident.value_offset);
@@ -457,14 +426,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
         } else {
             attr_len = (uint8_t *)attr + attr->len;
 
-            memset((void *)&chunk, 0, sizeof(chunk));
-            chunk.cur_vcn = attr->data.non_resident.lowest_vcn;
-            chunk.cur_lcn = 0LL;
-
-            stream = (uint8_t *)attr +
-                            attr->data.non_resident.mapping_pairs_offset;
-            droffset = 0U;
-
+            stream = mapping_chunk_init(attr, &chunk, &droffset);
             for (;;) {
                 err = parse_data_run(stream, &droffset, attr_len, &chunk);
                 if (err) {
@@ -483,10 +445,8 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
                 goto out;
             }
 
-            NTFS_PVT(inode)->data.non_resident.start_vcn = chunk.cur_vcn;
-            NTFS_PVT(inode)->data.non_resident.next_vcn = chunk.next_vcn;
-            NTFS_PVT(inode)->data.non_resident.vcn_no = chunk.vcn_len;
-            NTFS_PVT(inode)->data.non_resident.lcn = chunk.cur_lcn;
+            NTFS_PVT(inode)->data.non_resident.len = chunk.len;
+            NTFS_PVT(inode)->data.non_resident.lcn = chunk.lcn;
             inode->size = attr->data.non_resident.initialized_size;
         }
     }
@@ -629,8 +589,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
             continue;
 
         if (chunk.flags & MAP_ALLOCATED) {
-            dprintf("%d cluster(s) starting at 0x%X\n", chunk.vcn_len,
-                    chunk.cur_lcn);
+            printf("%d cluster(s) starting at 0x%X\n", chunk.len, chunk.lcn);
             memcpy(&chunks[i++], &chunk, sizeof chunk);
         }
 
@@ -639,8 +598,8 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
     i = 0;
     while (chunks_count--) {
         vcn = 0;
-        lcn = chunks[i].cur_lcn;
-        while (vcn < chunks[i].vcn_len) {
+        lcn = chunks[i].lcn;
+        while (vcn < chunks[i].len) {
             block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
                     SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
 
@@ -692,7 +651,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
     }
 
 not_found:
-    printf("Index not found\n");
+    dprintf("Index not found\n");
 
 out:
     printf("%s not found!\n", dname);

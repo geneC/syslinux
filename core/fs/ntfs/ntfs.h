@@ -43,7 +43,7 @@ struct ntfs_bpb {
     uint32_t unused_6;
 
     uint8_t pad[428];       /* padding to a sector boundary (512 bytes) */
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 struct ntfs_sb_info {
     block_t mft_block;              /* The first MFT record block */
@@ -58,7 +58,7 @@ struct ntfs_sb_info {
     unsigned clust_mask;
     unsigned clust_size;
 
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 /* The NTFS in-memory inode structure */
 struct ntfs_inode {
@@ -77,9 +77,7 @@ struct ntfs_inode {
             uint32_t offset;    /* Data offset */
         } resident;
         struct {            /* Used only if non_resident is set */
-            uint64_t start_vcn; /* Starting Virtual Cluster Number */
-            uint64_t next_vcn;  /* Next Virtual Cluster Number */
-            uint8_t vcn_no;     /* Number of Virtual Cluster Numbers */
+            uint8_t len;
             int64_t lcn;        /* Logical Cluster Number offset */
         } non_resident;
     } data;
@@ -102,6 +100,21 @@ struct ntfs_inode {
     sector_t start;         /* Starting sector */
     sector_t offset;        /* Current sector offset */
     sector_t here;          /* Sector corresponding to offset */
+};
+
+enum {
+    MAP_UNSPEC,
+    MAP_START           = 1 << 0,
+    MAP_END             = 1 << 1,
+    MAP_ALLOCATED       = 1 << 2,
+    MAP_UNALLOCATED     = 1 << 3,
+    MAP_MASK            = 0x0000000F,
+};
+
+struct mapping_chunk {
+    uint8_t len;
+    int64_t lcn;        /* Logical Cluster Number */
+    uint32_t flags;     /* Specific flags of this chunk */
 };
 
 /* System defined attributes (32-bit)
@@ -186,7 +199,7 @@ typedef struct {
     uint32_t magic;
     uint16_t usa_ofs;
     uint16_t usa_count;
-} __attribute__((packed)) NTFS_RECORD;
+} __attribute__((__packed__)) NTFS_RECORD;
 
 /* The $MFT metadata file types */
 typedef enum {
@@ -213,7 +226,7 @@ typedef enum {
 enum {
     MFT_RECORD_IN_USE       = 0x0001,
     MFT_RECORD_IS_DIRECTORY = 0x0002,
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 typedef struct {
     uint32_t magic;
@@ -230,7 +243,7 @@ typedef struct {
     uint16_t next_attr_instance;
     uint16_t reserved;
     uint32_t mft_record_no;
-} __attribute__((packed)) MFT_RECORD;   /* 48 bytes */
+} __attribute__((__packed__)) MFT_RECORD;   /* 48 bytes */
 
 /* This is the version without the NTFS 3.1+ specific fields */
 typedef struct {
@@ -246,7 +259,7 @@ typedef struct {
     uint32_t bytes_allocated;
     uint64_t base_mft_record;
     uint16_t next_attr_instance;
-} __attribute__((packed)) MFT_RECORD_OLD;   /* 42 bytes */
+} __attribute__((__packed__)) MFT_RECORD_OLD;   /* 42 bytes */
 
 enum {
     ATTR_DEF_INDEXABLE          = 0x02,
@@ -266,7 +279,7 @@ typedef struct {
     uint32_t flags;     /* Attr def flags */
     uint64_t min_size;
     uint64_t max_size;
-} __attribute__((packed)) ATTR_DEF;
+} __attribute__((__packed__)) ATTR_DEF;
 
 /* Attribute flags (16-bit) */
 enum {
@@ -275,12 +288,12 @@ enum {
 
     ATTR_IS_ENCRYPTED       = 0x4000,
     ATTR_IS_SPARSE          = 0x8000,
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 /* Flags of resident attributes (8-bit) */
 enum {
     RESIDENT_ATTR_IS_INDEXED = 0x01,
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 typedef struct {
     uint32_t type;      /* Attr. type code */
@@ -296,7 +309,7 @@ typedef struct {
             uint16_t value_offset;
             uint8_t flags;  /* Flags of resident attributes */
             int8_t reserved;
-        } __attribute__((packed)) resident;
+        } __attribute__((__packed__)) resident;
         struct {    /* Non-resident attributes */
             uint64_t lowest_vcn;
             uint64_t highest_vcn;
@@ -306,9 +319,9 @@ typedef struct {
             int64_t allocated_size;
             int64_t initialized_size;
             int64_t compressed_size;
-        } __attribute__((packed)) non_resident;
-    } __attribute__((packed)) data;
-} __attribute__((packed)) ATTR_RECORD;
+        } __attribute__((__packed__)) non_resident;
+    } __attribute__((__packed__)) data;
+} __attribute__((__packed__)) ATTR_RECORD;
 
 /* Attribute: Standard Information (0x10)
  * Note: always resident
@@ -322,7 +335,7 @@ typedef struct {
     union {
         struct {    /* NTFS 1.2 (48 bytes) */
             uint8_t reserved12[12];
-        } __attribute__((packed)) v1;
+        } __attribute__((__packed__)) v1;
         struct {    /* NTFS 3.x (72 bytes) */
             uint32_t max_version;
             uint32_t version;
@@ -331,9 +344,9 @@ typedef struct {
             uint32_t sec_id;
             uint64_t quota_charged;
             int64_t usn;
-        } __attribute__((packed)) v3;
-    } __attribute__((packed)) ver;
-} __attribute__((packed)) STANDARD_INFORMATION;
+        } __attribute__((__packed__)) v3;
+    } __attribute__((__packed__)) ver;
+} __attribute__((__packed__)) STANDARD_INFORMATION;
 
 /* Attribute: Attribute List (0x20)
  * Note: can be either resident or non-resident
@@ -348,7 +361,7 @@ typedef struct {
     uint16_t instance;
     uint16_t name[0];       /* Name in Unicode */
     /* sizeof() = 26 + (attribute_name_length * 2) bytes */
-} __attribute__((packed)) ATTR_LIST_ENTRY;
+} __attribute__((__packed__)) ATTR_LIST_ENTRY;
 
 #define NTFS_MAX_FILE_NAME_LEN 255
 
@@ -358,7 +371,7 @@ enum {
     FILE_NAME_WIN32             = 0x01,
     FILE_NAME_DOS               = 0x02,
     FILE_NAME_WIN32_AND_DOS     = 0x03,
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 /* Attribute: Filename (0x30)
  * Note: always resident
@@ -374,17 +387,17 @@ typedef struct {
     uint32_t file_attrs;
     union {
         struct {
-            uint16_t packed_ea_size;
+            uint16_t __packed___ea_size;
             uint16_t reserved;      /* reserved for alignment */
-        } __attribute__((packed)) ea;
+        } __attribute__((__packed__)) ea;
         struct {
             uint32_t reparse_point_tag;
-        } __attribute__((packed)) rp;
-    } __attribute__((packed)) type;
+        } __attribute__((__packed__)) rp;
+    } __attribute__((__packed__)) type;
     uint8_t file_name_len;
     uint8_t file_name_type;
     uint16_t file_name[0];          /* File name in Unicode */
-} __attribute__((packed)) FILE_NAME_ATTR;
+} __attribute__((__packed__)) FILE_NAME_ATTR;
 
 /* GUID structure */
 typedef struct {
@@ -392,7 +405,7 @@ typedef struct {
     uint16_t data1;
     uint16_t data2;
     uint8_t data3[8];
-} __attribute__((packed)) GUID;
+} __attribute__((__packed__)) GUID;
 
 typedef struct {
     uint64_t mft_ref;
@@ -401,10 +414,10 @@ typedef struct {
             GUID birth_vol_id;
             GUID birth_obj_id;
             GUID domain_id;
-        } __attribute__((packed)) origin;
+        } __attribute__((__packed__)) origin;
         uint8_t extended_info[48];
-    } __attribute__((packed)) opt;
-} __attribute__((packed)) OBJ_ID_INDEX_DATA;
+    } __attribute__((__packed__)) opt;
+} __attribute__((__packed__)) OBJ_ID_INDEX_DATA;
 
 /* Attribute: Object ID (NTFS 3.0+) (0x40)
  * Note: always resident
@@ -416,10 +429,10 @@ typedef struct {
             GUID birth_vol_id;
             GUID birth_obj_id;
             GUID domain_id;
-        } __attribute__((packed)) origin;
+        } __attribute__((__packed__)) origin;
         uint8_t extended_info[48];
-    } __attribute__((packed)) opt;
-} __attribute__((packed)) OBJECT_ID_ATTR;
+    } __attribute__((__packed__)) opt;
+} __attribute__((__packed__)) OBJECT_ID_ATTR;
 
 /* Attribute: Volume Name (0x60)
  * Note: always resident
@@ -427,7 +440,7 @@ typedef struct {
  */
 typedef struct {
     uint16_t name[0];       /* The name of the volume in Unicode */
-} __attribute__((packed)) VOLUME_NAME;
+} __attribute__((__packed__)) VOLUME_NAME;
 
 /* Volume flags (16-bit) */
 enum {
@@ -445,7 +458,7 @@ enum {
     VOLUME_FLAGS_MASK           = 0xC03F,
 
     VOLUME_MUST_MOUNT_RO_MASK   = 0xC027,
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 /* Attribute: Volume Information (0x70)
  * Note: always resident
@@ -456,14 +469,14 @@ typedef struct {
     uint8_t major_ver;
     uint8_t minor_ver;
     uint16_t flags;     /* Volume flags */
-} __attribute__((packed)) VOLUME_INFORMATION;
+} __attribute__((__packed__)) VOLUME_INFORMATION;
 
 /* Attribute: Data attribute (0x80)
  * Note: can be either resident or non-resident
  */
 typedef struct {
     uint8_t data[0];
-} __attribute__((packed)) DATA_ATTR;
+} __attribute__((__packed__)) DATA_ATTR;
 
 /* Index header flags (8-bit) */
 enum {
@@ -472,7 +485,7 @@ enum {
     LEAF_NODE   = 0,
     INDEX_NODE  = 1,
     NODE_MASK   = 1,
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 /* Header for the indexes, describing the INDEX_ENTRY records, which
  * follow the INDEX_HEADER.
@@ -483,7 +496,7 @@ typedef struct {
     uint32_t allocated_size;
     uint8_t flags;              /* Index header flags */
     uint8_t reserved[3];        /* Align to 8-byte boundary */
-} __attribute__((packed)) INDEX_HEADER;
+} __attribute__((__packed__)) INDEX_HEADER;
 
 /* Attribute: Index Root (0x90)
  * Note: always resident
@@ -497,7 +510,7 @@ typedef struct {
     uint8_t clust_per_index_block;
     uint8_t reserved[3];
     INDEX_HEADER index;
-} __attribute__((packed)) INDEX_ROOT;
+} __attribute__((__packed__)) INDEX_ROOT;
 
 /* Attribute: Index allocation (0xA0)
  * Note: always non-resident, of course! :-)
@@ -509,7 +522,7 @@ typedef struct {
     int64_t lsn;
     int64_t index_block_vcn;    /* Virtual cluster number of the index block */
     INDEX_HEADER index;
-} __attribute__((packed)) INDEX_BLOCK;
+} __attribute__((__packed__)) INDEX_BLOCK;
 
 typedef INDEX_BLOCK INDEX_ALLOCATION;
 
@@ -518,36 +531,36 @@ enum {
     INDEX_ENTRY_END             = 2,
     /* force enum bit width to 16-bit */
     INDEX_ENTRY_SPACE_FILTER    = 0xFFFF,
-} __attribute__((packed));
+} __attribute__((__packed__));
 
 typedef struct {
     union {
         struct { /* Only valid when INDEX_ENTRY_END is not set */
             uint64_t indexed_file;
-        } __attribute__((packed)) dir;
+        } __attribute__((__packed__)) dir;
         struct { /* Used for views/indexes to find the entry's data */
             uint16_t data_offset;
             uint16_t data_len;
             uint32_t reservedV;
-        } __attribute__((packed)) vi;
-    } __attribute__((packed)) data;
+        } __attribute__((__packed__)) vi;
+    } __attribute__((__packed__)) data;
     uint16_t len;
     uint16_t key_len;
     uint16_t flags;     /* Index entry flags */
     uint16_t reserved;  /* Align to 8-byte boundary */
-} __attribute__((packed)) INDEX_ENTRY_HEADER;
+} __attribute__((__packed__)) INDEX_ENTRY_HEADER;
 
 typedef struct {
     union {
         struct { /* Only valid when INDEX_ENTRY_END is not set */
             uint64_t indexed_file;
-        } __attribute__((packed)) dir;
+        } __attribute__((__packed__)) dir;
         struct { /* Used for views/indexes to find the entry's data */
             uint16_t data_offset;
             uint16_t data_len;
             uint32_t reservedV;
-        } __attribute__((packed)) vi;
-    } __attribute__((packed)) data;
+        } __attribute__((__packed__)) vi;
+    } __attribute__((__packed__)) data;
     uint16_t len;
     uint16_t key_len;
     uint16_t flags;     /* Index entry flags */
@@ -560,12 +573,12 @@ typedef struct {
         //REPARSE_INDEX_KEY reparse;
         //SID sid;
         uint32_t owner_id;
-    } __attribute__((packed)) key;
-} __attribute__((packed)) INDEX_ENTRY;
+    } __attribute__((__packed__)) key;
+} __attribute__((__packed__)) INDEX_ENTRY;
 
 typedef struct {
     uint8_t bitmap[0];      /* Array of bits */
-} __attribute__((packed)) BITMAP_ATTR;
+} __attribute__((__packed__)) BITMAP_ATTR;
 
 static inline struct ntfs_sb_info *NTFS_SB(struct fs_info *fs)
 {
