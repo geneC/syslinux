@@ -155,39 +155,12 @@ static ATTR_RECORD *attr_lookup(uint32_t type, const MFT_RECORD *mrec)
     return attr;
 }
 
-static bool ntfs_match_longname(const char *str, unsigned long mft_no,
-                                    struct fs_info *fs)
+static bool ntfs_match_longname(const char *str, const uint16_t *match, int len)
 {
-    uint8_t data[BLOCK_SIZE(fs)];
-    int64_t offset;
-    MFT_RECORD *mrec;
-    block_t block = 0;
-    ATTR_RECORD *attr;
-    FILE_NAME_ATTR *fn;
-    uint8_t len;
     unsigned char c = -1;	/* Nonzero: we have not yet seen NULL */
     uint16_t cp;
-    const uint16_t *match;
 
     dprintf("Matching: %s\n", str);
-
-    offset = mft_record_lookup(mft_no, fs, &block, &data);
-    if (offset < 0) {
-        printf("No MFT record found.\n");
-        goto out;
-    }
-
-    mrec = (MFT_RECORD *)&data[offset];
-
-    attr = attr_lookup(NTFS_AT_FILENAME, mrec);
-    if (!attr) {
-        printf("No attribute found.\n");
-        goto out;
-    }
-
-    fn = (FILE_NAME_ATTR *)((uint8_t *)attr + attr->data.resident.value_offset);
-    len = fn->file_name_len;
-    match = fn->file_name;
 
     while (len) {
         cp = *match++;
@@ -526,7 +499,8 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
         if (ie->flags & INDEX_ENTRY_END)
             break;
 
-        if (ntfs_match_longname(dname, ie->data.dir.indexed_file, fs)) {
+        if (ntfs_match_longname(dname, ie->key.file_name.file_name,
+                                strlen(dname))) {
             dprintf("Filename matches up!\n");
             dprintf("MFT record number = %d\n", ie->data.dir.indexed_file);
             goto found;
@@ -638,7 +612,8 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
                 if (ie->flags & INDEX_ENTRY_END)
                     break;
 
-                if (ntfs_match_longname(dname, ie->data.dir.indexed_file, fs)) {
+                if (ntfs_match_longname(dname, ie->key.file_name.file_name,
+                                        strlen(dname))) {
                     dprintf("Filename matches up!\n");
                     goto found;
                 }
