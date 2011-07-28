@@ -162,6 +162,9 @@ static bool ntfs_match_longname(const char *str, const uint16_t *match, int len)
 
     dprintf("Matching: %s\n", str);
 
+    if (strlen(str) != len)
+        goto out;
+
     while (len) {
         cp = *match++;
         len--;
@@ -450,9 +453,6 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
     uint8_t *attr_len;
     struct mapping_chunk chunk;
     uint32_t droffset;
-    struct mapping_chunk *chunks;
-    unsigned chunks_count;
-    unsigned i;
     int64_t vcn;
     int64_t lcn;
     struct inode *inode;
@@ -499,7 +499,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
             break;
 
         if (ntfs_match_longname(dname, ie->key.file_name.file_name,
-                                strlen(dname))) {
+                                ie->key.file_name.file_name_len)) {
             dprintf("Filename matches up!\n");
             dprintf("MFT record number = %d\n", ie->data.dir.indexed_file);
             goto found;
@@ -526,33 +526,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
     }
 
     attr_len = (uint8_t *)attr + attr->len;
-
     stream = mapping_chunk_init(attr, &chunk, &droffset);
-    chunks_count = 0;
-    do {
-        err = parse_data_run(stream, &droffset, attr_len, &chunk);
-        if (err)
-            break;
-
-        if (chunk.flags & MAP_UNALLOCATED)
-            continue;
-
-        if (chunk.flags & MAP_ALLOCATED)
-            chunks_count++;
-
-    } while (!(chunk.flags & MAP_END));
-
-    if (!chunks_count) {
-        printf("No data runs found, but claims non-resident attribute\n");
-        goto out;
-    }
-
-    chunks = malloc(chunks_count * sizeof *chunks);
-    if (!chunks)
-        malloc_error("mapping_chunk structure");
-
-    stream = mapping_chunk_init(attr, &chunk, &droffset);
-    i = 0;
     do {
         err = parse_data_run(stream, &droffset, attr_len, &chunk);
         if (err)
@@ -563,72 +537,65 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
 
         if (chunk.flags & MAP_ALLOCATED) {
             dprintf("%d cluster(s) starting at 0x%X\n", chunk.len, chunk.lcn);
-            memcpy(&chunks[i++], &chunk, sizeof chunk);
-        }
 
-    } while (!(chunk.flags & MAP_END));
+            vcn = 0;
+            lcn = chunk.lcn;
+            while (vcn < chunk.len) {
+                block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
+                        SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
 
-    i = 0;
-    while (chunks_count--) {
-        vcn = 0;
-        lcn = chunks[i].lcn;
-        while (vcn < chunks[i].len) {
-            block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
-                    SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
-
-            ret = (uint8_t *)get_cache(fs->fs_dev, block);
-            if (!ret) {
-                printf("get_cache() returned NULL\n");
-                goto not_found;
-            }
-
-            memcpy(data, ret, blk_size);
-
-            err = fixups_writeback(fs, (NTFS_RECORD *)&data[0]);
-            if (err) {
-                printf("Error in fixups_writeback()\n");
-                goto not_found;
-            }
-
-            iblock = (INDEX_BLOCK *)&data[0];
-            if (iblock->magic != NTFS_MAGIC_INDX) {
-                printf("Not a valid INDX record\n");
-                goto not_found;
-            }
-
-            ie = (INDEX_ENTRY *)((uint8_t *)&iblock->index +
-                                        iblock->index.entries_offset);
-            for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
-                /* bounds checks */
-                if ((uint8_t *)ie < (uint8_t *)iblock || (uint8_t *)ie +
-                    sizeof(INDEX_ENTRY_HEADER) >
-                    (uint8_t *)&iblock->index + iblock->index.index_len ||
-                    (uint8_t *)ie + ie->len >
-                    (uint8_t *)&iblock->index + iblock->index.index_len)
-                    goto index_err;
-
-                /* last entry cannot contain a key */
-                if (ie->flags & INDEX_ENTRY_END)
-                    break;
-
-                if (ntfs_match_longname(dname, ie->key.file_name.file_name,
-                                        strlen(dname))) {
-                    dprintf("Filename matches up!\n");
-                    goto found;
+                ret = (uint8_t *)get_cache(fs->fs_dev, block);
+                if (!ret) {
+                    printf("get_cache() returned NULL\n");
+                    goto not_found;
                 }
+
+                memcpy(data, ret, blk_size);
+
+                err = fixups_writeback(fs, (NTFS_RECORD *)&data[0]);
+                if (err) {
+                    printf("Error in fixups_writeback()\n");
+                    goto not_found;
+                }
+
+                iblock = (INDEX_BLOCK *)&data[0];
+                if (iblock->magic != NTFS_MAGIC_INDX) {
+                    printf("Not a valid INDX record\n");
+                    goto not_found;
+                }
+
+                ie = (INDEX_ENTRY *)((uint8_t *)&iblock->index +
+                                            iblock->index.entries_offset);
+                for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
+                    /* bounds checks */
+                    if ((uint8_t *)ie < (uint8_t *)iblock || (uint8_t *)ie +
+                        sizeof(INDEX_ENTRY_HEADER) >
+                        (uint8_t *)&iblock->index + iblock->index.index_len ||
+                        (uint8_t *)ie + ie->len >
+                        (uint8_t *)&iblock->index + iblock->index.index_len)
+                        goto index_err;
+
+                    /* last entry cannot contain a key */
+                    if (ie->flags & INDEX_ENTRY_END)
+                        break;
+
+                    if (ntfs_match_longname(dname, ie->key.file_name.file_name,
+                                            ie->key.file_name.file_name_len)) {
+                        dprintf("Filename matches up!\n");
+                        goto found;
+                    }
+                }
+
+                vcn++;  /* go to the next VCN */
             }
-
-            vcn++;  /* go to the next VCN */
         }
-
-        i++;        /* go to the next chunk */
-    }
+    } while (!(chunk.flags & MAP_END));
 
 not_found:
     dprintf("Index not found\n");
 
 out:
-    printf("%s not found!\n", dname);
+    dprintf("%s not found!\n", dname);
 
     return NULL;
 
