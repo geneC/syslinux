@@ -215,6 +215,11 @@ typedef enum {
     FILE_reserved16     = 16,
 } NTFS_SYSTEM_FILES;
 
+enum {
+    MFT_RECORD_IN_USE       = 0x0001,
+    MFT_RECORD_IS_DIRECTORY = 0x0002,
+} __attribute__((__packed__));
+
 typedef struct {
     uint32_t magic;
     uint16_t usa_ofs;

@@ -275,42 +275,9 @@ out:
     return -1;
 }
 
-static enum dirent_type get_inode_mode(MFT_RECORD *mrec)
+static inline enum dirent_type get_inode_mode(MFT_RECORD *mrec)
 {
-    ATTR_RECORD *attr;
-    FILE_NAME_ATTR *fn;
-    bool infile = false;
-    uint32_t dir_mask, root_mask, file_mask;
-    uint32_t dir, root, file;
-
-    attr = attr_lookup(NTFS_AT_FILENAME, mrec);
-    if (!attr) {
-        printf("No attribute found.\n");
-        return DT_UNKNOWN;
-    }
-
-    fn = (FILE_NAME_ATTR *)((uint8_t *)attr +
-                                attr->data.resident.value_offset);
-    dprintf("File attributes:        0x%X\n", fn->file_attrs);
-
-    dir_mask = NTFS_FILE_ATTR_ARCHIVE |
-                NTFS_FILE_ATTR_DUP_FILE_NAME_INDEX_PRESENT;
-    root_mask = NTFS_FILE_ATTR_READONLY | NTFS_FILE_ATTR_HIDDEN |
-                NTFS_FILE_ATTR_SYSTEM |
-                NTFS_FILE_ATTR_DUP_FILE_NAME_INDEX_PRESENT;
-    file_mask = NTFS_FILE_ATTR_ARCHIVE;
-
-    dir = fn->file_attrs & ~dir_mask;
-    root = fn->file_attrs & ~root_mask;
-    file = fn->file_attrs & ~file_mask;
-
-    dprintf("dir = 0x%X\n", dir);
-    dprintf("root= 0x%X\n", root);
-    dprintf("file = 0x%X\n", file);
-    if (((!dir && root) || (!dir && !root)) && !file)
-        infile = true;
-
-    return infile ? DT_REG : DT_DIR;
+    return mrec->flags & MFT_RECORD_IS_DIRECTORY ? DT_DIR : DT_REG;
 }
 
 static int index_inode_setup(struct fs_info *fs, block_t start_block,
@@ -341,11 +308,6 @@ static int index_inode_setup(struct fs_info *fs, block_t start_block,
     NTFS_PVT(inode)->here = start_block;
 
     d_type = get_inode_mode(mrec);
-    if (d_type == DT_UNKNOWN) {
-        dprintf("Failed on determining inode's mode\n");
-        goto out;
-    }
-
     if (d_type == DT_DIR) {    /* directory stuff */
         dprintf("Got a directory.\n");
         attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
