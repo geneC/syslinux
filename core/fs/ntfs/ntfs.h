@@ -76,7 +76,7 @@ struct ntfs_inode {
             uint32_t offset;    /* Data offset */
         } resident;
         struct {            /* Used only if non_resident is set */
-            uint8_t len;
+            uint64_t len;
             int64_t lcn;        /* Logical Cluster Number offset */
         } non_resident;
     } data;
@@ -105,7 +105,7 @@ enum {
 };
 
 struct mapping_chunk {
-    uint8_t len;
+    uint64_t len;
     int64_t lcn;        /* Logical Cluster Number */
     uint32_t flags;     /* Specific flags of this chunk */
 };
