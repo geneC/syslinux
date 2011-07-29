@@ -1,18 +1,23 @@
-/* ----------------------------------------------------------------------- *
- *
- *   Copyright 2011 Paulo Alcantara <pcacjr@gmail.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
- *
- * ----------------------------------------------------------------------- */
-
 /*
- * ntfs.c - The NTFS filesystem functions
- */
+ * Copyright (c) Paulo Alcantara <pcacjr@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111EXIT_FAILURE307, USA.
+*/
+
+/* Note: No support for compressed files */
 
 #include <dprintf.h>
 #include <stdio.h>
@@ -84,7 +89,7 @@ static int fixups_writeback(struct fs_info *fs, NTFS_RECORD *nrec)
 
     while (usa_count--) {
         if (*block != usa_no)
-            goto out;
+            break;
 
         *block = *usa++;
         block = (uint16_t *)((uint8_t *)block + SECTOR_SIZE(fs));
@@ -96,42 +101,37 @@ out:
     return -1;
 }
 
-static int64_t mft_record_lookup(uint32_t file, struct fs_info *fs,
-                                    block_t *block, void *data)
+static MFT_RECORD *mft_record_lookup(uint32_t file, struct fs_info *fs,
+                                    block_t *block)
 {
+    uint8_t *data;
     int64_t offset = 0;
-    const uint8_t *ret;
     int err;
-    const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
     MFT_RECORD *mrec;
 
     goto jump_in;
 
     for (;;) {
-        err = fixups_writeback(fs, (NTFS_RECORD *)((uint8_t *)data + offset));
-        if (err) {
-            printf("Error in fixups_writeback()\n");
+        err = fixups_writeback(fs, (NTFS_RECORD *)(data + offset));
+        if (err)
             break;
-        }
 
-        mrec = (MFT_RECORD *)((uint8_t *)data + offset);
+        mrec = (MFT_RECORD *)(data + offset);
         if (mrec->mft_record_no == file)
-            return offset;   /* MFT record found! */
+            return mrec;   /* MFT record found! */
 
         offset += mrec->bytes_allocated;
         if (offset >= BLOCK_SIZE(fs)) {
             ++*block;
             offset -= BLOCK_SIZE(fs);
 jump_in:
-            ret = get_right_block(fs, *block);
-            if (!ret)
+            data = (uint8_t *)get_right_block(fs, *block);
+            if (!data)
                 break;
-
-            memcpy(data, ret, blk_size);
         }
     }
 
-    return -1;
+    return NULL;
 }
 
 static ATTR_RECORD *attr_lookup(uint32_t type, const MFT_RECORD *mrec)
@@ -316,8 +316,6 @@ static enum dirent_type get_inode_mode(MFT_RECORD *mrec)
 static int index_inode_setup(struct fs_info *fs, block_t start_block,
                             unsigned long mft_no, struct inode *inode)
 {
-    uint8_t data[BLOCK_SIZE(fs)];
-    int64_t offset;
     MFT_RECORD *mrec;
     ATTR_RECORD *attr;
     enum dirent_type d_type;
@@ -328,15 +326,13 @@ static int index_inode_setup(struct fs_info *fs, block_t start_block,
     struct mapping_chunk chunk;
     int err;
     uint8_t *stream;
-    uint32_t droffset;
+    uint32_t offset;
 
-    offset = mft_record_lookup(mft_no, fs, &start_block, &data);
-    if (offset < 0) {
+    mrec = mft_record_lookup(mft_no, fs, &start_block);
+    if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
-
-    mrec = (MFT_RECORD *)&data[offset];
 
     NTFS_PVT(inode)->mft_no = mft_no;
     NTFS_PVT(inode)->seq_no = mrec->seq_no;
@@ -401,9 +397,9 @@ static int index_inode_setup(struct fs_info *fs, block_t start_block,
         } else {
             attr_len = (uint8_t *)attr + attr->len;
 
-            stream = mapping_chunk_init(attr, &chunk, &droffset);
+            stream = mapping_chunk_init(attr, &chunk, &offset);
             for (;;) {
-                err = parse_data_run(stream, &droffset, attr_len, &chunk);
+                err = parse_data_run(stream, &offset, attr_len, &chunk);
                 if (err) {
                     printf("parse_data_run()\n");
                     goto out;
@@ -437,35 +433,30 @@ out:
 static struct inode *index_lookup(const char *dname, struct inode *dir)
 {
     struct fs_info *fs = dir->fs;
-    const uint64_t blk_size = BLOCK_SIZE(fs);
-    uint8_t data[blk_size];
-    int64_t offset;
     MFT_RECORD *mrec;
     block_t block;
     ATTR_RECORD *attr;
     INDEX_ROOT *ir;
     uint32_t len;
     INDEX_ENTRY *ie;
-    uint8_t *ret;
+    uint8_t *data;
     INDEX_BLOCK *iblock;
     int err;
     uint8_t *stream;
     uint8_t *attr_len;
     struct mapping_chunk chunk;
-    uint32_t droffset;
+    uint32_t offset;
     int64_t vcn;
     int64_t lcn;
     struct inode *inode;
 
     block = NTFS_PVT(dir)->start;
     dprintf("index_lookup() - mft record number: %d\n", NTFS_PVT(dir)->mft_no);
-    offset = mft_record_lookup(NTFS_PVT(dir)->mft_no, fs, &block, &data);
-    if (offset < 0) {
+    mrec = mft_record_lookup(NTFS_PVT(dir)->mft_no, fs, &block);
+    if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
-
-    mrec = (MFT_RECORD *)&data[offset];
 
     attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
     if (!attr) {
@@ -526,9 +517,9 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
     }
 
     attr_len = (uint8_t *)attr + attr->len;
-    stream = mapping_chunk_init(attr, &chunk, &droffset);
+    stream = mapping_chunk_init(attr, &chunk, &offset);
     do {
-        err = parse_data_run(stream, &droffset, attr_len, &chunk);
+        err = parse_data_run(stream, &offset, attr_len, &chunk);
         if (err)
             break;
 
@@ -544,23 +535,19 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
                 block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
                         SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
 
-                ret = (uint8_t *)get_cache(fs->fs_dev, block);
-                if (!ret) {
-                    printf("get_cache() returned NULL\n");
+                data = (uint8_t *)get_cache(fs->fs_dev, block);
+                if (!data) {
+                    printf("get_cache() returned NULL.\n");
                     goto not_found;
                 }
 
-                memcpy(data, ret, blk_size);
-
-                err = fixups_writeback(fs, (NTFS_RECORD *)&data[0]);
-                if (err) {
-                    printf("Error in fixups_writeback()\n");
+                err = fixups_writeback(fs, (NTFS_RECORD *)data);
+                if (err)
                     goto not_found;
-                }
 
                 iblock = (INDEX_BLOCK *)&data[0];
                 if (iblock->magic != NTFS_MAGIC_INDX) {
-                    printf("Not a valid INDX record\n");
+                    printf("Not a valid INDX record.\n");
                     goto not_found;
                 }
 
@@ -694,9 +681,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
 {
     uint8_t non_resident;
     uint32_t ret;
-    int64_t offset;
     struct fs_info *fs = file->fs;
-    uint8_t data[BLOCK_SIZE(fs)];
     struct inode *inode = file->inode;
     block_t block;
     MFT_RECORD *mrec;
@@ -711,13 +696,11 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
 
     if (!non_resident) {
         block = NTFS_PVT(inode)->here;
-        offset = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block, &data);
-        if (offset < 0) {
+        mrec = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block);
+        if (!mrec) {
             printf("No MFT record found.\n");
             goto out;
         }
-
-        mrec = (MFT_RECORD *)&data[offset];
 
         attr = attr_lookup(NTFS_AT_DATA, mrec);
         if (!attr) {
@@ -741,9 +724,7 @@ out:
 
 static int ntfs_readdir(struct file *file, struct dirent *dirent)
 {
-    int64_t offset;
     struct fs_info *fs = file->fs;
-    uint8_t data[BLOCK_SIZE(fs)];
     MFT_RECORD *mrec;
     struct inode *inode = file->inode;
     block_t block = 0;
@@ -752,13 +733,11 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
     int len;
 
-    offset = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block, &data);
-    if (offset < 0) {
+    mrec = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block);
+    if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
-
-    mrec = (MFT_RECORD *)&data[offset];
 
     attr = attr_lookup(NTFS_AT_FILENAME, mrec);
     if (!attr) {
