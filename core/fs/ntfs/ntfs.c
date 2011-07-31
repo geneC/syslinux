@@ -29,6 +29,7 @@
 #include <fs.h>
 #include <ilog2.h>
 #include <klibc/compiler.h>
+#include <ctype.h>
 
 #include "codepage.h"
 #include "ntfs.h"
@@ -155,38 +156,30 @@ static ATTR_RECORD *attr_lookup(uint32_t type, const MFT_RECORD *mrec)
     return attr;
 }
 
-static bool ntfs_match_longname(const char *str, const uint16_t *match, int len)
+static bool ntfs_cmp_filename(const char *dname, INDEX_ENTRY *ie)
 {
-    unsigned char c = -1;	/* Nonzero: we have not yet seen NULL */
-    uint16_t cp;
+    const uint16_t *entry_fn;
+    uint8_t entry_fn_len;
+    unsigned i;
 
-    dprintf("Matching: %s\n", str);
+    entry_fn = ie->key.file_name.file_name;
+    entry_fn_len = ie->key.file_name.file_name_len;
 
-    if (strlen(str) != len)
-        goto out;
+    if (strlen(dname) != entry_fn_len)
+        return false;
 
-    while (len) {
-        cp = *match++;
-        len--;
-        if (!cp)
-            break;
-
-        c = *str++;
-        if (cp != codepage.uni[0][c] && cp != codepage.uni[1][c])
-            goto out;
+    /* Do case-sensitive compares for Posix file names */
+    if (ie->key.file_name.file_name_type == FILE_NAME_POSIX) {
+        for (i = 0; i < entry_fn_len; i++)
+            if (entry_fn[i] != dname[i])
+                return false;
+    } else {
+        for (i = 0; i < entry_fn_len; i++)
+            if (tolower(entry_fn[i]) != tolower(dname[i]))
+                return false;
     }
 
-    if (*str)
-        goto out;
-
-    while (len--)
-        if (*match++ != 0xFFFF)
-            goto out;
-
     return true;
-
-out:
-    return false;
 }
 
 static inline uint8_t *mapping_chunk_init(ATTR_RECORD *attr,
@@ -451,12 +444,8 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
         if (ie->flags & INDEX_ENTRY_END)
             break;
 
-        if (ntfs_match_longname(dname, ie->key.file_name.file_name,
-                                ie->key.file_name.file_name_len)) {
-            dprintf("Filename matches up!\n");
-            dprintf("MFT record number = %d\n", ie->data.dir.indexed_file);
+        if (ntfs_cmp_filename(dname, ie))
             goto found;
-        }
     }
 
     /* check for the presence of a child node */
@@ -528,11 +517,8 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
                     if (ie->flags & INDEX_ENTRY_END)
                         break;
 
-                    if (ntfs_match_longname(dname, ie->key.file_name.file_name,
-                                            ie->key.file_name.file_name_len)) {
-                        dprintf("Filename matches up!\n");
+                    if (ntfs_cmp_filename(dname, ie))
                         goto found;
-                    }
                 }
 
                 vcn++;  /* go to the next VCN */
@@ -567,44 +553,22 @@ index_err:
     goto out;
 }
 
-/*
- * Convert an UTF-16LE longname to the system codepage; return
- * the length on success or -1 on failure.
- */
-static int ntfs_cvt_longname(char *entry_name, const uint16_t *long_name)
+/* Convert an UTF-16LE LFN to OEM LFN */
+static uint8_t ntfs_cvt_filename(char *filename, INDEX_ENTRY *ie)
 {
-    struct unicache {
-        uint16_t utf16;
-        uint8_t cp;
-    };
-    static struct unicache unicache[256];
-    struct unicache *uc;
-    uint16_t cp;
-    unsigned int c;
-    char *p = entry_name;
+    const uint16_t *entry_fn;
+    uint8_t entry_fn_len;
+    unsigned i;
 
-    do {
-        cp = *long_name++;
-        uc = &unicache[cp % 256];
+    entry_fn = ie->key.file_name.file_name;
+    entry_fn_len = ie->key.file_name.file_name_len;
 
-        if (__likely(uc->utf16 == cp)) {
-            *p++ = uc->cp;
-        } else {
-            for (c = 0; c < 512; c++) {
-                if (codepage.uni[0][c] == cp) {
-                    uc->utf16 = cp;
-                    *p++ = uc->cp = (uint8_t)c;
-                    goto found;
-                }
-            }
+    for (i = 0; i < entry_fn_len; i++)
+        filename[i] = (char)entry_fn[i];
 
-            return -1;
-            found:
-                ;
-        }
-    } while (cp);
+    filename[i] = '\0';
 
-    return (p - entry_name) - 1;
+    return entry_fn_len;
 }
 
 static int ntfs_next_extent(struct inode *inode, uint32_t lstart)
@@ -687,45 +651,166 @@ out:
 static int ntfs_readdir(struct file *file, struct dirent *dirent)
 {
     struct fs_info *fs = file->fs;
-    MFT_RECORD *mrec;
     struct inode *inode = file->inode;
-    block_t block = 0;
+    MFT_RECORD *mrec;
+    block_t block;
     ATTR_RECORD *attr;
-    FILE_NAME_ATTR *fn;
-    char filename[NTFS_MAX_FILE_NAME_LEN + 1];
+    INDEX_ROOT *ir;
     int len;
+    INDEX_ENTRY *ie = NULL;
+    uint8_t *data;
+    INDEX_BLOCK *iblock;
+    int err;
+    uint8_t *stream;
+    uint8_t *attr_len;
+    struct mapping_chunk chunk;
+    uint32_t offset;
+    int64_t vcn;
+    int64_t lcn;
+    char filename[NTFS_MAX_FILE_NAME_LEN + 1];
 
+    block = NTFS_PVT(inode)->here;
     mrec = mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &block);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
 
-    attr = attr_lookup(NTFS_AT_FILENAME, mrec);
+    attr = attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
     if (!attr) {
         printf("No attribute found.\n");
         goto out;
     }
 
-    fn = (FILE_NAME_ATTR *)((uint8_t *)attr +
+    ir = (INDEX_ROOT *)((uint8_t *)attr +
                             attr->data.resident.value_offset);
+    len = attr->data.resident.value_len;
+    /* sanity check */
+    if ((uint8_t *)ir + len > (uint8_t *)mrec + NTFS_SB(fs)->mft_record_size)
+        goto index_err;
 
-    len = ntfs_cvt_longname(filename, fn->file_name);
-    if (len < 0 || len != fn->file_name_len) {
-        printf("Failed on converting UTF-16LE LFN to OEM LFN\n");
+    if (!file->offset) {
+        file->offset = (uint32_t)((uint8_t *)&ir->index +
+                                        ir->index.entries_offset);
+        NTFS_PVT(inode)->in_idx_root = true;
+    }
+
+    if (NTFS_PVT(inode)->in_idx_root) {
+        ie = (INDEX_ENTRY *)(uint8_t *)file->offset;
+        if (ie->flags & INDEX_ENTRY_END) {
+            file->offset = 0;
+            goto descend_into_child_node;
+        }
+
+        file->offset = (uint32_t)((uint8_t *)ie + ie->len);
+        goto done;
+    }
+
+descend_into_child_node:
+    NTFS_PVT(inode)->in_idx_root = false;
+
+    if (!(ie->flags & INDEX_ENTRY_NODE))
+        goto out;
+
+    attr = attr_lookup(NTFS_AT_INDEX_ALLOCATION, mrec);
+    if (!attr)
+        goto out;
+
+    if (!attr->non_resident) {
+        printf("WTF ?! $INDEX_ALLOCATION isn't really resident.\n");
         goto out;
     }
 
-    dirent->d_ino = NTFS_PVT(inode)->mft_no;
-    dirent->d_off = file->offset++;
+    attr_len = (uint8_t *)attr + attr->len;
+    stream = mapping_chunk_init(attr, &chunk, &offset);
+    do {
+        err = parse_data_run(stream, &offset, attr_len, &chunk);
+        if (err)
+            break;
+
+        if (chunk.flags & MAP_UNALLOCATED)
+            continue;
+
+        if (chunk.flags & MAP_ALLOCATED) {
+            dprintf("%d cluster(s) starting at 0x%X\n", chunk.len, chunk.lcn);
+
+            vcn = 0;
+            lcn = chunk.lcn;
+            while (vcn < chunk.len) {
+                block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
+                        SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
+
+                data = (uint8_t *)get_cache(fs->fs_dev, block);
+                if (!data) {
+                    printf("get_cache() returned NULL.\n");
+                    goto not_found;
+                }
+
+                err = fixups_writeback(fs, (NTFS_RECORD *)data);
+                if (err)
+                    goto not_found;
+
+                iblock = (INDEX_BLOCK *)data;
+                if (iblock->magic != NTFS_MAGIC_INDX) {
+                    printf("Not a valid INDX record.\n");
+                    goto not_found;
+                }
+
+                ie = (INDEX_ENTRY *)((uint8_t *)&iblock->index +
+                                            iblock->index.entries_offset);
+                for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
+                    /* bounds checks */
+                    if ((uint8_t *)ie < (uint8_t *)iblock || (uint8_t *)ie +
+                        sizeof(INDEX_ENTRY_HEADER) >
+                        (uint8_t *)&iblock->index + iblock->index.index_len ||
+                        (uint8_t *)ie + ie->len >
+                        (uint8_t *)&iblock->index + iblock->index.index_len)
+                        goto index_err;
+
+                    /* last entry cannot contain a key */
+                    if (ie->flags & INDEX_ENTRY_END)
+                        break;
+
+                    if (file->offset < (uint32_t)(uint8_t *)ie) {
+                        file->offset = (uint32_t)(uint8_t *)ie;
+                        goto done;
+                    }
+                }
+
+                vcn++;  /* go to the next VCN */
+            }
+        }
+    } while (!(chunk.flags & MAP_END));
+
+out:
+    return -1;
+
+done:
+    dirent->d_ino = ie->data.dir.indexed_file;
+    dirent->d_off = file->offset;
+
+    len = ntfs_cvt_filename(filename, ie);
     dirent->d_reclen = offsetof(struct dirent, d_name) + len + 1;
+
+    block = NTFS_SB(fs)->mft_block;
+    mrec = mft_record_lookup(ie->data.dir.indexed_file, fs, &block);
+    if (!mrec) {
+        printf("No MFT record found.\n");
+        goto out;
+    }
+
     dirent->d_type = get_inode_mode(mrec);
     memcpy(dirent->d_name, filename, len + 1);
 
     return 0;
 
-out:
-    return -1;
+not_found:
+    printf("Index not found\n");
+    goto out;
+
+index_err:
+    printf("Corrupt index. Aborting lookup...\n");
+    goto out;
 }
 
 static struct inode *ntfs_iget(const char *dname, struct inode *parent)

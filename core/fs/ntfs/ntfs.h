@@ -71,6 +71,7 @@ struct ntfs_inode {
     uint16_t seq_no;        /* Sequence number of the mft record */
     uint32_t type;          /* Attribute type of this inode */
     uint8_t non_resident;
+    bool in_idx_root;
     union {                 /* Non-resident $DATA attribute */
         struct {            /* Used only if non_resident flags isn't set */
             uint32_t offset;    /* Data offset */
