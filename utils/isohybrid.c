@@ -108,6 +108,7 @@ printh(void)
 int
 check_option(int argc, char *argv[])
 {
+    char *err = NULL;
     int n = 0, ind = 0;
 
     const char optstr[] = ":h:s:e:o:t:i:fcp?vV";
@@ -135,32 +136,38 @@ check_option(int argc, char *argv[])
         switch (n)
         {
         case 'h':
-            if (!sscanf(optarg, "%hu", &head) || head < 1 || head > 256)
+            head = strtoul(optarg, &err, 0);
+            if (head < 1 || head > 256)
                 errx(1, "invalid head: `%s', 1 <= head <= 256", optarg);
             break;
 
         case 's':
-            if (!sscanf(optarg, "%hhu", &sector) || sector < 1 || sector > 63)
+            sector = strtoul(optarg, &err, 0);
+            if (sector < 1 || sector > 63)
                 errx(1, "invalid sector: `%s', 1 <= sector <= 63", optarg);
             break;
 
         case 'e':
-            if (!sscanf(optarg, "%hhu", &entry) || entry < 1 || entry > 4)
+            entry = strtoul(optarg, &err, 0);
+            if (entry < 1 || entry > 4)
                 errx(1, "invalid entry: `%s', 1 <= entry <= 4", optarg);
             break;
 
         case 'o':
-            if (!sscanf(optarg, "%hhu", &offset) || offset > 64)
+            offset = strtoul(optarg, &err, 0);
+            if (*err || offset > 64)
                 errx(1, "invalid offset: `%s', 0 <= offset <= 64", optarg);
             break;
 
         case 't':
-            if (!sscanf(optarg, "%hu", &type) || type > 255)
+            type = strtoul(optarg, &err, 0);
+            if (*err || type > 255)
                 errx(1, "invalid type: `%s', 0 <= type <= 255", optarg);
             break;
 
         case 'i':
-            if (!sscanf(optarg, "%u", &id))
+            id = strtoul(optarg, &err, 0);
+            if (*err)
                 errx(1, "invalid id: `%s'", optarg);
             break;
 
