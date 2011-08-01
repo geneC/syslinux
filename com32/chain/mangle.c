@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <dprintf.h>
 #include <syslinux/config.h>
 #include "common.h"
 #include "chain.h"

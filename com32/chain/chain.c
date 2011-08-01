@@ -624,13 +624,13 @@ int main(int argc, char *argv[])
 	memcpy(data + ndata++, &hdat, sizeof(hdat));
 
 #ifdef DEBUG
-    printf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %llu, %u\n"
+    printf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %"PRIu64", %u\n"
 	   "iter->di C, H, S: %u, %u, %u\n",
 	iter->di.disk, iter->di.bps,
 	iter->di.lbacnt, iter->di.cyl * iter->di.head * iter->di.spt,
 	iter->di.cyl, iter->di.head, iter->di.spt);
     printf("iter idx: %d\n", iter->index);
-    printf("iter lba: %llu\n", iter->start_lba);
+    printf("iter lba: %"PRIu64"\n", iter->start_lba);
     if (opt.hand)
 	printf("hand lba: %u\n",
 		((struct disk_dos_part_entry *)hdat.data)->start_lba);
