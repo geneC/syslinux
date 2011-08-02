@@ -334,6 +334,8 @@ static int index_inode_setup(struct fs_info *fs, block_t start_block,
             NTFS_PVT(inode)->itype.index.vcn_size = BLOCK_SIZE(fs);
             NTFS_PVT(inode)->itype.index.vcn_size_shift = BLOCK_SHIFT(fs);
         }
+
+        NTFS_PVT(inode)->in_idx_root = true;
     } else if (d_type == DT_REG) {        /* file stuff */
         dprintf("Got a file.\n");
         attr = attr_lookup(NTFS_AT_DATA, mrec);
@@ -656,6 +658,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     block_t block;
     ATTR_RECORD *attr;
     INDEX_ROOT *ir;
+    uint32_t count;
     int len;
     INDEX_ENTRY *ie = NULL;
     uint8_t *data;
@@ -689,16 +692,19 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     if ((uint8_t *)ir + len > (uint8_t *)mrec + NTFS_SB(fs)->mft_record_size)
         goto index_err;
 
-    if (!file->offset) {
+    if (!file->offset && NTFS_PVT(inode)->in_idx_root) {
         file->offset = (uint32_t)((uint8_t *)&ir->index +
                                         ir->index.entries_offset);
-        NTFS_PVT(inode)->in_idx_root = true;
     }
 
     if (NTFS_PVT(inode)->in_idx_root) {
         ie = (INDEX_ENTRY *)(uint8_t *)file->offset;
         if (ie->flags & INDEX_ENTRY_END) {
             file->offset = 0;
+            NTFS_PVT(inode)->in_idx_root = false;
+            NTFS_PVT(inode)->idx_blocks_count = 1;
+            NTFS_PVT(inode)->entries_count = 0;
+            NTFS_PVT(inode)->last_vcn = 0;
             goto descend_into_child_node;
         }
 
@@ -707,8 +713,6 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     }
 
 descend_into_child_node:
-    NTFS_PVT(inode)->in_idx_root = false;
-
     if (!(ie->flags & INDEX_ENTRY_NODE))
         goto out;
 
@@ -722,67 +726,82 @@ descend_into_child_node:
     }
 
     attr_len = (uint8_t *)attr + attr->len;
+
+next_run:
     stream = mapping_chunk_init(attr, &chunk, &offset);
-    do {
+    count = NTFS_PVT(inode)->idx_blocks_count;
+    while (count--) {
         err = parse_data_run(stream, &offset, attr_len, &chunk);
-        if (err)
-            break;
+        if (err) {
+            printf("Error on parsing data runs.\n");
+            goto out;
+        }
 
         if (chunk.flags & MAP_UNALLOCATED)
-            continue;
+            break;
+        if (chunk.flags & MAP_END)
+            goto out;
+    }
 
-        if (chunk.flags & MAP_ALLOCATED) {
-            dprintf("%d cluster(s) starting at 0x%X\n", chunk.len, chunk.lcn);
+    if (chunk.flags & MAP_UNALLOCATED) {
+       NTFS_PVT(inode)->idx_blocks_count++;
+       goto next_run;
+    }
 
-            vcn = 0;
-            lcn = chunk.lcn;
-            while (vcn < chunk.len) {
-                block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) <<
-                        SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
+next_vcn:
+    vcn = NTFS_PVT(inode)->last_vcn;
+    if (vcn >= chunk.len) {
+        NTFS_PVT(inode)->last_vcn = 0;
+        NTFS_PVT(inode)->idx_blocks_count++;
+        goto next_run;
+    }
 
-                data = (uint8_t *)get_cache(fs->fs_dev, block);
-                if (!data) {
-                    printf("get_cache() returned NULL.\n");
-                    goto not_found;
-                }
+    lcn = chunk.lcn;
+    block = ((lcn + vcn) << NTFS_SB(fs)->clust_shift) << SECTOR_SHIFT(fs) >>
+            BLOCK_SHIFT(fs);
 
-                err = fixups_writeback(fs, (NTFS_RECORD *)data);
-                if (err)
-                    goto not_found;
+    data = (uint8_t *)get_cache(fs->fs_dev, block);
+    if (!data) {
+        printf("get_cache() returned NULL.\n");
+        goto not_found;
+    }
 
-                iblock = (INDEX_BLOCK *)data;
-                if (iblock->magic != NTFS_MAGIC_INDX) {
-                    printf("Not a valid INDX record.\n");
-                    goto not_found;
-                }
+    err = fixups_writeback(fs, (NTFS_RECORD *)data);
+    if (err)
+        goto not_found;
 
-                ie = (INDEX_ENTRY *)((uint8_t *)&iblock->index +
-                                            iblock->index.entries_offset);
-                for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
-                    /* bounds checks */
-                    if ((uint8_t *)ie < (uint8_t *)iblock || (uint8_t *)ie +
-                        sizeof(INDEX_ENTRY_HEADER) >
-                        (uint8_t *)&iblock->index + iblock->index.index_len ||
-                        (uint8_t *)ie + ie->len >
-                        (uint8_t *)&iblock->index + iblock->index.index_len)
-                        goto index_err;
+    iblock = (INDEX_BLOCK *)data;
+    if (iblock->magic != NTFS_MAGIC_INDX) {
+        printf("Not a valid INDX record.\n");
+        goto not_found;
+    }
 
-                    /* last entry cannot contain a key */
-                    if (ie->flags & INDEX_ENTRY_END)
-                        break;
+    ie = (INDEX_ENTRY *)((uint8_t *)&iblock->index +
+                        iblock->index.entries_offset);
+    count = NTFS_PVT(inode)->entries_count;
+    for ( ; count--; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
+        /* bounds checks */
+        if ((uint8_t *)ie < (uint8_t *)iblock || (uint8_t *)ie +
+            sizeof(INDEX_ENTRY_HEADER) >
+            (uint8_t *)&iblock->index + iblock->index.index_len ||
+            (uint8_t *)ie + ie->len >
+            (uint8_t *)&iblock->index + iblock->index.index_len)
+            goto index_err;
 
-                    if (file->offset < (uint32_t)(uint8_t *)ie) {
-                        file->offset = (uint32_t)(uint8_t *)ie;
-                        goto done;
-                    }
-                }
-
-                vcn++;  /* go to the next VCN */
-            }
+        /* last entry cannot contain a key */
+        if (ie->flags & INDEX_ENTRY_END) {
+            NTFS_PVT(inode)->last_vcn++;
+            NTFS_PVT(inode)->entries_count = 0;
+            goto next_vcn;
         }
-    } while (!(chunk.flags & MAP_END));
+    }
+
+    NTFS_PVT(inode)->entries_count++;
+    goto done;
 
 out:
+    NTFS_PVT(inode)->in_idx_root = true;
+
     return -1;
 
 done:
@@ -792,7 +811,11 @@ done:
     len = ntfs_cvt_filename(filename, ie);
     dirent->d_reclen = offsetof(struct dirent, d_name) + len + 1;
 
-    block = NTFS_SB(fs)->mft_block;
+    if (NTFS_PVT(inode)->mft_no == FILE_root)
+        block = 0;
+    else
+        block = NTFS_SB(fs)->mft_block;
+
     mrec = mft_record_lookup(ie->data.dir.indexed_file, fs, &block);
     if (!mrec) {
         printf("No MFT record found.\n");
