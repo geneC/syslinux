@@ -156,7 +156,7 @@ static ATTR_RECORD *attr_lookup(uint32_t type, const MFT_RECORD *mrec)
     return attr;
 }
 
-static bool ntfs_cmp_filename(const char *dname, INDEX_ENTRY *ie)
+static bool ntfs_filename_cmp(const char *dname, INDEX_ENTRY *ie)
 {
     const uint16_t *entry_fn;
     uint8_t entry_fn_len;
@@ -446,7 +446,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
         if (ie->flags & INDEX_ENTRY_END)
             break;
 
-        if (ntfs_cmp_filename(dname, ie))
+        if (ntfs_filename_cmp(dname, ie))
             goto found;
     }
 
@@ -519,7 +519,7 @@ static struct inode *index_lookup(const char *dname, struct inode *dir)
                     if (ie->flags & INDEX_ENTRY_END)
                         break;
 
-                    if (ntfs_cmp_filename(dname, ie))
+                    if (ntfs_filename_cmp(dname, ie))
                         goto found;
                 }
 
@@ -868,7 +868,7 @@ static int ntfs_fs_init(struct fs_info *fs)
     struct ntfs_bpb ntfs;
     struct ntfs_sb_info *sbi;
     struct disk *disk = fs->fs_dev->disk;
-    uint8_t clust_per_mft_record;
+    uint8_t mft_record_shift;
 
     disk->rdwr_sectors(disk, &ntfs, 0, 1, 0);
 
@@ -876,16 +876,22 @@ static int ntfs_fs_init(struct fs_info *fs)
     if (!ntfs_check_sb_fields(&ntfs))
         return -1;
 
-    /* Note: clust_per_mft_record can be a negative number */
-    clust_per_mft_record = ntfs.clust_per_mft_record < 0 ?
-                    -ntfs.clust_per_mft_record : ntfs.clust_per_mft_record;
-
     SECTOR_SHIFT(fs) = disk->sector_shift;
 
-    /* We need _at least_ 1 KiB to read the whole MFT record */
     BLOCK_SHIFT(fs) = ilog2(ntfs.sec_per_clust) + SECTOR_SHIFT(fs);
-    if (BLOCK_SHIFT(fs) < clust_per_mft_record)
-        BLOCK_SHIFT(fs) = clust_per_mft_record;
+
+    /* Note: ntfs.clust_per_mft_record can be a negative number.
+     * If negative, it represents a shift count, else it represents
+     * a multiplier for the cluster size.
+     *
+     * We need _at least_ 1 KiB to read the whole MFT record.
+     */
+    mft_record_shift = ntfs.clust_per_mft_record < 0 ?
+                    -ntfs.clust_per_mft_record :
+                    BLOCK_SHIFT(fs) + ilog2(ntfs.clust_per_mft_record);
+
+    if (BLOCK_SHIFT(fs) < mft_record_shift)
+        BLOCK_SHIFT(fs) = mft_record_shift;
 
     SECTOR_SIZE(fs) = 1 << SECTOR_SHIFT(fs);
     BLOCK_SIZE(fs) = 1 << BLOCK_SHIFT(fs);
@@ -900,12 +906,12 @@ static int ntfs_fs_init(struct fs_info *fs)
     sbi->clust_byte_shift   = sbi->clust_shift + SECTOR_SHIFT(fs);
     sbi->clust_mask         = ntfs.sec_per_clust - 1;
     sbi->clust_size         = ntfs.sec_per_clust << SECTOR_SHIFT(fs);
-    sbi->mft_record_size    = 1 << clust_per_mft_record;
+    sbi->mft_record_size    = 1 << mft_record_shift;
 
     sbi->mft_block = ntfs.mft_lclust << sbi->clust_shift <<
                     SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
     /* 16 MFT entries reserved for metadata files (approximately 16 KiB) */
-    sbi->mft_size = (clust_per_mft_record << sbi->clust_shift) << 4;
+    sbi->mft_size = mft_record_shift << sbi->clust_shift << 4;
 
     sbi->clusters = ntfs.total_sectors << SECTOR_SHIFT(fs) >> sbi->clust_shift;
     if (sbi->clusters > 0xFFFFFFFFFFF4ULL)
