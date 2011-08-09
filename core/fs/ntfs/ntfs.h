@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the
  * Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111EXIT_FAILURE307, USA.
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #ifndef _NTFS_H_
@@ -49,7 +49,8 @@ struct ntfs_bpb {
 } __attribute__((__packed__));
 
 struct ntfs_sb_info {
-    block_t mft_block;              /* The first MFT record block */
+    block_t mft_blk;                /* The first MFT record block */
+    uint64_t mft_lcn;               /* LCN of the first MFT record */
 
     unsigned mft_size;              /* The MFT size in sectors */
     uint64_t mft_record_size;       /* MFT record size in bytes */
@@ -67,12 +68,13 @@ struct ntfs_sb_info {
 struct ntfs_inode {
     int64_t initialized_size;
     int64_t allocated_size;
-    unsigned long mft_no;   /* Number of the mft record / inode */
-    uint16_t seq_no;        /* Sequence number of the mft record */
-    uint32_t type;          /* Attribute type of this inode */
+    unsigned long mft_no;       /* Number of the mft record / inode */
+    uint64_t mft_blk_offset;    /* MFT record's offset of the FS block */
+    uint16_t seq_no;            /* Sequence number of the mft record */
+    uint32_t type;              /* Attribute type of this inode */
     uint8_t non_resident;
     bool in_idx_root;
-    uint32_t idx_blocks_count;
+    uint32_t idx_blks_count;
     uint32_t entries_count;
     int64_t last_vcn;
     union {                 /* Non-resident $DATA attribute */
@@ -86,11 +88,11 @@ struct ntfs_inode {
     } data;
     union {
         struct {    /* It is a directory, $MFT, or an index inode */
-            uint32_t block_size;
+            uint32_t blk_size;
             uint32_t vcn_size;
             uint32_t collation_rule;
-            uint8_t block_size_shift;    /* log2 of the above */
-            uint8_t vcn_size_shift;      /* log2 of the above */
+            uint8_t blk_size_shift;     /* log2 of the above */
+            uint8_t vcn_size_shift;     /* log2 of the above */
         } index;
     } itype;
     uint32_t start_cluster; /* Starting cluster address */
