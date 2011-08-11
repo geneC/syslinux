@@ -454,9 +454,13 @@ static int index_inode_setup(struct fs_info *fs, block_t start_blk,
 
     inode->mode = d_type;
 
+    free(mrec);
+
     return 0;
 
 out:
+    free(mrec);
+
     return -1;
 }
 
@@ -470,7 +474,6 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
     INDEX_ROOT *ir;
     uint32_t len;
     INDEX_ENTRY *ie;
-    const uint32_t clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
     const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
     uint8_t buf[blk_size];
     INDEX_BLOCK *iblk;
@@ -481,6 +484,7 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
     uint32_t offset;
     int64_t vcn;
     int64_t lcn;
+    int64_t last_lcn;
     struct inode *inode;
 
     blk = NTFS_PVT(dir)->start;
@@ -559,16 +563,18 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
             continue;
 
         if (chunk.flags & MAP_ALLOCATED) {
-            printf("%d cluster(s) starting at %llu\n", chunk.len, chunk.lcn);
+            dprintf("%d cluster(s) starting at 0x%08llX\n", chunk.len,
+                    chunk.lcn);
 
             vcn = 0;
             lcn = chunk.lcn;
             while (vcn < chunk.len) {
-                lcn += vcn;
-                blk = lcn << NTFS_SB(fs)->clust_shift << SECTOR_SHIFT(fs) >>
-                    BLOCK_SHIFT(fs);
+                blk = (lcn + vcn) << NTFS_SB(fs)->clust_shift <<
+                    SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
 
                 blk_offset = 0;
+                last_lcn = lcn;
+                lcn += vcn;
                 err = ntfs_read(fs, &buf, blk_size, blk_size, &blk,
                                 &blk_offset, NULL, (uint64_t *)&lcn);
                 if (err) {
@@ -603,8 +609,9 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
                         goto found;
                 }
 
+                lcn = last_lcn; /* restore the original LCN */
                 /* go to the next VCN */
-                vcn += (blk_size / (1 << clust_byte_shift));
+                vcn += (blk_size / (1 << NTFS_SB(fs)->clust_byte_shift));
             }
         }
     } while (!(chunk.flags & MAP_END));
@@ -614,6 +621,8 @@ not_found:
 
 out:
     dprintf("%s not found!\n", dname);
+
+    free(mrec);
 
     return NULL;
 
@@ -629,7 +638,9 @@ found:
         goto out;
     }
 
-    printf("%s found!\n", dname);
+    dprintf("%s found!\n", dname);
+
+    free(mrec);
 
     return inode;
 
@@ -728,12 +739,22 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
         memcpy(buf, p, inode->size);
 
         ret = inode->size;
+
+        free(mrec);
     }
+
 
     return ret;
 
 out:
+    free(mrec);
+
     return 0;
+}
+
+static bool is_filename_printable(const char *s)
+{
+    return *s != '.' && *s != '$';
 }
 
 static int ntfs_readdir(struct file *file, struct dirent *dirent)
@@ -756,7 +777,6 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     uint8_t *attr_len;
     struct mapping_chunk chunk;
     uint32_t offset;
-    const uint32_t clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
     int64_t vcn;
     int64_t lcn;
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
@@ -788,6 +808,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
                                         ir->index.entries_offset);
     }
 
+idx_root_next_entry:
     if (NTFS_PVT(inode)->in_idx_root) {
         ie = (INDEX_ENTRY *)(uint8_t *)file->offset;
         if (ie->flags & INDEX_ENTRY_END) {
@@ -800,6 +821,10 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
         }
 
         file->offset = (uint32_t)((uint8_t *)ie + ie->len);
+        len = ntfs_cvt_filename(filename, ie);
+        if (!is_filename_printable(filename))
+            goto idx_root_next_entry;
+
         goto done;
     }
 
@@ -847,8 +872,8 @@ next_vcn:
         goto next_run;
     }
 
-    lcn = chunk.lcn + vcn;
-    blk = lcn << NTFS_SB(fs)->clust_shift << SECTOR_SHIFT(fs) >>
+    lcn = chunk.lcn;
+    blk = (lcn + vcn) << NTFS_SB(fs)->clust_shift << SECTOR_SHIFT(fs) >>
             BLOCK_SHIFT(fs);
 
     blk_offset = 0;
@@ -867,6 +892,7 @@ next_vcn:
         goto not_found;
     }
 
+idx_block_next_entry:
     ie = (INDEX_ENTRY *)((uint8_t *)&iblk->index +
                         iblk->index.entries_offset);
     count = NTFS_PVT(inode)->entries_count;
@@ -881,25 +907,31 @@ next_vcn:
 
         /* last entry cannot contain a key */
         if (ie->flags & INDEX_ENTRY_END) {
-            NTFS_PVT(inode)->last_vcn += (blk_size / (1 << clust_byte_shift));
+            /* go to the next VCN */
+            NTFS_PVT(inode)->last_vcn += (blk_size / (1 <<
+                                NTFS_SB(fs)->clust_byte_shift));
             NTFS_PVT(inode)->entries_count = 0;
             goto next_vcn;
         }
     }
 
     NTFS_PVT(inode)->entries_count++;
+    len = ntfs_cvt_filename(filename, ie);
+    if (!is_filename_printable(filename))
+        goto idx_block_next_entry;
+
     goto done;
 
 out:
     NTFS_PVT(inode)->in_idx_root = true;
+
+    free(mrec);
 
     return -1;
 
 done:
     dirent->d_ino = ie->data.dir.indexed_file;
     dirent->d_off = file->offset;
-
-    len = ntfs_cvt_filename(filename, ie);
     dirent->d_reclen = offsetof(struct dirent, d_name) + len + 1;
 
     if (NTFS_PVT(inode)->mft_no == FILE_root) {
@@ -910,6 +942,8 @@ done:
         blk_offset = NTFS_PVT(inode)->mft_blk_offset;
     }
 
+    free(mrec);
+
     mrec = ntfs_mft_record_lookup(ie->data.dir.indexed_file, fs, &blk,
                                 &blk_offset);
     if (!mrec) {
@@ -919,6 +953,8 @@ done:
 
     dirent->d_type = get_inode_mode(mrec);
     memcpy(dirent->d_name, filename, len + 1);
+
+    free(mrec);
 
     return 0;
 
@@ -990,13 +1026,14 @@ static int ntfs_fs_init(struct fs_info *fs)
 
     fs->fs_info = sbi;
 
-    sbi->clust_shift        = ilog2(ntfs.sec_per_clust);
-    sbi->clust_byte_shift   = sbi->clust_shift + SECTOR_SHIFT(fs);
-    sbi->clust_mask         = ntfs.sec_per_clust - 1;
-    sbi->clust_size         = ntfs.sec_per_clust << SECTOR_SHIFT(fs);
-    sbi->mft_record_size    = 1 << mft_record_shift;
+    sbi->clust_shift            = ilog2(ntfs.sec_per_clust);
+    sbi->clust_byte_shift       = sbi->clust_shift + SECTOR_SHIFT(fs);
+    sbi->clust_mask             = ntfs.sec_per_clust - 1;
+    sbi->clust_size             = ntfs.sec_per_clust << SECTOR_SHIFT(fs);
+    sbi->mft_record_size        = 1 << mft_record_shift;
+    sbi->clust_per_idx_record   = ntfs.clust_per_idx_record;
 
-    BLOCK_SHIFT(fs) = ilog2(ntfs.clust_per_idx_buf) + sbi->clust_byte_shift;
+    BLOCK_SHIFT(fs) = ilog2(ntfs.clust_per_idx_record) + sbi->clust_byte_shift;
     BLOCK_SIZE(fs) = 1 << BLOCK_SHIFT(fs);
 
     sbi->mft_lcn = ntfs.mft_lclust;

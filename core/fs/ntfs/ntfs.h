@@ -40,7 +40,7 @@ struct ntfs_bpb {
     uint64_t mft_mirr_lclust;
     int8_t clust_per_mft_record;
     uint8_t unused_4[3];
-    uint8_t clust_per_idx_buf;
+    uint8_t clust_per_idx_record;
     uint8_t unused_5[3];
     uint64_t vol_serial;
     uint32_t unused_6;
@@ -51,9 +51,10 @@ struct ntfs_bpb {
 struct ntfs_sb_info {
     block_t mft_blk;                /* The first MFT record block */
     uint64_t mft_lcn;               /* LCN of the first MFT record */
-
     unsigned mft_size;              /* The MFT size in sectors */
     uint64_t mft_record_size;       /* MFT record size in bytes */
+
+    uint8_t clust_per_idx_record;   /* Clusters per Index Record */
 
     unsigned long long clusters;    /* Total number of clusters */
 
