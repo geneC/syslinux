@@ -70,7 +70,6 @@ struct ntfs_inode {
     int64_t initialized_size;
     int64_t allocated_size;
     unsigned long mft_no;       /* Number of the mft record / inode */
-    uint64_t mft_blk_offset;    /* MFT record's offset of the FS block */
     uint16_t seq_no;            /* Sequence number of the mft record */
     uint32_t type;              /* Attribute type of this inode */
     uint8_t non_resident;

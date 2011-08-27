@@ -113,6 +113,9 @@ static int ntfs_read(struct fs_info *fs, void *buf, size_t len, uint64_t count,
     if (!offset)
         offset = (*lcn << clust_byte_shift) % blk_size;
 
+    dprintf("lcn:            0x%X\n", *lcn);
+    dprintf("offset:         0x%X\n", offset);
+
     bytes = count;              /* bytes to copy */
     lbytes = blk_size - offset; /* bytes left to copy */
     if (lbytes >= bytes) {
@@ -121,6 +124,8 @@ static int ntfs_read(struct fs_info *fs, void *buf, size_t len, uint64_t count,
         loffset = offset;
         offset += count;
     } else {
+        dprintf("bytes:      %u\n", bytes);
+        dprintf("bytes left: %u\n", lbytes);
         /* otherwise, let's copy it partially... */
         k = 0;
         while (bytes) {
@@ -157,13 +162,13 @@ out:
     return -1;
 }
 
-static MFT_RECORD *ntfs_mft_record_lookup(uint32_t file, struct fs_info *fs,
-                                            block_t *blk, uint64_t *blk_offset)
+static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, block_t *blk)
 {
     const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
     uint8_t *buf;
+    block_t cur_blk;
     block_t right_blk;
-    uint64_t offset = *blk_offset;
+    uint64_t offset = 0;
     uint64_t next_offset;
     uint64_t lcn = NTFS_SB(fs)->mft_lcn;
     int err;
@@ -173,8 +178,9 @@ static MFT_RECORD *ntfs_mft_record_lookup(uint32_t file, struct fs_info *fs,
     if (!buf)
         malloc_error("uint8_t *");
 
+    cur_blk = blk ? *blk : 0;
     for (;;) {
-        right_blk = *blk + NTFS_SB(fs)->mft_blk;
+        right_blk = cur_blk + NTFS_SB(fs)->mft_blk;
         err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
                         &offset, &next_offset, &lcn);
         if (err) {
@@ -186,17 +192,19 @@ static MFT_RECORD *ntfs_mft_record_lookup(uint32_t file, struct fs_info *fs,
 
         mrec = (MFT_RECORD *)buf;
         if (mrec->mft_record_no == file) {
-            *blk_offset = offset;   /* update FS block offset */
+            if (blk)
+                *blk = cur_blk;     /* update record starting block */
+
             return mrec;            /* found MFT record */
         }
 
         if (next_offset >= BLOCK_SIZE(fs)) {
             /* try the next FS block */
             offset = 0;
-            *blk = right_blk - NTFS_SB(fs)->mft_blk + 1;
+            cur_blk = right_blk - NTFS_SB(fs)->mft_blk + 1;
         } else {
             /* there's still content to fetch in the current block */
-            *blk = right_blk - NTFS_SB(fs)->mft_blk;
+            cur_blk = right_blk - NTFS_SB(fs)->mft_blk;
             offset = next_offset;   /* update FS block offset */
         }
     }
@@ -239,7 +247,7 @@ static bool ntfs_filename_cmp(const char *dname, INDEX_ENTRY *ie)
     if (strlen(dname) != entry_fn_len)
         return false;
 
-        /* Do case-sensitive compares for Posix file names */
+    /* Do case-sensitive compares for Posix file names */
     if (ie->key.file_name.file_name_type == FILE_NAME_POSIX) {
         for (i = 0; i < entry_fn_len; i++)
             if (entry_fn[i] != dname[i])
@@ -344,10 +352,10 @@ static inline enum dirent_type get_inode_mode(MFT_RECORD *mrec)
     return mrec->flags & MFT_RECORD_IS_DIRECTORY ? DT_DIR : DT_REG;
 }
 
-static int index_inode_setup(struct fs_info *fs, block_t start_blk,
-                            uint64_t blk_offset, unsigned long mft_no,
+static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
                             struct inode *inode)
 {
+    uint64_t start_blk = 0;
     MFT_RECORD *mrec;
     ATTR_RECORD *attr;
     enum dirent_type d_type;
@@ -360,14 +368,13 @@ static int index_inode_setup(struct fs_info *fs, block_t start_blk,
     uint8_t *stream;
     uint32_t offset;
 
-    mrec = ntfs_mft_record_lookup(mft_no, fs, &start_blk, &blk_offset);
+    mrec = ntfs_mft_record_lookup(fs, mft_no, &start_blk);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
 
     NTFS_PVT(inode)->mft_no = mft_no;
-    NTFS_PVT(inode)->mft_blk_offset = blk_offset;
     NTFS_PVT(inode)->seq_no = mrec->seq_no;
 
     NTFS_PVT(inode)->start_cluster = start_blk >> NTFS_SB(fs)->clust_shift;
@@ -487,12 +494,9 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
     int64_t last_lcn;
     struct inode *inode;
 
-    blk = NTFS_PVT(dir)->start;
-    blk_offset = NTFS_PVT(dir)->mft_blk_offset;
     dprintf("ntfs_index_lookup() - mft record number: %d\n",
             NTFS_PVT(dir)->mft_no);
-    mrec = ntfs_mft_record_lookup(NTFS_PVT(dir)->mft_no, fs, &blk,
-                                &blk_offset);
+    mrec = ntfs_mft_record_lookup(fs, NTFS_PVT(dir)->mft_no, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
@@ -605,6 +609,16 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
                     if (ie->flags & INDEX_ENTRY_END)
                         break;
 
+                    /* Do case-sensitive compares for Posix file names */
+                    if (ie->key.file_name.file_name_type == FILE_NAME_POSIX) {
+                        if (ie->key.file_name.file_name[0] > *dname)
+                            break;
+                    } else {
+                        if (tolower(ie->key.file_name.file_name[0]) >
+                            tolower(*dname))
+                            break;
+                    }
+
                     if (ntfs_filename_cmp(dname, ie))
                         goto found;
                 }
@@ -629,11 +643,9 @@ out:
 found:
     dprintf("Index found\n");
     inode = new_ntfs_inode(fs);
-    err = index_inode_setup(fs, NTFS_PVT(dir)->here,
-                            NTFS_PVT(dir)->mft_blk_offset,
-                            ie->data.dir.indexed_file, inode);
+    err = index_inode_setup(fs, ie->data.dir.indexed_file, inode);
     if (err) {
-        printf("leaving index_inode_setup()\n");
+        printf("Error in index_inode_setup()\n");
         free(inode);
         goto out;
     }
@@ -689,8 +701,8 @@ static int ntfs_next_extent(struct inode *inode, uint32_t lstart)
         pstart = NTFS_PVT(inode)->data.non_resident.lcn << sbi->clust_shift;
     }
 
-    inode->next_extent.len = (inode->size + sec_size - 1) >> sec_shift;
     inode->next_extent.pstart = pstart;
+    inode->next_extent.len = (inode->size + sec_size - 1) >> sec_shift;
 
     return 0;
 
@@ -705,8 +717,6 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     uint32_t ret;
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
-    block_t blk;
-    uint64_t blk_offset;
     MFT_RECORD *mrec;
     ATTR_RECORD *attr;
     char *p;
@@ -718,10 +728,7 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
         return ret;
 
     if (!non_resident) {
-        blk = NTFS_PVT(inode)->here;
-        blk_offset = NTFS_PVT(inode)->mft_blk_offset;
-        mrec = ntfs_mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &blk,
-                                &blk_offset);
+        mrec = ntfs_mft_record_lookup(fs, NTFS_PVT(inode)->mft_no, NULL);
         if (!mrec) {
             printf("No MFT record found.\n");
             goto out;
@@ -752,9 +759,9 @@ out:
     return 0;
 }
 
-static bool is_filename_printable(const char *s)
+static inline bool is_filename_printable(const char *s)
 {
-    return *s != '.' && *s != '$';
+    return s && (*s != '.' && *s != '$');
 }
 
 static int ntfs_readdir(struct file *file, struct dirent *dirent)
@@ -781,10 +788,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     int64_t lcn;
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
 
-    blk = NTFS_PVT(inode)->here;
-    blk_offset = NTFS_PVT(inode)->mft_blk_offset;
-    mrec = ntfs_mft_record_lookup(NTFS_PVT(inode)->mft_no, fs, &blk,
-                                &blk_offset);
+    mrec = ntfs_mft_record_lookup(fs, NTFS_PVT(inode)->mft_no, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
@@ -934,18 +938,9 @@ done:
     dirent->d_off = file->offset;
     dirent->d_reclen = offsetof(struct dirent, d_name) + len + 1;
 
-    if (NTFS_PVT(inode)->mft_no == FILE_root) {
-        blk = 0;
-        blk_offset = 0;
-    } else {
-        blk = NTFS_SB(fs)->mft_blk;
-        blk_offset = NTFS_PVT(inode)->mft_blk_offset;
-    }
-
     free(mrec);
 
-    mrec = ntfs_mft_record_lookup(ie->data.dir.indexed_file, fs, &blk,
-                                &blk_offset);
+    mrec = ntfs_mft_record_lookup(fs, ie->data.dir.indexed_file, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
@@ -979,7 +974,7 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
 
     inode->fs = fs;
 
-    err = index_inode_setup(fs, 0, 0, FILE_root, inode);
+    err = index_inode_setup(fs, FILE_root, inode);
     if (err)
         goto free_out;
 
