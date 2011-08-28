@@ -113,7 +113,7 @@ static int ntfs_read(struct fs_info *fs, void *buf, size_t len, uint64_t count,
     if (!offset)
         offset = (*lcn << clust_byte_shift) % blk_size;
 
-    dprintf("lcn:            0x%X\n", *lcn);
+    dprintf("LCN:            0x%X\n", *lcn);
     dprintf("offset:         0x%X\n", offset);
 
     bytes = count;              /* bytes to copy */
@@ -124,8 +124,8 @@ static int ntfs_read(struct fs_info *fs, void *buf, size_t len, uint64_t count,
         loffset = offset;
         offset += count;
     } else {
-        dprintf("bytes:      %u\n", bytes);
-        dprintf("bytes left: %u\n", lbytes);
+        dprintf("bytes:             %u\n", bytes);
+        dprintf("bytes left:        %u\n", lbytes);
         /* otherwise, let's copy it partially... */
         k = 0;
         while (bytes) {
@@ -140,6 +140,7 @@ static int ntfs_read(struct fs_info *fs, void *buf, size_t len, uint64_t count,
                 if (!data)
                     goto out;
 
+                lbytes = bytes;
                 loffset = offset;
                 offset = 0;
             }
