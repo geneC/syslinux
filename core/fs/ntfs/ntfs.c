@@ -167,10 +167,13 @@ static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, blo
 {
     const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
     uint8_t *buf;
+    const block_t mft_blk = NTFS_SB(fs)->mft_blk;
     block_t cur_blk;
     block_t right_blk;
     uint64_t offset = 0;
     uint64_t next_offset;
+    const unsigned mft_record_shift = ilog2(mft_record_size);
+    const unsigned clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
     uint64_t lcn = NTFS_SB(fs)->mft_lcn;
     int err;
     MFT_RECORD *mrec;
@@ -179,9 +182,11 @@ static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, blo
     if (!buf)
         malloc_error("uint8_t *");
 
-    cur_blk = blk ? *blk : 0;
+    /* determine MFT record's LCN and block number */
+    lcn = NTFS_SB(fs)->mft_lcn + (file << mft_record_shift >> clust_byte_shift);
+    cur_blk = (lcn << clust_byte_shift >> BLOCK_SHIFT(fs)) - mft_blk - 1;
     for (;;) {
-        right_blk = cur_blk + NTFS_SB(fs)->mft_blk;
+        right_blk = cur_blk + mft_blk;
         err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
                         &offset, &next_offset, &lcn);
         if (err) {
@@ -202,10 +207,10 @@ static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, blo
         if (next_offset >= BLOCK_SIZE(fs)) {
             /* try the next FS block */
             offset = 0;
-            cur_blk = right_blk - NTFS_SB(fs)->mft_blk + 1;
+            cur_blk = right_blk - mft_blk + 1;
         } else {
             /* there's still content to fetch in the current block */
-            cur_blk = right_blk - NTFS_SB(fs)->mft_blk;
+            cur_blk = right_blk - mft_blk;
             offset = next_offset;   /* update FS block offset */
         }
     }
@@ -750,7 +755,6 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
 
         free(mrec);
     }
-
 
     return ret;
 
