@@ -409,7 +409,7 @@ int main(int argc, char *argv[])
 	    len.QuadPart = ((extent.NextVcn.QuadPart -
 			     extent.FirstVcn.QuadPart) *
 			    vol_info.SectorsPerCluster);
-	    while (len.QuadPart--) {
+	    while (len.QuadPart-- && nsectors < ldlinux_sectors) {
 		*secp++ = lba.QuadPart++;
 		nsectors++;
 	    }
