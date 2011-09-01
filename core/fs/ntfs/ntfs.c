@@ -35,6 +35,12 @@
 #include "ntfs.h"
 #include "runlist.h"
 
+/*** Function declarations */
+static f_mft_record_lookup ntfs_mft_record_lookup_3_0;
+static f_mft_record_lookup ntfs_mft_record_lookup_3_1;
+
+/*** Function definitions */
+
 /* Check if there are specific zero fields in an NTFS boot sector */
 static inline int ntfs_check_zero_fields(const struct ntfs_bpb *sb)
 {
@@ -164,14 +170,14 @@ out:
     return -1;
 }
 
-static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, block_t *blk)
+static MFT_RECORD *ntfs_mft_record_lookup_3_0(struct fs_info *fs, uint32_t file, block_t *blk)
 {
     const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
     uint8_t *buf;
     const block_t mft_blk = NTFS_SB(fs)->mft_blk;
     block_t cur_blk;
     block_t right_blk;
-    uint64_t offset = 0;
+    uint64_t offset;
     uint64_t next_offset;
     const unsigned mft_record_shift = ilog2(mft_record_size);
     const unsigned clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
@@ -185,7 +191,8 @@ static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, blo
 
     /* determine MFT record's LCN and block number */
     lcn = NTFS_SB(fs)->mft_lcn + (file << mft_record_shift >> clust_byte_shift);
-    cur_blk = (lcn << clust_byte_shift >> BLOCK_SHIFT(fs)) - mft_blk - 1;
+    cur_blk = (lcn << clust_byte_shift >> BLOCK_SHIFT(fs)) - mft_blk;
+    offset = (file << mft_record_shift) % BLOCK_SIZE(fs);
     for (;;) {
         right_blk = cur_blk + mft_blk;
         err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
@@ -198,7 +205,8 @@ static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, blo
         ntfs_fixups_writeback(fs, (NTFS_RECORD *)buf);
 
         mrec = (MFT_RECORD *)buf;
-        if (mrec->mft_record_no == file) {
+        /* check if it has a valid magic number */
+        if (mrec->magic == NTFS_MAGIC_FILE) {
             if (blk)
                 *blk = cur_blk;     /* update record starting block */
 
@@ -212,6 +220,59 @@ static MFT_RECORD *ntfs_mft_record_lookup(struct fs_info *fs, uint32_t file, blo
         } else {
             /* there's still content to fetch in the current block */
             cur_blk = right_blk - mft_blk;
+            offset = next_offset;   /* update FS block offset */
+        }
+    }
+
+    free(buf);
+
+    return NULL;
+}
+
+static MFT_RECORD *ntfs_mft_record_lookup_3_1(struct fs_info *fs, uint32_t file, block_t *blk)
+{
+    const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
+    uint8_t *buf;
+    block_t cur_blk;
+    block_t right_blk;
+    uint64_t offset = 0;
+    uint64_t next_offset;
+    uint64_t lcn = NTFS_SB(fs)->mft_lcn;
+    int err;
+    MFT_RECORD *mrec;
+
+    buf = (uint8_t *)malloc(mft_record_size);
+    if (!buf)
+        malloc_error("uint8_t *");
+
+    cur_blk = blk ? *blk : 0;
+    for (;;) {
+        right_blk = cur_blk + NTFS_SB(fs)->mft_blk;
+        err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
+                        &offset, &next_offset, &lcn);
+        if (err) {
+            printf("Error on reading from cache.\n");
+            break;
+        }
+
+        ntfs_fixups_writeback(fs, (NTFS_RECORD *)buf);
+
+        mrec = (MFT_RECORD *)buf;
+        /* Check if the NTFS 3.1 MFT record number matches */
+        if (mrec->magic == NTFS_MAGIC_FILE && mrec->mft_record_no == file) {
+            if (blk)
+                *blk = cur_blk;     /* update record starting block */
+
+            return mrec;            /* found MFT record */
+        }
+
+        if (next_offset >= BLOCK_SIZE(fs)) {
+            /* try the next FS block */
+            offset = 0;
+            cur_blk = right_blk - NTFS_SB(fs)->mft_blk + 1;
+        } else {
+            /* there's still content to fetch in the current block */
+            cur_blk = right_blk - NTFS_SB(fs)->mft_blk;
             offset = next_offset;   /* update FS block offset */
         }
     }
@@ -375,7 +436,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     uint8_t *stream;
     uint32_t offset;
 
-    mrec = ntfs_mft_record_lookup(fs, mft_no, &start_blk);
+    mrec = NTFS_SB(fs)->mft_record_lookup(fs, mft_no, &start_blk);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
@@ -509,7 +570,7 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
 
     dprintf("ntfs_index_lookup() - mft record number: %d\n",
             NTFS_PVT(dir)->mft_no);
-    mrec = ntfs_mft_record_lookup(fs, NTFS_PVT(dir)->mft_no, NULL);
+    mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(dir)->mft_no, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
@@ -756,7 +817,8 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
         return ret;
 
     if (!non_resident) {
-        mrec = ntfs_mft_record_lookup(fs, NTFS_PVT(inode)->mft_no, NULL);
+        mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(inode)->mft_no,
+					      NULL);
         if (!mrec) {
             printf("No MFT record found.\n");
             goto out;
@@ -815,7 +877,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     int64_t lcn;
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
 
-    mrec = ntfs_mft_record_lookup(fs, NTFS_PVT(inode)->mft_no, NULL);
+    mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(inode)->mft_no, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
@@ -967,7 +1029,7 @@ done:
 
     free(mrec);
 
-    mrec = ntfs_mft_record_lookup(fs, ie->data.dir.indexed_file, NULL);
+    mrec = NTFS_SB(fs)->mft_record_lookup(fs, ie->data.dir.indexed_file, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
@@ -996,21 +1058,66 @@ static struct inode *ntfs_iget(const char *dname, struct inode *parent)
 
 static struct inode *ntfs_iget_root(struct fs_info *fs)
 {
-    struct inode *inode = new_ntfs_inode(fs);
+    uint64_t start_blk;
+    MFT_RECORD * mrec;
+    ATTR_RECORD * attr;
+    VOLUME_INFORMATION * vol_info;
+    struct inode * inode;
     int err;
 
+    /* Fetch the $Volume MFT record */
+    start_blk = 0;
+    mrec = NTFS_SB(fs)->mft_record_lookup(fs, FILE_Volume, &start_blk);
+    if (!mrec) {
+        printf("Could not fetch $Volume MFT record!\n");
+        goto err_mrec;
+    }
+
+    /* Fetch the volume information attribute */
+    attr = ntfs_attr_lookup(NTFS_AT_VOL_INFO, mrec);
+    if (!attr) {
+        printf("Could not find volume info attribute!\n");
+        goto err_attr;
+    }
+
+    /* Note NTFS version and choose version-dependent functions */
+    vol_info = (void *) ((char *) attr + attr->data.resident.value_offset);
+    NTFS_SB(fs)->major_ver = vol_info->major_ver;
+    NTFS_SB(fs)->minor_ver = vol_info->minor_ver;
+    if (vol_info->major_ver == 3 && vol_info->minor_ver == 0)
+        NTFS_SB(fs)->mft_record_lookup = ntfs_mft_record_lookup_3_0;
+    else if (vol_info->major_ver == 3 && vol_info->minor_ver == 1 &&
+	     mrec->mft_record_no == FILE_Volume)
+        NTFS_SB(fs)->mft_record_lookup = ntfs_mft_record_lookup_3_1;
+
+    /* Free MFT record */
+    free(mrec);
+    mrec = NULL;
+
+    inode = new_ntfs_inode(fs);
+    if (!inode) {
+        printf("Could not allocate root inode!\n");
+        goto err_alloc_inode;
+    }
     inode->fs = fs;
 
     err = index_inode_setup(fs, FILE_root, inode);
     if (err)
-        goto free_out;
+        goto err_setup;
 
     NTFS_PVT(inode)->start = NTFS_PVT(inode)->here;
 
     return inode;
 
-free_out:
+err_setup:
+
     free(inode);
+err_alloc_inode:
+
+err_attr:
+
+    free(mrec);
+err_mrec:
 
     return NULL;
 }
@@ -1067,6 +1174,15 @@ static int ntfs_fs_init(struct fs_info *fs)
     sbi->clusters = ntfs.total_sectors << SECTOR_SHIFT(fs) >> sbi->clust_shift;
     if (sbi->clusters > 0xFFFFFFFFFFF4ULL)
         sbi->clusters = 0xFFFFFFFFFFF4ULL;
+
+    /*
+     * Assume NTFS version 3.0 to begin with.  If we find that the
+     * volume is a different version later on, we will adjust at
+     * that time.
+     */
+    sbi->major_ver = 3;
+    sbi->minor_ver = 0;
+    sbi->mft_record_lookup = ntfs_mft_record_lookup_3_0;
 
     /* Initialize the cache */
     cache_init(fs->fs_dev, BLOCK_SHIFT(fs));

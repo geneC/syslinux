@@ -48,6 +48,11 @@ struct ntfs_bpb {
     uint8_t pad[428];       /* padding to a sector boundary (512 bytes) */
 } __attribute__((__packed__));
 
+/* Function type for an NTFS-version-dependent MFT record lookup */
+struct s_mft_record_;
+typedef struct s_mft_record_ * f_mft_record_lookup(struct fs_info *, uint32_t,
+					    block_t *);
+
 struct ntfs_sb_info {
     block_t mft_blk;                /* The first MFT record block */
     uint64_t mft_lcn;               /* LCN of the first MFT record */
@@ -63,6 +68,11 @@ struct ntfs_sb_info {
     unsigned clust_mask;
     unsigned clust_size;
 
+    uint8_t major_ver;              /* Major version from $Volume */
+    uint8_t minor_ver;              /* Minor version from $Volume */
+
+    /* NTFS-version-dependent MFT record lookup function to use */
+    f_mft_record_lookup * mft_record_lookup;
 } __attribute__((__packed__));
 
 /* The NTFS in-memory inode structure */
@@ -226,7 +236,7 @@ enum {
     MFT_RECORD_IS_DIRECTORY = 0x0002,
 } __attribute__((__packed__));
 
-typedef struct {
+typedef struct s_mft_record_ {
     uint32_t magic;
     uint16_t usa_ofs;
     uint16_t usa_count;
