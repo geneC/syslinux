@@ -1125,12 +1125,15 @@ err_mrec:
 /* Initialize the filesystem metadata and return blk size in bits */
 static int ntfs_fs_init(struct fs_info *fs)
 {
+    int read_count;
     struct ntfs_bpb ntfs;
     struct ntfs_sb_info *sbi;
     struct disk *disk = fs->fs_dev->disk;
     uint8_t mft_record_shift;
 
-    disk->rdwr_sectors(disk, &ntfs, 0, 1, 0);
+    read_count = disk->rdwr_sectors(disk, &ntfs, 0, 1, 0);
+    if (!read_count)
+	return -1;
 
     /* sanity check */
     if (!ntfs_check_sb_fields(&ntfs))
