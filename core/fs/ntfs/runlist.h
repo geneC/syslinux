@@ -31,7 +31,7 @@ struct runlist {
     struct runlist *next;
 };
 
-static struct runlist **tail;
+static struct runlist *tail;
 
 static inline bool runlist_is_empty(struct runlist *rlist)
 {
@@ -60,10 +60,10 @@ static inline void runlist_append(struct runlist **rlist,
 
     if (runlist_is_empty(*rlist)) {
         *rlist = n;
-        *tail = n;
+        tail = n;
     } else {
-        (*tail)->next = n;
-        *tail = n;
+        tail->next = n;
+        tail = n;
     }
 }
 

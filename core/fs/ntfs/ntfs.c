@@ -68,7 +68,7 @@ static inline struct inode *new_ntfs_inode(struct fs_info *fs)
     return inode;
 }
 
-static void ntfs_fixups_writeback(struct fs_info *fs, NTFS_RECORD *nrec)
+static void ntfs_fixups_writeback(struct fs_info *fs, struct ntfs_record *nrec)
 {
     uint16_t *usa;
     uint16_t usa_no;
@@ -170,7 +170,8 @@ out:
     return -1;
 }
 
-static MFT_RECORD *ntfs_mft_record_lookup_3_0(struct fs_info *fs, uint32_t file, block_t *blk)
+static struct ntfs_mft_record *ntfs_mft_record_lookup_3_0(struct fs_info *fs,
+                                                uint32_t file, block_t *blk)
 {
     const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
     uint8_t *buf;
@@ -179,11 +180,11 @@ static MFT_RECORD *ntfs_mft_record_lookup_3_0(struct fs_info *fs, uint32_t file,
     block_t right_blk;
     uint64_t offset;
     uint64_t next_offset;
-    const unsigned mft_record_shift = ilog2(mft_record_size);
-    const unsigned clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
-    uint64_t lcn = NTFS_SB(fs)->mft_lcn;
+    const uint32_t mft_record_shift = ilog2(mft_record_size);
+    const uint32_t clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
+    uint64_t lcn;
     int err;
-    MFT_RECORD *mrec;
+    struct ntfs_mft_record *mrec;
 
     buf = (uint8_t *)malloc(mft_record_size);
     if (!buf)
@@ -202,9 +203,9 @@ static MFT_RECORD *ntfs_mft_record_lookup_3_0(struct fs_info *fs, uint32_t file,
             break;
         }
 
-        ntfs_fixups_writeback(fs, (NTFS_RECORD *)buf);
+        ntfs_fixups_writeback(fs, (struct ntfs_record *)buf);
 
-        mrec = (MFT_RECORD *)buf;
+        mrec = (struct ntfs_mft_record *)buf;
         /* check if it has a valid magic number */
         if (mrec->magic == NTFS_MAGIC_FILE) {
             if (blk)
@@ -229,23 +230,29 @@ static MFT_RECORD *ntfs_mft_record_lookup_3_0(struct fs_info *fs, uint32_t file,
     return NULL;
 }
 
-static MFT_RECORD *ntfs_mft_record_lookup_3_1(struct fs_info *fs, uint32_t file, block_t *blk)
+static struct ntfs_mft_record *ntfs_mft_record_lookup_3_1(struct fs_info *fs,
+                                                uint32_t file, block_t *blk)
 {
     const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
     uint8_t *buf;
+    const block_t mft_blk = NTFS_SB(fs)->mft_blk;
     block_t cur_blk;
     block_t right_blk;
-    uint64_t offset = 0;
+    uint64_t offset;
     uint64_t next_offset;
-    uint64_t lcn = NTFS_SB(fs)->mft_lcn;
+    const uint32_t mft_record_shift = ilog2(mft_record_size);
+    const uint32_t clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
+    uint64_t lcn;
     int err;
-    MFT_RECORD *mrec;
+    struct ntfs_mft_record *mrec;
 
     buf = (uint8_t *)malloc(mft_record_size);
     if (!buf)
         malloc_error("uint8_t *");
 
-    cur_blk = blk ? *blk : 0;
+    lcn = NTFS_SB(fs)->mft_lcn + (file << mft_record_shift >> clust_byte_shift);
+    cur_blk = (lcn << clust_byte_shift >> BLOCK_SHIFT(fs)) - mft_blk;
+    offset = (file << mft_record_shift) % BLOCK_SIZE(fs);
     for (;;) {
         right_blk = cur_blk + NTFS_SB(fs)->mft_blk;
         err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
@@ -255,9 +262,9 @@ static MFT_RECORD *ntfs_mft_record_lookup_3_1(struct fs_info *fs, uint32_t file,
             break;
         }
 
-        ntfs_fixups_writeback(fs, (NTFS_RECORD *)buf);
+        ntfs_fixups_writeback(fs, (struct ntfs_record *)buf);
 
-        mrec = (MFT_RECORD *)buf;
+        mrec = (struct ntfs_mft_record *)buf;
         /* Check if the NTFS 3.1 MFT record number matches */
         if (mrec->magic == NTFS_MAGIC_FILE && mrec->mft_record_no == file) {
             if (blk)
@@ -282,17 +289,18 @@ static MFT_RECORD *ntfs_mft_record_lookup_3_1(struct fs_info *fs, uint32_t file,
     return NULL;
 }
 
-static ATTR_RECORD *ntfs_attr_lookup(uint32_t type, const MFT_RECORD *mrec)
+static struct ntfs_attr_record *ntfs_attr_lookup(uint32_t type,
+                                            const struct ntfs_mft_record *mrec)
 {
-    ATTR_RECORD *attr;
+    struct ntfs_attr_record *attr;
 
     /* sanity check */
     if (!mrec || type == NTFS_AT_END)
         return NULL;
 
-    attr = (ATTR_RECORD *)((uint8_t *)mrec + mrec->attrs_offset);
+    attr = (struct ntfs_attr_record *)((uint8_t *)mrec + mrec->attrs_offset);
     /* walk through the file attribute records */
-    for (;; attr = (ATTR_RECORD *)((uint8_t *)attr + attr->len)) {
+    for (;; attr = (struct ntfs_attr_record *)((uint8_t *)attr + attr->len)) {
         if (attr->type == NTFS_AT_END)
             return NULL;
 
@@ -303,7 +311,7 @@ static ATTR_RECORD *ntfs_attr_lookup(uint32_t type, const MFT_RECORD *mrec)
     return attr;
 }
 
-static bool ntfs_filename_cmp(const char *dname, INDEX_ENTRY *ie)
+static bool ntfs_filename_cmp(const char *dname, struct ntfs_idx_entry *ie)
 {
     const uint16_t *entry_fn;
     uint8_t entry_fn_len;
@@ -329,9 +337,9 @@ static bool ntfs_filename_cmp(const char *dname, INDEX_ENTRY *ie)
     return true;
 }
 
-static inline uint8_t *mapping_chunk_init(ATTR_RECORD *attr,
-                                    struct mapping_chunk *chunk,
-                                    uint32_t *offset)
+static inline uint8_t *mapping_chunk_init(struct ntfs_attr_record *attr,
+                                        struct mapping_chunk *chunk,
+                                        uint32_t *offset)
 {
     memset(chunk, 0, sizeof *chunk);
     *offset = 0U;
@@ -415,7 +423,7 @@ out:
     return -1;
 }
 
-static inline enum dirent_type get_inode_mode(MFT_RECORD *mrec)
+static inline enum dirent_type get_inode_mode(struct ntfs_mft_record *mrec)
 {
     return mrec->flags & MFT_RECORD_IS_DIRECTORY ? DT_DIR : DT_REG;
 }
@@ -424,12 +432,11 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
                             struct inode *inode)
 {
     uint64_t start_blk = 0;
-    MFT_RECORD *mrec;
-    ATTR_RECORD *attr;
+    struct ntfs_mft_record *mrec;
+    struct ntfs_attr_record *attr;
     enum dirent_type d_type;
     uint32_t len;
-    INDEX_ROOT *ir;
-    uint32_t clust_size;
+    struct ntfs_idx_root *ir;
     uint8_t *attr_len;
     struct mapping_chunk chunk;
     int err;
@@ -457,30 +464,14 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             goto out;
         }
 
-        /* note: INDEX_ROOT is always resident */
-        ir = (INDEX_ROOT *)((uint8_t *)attr +
+        /* note: struct ntfs_idx_root is always resident */
+        ir = (struct ntfs_idx_root *)((uint8_t *)attr +
                                     attr->data.resident.value_offset);
         len = attr->data.resident.value_len;
         if ((uint8_t *)ir + len > (uint8_t *)mrec +
                         NTFS_SB(fs)->mft_record_size) {
-            dprintf("Corrupt index\n");
+            printf("Corrupt index.\n");
             goto out;
-        }
-
-        NTFS_PVT(inode)->itype.index.collation_rule = ir->collation_rule;
-        NTFS_PVT(inode)->itype.index.blk_size = ir->index_block_size;
-        NTFS_PVT(inode)->itype.index.blk_size_shift =
-                            ilog2(NTFS_PVT(inode)->itype.index.blk_size);
-
-        /* determine the size of a vcn in the index */
-        clust_size = NTFS_PVT(inode)->itype.index.blk_size;
-        if (NTFS_SB(fs)->clust_size <= clust_size) {
-            NTFS_PVT(inode)->itype.index.vcn_size = NTFS_SB(fs)->clust_size;
-            NTFS_PVT(inode)->itype.index.vcn_size_shift =
-                                        NTFS_SB(fs)->clust_shift;
-        } else {
-            NTFS_PVT(inode)->itype.index.vcn_size = BLOCK_SIZE(fs);
-            NTFS_PVT(inode)->itype.index.vcn_size_shift = BLOCK_SHIFT(fs);
         }
 
         NTFS_PVT(inode)->in_idx_root = true;
@@ -548,16 +539,16 @@ out:
 static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
 {
     struct fs_info *fs = dir->fs;
-    MFT_RECORD *mrec;
+    struct ntfs_mft_record *mrec;
     block_t blk;
     uint64_t blk_offset;
-    ATTR_RECORD *attr;
-    INDEX_ROOT *ir;
+    struct ntfs_attr_record *attr;
+    struct ntfs_idx_root *ir;
     uint32_t len;
-    INDEX_ENTRY *ie;
+    struct ntfs_idx_entry *ie;
     const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
     uint8_t buf[blk_size];
-    INDEX_BLOCK *iblk;
+    struct ntfs_idx_allocation *iblk;
     int err;
     uint8_t *stream;
     uint8_t *attr_len;
@@ -568,8 +559,6 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
     int64_t last_lcn;
     struct inode *inode;
 
-    dprintf("ntfs_index_lookup() - mft record number: %d\n",
-            NTFS_PVT(dir)->mft_no);
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(dir)->mft_no, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
@@ -582,19 +571,19 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
         goto out;
     }
 
-    ir = (INDEX_ROOT *)((uint8_t *)attr +
+    ir = (struct ntfs_idx_root *)((uint8_t *)attr +
                             attr->data.resident.value_offset);
     len = attr->data.resident.value_len;
     /* sanity check */
     if ((uint8_t *)ir + len > (uint8_t *)mrec + NTFS_SB(fs)->mft_record_size)
         goto index_err;
 
-    ie = (INDEX_ENTRY *)((uint8_t *)&ir->index +
+    ie = (struct ntfs_idx_entry *)((uint8_t *)&ir->index +
                                 ir->index.entries_offset);
-    for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
+    for (;; ie = (struct ntfs_idx_entry *)((uint8_t *)ie + ie->len)) {
         /* bounds checks */
         if ((uint8_t *)ie < (uint8_t *)mrec ||
-            (uint8_t *)ie + sizeof(INDEX_ENTRY_HEADER) >
+            (uint8_t *)ie + sizeof(struct ntfs_idx_entry_header) >
             (uint8_t *)&ir->index + ir->index.index_len ||
             (uint8_t *)ie + ie->len >
             (uint8_t *)&ir->index + ir->index.index_len)
@@ -603,7 +592,6 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
         /* last entry cannot contain a key. it can however contain
          * a pointer to a child node in the B+ tree so we just break out
          */
-        dprintf("(0) ie->flags:          0x%X\n", ie->flags);
         if (ie->flags & INDEX_ENTRY_END)
             break;
 
@@ -660,20 +648,21 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
                     goto not_found;
                 }
 
-                ntfs_fixups_writeback(fs, (NTFS_RECORD *)&buf);
+                ntfs_fixups_writeback(fs, (struct ntfs_record *)&buf);
 
-                iblk = (INDEX_BLOCK *)&buf;
+                iblk = (struct ntfs_idx_allocation *)&buf;
                 if (iblk->magic != NTFS_MAGIC_INDX) {
                     printf("Not a valid INDX record.\n");
                     goto not_found;
                 }
 
-                ie = (INDEX_ENTRY *)((uint8_t *)&iblk->index +
+                ie = (struct ntfs_idx_entry *)((uint8_t *)&iblk->index +
                                             iblk->index.entries_offset);
-                for (;; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
+                for (;; ie = (struct ntfs_idx_entry *)((uint8_t *)ie +
+                        ie->len)) {
                     /* bounds checks */
                     if ((uint8_t *)ie < (uint8_t *)iblk || (uint8_t *)ie +
-                        sizeof(INDEX_ENTRY_HEADER) >
+                        sizeof(struct ntfs_idx_entry_header) >
                         (uint8_t *)&iblk->index + iblk->index.index_len ||
                         (uint8_t *)ie + ie->len >
                         (uint8_t *)&iblk->index + iblk->index.index_len)
@@ -736,7 +725,8 @@ index_err:
 }
 
 /* Convert an UTF-16LE LFN to OEM LFN */
-static uint8_t ntfs_cvt_filename(char *filename, INDEX_ENTRY *ie)
+static uint8_t ntfs_cvt_filename(char *filename,
+                                const struct ntfs_idx_entry *ie)
 {
     const uint16_t *entry_fn;
     uint8_t entry_fn_len;
@@ -806,8 +796,8 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     uint32_t ret;
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
-    MFT_RECORD *mrec;
-    ATTR_RECORD *attr;
+    struct ntfs_mft_record *mrec;
+    struct ntfs_attr_record *attr;
     char *p;
 
     non_resident = NTFS_PVT(inode)->non_resident;
@@ -857,17 +847,17 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
-    MFT_RECORD *mrec;
+    struct ntfs_mft_record *mrec;
     block_t blk;
     uint64_t blk_offset;
     const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
-    ATTR_RECORD *attr;
-    INDEX_ROOT *ir;
+    struct ntfs_attr_record *attr;
+    struct ntfs_idx_root *ir;
     uint32_t count;
     int len;
-    INDEX_ENTRY *ie = NULL;
+    struct ntfs_idx_entry *ie = NULL;
     uint8_t buf[BLOCK_SIZE(fs)];
-    INDEX_BLOCK *iblk;
+    struct ntfs_idx_allocation *iblk;
     int err;
     uint8_t *stream;
     uint8_t *attr_len;
@@ -889,7 +879,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
         goto out;
     }
 
-    ir = (INDEX_ROOT *)((uint8_t *)attr +
+    ir = (struct ntfs_idx_root *)((uint8_t *)attr +
                             attr->data.resident.value_offset);
     len = attr->data.resident.value_len;
     /* sanity check */
@@ -903,7 +893,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 
 idx_root_next_entry:
     if (NTFS_PVT(inode)->in_idx_root) {
-        ie = (INDEX_ENTRY *)(uint8_t *)file->offset;
+        ie = (struct ntfs_idx_entry *)(uint8_t *)file->offset;
         if (ie->flags & INDEX_ENTRY_END) {
             file->offset = 0;
             NTFS_PVT(inode)->in_idx_root = false;
@@ -977,22 +967,22 @@ next_vcn:
         goto not_found;
     }
 
-    ntfs_fixups_writeback(fs, (NTFS_RECORD *)&buf);
+    ntfs_fixups_writeback(fs, (struct ntfs_record *)&buf);
 
-    iblk = (INDEX_BLOCK *)&buf;
+    iblk = (struct ntfs_idx_allocation *)&buf;
     if (iblk->magic != NTFS_MAGIC_INDX) {
         printf("Not a valid INDX record.\n");
         goto not_found;
     }
 
 idx_block_next_entry:
-    ie = (INDEX_ENTRY *)((uint8_t *)&iblk->index +
+    ie = (struct ntfs_idx_entry *)((uint8_t *)&iblk->index +
                         iblk->index.entries_offset);
     count = NTFS_PVT(inode)->entries_count;
-    for ( ; count--; ie = (INDEX_ENTRY *)((uint8_t *)ie + ie->len)) {
+    for ( ; count--; ie = (struct ntfs_idx_entry *)((uint8_t *)ie + ie->len)) {
         /* bounds checks */
         if ((uint8_t *)ie < (uint8_t *)iblk || (uint8_t *)ie +
-            sizeof(INDEX_ENTRY_HEADER) >
+            sizeof(struct ntfs_idx_entry_header) >
             (uint8_t *)&iblk->index + iblk->index.index_len ||
             (uint8_t *)ie + ie->len >
             (uint8_t *)&iblk->index + iblk->index.index_len)
@@ -1059,10 +1049,10 @@ static struct inode *ntfs_iget(const char *dname, struct inode *parent)
 static struct inode *ntfs_iget_root(struct fs_info *fs)
 {
     uint64_t start_blk;
-    MFT_RECORD * mrec;
-    ATTR_RECORD * attr;
-    VOLUME_INFORMATION * vol_info;
-    struct inode * inode;
+    struct ntfs_mft_record *mrec;
+    struct ntfs_attr_record *attr;
+    struct ntfs_vol_info *vol_info;
+    struct inode *inode;
     int err;
 
     /* Fetch the $Volume MFT record */
@@ -1081,13 +1071,13 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
     }
 
     /* Note NTFS version and choose version-dependent functions */
-    vol_info = (void *) ((char *) attr + attr->data.resident.value_offset);
+    vol_info = (void *)((char *)attr + attr->data.resident.value_offset);
     NTFS_SB(fs)->major_ver = vol_info->major_ver;
     NTFS_SB(fs)->minor_ver = vol_info->minor_ver;
     if (vol_info->major_ver == 3 && vol_info->minor_ver == 0)
         NTFS_SB(fs)->mft_record_lookup = ntfs_mft_record_lookup_3_0;
     else if (vol_info->major_ver == 3 && vol_info->minor_ver == 1 &&
-	     mrec->mft_record_no == FILE_Volume)
+            mrec->mft_record_no == FILE_Volume)
         NTFS_SB(fs)->mft_record_lookup = ntfs_mft_record_lookup_3_1;
 
     /* Free MFT record */
@@ -1095,10 +1085,6 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
     mrec = NULL;
 
     inode = new_ntfs_inode(fs);
-    if (!inode) {
-        printf("Could not allocate root inode!\n");
-        goto err_alloc_inode;
-    }
     inode->fs = fs;
 
     err = index_inode_setup(fs, FILE_root, inode);
@@ -1112,8 +1098,6 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
 err_setup:
 
     free(inode);
-err_alloc_inode:
-
 err_attr:
 
     free(mrec);
@@ -1169,8 +1153,8 @@ static int ntfs_fs_init(struct fs_info *fs)
     BLOCK_SIZE(fs) = 1 << BLOCK_SHIFT(fs);
 
     sbi->mft_lcn = ntfs.mft_lclust;
-    sbi->mft_blk = ntfs.mft_lclust << sbi->clust_shift <<
-                    SECTOR_SHIFT(fs) >> BLOCK_SHIFT(fs);
+    sbi->mft_blk = ntfs.mft_lclust << sbi->clust_shift << SECTOR_SHIFT(fs) >>
+                BLOCK_SHIFT(fs);
     /* 16 MFT entries reserved for metadata files (approximately 16 KiB) */
     sbi->mft_size = mft_record_shift << sbi->clust_shift << 4;
 
