@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Paulo Alcantara <pcacjr@gmail.com>
+ * Copyright (C) Paulo Alcantara <pcacjr@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,8 +82,7 @@ struct ntfs_inode {
             uint32_t offset;    /* Data offset */
         } resident;
         struct {            /* Used only if non_resident is set */
-            uint64_t len;
-            int64_t lcn;        /* Logical Cluster Number offset */
+            struct runlist *rlist;
         } non_resident;
     } data;
     union {
@@ -111,9 +110,10 @@ enum {
 };
 
 struct mapping_chunk {
+    uint64_t vcn;
+    int64_t lcn;
     uint64_t len;
-    int64_t lcn;        /* Logical Cluster Number */
-    uint32_t flags;     /* Specific flags of this chunk */
+    uint32_t flags;
 };
 
 /* System defined attributes (32-bit)

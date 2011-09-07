@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Paulo Alcantara <pcacjr@gmail.com>
+ * Copyright (C) Paulo Alcantara <pcacjr@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 
 #include "codepage.h"
 #include "ntfs.h"
+#include "runlist.h"
 
 /* Check if there are specific zero fields in an NTFS boot sector */
 static inline int ntfs_check_zero_fields(const struct ntfs_bpb *sb)
@@ -441,6 +442,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             attr_len = (uint8_t *)attr + attr->len;
 
             stream = mapping_chunk_init(attr, &chunk, &offset);
+            NTFS_PVT(inode)->data.non_resident.rlist = NULL;
             for (;;) {
                 err = parse_data_run(stream, &offset, attr_len, &chunk);
                 if (err) {
@@ -450,17 +452,22 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
 
                 if (chunk.flags & MAP_UNALLOCATED)
                     continue;
-                if (chunk.flags & (MAP_ALLOCATED | MAP_END))
+                if (chunk.flags & MAP_END)
                     break;
+                if (chunk.flags &  MAP_ALLOCATED) {
+                    /* append new run to the runlist */
+                    runlist_append(&NTFS_PVT(inode)->data.non_resident.rlist,
+                                    (struct runlist_element *)&chunk);
+                    /* update for next VCN */
+                    chunk.vcn += chunk.len;
+                }
             }
 
-            if (chunk.flags & MAP_END) {
-                dprintf("No mapping found\n");
+            if (runlist_is_empty(NTFS_PVT(inode)->data.non_resident.rlist)) {
+                printf("No mapping found\n");
                 goto out;
             }
 
-            NTFS_PVT(inode)->data.non_resident.len = chunk.len;
-            NTFS_PVT(inode)->data.non_resident.lcn = chunk.lcn;
             inode->size = attr->data.non_resident.initialized_size;
         }
     }
@@ -689,26 +696,41 @@ static int ntfs_next_extent(struct inode *inode, uint32_t lstart)
 {
     struct fs_info *fs = inode->fs;
     struct ntfs_sb_info *sbi = NTFS_SB(fs);
-    uint32_t mcluster = lstart >> sbi->clust_shift;
-    uint32_t tcluster;
-    const uint32_t cluster_bytes = UINT32_C(1) << sbi->clust_byte_shift;
-    sector_t pstart;
+    sector_t pstart = 0;
+    struct runlist *rlist;
+    struct runlist *ret;
     const uint32_t sec_size = SECTOR_SIZE(fs);
     const uint32_t sec_shift = SECTOR_SHIFT(fs);
 
-    tcluster = (inode->size + cluster_bytes - 1) >> sbi->clust_byte_shift;
-    if (mcluster >= tcluster)
-        goto out;       /* Requested cluster beyond end of file */
-
     if (!NTFS_PVT(inode)->non_resident) {
-        pstart = sbi->mft_blk + NTFS_PVT(inode)->here;
-        pstart <<= BLOCK_SHIFT(fs) >> sec_shift;
+        pstart = (sbi->mft_blk + NTFS_PVT(inode)->here) << BLOCK_SHIFT(fs) >>
+                sec_shift;
+        inode->next_extent.len = (inode->size + sec_size - 1) >> sec_shift;
     } else {
-        pstart = NTFS_PVT(inode)->data.non_resident.lcn << sbi->clust_shift;
+        rlist = NTFS_PVT(inode)->data.non_resident.rlist;
+
+        if (!lstart || lstart >= NTFS_PVT(inode)->here) {
+            if (runlist_is_empty(rlist))
+                goto out;   /* nothing to do ;-) */
+
+            ret = runlist_remove(&rlist);
+
+            NTFS_PVT(inode)->here =
+                ((ret->run.len << sbi->clust_byte_shift) >> sec_shift);
+
+            pstart = ret->run.lcn << sbi->clust_shift;
+            inode->next_extent.len =
+                ((ret->run.len << sbi->clust_byte_shift) + sec_size - 1) >>
+                sec_shift;
+
+            NTFS_PVT(inode)->data.non_resident.rlist = rlist;
+
+            free(ret);
+            ret = NULL;
+        }
     }
 
     inode->next_extent.pstart = pstart;
-    inode->next_extent.len = (inode->size + sec_size - 1) >> sec_shift;
 
     return 0;
 
