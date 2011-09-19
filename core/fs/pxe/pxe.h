@@ -30,6 +30,7 @@
 #define TFTP_BLOCKSIZE_LG2 9
 #define TFTP_BLOCKSIZE  (1 << TFTP_BLOCKSIZE_LG2)
 #define PKTBUF_SIZE     2048			/*  */
+#define TRACKBUF_SIZE	8192			/* Only used by PXELINUX for now for examining hardwired options */
 
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
 
@@ -192,6 +193,9 @@ extern uint8_t MAC_type;
 extern uint8_t  DHCPMagic;
 extern uint32_t RebootTime;
 
+extern uint32_t bdhcp_len;
+extern uint32_t adhcp_len;
+
 extern char boot_file[];
 extern char path_prefix[];
 extern char LocalDomain[];
@@ -236,6 +240,7 @@ int pxe_call(int, void *);
 
 /* dhcp_options.c */
 void parse_dhcp(int);
+void parse_dhcp_options1(const void *, int, uint8_t);
 
 /* dnsresolv.c */
 int dns_mangle(char **, const char *);

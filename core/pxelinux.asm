@@ -108,6 +108,7 @@ _start:
 ; Patch area for adding hardwired DHCP options
 ;
 		align 4
+		global bdhcp_len, adhcp_len
 
 hcdhcp_magic	dd 0x2983c8ac		; Magic number
 hcdhcp_len	dd 7*4			; Size of this structure

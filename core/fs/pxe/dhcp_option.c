@@ -209,6 +209,11 @@ static void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
     }
 }
 
+/* parse_dhcp_options1 to work around static */
+void parse_dhcp_options1(const void *option, int size, uint8_t opt_filter) {
+    parse_dhcp_options(option, size, opt_filter);
+}
+
 /*
  * parse_dhcp
  *

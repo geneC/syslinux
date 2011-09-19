@@ -1,5 +1,6 @@
 #include <dprintf.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <core.h>
 #include <fs.h>
@@ -1470,8 +1471,18 @@ static void network_init(void)
 {
     struct bootp_t *bp = (struct bootp_t *)trackbuf;
     int pkt_len;
+    void *hwopt;
 
     *LocalDomain = 0;   /* No LocalDomain received */
+    
+    /* Evaluate hardwired before options */
+    hwopt = zalloc(TRACKBUF_SIZE);
+    if (!hwopt) {
+	hwopt = trackbuf;	/* Can't create a backup */
+    } else {
+	memcpy(hwopt, trackbuf, TRACKBUF_SIZE);
+    }
+    parse_dhcp_options1(hwopt, bdhcp_len, 0);
 
     /*
      * Get the DHCP client identifiers (query info 1)
@@ -1512,6 +1523,7 @@ static void network_init(void)
     pkt_len = pxe_get_cached_info(3);
     parse_dhcp(pkt_len);
     printf("\n");
+    parse_dhcp_options1(hwopt + TRACKBUF_SIZE/2, adhcp_len, 0);
 
     make_bootif_string();
     make_sysuuid_string();
@@ -1526,6 +1538,10 @@ static void network_init(void)
         DHCPMagic = 0;
 
     udp_init();
+
+    if (hwopt != trackbuf) {
+	free(hwopt);
+    }
 }
 
 /*
