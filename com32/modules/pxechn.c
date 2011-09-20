@@ -92,7 +92,7 @@ struct pxelinux_opt {
     char *fp;	/* fn's path component */
     char *cfg;
     char *prefix;
-    uint32_t reboot;
+    uint32_t reboot, rebootn;	/* Host and network order of reboot time out */
     uint8_t opt52;	/* DHCP Option Overload value */
     uint32_t wait;	/* Additional decision to wait before boot */
     struct dhcp_option pkt0, pkt1;	/* original and modified packets */
@@ -447,7 +447,8 @@ int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	case 't':	/* timeout */
 	    pxe->reboot = (uint32_t)atoi(optarg);
-	    opts[211].data = (void *)(&(pxe->reboot));
+	    pxe->rebootn = htonl(pxe->reboot);
+	    opts[211].data = (void *)(&(pxe->rebootn));
 	    opts[211].len = 4;
 	    break;
 	case 'w':	/* wait */
