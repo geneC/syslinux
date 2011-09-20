@@ -83,10 +83,6 @@ struct ntfs_inode {
     uint16_t seq_no;            /* Sequence number of the mft record */
     uint32_t type;              /* Attribute type of this inode */
     uint8_t non_resident;
-    bool in_idx_root;
-    uint32_t idx_blks_count;
-    uint32_t entries_count;
-    int64_t last_vcn;
     union {                 /* Non-resident $DATA attribute */
         struct {            /* Used only if non_resident flags isn't set */
             uint32_t offset;    /* Data offset */
@@ -99,6 +95,19 @@ struct ntfs_inode {
     sector_t start;         /* Starting sector */
     sector_t offset;        /* Current sector offset */
     sector_t here;          /* Sector corresponding to offset */
+};
+
+/* This is structure is used to keep a state for ntfs_readdir() callers.
+ * As NTFS stores directory entries in a complex way, this is structure
+ * ends up saving a state required to find out where we must start from
+ * for the next ntfs_readdir() call.
+ */
+struct ntfs_readdir_state {
+    unsigned long mft_no;       /* MFT record number */
+    bool in_idx_root;           /* It's true if we're still in the INDEX root */
+    uint32_t idx_blks_count;    /* Number of read INDX blocks */
+    uint32_t entries_count;     /* Number of read INDEX entries */
+    int64_t last_vcn;           /* Last VCN of the INDX block */
 };
 
 enum {

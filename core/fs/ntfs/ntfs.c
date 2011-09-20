@@ -35,6 +35,8 @@
 #include "ntfs.h"
 #include "runlist.h"
 
+static struct ntfs_readdir_state *readdir_state;
+
 /*** Function declarations */
 static f_mft_record_lookup ntfs_mft_record_lookup_3_0;
 static f_mft_record_lookup ntfs_mft_record_lookup_3_1;
@@ -474,7 +476,20 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
             goto out;
         }
 
-        NTFS_PVT(inode)->in_idx_root = true;
+        /* check if we have a previous allocated state structure */
+        if (readdir_state) {
+            free(readdir_state);
+            readdir_state = NULL;
+        }
+
+        /* allocate our state structure */
+        readdir_state = malloc(sizeof *readdir_state);
+        if (!readdir_state)
+            malloc_error("ntfs_readdir_state structure");
+
+        readdir_state->mft_no = mft_no;
+        /* obviously, the ntfs_readdir() caller will start from INDEX root */
+        readdir_state->in_idx_root = true;
     } else if (d_type == DT_REG) {        /* file stuff */
         dprintf("Got a file.\n");
         attr = ntfs_attr_lookup(NTFS_AT_DATA, mrec);
@@ -886,20 +901,20 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     if ((uint8_t *)ir + len > (uint8_t *)mrec + NTFS_SB(fs)->mft_record_size)
         goto index_err;
 
-    if (!file->offset && NTFS_PVT(inode)->in_idx_root) {
+    if (!file->offset && readdir_state->in_idx_root) {
         file->offset = (uint32_t)((uint8_t *)&ir->index +
                                         ir->index.entries_offset);
     }
 
 idx_root_next_entry:
-    if (NTFS_PVT(inode)->in_idx_root) {
+    if (readdir_state->in_idx_root) {
         ie = (struct ntfs_idx_entry *)(uint8_t *)file->offset;
         if (ie->flags & INDEX_ENTRY_END) {
             file->offset = 0;
-            NTFS_PVT(inode)->in_idx_root = false;
-            NTFS_PVT(inode)->idx_blks_count = 1;
-            NTFS_PVT(inode)->entries_count = 0;
-            NTFS_PVT(inode)->last_vcn = 0;
+            readdir_state->in_idx_root = false;
+            readdir_state->idx_blks_count = 1;
+            readdir_state->entries_count = 0;
+            readdir_state->last_vcn = 0;
             goto descend_into_child_node;
         }
 
@@ -928,7 +943,7 @@ descend_into_child_node:
 
 next_run:
     stream = mapping_chunk_init(attr, &chunk, &offset);
-    count = NTFS_PVT(inode)->idx_blks_count;
+    count = readdir_state->idx_blks_count;
     while (count--) {
         err = parse_data_run(stream, &offset, attr_len, &chunk);
         if (err) {
@@ -943,15 +958,15 @@ next_run:
     }
 
     if (chunk.flags & MAP_UNALLOCATED) {
-       NTFS_PVT(inode)->idx_blks_count++;
+       readdir_state->idx_blks_count++;
        goto next_run;
     }
 
 next_vcn:
-    vcn = NTFS_PVT(inode)->last_vcn;
+    vcn = readdir_state->last_vcn;
     if (vcn >= chunk.len) {
-        NTFS_PVT(inode)->last_vcn = 0;
-        NTFS_PVT(inode)->idx_blks_count++;
+        readdir_state->last_vcn = 0;
+        readdir_state->idx_blks_count++;
         goto next_run;
     }
 
@@ -978,7 +993,7 @@ next_vcn:
 idx_block_next_entry:
     ie = (struct ntfs_idx_entry *)((uint8_t *)&iblk->index +
                         iblk->index.entries_offset);
-    count = NTFS_PVT(inode)->entries_count;
+    count = readdir_state->entries_count;
     for ( ; count--; ie = (struct ntfs_idx_entry *)((uint8_t *)ie + ie->len)) {
         /* bounds checks */
         if ((uint8_t *)ie < (uint8_t *)iblk || (uint8_t *)ie +
@@ -991,14 +1006,14 @@ idx_block_next_entry:
         /* last entry cannot contain a key */
         if (ie->flags & INDEX_ENTRY_END) {
             /* go to the next VCN */
-            NTFS_PVT(inode)->last_vcn += (blk_size / (1 <<
+            readdir_state->last_vcn += (blk_size / (1 <<
                                 NTFS_SB(fs)->clust_byte_shift));
-            NTFS_PVT(inode)->entries_count = 0;
+            readdir_state->entries_count = 0;
             goto next_vcn;
         }
     }
 
-    NTFS_PVT(inode)->entries_count++;
+    readdir_state->entries_count++;
     len = ntfs_cvt_filename(filename, ie);
     if (!is_filename_printable(filename))
         goto idx_block_next_entry;
@@ -1006,7 +1021,7 @@ idx_block_next_entry:
     goto done;
 
 out:
-    NTFS_PVT(inode)->in_idx_root = true;
+    readdir_state->in_idx_root = true;
 
     free(mrec);
 
