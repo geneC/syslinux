@@ -447,7 +447,7 @@ int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	case 't':	/* timeout */
 	    pxe->reboot = (uint32_t)atoi(optarg);
-	    opts[211].data = (void *)(pxe->reboot);
+	    opts[211].data = (void *)(&(pxe->reboot));
 	    opts[211].len = 4;
 	    break;
 	case 'w':	/* wait */
