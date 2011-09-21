@@ -137,7 +137,7 @@ void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **ite
 	if (found==false) {
 		CREATE_NEW_OBJECT;
 		add_b("disks->is_valid",false);
-		FLUSH_OBJECT;
 	}
+	FLUSH_OBJECT;
 	to_cpio("disks");
 }
