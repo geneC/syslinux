@@ -123,7 +123,9 @@ void show_disk(struct s_hardware *hardware, ZZJSON_CONFIG *conf, ZZJSON **it, in
 
 void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 	bool found=false;
-	for (int drive = 0x80; drive < 0xff; drive++) {
+
+ 	if (hardware->disks_count > 0)  
+	    for (int drive = 0x80; drive < 0xff; drive++) {
 	        if (hardware->disk_info[drive - 0x80].cbios) {
 			if (found==false) {
 				CREATE_NEW_OBJECT;
