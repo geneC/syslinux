@@ -1347,18 +1347,18 @@ int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw)
   // This should be done *after* the threading system and receive thread
   // have both been started.
   dprintf("undi_netif: ip %d.%d.%d.%d netmask %d.%d.%d.%d gw %d.%d.%d.%d\n",
-	 ((uint8_t *)ip)[0],
-	 ((uint8_t *)ip)[1],
-	 ((uint8_t *)ip)[2],
-	 ((uint8_t *)ip)[3],
-	 ((uint8_t *)netmask)[0],
-	 ((uint8_t *)netmask)[1],
-	 ((uint8_t *)netmask)[2],
-	 ((uint8_t *)netmask)[3],
-	 ((uint8_t *)gw)[0],
-	 ((uint8_t *)gw)[1],
-	 ((uint8_t *)gw)[2],
-	 ((uint8_t *)gw)[3]);
+	 ((uint8_t *)&ip)[0],
+	 ((uint8_t *)&ip)[1],
+	 ((uint8_t *)&ip)[2],
+	 ((uint8_t *)&ip)[3],
+	 ((uint8_t *)&netmask)[0],
+	 ((uint8_t *)&netmask)[1],
+	 ((uint8_t *)&netmask)[2],
+	 ((uint8_t *)&netmask)[3],
+	 ((uint8_t *)&gw)[0],
+	 ((uint8_t *)&gw)[1],
+	 ((uint8_t *)&gw)[2],
+	 ((uint8_t *)&gw)[3]);
   err = netifapi_netif_add(&undi_netif,
     (struct ip_addr *)&ip, (struct ip_addr *)&netmask, (struct ip_addr *)&gw,
     NULL, undiif_init, ip_input);
