@@ -181,6 +181,12 @@ err_t etharp_raw(struct netif *netif, const struct eth_addr *ethsrc_addr,
 
 #define eth_addr_cmp(addr1, addr2) (memcmp((addr1)->addr, (addr2)->addr, ETHARP_HWADDR_LEN) == 0)
 
+#define ARPH_HWLEN(hdr) (ntohs((hdr)->_hwlen_protolen) >> 8)
+#define ARPH_PROTOLEN(hdr) (ntohs((hdr)->_hwlen_protolen) & 0xff)
+
+#define ARPH_HWLEN_SET(hdr, len) (hdr)->_hwlen_protolen = htons(ARPH_PROTOLEN(hdr) | ((len) << 8))
+#define ARPH_PROTOLEN_SET(hdr, len) (hdr)->_hwlen_protolen = htons((len) | (ARPH_HWLEN(hdr) << 8))
+
 extern const struct eth_addr ethbroadcast, ethzero;
 
 #ifdef __cplusplus
