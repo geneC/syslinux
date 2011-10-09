@@ -22,6 +22,7 @@ pxe_isr:
 		push di
 		rep stosw
 		pop di
+		inc dword [pxe_irq_count]
 		
 		mov byte [pxenv_undi_isr_buf.funcflag],PXENV_UNDI_ISR_IN_START
 
@@ -31,6 +32,7 @@ pxe_isr:
 		cmp word [pxenv_undi_isr_buf.funcflag],PXENV_UNDI_ISR_OUT_OURS
 		jne .notus
 
+		inc dword [pxe_irq_count_us]
 		; Its ours - set the flag for the return to PM.
 		; We need to EOI this ourselves, so that the
 		; leftover BC doesn't get control.
@@ -84,5 +86,9 @@ pxenv_undi_isr_buf:
 pxe_irq_vector	resb 1			; PXE IRQ vector
 		global pxe_irq_pending
 pxe_irq_pending	resb 1			; IRQ pending flag
+		global pxe_irq_count
+pxe_irq_count	resd 1			; How many times have we been called
+		global pxe_irq_count_us
+pxe_irq_count_us	resd 1			; ... and serviced the IRQ
 
 		section .text16

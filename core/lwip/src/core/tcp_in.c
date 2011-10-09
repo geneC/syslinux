@@ -104,9 +104,11 @@ tcp_input(struct pbuf *p, struct netif *inp)
 
   iphdr = p->payload;
   tcphdr = (struct tcp_hdr *)((u8_t *)p->payload + IPH_HL(iphdr) * 4);
+  LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: got tcphdr\n"));
 
 #if TCP_INPUT_DEBUG
   tcp_debug_print(tcphdr);
+  tcp_debug_print_raw((char *)tcphdr, 20);
 #endif
 
   /* remove header from payload */
@@ -177,6 +179,9 @@ tcp_input(struct pbuf *p, struct netif *inp)
   prev = NULL;
 
   
+#if TCP_INPUT_DEBUG
+  tcp_debug_print_pcbs_type(tcp_active_pcbs);
+#endif
   for(pcb = tcp_active_pcbs; pcb != NULL; pcb = pcb->next) {
     LWIP_ASSERT("tcp_input: active pcb->state != CLOSED", pcb->state != CLOSED);
     LWIP_ASSERT("tcp_input: active pcb->state != TIME-WAIT", pcb->state != TIME_WAIT);
@@ -257,6 +262,9 @@ tcp_input(struct pbuf *p, struct netif *inp)
   if (pcb != NULL) {
     /* The incoming segment belongs to a connection. */
 #if TCP_INPUT_DEBUG
+  LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_input: pcb-%p ua-%p th-%p\n", (void *)pcb, (void *)pcb->unacked, (void *)pcb->unacked->tcphdr));
+  tcp_debug_print_raw((char *)pcb, 32);
+  tcp_debug_print_raw((char *)(pcb->unacked->tcphdr), 20);
 #if TCP_DEBUG
     tcp_debug_print_state(pcb->state);
 #endif /* TCP_DEBUG */
@@ -492,6 +500,7 @@ tcp_timewait_input(struct tcp_pcb *pcb)
        should be sent in reply */
     if (TCP_SEQ_BETWEEN(seqno, pcb->rcv_nxt, pcb->rcv_nxt+pcb->rcv_wnd)) {
       /* If the SYN is in the window it is an error, send a reset */
+      LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_timewait_input: SYN in window RST\n"));
       tcp_rst(ackno, seqno + tcplen, &(iphdr->dest), &(iphdr->src),
         tcphdr->dest, tcphdr->src);
       return ERR_OK;
@@ -620,6 +629,7 @@ tcp_process(struct tcp_pcb *pcb)
     }
     /* received ACK? possibly a half-open connection */
     else if (flags & TCP_ACK) {
+      LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_process: send RST ->non-sync\n"));
       /* send a RST to bring the other side in a non-synchronized state. */
       tcp_rst(ackno, seqno + tcplen, &(iphdr->dest), &(iphdr->src),
         tcphdr->dest, tcphdr->src);
@@ -662,6 +672,7 @@ tcp_process(struct tcp_pcb *pcb)
       }
       /* incorrect ACK number */
       else {
+        LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_process: bad ACK -> RST\n"));
         /* send RST */
         tcp_rst(ackno, seqno + tcplen, &(iphdr->dest), &(iphdr->src),
                 tcphdr->dest, tcphdr->src);

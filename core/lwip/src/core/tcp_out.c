@@ -638,9 +638,11 @@ tcp_output(struct tcp_pcb *pcb)
           useg = useg->next;
         }
       }
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output: pcb-%p ua-%p th-%p\n", (void *)pcb, (void *)pcb->unacked, (void *)pcb->unacked->tcphdr));
     /* do not queue empty segments on the unacked list */
     } else {
       tcp_seg_free(seg);
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output: empty seg"));
     }
     seg = pcb->unsent;
   }
@@ -738,12 +740,15 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
   TCP_STATS_INC(tcp.xmit);
 
 #if LWIP_NETIF_HWADDRHINT
+  LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output_segment: -> ip_output_hinted()\n"));
   ip_output_hinted(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
       IP_PROTO_TCP, &(pcb->addr_hint));
 #else /* LWIP_NETIF_HWADDRHINT*/
+  LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output_segment: -> ip_output()\n"));
   ip_output(seg->p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
       IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
+  LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output_segment: ip_output*() ret\n"));
 }
 
 /**

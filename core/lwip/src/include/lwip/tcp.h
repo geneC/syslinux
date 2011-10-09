@@ -598,8 +598,10 @@ extern u32_t tcp_ticks;
 const char* tcp_debug_state_str(enum tcp_state s);
 #if TCP_DEBUG || TCP_INPUT_DEBUG || TCP_OUTPUT_DEBUG
 void tcp_debug_print(struct tcp_hdr *tcphdr);
+void tcp_debug_print_raw(char *b, u32_t len);
 void tcp_debug_print_flags(u8_t flags);
 void tcp_debug_print_state(enum tcp_state s);
+void tcp_debug_print_pcbs_type(struct tcp_pcb *ipcb);
 void tcp_debug_print_pcbs(void);
 s16_t tcp_pcbs_sane(void);
 #else

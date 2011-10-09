@@ -298,6 +298,7 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
   static __lowmem hwaddr_t low_dest;
   static __lowmem char pkt_buf[PKTBUF_SIZE];
 
+  LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit()\n"));
   /* Drop jumbo frames */
   if ((pbuf->tot_len > sizeof(pkt_buf)) || (pbuf->tot_len > netif->mtu))
     return ERR_ARG;
@@ -306,6 +307,7 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
   if (dest)
     memcpy(low_dest, dest, netif->hwaddr_len);
 
+  LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() buffered\n"));
   do {
     memset(&pxe, 0, sizeof pxe);
 
@@ -316,9 +318,12 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
     pxe.tbd.ImmedLength = pbuf->tot_len;
     pxe.tbd.Xmit = FAR_PTR(pkt_buf);
 
+    LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() -> pxe_call()\n"));
     pxe_call(PXENV_UNDI_TRANSMIT, &pxe.xmit);
+    LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() xmit="X16_F"\n", pxe.xmit.Status));
   } while (pxe.xmit.Status == PXENV_STATUS_OUT_OF_RESOURCES);
 
+  LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() xmit complete\n"));
   LINK_STATS_INC(link.xmit);
 
   return ERR_OK;
@@ -1236,10 +1241,13 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
   struct pbuf *p;
   u8_t undi_prot;
   u16_t llhdr_len;
+  extern uint32_t pxe_irq_count, pxe_irq_count_us;
 
   /* From the first isr capture the essential information */
   undi_prot = isr->ProtType;
   llhdr_len = isr->FrameHeaderLength;
+  
+  LWIP_DEBUGF(UNDIIF_NET_DEBUG | UNDIIF_DEBUG, ("undiif_input: pxe_irq_count %08X/%08X\n", pxe_irq_count, pxe_irq_count_us));
 
   /* move received packet into a new pbuf */
   p = low_level_input(isr);
@@ -1264,6 +1272,8 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
        { LWIP_DEBUGF(UNDIIF_NET_DEBUG | UNDIIF_DEBUG, ("undiif_input: IP input error\n"));
          pbuf_free(p);
          p = NULL;
+       } else {
+         LWIP_DEBUGF(UNDIIF_NET_DEBUG | UNDIIF_DEBUG, ("undiif_input: IP input OK\n"));
        }
       break;
 

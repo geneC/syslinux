@@ -805,6 +805,7 @@ etharp_output(struct netif *netif, struct pbuf *q, struct ip_addr *ipaddr)
     return ERR_BUF;
   }
 
+  LWIP_DEBUGF(ETHARP_DEBUG, ("etharp_output: arp\n"));
   /* assume unresolved Ethernet address */
   dest = NULL;
   /* Determine on destination hardware address. Broadcasts and multicasts
@@ -839,10 +840,12 @@ etharp_output(struct netif *netif, struct pbuf *q, struct ip_addr *ipaddr)
         return ERR_RTE;
       }
     }
+    LWIP_DEBUGF(ETHARP_DEBUG, ("etharp_output() -> etharp_query()\n"));
     /* queue on destination Ethernet address belonging to ipaddr */
     return etharp_query(netif, ipaddr, q);
   }
 
+  LWIP_DEBUGF(ETHARP_DEBUG, ("etharp_output() -> etharp_send_ip()\n"));
   /* continuation for multicast/broadcast destinations */
   /* obtain source Ethernet address of the given interface */
   /* send packet directly on the link */

@@ -1363,6 +1363,42 @@ tcp_debug_print(struct tcp_hdr *tcphdr)
   LWIP_DEBUGF(TCP_DEBUG, ("+-------------------------------+\n"));
 }
 
+void
+tcp_debug_print_raw(char *b, u32_t len)
+{
+  int i;
+  char *r = b;
+//   LWIP_DEBUGF(TCP_DEBUG, ("    tcp_debug_print_raw():\n"));
+  for(i=0; i+16 <= len; i=i+16){
+    LWIP_DEBUGF(TCP_DEBUG, ("  %02hhX %02hhX %02hhX %02hhX -"
+      " %02hhX %02hhX %02hhX %02hhX", r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7]));
+    LWIP_DEBUGF(TCP_DEBUG, ("  --  %02hhX %02hhX %02hhX %02hhX -"
+      " %02hhX %02hhX %02hhX %02hhX\n", r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15]));
+    r+=16;
+  }
+  if(i+8<=len){
+    i+=8;
+    LWIP_DEBUGF(TCP_DEBUG, ("  %02hhX %02hhX %02hhX %02hhX -"
+      " %02hhX %02hhX %02hhX %02hhX%s", r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], (i==len)? "\n" : "  --  "));
+    r+=8;
+  }
+  if(i+4<=len){
+    i+=4;
+    LWIP_DEBUGF(TCP_DEBUG, ("  %02hhX %02hhX %02hhX %02hhX %s", r[0], r[1], r[2], r[3], (i==len)? "\n" : "- "));
+    r+=4;
+  }
+  if(i+2<=len){
+    i+=2;
+    LWIP_DEBUGF(TCP_DEBUG, (" %02hhX %02hhX %s", r[0], r[1], (i==len)? "\n" : ""));
+    r+=2;
+  }
+  if(i+1<=len){
+    i+=1;
+    LWIP_DEBUGF(TCP_DEBUG, (" %02hhX %s", r[0], (i==len)? "\n" : ""));
+    r+=1;
+  }
+};
+
 /**
  * Print a tcp state for debugging purposes.
  *
@@ -1407,6 +1443,18 @@ tcp_debug_print_flags(u8_t flags)
     LWIP_DEBUGF(TCP_DEBUG, ("CWR "));
   }
   LWIP_DEBUGF(TCP_DEBUG, ("\n"));
+}
+
+void
+tcp_debug_print_pcbs_type(struct tcp_pcb *ipcb)
+{
+  struct tcp_pcb *pcb;
+  LWIP_DEBUGF(TCP_DEBUG, ("%s PCB states:\n", (ipcb == tcp_active_pcbs) ? "Active" : (ipcb == (struct tcp_pcb *)tcp_listen_pcbs.pcbs) ? "Listen" : (ipcb == tcp_tw_pcbs) ? "TW" : "Unknown"));
+  for(pcb = ipcb; pcb != NULL; pcb = pcb->next) {
+    LWIP_DEBUGF(TCP_DEBUG, ("L %"U16_F", F %"U16_F" SN %"U32_F" RN %"U32_F" U %p ",
+        pcb->local_port, pcb->remote_port, pcb->snd_nxt, pcb->rcv_nxt, pcb->unacked));
+    tcp_debug_print_state(pcb->state);
+  }
 }
 
 /**
