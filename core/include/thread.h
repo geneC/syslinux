@@ -80,6 +80,27 @@ mstime_t sem_down(struct semaphore *, mstime_t);
 void sem_up(struct semaphore *);
 void sem_init(struct semaphore *, int);
 
+/*
+ * This marks a semaphore object as unusable; it will remain unusable
+ * until sem_init() is called on it again.  This DOES NOT clear the
+ * list of blocked processes on this semaphore!
+ *
+ * It is also possible to mark the semaphore invalid by zeroing its
+ * memory structure.
+ */
+static inline void sem_set_invalid(struct semaphore *sem)
+{
+    sem->list.next = NULL;
+}
+
+/*
+ * Ask if a semaphore object has been initialized.
+ */
+static inline bool sem_is_valid(struct semaphore *sem)
+{
+    return !!sem->list.next;
+}
+
 struct thread *start_thread(const char *name, size_t stack_size, int prio,
 			    void (*start_func)(void *), void *func_arg);
 void __exit_thread(void);

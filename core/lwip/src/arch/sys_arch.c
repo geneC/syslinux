@@ -38,7 +38,7 @@ sys_mbox_t sys_mbox_new(int size)
 {
     struct mailbox *mbox;
 
-    mbox = malloc(sizeof(struct mailbox) + size*sizeof(void *));
+    mbox = malloc(MBOX_BYTES(size));
     if (!mbox)
 	return NULL;
 
