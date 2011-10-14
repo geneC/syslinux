@@ -73,7 +73,7 @@
 #error "ETH_PAD_SIZE not supported"
 #endif
 #if NETIF_MAX_HWADDR_LEN != MAC_MAX
-#errir "hwaddr_len mismatch"
+#error "hwaddr_len mismatch"
 #endif
 
 /** the time an ARP entry stays valid after its last update,
