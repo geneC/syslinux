@@ -1260,7 +1260,7 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
     case ETHTYPE_PPPOE:
 #endif /* PPPOE_SUPPORT */
       /* full packet send to tcpip_thread to process */
-      if (ethernet_input(p, &undi_netif)!=ERR_OK)
+      if (tcpip_input(p, &undi_netif)!=ERR_OK)
        { LWIP_DEBUGF(NETIF_DEBUG, ("undiif_input: IP input error\n"));
          pbuf_free(p);
          p = NULL;
@@ -1281,7 +1281,7 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
       switch(undi_prot) {
       case P_IP:
         /* pass to IP layer */
-        ip_input(p, &undi_netif);
+        tcpip_input(p, &undi_netif);
         break;
       
       case P_ARP:
