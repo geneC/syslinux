@@ -1025,8 +1025,8 @@ update_arp_entry(struct netif *netif, struct ip_addr *ipaddr,
   LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("update_arp_entry()\n"));
   LWIP_DEBUGF(ETHARP_DEBUG | LWIP_DBG_TRACE, ("update_arp_entry: %"U16_F".%"U16_F".%"U16_F".%"U16_F" - %02"X16_F":%02"X16_F":%02"X16_F":%02"X16_F":%02"X16_F":%02"X16_F"\n",
                                         ip4_addr1(ipaddr), ip4_addr2(ipaddr), ip4_addr3(ipaddr), ip4_addr4(ipaddr), 
-                                        lladdr->addr[0], lladdr->addr[1], lladdr->addr[2],
-                                        lladdr->addr[3], lladdr->addr[4], lladdr->addr[5]));
+                                        (*lladdr)[0], (*lladdr)[1], (*lladdr)[2],
+                                        (*lladdr)[3], (*lladdr)[4], (*lladdr)[5]));
   /* non-unicast address? */
   if (ip_addr_isany(ipaddr) ||
       ip_addr_isbroadcast(ipaddr, netif) ||
