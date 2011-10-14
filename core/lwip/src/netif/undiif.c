@@ -1361,7 +1361,7 @@ int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw)
 	 ((uint8_t *)&gw)[3]);
   err = netifapi_netif_add(&undi_netif,
     (struct ip_addr *)&ip, (struct ip_addr *)&netmask, (struct ip_addr *)&gw,
-    NULL, undiif_init, ip_input);
+    NULL, undiif_init, tcpip_input);
   if (err)
     return err;
 
