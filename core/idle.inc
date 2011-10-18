@@ -22,6 +22,7 @@ reset_idle:
 		sti		; Guard against BIOS/PXE brokenness...
 		ret
 
+		global do_idle
 do_idle:
 		push eax
 		push ds
@@ -42,11 +43,11 @@ do_idle:
 		mov cx,16
 .errloop:
 		ss lodsw
-		call writehex4
+		pm_call pm_writehex4
 		dec cx
 		jz .endloop
 		mov al,' '
-		call writechr
+		pm_call pm_writechr
 		jmp .errloop
 .endloop:
 		call crlf

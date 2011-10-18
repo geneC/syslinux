@@ -1169,6 +1169,22 @@ ROOT_FS_OPS:
 
 		section .text16
 
+%ifdef DEBUG_TRACERS
+;
+; debug hack to print a character with minimal code impact
+;
+debug_tracer:	pushad
+		pushfd
+		mov bp,sp
+		mov bx,[bp+9*4]		; Get return address
+		mov al,[cs:bx]		; Get data byte
+		inc word [bp+9*4]	; Return to after data byte
+		call writechr
+		popfd
+		popad
+		ret
+%endif	; DEBUG_TRACERS
+
 ;
 ; Now we have the config file open.  Parse the config file and
 ; run the user interface.

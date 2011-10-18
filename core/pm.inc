@@ -328,7 +328,8 @@ a20_fast:
 		jnz a20_dunno		; Did we get the wrong type?
 
 		mov si, err_a20
-		jmp abort_load
+		pm_call pm_writestr
+		jmp kaboom
 
 		section .data16
 err_a20		db CR, LF, 'A20 gate not responding!', CR, LF, 0

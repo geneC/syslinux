@@ -51,4 +51,25 @@
 	extern unload_pxe, reset_pxe
 %endif
 
+	; plaincon.c
+	extern pm_writechr
+
+	; cleanup.c
+	extern cleanup_hardware
+
+	; writestr.c
+	extern pm_writestr, crlf
+
+	; writehex.c
+	extern pm_writehex2, pm_writehex4, pm_writehex8
+
+	; graphics.c
+	extern vgaclearmode, vgashowcursor, vgahidecursor
+
+	; conio.c
+	extern pm_pollchar, pm_write_serial, pm_serialcfg
+
+	; font.c
+	extern pm_getchar, pm_adjust_screen, pm_usingvga, pm_userfont
+
 %endif ; EXTERN_INC

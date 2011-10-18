@@ -115,9 +115,7 @@ kaboom2:
 ; -----------------------------------------------------------------------------
 
 %include "common.inc"		; Universal modules
-%include "plaincon.inc"		; writechr
 %include "writestr.inc"		; String output
-%include "writehex.inc"		; Hexadecimal output
 %include "localboot.inc"	; Disk-based local boot
 
 ; -----------------------------------------------------------------------------

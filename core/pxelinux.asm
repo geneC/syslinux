@@ -339,7 +339,7 @@ kaboom:
 		je .wait3
 		loop .wait2,ecx
 		mov al,'.'
-		call writechr
+		pm_call pm_writechr
 		pop cx
 		loop .wait1
 .keypress:
@@ -492,6 +492,18 @@ gpxe_unload:
 .plain:
 		ret
 
+writestr_early:
+		pm_call pm_writestr
+		ret
+
+pollchar:
+		pm_call pm_pollchar
+		ret
+
+getchar:
+		pm_call pm_getchar
+		ret
+
 		section .data16
 		alignz 4
 pxe_file_exit_hook:
@@ -507,9 +519,6 @@ pxe_file_exit_hook:
 ; -----------------------------------------------------------------------------
 
 %include "common.inc"		; Universal modules
-%include "writestr.inc"		; String output
-writestr_early	equ writestr
-%include "writehex.inc"		; Hexadecimal output
 %include "rawcon.inc"		; Console I/O w/o using the console functions
 
 ; -----------------------------------------------------------------------------

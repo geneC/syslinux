@@ -731,6 +731,14 @@ CmdOptPtr       resw 1			; Pointer to first option on cmd line
 KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
+		global KernelName
+KernelName	resb FILENAME_MAX	; Mangled name for kernel
+		section .config
+		global PXERetry
+PXERetry	dw 0			; Extra PXE retries
+		section .data16
+		global SerialNotice
+SerialNotice	db 1			; Only print this once
 
 		section .text16
 ;
@@ -753,9 +761,7 @@ KernelType	resb 1			; Kernel type, from vkernel, if known
 ;
 ; Abort loading code
 ;
-%include "abort.inc"
 
 ;
 ; Hardware cleanup common code
 ;
-%include "cleanup.inc"

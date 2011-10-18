@@ -721,7 +721,7 @@ extern uint8_t SerialNotice;
 
 extern void sirq_cleanup_nowipe(void);
 extern void sirq_install(void);
-extern void write_serial_str(void);
+extern void write_serial_str(char *);
 
 static inline void io_delay(void)
 {
@@ -729,9 +729,9 @@ static inline void io_delay(void)
 	outb(0, 0x80);
 }
 
-extern void get_msg_file(void);
-extern void loadfont(void);
-extern void loadkeys(void);
+extern void get_msg_file(char *);
+extern void loadfont(char *);
+extern void loadkeys(char *);
 
 extern char syslinux_banner[];
 extern char copyright_str[];
@@ -1120,7 +1120,6 @@ do_include:
 	 * display/font/kbdmap are rather similar, open a file then do sth
 	 */
 	else if (looking_at(p, "display")) {
-		com32sys_t reg;
 		char *filename, *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
@@ -1130,17 +1129,9 @@ do_include:
 			*dst++ = *filename++;
 		*dst = '\0';
 
-		memset(&reg, 0, sizeof(reg));
-		reg.edi.w[0] = OFFS_WRT(KernelName, 0);
-		call16(core_open, &reg, &reg);
-		if (!(reg.eflags.l & EFLAGS_ZF))
-			call16(get_msg_file, &reg, NULL);
-		else
-			printf("File not found\n");
-
+		get_msg_file(KernelName);
 		refstr_put(filename);
 	} else if (looking_at(p, "font")) {
-		com32sys_t reg;
 		char *filename, *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
@@ -1150,14 +1141,7 @@ do_include:
 			*dst++ = *filename++;
 		*dst = '\0';
 
-		memset(&reg, 0, sizeof(reg));
-		reg.edi.w[0] = OFFS_WRT(KernelName, 0);
-		call16(core_open, &reg, &reg);
-		if (!(reg.eflags.l & EFLAGS_ZF))
-			call16(loadfont, &reg, NULL);
-		else
-			printf("File not found\n");
-
+		loadfont(KernelName);
 		refstr_put(filename);
 	} else if (looking_at(p, "kbdmap")) {
 		com32sys_t reg;
@@ -1170,14 +1154,7 @@ do_include:
 			*dst++ = *filename++;
 		*dst = '\0';
 
-		memset(&reg, 0, sizeof(reg));
-		reg.edi.w[0] = OFFS_WRT(KernelName, 0);
-		call16(core_open, &reg, &reg);
-		if (!(reg.eflags.l & EFLAGS_ZF))
-			call16(loadkeys, &reg, NULL);
-		else
-			printf("File not found\n");
-
+		loadkeys(KernelName);
 		refstr_put(filename);
 	}
 	/*
@@ -1279,8 +1256,7 @@ do_include:
 		/*
 		 * Begin code to actually set up the serial port
 		 */
-		memset(&ireg, 0, sizeof(ireg));
-		call16(sirq_cleanup_nowipe, &ireg, NULL);
+		sirq_cleanup_nowipe();
 
 		outb(0x83, port + 3); /* Enable DLAB */
 		io_delay();
@@ -1319,17 +1295,14 @@ do_include:
 
 		/* Enable interrupts if requested */
 		if (FlowOutput & 0x8)
-			call16(sirq_install, &ireg, NULL);
+			sirq_install();
 
 		/* Show some life */
 		if (SerialNotice != 0) {
 			SerialNotice = 0;
 
-			ireg.esi.w[0] = syslinux_banner;
-			call16(write_serial_str, &ireg, NULL);
-
-			ireg.esi.w[0] = copyright_str;
-			call16(write_serial_str, &ireg, NULL);
+			write_serial_str(syslinux_banner);
+			write_serial_str(copyright_str);
 		}
 	} else if (looking_at(p, "say")) {
 		printf("%s\n", p + 4);

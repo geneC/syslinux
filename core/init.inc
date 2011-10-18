@@ -28,11 +28,8 @@ common_init:
 		cmp eax,__pm_code_len
 		jne kaboom
 
-;
-; Initialize timer
-;
-		call timer_init
-
+		extern init
+		pm_call init
 ;
 ; Initialize configuration information
 ;
@@ -44,62 +41,11 @@ common_init:
 		call comboot_setup_api
 
 ;
-; Now set up screen parameters
-;
-		call adjust_screen
-		pm_call printf_init
-
-;
 ; Inite the memmory subsystem
 ;
-		pm_call mem_init
+;		pm_call mem_init
 		mov eax,[HighMemSize]
 		mov [VKernelEnd],eax
-
-;
-; CPU-dependent initialization and related checks.
-;
-check_escapes:
-		mov ah,02h			; Check keyboard flags
-		int 16h
-		mov [KbdFlags],al		; Save for boot prompt check
-		test al,04h			; Ctrl->skip 386 check
-		jnz skip_checks
-
-;
-; Now check that there is sufficient low (DOS) memory
-;
-; NOTE: Linux doesn't use all of real_mode_seg, but we use the same
-; segment for COMBOOT images, which can use all 64K
-;
-		int 12h
-		mov edx,__lowmem_heap + min_lowmem_heap + 1023
-		shr edx,10
-		cmp ax,dx
-		jae enough_ram
-		mov ax,dx
-		mov si,err_noram
-		mov cl,10
-		div cl
-		add [si+err_noram.size-err_noram+2],ah
-		cbw
-		div cl
-		add [si+err_noram.size-err_noram],ax
-		call writestr_early
-		jmp kaboom
-enough_ram:
-skip_checks:
-
-		section .data16
-err_noram	db 'It appears your computer has less than '
-.size		db '000'
-		db 'K of low ("DOS")'
-		db CR, LF
-		db 'RAM.  Syslinux needs at least this amount to boot.  If you get'
-		db CR, LF
-		db 'this message in error, hold down the Ctrl key while'
-		db CR, LF
-		db 'booting, and I will take your word for it.', CR, LF, 0
 
 		section .text16
 ;

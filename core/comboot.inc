@@ -173,6 +173,7 @@ comboot_setup_api:
 ; Restore the original state of the COMBOOT API vectors, and free
 ; any low memory allocated by the comboot module.
 ;
+		global comboot_cleanup_api
 comboot_cleanup_api:
 		pusha
 		mov si,DOSSaveVectors
@@ -238,7 +239,7 @@ comboot_int21:	sti
 		mov es,bp
 		mov bp,sp			; Set up stack frame
 
-		call adjust_screen		; The COMBOOT program might have changed the screen
+		call _adjust_screen		; The COMBOOT program might have changed the screen
 
 		mov cx,int21_count
 		mov si,int21_table
@@ -309,7 +310,7 @@ comboot_exit_msg:
 		pop bx			; Return address
 		RESET_STACK_AND_SEGS si	; Contains sti, cld
 		pm_call comboot_cleanup_lowmem
-		call adjust_screen	; The COMBOOT program might have changed the screen
+		call _adjust_screen	; The COMBOOT program might have changed the screen
 		jcxz .nomsg
 		mov si,KernelName
 		call writestr
@@ -425,7 +426,7 @@ comboot_int22:
 		mov es,bp
 		mov bp,sp			; Set up stack frame
 
-		call adjust_screen		; The COMBOOT program might have changed the screen
+		call _adjust_screen		; The COMBOOT program might have changed the screen
 
 		cmp ax,int22_count
 		jb .ok
@@ -807,7 +808,7 @@ comapi_usingvga:
 		mov [GXPixRows],dx
 		test al,08h
 		jnz .notext
-		call adjust_screen
+		call _adjust_screen
 .notext:
 		clc
 		ret
@@ -1001,6 +1002,11 @@ feature_flags_len equ ($-feature_flags)
 
 err_notdos	db ': attempted DOS system call INT ',0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
+
+		global VGAFontSize, UserFont
+		alignz 2
+VGAFontSize	dw 16			; Defaults to 16 byte font
+UserFont	db 0			; Using a user-specified font
 
 		section .bss16
 		alignb 4
