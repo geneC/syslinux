@@ -1617,6 +1617,26 @@
  */
 #ifndef NETIF_DEBUG
 #define NETIF_DEBUG                     LWIP_DBG_OFF
+
+/**
+ * UNDIIF_DEBUG: Enable debugging in undiif.c.
+ */
+#ifndef UNDIIF_DEBUG
+#define UNDIIF_DEBUG                     LWIP_DBG_OFF
+#endif
+
+/**
+ * UNDIIF_ARP_DEBUG: Enable ETHARP debugging in undiif.c.
+ */
+#ifndef UNDIIF_ARP_DEBUG
+#define UNDIIF_ARP_DEBUG                     LWIP_DBG_OFF
+#endif
+
+/**
+ * UNDIIF_NET_DEBUG: Enable NETIF debugging in undiif.c.
+ */
+#ifndef UNDIIF_NET_DEBUG
+#define UNDIIF_NET_DEBUG                     LWIP_DBG_OFF
 #endif
 
 /**
