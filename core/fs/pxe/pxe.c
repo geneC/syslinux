@@ -123,6 +123,7 @@ int pxe_call(int opcode, void *data)
 {
     static DECLARE_INIT_SEMAPHORE(pxe_sem, 1);
     extern void pxenv(void);
+    extern uint32_t pxe_irq_count, pxe_irq_count_us;	
     com32sys_t regs;
 
     sem_down(&pxe_sem, 0);
@@ -131,13 +132,22 @@ int pxe_call(int opcode, void *data)
     dprintf("pxe_call op %04x data %p\n", opcode, data);
 #endif
 
+    if (opcode == PXENV_UNDI_TRANSMIT)
+	dprintf("pxe_call op %04x data %p; pxe_irq_count %08X/%08X\n", opcode, data, pxe_irq_count, pxe_irq_count_us);
+
     memset(&regs, 0, sizeof regs);
     regs.ebx.w[0] = opcode;
     regs.es       = SEG(data);
     regs.edi.w[0] = OFFS(data);
     call16(pxenv, &regs, &regs);
 
+    if (opcode == PXENV_UNDI_TRANSMIT)
+	dprintf("pxe_call op %04x ret; pxe_irq_count %08X/%08X\n", opcode, pxe_irq_count, pxe_irq_count_us);
+
     sem_up(&pxe_sem);
+    if (opcode == PXENV_UNDI_TRANSMIT)
+	dprintf("pxe_call op %04x sem_up-OK\n", opcode);
+
 
     return regs.eflags.l & EFLAGS_CF;  /* CF SET if fail */
 }
@@ -880,6 +890,7 @@ static void network_init(void)
     tcpip_init(NULL, NULL);
 
     /* Start up the undi driver for lwip */
+    printf("IP=%08X\n", ntohl(IPInfo.myip));
     err = undiif_start(IPInfo.myip, IPInfo.netmask, IPInfo.gateway);
     if (err) {
        printf("undiif driver failed to start: %d\n", err);

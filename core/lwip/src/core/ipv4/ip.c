@@ -542,7 +542,7 @@ err_t ip_output_if_opt(struct pbuf *p, struct ip_addr *src, struct ip_addr *dest
 #endif /* IP_OPTIONS_SEND */
     /* generate IP header */
     if (pbuf_header(p, IP_HLEN)) {
-      LWIP_DEBUGF(IP_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("ip_output: not enough room for IP header in pbuf\n"));
+      LWIP_DEBUGF(IP_DEBUG | LWIP_DBG_LEVEL_SERIOUS, ("ip_output_if: not enough room for IP header in pbuf\n"));
 
       IP_STATS_INC(ip.err);
       snmp_inc_ipoutdiscards();

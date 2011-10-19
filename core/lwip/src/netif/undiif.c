@@ -45,6 +45,11 @@
  * something that better describes your network interface.
  */
 
+#if DEBUG < 2
+#  undef DEBUG
+#  define DEBUG 2
+#endif
+
 #include <core.h>
 
 #include "lwip/opt.h"
@@ -1243,6 +1248,8 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
   u16_t llhdr_len;
   extern uint32_t pxe_irq_count, pxe_irq_count_us;
 
+  if(pxe_irq_count){}
+  if(pxe_irq_count_us){}
   /* From the first isr capture the essential information */
   undi_prot = isr->ProtType;
   llhdr_len = isr->FrameHeaderLength;

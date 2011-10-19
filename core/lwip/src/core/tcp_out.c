@@ -606,7 +606,10 @@ tcp_output(struct tcp_pcb *pcb)
       pcb->flags &= ~(TF_ACK_DELAY | TF_ACK_NOW);
     }
 
+    LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output: seg-%p sl-%d sl2-%d pcb-%p\n", (void *)seg, seg->len, TCP_TCPLEN(seg), (void *)pcb));
     tcp_output_segment(seg, pcb);
+    LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output: _seg return\n"));
+
     snd_nxt = ntohl(seg->tcphdr->seqno) + TCP_TCPLEN(seg);
     if (TCP_SEQ_LT(pcb->snd_nxt, snd_nxt)) {
       pcb->snd_nxt = snd_nxt;

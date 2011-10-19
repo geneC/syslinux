@@ -4,7 +4,7 @@
 #include "pxe.h"
 #include "../../../version.h"
 #include "url.h"
-
+#include <dprintf.h>
 #define HTTP_PORT	80
 
 static bool is_tspecial(int ch)
@@ -201,9 +201,11 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     if (!url->port)
 	url->port = HTTP_PORT;
 
+dprintf("http/netconn_connect -> %08X:%d\n", ntohl(url->ip), url->port);
     err = netconn_connect(socket->conn, &addr, url->port);
     if (err) {
 	printf("netconn_connect error %d\n", err);
+dprintf("http/netconn_connect error %d\n", err);
 	goto fail;
     }
 

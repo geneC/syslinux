@@ -367,7 +367,7 @@ tcp_input(struct pbuf *p, struct netif *inp)
 
     /* If no matching PCB was found, send a TCP RST (reset) to the
        sender. */
-    LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_input: no PCB match found, resetting.\n"));
+    LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_input: no PCB match found, resetting RST.\n"));
     if (!(TCPH_FLAGS(tcphdr) & TCP_RST)) {
       TCP_STATS_INC(tcp.proterr);
       TCP_STATS_INC(tcp.drop);
@@ -405,7 +405,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
   if (flags & TCP_ACK) {
     /* For incoming segments with the ACK flag set, respond with a
        RST. */
-    LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset\n"));
+    LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_listen_input: ACK in LISTEN, sending reset RST\n"));
     tcp_rst(ackno + 1, seqno + tcplen,
       &(iphdr->dest), &(iphdr->src),
       tcphdr->dest, tcphdr->src);

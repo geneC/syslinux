@@ -44,6 +44,8 @@
 
 #if LWIP_TCP /* don't build if not configured for use in lwipopts.h */
 
+#define DEBUG 1
+
 #include "lwip/def.h"
 #include "lwip/mem.h"
 #include "lwip/memp.h"
@@ -745,6 +747,7 @@ tcp_slowtmr(void)
 
       TCP_EVENT_ERR(pcb->errf, pcb->callback_arg, ERR_ABRT);
       if (pcb_reset) {
+        LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_slowtmr: RST\n"));
         tcp_rst(pcb->snd_nxt, pcb->rcv_nxt, &pcb->local_ip, &pcb->remote_ip,
           pcb->local_port, pcb->remote_port);
       }
@@ -1361,6 +1364,7 @@ tcp_debug_print(struct tcp_hdr *tcphdr)
   LWIP_DEBUGF(TCP_DEBUG, ("|    0x%04"X16_F"     |     %5"U16_F"     | (chksum, urgp)\n",
          ntohs(tcphdr->chksum), ntohs(tcphdr->urgp)));
   LWIP_DEBUGF(TCP_DEBUG, ("+-------------------------------+\n"));
+  /*  tcp_debug_print_raw((char *)tcphdr, 20);*/
 }
 
 void

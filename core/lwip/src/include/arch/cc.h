@@ -21,6 +21,7 @@ typedef uintptr_t mem_ptr_t;
 
 #define PACK_STRUCT_STRUCT	__packed
 
+#define LWIP_DEBUG
 #define LWIP_PLATFORM_USE_DPRINTF
 
 #ifdef LWIP_PLATFORM_USE_DPRINTF

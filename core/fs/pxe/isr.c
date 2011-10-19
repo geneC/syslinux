@@ -5,14 +5,21 @@
  * Interrupts are locked out on entry.
  */
 
+#if DEBUG < 2
+#  undef DEBUG
+#  define DEBUG 2
+#endif
+
 #include "core.h"
 #include "thread.h"
 #include "pxe.h"
 #include <string.h>
 #include <sys/cpu.h>
 #include <sys/io.h>
+#include <dprintf.h>
 
 extern uint8_t pxe_irq_pending;
+extern uint32_t pxe_irq_count, pxe_irq_count_us;
 static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
 static struct thread *pxe_thread, *poll_thread;
 
@@ -30,6 +37,7 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 	vec = (irq - 8) + 0x70;
     else
 	return false;
+    pxe_irq_count_us = pxe_irq_count = 0;
 
     irqstate = irq_save();
 
@@ -115,6 +123,7 @@ static void pxe_process_irq(void)
 	    break;
 
         case PXENV_UNDI_ISR_OUT_RECEIVE:
+	    dprintf("pxe_process_irq(): pxe_irq_count %08X/%08X\n", pxe_irq_count, pxe_irq_count_us);
 	    undiif_input(&isr);
 	    break;
 
