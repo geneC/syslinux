@@ -565,7 +565,7 @@ is_zf:
 		ret
 
 %include "../core/macros.inc"		; CR/LF
-%include "../core/writestr.inc"		; String output
+%include "writestr.inc"			; String output
 %include "../core/writehex.inc"		; Hexadecimal output
 %include "../core/writedec.inc"		; Decimal output
 

@@ -343,7 +343,7 @@ kaboom:
 		pop cx
 		loop .wait1
 .keypress:
-		call crlf
+		pm_call crlf
 		mov word [BIOS_magic],0	; Cold reboot
 		jmp 0F000h:0FFF0h	; Reset vector address
 

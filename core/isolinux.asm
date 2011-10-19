@@ -286,7 +286,7 @@ initial_csum:	xor edi,edi
 		call writemsg
 		mov al,dl
 		call writehex2
-		call crlf
+		call crlf_early
 %endif
 		;
 		; Initialize spec packet buffers
@@ -326,7 +326,7 @@ initial_csum:	xor edi,edi
 		call writemsg
 		mov al,byte [sp_drive]
 		call writehex2
-		call crlf
+		call crlf_early
 %endif
 
 found_drive:
@@ -393,7 +393,7 @@ found_file:
 		mov si,offset_msg
 		call writemsg
 		call writehex8
-		call crlf
+		call crlf_early
 %endif
 
 		; Load the rest of the file.  However, just in case there
@@ -623,7 +623,7 @@ spec_query_failed:
 		call writemsg
 		mov al,dl
 		call writehex2
-		call crlf
+		call crlf_early
 
 		cmp byte [sp_drive],dl
 		jne .maybe_broken
@@ -667,7 +667,7 @@ spec_query_failed:
 		call writemsg
 		mov al,dl
 		call writehex2
-		call crlf
+		call crlf_early
 		mov si,trysbm_msg
 		call writemsg
 		jmp .found_drive		; Pray that this works...
@@ -687,6 +687,26 @@ writemsg:	push ax
 		call writestr_early
 		pop si
 		call writestr_early
+		pop ax
+		ret
+
+writestr_early:
+		pushfd
+		pushad
+.top:		lodsb
+		and al,al
+		jz .end
+		call writechr
+		jmp short .top
+.end:		popad
+		popfd
+		ret
+
+crlf_early:	push ax
+		mov al,CR
+		call writechr
+		mov al,LF
+		call writechr
 		pop ax
 		ret
 
@@ -1004,7 +1024,7 @@ xint13:		mov byte [RetryCount],retry_count
 		call writestr_early
 		mov al,dl
 		call writehex2
-		call crlf
+		call crlf_early
 		; Fall through to kaboom
 
 ;
@@ -1016,8 +1036,8 @@ disk_error:
 kaboom:
 		RESET_STACK_AND_SEGS AX
 		mov si,err_bootfailed
-		call writestr
-		call getchar
+		pm_call pm_writestr
+		pm_call pm_getchar
 		cli
 		mov word [BIOS_magic],0	; Cold reboot
 		jmp 0F000h:0FFF0h	; Reset vector address
@@ -1026,8 +1046,6 @@ kaboom:
 ;  Common modules needed in the first sector
 ; -----------------------------------------------------------------------------
 
-%include "writestr.inc"		; String output
-writestr_early	equ writestr
 %include "writehex.inc"		; Hexadecimal output
 
 ; -----------------------------------------------------------------------------
@@ -1106,18 +1124,10 @@ all_read:
 ;
 %include "init.inc"
 
-		; Patch the writechr routine to point to the full code
-		mov di,writechr
-		mov al,0e9h
-		stosb
-		mov ax,writechr_full-2
-		sub ax,di
-		stosw
-
 ; Tell the user we got this far...
 %ifndef DEBUG_MESSAGES			; Gets messy with debugging on
 		mov si,copyright_str
-		call writestr_early
+		pm_call pm_writestr
 %endif
 
 ;
