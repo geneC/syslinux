@@ -9,6 +9,8 @@ Changes in 4.05:
 	  on virtually all systems since the beginning, and has been
 	  totally broken since 4.00 at least.  Use MEMDISK instead.
 	* chain.c32: Support chaining ReactOS' FreeLdr (Shao Miller)
+	* isohybrid: -m option to add support for Mac EFI booting.
+        * ifmemdsk.c32: Choose boot option based on presence of MEMDISK
 
 Changes in 4.04:
 	* PXELINUX: Fix handling of unqualified DNS names.
