@@ -49,10 +49,13 @@ ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
+# Don't include console objects
+COBJS	 = $(filter-out rawcon.o plaincon.o,$(COBJ))
+
 LIB	 = libcom32.a
 LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32min.a
 LIBDEP   = $(filter-out -% %start%,$(LIBS))
-LIBOBJS	 = $(COBJ) $(SOBJ)
+LIBOBJS	 = $(COBJS) $(SOBJ)
 
 NASMDEBUG = -g -F dwarf
 NASMOPT  += $(NASMDEBUG)
@@ -92,12 +95,30 @@ kwdhash.gen: keywords genhash.pl
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
-%.elf: %.o $(LIBDEP) syslinux.ld
-	$(LD) $(LDFLAGS) -s -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
-		--start-group $(LIBS) --end-group \
+AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a libpxelinux.a
+
+%.elf: %.o $(LIBDEP) syslinux.ld $(AUXLIBS)
+	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
+		--start-group $(LIBS) lib$(patsubst %.elf,%.a,$@) --end-group \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
+
+libisolinux.a: rawcon.o
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+
+libisolinux-debug.a: libisolinux.a
+	cp $^ $@
+
+libpxelinux.a: libisolinux.a
+	cp $^ $@
+
+libldlinux.a: plaincon.o
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
 
 $(LIB): $(LIBOBJS)
 	rm -f $@
