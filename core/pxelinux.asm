@@ -223,6 +223,7 @@ adhcp_copy:
 	        mov eax,ROOT_FS_OPS
 		xor ebp,ebp
                 pm_call fs_init
+		pm_call load_env32
 
 		section .rodata
 		alignz 4
