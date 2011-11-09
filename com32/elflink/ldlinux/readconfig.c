@@ -426,8 +426,9 @@ void print_labels(const char *prefix, size_t len)
     printf("\n");
     for (me = all_entries; me; me = me->next ) {
 	if (!strncmp(prefix, me->label, len))
-	    printf(" %s\n", me->label);
+	    printf(" %s", me->label);
     }
+    printf("\n");
 }
 
 struct menu_entry *find_label(const char *str)
