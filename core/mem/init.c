@@ -66,11 +66,11 @@ static void mpool_dump(enum heap heap)
 }
 #endif
 
+uint16_t *bios_free_mem;
 void mem_init(void)
 {
 	struct free_arena_header *fp;
 	int i;
-	uint16_t *bios_free_mem = (uint16_t *)0x413;
 
 	//dprintf("enter");
 

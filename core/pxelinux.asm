@@ -341,7 +341,7 @@ pxenv:
 		jnz .store_stack
 
 .disable_timer:
-		call timer_cleanup
+		call bios_timer_cleanup
 
 .store_stack:
 		mov [cs:PXEStack],sp

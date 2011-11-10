@@ -370,7 +370,7 @@ void pm_usingvga(com32sys_t *regs)
 	if (UsingVGA & 0x08)
 		regs->eflags.l &= ~EFLAGS_CF;
 	else {
-		adjust_screen();
+		bios_adjust_screen();
 		set_flags(regs, EFLAGS_CF);
 	}
 }

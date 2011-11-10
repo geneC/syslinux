@@ -40,6 +40,7 @@
 #include <com32.h>
 
 #include <syslinux/memscan.h>
+#include <syslinux/firmware.h>
 
 struct e820_entry {
     uint64_t start;
@@ -47,7 +48,7 @@ struct e820_entry {
     uint32_t type;
 };
 
-int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
+int bios_scan_memory(scan_memory_callback_t callback, void *data)
 {
     static com32sys_t ireg;
     com32sys_t oreg;
@@ -155,4 +156,9 @@ int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
     }
 
     return 0;
+}
+
+int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
+{
+	return firmware->scan_memory(callback, data);
 }

@@ -4,6 +4,9 @@
 #include <fs.h>
 #include <bios.h>
 
+#include <syslinux/memscan.h>
+#include <syslinux/firmware.h>
+
 static uint16_t min_lowmem_heap = 65536;
 extern char __lowmem_heap[];
 uint8_t KbdFlags;		/* Check for keyboard escapes */
@@ -61,7 +64,9 @@ static inline void bios_timer_init(void)
 	*hook = &timer_irq;
 }
 
-void init(com32sys_t *regs)
+extern uint8_t KbdMap[];
+extern uint8_t bios_free_mem;
+void bios_init(void)
 {
 	int i;
 
@@ -71,12 +76,18 @@ void init(com32sys_t *regs)
 	for (i = 0; i < 256; i++)
 		KbdMap[i] = i;
 
-	adjust_screen();
+	bios_adjust_screen();
 	printf_init();
 
 	/* Init the memory subsystem */
+	bios_free_mem = (uint16_t *)0x413;
 	mem_init();
 
 	/* CPU-dependent initialization and related checks. */
 	check_escapes();
+}
+
+void init(com32sys_t *regs)
+{
+	firmware->init();
 }

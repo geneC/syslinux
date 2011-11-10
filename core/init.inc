@@ -28,7 +28,9 @@ common_init:
 		cmp eax,__pm_code_len
 		jne kaboom
 
-		extern init
+		extern syslinux_register_bios, init
+
+		pm_call syslinux_register_bios
 		pm_call init
 
 ;

@@ -12,9 +12,11 @@
  */
 #include <com32.h>
 #include <core.h>
+#include <syslinux/memscan.h>
+#include <syslinux/firmware.h>
 
-extern void timer_cleanup(void);
 extern void comboot_cleanup_api(void);
+extern void bios_timer_cleanup(void);
 
 /*
  * cleanup.c
@@ -22,12 +24,7 @@ extern void comboot_cleanup_api(void);
  * Some final tidying before jumping to a kernel or bootsector
  */
 
-/*
- * cleanup_hardware:
- *
- *	Shut down anything transient.
- */
-void cleanup_hardware(void)
+void bios_cleanup_hardware(void)
 {
 	/*
 	 * TODO
@@ -39,8 +36,18 @@ void cleanup_hardware(void)
 	__intcall(0x13, &zero_regs, NULL);
 
 	call16(comboot_cleanup_api, &zero_regs, NULL);
-	call16(timer_cleanup, &zero_regs, NULL);
+	call16(bios_timer_cleanup, &zero_regs, NULL);
 
 	/* If we enabled serial port interrupts, clean them up now */
 	sirq_cleanup();
+}
+
+/*
+ * cleanup_hardware:
+ *
+ *	Shut down anything transient.
+ */
+void cleanup_hardware(void)
+{
+	firmware->cleanup();
 }

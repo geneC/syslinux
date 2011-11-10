@@ -169,7 +169,7 @@ LIBOTHER_OBJS = \
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
 	\
-	syslinux/memscan.o
+	syslinux/memscan.o syslinux/firmware.o
 
 MINLIBOBJS = \
 	$(LIBOTHER_OBJS) \

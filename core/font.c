@@ -103,7 +103,7 @@ void loadfont(char *filename)
 /*
  * use_font:
  *	This routine activates whatever font happens to be in the
- *	vgafontbuf, and updates the adjust_screen data.
+ *	vgafontbuf, and updates the bios_adjust_screen data.
  *      Must be called with CS = DS
  */
 void use_font(void)
@@ -141,7 +141,7 @@ void use_font(void)
 			/* 8 pixels/character */
 			VidCols = ((GXPixCols >> 3) - 1);
 
-			/* No need to call adjust_screen */
+			/* No need to call bios_adjust_screen */
 			return;
 		} else {
 			ireg.eax.w[0] = 0x1110;	/* Load into VGA RAM */
@@ -156,16 +156,17 @@ void use_font(void)
 			ireg.eax.w[0] = 0x1103; /* Select page 0 */
 			__intcall(0x10, &ireg, NULL);
 		}
+
 	}
 
-	adjust_screen();
+	bios_adjust_screen();
 }
 
 /*
- * adjust_screen: Set the internal variables associated with the screen size.
+ * bios_adjust_screen: Set the internal variables associated with the screen size.
  *		This is a subroutine in case we're loading a custom font.
  */
-void adjust_screen(void)
+void bios_adjust_screen(void)
 {
 	com32sys_t ireg, oreg;
 	volatile uint8_t *vidrows = BIOS_vidrows;
@@ -191,5 +192,5 @@ void adjust_screen(void)
 
 void pm_adjust_screen(com32sys_t *regs)
 {
-	adjust_screen();
+	bios_adjust_screen();
 }
