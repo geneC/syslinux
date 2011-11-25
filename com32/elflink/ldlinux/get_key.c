@@ -48,7 +48,6 @@ struct keycode {
     const unsigned char *seq;
 };
 
-#define MAXLEN 8
 #define CODE(x,y) { x, (sizeof y)-1, (const unsigned char *)(y) }
 
 static const struct keycode keycodes[] = {
@@ -118,14 +117,43 @@ static const struct keycode keycodes[] = {
 
 #define KEY_TIMEOUT ((CLK_TCK+9)/10)
 
+/*
+ * Attempt to decode the key sequence in 'buffer'.
+ *
+ * On success (the data in 'buffer' matches a key code) put the
+ * corresponding key code in 'code' and return 0. Return 1 if 'buffer'
+ * partially matches a key code, i.e. we need more data before we can
+ * make an unambiguous match. Return -1 if the buffer does not contain
+ * a key code.
+ */
+int get_key_decode(char *buffer, int nc, int *code)
+{
+    const struct keycode *kc;
+    int i, rv;
+
+    rv = -1;
+    for (i = 0, kc = keycodes; i < NCODES; i++, kc++) {
+	if (nc == kc->seqlen && !memcmp(buffer, kc->seq, nc)) {
+	    *code = kc->code;
+	    rv = 0;
+	    break;
+	} else if (nc < kc->seqlen && !memcmp(buffer, kc->seq, nc)) {
+	    rv = 1;
+	    break;
+	}
+    }
+
+    return rv;
+}
+
 int get_key(FILE * f, clock_t timeout)
 {
-    unsigned char buffer[MAXLEN];
+    unsigned char buffer[KEY_MAXLEN];
     int nc, i, rv;
-    const struct keycode *kc;
     int another;
     unsigned char ch;
     clock_t start;
+    int code;
 
     /* We typically start in the middle of a clock tick */
     if (timeout)
@@ -156,14 +184,12 @@ int get_key(FILE * f, clock_t timeout)
 	buffer[nc++] = ch;
 
 	another = 0;
-	for (i = 0, kc = keycodes; i < NCODES; i++, kc++) {
-	    if (nc == kc->seqlen && !memcmp(buffer, kc->seq, nc))
-		return kc->code;
-	    else if (nc < kc->seqlen && !memcmp(buffer, kc->seq, nc)) {
+	rv = get_key_decode(buffer, nc, &code);
+	if (!rv)
+		return code;
+	else if (rv == 1)
 		another = 1;
-		break;
-	    }
-	}
+
     } while (another);
 
     /* We got an unrecognized sequence; return the first character */

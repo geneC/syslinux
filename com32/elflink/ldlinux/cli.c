@@ -29,6 +29,31 @@ void clear_screen(void)
     fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
 }
 
+static int __get_key(void)
+{
+    unsigned char buffer[KEY_MAXLEN];
+    int another;
+    int nc, rv;
+    int code;
+
+    nc = 0;
+    do {
+	buffer[nc++] = getchar();
+
+	another = 0;
+	rv = get_key_decode(buffer, nc, &code);
+	if (!rv)
+		return code;
+	else if (rv == 1)
+		another = 1;
+
+    } while (another);
+
+    /* We got an unrecognized sequence; return the first character */
+    /* We really should remember this and return subsequent characters later */
+    return buffer[0];
+}
+
 int mygetkey(clock_t timeout)
 {
     clock_t t0, t;
@@ -37,14 +62,14 @@ int mygetkey(clock_t timeout)
 
     //dprintf("enter");
     if (!totaltimeout)
-	return get_key(stdin, timeout);
+	return __get_key();
 
     for (;;) {
 	tto = min(totaltimeout, INT_MAX);
 	to = timeout ? min(tto, timeout) : tto;
 
 	t0 = 0;
-	key = get_key(stdin, to);
+	key = __get_key();
 	t = 0 - t0;
 
 	if (totaltimeout <= t)

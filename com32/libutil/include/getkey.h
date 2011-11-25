@@ -77,8 +77,11 @@
 
 #define KEY_MAX		0x012a
 
+#define KEY_MAXLEN	8
+
 int get_key(FILE *, clock_t);
 int key_name_to_code(const char *);
 const char *key_code_to_name(int);
+int get_key_decode(char *, int, int *);
 
 #endif /* LIBUTIL_GETKEY_H */
