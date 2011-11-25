@@ -423,12 +423,12 @@ void print_labels(const char *prefix, size_t len)
 {
     struct menu_entry *me;
 
-    printf("\n");
+    eprintf("\n");
     for (me = all_entries; me; me = me->next ) {
 	if (!strncmp(prefix, me->label, len))
-	    printf(" %s", me->label);
+	    eprintf(" %s", me->label);
     }
-    printf("\n");
+    eprintf("\n");
 }
 
 struct menu_entry *find_label(const char *str)
@@ -628,7 +628,7 @@ static int cat_file(const char *filename)
 		return -1;
 
 	while (fgets(line, sizeof(line), f) != NULL)
-		printf("%s", line);
+		eprintf("%s", line);
 
 	fclose(f);
 	return 0;
@@ -685,7 +685,7 @@ void cat_help_file(int key)
 		return;
 
 	if (cm->fkeyhelp[fkey].textname) {
-		printf("\n");
+		eprintf("\n");
 		cat_file(cm->fkeyhelp[fkey].textname);
 	}
 }
@@ -1306,7 +1306,7 @@ do_include:
 			write_serial_str(copyright_str);
 		}
 	} else if (looking_at(p, "say")) {
-		printf("%s\n", p + 4);
+		eprintf("%s\n", p+4);
 	} else if (looking_at(p, "path")) {
 		/* PATH-based lookup */
 		char *new_path, *_p;
@@ -1323,7 +1323,7 @@ do_include:
 			_p[len + new_len] = '\0';
 			PATH = _p;
 		} else
-			printf("Failed to realloc PATH\n");
+			eprintf("Failed to realloc PATH\n");
 	}
     }
 }

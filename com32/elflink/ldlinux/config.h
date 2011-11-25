@@ -38,4 +38,6 @@ extern const char *onerror;	//"onerror" command line
 
 extern void cat_help_file(int key);
 
+extern void eprintf(const char *filename, ...);
+
 #endif /* __CONFIG_H__ */

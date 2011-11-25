@@ -81,7 +81,7 @@ static const char * cmd_reverse_search(int *cursor)
 
     memset(buf, 0, MAX_CMDLINE_LEN);
 
-    printf("\033[1G\033[1;36m(reverse-i-search)`': \033[0m");
+    eprintf("\033[1G\033[1;36m(reverse-i-search)`': \033[0m");
     while (1) {
         key = mygetkey(0);
 
@@ -115,11 +115,11 @@ static const char * cmd_reverse_search(int *cursor)
             *cursor = p - last_good->command;
 	}
 
-	printf("\033[?7l\033[?25l");
+	eprintf("\033[?7l\033[?25l");
 	/* Didn't handle the line wrap case here */
-	printf("\033[1G\033[1;36m(reverse-i-search)\033[0m`%s': %s", 
+	eprintf("\033[1G\033[1;36m(reverse-i-search)\033[0m`%s': %s",
 		buf, last_good->command ? : "");
-	printf("\033[K\r");
+	eprintf("\033[K\r");
     }
 
     return last_good ? last_good->command : NULL;
@@ -171,10 +171,10 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    prev_len = max(len, prev_len);
 
 	    /* Redraw the command line */
-	    printf("\033[?7l\033[?25l");
+	    eprintf("\033[?7l\033[?25l");
 	    if (y)
-		printf("\033[%dA", y);
-	    printf("\033[1G\033[1;36m%s \033[0m", input);
+		eprintf("\033[%dA", y);
+	    eprintf("\033[1G\033[1;36m%s \033[0m", input);
 
 	    x = strlen(input);
 	    y = 0;
@@ -184,23 +184,23 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		at++;
 		x++;
 		if (x >= width) {
-		    printf("\r\n");
+		    eprintf("\r\n");
 		    x = 0;
 		    y++;
 		}
 	    }
-	    printf("\033[K\r");
+	    eprintf("\033[K\r");
 
 	    dy = y - (cursor + strlen(input) + 1) / width;
 	    x = (cursor + strlen(input) + 1) % width;
 
 	    if (dy) {
-		printf("\033[%dA", dy);
+		eprintf("\033[%dA", dy);
 		y -= dy;
 	    }
 	    if (x)
-		printf("\033[%dC", x);
-	    printf("\033[?25h");
+		eprintf("\033[%dC", x);
+	    eprintf("\033[?25h");
 	    prev_len = len;
 	    redraw = 0;
 	}
@@ -294,7 +294,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		cursor++;
 		x++;
 		if (x >= width) {
-		    printf("\r\n");
+		    eprintf("\r\n");
 		    y++;
 		    x = 0;
 		}
@@ -423,7 +423,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    cursor++;
 		    x++;
 		    if (x >= width) {
-			printf("\r\n\033[K");
+			eprintf("\r\n\033[K");
 			y++;
 			x = 0;
 		    }
@@ -443,7 +443,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	}
     }
 
-    printf("\033[?7h");
+    eprintf("\033[?7h");
 
     /* Add the command to the history */
     comm_counter = malloc(sizeof(struct cli_command));
