@@ -451,7 +451,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     strcpy(comm_counter->command, ret);
     list_add(&(comm_counter->list), &cli_history_head);
 
-    return ret;
+    return len ? ret : NULL;
 }
 
 static int cli_init(void)
