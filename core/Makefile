@@ -74,7 +74,7 @@ ifndef DATE
 DATE    := $(shell sh ../gen-id.sh $(VERSION) $(HEXDATE))
 endif
 
-all: $(BTARGET)
+all: $(BTARGET) clean
 
 kwdhash.gen: keywords genhash.pl
 	$(PERL) genhash.pl < keywords > kwdhash.gen

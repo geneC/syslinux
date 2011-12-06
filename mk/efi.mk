@@ -10,14 +10,14 @@ FORMAT=efi-app-$(ARCH)
 CFLAGS = -I/usr/include/efi -I/usr/include/efi/$(ARCH) \
 		-DEFI_FUNCTION_WRAPPER -fPIC -fshort-wchar -ffreestanding \
 		-Wall -I$(com32)/include -I$(core)/include -m32 -march=i686 \
-		-I$(com32)/lib/ -std=gnu99
+		-I$(com32)/lib/ -std=gnu99 -DELF_DEBUG -DSYSLINUX_EFI
 
 # gnuefi sometimes installs these under a gnuefi/ directory, and sometimes not
 CRT0 := $(shell find $(LIBDIR) -name crt0-efi-$(ARCH).o 2>/dev/null | tail -n1)
 LDSCRIPT := $(shell find $(LIBDIR) -name elf_$(ARCH)_efi.lds 2>/dev/null | tail -n1)
 
-LDFLAGS = -T $(LDSCRIPT) -Bsymbolic -shared -nostdlib -znocombreloc \
-		-L$(LIBDIR) $(CRT0)
+LDFLAGS = -T syslinux.ld -Bsymbolic -pie -nostdlib -znocombreloc \
+		-L$(LIBDIR) --hash-style=gnu -m elf_i386 $(CRT0) -E
 
 SFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ \
@@ -32,6 +32,6 @@ SFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-%.efi: %.so
-	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel \
-		-j .rela -j .reloc --target=$(FORMAT) $*.so $@
+#%.efi: %.so
+#	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel \
+#		-j .rela -j .reloc --target=$(FORMAT) $*.so $@
