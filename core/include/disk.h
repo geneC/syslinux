@@ -13,6 +13,7 @@ typedef uint64_t block_t;
  * contains the I/O function.
  */
 struct disk {
+    void *private;		/* Firmware-private disk info */
     unsigned int disk_number;	/* in BIOS style */
     unsigned int sector_size;	/* gener512B or 2048B */
     unsigned int sector_shift;
