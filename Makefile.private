@@ -100,7 +100,3 @@ LATEST_PREREL   := syslinux-$(VERSION)-pre$(LATEST_PRERELNO)
 unprerel:
 	echo $(LATEST_PRERELNO) > $(PRERELDIR)/.prerel
 	@echo Next release will be $(LATEST_PREREL)
-
-preupload:
-	scp $(PRERELDIR)/$(LATEST_PREREL).* $(UPLOAD)/Testing
-	git push --tags
