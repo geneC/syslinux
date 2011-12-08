@@ -31,7 +31,7 @@ extern void read_sectors(char *, sector_t, int);
 extern void getoneblk(struct disk *, char *, block_t, int);
 
 /* diskio.c */
-struct disk *disk_init(uint8_t, bool, sector_t, uint16_t, uint16_t, uint32_t);
-struct device *device_init(uint8_t, bool, sector_t, uint16_t, uint16_t, uint32_t);
+struct disk *bios_disk_init(com32sys_t *);
+struct device *device_init(void *);
 
 #endif /* DISK_H */

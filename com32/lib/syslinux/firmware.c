@@ -11,6 +11,7 @@ struct firmware bios_fw = {
 	.scan_memory = bios_scan_memory,
 	.adjust_screen = bios_adjust_screen,
 	.cleanup = bios_cleanup_hardware,
+	.disk_init = bios_disk_init,
 };
 
 void syslinux_register_bios(void)

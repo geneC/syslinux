@@ -1166,7 +1166,7 @@ init_fs:
 	        mov ebx,[Hidden+4]
                 mov si,[bsHeads]
 		mov di,[bsSecPerTrack]
-		pm_call fs_init
+		pm_call pm_fs_init
 		pm_call load_env32
 		popad
 

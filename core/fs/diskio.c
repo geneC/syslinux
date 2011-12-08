@@ -8,6 +8,8 @@
 #include <disk.h>
 #include <ilog2.h>
 
+#include <syslinux/firmware.h>
+
 #define RETRY_COUNT 6
 
 static inline sector_t chs_max(const struct disk *disk)
@@ -298,13 +300,17 @@ void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
 }
 
 
-struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
-                       uint16_t bsHeads, uint16_t bsSecPerTrack,
-		       uint32_t MaxTransfer)
+struct disk *bios_disk_init(com32sys_t *regs)
 {
     static struct disk disk;
     static __lowmem struct edd_disk_params edd_params;
     com32sys_t ireg, oreg;
+    uint8_t devno = regs->edx.b[0];
+    bool cdrom = regs->edx.b[1];
+    sector_t part_start = regs->ecx.l | ((sector_t)regs->ebx.l << 32);
+    uint16_t bsHeads = regs->esi.w[0];
+    uint16_t bsSecPerTrack = regs->edi.w[0];
+    uint32_t MaxTransfer = regs->ebp.l;
     bool ebios;
     int sector_size;
     unsigned int hard_max_transfer;
@@ -402,16 +408,12 @@ struct disk *disk_init(uint8_t devno, bool cdrom, sector_t part_start,
  *
  * NOTE: the disk cache needs to be revamped to support multiple devices...
  */
-struct device * device_init(uint8_t devno, bool cdrom, sector_t part_start,
-                            uint16_t bsHeads, uint16_t bsSecPerTrack,
-			    uint32_t MaxTransfer)
+struct device * device_init(void *args)
 {
     static struct device dev;
     static __hugebss char diskcache[128*1024];
 
-    dev.disk = disk_init(devno, cdrom, part_start,
-			 bsHeads, bsSecPerTrack, MaxTransfer);
-
+    dev.disk = firmware->disk_init(args);
     dev.cache_data = diskcache;
     dev.cache_size = sizeof diskcache;
 

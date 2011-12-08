@@ -428,22 +428,16 @@ void pm_close_file(com32sys_t *regs)
  *    invoke the fs-specific init function;
  *    initialize the cache if we need one;
  *    finally, get the current inode for relative path looking.
+ *
+ * ops is a ptr list for several fs_ops
  */
 __bss16 uint16_t SectorSize, SectorShift;
 
-void fs_init(com32sys_t *regs)
+void fs_init(const struct fs_ops **ops, void *args)
 {
     static struct fs_info fs;	/* The actual filesystem buffer */
-    uint8_t disk_devno = regs->edx.b[0];
-    uint8_t disk_cdrom = regs->edx.b[1];
-    sector_t disk_offset = regs->ecx.l | ((sector_t)regs->ebx.l << 32);
-    uint16_t disk_heads = regs->esi.w[0];
-    uint16_t disk_sectors = regs->edi.w[0];
-    uint32_t maxtransfer = regs->ebp.l;
     int blk_shift = -1;
     struct device *dev = NULL;
-    /* ops is a ptr list for several fs_ops */
-    const struct fs_ops **ops = (const struct fs_ops **)regs->eax.l;
 
     /* Initialize malloc() */
     mem_init();
@@ -463,8 +457,7 @@ void fs_init(com32sys_t *regs)
 	    fs.fs_dev = NULL;
 	} else {
 	    if (!dev)
-		dev = device_init(disk_devno, disk_cdrom, disk_offset,
-				  disk_heads, disk_sectors, maxtransfer);
+		dev = device_init(args);
 	    fs.fs_dev = dev;
 	}
 	/* invoke the fs-specific init code */
@@ -495,4 +488,9 @@ void fs_init(com32sys_t *regs)
 
     SectorShift = fs.sector_shift;
     SectorSize  = fs.sector_size;
+}
+
+void pm_fs_init(com32sys_t *regs)
+{
+	fs_init(regs->eax.l, regs);
 }
