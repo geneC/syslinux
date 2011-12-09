@@ -13,6 +13,8 @@ Changes in 4.05:
         * ifmemdsk.c32: Choose boot option based on presence of
 	  MEMDISK.
 	* Remove bogus distributed mk-lba-img binary.
+	* The Syslinux project has a new, cool logo by Abi
+	  "ixxvil" Rasheed (doc/logo/*).
 
 Changes in 4.04:
 	* PXELINUX: Fix handling of unqualified DNS names.
