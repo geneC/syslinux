@@ -66,6 +66,37 @@ bootsec:
 	.globl	_start
 _start:
 	.byte	0x33, 0xed	/* xorw	%bp, %bp */
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	.byte	0x33, 0xed	/* xorw	%bp, %bp */
 	cli
 	movw	%bp, %ss
 	movw	$stack, %sp
