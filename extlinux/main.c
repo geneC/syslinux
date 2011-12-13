@@ -14,7 +14,7 @@
 /*
  * extlinux.c
  *
- * Install the syslinux boot block on an fat, ext2/3/4 and btrfs filesystem
+ * Install the syslinux boot block on an fat, ntfs, ext2/3/4 and btrfs filesystem
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
@@ -45,9 +45,11 @@
 
 #include "btrfs.h"
 #include "fat.h"
+#include "ntfs.h"
 #include "../version.h"
 #include "syslxint.h"
 #include "syslxcom.h" /* common functions shared with extlinux and syslinux */
+#include "syslxfs.h"
 #include "setadv.h"
 #include "syslxopt.h" /* unified options */
 
@@ -214,7 +216,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     sector_t *sectp;
     uint64_t totalbytes, totalsectors;
     int nsect;
-    struct boot_sector *sbs;
+    struct fat_boot_sector *sbs;
     char *dirpath, *subpath, *xdirpath;
     int rv;
 
@@ -271,7 +273,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
        early bootstrap share code with the FAT version. */
     dprintf("heads = %u, sect = %u\n", geo.heads, geo.sectors);
 
-    sbs = (struct boot_sector *)syslinux_bootsect;
+    sbs = (struct fat_boot_sector *)syslinux_bootsect;
 
     totalsectors = totalbytes >> SECTOR_SHIFT;
     if (totalsectors >= 65536) {
@@ -292,7 +294,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     nsect = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     nsect += 2;			/* Two sectors for the ADV */
     sectp = alloca(sizeof(sector_t) * nsect);
-    if (fs_type == EXT2 || fs_type == VFAT) {
+    if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS) {
 	if (sectmap(fd, sectp, nsect)) {
 		perror("bmap");
 		exit(1);
@@ -323,7 +325,8 @@ int install_bootblock(int fd, const char *device)
 {
     struct ext2_super_block sb;
     struct btrfs_super_block sb2;
-    struct boot_sector sb3;
+    struct fat_boot_sector sb3;
+    struct ntfs_boot_sector sb4;
     bool ok = false;
 
     if (fs_type == EXT2) {
@@ -348,20 +351,39 @@ int install_bootblock(int fd, const char *device)
 	}
 	if (fat_check_sb_fields(&sb3))
 		ok = true;
+    } else if (fs_type == NTFS) {
+        if (xpread(fd, &sb4, sizeof(sb4), 0) != sizeof(sb4)) {
+            perror("reading ntfs superblock");
+            return 1;
+        }
+
+        if (ntfs_check_sb_fields(&sb4))
+             ok = true;
     }
     if (!ok) {
-	fprintf(stderr, "no fat, ext2/3/4 or btrfs superblock found on %s\n",
+	fprintf(stderr, "no fat, ntfs, ext2/3/4 or btrfs superblock found on %s\n",
 			device);
 	return 1;
     }
     if (fs_type == VFAT) {
-	struct boot_sector *sbs = (struct boot_sector *)syslinux_bootsect;
-        if (xpwrite(fd, &sbs->bsHead, bsHeadLen, 0) != bsHeadLen ||
-	    xpwrite(fd, &sbs->bsCode, bsCodeLen,
-		    offsetof(struct boot_sector, bsCode)) != bsCodeLen) {
+	struct fat_boot_sector *sbs = (struct fat_boot_sector *)syslinux_bootsect;
+        if (xpwrite(fd, &sbs->FAT_bsHead, FAT_bsHeadLen, 0) != FAT_bsHeadLen ||
+	    xpwrite(fd, &sbs->FAT_bsCode, FAT_bsCodeLen,
+		    offsetof(struct fat_boot_sector, FAT_bsCode)) != FAT_bsCodeLen) {
 	    perror("writing fat bootblock");
 	    return 1;
 	}
+    } else if (fs_type == NTFS) {
+        struct ntfs_boot_sector *sbs =
+                (struct ntfs_boot_sector *)syslinux_bootsect;
+        if (xpwrite(fd, &sbs->NTFS_bsHead,
+                    NTFS_bsHeadLen, 0) != NTFS_bsHeadLen ||
+                    xpwrite(fd, &sbs->NTFS_bsCode, NTFS_bsCodeLen,
+                    offsetof(struct ntfs_boot_sector,
+                    NTFS_bsCode)) != NTFS_bsCodeLen) {
+            perror("writing ntfs bootblock");
+            return 1;
+        }
     } else {
 	if (xpwrite(fd, syslinux_bootsect, syslinux_bootsect_len, 0)
 	    != syslinux_bootsect_len) {
@@ -754,7 +776,7 @@ static char * get_default_subvol(char * rootdir, char * subvol)
 
 int install_file(const char *path, int devfd, struct stat *rst)
 {
-	if (fs_type == EXT2 || fs_type == VFAT)
+	if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS)
 		return ext2_fat_install_file(path, devfd, rst);
 	else if (fs_type == BTRFS)
 		return btrfs_install_file(path, devfd, rst);
@@ -828,6 +850,16 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 		    done = true;
 		    break;
 		}
+    case NTFS:
+        if ((!strcmp(mnt->mnt_type, "fuseblk") /* ntfs-3g */ ||
+             !strcmp(mnt->mnt_type, "ntfs")) &&
+            !stat(mnt->mnt_fsname, &dst) &&
+            dst.st_rdev == dev) {
+            done = true;
+            break;
+        }
+
+        break;
 	case NONE:
 	    break;
 	}
@@ -910,9 +942,12 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
 	fs_type = BTRFS;
     else if (sfs.f_type == MSDOS_SUPER_MAGIC)
 	fs_type = VFAT;
+    else if (sfs.f_type == NTFS_SB_MAGIC ||
+                sfs.f_type == FUSE_SUPER_MAGIC /* ntfs-3g */)
+        fs_type = NTFS;
 
     if (!fs_type) {
-	fprintf(stderr, "%s: not a fat, ext2/3/4 or btrfs filesystem: %s\n",
+	fprintf(stderr, "%s: not a fat, ntfs, ext2/3/4 or btrfs filesystem: %s\n",
 		program, path);
 	return -1;
     }

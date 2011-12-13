@@ -15,7 +15,6 @@
 #include <linux/hdreg.h>	/* Hard disk geometry */
 
 #include <linux/fs.h>		/* FIGETBSZ, FIBMAP, FS_IOC_FIEMAP */
-#include <linux/msdos_fs.h>	/* FAT_IOCTL_SET_ATTRIBUTES */
 
 #undef SECTOR_SIZE		/* Defined in msdos_fs.h for no good reason */
 #undef SECTOR_BITS
@@ -25,9 +24,7 @@
 # define FAT_IOCTL_GET_ATTRIBUTES	_IOR('r', 0x10, __u32)
 #endif
 
-#ifndef FAT_IOCTL_SET_ATTRIBUTES
-# define FAT_IOCTL_SET_ATTRIBUTES	_IOW('r', 0x11, __u32)
-#endif
+#define FAT_IOCTL_SET_ATTRIBUTES	_IOW('r', 0x11, __u32)
 
 #include <linux/fiemap.h>	/* FIEMAP definitions */
 

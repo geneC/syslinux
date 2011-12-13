@@ -11,7 +11,7 @@
 ## -----------------------------------------------------------------------
 
 ##
-## Linux vfat, ext2/ext3/ext4 and btrfs installer
+## Linux vfat, ntfs, ext2/ext3/ext4 and btrfs installer
 ##
 
 topdir = ..

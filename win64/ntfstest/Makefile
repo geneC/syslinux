@@ -12,59 +12,38 @@
 ## -----------------------------------------------------------------------
 
 #
-# Makefile for SYSLINUX Win32
+# Makefile for Win64 NTFS file cluster test
 #
 # This is separated out mostly so we can have a different set of Makefile
 # variables.
 #
 
 OSTYPE   = $(shell uname -msr)
-ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
-## Compiling on Cygwin
-WINPREFIX  :=
-WINCFLAGS  := -mno-cygwin $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
-WINLDFLAGS := -mno-cygwin -Os -s
-else
-## Compiling on some variant of MinGW
-ifeq ($(findstring MINGW32,$(OSTYPE)),MINGW32)
-WINPREFIX  :=
-else
-WINPREFIX  := $(shell ./find-mingw32.sh gcc)
-endif
+# Don't know how to do a native compile here...
+WINPREFIX  := $(shell ../find-mingw64.sh gcc)
 WINCFLAGS  := $(GCCWARN) -Wno-sign-compare -Os -fomit-frame-pointer \
 	      -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -Os -s
-endif
-WINCFLAGS += -I. -I../win -I.. -I../libfat -I../libinstaller \
-	     -I../libinstaller/getopt
+WINCFLAGS += -I. -I../../win
 
 WINCC      := $(WINPREFIX)gcc
 WINAR	   := $(WINPREFIX)ar
 WINRANLIB  := $(WINPREFIX)ranlib
+WINDRES    := $(WINPREFIX)windres
 
 WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) \
-	-o hello.exe ../win/hello.c >/dev/null 2>&1 ; echo $$?)
+	-o hello.exe ../../win/hello.c >/dev/null 2>&1 ; echo $$?)
 
-.SUFFIXES: .c .obj .lib .exe .i .s .S
+.SUFFIXES: .c .obj .lib .exe .i .s .S .rc .res
 
-SRCS     = ../win/syslinux.c ../win/ntfssect.c
+SRCS     = ../../win/ntfstest.c ../../win/ntfssect.c
+RCS      = ../../win/ntfstest.rc
 OBJS     = $(patsubst %.c,%.obj,$(notdir $(SRCS)))
-LIBSRC   = ../libinstaller/fs.c \
-	   ../libinstaller/syslxmod.c \
-	   ../libinstaller/syslxopt.c \
-	   ../libinstaller/setadv.c \
-	   ../libinstaller/getopt/getopt_long.c \
-	   ../libinstaller/bootsect_bin.c \
-	   ../libinstaller/ldlinux_bin.c \
-	   ../libinstaller/mbr_bin.c \
-	   $(wildcard ../libfat/*.c)
-LIBOBJS  = $(patsubst %.c,%.obj,$(notdir $(LIBSRC)))
+RESS     = $(patsubst %.rc,%.res,$(notdir $(RCS)))
 
-LIB	 = syslinux.lib
+VPATH = .:../../win
 
-VPATH = .:../win:../libfat:../libinstaller:../libinstaller/getopt
-
-TARGETS = syslinux.exe
+TARGETS = ntfstest64.exe
 
 ifeq ($(WINCC_IS_GOOD),0)
 all: $(TARGETS)
@@ -81,14 +60,7 @@ clean: tidy
 spotless: clean
 	-rm -f *~ $(TARGETS)
 
-installer:
-
-$(LIB): $(LIBOBJS)
-	rm -f $@
-	$(WINAR) cq $@ $^
-	$(WINRANLIB) $@
-
-syslinux.exe: $(OBJS) $(LIB)
+ntfstest64.exe: $(OBJS) $(RESS)
 	$(WINCC) $(WINLDFLAGS) -o $@ $^
 
 
@@ -98,5 +70,7 @@ syslinux.exe: $(OBJS) $(LIB)
 	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -E -o $@ $<
 %.s: %.c
 	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -S -o $@ $<
+%.res: %.rc
+	$(WINDRES) -O COFF $< $@
 
 -include .*.d *.tmp
