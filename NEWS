@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 4.06:
+	* Support for NTFS, by Paulo Cezar.
+
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
 	  server.
