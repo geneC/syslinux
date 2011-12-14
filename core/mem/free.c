@@ -75,6 +75,9 @@ void free(void *ptr)
     if ( !ptr )
         return;
 
+#ifdef SYSLINUX_EFI
+    FreePool(ptr);
+#else
     ah = (struct free_arena_header *)
         ((struct arena_header *)ptr - 1);
 
@@ -83,6 +86,7 @@ void free(void *ptr)
 #endif
 
     __free_block(ah);
+#endif
 
   /* Here we could insert code to return memory to the system. */
 }

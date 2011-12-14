@@ -69,6 +69,9 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     dprintf("_malloc(%zu, %u, %u) @ %p = ",
 	size, heap, tag, __builtin_return_address(0));
 
+#ifdef SYSLINUX_EFI
+    p = AllocatePool(size);
+#else
     if (size) {
 	/* Add the obligatory arena header, and round up */
 	size = (size + 2 * sizeof(struct arena_header) - 1) & ARENA_SIZE_MASK;
@@ -81,6 +84,7 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
 	    }
         }
     }
+#endif
 
     dprintf("%p\n", p);
     return p;
@@ -109,6 +113,11 @@ void *realloc(void *ptr, size_t size)
     void *newptr;
     size_t newsize, oldsize, xsize;
 
+#ifdef SYSLINUX_EFI
+    newptr = AllocatePool(size);
+    memcpy(newptr, ptr, size);
+    FreePool(ptr);
+#else
     if (!ptr)
 	return malloc(size);
 
@@ -200,6 +209,7 @@ void *realloc(void *ptr, size_t size)
 	    return newptr;
 	}
     }
+#endif
 }
 
 void *zalloc(size_t size)
