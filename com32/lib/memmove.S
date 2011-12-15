@@ -37,6 +37,10 @@
 	.type	memmove,@function
 	.text
 memmove:
+	movl	0xc(%esp),%ecx
+	movl	0x8(%esp),%edx
+	movl	0x4(%esp),%eax
+
 	jecxz	4f
 
 	pushl	%esi

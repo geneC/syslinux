@@ -22,7 +22,7 @@ GCCOPT += $(call gcc_ok,-m32,)
 GCCOPT += $(call gcc_ok,-fno-stack-protector,)
 GCCOPT += $(call gcc_ok,-fwrapv,)
 GCCOPT += $(call gcc_ok,-freg-struct-return,)
-GCCOPT += -mregparm=3 -DREGPARM=3 -march=i386 -Os
+GCCOPT += -march=i386 -Os
 GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
 GCCOPT += $(call gcc_ok,-fno-exceptions,)
 GCCOPT += $(call gcc_ok,-fno-asynchronous-unwind-tables,)

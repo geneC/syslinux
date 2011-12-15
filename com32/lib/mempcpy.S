@@ -36,6 +36,10 @@
 	.globl	mempcpy
 	.type	mempcpy, @function
 mempcpy:
+	movl	0xc(%esp),%ecx
+	movl	0x8(%esp),%edx
+	movl	0x4(%esp),%eax
+
 	jecxz	1f
 
 	pushl	%esi

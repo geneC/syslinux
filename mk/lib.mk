@@ -31,7 +31,7 @@ LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \
 # fallback anyway, just use that on old machines...
 # LIBFLAGS += -DPNG_NO_FLOATING_POINT_SUPPORTED
 
-REQFLAGS  = $(GCCOPT) -g -mregparm=3 -DREGPARM=3 -D__COM32__ \
+REQFLAGS  = $(GCCOPT) -g -D__COM32__ \
 	    -nostdinc -iwithprefix include -I. -I./sys -I../include \
 	    -I../../core/include
 OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 \
