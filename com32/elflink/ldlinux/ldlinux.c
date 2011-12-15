@@ -42,6 +42,7 @@ static void load_kernel(const char *kernel)
 	if (!allowimplicit)
 		goto bad_implicit;
 
+	p = kernel;
 	/* Find the end of the command */
 	while (*p && !my_isspace(*p))
 		p++;
