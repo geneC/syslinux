@@ -22,7 +22,8 @@ ENTRY(_start)
 SECTIONS
 {
 	. = 0;
-	ImageBase = .;
+	ImageBase = .;		/* For gnu-efi's crt0 */
+	__module_start = .;
 	. = SEGMENT_START("text-segment", 0) + SIZEOF_HEADERS;
 	.text : {
 		FILL(0x90909090)
@@ -79,7 +80,6 @@ SECTIONS
 		*(.dynsym)
 		__dynsym_end = .;
 	}
-	__dynsym_len = __dynsym_end - __dynsym_start;
 
 	. = ALIGN(4);
 
@@ -88,7 +88,6 @@ SECTIONS
 		*(.dynstr)
 		__dynstr_end = .;
 	}
-	__dynstr_len = __dynstr_end - __dynstr_start;
 
 	. = ALIGN(4);
 

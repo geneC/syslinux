@@ -26,6 +26,7 @@ SECTIONS
 {
 	/* Prefix structure for the compression program */
 	. = 0;
+	__module_start = .;
 	.prefix : {
 		*(.prefix)
 	}

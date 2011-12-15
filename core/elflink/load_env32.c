@@ -28,11 +28,12 @@ typedef void (*constructor_t) (void);
 constructor_t __ctors_start[], __ctors_end[];
 
 extern char __dynstr_start[];
-extern char __dynstr_len[], __dynsym_len[];
+extern char __dynstr_end[], __dynsym_end[];
 extern char __dynsym_start[];
 extern char __got_start[];
 extern Elf32_Dyn __dynamic_start[];
 extern Elf32_Word __gnu_hash_start[];
+extern char __module_start[];
 
 struct elf_module core_module = {
     .name		= "(core)",
@@ -41,15 +42,12 @@ struct elf_module core_module = {
     .dependants		= LIST_HEAD_INIT((core_module.dependants)),
     .list		= LIST_HEAD_INIT((core_module.list)),
     .module_addr	= (void *)0x0,
-    .base_addr		= (Elf32_Addr) 0x0,
     .ghash_table	= __gnu_hash_start,
     .str_table		= __dynstr_start,
     .sym_table		= __dynsym_start,
     .got		= __got_start,
     .dyn_table		= __dynamic_start,
-    .strtable_size	= (size_t) __dynstr_len,
     .syment_size	= sizeof(Elf32_Sym),
-    .symtable_size	= (size_t) __dynsym_len
 };
 
 /*
@@ -77,6 +75,7 @@ void load_env32(com32sys_t * regs)
 	struct file_info *fp;
 	int fd;
 	char *argv[] = { LDLINUX, NULL };
+	size_t size;
 
 	static const char *search_directories[] = {
 		"/boot/isolinux",
@@ -94,6 +93,12 @@ void load_env32(com32sys_t * regs)
 
 	dprintf("Starting 32 bit elf module subsystem...\n");
 	call_constr();
+
+	size = (size_t)__dynstr_end - (size_t)__dynstr_start;
+	core_module.strtable_size = size;
+	size = (size_t)__dynsym_end - (size_t)__dynsym_start;
+	core_module.symtable_size = size;
+	core_module.base_addr = (Elf32_Addr)__module_start;
 
 	init_module_subsystem(&core_module);
 
