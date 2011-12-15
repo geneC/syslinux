@@ -29,6 +29,7 @@
 #include "bios.h"
 #include <com32.h>
 #include <sys/cpu.h>
+#include <syslinux/firmware.h>
 
 union screen _cursor;
 union screen _screensize;
@@ -114,15 +115,6 @@ int get_msg_file(char *filename)
 
 	fclose(f);
 	return 0;
-}
-
-static inline void msg_beep(void)
-{
-	com32sys_t ireg, oreg;
-
-	ireg.eax.w[0] = 0x0E07;	/* Beep */
-	ireg.ebx.w[0] = 0x0000;
-	__intcall(0x10, &ireg, &oreg);
 }
 
 /*
@@ -262,10 +254,7 @@ int pm_pollchar(com32sys_t *regs)
 
 extern void do_idle(void);
 
-/*
- * getchar: Read a character from keyboard or serial port
- */
-char getchar(void)
+char bios_getchar(void)
 {
 	com32sys_t ireg, oreg;
 	unsigned char data;
@@ -329,6 +318,14 @@ char getchar(void)
 	return data;
 }
 
+/*
+ * getchar: Read a character from keyboard or serial port
+ */
+char getchar(void)
+{
+	return firmware->i_ops->getchar();
+}
+
 void pm_getchar(com32sys_t *regs)
 {
 	regs->eax.b[0] = getchar();
@@ -368,15 +365,7 @@ static inline void msg_ctrl_o(void)
 
 static void msg_gotoxy(void)
 {
-	com32sys_t ireg, oreg;
-
-	memset(&ireg, 0, sizeof(ireg));
-
-	ireg.ebx.b[1] = *(uint8_t *)BIOS_page;
-	ireg.edx.w[0] = CursorDX;
-	ireg.eax.b[1] = 0x02;	/* Set cursor position */
-
-	__intcall(0x10, &ireg, &oreg);
+	firmware->o_ops->set_cursor(CursorCol, CursorRow, true);
 }
 
 static void msg_newline(void)
@@ -393,18 +382,11 @@ static void msg_newline(void)
 	if ((CursorRow + 1) <= VidRows)
 		CursorRow++;
 	else {
-		ireg.ecx.w[0] = 0x0;	/* Upper left hand corner */
-		ireg.edx.w[0] = ScreenSize;
-
-		CursorRow = ireg.edx.b[1]; /* New cursor at the bottom */
-
-		ireg.ebx.b[1] = ScrollAttribute;
-		ireg.eax.w[0] = 0x0601; /* Scroll up one line */
-
-		__intcall(0x10, &ireg, &oreg);
+		CursorRow = VidRows; /* New cursor at the bottom */
+		firmware->o_ops->scroll_up(VidRows, VidCols, ScrollAttribute);
 	}
 
-	msg_gotoxy();
+	firmware->o_ops->set_cursor(CursorCol, CursorRow, true);
 }
 
 static void msg_formfeed(void)
@@ -414,19 +396,10 @@ static void msg_formfeed(void)
 	write_serial_str_displaymask(crff_msg);
 
 	if (DisplayMask & UsingVGA) {
-		com32sys_t ireg, oreg;
-
-		memset(&ireg, 0, sizeof(ireg));
-
 		CursorDX = 0x0;	/* Upper left hand corner */
 
-		ireg.edx.w[0] = ScreenSize;
-		ireg.ebx.b[1] = TextAttribute;
-
-		ireg.eax.w[0] = 0x0600; /* Clear screen region */
-		__intcall(0x10, &ireg, &oreg);
-
-		msg_gotoxy();
+		firmware->o_ops->erase(0, 0, VidCols, VidRows, TextAttribute);
+		firmware->o_ops->set_cursor(CursorCol, CursorRow, true);
 	}
 }
 
@@ -488,22 +461,11 @@ static void msg_line_wrap(void)
 	if ((CursorRow + 1) <= VidRows)
 		CursorRow++;
 	else {
-		com32sys_t ireg, oreg;
-
-		memset(&ireg, 0, sizeof(ireg));
-
-		ireg.ecx.w[0] = 0x0;	   /* Upper left hand corner */
-		ireg.edx.w[0] = ScreenSize;
-
-		CursorRow = ireg.edx.b[1]; /* New cursor at the bottom */
-
-		ireg.ebx.b[1] = ScrollAttribute;
-		ireg.eax.w[0] = 0x0601; /* Scroll up one line */
-
-		__intcall(0x10, &ireg, &oreg);
+		/* Scroll up one line */
+		firmware->o_ops->scroll_up(VidRows, VidCols, ScrollAttribute);
 	}
 
-	msg_gotoxy();
+	firmware->o_ops->set_cursor(CursorCol, CursorRow, true);
 }
 
 static void msg_normal(char data)
@@ -519,20 +481,12 @@ static void msg_normal(char data)
 	if (!(DisplayCon & 0x01))
 		return;
 
-	memset(&ireg, 0, sizeof(ireg));
-
-	ireg.ebx.b[0] = TextAttribute;
-	ireg.ebx.b[1] = *(uint8_t *)BIOS_page;
-	ireg.eax.b[0] = data;
-	ireg.eax.b[1] = 0x09;	/* Write character/attribute */
-	ireg.ecx.w[0] = 1;	/* One character only */
-
 	/* Write to screen */
-	__intcall(0x10, &ireg, &oreg);
+	firmware->o_ops->write_char(data, TextAttribute);
 
 	if ((CursorCol + 1) <= VidCols) {
 		CursorCol++;
-		msg_gotoxy();
+		firmware->o_ops->set_cursor(CursorCol, CursorRow, true);
 	} else
 		msg_line_wrap(); /* Screen wraparound */
 }
@@ -565,7 +519,8 @@ static void msg_putchar(char ch)
 		msg_formfeed();
 		break;
 	case 0x07:		/* <BEL> = beep */
-		msg_beep();
+		if (firmware->o_ops->beep)
+			firmware->o_ops->beep();
 		break;
 	case 0x19:		/* <EM> = return to text mode */
 		msg_novga();
@@ -586,12 +541,11 @@ static void msg_putchar(char ch)
 void msg_initvars(void)
 {
 	com32sys_t ireg, oreg;
+	int x, y;
 
-	ireg.eax.b[1] = 0x3;	/* Read cursor position */
-	ireg.ebx.b[1] = *(uint8_t *)BIOS_page;
-	__intcall(0x10, &ireg, &oreg);
-
-	CursorDX = oreg.edx.w[0];
+	firmware->o_ops->get_cursor(&x, &y);
+	CursorCol = x;
+	CursorRow = y;
 
 	/* Initialize state machine */
 	NextCharJump = msg_putchar;

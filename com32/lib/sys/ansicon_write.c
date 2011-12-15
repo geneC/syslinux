@@ -42,6 +42,7 @@
 #include <syslinux/config.h>
 #include "file.h"
 #include "ansi.h"
+#include <syslinux/firmware.h>
 
 static void ansicon_erase(const struct term_state *, int, int, int, int);
 static void ansicon_write_char(int, int, uint8_t, const struct term_state *);
@@ -70,11 +71,41 @@ static struct term_info ti = {
 #define BIOS_COLS (*(uint16_t *)0x44A)
 #define BIOS_PAGE (*(uint8_t *)0x462)
 
+#define TEXT_MODE 0x0005
+
 /* Reference counter to the screen, to keep track of if we need
    reinitialization. */
 static int ansicon_counter = 0;
 
 static uint16_t cursor_type;	/* Saved cursor pattern */
+
+void bios_set_mode(uint16_t mode)
+{
+    com32sys_t ireg;
+
+    ireg.eax.w[0] = mode;
+    __intcall(0x22, &ireg, NULL);
+}
+
+void bios_get_mode(int *cols, int *rows)
+{
+    *rows = BIOS_ROWS ? BIOS_ROWS + 1 : 25;
+    *cols = BIOS_COLS;
+}
+
+void bios_get_cursor(int *x, int *y)
+{
+    com32sys_t ireg, oreg;
+
+    memset(&ireg, 0, sizeof(ireg));
+
+    ireg.eax.b[1] = 0x03;
+    ireg.ebx.b[1] = BIOS_PAGE;
+    __intcall(0x10, &ireg, &oreg);
+    cursor_type = oreg.ecx.w[0];
+    *x = oreg.edx.b[0];
+    *y = oreg.edx.b[1];
+}
 
 /* Common setup */
 int __ansicon_open(struct file_info *fp)
@@ -90,21 +121,14 @@ int __ansicon_open(struct file_info *fp)
 	    ti.cols = 80;
 	} else {
 	    /* Force text mode */
-	    ireg.eax.w[0] = 0x0005;
-	    __intcall(0x22, &ireg, NULL);
+	    firmware->o_ops->set_mode(TEXT_MODE);
 
 	    /* Initial state */
-	    ti.rows = BIOS_ROWS ? BIOS_ROWS + 1 : 25;
-	    ti.cols = BIOS_COLS;
+	    firmware->o_ops->get_mode(&ti.cols, &ti.rows);
 	    __ansi_init(&ti);
 
 	    /* Get cursor shape and position */
-	    ireg.eax.b[1] = 0x03;
-	    ireg.ebx.b[1] = BIOS_PAGE;
-	    __intcall(0x10, &ireg, &oreg);
-	    cursor_type = oreg.ecx.w[0];
-	    ti.ts->xy.x = oreg.edx.b[0];
-	    ti.ts->xy.y = oreg.edx.b[1];
+	    firmware->o_ops->get_cursor(&ti.ts->xy.x, &ti.ts->xy.y);
 	}
     }
 
@@ -151,14 +175,12 @@ static uint8_t ansicon_attribute(const struct term_state *st)
     return (bg << 4) | fg;
 }
 
-/* Erase a region of the screen */
-static void ansicon_erase(const struct term_state *st,
-			  int x0, int y0, int x1, int y1)
+void bios_erase(int x0, int y0, int x1, int y1, uint8_t attribute)
 {
     static com32sys_t ireg;
 
     ireg.eax.w[0] = 0x0600;	/* Clear window */
-    ireg.ebx.b[1] = ansicon_attribute(st);
+    ireg.ebx.b[1] = attribute;
     ireg.ecx.b[0] = x0;
     ireg.ecx.b[1] = y0;
     ireg.edx.b[0] = x1;
@@ -166,17 +188,33 @@ static void ansicon_erase(const struct term_state *st,
     __intcall(0x10, &ireg, NULL);
 }
 
-/* Show or hide the cursor */
-static void ansicon_showcursor(const struct term_state *st)
+/* Erase a region of the screen */
+static void ansicon_erase(const struct term_state *st,
+			  int x0, int y0, int x1, int y1)
+{
+    uint8_t attribute = ansicon_attribute(st);
+
+    if (firmware->o_ops->erase)
+	firmware->o_ops->erase(x0, y0, x1, y1, attribute);
+}
+
+void bios_showcursor(uint16_t cursor)
 {
     static com32sys_t ireg;
 
     ireg.eax.b[1] = 0x01;
-    ireg.ecx.w[0] = st->cursor ? cursor_type : 0x2020;
+    ireg.ecx.w[0] = cursor;
     __intcall(0x10, &ireg, NULL);
 }
 
-static void ansicon_set_cursor(int x, int y, bool visible)
+/* Show or hide the cursor */
+static void ansicon_showcursor(const struct term_state *st)
+{
+    uint16_t cursor = st->cursor ? cursor_type : 0x2020;
+    firmware->o_ops->showcursor(cursor);
+}
+
+void bios_set_cursor(int x, int y, bool visible)
 {
     const int page = BIOS_PAGE;
     struct curxy xy = BIOS_CURXY[page];
@@ -193,31 +231,53 @@ static void ansicon_set_cursor(int x, int y, bool visible)
     }
 }
 
-static void ansicon_write_char(int x, int y, uint8_t ch,
-			       const struct term_state *st)
+static void ansicon_set_cursor(int x, int y, bool visible)
+{
+    firmware->o_ops->set_cursor(x, y, visible);
+}
+
+void bios_write_char(uint8_t ch, uint8_t attribute)
 {
     static com32sys_t ireg;
-
-    ansicon_set_cursor(x, y, false);
 
     ireg.eax.b[1] = 0x09;
     ireg.eax.b[0] = ch;
     ireg.ebx.b[1] = BIOS_PAGE;
-    ireg.ebx.b[0] = ansicon_attribute(st);
+    ireg.ebx.b[0] = attribute;
     ireg.ecx.w[0] = 1;
     __intcall(0x10, &ireg, NULL);
 }
 
-static void ansicon_scroll_up(const struct term_state *st)
+static void ansicon_write_char(int x, int y, uint8_t ch,
+			       const struct term_state *st)
+{
+    uint8_t attribute = ansicon_attribute(st);
+    ansicon_set_cursor(x, y, false);
+
+    firmware->o_ops->write_char(ch, attribute);
+}
+
+void bios_scroll_up(uint8_t cols, uint8_t rows, uint8_t attribute)
 {
     static com32sys_t ireg;
 
     ireg.eax.w[0] = 0x0601;
-    ireg.ebx.b[1] = ansicon_attribute(st);
+    ireg.ebx.b[1] = attribute;
     ireg.ecx.w[0] = 0;
-    ireg.edx.b[1] = ti.rows - 1;
-    ireg.edx.b[0] = ti.cols - 1;
+    ireg.edx.b[1] = rows;
+    ireg.edx.b[0] = cols;
     __intcall(0x10, &ireg, NULL);	/* Scroll */
+}
+
+static void ansicon_scroll_up(const struct term_state *st)
+{
+    uint8_t rows, cols, attribute;
+
+    cols = ti.cols = 1;
+    rows = ti.rows - 1;
+    attribute = ansicon_attribute(st);
+
+    firmware->o_ops->scroll_up(cols, rows, attribute);
 }
 
 ssize_t __ansicon_write(struct file_info *fp, const void *buf, size_t count)
@@ -238,13 +298,19 @@ ssize_t __ansicon_write(struct file_info *fp, const void *buf, size_t count)
     return n;
 }
 
-void __ansicon_beep(void)
+void bios_beep(void)
 {
     static com32sys_t ireg;
 
     ireg.eax.w[0] = 0x0e07;
     ireg.ebx.b[1] = BIOS_PAGE;
     __intcall(0x10, &ireg, NULL);
+}
+
+void __ansicon_beep(void)
+{
+    if (firmware->o_ops->beep)
+	firmware->o_ops->beep();
 }
 
 const struct output_dev dev_ansicon_w = {
