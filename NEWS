@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 4.06:
+	* Support for NTFS, by Paulo Cezar.
+
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
 	  server.
@@ -10,7 +13,11 @@ Changes in 4.05:
 	  totally broken since 4.00 at least.  Use MEMDISK instead.
 	* chain.c32: Support chaining ReactOS' FreeLdr (Shao Miller)
 	* isohybrid: -m option to add support for Mac EFI booting.
-        * ifmemdsk.c32: Choose boot option based on presence of MEMDISK
+        * ifmemdsk.c32: Choose boot option based on presence of
+	  MEMDISK.
+	* Remove bogus distributed mk-lba-img binary.
+	* The Syslinux project has a new, cool logo by Abi
+	  "ixxvil" Rasheed (doc/logo/*).
 
 Changes in 4.04:
 	* PXELINUX: Fix handling of unqualified DNS names.
