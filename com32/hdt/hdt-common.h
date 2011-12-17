@@ -219,6 +219,7 @@ struct s_hardware {
     char memtest_label[255];
     char auto_label[AUTO_COMMAND_SIZE];
     char vesa_background[255];
+    char postexec[255];
 };
 
 void reset_more_printf(void);
