@@ -33,8 +33,8 @@
 #define AUTHOR "Erwan Velu"
 #define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.5.1"
-#define CODENAME "Quintine"
+#define VERSION "0.5.2-pre1"
+#define CODENAME "Manon"
 #define NB_CONTRIBUTORS 3
 #define CONTRIBUTORS {"Sebastien Gonzalve (Patches)", "Gert Hulselmans (Tests)", "Alexander Andino (Design)"}
 #define WEBSITE_URL "http://hdt-project.org"
