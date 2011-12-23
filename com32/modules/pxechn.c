@@ -42,22 +42,12 @@
 
 #include <dhcp.h>
 
-/*
-#include <ctype.h>
-#include <string.h>
-#include <minmax.h>
-#include <stdbool.h>
-#include <dprintf.h>
-#include <syslinux/loadfile.h>
-#include <syslinux/bootrm.h>
-#include <syslinux/config.h>
-*/
 
-#define DEBUG 1
+#define PXECHN_DEBUG 0
 
 #define dprintf0(f, ...)		((void)0)
 
-#ifdef DEBUG
+#if (PXECHN_DEBUG > 0)
 #  define dpressanykey			pressanykey
 #  define dprintf			printf
 #  define dprint_pxe_bootp_t		print_pxe_bootp_t
@@ -71,8 +61,9 @@
 #  define dprint_pxe_vendor_raw(p, l)	((void)0)
 #endif
 
-#define dprintf_opt_cp	dprintf0
-#define dprintf_opt_inj	dprintf
+#define dprintf_opt_cp		dprintf0
+#define dprintf_opt_inj		dprintf
+#define dprintf_hex_pure	dprintf0
 
 #define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
 
@@ -422,11 +413,87 @@ void pxechain_init(struct pxelinux_opt *pxe)
     pxechain_fill_pkt(pxe);
 }
 
+int pxechain_to_hex(char i)
+{
+    if (i >= '0' && i <= '9')
+	return (i - '0');
+    if (i >= 'A' && i <= 'F')
+	return (i - 'A' + 10);
+    if (i >= 'a' && i <= 'f')
+	return (i - 'f' + 10);
+    if (i == 0)
+	return -1;
+    return -2;
+}
+
+int pxechain_parse_2bhex(char ins[])
+{
+    int ret = -2;
+    int n0 = -3, n1 = -3;
+    /* NULL pointer */
+    if (!ins) {
+	ret = -1;
+    /* pxechain_to_hex can handle the NULL character by returning -1 and
+       breaking the execution of the statement chain */
+    } else if (((n0 = pxechain_to_hex(ins[0])) >= 0) && ((n1 = pxechain_to_hex(ins[1])) >= 0)) {
+	ret = (n0 * 16) + n1;
+    } else if (n0 == -1) {	/* Leading NULL char */
+	ret = -1;
+    }
+    return ret;
+}
+
+int pxechain_parse_arg_hex_pure(int *optnum, void **data, char optarg[])
+{
+    int len = -1, p = 0, ilen, conv, convd;
+    char ostr[256];
+
+    ilen = strlen(optarg);
+    if (pxechain_to_hex(optarg[0]) >= 0) {
+	conv = pxechain_parse_2bhex(optarg + p);
+	if (conv >= 0) {
+	    *optnum = conv;
+	    len = 0;
+	    dprintf_hex_pure("HEX:%02x\t", conv);
+	    while ((len >= 0) && (conv >= 0)) {
+		if (len >= 256) {
+		    dprintf_hex_pure("HEX: break\t");
+		    break;
+		}
+		p += 2;
+		/* byte delimiter */
+		if ((convd = pxechain_to_hex(optarg[p])) == -2){
+		    dprintf_hex_pure("HEX:delim\t");
+		    p++;
+		}
+		/* else if (convd = -1) {
+		} */
+		conv = pxechain_parse_2bhex(optarg + p);
+		dprintf_hex_pure("HEX:%02x@%d\t", conv, p);
+		if (conv >= 0) {
+		    ostr[len++] = conv;
+		} else if (conv < -1 ) {
+		    len = -2;	/* Garbage */
+		}
+	    }
+	    dprintf_hex_pure("\n");
+	}
+    }
+
+    if (len > 0) {
+	dprintf_hex_pure("HEX:l=%d\t", len);
+	*data = malloc(len);
+	memcpy(*data, ostr, len);
+    }
+    return len;
+}
+
 int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
-    int arg;
-    const char optstr[] = "c:p:t:w";
+    int arg, optnum;
+    const char optstr[] = "c:p:t:wX:";
+    struct dhcp_option iopt;
 
     if (pxe->pkt1.data)
 	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.data) )->sip;
@@ -455,6 +522,14 @@ int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    pxe->wait = 1;
 	    if (optarg)
 		pxe->wait = (uint32_t)atoi(optarg);
+	    break;
+	case 'X':	/* Full heX string */
+	    iopt.data = NULL;
+	    iopt.len = pxechain_parse_arg_hex_pure(&optnum, &iopt.data, optarg);
+	    if ((iopt.len >= 0) && (iopt.len <= 255) && (optnum > 0) && (optnum < 255)) {
+		opts[optnum].data = iopt.data;
+		opts[optnum].len = iopt.len;
+	    }
 	    break;
 	default:
 	    break;
@@ -580,6 +655,7 @@ int pxechain(int argc, char *argv[])
     pxechain_args(argc, argv, &pxe);
 //     --set_registers
     pxe_set_regs(&regs);
+dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
     /* Load the file late; it's the most time-expensive operation */
     printf("%s: Attempting to load '%s': ", app_name_str, pxe.fn);
     if (loadfile(pxe.fn, &file.data, &file.size)) {
