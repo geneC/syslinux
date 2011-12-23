@@ -54,7 +54,7 @@
 #  define dprint_pxe_vendor_blk		print_pxe_vendor_blk
 #  define dprint_pxe_vendor_raw		print_pxe_vendor_raw
 #else
-#  define dpressanykey(void)		((void)0)
+#  define dpressanykey()		((void)0)
 #  define dprintf(f, ...)		((void)0)
 #  define dprint_pxe_bootp_t(p, l)	((void)0)
 #  define dprint_pxe_vendor_blk(p, l)	((void)0)
@@ -275,7 +275,7 @@ void print_pxe_vendor_blk(pxe_bootp_t *p, size_t len)
 
 void print_pxe_bootp_t(pxe_bootp_t *p, size_t len)
 {
-    if (!p) {
+    if (!p || len <= 0) {
 	printf("  packet pointer is null\n");
 	return;
     }
