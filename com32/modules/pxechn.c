@@ -323,7 +323,7 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
  *		4 HTTPS URL
  *		-1 if fn is another URL type
  */
-int pxechain_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
+int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 {
     in_addr_t tip = 0;
     char *csep, *ssep;	/* Colon, Slash separator positions */
@@ -374,7 +374,7 @@ int pxechain_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
     return rv;
 }
 
-void pxechain_fill_pkt(struct pxelinux_opt *pxe)
+void pxechn_fill_pkt(struct pxelinux_opt *pxe)
 {
     int rv = -1;
     /* PXENV_PACKET_TYPE_DHCP_DISCOVER PXENV_PACKET_TYPE_DHCP_ACK PXENV_PACKET_TYPE_CACHED_REPLY */
@@ -403,17 +403,17 @@ void pxechain_fill_pkt(struct pxelinux_opt *pxe)
     }
 }
 
-void pxechain_init(struct pxelinux_opt *pxe)
+void pxechn_init(struct pxelinux_opt *pxe)
 {
     /* Init for paranoia */
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
     pxe->opt52 = pxe->wait = 0;
     pxe->host[0] = pxe->host[255] = 0;
-    pxechain_fill_pkt(pxe);
+    pxechn_fill_pkt(pxe);
 }
 
-int pxechain_to_hex(char i)
+int pxechn_to_hex(char i)
 {
     if (i >= '0' && i <= '9')
 	return (i - '0');
@@ -426,16 +426,16 @@ int pxechain_to_hex(char i)
     return -2;
 }
 
-int pxechain_parse_2bhex(char ins[])
+int pxechn_parse_2bhex(char ins[])
 {
     int ret = -2;
     int n0 = -3, n1 = -3;
     /* NULL pointer */
     if (!ins) {
 	ret = -1;
-    /* pxechain_to_hex can handle the NULL character by returning -1 and
+    /* pxechn_to_hex can handle the NULL character by returning -1 and
        breaking the execution of the statement chain */
-    } else if (((n0 = pxechain_to_hex(ins[0])) >= 0) && ((n1 = pxechain_to_hex(ins[1])) >= 0)) {
+    } else if (((n0 = pxechn_to_hex(ins[0])) >= 0) && ((n1 = pxechn_to_hex(ins[1])) >= 0)) {
 	ret = (n0 * 16) + n1;
     } else if (n0 == -1) {	/* Leading NULL char */
 	ret = -1;
@@ -443,14 +443,14 @@ int pxechain_parse_2bhex(char ins[])
     return ret;
 }
 
-int pxechain_parse_arg_hex_pure(int *optnum, void **data, char optarg[])
+int pxechn_parse_arg_hex_pure(int *optnum, void **data, char optarg[])
 {
     int len = -1, p = 0, ilen, conv, convd;
     char ostr[256];
 
     ilen = strlen(optarg);
-    if (pxechain_to_hex(optarg[0]) >= 0) {
-	conv = pxechain_parse_2bhex(optarg + p);
+    if (pxechn_to_hex(optarg[0]) >= 0) {
+	conv = pxechn_parse_2bhex(optarg + p);
 	if (conv >= 0) {
 	    *optnum = conv;
 	    len = 0;
@@ -462,13 +462,13 @@ int pxechain_parse_arg_hex_pure(int *optnum, void **data, char optarg[])
 		}
 		p += 2;
 		/* byte delimiter */
-		if ((convd = pxechain_to_hex(optarg[p])) == -2){
+		if ((convd = pxechn_to_hex(optarg[p])) == -2){
 		    dprintf_hex_pure("HEX:delim\t");
 		    p++;
 		}
 		/* else if (convd = -1) {
 		} */
-		conv = pxechain_parse_2bhex(optarg + p);
+		conv = pxechn_parse_2bhex(optarg + p);
 		dprintf_hex_pure("HEX:%02x@%d\t", conv, p);
 		if (conv >= 0) {
 		    ostr[len++] = conv;
@@ -488,7 +488,7 @@ int pxechain_parse_arg_hex_pure(int *optnum, void **data, char optarg[])
     return len;
 }
 
-int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
+int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum;
@@ -525,7 +525,7 @@ int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	case 'X':	/* Full heX string */
 	    iopt.data = NULL;
-	    iopt.len = pxechain_parse_arg_hex_pure(&optnum, &iopt.data, optarg);
+	    iopt.len = pxechn_parse_arg_hex_pure(&optnum, &iopt.data, optarg);
 	    if ((iopt.len >= 0) && (iopt.len <= 255) && (optnum > 0) && (optnum < 255)) {
 		opts[optnum].data = iopt.data;
 		opts[optnum].len = iopt.len;
@@ -535,11 +535,11 @@ int pxechain_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	}
     }
-    pxechain_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
+    pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
     return 0;
 }
 
-int pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
+int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
     pxe_bootp_t *bootp0, *bootp1;
 //    uint8_t *d0, *d0e, *d1, *d1e;
@@ -565,7 +565,7 @@ int pxechain_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	return ret;
     }
 
-    ret = pxechain_parse_args(argc, argv, pxe, opts);
+    ret = pxechn_parse_args(argc, argv, pxe, opts);
     bootp1->sip = pxe->fip;
     opts[67].len = strlen(pxe->fp);
     opts[67].data = pxe->fp;
@@ -620,7 +620,7 @@ ret:
    return rv;
 }
 
-/* pxechain: Chainload to new PXE file ourselves
+/* pxechn: Chainload to new PXE file ourselves
  *	Input:
  *	argc	Count of arguments passed
  *	argv	Values of arguments passed
@@ -629,7 +629,7 @@ ret:
  *		2 if DHCP Option 52 (Option Overload) used file field
  *		-1 on usage error
  */
-int pxechain(int argc, char *argv[])
+int pxechn(int argc, char *argv[])
 {
     struct pxelinux_opt pxe;
     pxe_bootp_t *bootp0, *bootp1;
@@ -637,7 +637,7 @@ int pxechain(int argc, char *argv[])
     struct data_area file;
     struct syslinux_rm_regs regs;
 
-    pxechain_init(&pxe);
+    pxechn_init(&pxe);
     bootp0 = (pxe_bootp_t *)(pxe.pkt0.data);
     bootp1 = (pxe_bootp_t *)(pxe.pkt1.data);
 
@@ -652,7 +652,7 @@ int pxechain(int argc, char *argv[])
 	rv = 0;
     }
 //     --parse-options and patch pkt1
-    pxechain_args(argc, argv, &pxe);
+    pxechn_args(argc, argv, &pxe);
 //     --set_registers
     pxe_set_regs(&regs);
 dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
@@ -699,12 +699,12 @@ int pxe_restart(char *ifn)
     t_PXENV_RESTART_TFTP *pxep;	/* PXENV callback Parameter */
 
     pxe.fn = ifn;
-    pxechain_fill_pkt(&pxe);
+    pxechn_fill_pkt(&pxe);
     if (pxe.pkt1.data)
 	pxe.fip = ( (pxe_bootp_t *)(pxe.pkt1.data) )->sip;
     else
 	pxe.fip = 0;
-    rv = pxechain_parse_fn(pxe.fn, &(pxe.fip), pxe.host, &(pxe.fp));
+    rv = pxechn_parse_fn(pxe.fn, &(pxe.fip), pxe.host, &(pxe.fp));
     if ((rv > 2) || (rv < 0)) {
 	printf("%s: ERROR: Unparsable filename argument: '%s'\n\n", app_name_str, pxe.fn);
 	goto ret;
@@ -746,7 +746,7 @@ ret:
     return rv;
 }
 
-/* pxechain_gpxe: Use gPXE to chainload a new NBP
+/* pxechn_gpxe: Use gPXE to chainload a new NBP
  * If it's around, don't bother with the heavy lifting ourselves
  *	Input:
  *	argc	Count of arguments passed
@@ -755,14 +755,14 @@ ret:
  *		1 on loadfile() error
  *		-1 on usage error
  */
-int pxechain_gpxe(int argc, char *argv[])
+int pxechn_gpxe(int argc, char *argv[])
 {
     int rv = 0;
     struct pxelinux_opt pxe;
 
     if (argc) {
 	printf("%s\n", argv[0]);
-	pxechain_args(argc, argv, &pxe);
+	pxechn_args(argc, argv, &pxe);
     }
     return rv;
 }
@@ -779,7 +779,7 @@ int main(int argc, char *argv[])
 	printf("%s: May only run in PXELINUX\n", app_name_str);
 	argc = 1;	/* prevents further processing to boot */
 /*    } else if (is_gpxe()) {
-	rv = pxechain_gpxe(argc - 1, &argv[1]);
+	rv = pxechn_gpxe(argc - 1, &argv[1]);
 	if (rv >= 0)
 	    argc = 1;*/
     }
@@ -788,14 +788,14 @@ int main(int argc, char *argv[])
 		|| (strcasecmp(argv[1], "--help") == 0)) {
 	    argc = 1;
 	} else {
-	    rv = pxechain(argc - 1, &argv[1]);
+	    rv = pxechn(argc - 1, &argv[1]);
 	}
     } else if (argc >= 3) {	/* change to 3 for processing -q */
 	if ((strcmp(argv[1], "-r") == 0)) {
 	    if (argc == 3)
 		rv = pxe_restart(argv[2]);
 	} else {
-	    rv = pxechain(argc - 1, &argv[1]);
+	    rv = pxechn(argc - 1, &argv[1]);
 	}
     }
     if (rv <= -1 ) {
