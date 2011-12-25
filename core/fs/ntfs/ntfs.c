@@ -687,16 +687,6 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
                     if (ie->flags & INDEX_ENTRY_END)
                         break;
 
-                    /* Do case-sensitive compares for Posix file names */
-                    if (ie->key.file_name.file_name_type == FILE_NAME_POSIX) {
-                        if (ie->key.file_name.file_name[0] > *dname)
-                            break;
-                    } else {
-                        if (tolower(ie->key.file_name.file_name[0]) >
-                            tolower(*dname))
-                            break;
-                    }
-
                     if (ntfs_filename_cmp(dname, ie))
                         goto found;
                 }
