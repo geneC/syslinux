@@ -37,10 +37,10 @@ ROOT_FS_OPS:
 		dd vfat_fs_ops
 		extern ext2_fs_ops
 		dd ext2_fs_ops
+		extern ntfs_fs_ops
+		dd ntfs_fs_ops
 		extern btrfs_fs_ops
 		dd btrfs_fs_ops
-        extern ntfs_fs_ops
-        dd ntfs_fs_ops
 		dd 0
 
 %include "diskfs.inc"
