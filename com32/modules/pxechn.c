@@ -39,11 +39,10 @@
 #include <sys/gpxe.h>
 #include <unistd.h>
 #include <getkey.h>
-
 #include <dhcp.h>
 
 
-#define PXECHN_DEBUG 0
+#define PXECHN_DEBUG 1
 
 #define dprintf0(f, ...)		((void)0)
 
@@ -64,6 +63,8 @@
 #define dprintf_opt_cp		dprintf0
 #define dprintf_opt_inj		dprintf
 #define dprintf_hex_pure	dprintf0
+#define dprintf_hex_tail	dprintf0
+#define dprintf_arg		dprintf0
 
 #define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
 
@@ -159,7 +160,8 @@ enomem:
 
 void usage(void)
 {
-    printf("USAGE: %s _new-nbp_ [-c config] [-p prefix] [-t reboot]\n"
+    printf("USAGE: %s _new-nbp_ [-c config] [-p prefix] [-t reboot]"
+	" [-X xx...]... [-x opt:xx...]\n"
 	"    %s -r _new-nbp_    (calls PXE stack PXENV_RESTART_TFTP)\n",
 	app_name_str, app_name_str);
 }
@@ -206,7 +208,7 @@ int dhcp_find_opt(pxe_bootp_t *p, size_t len, uint8_t opt)
 	    rv = i;
 	    break;
 	}
-	if (d[i] == 255)	/* End of list */
+	if (d[i] == ((NUM_DHCP_OPTS) - 1))	/* End of list */
 	    break;
 	if (d[i]) {		/* Skip padding */
 	    oplen = d[++i];
@@ -259,7 +261,7 @@ void print_pxe_vendor_blk(pxe_bootp_t *p, size_t len)
     for (i = 4; i < vlen; i++) {
 	if (d[i])	/* Skip the padding */
 	    printf("\n    @%03X-%3d", i, d[i]);
-	if (d[i] == 255)	/* End of list */
+	if (d[i] == ((NUM_DHCP_OPTS) - 1))	/* End of list */
 	    break;
 	if (d[i]) {
 	    oplen = d[++i];
@@ -377,10 +379,6 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 void pxechn_fill_pkt(struct pxelinux_opt *pxe)
 {
     int rv = -1;
-    /* PXENV_PACKET_TYPE_DHCP_DISCOVER PXENV_PACKET_TYPE_DHCP_ACK PXENV_PACKET_TYPE_CACHED_REPLY */
-/*    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK,
-	    (void **)&(pxe->pkt0.data), &(pxe->pkt0.len)))
-	dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.data));*/
     if (!pxe_get_cached_info(PXENV_PACKET_TYPE_CACHED_REPLY,
 	    (void **)&(pxe->pkt0.data), (size_t *)&(pxe->pkt0.len))) {
 	pxe->pkt1.data = malloc(2048);
@@ -409,7 +407,7 @@ void pxechn_init(struct pxelinux_opt *pxe)
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
     pxe->opt52 = pxe->wait = 0;
-    pxe->host[0] = pxe->host[255] = 0;
+    pxe->host[0] = pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
     pxechn_fill_pkt(pxe);
 }
 
@@ -420,7 +418,7 @@ int pxechn_to_hex(char i)
     if (i >= 'A' && i <= 'F')
 	return (i - 'A' + 10);
     if (i >= 'a' && i <= 'f')
-	return (i - 'f' + 10);
+	return (i - 'a' + 10);
     if (i == 0)
 	return -1;
     return -2;
@@ -443,56 +441,113 @@ int pxechn_parse_2bhex(char ins[])
     return ret;
 }
 
-int pxechn_parse_arg_hex_pure(int *optnum, void **data, char optarg[])
+int pxechn_optnum_ok(int optnum)
 {
-    int len = -1, p = 0, ilen, conv, convd;
-    char ostr[256];
+    if ((optnum > 0) && (optnum < ((NUM_DHCP_OPTS) - 1)))
+	return 1;
+    return 0;
+}
 
-    ilen = strlen(optarg);
-    if (pxechn_to_hex(optarg[0]) >= 0) {
-	conv = pxechn_parse_2bhex(optarg + p);
-	if (conv >= 0) {
-	    *optnum = conv;
-	    len = 0;
-	    dprintf_hex_pure("HEX:%02x\t", conv);
-	    while ((len >= 0) && (conv >= 0)) {
-		if (len >= 256) {
-		    dprintf_hex_pure("HEX: break\t");
-		    break;
-		}
-		p += 2;
-		/* byte delimiter */
-		if ((convd = pxechn_to_hex(optarg[p])) == -2){
-		    dprintf_hex_pure("HEX:delim\t");
-		    p++;
-		}
-		/* else if (convd = -1) {
-		} */
-		conv = pxechn_parse_2bhex(optarg + p);
-		dprintf_hex_pure("HEX:%02x@%d\t", conv, p);
-		if (conv >= 0) {
-		    ostr[len++] = conv;
-		} else if (conv < -1 ) {
-		    len = -2;	/* Garbage */
-		}
-	    }
-	    dprintf_hex_pure("\n");
-	}
+int pxechn_optnum_ok_notres(int optnum)
+{
+    if ((optnum <= 0) && (optnum >= ((NUM_DHCP_OPTS) - 1)))
+	return 0;
+    switch(optnum){
+    case 66: case 67:
+	return 0;
+	break;
+    default:	return 1;
     }
+}
 
+int pxechn_optlen_ok(int optlen)
+{
+    if ((optlen >= 0) && (optlen < ((DHCP_OPT_LEN_MAX) - 1)))
+	return 1;
+    return 0;
+}
+
+int pxechn_parse_arg_hex_tail(void **data, char istr[])
+{
+    int len = -1, p = 0, conv = 0;
+    char *ostr;
+
+    if (istr) {
+	len = 0;
+	ostr = *data;
+	while ((len >= 0) && (conv >= 0)) {
+	    if (len >= DHCP_OPT_LEN_MAX) {
+		dprintf_hex_tail("HEX: break\t");
+		break;
+	    }
+	    /* byte delimiter */
+	    if ((conv = pxechn_to_hex(istr[p])) == -2){
+		dprintf_hex_tail("HEX:delim\t");
+		p++;
+	    }
+	    conv = pxechn_parse_2bhex(istr + p);
+	    dprintf_hex_tail("HEX:%02x@%d\t", conv, p);
+	    if (conv >= 0) {
+		ostr[len++] = conv;
+	    } else if (conv < -1 ) {
+		len = -2;	/* Garbage */
+	    }
+	    p += 2;
+	}
+	dprintf_hex_tail("\n");
+    }
     if (len > 0) {
-	dprintf_hex_pure("HEX:l=%d\t", len);
-	*data = malloc(len);
-	memcpy(*data, ostr, len);
+	dprintf_hex_tail("HEX:l=%d\t", len);
     }
     return len;
+}
+
+int pxechn_parse_arg_hex_pure(int *optnum, void **data, char istr[])
+{
+    int len = -1;
+
+    if (pxechn_to_hex(istr[0]) >= 0) {
+	*optnum = pxechn_parse_2bhex(istr);
+	if (*optnum >= 0)
+	    len = pxechn_parse_arg_hex_tail(data, istr + 2);
+    }
+
+    return len;
+}
+
+int pxechn_parse_arg_hex(int *optnum, void **data, char istr[])
+{
+    int len = -1;
+    char *pos = NULL;
+
+    *optnum = strtoul(istr, &pos, 0);
+    if (pxechn_optnum_ok(*optnum))
+	len = pxechn_parse_arg_hex_tail(data, pos);
+    return len;
+}
+
+int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
+{
+    int olen = -2;
+    opt->data = realloc(opt->data, len);
+    if (!opt->data) {
+	return olen;
+    }
+    memcpy(opt->data, data, len);
+    opt->len = len;
+    return olen;
+}
+
+int pxechn_setopt_str(struct dhcp_option *opt, void *data)
+{
+    return pxechn_setopt(opt, data, strnlen(data, DHCP_OPT_LEN_MAX));
 }
 
 int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum;
-    const char optstr[] = "c:p:t:wX:";
+    const char optstr[] = "c:p:t:wx:X:";
     struct dhcp_option iopt;
 
     if (pxe->pkt1.data)
@@ -501,34 +556,43 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	pxe->fip = 0;
     /* Fill */
     pxe->fn = argv[0];
+    iopt.data = malloc(DHCP_OPT_LEN_MAX);
+    iopt.len = 0;
     while ((arg = getopt(argc, argv, optstr)) >= 0) {
-	dprintf0("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
+	dprintf_arg("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
 	case 'c':	/* config */
-	    opts[209].data = pxe->cfg = optarg;
-	    opts[209].len = strlen(optarg);
+	    pxe->cfg = optarg;
+	    pxechn_setopt_str(&(opts[209]), optarg);
+	    break;
+	case 'g':	/* gateway/DHCP relay */
 	    break;
 	case 'p':	/* prefix */
-	    opts[210].data = pxe->prefix = optarg;
-	    opts[210].len = strlen(optarg);
+	    pxe->prefix = optarg;
+	    pxechn_setopt_str(&(opts[210]), optarg);
 	    break;
 	case 't':	/* timeout */
-	    pxe->reboot = (uint32_t)atoi(optarg);
+	    pxe->reboot = strtoul(optarg, (char **)NULL, 0);
 	    pxe->rebootn = htonl(pxe->reboot);
-	    opts[211].data = (void *)(&(pxe->rebootn));
-	    opts[211].len = 4;
+	    pxechn_setopt(&(opts[211]), (void *)(&(pxe->rebootn)), 4);
 	    break;
 	case 'w':	/* wait */
 	    pxe->wait = 1;
 	    if (optarg)
 		pxe->wait = (uint32_t)atoi(optarg);
 	    break;
+	case 'x':	/* Friendly hex string */
+	    iopt.data = NULL;
+	    iopt.len = pxechn_parse_arg_hex(&optnum, &iopt.data, optarg);
+	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
+		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
+	    }
+	    break;
 	case 'X':	/* Full heX string */
 	    iopt.data = NULL;
 	    iopt.len = pxechn_parse_arg_hex_pure(&optnum, &iopt.data, optarg);
-	    if ((iopt.len >= 0) && (iopt.len <= 255) && (optnum > 0) && (optnum < 255)) {
-		opts[optnum].data = iopt.data;
-		opts[optnum].len = iopt.len;
+	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
+		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
 	    }
 	    break;
 	default:
@@ -547,7 +611,7 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     int ret = 0;
     struct dhcp_option *opts;
 
-    opts = calloc(256, sizeof(struct dhcp_packet));
+    opts = calloc(NUM_DHCP_OPTS, sizeof(struct dhcp_option));
     if (!opts) {
 	error("Could not allocate for options\n");
 	return -1;
@@ -644,7 +708,8 @@ int pxechn(int argc, char *argv[])
     if ((opos = dhcp_find_opt(bootp0, pxe.pkt0.len, 52)) >= 0) {
 	pxe.opt52 = bootp0->vendor.d[opos + 2];
     }
-    if ((pxe.opt52 & 1) != 0) {	/* Only exclude bootfile */
+    /* Using file field often breaks PXE clients */
+    if ((pxe.opt52 & 1) != 0) {
 	puts(" Found UNSUPPORTED option (52) overload in DHCP packet; aborting");
 	rv = 2;
 	goto ret;
@@ -653,6 +718,7 @@ int pxechn(int argc, char *argv[])
     }
 //     --parse-options and patch pkt1
     pxechn_args(argc, argv, &pxe);
+    dpressanykey();
 //     --set_registers
     pxe_set_regs(&regs);
 dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
