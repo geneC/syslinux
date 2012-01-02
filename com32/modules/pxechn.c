@@ -212,7 +212,7 @@ int dhcp_find_opt(pxe_bootp_t *p, size_t len, uint8_t opt)
 	    break;
 	if (d[i]) {		/* Skip padding */
 	    oplen = d[++i];
-	    i = i + oplen;
+	    i += oplen;
 	}
     }
     return rv;
@@ -226,13 +226,15 @@ void print_pxe_vendor_raw(pxe_bootp_t *p, size_t len)
 	return;
     }
     vlen = len - ((void *)&(p->vendor) - (void *)p);
+    vlen = (vlen > 0x7F) ? 0x7F : vlen;
     dprintf("  rawLen = %d", vlen);
     for (i = 0; i < vlen; i++) {
-	if ((i & 0xf) == 0)
-	    printf("\n  %04X:", i);
+/* FIXME	if ((i & 0xf) == 0)
+	    printf("\n  %04X:", i);*/
+	(i & 0xf) || printf("\n  %04X:", i);
 	printf(" %02X", p->vendor.d[i]);
-	if (i >= 0x7F)
-	    break;
+/* FIXME	if (i >= 0x7F)
+	    break;*/
     }
     printf("\n");
 }
@@ -249,18 +251,15 @@ void print_pxe_vendor_blk(pxe_bootp_t *p, size_t len)
     vlen = len - ((void *)&(p->vendor) - (void *)p);
     printf("  Vendor Data:    Len=%d", vlen);
     d = p->vendor.d;
-    /* Print only 256 characters of the vendor/option data */
-    /*
-    print_pxe_vendor_raw(p, (len - vlen) + 256);
-    vlen = 0;
-    */
     magic = ntohl(*((uint32_t *)d));
     printf("    Magic: %08X", ntohl(*((uint32_t *)d)));
-    if (magic != VM_RFC1048)	/* Invalid DHCP packet */
-	vlen = 0;
+// FIXME    if (magic != VM_RFC1048)	/* Invalid DHCP packet */
+//	vlen = 0;
+    (magic != VM_RFC1048) && vlen = 0;	/* Invalid DHCP packet */
     for (i = 4; i < vlen; i++) {
-	if (d[i])	/* Skip the padding */
-	    printf("\n    @%03X-%3d", i, d[i]);
+// FIXME	if (d[i])	/* Skip the padding */
+// 	    printf("\n    @%03X-%3d", i, d[i]);
+	(d[i]) &&  printf("\n    @%03X-%3d", i, d[i]);	/* Skip the padding */
 	if (d[i] == ((NUM_DHCP_OPTS) - 1))	/* End of list */
 	    break;
 	if (d[i]) {
@@ -334,7 +333,7 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 
     csep = strchr(fn, ':');
     if (csep) {
-	if (csep[1] == ':') {	/* IP::FN */
+	if (csep[1] == ':') {	/* assume IP::FN */
 	    *fp = &csep[2];
 	    rv = 1;
 	    if (fn[0] != ':') {
@@ -365,6 +364,7 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 	    csep = NULL;
 	}
     }
+// FIXME
     if (!csep) {
 	*fp = fn;
     }
@@ -413,6 +413,7 @@ void pxechn_init(struct pxelinux_opt *pxe)
 
 int pxechn_to_hex(char i)
 {
+// FIXME Parens?
     if (i >= '0' && i <= '9')
 	return (i - '0');
     if (i >= 'A' && i <= 'F')
@@ -443,6 +444,7 @@ int pxechn_parse_2bhex(char ins[])
 
 int pxechn_optnum_ok(int optnum)
 {
+// FIXME:Parens?
     if ((optnum > 0) && (optnum < ((NUM_DHCP_OPTS) - 1)))
 	return 1;
     return 0;
@@ -462,6 +464,7 @@ int pxechn_optnum_ok_notres(int optnum)
 
 int pxechn_optlen_ok(int optlen)
 {
+// FIXME:Parens?
     if ((optlen >= 0) && (optlen < ((DHCP_OPT_LEN_MAX) - 1)))
 	return 1;
     return 0;
@@ -521,6 +524,7 @@ int pxechn_parse_arg_hex(int *optnum, void **data, char istr[])
     char *pos = NULL;
 
     *optnum = strtoul(istr, &pos, 0);
+// FIXME:Parens?
     if (pxechn_optnum_ok(*optnum))
 	len = pxechn_parse_arg_hex_tail(data, pos);
     return len;
@@ -530,6 +534,7 @@ int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
 {
     int olen = -2;
     opt->data = realloc(opt->data, len);
+// FIXME:Parens?
     if (!opt->data) {
 	return olen;
     }
@@ -603,6 +608,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     return 0;
 }
 
+// FIXME:Parens? Progress
 int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
     pxe_bootp_t *bootp0, *bootp1;
