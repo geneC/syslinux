@@ -17,6 +17,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
+#include "runlist.h"
+
 #ifndef _NTFS_H_
 #define _NTFS_H_
 
@@ -294,6 +296,19 @@ struct ntfs_attr_record {
             int64_t compressed_size;
         } __attribute__((__packed__)) non_resident;
     } __attribute__((__packed__)) data;
+} __attribute__((__packed__));
+
+/* Attribute: Attribute List (0x20)
+ * Note: it can be either resident or non-resident
+ */
+struct ntfs_attr_list_entry {
+    uint32_t type;
+    uint16_t length;
+    uint8_t name_offset;
+    uint64_t lowest_vcn;
+    uint64_t mft_ref;
+    uint16_t instance;
+    uint16_t name[0];
 } __attribute__((__packed__));
 
 #define NTFS_MAX_FILE_NAME_LEN 255

@@ -291,28 +291,6 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_1(struct fs_info *fs,
     return NULL;
 }
 
-static struct ntfs_attr_record *ntfs_attr_lookup(uint32_t type,
-                                            const struct ntfs_mft_record *mrec)
-{
-    struct ntfs_attr_record *attr;
-
-    /* sanity check */
-    if (!mrec || type == NTFS_AT_END)
-        return NULL;
-
-    attr = (struct ntfs_attr_record *)((uint8_t *)mrec + mrec->attrs_offset);
-    /* walk through the file attribute records */
-    for (;; attr = (struct ntfs_attr_record *)((uint8_t *)attr + attr->len)) {
-        if (attr->type == NTFS_AT_END)
-            return NULL;
-
-        if (attr->type == type)
-            break;
-    }
-
-    return attr;
-}
-
 static bool ntfs_filename_cmp(const char *dname, struct ntfs_idx_entry *ie)
 {
     const uint16_t *entry_fn;
@@ -425,6 +403,165 @@ out:
     return -1;
 }
 
+static const struct ntfs_mft_record *
+ntfs_attr_list_lookup(struct fs_info *fs, struct ntfs_attr_record *attr,
+                      uint32_t type)
+{
+    uint8_t *attr_len;
+    struct mapping_chunk chunk;
+    uint32_t offset;
+    uint8_t *stream;
+    int err;
+    const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
+    uint8_t buf[blk_size];
+    uint64_t blk_offset;
+    int64_t vcn;
+    int64_t lcn;
+    int64_t last_lcn;
+    block_t blk;
+    struct ntfs_attr_list_entry *attr_entry;
+    struct ntfs_mft_record *mrec;
+    uint64_t start_blk = 0;
+
+    if (attr->non_resident)
+        goto handle_non_resident_attr;
+
+    attr_entry = (struct ntfs_attr_list_entry *)
+        ((uint8_t *)attr + attr->data.resident.value_offset);
+    for (;; attr_entry = (struct ntfs_attr_list_entry *)((uint8_t *)attr_entry +
+                                                         attr_entry->length)) {
+        if (attr_entry->type == type)
+            goto found;
+    }
+
+    /* You should never reach here! If you did, so you do have a bogus
+     * NTFS drive. Fix it.
+     */
+    goto fatal_error;
+
+handle_non_resident_attr:
+    attr_len = (uint8_t *)attr + attr->len;
+    stream = mapping_chunk_init(attr, &chunk, &offset);
+    do {
+        err = parse_data_run(stream, &offset, attr_len, &chunk);
+        if (err) {
+            printf("parse_data_run()\n");
+            goto out;
+        }
+
+        if (chunk.flags & MAP_UNALLOCATED)
+            continue;
+        if (chunk.flags & MAP_END)
+            break;
+        if (chunk.flags & MAP_ALLOCATED) {
+            vcn = 0;
+            lcn = chunk.lcn;
+            while (vcn < chunk.len) {
+                blk = (lcn + vcn) << NTFS_SB(fs)->clust_byte_shift >>
+                    BLOCK_SHIFT(fs);
+                blk_offset = 0;
+                last_lcn = lcn;
+                lcn += vcn;
+                err = ntfs_read(fs, buf, blk_size, blk_size, &blk,
+                                &blk_offset, NULL, (uint64_t *)&lcn);
+                if (err) {
+                    printf("Error on reading from cache.\n");
+                    goto out;
+                }
+
+                attr_entry = (struct ntfs_attr_list_entry *)&buf;
+                for (;; attr_entry = (struct ntfs_attr_list_entry *)
+                         ((uint8_t *)attr_entry + attr_entry->length)) {
+                    if (attr_entry->type == type)
+                        goto found; /* We got the attribute! :-) */
+                }
+
+                lcn = last_lcn; /* restore original LCN */
+                /* go to the next VCN */
+                vcn += (blk_size / (1 << NTFS_SB(fs)->clust_byte_shift));
+            }
+        }
+    } while (!(chunk.flags & MAP_END));
+
+    /* You should never reach here! If you did, so you do have a bogus
+     * NTFS drive. Fix it.
+     */
+    goto fatal_error;
+
+out:
+    return NULL;
+
+found:
+    /* At this point we have the attribute we were looking for. Now we
+     * will look for the MFT record that stores information about this
+     * attribute.
+     */
+    mrec = NTFS_SB(fs)->mft_record_lookup(fs, attr_entry->mft_ref, &start_blk);
+    if (!mrec) {
+        printf("No MFT record found!\n");
+        goto out;
+    }
+
+    /* return the found MFT record */
+    return mrec;
+
+fatal_error:
+    printf("(FATAL) You have a bogus NTFS drive installed in your system. "
+           "Fix it!\n");
+    goto out;
+}
+
+static struct ntfs_attr_record *
+ntfs_attr_lookup(struct fs_info *fs, uint32_t type,
+                 const struct ntfs_mft_record *mrec)
+{
+    struct ntfs_attr_record *attr;
+    struct ntfs_attr_record *attr_list_attr;
+
+    /* sanity check */
+    if (!mrec || type == NTFS_AT_END)
+        goto out;
+
+again:
+    attr_list_attr = NULL;
+
+    attr = (struct ntfs_attr_record *)((uint8_t *)mrec + mrec->attrs_offset);
+    /* walk through the file attribute records */
+    for (;; attr = (struct ntfs_attr_record *)((uint8_t *)attr + attr->len)) {
+        if (attr->type == NTFS_AT_END)
+            break;
+
+        if (attr->type == NTFS_AT_ATTR_LIST) {
+            dprintf("MFT record #%lu has an $ATTRIBUTE_LIST attribute.\n",
+                    mrec->mft_record_no);
+            attr_list_attr = attr;
+            continue;
+        }
+
+        if (attr->type == type)
+            break;
+    }
+
+    /* if the record has an $ATTRIBUTE_LIST attribute associated
+     * with it, then we need to look for the wanted attribute in
+     * it as well.
+     */
+    if (attr->type == NTFS_AT_END && attr_list_attr) {
+        mrec = ntfs_attr_list_lookup(fs, attr_list_attr, type);
+        if (!mrec)
+            goto out;
+
+        goto again;
+    } else if (attr->type == NTFS_AT_END && !attr_list_attr) {
+        attr = NULL;
+    }
+
+    return attr;
+
+out:
+    return NULL;
+}
+
 static inline enum dirent_type get_inode_mode(struct ntfs_mft_record *mrec)
 {
     return mrec->flags & MFT_RECORD_IS_DIRECTORY ? DT_DIR : DT_REG;
@@ -460,7 +597,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     d_type = get_inode_mode(mrec);
     if (d_type == DT_DIR) {    /* directory stuff */
         dprintf("Got a directory.\n");
-        attr = ntfs_attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
+        attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ROOT, mrec);
         if (!attr) {
             printf("No attribute found.\n");
             goto out;
@@ -492,7 +629,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
         readdir_state->in_idx_root = true;
     } else if (d_type == DT_REG) {        /* file stuff */
         dprintf("Got a file.\n");
-        attr = ntfs_attr_lookup(NTFS_AT_DATA, mrec);
+        attr = ntfs_attr_lookup(fs, NTFS_AT_DATA, mrec);
         if (!attr) {
             printf("No attribute found.\n");
             goto out;
@@ -580,7 +717,7 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
         goto out;
     }
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ROOT, mrec);
     if (!attr) {
         printf("No attribute found.\n");
         goto out;
@@ -622,7 +759,7 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
 
     /* then descend into child node */
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ALLOCATION, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ALLOCATION, mrec);
     if (!attr) {
         printf("No attribute found.\n");
         goto out;
@@ -813,13 +950,13 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
 
     if (!non_resident) {
         mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(inode)->mft_no,
-					      NULL);
+                                              NULL);
         if (!mrec) {
             printf("No MFT record found.\n");
             goto out;
         }
 
-        attr = ntfs_attr_lookup(NTFS_AT_DATA, mrec);
+        attr = ntfs_attr_lookup(fs, NTFS_AT_DATA, mrec);
         if (!attr) {
             printf("No attribute found.\n");
             goto out;
@@ -878,7 +1015,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
         goto out;
     }
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ROOT, mrec);
     if (!attr) {
         printf("No attribute found.\n");
         goto out;
@@ -920,7 +1057,7 @@ descend_into_child_node:
     if (!(ie->flags & INDEX_ENTRY_NODE))
         goto out;
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ALLOCATION, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ALLOCATION, mrec);
     if (!attr)
         goto out;
 
@@ -1046,7 +1183,7 @@ index_err:
     goto out;
 }
 
-static struct inode *ntfs_iget(const char *dname, struct inode *parent)
+static inline struct inode *ntfs_iget(const char *dname, struct inode *parent)
 {
     return ntfs_index_lookup(dname, parent);
 }
@@ -1069,7 +1206,7 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
     }
 
     /* Fetch the volume information attribute */
-    attr = ntfs_attr_lookup(NTFS_AT_VOL_INFO, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_VOL_INFO, mrec);
     if (!attr) {
         printf("Could not find volume info attribute!\n");
         goto err_attr;
@@ -1122,7 +1259,7 @@ static int ntfs_fs_init(struct fs_info *fs)
 
     read_count = disk->rdwr_sectors(disk, &ntfs, 0, 1, 0);
     if (!read_count)
-	return -1;
+        return -1;
 
     /* sanity check */
     if (!ntfs_check_sb_fields(&ntfs))
