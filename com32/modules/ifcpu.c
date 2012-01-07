@@ -49,11 +49,12 @@ static void usage(void)
  "   dry-run   : just do the detection, don't boot \n"
  "\n"
  "cpu_features could be:\n"
- "   64        : Processor is x86_64 compatible (lm cpu flag)\n"
- "   hvm       : Processor features hardware virtualization (hvm or svm cpu flag)\n"
- "   multicore : Processor must be multi-core \n"
- "   smp       : System must be multi-processor \n"
- "   pae       : Processor features Physical Address Extension (PAE)\n"
+ "   64         : Processor is x86_64 compatible (lm cpu flag)\n"
+ "   hvm        : Processor features hardware virtualization (hvm or svm cpu flag)\n"
+ "   multicore  : Processor must be multi-core \n"
+ "   smp        : System must be multi-processor \n"
+ "   pae        : Processor features Physical Address Extension (PAE)\n"
+ "   hypervisor : Processor is running under an hypervisor\n"
  "\n"
  "if you want to match many cpu features, just separate them with a single space.\n");
 }
@@ -114,30 +115,34 @@ int main(int argc, char *argv[])
 	    args[n++] = &argv[i + 1];
 	} else if (!strcmp(argv[i], "64")) {
 	    if (debug)
-		printf(" 64bit     : %s on this system\n",
+		printf(" 64bit      : %s on this system\n",
 		       show_bool(cpu.flags.lm));
 	    hardware_matches = cpu.flags.lm && hardware_matches;
 	} else if (!strcmp(argv[i], "pae")) {
 	    if (debug)
-		printf(" pae       : %s on this system\n",
+		printf(" pae        : %s on this system\n",
 		       show_bool(cpu.flags.pae));
 	    hardware_matches = cpu.flags.pae && hardware_matches;
 	} else if (!strcmp(argv[i], "hvm")) {
 	    if (debug)
-		printf(" hvm       : %s on this system\n",
+		printf(" hvm        : %s on this system\n",
 		       show_bool((cpu.flags.vmx || cpu.flags.svm)));
 	    hardware_matches = (cpu.flags.vmx || cpu.flags.svm)
 		&& hardware_matches;
 	} else if (!strcmp(argv[i], "multicore")) {
 	    if (debug)
-		printf(" multicore : %d cores on this system\n", cpu.num_cores);
+		printf(" multicore  : %d cores on this system\n", cpu.num_cores);
 	    if (cpu.num_cores > 1)
 		multicore = true;
 	    hardware_matches = multicore && hardware_matches;
 	} else if (!strcmp(argv[i], "smp")) {
 	    if (debug)
-		printf(" smp       : %s on this system\n", show_bool(cpu.flags.smp));
+		printf(" smp        : %s on this system\n", show_bool(cpu.flags.smp));
 	    hardware_matches = cpu.flags.smp && hardware_matches;
+	} else if (!strcmp(argv[i], "hypervisor")) {
+	    if (debug)
+		printf(" hypervisor : %s on this system\n", show_bool(cpu.flags.hypervisor));
+	    hardware_matches = cpu.flags.hypervisor && hardware_matches;
 	} else if (!strcmp(argv[i], "dry-run")) {
 	    dryrun = true;
 	} else if (!strcmp(argv[i], "debug")) {
