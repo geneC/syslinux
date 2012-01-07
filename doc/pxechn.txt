@@ -1,0 +1,78 @@
+= pxechn.c32 =
+:doctype: manpage
+:author: Gene Cumm
+:email: gene.cumm@gmail.com
+:revdate: 2012-01-04
+
+
+== NAME ==
+pxechn.c32 - Chainboot to new NBP
+
+
+== SYNOPSIS ==
+*pxechn.c32* [-h | --help | -?]
+*pxechn.c32* ['OPTIONS'] 'FILE'
+
+
+== DESCRIPTION ==
+Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE packet #3 (PXENV_PACKET_TYPE_CACHED_REPLY) to alter end behavior.  'FILE' may be a filename, an IP::FN ( 192.168.1.1::path/to/file.0 ), or URL.  'FILE' is parsed to adjust the DHCP 'sname' field/option 66 and 'file' field/option 67 but these may be overridden.
+
+
+== OPTIONS ==
+// c:p:t:wx:X:
+*-c* 'CONFIG'::
+    PXELINUX config file (DHCP Option 209).
+
+// Not implemented (yet).
+// *-g*::
+//     Use underlying gPXE/iPXE (if available).
+
+// *-G*::
+//     Ignore underlying gPXE/iPXE.
+
+*-h*, *--help*, *-?*::
+    Print usage information; invalid options will also cause this.
+
+*-p* 'PATH'::
+    PXELINUX path (DHCP Option 210).
+
+*-r*::
+    Call the PXE stack with PXENV_RESTART_TFTP.  Must be the only option.
+
+*-t* 'SECONDS'::
+    PXELINUX timeout (DHCP Option 211).
+
+*-w*::
+    wait after loading before booting for user input.
+
+*-x* 'OPTVALSTR'::
+    Hex DHCP option input.  The option number is specified in a format compatible with *strtoul*(3) with a non-space separator recognized by *strtoul*(3).  The value is in HEX INPUT format.
+
+*-X* 'OPTVALSTR'::
+    Pure hex DHCP option input.  The option and its value are in HEX INPUT format.
+
+
+== HEX INPUT ==
+Hex parameters are specified in a 2-digit case insensitive hexadecimal bytes with optional non-hexadecimal non-space separators.  This format is intentionally open to allow users to utilize their preferred format.
+
+
+== EXAMPLES ==
+HERE
+#	APPEND gpxelinux.0 -p http://172.16.23.1/tftp/
+#	APPEND gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012345678
+	APPEND gpxelinux.0 -p http://172.16.23.192/tftp/ -w -X A012:3456:78  -x 197:00d0de00
+#	APPEND tftp://172.16.23.4/gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012:3456:78
+#	APPEND http://dl.fedoraproject.org/pub/alt/bfo/pxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012:3456:78 -x 197:00d0de00
+	APPEND 2/pxe.0 -w -c pxelinux.cfg/_AC10
+
+
+== NOTES ==
+Please note that some NBPs may ignore packet #3 by either not examining it at all or by issuing its own DHCP DISCOVER/REQUEST, negating all DHCP field/option modifications by pxechn.c32.
+
+
+== AUTHOR ==
+{author} <{email}>
+
+== COPYRIGHT ==
+Copyright \(C) 2012 {author}. Free use of this software is granted under
+the terms of the GNU General Public License (GPL).

@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2010-2011 Gene Cumm - All Rights Reserved
+ *   Copyright 2010-2012 Gene Cumm - All Rights Reserved
  *
  *   Portions from chain.c:
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
@@ -75,6 +75,7 @@
 
 #define NUM_DHCP_OPTS	256
 #define DHCP_OPT_LEN_MAX	256
+#define PXE_VENDOR_RAW_PRN_MAX	0x7F
 
 const char app_name_str[] = "pxechn.c32";
 
@@ -221,20 +222,19 @@ int dhcp_find_opt(pxe_bootp_t *p, size_t len, uint8_t opt)
 void print_pxe_vendor_raw(pxe_bootp_t *p, size_t len)
 {
     int i, vlen;
+
     if (!p) {
 	printf("  packet pointer is null\n");
 	return;
     }
     vlen = len - ((void *)&(p->vendor) - (void *)p);
-    vlen = (vlen > 0x7F) ? 0x7F : vlen;
+    if (vlen > PXE_VENDOR_RAW_PRN_MAX)
+	vlen = PXE_VENDOR_RAW_PRN_MAX;
     dprintf("  rawLen = %d", vlen);
     for (i = 0; i < vlen; i++) {
-/* FIXME	if ((i & 0xf) == 0)
-	    printf("\n  %04X:", i);*/
-	(i & 0xf) || printf("\n  %04X:", i);
+	if ((i & 0xf) == 0)
+	    printf("\n  %04X:", i);
 	printf(" %02X", p->vendor.d[i]);
-/* FIXME	if (i >= 0x7F)
-	    break;*/
     }
     printf("\n");
 }
@@ -253,13 +253,11 @@ void print_pxe_vendor_blk(pxe_bootp_t *p, size_t len)
     d = p->vendor.d;
     magic = ntohl(*((uint32_t *)d));
     printf("    Magic: %08X", ntohl(*((uint32_t *)d)));
-// FIXME    if (magic != VM_RFC1048)	/* Invalid DHCP packet */
-//	vlen = 0;
-    (magic != VM_RFC1048) && vlen = 0;	/* Invalid DHCP packet */
+    if (magic != VM_RFC1048)	/* Invalid DHCP packet */
+	vlen = 0;
     for (i = 4; i < vlen; i++) {
-// FIXME	if (d[i])	/* Skip the padding */
-// 	    printf("\n    @%03X-%3d", i, d[i]);
-	(d[i]) &&  printf("\n    @%03X-%3d", i, d[i]);	/* Skip the padding */
+	if (d[i])	/* Skip the padding */
+	    printf("\n    @%03X-%3d", i, d[i]);
 	if (d[i] == ((NUM_DHCP_OPTS) - 1))	/* End of list */
 	    break;
 	if (d[i]) {
@@ -364,7 +362,6 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 	    csep = NULL;
 	}
     }
-// FIXME
     if (!csep) {
 	*fp = fn;
     }
@@ -413,7 +410,6 @@ void pxechn_init(struct pxelinux_opt *pxe)
 
 int pxechn_to_hex(char i)
 {
-// FIXME Parens?
     if (i >= '0' && i <= '9')
 	return (i - '0');
     if (i >= 'A' && i <= 'F')
@@ -444,7 +440,6 @@ int pxechn_parse_2bhex(char ins[])
 
 int pxechn_optnum_ok(int optnum)
 {
-// FIXME:Parens?
     if ((optnum > 0) && (optnum < ((NUM_DHCP_OPTS) - 1)))
 	return 1;
     return 0;
@@ -464,7 +459,6 @@ int pxechn_optnum_ok_notres(int optnum)
 
 int pxechn_optlen_ok(int optlen)
 {
-// FIXME:Parens?
     if ((optlen >= 0) && (optlen < ((DHCP_OPT_LEN_MAX) - 1)))
 	return 1;
     return 0;
@@ -507,24 +501,26 @@ int pxechn_parse_arg_hex_tail(void **data, char istr[])
 
 int pxechn_parse_arg_hex_pure(int *optnum, void **data, char istr[])
 {
-    int len = -1;
+    int len = -2;
 
+    if (!optnum || !data || !istr)
+	return -1;
     if (pxechn_to_hex(istr[0]) >= 0) {
 	*optnum = pxechn_parse_2bhex(istr);
 	if (*optnum >= 0)
 	    len = pxechn_parse_arg_hex_tail(data, istr + 2);
     }
-
     return len;
 }
 
 int pxechn_parse_arg_hex(int *optnum, void **data, char istr[])
 {
-    int len = -1;
+    int len = -2;
     char *pos = NULL;
 
+    if (!optnum)
+	return len;
     *optnum = strtoul(istr, &pos, 0);
-// FIXME:Parens?
     if (pxechn_optnum_ok(*optnum))
 	len = pxechn_parse_arg_hex_tail(data, pos);
     return len;
@@ -533,8 +529,9 @@ int pxechn_parse_arg_hex(int *optnum, void **data, char istr[])
 int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
 {
     int olen = -2;
+    if (!opt || !data)
+	return -1;
     opt->data = realloc(opt->data, len);
-// FIXME:Parens?
     if (!opt->data) {
 	return olen;
     }
@@ -608,11 +605,9 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     return 0;
 }
 
-// FIXME:Parens? Progress
 int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
     pxe_bootp_t *bootp0, *bootp1;
-//    uint8_t *d0, *d0e, *d1, *d1e;
     int i;
     int ret = 0;
     struct dhcp_option *opts;
@@ -620,7 +615,7 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     opts = calloc(NUM_DHCP_OPTS, sizeof(struct dhcp_option));
     if (!opts) {
 	error("Could not allocate for options\n");
-	return -1;
+	return -2;
     }
     for (i = 0; i < NUM_DHCP_OPTS; i++) {
 	opts[i].len = -1;
@@ -632,7 +627,7 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     ret = dhcp_unpack_packet(bootp0, pxe->pkt0.len, opts);
     if (ret) {
 	error("Could not unpack packet\n");
-	return ret;
+	return -ret;	/* dhcp_unpack_packet always returns positive errors */
     }
 
     ret = pxechn_parse_args(argc, argv, pxe, opts);
@@ -655,6 +650,7 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
  */
 int dhcp_copy_pkt_to_pxe(pxe_bootp_t *p, size_t len, int ptype)
 {
+//FIXME::HERE
     com32sys_t reg;
     t_PXENV_GET_CACHED_INFO *ci;
     void *cp;
@@ -703,7 +699,7 @@ int pxechn(int argc, char *argv[])
 {
     struct pxelinux_opt pxe;
     pxe_bootp_t *bootp0, *bootp1;
-    int rv, opos;
+    int rv = 0, opos;
     struct data_area file;
     struct syslinux_rm_regs regs;
 
@@ -711,39 +707,25 @@ int pxechn(int argc, char *argv[])
     bootp0 = (pxe_bootp_t *)(pxe.pkt0.data);
     bootp1 = (pxe_bootp_t *)(pxe.pkt1.data);
 
-    if ((opos = dhcp_find_opt(bootp0, pxe.pkt0.len, 52)) >= 0) {
-	pxe.opt52 = bootp0->vendor.d[opos + 2];
-    }
-    /* Using file field often breaks PXE clients */
-    if ((pxe.opt52 & 1) != 0) {
-	puts(" Found UNSUPPORTED option (52) overload in DHCP packet; aborting");
-	rv = 2;
-	goto ret;
-    } else {
-	rv = 0;
-    }
-//     --parse-options and patch pkt1
+    /* Parse arguments and patch packet 1 */
     pxechn_args(argc, argv, &pxe);
     dpressanykey();
-//     --set_registers
     pxe_set_regs(&regs);
-dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
     /* Load the file late; it's the most time-expensive operation */
     printf("%s: Attempting to load '%s': ", app_name_str, pxe.fn);
     if (loadfile(pxe.fn, &file.data, &file.size)) {
 	pxe_error(errno, NULL, NULL);
-	rv = 1;
+	rv = -2;
 	goto ret;
     }
     puts("loaded.");
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
-//     --copy patched copy into cache
-    dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.len, PXENV_PACKET_TYPE_CACHED_REPLY);
-//     --try boot
+//FIXME::HERE
+    rv = dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.len,
+			      PXENV_PACKET_TYPE_CACHED_REPLY);
     dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
-//     dprint_pxe_vendor_blk((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
-    if (pxe.wait) {	/*  || true */
+    if (pxe.wait) {
 	pressanykey();
     } else {
 	dpressanykey();
@@ -752,7 +734,7 @@ dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
 	puts("  Attempting to boot...");
 	do_boot(&file, 1, &regs);
     }
-//     --if failed, copy backup back in and abort
+    /* If failed, copy backup back in and abort */
     dhcp_copy_pkt_to_pxe(bootp0, pxe.pkt0.len, PXENV_PACKET_TYPE_CACHED_REPLY);
 ret:
     return rv;
@@ -782,9 +764,8 @@ int pxe_restart(char *ifn)
 	goto ret;
     }
     printf("  Attempting to boot '%s'...\n\n", pxe.fn);
-//     goto ret;
     memset(&reg, 0, sizeof reg);
-    if (sizeof(t_PXENV_TFTP_READ_FILE)<= __com32.cs_bounce_size) {
+    if (sizeof(t_PXENV_TFTP_READ_FILE) <= __com32.cs_bounce_size) {
 	pxep = __com32.cs_bounce;
 	memset(pxep, 0, sizeof(t_PXENV_RESTART_TFTP));
     } else if (!(pxep = lzalloc(sizeof(t_PXENV_RESTART_TFTP)))){
@@ -793,17 +774,13 @@ int pxe_restart(char *ifn)
     }
     pxep->Status = PXENV_STATUS_SUCCESS;	/* PXENV_STATUS_FAILURE */
     strcpy((char *)pxep->FileName, ifn);
-    pxep->BufferSize = 0x8000;	/* 0x90000; */
-//     if (!(pxep->Buffer = lmalloc(pxep->BufferSize))) {
-// 	dprintf("Unable to lalloc() for buffer; using default\n");
-	pxep->Buffer = (void *)0x7c00;
-//     }
+    pxep->BufferSize = 0x8000;
+    pxep->Buffer = (void *)0x7c00;
     pxep->ServerIPAddress = pxe.fip;
     dprintf("FN='%s'  %08X %08X %08X %08X\n\n", (char *)pxep->FileName,
 	pxep->ServerIPAddress, (unsigned int)pxep,
 	pxep->BufferSize, (unsigned int)pxep->Buffer);
     dprintf("PXENV_RESTART_TFTP status %d\n", pxep->Status);
-// --here
     reg.eax.w[0] = 0x0009;
     reg.ebx.w[0] = PXENV_RESTART_TFTP;
     reg.edi.w[0] = OFFS(pxep);
@@ -812,7 +789,8 @@ int pxe_restart(char *ifn)
     __intcall(0x22, &reg, &reg);
 
     printf("PXENV_RESTART_TFTP returned %d\n", pxep->Status);
-    lfree(pxep);
+    if (pxep != __com32.cs_bounce)
+	lfree(pxep);
 
 ret:
     return rv;
@@ -827,6 +805,7 @@ ret:
  *		1 on loadfile() error
  *		-1 on usage error
  */
+//FIXME:Implement
 int pxechn_gpxe(int argc, char *argv[])
 {
     int rv = 0;
@@ -862,7 +841,7 @@ int main(int argc, char *argv[])
 	} else {
 	    rv = pxechn(argc - 1, &argv[1]);
 	}
-    } else if (argc >= 3) {	/* change to 3 for processing -q */
+    } else if (argc >= 3) {
 	if ((strcmp(argv[1], "-r") == 0)) {
 	    if (argc == 3)
 		rv = pxe_restart(argv[2]);
