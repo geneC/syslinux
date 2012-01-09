@@ -161,8 +161,8 @@ enomem:
 
 void usage(void)
 {
-    printf("USAGE: %s _new-nbp_ [-c config] [-p prefix] [-t reboot]"
-	" [-X xx...]... [-x opt:xx...]\n"
+    printf("USAGE: %s [-c config] [-p prefix] [-t reboot]"
+	" [-X xx...]... [-x opt:xx...]... _new-nbp_\n"
 	"    %s -r _new-nbp_    (calls PXE stack PXENV_RESTART_TFTP)\n",
 	app_name_str, app_name_str);
 }
@@ -319,14 +319,15 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
  *		1 in format IP::FN
  *		2 TFTP URL
  *		3 HTTP URL
- *		4 HTTPS URL
+ *		4 FTP URL
+ *		3 + 2^30 HTTPS URL
  *		-1 if fn is another URL type
  */
 int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 {
     in_addr_t tip = 0;
-    char *csep, *ssep;	/* Colon, Slash separator positions */
-    int hlen;
+    char *csep, *ssep, *hsep;	/* Colon, Slash separator positions */
+    int hlen, plen;	/* Hostname, protocol length */
     int rv = 0;
 
     csep = strchr(fn, ':');
@@ -341,6 +342,7 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 	    }
 	} else if ((csep[1] == '/') && (csep[2] == '/')) {
 		/* URL: proto://host:port/path/file */
+		/* proto://[user[:passwd]@]host[:port]/path/file */
 	    ssep = strchr(csep + 3, '/');
 	    if (ssep) {
 		hlen = ssep - (csep + 3);
@@ -350,12 +352,15 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 	    }
 	    memcpy(host, (csep + 3), hlen);
 	    host[hlen] = 0;
-	    if (strncmp(fn, "tftp", 4) == 0)
+	    plen = csep - fn;
+	    if (strncmp(fn, "tftp", plen) == 0)
 		rv = 2;
-	    else if (strncmp(fn, "http", 4) == 0)
+	    else if (strncmp(fn, "http", plen) == 0)
 		rv = 3;
-	    else if (strncmp(fn, "https", 5) == 0)
+	    else if (strncmp(fn, "ftp", plen) == 0)
 		rv = 4;
+	    else if (strncmp(fn, "https", plen) == 0)
+		rv = 3 + ( 1 << 30 );
 	    else
 		rv = -1;
 	} else {
@@ -365,8 +370,12 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
     if (!csep) {
 	*fp = fn;
     }
-    if (host[0])
-	tip = pxe_dns(host);
+    if (host[0]) {
+	hsep = strchr(host, '@');
+	if (!hsep)
+	    hsep = host;
+	tip = pxe_dns(hsep);
+    }
     if (tip != 0)
 	*fip = tip;
     dprintf0("  host '%s'\n  fp   '%s'\n  fip  %08x\n", host, *fp, ntohl(*fip));
@@ -699,7 +708,7 @@ int pxechn(int argc, char *argv[])
 {
     struct pxelinux_opt pxe;
     pxe_bootp_t *bootp0, *bootp1;
-    int rv = 0, opos;
+    int rv = 0;
     struct data_area file;
     struct syslinux_rm_regs regs;
 
@@ -853,6 +862,5 @@ int main(int argc, char *argv[])
 	usage();
 	rv = 1;
     }
-puts("tmp2");
     return rv;
 }

@@ -20,16 +20,19 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 
 == OPTIONS ==
 // c:p:t:wx:X:
+// *-b* 'OPT:BYTE'::
+//     Set DHCP Option 'OPT' to a byte value (both in DECIMAL INPUT format).
+// 
 *-c* 'CONFIG'::
     PXELINUX config file (DHCP Option 209).
 
 // Not implemented (yet).
 // *-g*::
 //     Use underlying gPXE/iPXE (if available).
-
+// 
 // *-G*::
 //     Ignore underlying gPXE/iPXE.
-
+// 
 *-h*, *--help*, *-?*::
     Print usage information; invalid options will also cause this.
 
@@ -46,10 +49,15 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
     wait after loading before booting for user input.
 
 *-x* 'OPTVALSTR'::
-    Hex DHCP option input.  The option number is specified in a format compatible with *strtoul*(3) with a non-space separator recognized by *strtoul*(3).  The value is in HEX INPUT format.
+    Hex DHCP option input.  The option number is in DECIMAL INPUT format.  The value is in HEX INPUT format.
+    // The option number is specified in a format compatible with *strtoul*(3) with a non-space separator recognized by *strtoul*(3).
 
 *-X* 'OPTVALSTR'::
     Pure hex DHCP option input.  The option and its value are in HEX INPUT format.
+
+
+== DECIMAL INPUT ==
+All parameters that are defaulted to decimal format are processed by *strtoul*(3) which allows alternate formats and finds a suitable non-space separating character.
 
 
 == HEX INPUT ==
@@ -57,21 +65,23 @@ Hex parameters are specified in a 2-digit case insensitive hexadecimal bytes wit
 
 
 == EXAMPLES ==
-HERE
-#	APPEND gpxelinux.0 -p http://172.16.23.1/tftp/
-#	APPEND gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012345678
-	APPEND gpxelinux.0 -p http://172.16.23.192/tftp/ -w -X A012:3456:78  -x 197:00d0de00
-#	APPEND tftp://172.16.23.4/gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012:3456:78
-#	APPEND http://dl.fedoraproject.org/pub/alt/bfo/pxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012:3456:78 -x 197:00d0de00
-	APPEND 2/pxe.0 -w -c pxelinux.cfg/_AC10
+pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012345678 -x 197:00d0de00
+pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012:3456:78 -x 197:00-d0-de-00
+	Both of these are equivalent.  Load gpxelinux.0 (relative to the current directory and not altering sname/option 66), set the PXELINUX path prefix, wait after loading, set option 160 to 0x12 0x34 0x56 0x78, and option 197 to 0x00 0xD0 0xDE 0x00.
+
+pxechn.c32 http://myhost.dom.loc/path/nbp.0 -c myconfig
+	Load nbp.0 and set PXELINUX config (option 209).
 
 
 == NOTES ==
 Please note that some NBPs may ignore packet #3 by either not examining it at all or by issuing its own DHCP DISCOVER/REQUEST, negating all DHCP field/option modifications by pxechn.c32.
 
+URL specifications in 'FILE' that include user/password before the host will currently cause the siaddr field to not be set properly.
+
 
 == AUTHOR ==
 {author} <{email}>
+
 
 == COPYRIGHT ==
 Copyright \(C) 2012 {author}. Free use of this software is granted under
