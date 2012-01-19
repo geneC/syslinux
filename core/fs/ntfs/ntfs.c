@@ -420,6 +420,7 @@ ntfs_attr_list_lookup(struct fs_info *fs, struct ntfs_attr_record *attr,
     int64_t last_lcn;
     block_t blk;
     struct ntfs_attr_list_entry *attr_entry;
+    uint32_t len = 0;
     struct ntfs_mft_record *mrec;
     uint64_t start_blk = 0;
 
@@ -428,16 +429,18 @@ ntfs_attr_list_lookup(struct fs_info *fs, struct ntfs_attr_record *attr,
 
     attr_entry = (struct ntfs_attr_list_entry *)
         ((uint8_t *)attr + attr->data.resident.value_offset);
-    for (;; attr_entry = (struct ntfs_attr_list_entry *)((uint8_t *)attr_entry +
-                                                         attr_entry->length)) {
+    len = attr->data.resident.value_len;
+    for (; (uint8_t *)attr_entry < (uint8_t *)attr + len;
+         attr_entry = (struct ntfs_attr_list_entry *)((uint8_t *)attr_entry +
+                                                      attr_entry->length)) {
+        dprintf("<$ATTRIBUTE_LIST> Attribute type: 0x%X\n",
+                attr_entry->type);
         if (attr_entry->type == type)
-            goto found;
+            goto found; /* We got the attribute! :-) */
     }
 
-    /* You should never reach here! If you did, so you do have a bogus
-     * NTFS drive. Fix it.
-     */
-    goto fatal_error;
+    printf("No attribute found.\n");
+    goto out;
 
 handle_non_resident_attr:
     attr_len = (uint8_t *)attr + attr->len;
@@ -470,8 +473,12 @@ handle_non_resident_attr:
                 }
 
                 attr_entry = (struct ntfs_attr_list_entry *)&buf;
-                for (;; attr_entry = (struct ntfs_attr_list_entry *)
+                len = attr->data.non_resident.data_size;
+                for (; (uint8_t *)attr_entry < (uint8_t *)&buf[0] + len;
+                     attr_entry = (struct ntfs_attr_list_entry *)
                          ((uint8_t *)attr_entry + attr_entry->length)) {
+                    printf("<$ATTRIBUTE_LIST> Attribute type: 0x%x\n",
+                           attr_entry->type);
                     if (attr_entry->type == type)
                         goto found; /* We got the attribute! :-) */
                 }
@@ -483,10 +490,7 @@ handle_non_resident_attr:
         }
     } while (!(chunk.flags & MAP_END));
 
-    /* You should never reach here! If you did, so you do have a bogus
-     * NTFS drive. Fix it.
-     */
-    goto fatal_error;
+    printf("No attribute found.\n");
 
 out:
     return NULL;
@@ -504,11 +508,6 @@ found:
 
     /* return the found MFT record */
     return mrec;
-
-fatal_error:
-    printf("(FATAL) You have a bogus NTFS drive installed in your system. "
-           "Fix it!\n");
-    goto out;
 }
 
 static struct ntfs_attr_record *

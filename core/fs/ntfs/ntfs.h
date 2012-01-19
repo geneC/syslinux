@@ -292,6 +292,11 @@ struct ntfs_attr_record {
             uint8_t compression_unit;
             uint8_t reserved[5];
             int64_t allocated_size;
+            int64_t data_size; /* Byte size of the attribute value.
+                                * Note: it can be larger than
+                                * allocated_size if attribute value is
+                                * compressed or sparse.
+                                */
             int64_t initialized_size;
             int64_t compressed_size;
         } __attribute__((__packed__)) non_resident;
