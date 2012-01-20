@@ -29,6 +29,7 @@ struct firmware {
 	struct input_ops *i_ops;
 	char *(*get_config_file_name)(void);
 	void (*get_serial_console_info)(uint16_t *, uint16_t *, uint16_t *);
+	bool (*ipappend_strings)(char **, int *);
 };
 
 extern struct firmware *firmware;

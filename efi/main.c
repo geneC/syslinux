@@ -78,8 +78,8 @@ void pxenv(void)
 {
 }
 
-uint16_t IPAppends = 0;
-char numIPAppends[2];
+uint16_t numIPAppends = 0;
+char *IPAppends = NULL;
 uint16_t BIOS_fbm = 1;
 far_ptr_t InitStack;
 uint16_t APIVer;
@@ -253,6 +253,12 @@ char *efi_get_config_file_name(void)
 	return ConfigName;
 }
 
+bool efi_ipappend_strings(char **list, int *count)
+{
+	*count = numIPAppends;
+	*list = (char *)IPAppends;
+}
+
 extern struct disk *efi_disk_init(com32sys_t *);
 extern void serialcfg(uint16_t *, uint16_t *, uint16_t *);
 
@@ -264,6 +270,7 @@ struct firmware efi_fw = {
 	.i_ops = &efi_iops,
 	.get_config_file_name = efi_get_config_file_name,
 	.get_serial_console_info = serialcfg,
+	.ipappend_strings = efi_ipappend_strings,
 };
 
 static inline void syslinux_register_efi(void)
