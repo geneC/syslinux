@@ -27,6 +27,7 @@ struct firmware {
 	struct disk *(*disk_init)(struct disk_private *);
 	struct output_ops *o_ops;
 	struct input_ops *i_ops;
+	char *(*get_config_file_name)(void);
 };
 
 extern struct firmware *firmware;

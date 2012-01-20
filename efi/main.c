@@ -248,6 +248,11 @@ struct input_ops efi_iops = {
 	.getchar = efi_getchar,
 };
 
+char *efi_get_config_file_name(void)
+{
+	return ConfigName;
+}
+
 extern struct disk *efi_disk_init(com32sys_t *);
 struct firmware efi_fw = {
 	.init = efi_init,
@@ -255,6 +260,7 @@ struct firmware efi_fw = {
 	.disk_init = efi_disk_init,
 	.o_ops = &efi_ops,
 	.i_ops = &efi_iops,
+	.get_config_file_name = efi_get_config_file_name,
 };
 
 static inline void syslinux_register_efi(void)

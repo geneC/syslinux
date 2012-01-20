@@ -25,17 +25,23 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include <syslinux/firmware.h>
 #include <syslinux/config.h>
 #include <klibc/compiler.h>
 #include <com32.h>
 
 const char *__syslinux_config_file;
 
-void __constructor __syslinux_get_config_file_name(void)
+char *bios_get_config_file_name(void)
 {
     static com32sys_t reg;
 
     reg.eax.w[0] = 0x000e;
     __intcall(0x22, &reg, &reg);
-    __syslinux_config_file = MK_PTR(reg.es, reg.ebx.w[0]);
+    return MK_PTR(reg.es, reg.ebx.w[0]);
+}
+
+void __constructor __syslinux_get_config_file_name(void)
+{
+	__syslinux_config_file = firmware->get_config_file_name();
 }
