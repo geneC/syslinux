@@ -2,7 +2,6 @@
 #define _SYSLINUX_FIRMWARE_H
 
 #include <syslinux/memscan.h>
-#include <disk.h>
 
 struct output_ops {
 	void (*erase) (int, int, int, int, uint8_t);
