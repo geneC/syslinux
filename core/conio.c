@@ -153,12 +153,12 @@ void pm_write_serial(com32sys_t *regs)
 	write_serial(regs->eax.b[0]);
 }
 
-void pm_serialcfg(com32sys_t *regs)
+void serialcfg(uint16_t *iobase, uint16_t *divisor, uint16_t *flowctl)
 {
 	uint8_t al, ah;
 
-	regs->eax.w[0] = SerialPort;
-	regs->ecx.w[0] = BaudDivisor;
+	*iobase = SerialPort;
+	*divisor = BaudDivisor;
 
 	al = FlowOutput;
 	ah = FlowInput;
@@ -170,7 +170,12 @@ void pm_serialcfg(com32sys_t *regs)
 	if (!DisplayCon)
 		ah |= 0x80;
 
-	regs->ebx.w[0] = al | (ah << 8);
+	*flowctl = al | (ah << 8);
+}
+
+void pm_serialcfg(com32sys_t *regs)
+{
+	serialcfg(&regs->eax.w[0], &regs->ecx.w[0], &regs->ebx.w[0]);
 }
 
 static void write_serial_displaymask(char data)

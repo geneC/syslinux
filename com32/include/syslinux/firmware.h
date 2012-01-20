@@ -28,6 +28,7 @@ struct firmware {
 	struct output_ops *o_ops;
 	struct input_ops *i_ops;
 	char *(*get_config_file_name)(void);
+	void (*get_serial_console_info)(uint16_t *, uint16_t *, uint16_t *);
 };
 
 extern struct firmware *firmware;

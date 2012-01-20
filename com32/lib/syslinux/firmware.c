@@ -36,6 +36,7 @@ struct input_ops bios_input_ops = {
 };
 
 extern char *bios_get_config_file_name(void);
+extern void bios_get_serial_console_info(uint16_t *, uint16_t *, uint16_t *);
 
 struct firmware bios_fw = {
 	.init = bios_init,
@@ -46,6 +47,7 @@ struct firmware bios_fw = {
 	.o_ops = &bios_output_ops,
 	.i_ops = &bios_input_ops,
 	.get_config_file_name = bios_get_config_file_name,
+	.get_serial_console_info = bios_get_serial_console_info,
 };
 
 void syslinux_register_bios(void)

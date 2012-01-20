@@ -254,6 +254,8 @@ char *efi_get_config_file_name(void)
 }
 
 extern struct disk *efi_disk_init(com32sys_t *);
+extern void serialcfg(uint16_t *, uint16_t *, uint16_t *);
+
 struct firmware efi_fw = {
 	.init = efi_init,
 	.scan_memory = efi_scan_memory,
@@ -261,6 +263,7 @@ struct firmware efi_fw = {
 	.o_ops = &efi_ops,
 	.i_ops = &efi_iops,
 	.get_config_file_name = efi_get_config_file_name,
+	.get_serial_console_info = serialcfg,
 };
 
 static inline void syslinux_register_efi(void)
