@@ -90,6 +90,7 @@ struct pxelinux_opt {
     uint32_t wait;	/* Additional decision to wait before boot */
     struct dhcp_option pkt0, pkt1;	/* original and modified packets */
     char host[256];	/* 63 bytes per label; 255 max total */
+    uint32_t relay;	/* giaddr; Gateway/DHCP relay */
 };
 
 
@@ -412,7 +413,7 @@ void pxechn_init(struct pxelinux_opt *pxe)
     /* Init for paranoia */
     pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
     pxe->reboot = REBOOT_TIME;
-    pxe->opt52 = pxe->wait = 0;
+    pxe->opt52 = pxe->wait = pxe->relay = 0;
     pxe->host[0] = pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
     pxechn_fill_pkt(pxe);
 }
@@ -554,10 +555,59 @@ int pxechn_setopt_str(struct dhcp_option *opt, void *data)
     return pxechn_setopt(opt, data, strnlen(data, DHCP_OPT_LEN_MAX));
 }
 
+/*
+ * returns: -1 if an arg is null; -2 if tlen invalid; -3 on strtoul error;
+	-4 on value overflow; -5 bad option number
+ */
+int pxechn_parseuint_setopt(struct dhcp_option opts[], char istr[], int tlen)
+{
+    int optnum, rv;
+    char *pos = NULL;
+
+    if ((!opts) || (!istr))
+	return -1;
+    optnum = strtoul(istr, &pos, 0);
+    if (!pxechn_optnum_ok(*optnum))
+	return -5;
+    int terr = errno;
+    if ((tlen == 1) || (tlen == 2) || (tlen == 4)) {
+	errno = 0;
+	uint32_t optval = strtoul(pos, NULL, 0);
+	if (errno)
+	    return -3;
+	switch(tlen){
+	case  1:
+	    if (optval & 0xFFFFFF00)
+		return -4;
+	    break;
+	case  2:
+	    if (optval & 0xFFFF0000)
+		return -4;
+	    optval = htons(optval);
+	    break;
+	case  4:
+	    optval = htonl(optval);
+	    break;
+	}
+    } else if (tlen == 8) {
+	errno = 0;
+	uint64_t optval = strtoull(pos, NULL, 0);
+	if (errno)
+	    return -3;
+	optval = htonq(optval);
+    } else {
+	return -2;
+    }
+    errno = terr;
+    pxechn_setopt(&(opts[optnum]), (void *)(&(optval)), tlen);
+    rv = tlen;
+    return rv;
+}
+
 int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
-    int arg, optnum;
+    int arg, optnum, rv = 0;
     const char optstr[] = "c:p:t:wx:X:";
     struct dhcp_option iopt;
 
@@ -569,18 +619,37 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     pxe->fn = argv[0];
     iopt.data = malloc(DHCP_OPT_LEN_MAX);
     iopt.len = 0;
-    while ((arg = getopt(argc, argv, optstr)) >= 0) {
+    while ((rv == 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
 	dprintf_arg("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
+	case 'b':	/* byte */
+	    pxechn_parseuint_setopt(opts, optarg, 1);
+	    break;
 	case 'c':	/* config */
 	    pxe->cfg = optarg;
 	    pxechn_setopt_str(&(opts[209]), optarg);
 	    break;
+	case 'f':	/* force */
+	    break;
 	case 'g':	/* gateway/DHCP relay */
+	    optnum = pxe_dns(optarg);
+	    if (optnum)
+		pxe->relay = optnum;
+	    break;
+	case 'i':	/* int */
+	    pxechn_parseuint_setopt(opts, optarg, 4);
+	    break;
+	case 'l':	/* long long */
+	    pxechn_parseuint_setopt(opts, optarg, 8);
+	    break;
+	case 'n':	/* native */
 	    break;
 	case 'p':	/* prefix */
 	    pxe->prefix = optarg;
 	    pxechn_setopt_str(&(opts[210]), optarg);
+	    break;
+	case 's':	/* short uint16 */
+	    pxechn_parseuint_setopt(opts, optarg, 2);
 	    break;
 	case 't':	/* timeout */
 	    pxe->reboot = strtoul(optarg, (char **)NULL, 0);
@@ -609,6 +678,8 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	default:
 	    break;
 	}
+	if (iopt.data)
+	    free(iopt.data);
     }
     pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
     return 0;
