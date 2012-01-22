@@ -44,6 +44,13 @@
 
 #define PXECHN_DEBUG 1
 
+typedef union {
+    uint64_t q;
+    uint32_t l[2];
+    uint16_t w[4];
+    uint8_t b[8];
+} reg64_t;
+
 #define dprintf0(f, ...)		((void)0)
 
 #if (PXECHN_DEBUG > 0)
@@ -536,12 +543,38 @@ int pxechn_parse_arg_hex(int *optnum, void **data, char istr[])
     return len;
 }
 
+void *pxechn_realloc(void *d, int len)
+{
+    void *p;
+    char *c;
+    int l = (len > 32) ? len : 32;
+    int i;
+    if (d) {
+	printf("    realloc %d @%08X", l, (uint32_t)d);
+	p = realloc(d, l);
+	printf(" ->%08X\n", (uint32_t)p);
+	return p;
+    }
+    printf("    malloc %d (%d)", l, errno);
+    c = p =  malloc(l);
+    for(i=0; i<l; i++) c[i] = (0xDE + i) & 0xFF;
+    printf(" ->%08X (%d)\n", (uint32_t)p, errno);
+    return p;
+}
+
 int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
 {
     int olen = -2;
+/*int i;
+uint8_t *d = data;*/
     if (!opt || !data)
 	return -1;
-    opt->data = realloc(opt->data, len);
+/*printf("setopt %08X = %08X:", (int)(opt->data), (int)d);
+for(i=0;i<len;i++)
+printf(" %02X", d[i]);
+printf("\n");*/
+    opt->data = pxechn_realloc(opt->data, len);
+// printf("  setopt %08X\n", (int)(opt->data));
     if (!opt->data) {
 	return olen;
     }
@@ -566,15 +599,19 @@ int pxechn_parseuint_setopt(struct dhcp_option opts[], char istr[], int tlen)
 
     if ((!opts) || (!istr))
 	return -1;
+printf("pxechn_parseuint_setopt '%s'\n", istr);
     optnum = strtoul(istr, &pos, 0);
-    if (!pxechn_optnum_ok(*optnum))
+    if (!pxechn_optnum_ok(optnum))
 	return -5;
     int terr = errno;
+    pos++;
     if ((tlen == 1) || (tlen == 2) || (tlen == 4)) {
 	errno = 0;
-	uint32_t optval = strtoul(pos, NULL, 0);
+	uint32_t optval = strtoul(pos, (char **)NULL, 0);
 	if (errno)
 	    return -3;
+	errno = terr;
+// printf("  opt %d val %x len %d '%s'\n", optnum, optval, tlen, pos);
 	switch(tlen){
 	case  1:
 	    if (optval & 0xFFFFFF00)
@@ -589,17 +626,21 @@ int pxechn_parseuint_setopt(struct dhcp_option opts[], char istr[], int tlen)
 	    optval = htonl(optval);
 	    break;
 	}
+printf("  opt %d val %x len %d '%s'\n", optnum, optval, tlen, pos);
+	pxechn_setopt(&(opts[optnum]), (void *)(&(optval)), tlen);
     } else if (tlen == 8) {
 	errno = 0;
-	uint64_t optval = strtoull(pos, NULL, 0);
+	uint64_t optval = strtoull(pos, (char **)NULL, 0);
 	if (errno)
 	    return -3;
+	errno = terr;
+/*printf("  opt %d val %llx len %d '%s'\n", optnum, optval, tlen, pos);*/
 	optval = htonq(optval);
+printf("  opt %d val %llx len %d '%s'\n", optnum, optval, tlen, pos);
+	pxechn_setopt(&(opts[optnum]), (void *)(&optval), tlen);
     } else {
 	return -2;
     }
-    errno = terr;
-    pxechn_setopt(&(opts[optnum]), (void *)(&(optval)), tlen);
     rv = tlen;
     return rv;
 }
@@ -608,7 +649,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum, rv = 0;
-    const char optstr[] = "c:p:t:wx:X:";
+    const char optstr[] = "b:c:i:l:p:s:t:wx:X:";
     struct dhcp_option iopt;
 
     if (pxe->pkt1.data)
@@ -901,10 +942,14 @@ int pxechn_gpxe(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     int rv= -1;
+int err;
     const struct syslinux_version *sv;
 
     /* Initialization */
+err = errno;
     console_ansi_raw();
+printf("%d %d\n", err, errno);
+    errno = err;
     sv = syslinux_version();
     if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
 	printf("%s: May only run in PXELINUX\n", app_name_str);
