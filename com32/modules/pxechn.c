@@ -71,7 +71,7 @@ typedef union {
 #define dprintf_opt_inj		dprintf
 #define dprintf_hex_pure	dprintf0
 #define dprintf_hex_tail	dprintf0
-#define dprintf_arg		dprintf0
+#define dprintf_arg		dprintf
 
 #define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
 
@@ -565,6 +565,7 @@ void *pxechn_realloc(void *d, int len)
 int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
 {
     int olen = -2;
+    void *p;
 /*int i;
 uint8_t *d = data;*/
     if (!opt || !data)
@@ -573,11 +574,12 @@ uint8_t *d = data;*/
 for(i=0;i<len;i++)
 printf(" %02X", d[i]);
 printf("\n");*/
-    opt->data = pxechn_realloc(opt->data, len);
-// printf("  setopt %08X\n", (int)(opt->data));
-    if (!opt->data) {
+    p = pxechn_realloc(opt->data, len);
+// printf("  setopt %08X\n", (int)(p));
+    if (!p) {
 	return olen;
     }
+    opt->data = p;
     memcpy(opt->data, data, len);
     opt->len = len;
     return olen;
