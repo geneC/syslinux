@@ -69,9 +69,10 @@ typedef union {
 
 #define dprintf_opt_cp		dprintf0
 #define dprintf_opt_inj		dprintf
-#define dprintf_hex_pure	dprintf0
-#define dprintf_hex_tail	dprintf0
-#define dprintf_arg		dprintf
+#define dprintf_pc_pa_hx_pure	dprintf0
+#define dprintf_pc_pa_hx_dec	dprintf0
+#define dprintf_pc_pa_hx_tl	dprintf0
+#define dprintf_pc_pa		dprintf
 
 #define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
 
@@ -491,16 +492,16 @@ int pxechn_parse_arg_hex_tail(void **data, char istr[])
 	ostr = *data;
 	while ((len >= 0) && (conv >= 0)) {
 	    if (len >= DHCP_OPT_LEN_MAX) {
-		dprintf_hex_tail("HEX: break\t");
+		dprintf_pc_pa_hx_tl("HEX: break\t");
 		break;
 	    }
 	    /* byte delimiter */
 	    if ((conv = pxechn_to_hex(istr[p])) == -2){
-		dprintf_hex_tail("HEX:delim\t");
+		dprintf_pc_pa_hx_tl("HEX:delim\t");
 		p++;
 	    }
 	    conv = pxechn_parse_2bhex(istr + p);
-	    dprintf_hex_tail("HEX:%02x@%d\t", conv, p);
+	    dprintf_pc_pa_hx_tl("HEX:%02x@%d\t", conv, p);
 	    if (conv >= 0) {
 		ostr[len++] = conv;
 	    } else if (conv < -1 ) {
@@ -508,10 +509,10 @@ int pxechn_parse_arg_hex_tail(void **data, char istr[])
 	    }
 	    p += 2;
 	}
-	dprintf_hex_tail("\n");
+	dprintf_pc_pa_hx_tl("\n");
     }
     if (len > 0) {
-	dprintf_hex_tail("HEX:l=%d\t", len);
+	dprintf_pc_pa_hx_tl("HEX:l=%d\t", len);
     }
     return len;
 }
@@ -663,7 +664,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     iopt.data = malloc(DHCP_OPT_LEN_MAX);
     iopt.len = 0;
     while ((rv == 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
-	dprintf_arg("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
+	dprintf_pc_pa("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
 	case 'b':	/* byte */
 	    pxechn_parseuint_setopt(opts, optarg, 1);
@@ -705,14 +706,14 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 		pxe->wait = (uint32_t)atoi(optarg);
 	    break;
 	case 'x':	/* Friendly hex string */
-	    iopt.data = NULL;
+// 	    iopt.data = NULL;
 	    iopt.len = pxechn_parse_arg_hex(&optnum, &iopt.data, optarg);
 	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
 		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
 	    }
 	    break;
 	case 'X':	/* Full heX string */
-	    iopt.data = NULL;
+// 	    iopt.data = NULL;
 	    iopt.len = pxechn_parse_arg_hex_pure(&optnum, &iopt.data, optarg);
 	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
 		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
