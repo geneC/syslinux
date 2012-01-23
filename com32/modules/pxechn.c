@@ -667,7 +667,8 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	dprintf_pc_pa("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
 	case 'b':	/* byte */
-	    pxechn_parseuint_setopt(opts, optarg, 1);
+	    rv = pxechn_parseuint_setopt(opts, optarg, 1);
+	    dprintf_pc_pa("brv=%d", rv);
 	    break;
 	case 'c':	/* config */
 	    pxe->cfg = optarg;
@@ -706,14 +707,12 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 		pxe->wait = (uint32_t)atoi(optarg);
 	    break;
 	case 'x':	/* Friendly hex string */
-// 	    iopt.data = NULL;
 	    iopt.len = pxechn_parse_arg_hex(&optnum, &iopt.data, optarg);
 	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
 		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
 	    }
 	    break;
 	case 'X':	/* Full heX string */
-// 	    iopt.data = NULL;
 	    iopt.len = pxechn_parse_arg_hex_pure(&optnum, &iopt.data, optarg);
 	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
 		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
