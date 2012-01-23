@@ -610,7 +610,7 @@ printf("pxechn_parseuint_setopt '%s'\n", istr);
     pos++;
     if ((tlen == 1) || (tlen == 2) || (tlen == 4)) {
 	errno = 0;
-	uint32_t optval = strtoul(pos, (char **)NULL, 0);
+	uint32_t optval = strtoul(pos, NULL, 0);
 	if (errno)
 	    return -3;
 	errno = terr;
@@ -633,7 +633,7 @@ printf("  opt %d val %x len %d '%s'\n", optnum, optval, tlen, pos);
 	pxechn_setopt(&(opts[optnum]), (void *)(&(optval)), tlen);
     } else if (tlen == 8) {
 	errno = 0;
-	uint64_t optval = strtoull(pos, (char **)NULL, 0);
+	uint64_t optval = strtoull(pos, NULL, 0);
 	if (errno)
 	    return -3;
 	errno = terr;
@@ -697,7 +697,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    pxechn_parseuint_setopt(opts, optarg, 2);
 	    break;
 	case 't':	/* timeout */
-	    pxe->reboot = strtoul(optarg, (char **)NULL, 0);
+	    pxe->reboot = strtoul(optarg, NULL, 0);
 	    pxe->rebootn = htonl(pxe->reboot);
 	    pxechn_setopt(&(opts[211]), (void *)(&(pxe->rebootn)), 4);
 	    break;
