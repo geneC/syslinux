@@ -707,13 +707,13 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 		pxe->wait = (uint32_t)atoi(optarg);
 	    break;
 	case 'x':	/* Friendly hex string */
-	    iopt.len = pxechn_parse_arg_hex(&optnum, &iopt.data, optarg);
+	    iopt.len = pxechn_parse_arg_hex(&optnum, &(iopt.data), optarg);
 	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
 		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
 	    }
 	    break;
 	case 'X':	/* Full heX string */
-	    iopt.len = pxechn_parse_arg_hex_pure(&optnum, &iopt.data, optarg);
+	    iopt.len = pxechn_parse_arg_hex_pure(&optnum, &(iopt.data), optarg);
 	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
 		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
 	    }
@@ -721,9 +721,9 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	default:
 	    break;
 	}
-	if (iopt.data)
-	    free(iopt.data);
     }
+    if (iopt.data)
+	free(iopt.data);
     pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
     return 0;
 }
