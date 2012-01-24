@@ -309,6 +309,7 @@ struct ntfs_attr_record {
 struct ntfs_attr_list_entry {
     uint32_t type;
     uint16_t length;
+    uint8_t name_length;
     uint8_t name_offset;
     uint64_t lowest_vcn;
     uint64_t mft_ref;

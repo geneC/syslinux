@@ -417,7 +417,7 @@ out:
 
 static const struct ntfs_mft_record *
 ntfs_attr_list_lookup(struct fs_info *fs, struct ntfs_attr_record *attr,
-                      uint32_t type)
+                      uint32_t type, const struct ntfs_mft_record *mrec)
 {
     uint8_t *attr_len;
     struct mapping_chunk chunk;
@@ -433,7 +433,7 @@ ntfs_attr_list_lookup(struct fs_info *fs, struct ntfs_attr_record *attr,
     block_t blk;
     struct ntfs_attr_list_entry *attr_entry;
     uint32_t len = 0;
-    struct ntfs_mft_record *mrec;
+    struct ntfs_mft_record *retval;
     uint64_t start_blk = 0;
 
     dprintf("in %s\n", __func__);
@@ -514,14 +514,22 @@ found:
      * will look for the MFT record that stores information about this
      * attribute.
      */
-    mrec = NTFS_SB(fs)->mft_record_lookup(fs, attr_entry->mft_ref, &start_blk);
-    if (!mrec) {
+
+    /* Check if the attribute type we're looking for is in the same
+     * MFT record. If so, we do not need to look it up again - return it.
+     */
+    if (mrec->mft_record_no == attr_entry->mft_ref)
+        return mrec;
+
+    retval = NTFS_SB(fs)->mft_record_lookup(fs, attr_entry->mft_ref,
+                                            &start_blk);
+    if (!retval) {
         printf("No MFT record found!\n");
         goto out;
     }
 
     /* return the found MFT record */
-    return mrec;
+    return retval;
 }
 
 static struct ntfs_attr_record *
@@ -562,7 +570,7 @@ again:
      * it as well.
      */
     if (attr->type == NTFS_AT_END && attr_list_attr) {
-        mrec = ntfs_attr_list_lookup(fs, attr_list_attr, type);
+        mrec = ntfs_attr_list_lookup(fs, attr_list_attr, type, mrec);
         if (!mrec)
             goto out;
 
