@@ -77,6 +77,8 @@ static void ntfs_fixups_writeback(struct fs_info *fs, struct ntfs_record *nrec)
     uint16_t usa_count;
     uint16_t *blk;
 
+    dprintf("in %s\n", __func__);
+
     if (nrec->magic != NTFS_MAGIC_FILE && nrec->magic != NTFS_MAGIC_INDX)
         return;
 
@@ -111,6 +113,8 @@ static int ntfs_read(struct fs_info *fs, void *buf, size_t len, uint64_t count,
     uint64_t lbytes;
     uint64_t loffset;
     uint64_t k;
+
+    dprintf("in %s\n", __func__);
 
     if (count > len)
         goto out;
@@ -188,6 +192,8 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_0(struct fs_info *fs,
     int err;
     struct ntfs_mft_record *mrec;
 
+    dprintf("in %s\n", __func__);
+
     buf = (uint8_t *)malloc(mft_record_size);
     if (!buf)
         malloc_error("uint8_t *");
@@ -248,6 +254,8 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_1(struct fs_info *fs,
     int err;
     struct ntfs_mft_record *mrec;
 
+    dprintf("in %s\n", __func__);
+
     buf = (uint8_t *)malloc(mft_record_size);
     if (!buf)
         malloc_error("uint8_t *");
@@ -296,6 +304,8 @@ static bool ntfs_filename_cmp(const char *dname, struct ntfs_idx_entry *ie)
     const uint16_t *entry_fn;
     uint8_t entry_fn_len;
     unsigned i;
+
+    dprintf("in %s\n", __func__);
 
     entry_fn = ie->key.file_name.file_name;
     entry_fn_len = ie->key.file_name.file_name_len;
@@ -346,6 +356,8 @@ static int parse_data_run(const void *stream, uint32_t *offset,
     int64_t res;
 
     (void)attr_len;
+
+    dprintf("in %s\n", __func__);
 
     chunk->flags &= ~MAP_MASK;
 
@@ -423,6 +435,8 @@ ntfs_attr_list_lookup(struct fs_info *fs, struct ntfs_attr_record *attr,
     uint32_t len = 0;
     struct ntfs_mft_record *mrec;
     uint64_t start_blk = 0;
+
+    dprintf("in %s\n", __func__);
 
     if (attr->non_resident)
         goto handle_non_resident_attr;
@@ -517,6 +531,8 @@ ntfs_attr_lookup(struct fs_info *fs, uint32_t type,
     struct ntfs_attr_record *attr;
     struct ntfs_attr_record *attr_list_attr;
 
+    dprintf("in %s\n", __func__);
+
     /* sanity check */
     if (!mrec || type == NTFS_AT_END)
         goto out;
@@ -580,6 +596,8 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     int err;
     uint8_t *stream;
     uint32_t offset;
+
+    dprintf("in %s\n", __func__);
 
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, mft_no, &start_blk);
     if (!mrec) {
@@ -709,6 +727,8 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
     int64_t lcn;
     int64_t last_lcn;
     struct inode *inode;
+
+    dprintf("in %s\n", __func__);
 
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(dir)->mft_no, NULL);
     if (!mrec) {
@@ -894,6 +914,8 @@ static int ntfs_next_extent(struct inode *inode, uint32_t lstart)
     const uint32_t sec_size = SECTOR_SIZE(fs);
     const uint32_t sec_shift = SECTOR_SHIFT(fs);
 
+    dprintf("in %s\n", __func__);
+
     if (!NTFS_PVT(inode)->non_resident) {
         pstart = (sbi->mft_blk + NTFS_PVT(inode)->here) << BLOCK_SHIFT(fs) >>
                 sec_shift;
@@ -940,6 +962,8 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     struct ntfs_mft_record *mrec;
     struct ntfs_attr_record *attr;
     char *p;
+
+    dprintf("in %s\n", __func__);
 
     non_resident = NTFS_PVT(inode)->non_resident;
 
@@ -1007,6 +1031,8 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     int64_t vcn;
     int64_t lcn;
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
+
+    dprintf("in %s\n", __func__);
 
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(inode)->mft_no, NULL);
     if (!mrec) {
@@ -1196,6 +1222,8 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
     struct inode *inode;
     int err;
 
+    dprintf("in %s\n", __func__);
+
     /* Fetch the $Volume MFT record */
     start_blk = 0;
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, FILE_Volume, &start_blk);
@@ -1255,6 +1283,8 @@ static int ntfs_fs_init(struct fs_info *fs)
     struct ntfs_sb_info *sbi;
     struct disk *disk = fs->fs_dev->disk;
     uint8_t mft_record_shift;
+
+    dprintf("in %s\n", __func__);
 
     read_count = disk->rdwr_sectors(disk, &ntfs, 0, 1, 0);
     if (!read_count)
