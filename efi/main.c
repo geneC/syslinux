@@ -242,6 +242,7 @@ char efi_getchar(void)
 	} while (status == EFI_NOT_READY);
 
 	c = (char)key.UnicodeChar;
+	return c;
 }
 
 struct input_ops efi_iops = {
