@@ -98,7 +98,7 @@ LIBOTHER_OBJS = \
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
 	\
-	syslinux/memscan.o syslinux/firmware.o
+	syslinux/memscan.o
 
 ## CORE OBJECTS, INCLUDED IN THE ROOT COM32 MODULE
 LIBENTRY_OBJS = \

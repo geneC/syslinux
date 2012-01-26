@@ -20,7 +20,7 @@ CORE_COBJ := $(patsubst %.c,%.o,$(CORE_CSRC))
 
 # Don't include console objects
 CORE_OBJS = $(filter-out $(core)/hello.o $(core)/rawcon.o \
-	$(core)/plaincon.o $(core)/strcasecmp.o,$(CORE_COBJ))
+	$(core)/plaincon.o $(core)/strcasecmp.o $(core)/bios.o,$(CORE_COBJ))
 LIB_OBJS = $(addprefix $(com32)/lib/,$(MINLIBOBJS))
 
 CSRC = $(wildcard *.c)

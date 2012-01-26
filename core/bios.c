@@ -1,10 +1,11 @@
 #include <sys/io.h>
 #include <fs.h>
-#include <syslinux/memscan.h>
 #include <bios.h>
+#include <syslinux/memscan.h>
 #include <syslinux/firmware.h>
 
 struct firmware *firmware = NULL;
+
 extern struct ansi_ops bios_ansi_ops;
 
 extern void bios_erase(int, int, int, int, uint8_t);
