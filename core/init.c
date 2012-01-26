@@ -87,7 +87,7 @@ void bios_init(void)
 	check_escapes();
 }
 
-void init(com32sys_t *regs)
+void init(void)
 {
 	firmware->init();
 }
