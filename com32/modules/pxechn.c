@@ -755,7 +755,7 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
     opttype = pxechn_parse_opttype(cpos, optnum);
 printf("pcpot %08X\n", opttype);
     pos++;
-    switch(opttype) {//	bwlq
+    switch(opttype) {
 /*
     case ('a'+'b'*256):
 	a
@@ -772,6 +772,13 @@ printf("pcpot %08X\n", opttype);
 	break;
     case 'q':
 	iopt->len = pxechn_parse_int(iopt->data, pos, 8);
+	break;
+    case 's':
+    case ('s' + 256 * ('t' + 256 * 'r')):
+	iopt->len = strlen(pos);
+	if (iopt->len > DHCP_OPT_LEN_MAX)
+	    iopt->len = DHCP_OPT_LEN_MAX;
+	memcpy(iopt->data, pos, iopt->len);
 	break;
     case 'w':
 	iopt->len = pxechn_parse_int(iopt->data, pos, 2);
@@ -794,7 +801,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum, rv = 0;
-    const char optstr[] = "b:c:i:l:o:p:s:t:wx:X:";
+    const char optstr[] = "c:p:t:wo:f:x:X:b:s:i:l:";
     struct dhcp_option iopt;
 
     if (pxe->pkt1.data)
@@ -818,6 +825,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    pxechn_setopt_str(&(opts[209]), optarg);
 	    break;
 	case 'f':	/* force */
+	    puts("Unimplemented option utilized");
 	    break;
 	case 'g':	/* gateway/DHCP relay */
 	    optnum = pxe_dns(optarg);

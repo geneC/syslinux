@@ -75,7 +75,7 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 
 
 == DECIMAL INPUT ==
-All parameters that are defaulted to decimal format are processed by *strtoul*(3) which allows alternate formats and finds a suitable non-space separating character.
+All parameters that are defaulted to decimal format are processed by *strtoul*(3) with a base of 0 which allows alternate formats and finds a suitable non-space separating character.
 
 
 == HEX INPUT ==
