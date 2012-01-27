@@ -47,7 +47,10 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 // 
 // *-N*::
 //     Use non-native methods to utilize gPXE/iPXE (if available).
-// 
+//
+*-o* 'OPT.TYPE=VALUE'::
+    Specify a generic option.  'TYPE' specifies the output type and input syntax.  'b'yte, 'w'ord(2B), 'l'ong(4B), 'q'uad(8B), colon-separated he'x' string and character 's'tring.
+
 *-p* 'PATH'::
     PXELINUX path (DHCP Option 210).
 

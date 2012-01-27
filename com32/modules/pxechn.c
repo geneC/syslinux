@@ -68,7 +68,7 @@ typedef union {
 #endif
 
 #define dprintf_opt_cp		dprintf0
-#define dprintf_opt_inj		dprintf
+#define dprintf_opt_inj		dprintf0
 #define dprintf_pc_pa_hx_pure	dprintf0
 #define dprintf_pc_pa_hx_dec	dprintf0
 #define dprintf_pc_pa_hx_tl	dprintf0
@@ -548,24 +548,22 @@ void *pxechn_realloc(void *d, int len)
 {
     void *p;
     char *c;
-    int l = (len > 32) ? len : 32;
     int i;
     if (d) {
-	printf("    realloc %d @%08X", l, (uint32_t)d);
-	p = realloc(d, l);
+	printf("    realloc %d @%08X", len, (uint32_t)d);
+	p = realloc(d, len);
 	printf(" ->%08X\n", (uint32_t)p);
 	return p;
     }
-    printf("    malloc %d (%d)", l, errno);
-    c = p =  malloc(l);
-    for(i=0; i<l; i++) c[i] = (0xDE + i) & 0xFF;
+    printf("    malloc %d (%d)", len, errno);
+    c = p =  malloc(len);
+    for(i=0; i<len; i++) c[i] = (0xDE + i) & 0xFF;
     printf(" ->%08X (%d)\n", (uint32_t)p, errno);
     return p;
 }
 
 int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
 {
-    int olen = -2;
     void *p;
 /*int i;
 uint8_t *d = data;*/
@@ -578,12 +576,12 @@ printf("\n");*/
     p = pxechn_realloc(opt->data, len);
 // printf("  setopt %08X\n", (int)(p));
     if (!p) {
-	return olen;
+	return -2;
     }
     opt->data = p;
     memcpy(opt->data, data, len);
     opt->len = len;
-    return olen;
+    return len;
 }
 
 int pxechn_setopt_str(struct dhcp_option *opt, void *data)
@@ -648,11 +646,155 @@ printf("  opt %d val %llx len %d '%s'\n", optnum, optval, tlen, pos);
     return rv;
 }
 
+int pxechn_parse_int(char *data, char istr[], int tlen)
+{
+    int terr = errno;
+
+    if ((tlen == 1) || (tlen == 2) || (tlen == 4)) {
+	errno = 0;
+	uint32_t optval = strtoul(istr, NULL, 0);
+	if (errno)
+	    return -3;
+	errno = terr;
+	switch(tlen){
+	case  1:
+	    if (optval & 0xFFFFFF00)
+		return -4;
+	    break;
+	case  2:
+	    if (optval & 0xFFFF0000)
+		return -4;
+	    optval = htons(optval);
+	    break;
+	case  4:
+	    optval = htonl(optval);
+	    break;
+	}
+	memcpy(data, &optval, tlen);
+    } else if (tlen == 8) {
+	errno = 0;
+	uint64_t optval = strtoull(istr, NULL, 0);
+	if (errno)
+	    return -3;
+	errno = terr;
+	optval = htonq(optval);
+	memcpy(data, &optval, tlen);
+    } else {
+	return -2;
+    }
+    return tlen;
+}
+
+int pxechn_parse_hex_sep(char *data, char istr[], char sep)
+{
+    int len = 0;
+    int ipos = 0, ichar;
+    
+    if (!data || !istr)
+	return -1;
+    while ((istr[ipos]) && (len < DHCP_OPT_LEN_MAX)) {
+	printf(" %02X%02X", *((int *)(istr + ipos)) & 0xFF, *((int *)(istr + ipos +1)) & 0xFF);
+	ichar = pxechn_parse_2bhex(istr + ipos);
+	if (ichar >=0) {
+	    data[len++] = ichar;
+	} else {
+	    return -EINVAL;
+	}
+	if (!istr[ipos+2]){
+	    ipos += 2;
+	} else if (istr[ipos+2] != sep) {
+	    return -(EINVAL + 1);
+	} else {
+	    ipos += 3;
+	}
+    }
+    return len;
+}
+
+int pxechn_parse_opttype(char istr[], int optnum)
+{
+    char *pos;
+    int tlen, type, tmask;
+
+    if (!istr)
+	return -1;
+    pos = strchr(istr, '=');
+    if (!pos)
+	return -2;
+    if (istr[0] != '.') {
+	if (!pxechn_optnum_ok(optnum))
+	    return -3;
+	return -3;	/* do lookup here */
+    } else {
+	tlen = pos - istr - 1;
+	if ((tlen < 1) || (tlen > 4))
+	    return -4;
+	tmask = 0xFFFFFFFF >> (8 * (4 - tlen));
+	type = (*(int*)(istr + 1)) & tmask;
+    }
+    return type;
+}
+
+int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
+			char istr[])
+{
+    int rv = 0, optnum, opttype;
+    char *cpos = NULL, *pos;
+
+    if (!opts || !iopt || !(iopt->data))
+	return -1;
+    if (!istr || !istr[0])
+	return -2;
+    // -EINVAL;
+    optnum = strtoul(istr, &cpos, 0);
+    if (!pxechn_optnum_ok(optnum))
+	return -3;
+    pos = strchr(cpos, '=');
+    if (!pos)
+	return -4;
+    opttype = pxechn_parse_opttype(cpos, optnum);
+printf("pcpot %08X\n", opttype);
+    pos++;
+    switch(opttype) {//	bwlq
+/*
+    case ('a'+'b'*256):
+	a
+	break;
+    case 'x':
+	a
+	break;
+*/
+    case 'b':
+	iopt->len = pxechn_parse_int(iopt->data, pos, 1);
+	break;
+    case 'l':
+	iopt->len = pxechn_parse_int(iopt->data, pos, 4);
+	break;
+    case 'q':
+	iopt->len = pxechn_parse_int(iopt->data, pos, 8);
+	break;
+    case 'w':
+	iopt->len = pxechn_parse_int(iopt->data, pos, 2);
+	break;
+    case 'x':
+	iopt->len = pxechn_parse_hex_sep(iopt->data, pos, ':');
+printf("pc_p_h_s returned %d\n", iopt->len);
+	break;
+    default:
+	return -6;
+	break;
+    }
+    if (iopt->len >= 0) {
+	rv = pxechn_setopt(&(opts[optnum]), (void *)(iopt->data), iopt->len);
+    }
+    return rv;
+}
+
 int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum, rv = 0;
-    const char optstr[] = "b:c:i:l:p:s:t:wx:X:";
+    const char optstr[] = "b:c:i:l:o:p:s:t:wx:X:";
     struct dhcp_option iopt;
 
     if (pxe->pkt1.data)
@@ -669,6 +811,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	case 'b':	/* byte */
 	    rv = pxechn_parseuint_setopt(opts, optarg, 1);
 	    dprintf_pc_pa("brv=%d", rv);
+	    rv = 0;
 	    break;
 	case 'c':	/* config */
 	    pxe->cfg = optarg;
@@ -688,6 +831,11 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    pxechn_parseuint_setopt(opts, optarg, 8);
 	    break;
 	case 'n':	/* native */
+	    break;
+	case 'o':	/* option */
+	    rv = pxechn_parse_setopt(opts, &iopt, optarg);
+	    printf("pc_pso() returned %d\n", rv);
+rv = 0;
 	    break;
 	case 'p':	/* prefix */
 	    pxe->prefix = optarg;
