@@ -93,6 +93,8 @@ struct adv_ops bios_adv_ops = {
 	.write = bios_adv_write,
 };
 
+extern int bios_boot_linux(void *, size_t, struct initramfs *, char *);
+
 struct firmware bios_fw = {
 	.init = bios_init,
 	.scan_memory = bios_scan_memory,
@@ -105,6 +107,7 @@ struct firmware bios_fw = {
 	.get_config_file_name = bios_get_config_file_name,
 	.get_serial_console_info = bios_get_serial_console_info,
 	.adv_ops = &bios_adv_ops,
+	.boot_linux = bios_boot_linux,
 };
 
 void syslinux_register_bios(void)

@@ -43,6 +43,7 @@
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
+#include <syslinux/firmware.h>
 
 #ifndef DEBUG
 # define DEBUG 0
@@ -129,8 +130,8 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
     return 0;
 }
 
-int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs, char *cmdline)
+int bios_boot_linux(void *kernel_buf, size_t kernel_size,
+		    struct initramfs *initramfs, char *cmdline)
 {
     struct linux_header hdr, *whdr;
     size_t real_mode_size, prot_mode_size;
@@ -427,4 +428,10 @@ bail:
     syslinux_free_memmap(mmap);
     syslinux_free_memmap(amap);
     return -1;
+}
+
+int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
+			struct initramfs *initramfs, char *cmdline)
+{
+    firmware->boot_linux(kernel_buf, kernel_size, initramfs, cmdline);
 }

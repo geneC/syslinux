@@ -8,4 +8,6 @@
 #include <efilib.h>
 #include <efistdarg.h>
 
+extern EFI_HANDLE image_handle;
+
 #endif /* _SYSLINUX_EFI_H */
