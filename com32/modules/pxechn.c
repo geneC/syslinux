@@ -484,86 +484,6 @@ int pxechn_optlen_ok(int optlen)
     return 0;
 }
 
-int pxechn_parse_arg_hex_tail(void **data, char istr[])
-{
-    int len = -1, p = 0, conv = 0;
-    char *ostr;
-
-    if (istr) {
-	len = 0;
-	ostr = *data;
-	while ((len >= 0) && (conv >= 0)) {
-	    if (len >= DHCP_OPT_LEN_MAX) {
-		dprintf_pc_pa_hx_tl("HEX: break\t");
-		break;
-	    }
-	    /* byte delimiter */
-	    if ((conv = pxechn_to_hex(istr[p])) == -2){
-		dprintf_pc_pa_hx_tl("HEX:delim\t");
-		p++;
-	    }
-	    conv = pxechn_parse_2bhex(istr + p);
-	    dprintf_pc_pa_hx_tl("HEX:%02x@%d\t", conv, p);
-	    if (conv >= 0) {
-		ostr[len++] = conv;
-	    } else if (conv < -1 ) {
-		len = -2;	/* Garbage */
-	    }
-	    p += 2;
-	}
-	dprintf_pc_pa_hx_tl("\n");
-    }
-    if (len > 0) {
-	dprintf_pc_pa_hx_tl("HEX:l=%d\t", len);
-    }
-    return len;
-}
-
-int pxechn_parse_arg_hex_pure(int *optnum, void **data, char istr[])
-{
-    int len = -2;
-
-    if (!optnum || !data || !istr)
-	return -1;
-    if (pxechn_to_hex(istr[0]) >= 0) {
-	*optnum = pxechn_parse_2bhex(istr);
-	if (*optnum >= 0)
-	    len = pxechn_parse_arg_hex_tail(data, istr + 2);
-    }
-    return len;
-}
-
-int pxechn_parse_arg_hex(int *optnum, void **data, char istr[])
-{
-    int len = -2;
-    char *pos = NULL;
-
-    if (!optnum)
-	return len;
-    *optnum = strtoul(istr, &pos, 0);
-    if (pxechn_optnum_ok(*optnum))
-	len = pxechn_parse_arg_hex_tail(data, pos);
-    return len;
-}
-
-void *pxechn_realloc(void *d, int len)
-{
-    void *p;
-    char *c;
-    int i;
-    if (d) {
-	printf("    realloc %d @%08X", len, (uint32_t)d);
-	p = realloc(d, len);
-	printf(" ->%08X\n", (uint32_t)p);
-	return p;
-    }
-    printf("    malloc %d (%d)", len, errno);
-    c = p =  malloc(len);
-    for(i=0; i<len; i++) c[i] = (0xDE + i) & 0xFF;
-    printf(" ->%08X (%d)\n", (uint32_t)p, errno);
-    return p;
-}
-
 int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
 {
     void *p;
@@ -575,7 +495,7 @@ uint8_t *d = data;*/
 for(i=0;i<len;i++)
 printf(" %02X", d[i]);
 printf("\n");*/
-    p = pxechn_realloc(opt->data, len);
+    p = realloc(opt->data, len);
 // printf("  setopt %08X\n", (int)(p));
     if (!p) {
 	return -2;
@@ -853,18 +773,6 @@ rv = 0;
 	    pxe->wait = 1;
 	    if (optarg)
 		pxe->wait = strtoul(optarg, NULL, 0);
-	    break;
-	case 'x':	/* Friendly hex string */
-	    iopt.len = pxechn_parse_arg_hex(&optnum, &(iopt.data), optarg);
-	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
-		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
-	    }
-	    break;
-	case 'X':	/* Full heX string */
-	    iopt.len = pxechn_parse_arg_hex_pure(&optnum, &(iopt.data), optarg);
-	    if (pxechn_optlen_ok(iopt.len) && pxechn_optnum_ok(optnum)) {
-		pxechn_setopt(&(opts[optnum]), iopt.data, iopt.len);
-	    }
 	    break;
 	default:
 	    break;
