@@ -91,10 +91,10 @@ struct pxelinux_opt {
     char *fn;	/* Filename as passed to us */
     in_addr_t fip;	/* fn's IP component */
     char *fp;	/* fn's path component */
-    char *cfg;
-    char *prefix;
-    uint32_t reboot, rebootn;	/* Host and network order of reboot time out */
-    uint8_t opt52;	/* DHCP Option Overload value */
+//     char *cfg;
+//     char *prefix;
+//     uint32_t reboot, rebootn;	/* Host and network order of reboot time out */
+//     uint8_t opt52;	/* DHCP Option Overload value */
     uint32_t wait;	/* Additional decision to wait before boot */
     struct dhcp_option pkt0, pkt1;	/* original and modified packets */
     char host[256];	/* 63 bytes per label; 255 max total */
@@ -419,9 +419,11 @@ void pxechn_fill_pkt(struct pxelinux_opt *pxe)
 void pxechn_init(struct pxelinux_opt *pxe)
 {
     /* Init for paranoia */
-    pxe->fn = pxe->fp = pxe->cfg = pxe->prefix = NULL;
-    pxe->reboot = REBOOT_TIME;
-    pxe->opt52 = pxe->wait = pxe->relay = 0;
+    pxe->fn = pxe->fp = NULL;
+//     pxe->cfg = pxe->prefix = NULL;
+//     pxe->reboot = REBOOT_TIME;
+//     pxe->opt52 = 0;
+    pxe->wait = pxe->relay = 0;
     pxe->host[0] = pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
     pxechn_fill_pkt(pxe);
 }
@@ -753,17 +755,8 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
     if (!pos)
 	return -4;
     opttype = pxechn_parse_opttype(cpos, optnum);
-printf("pcpot %08X\n", opttype);
     pos++;
     switch(opttype) {
-/*
-    case ('a'+'b'*256):
-	a
-	break;
-    case 'x':
-	a
-	break;
-*/
     case 'b':
 	iopt->len = pxechn_parse_int(iopt->data, pos, 1);
 	break;
@@ -785,7 +778,6 @@ printf("pcpot %08X\n", opttype);
 	break;
     case 'x':
 	iopt->len = pxechn_parse_hex_sep(iopt->data, pos, ':');
-printf("pc_p_h_s returned %d\n", iopt->len);
 	break;
     default:
 	return -6;
@@ -821,7 +813,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    rv = 0;
 	    break;
 	case 'c':	/* config */
-	    pxe->cfg = optarg;
+// 	    pxe->cfg = optarg;
 	    pxechn_setopt_str(&(opts[209]), optarg);
 	    break;
 	case 'f':	/* force */
@@ -846,16 +838,18 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 rv = 0;
 	    break;
 	case 'p':	/* prefix */
-	    pxe->prefix = optarg;
+//	    pxe->prefix = optarg;
 	    pxechn_setopt_str(&(opts[210]), optarg);
 	    break;
 	case 's':	/* short uint16 */
 	    pxechn_parseuint_setopt(opts, optarg, 2);
 	    break;
 	case 't':	/* timeout */
-	    pxe->reboot = strtoul(optarg, NULL, 0);
+/*	    pxe->reboot = strtoul(optarg, NULL, 0);
 	    pxe->rebootn = htonl(pxe->reboot);
-	    pxechn_setopt(&(opts[211]), (void *)(&(pxe->rebootn)), 4);
+	    pxechn_setopt(&(opts[211]), (void *)(&(pxe->rebootn)), 4);*/
+	    optnum = htonl(strtoul(optarg, NULL, 0));
+	    pxechn_setopt(&(opts[211]), (void *)(&optnum), 4);
 	    break;
 	case 'w':	/* wait */
 	    pxe->wait = 1;

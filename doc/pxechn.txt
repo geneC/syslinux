@@ -19,11 +19,6 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 
 
 == OPTIONS ==
-// c:p:t:wx:X:
-// Not implemented (yet).
-// *-b* 'OPT:BYTE'::
-//     Set DHCP Option 'OPT' to a byte value (both in DECIMAL INPUT format).
-// 
 *-c* 'CONFIG'::
     PXELINUX config file (DHCP Option 209).
 
@@ -36,12 +31,6 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 *-h*, *--help*, *-?*::
     Print usage information; invalid options will also cause this.
 
-// *-i* 'OPT:INT'::
-//     Set DHCP Option 'OPT' to a 4-byte (int) BE (big endian) value (both in DECIMAL INPUT format).
-//
-// *-l* 'OPT:LONG'::
-//     Set DHCP Option 'OPT' to an 8-byte (long long) BE value (both in DECIMAL INPUT format).
-//
 // *-n*::
 //     Use native methods, ignoring underlying gPXE/iPXE.
 // 
@@ -49,7 +38,7 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 //     Use non-native methods to utilize gPXE/iPXE (if available).
 //
 *-o* 'OPT.TYPE=VALUE'::
-    Specify a generic option.  'TYPE' specifies the output type and input syntax.  'b'yte, 'w'ord(2B), 'l'ong(4B), 'q'uad(8B), colon-separated he'x' string and character 's'tring.
+    Specify a generic option.  'OPT' is in 'DECIMAL INPUT' format (below).  'TYPE' specifies the output type and input syntax.  'b'yte, 'w'ord(2B), 'l'ong(4B), 'q'uad(8B), colon-separated he'x' string and character 's'tring.  byte, word, long and quad input values must meet criteria for 'DECIMAL INPUT'
 
 *-p* 'PATH'::
     PXELINUX path (DHCP Option 210).
@@ -57,29 +46,15 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 *-r*::
     Call the PXE stack with PXENV_RESTART_TFTP.  Must be the only option.
 
-// *-s* 'OPT:SHORT'::
-//     Set DHCP Option 'OPT' to a 2-byte (short) BE value (both in DECIMAL INPUT format).
-//
 *-t* 'SECONDS'::
     PXELINUX timeout (DHCP Option 211).
 
 *-w*::
     wait after loading before booting for user input.
 
-*-x* 'OPTVALSTR'::
-    Hex DHCP option input.  The option number is in DECIMAL INPUT format.  The value is in HEX INPUT format.
-    // The option number is specified in a format compatible with *strtoul*(3) with a non-space separator recognized by *strtoul*(3).
-
-*-X* 'OPTVALSTR'::
-    Pure hex DHCP option input.  The option and its value are in HEX INPUT format.
-
 
 == DECIMAL INPUT ==
 All parameters that are defaulted to decimal format are processed by *strtoul*(3) with a base of 0 which allows alternate formats and finds a suitable non-space separating character.
-
-
-== HEX INPUT ==
-Hex parameters are specified in a 2-digit case insensitive hexadecimal bytes with optional non-hexadecimal non-space separators.  This format is intentionally open to allow users to utilize their preferred format.
 
 
 == EXAMPLES ==
