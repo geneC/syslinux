@@ -511,63 +511,6 @@ int pxechn_setopt_str(struct dhcp_option *opt, void *data)
     return pxechn_setopt(opt, data, strnlen(data, DHCP_OPT_LEN_MAX));
 }
 
-/*
- * returns: -1 if an arg is null; -2 if tlen invalid; -3 on strtoul error;
-	-4 on value overflow; -5 bad option number
- */
-int pxechn_parseuint_setopt(struct dhcp_option opts[], char istr[], int tlen)
-{
-    int optnum, rv;
-    char *pos = NULL;
-
-    if ((!opts) || (!istr))
-	return -1;
-printf("pxechn_parseuint_setopt '%s'\n", istr);
-    optnum = strtoul(istr, &pos, 0);
-    if (!pxechn_optnum_ok(optnum))
-	return -5;
-    int terr = errno;
-    pos++;
-    if ((tlen == 1) || (tlen == 2) || (tlen == 4)) {
-	errno = 0;
-	uint32_t optval = strtoul(pos, NULL, 0);
-	if (errno)
-	    return -3;
-	errno = terr;
-// printf("  opt %d val %x len %d '%s'\n", optnum, optval, tlen, pos);
-	switch(tlen){
-	case  1:
-	    if (optval & 0xFFFFFF00)
-		return -4;
-	    break;
-	case  2:
-	    if (optval & 0xFFFF0000)
-		return -4;
-	    optval = htons(optval);
-	    break;
-	case  4:
-	    optval = htonl(optval);
-	    break;
-	}
-printf("  opt %d val %x len %d '%s'\n", optnum, optval, tlen, pos);
-	pxechn_setopt(&(opts[optnum]), (void *)(&(optval)), tlen);
-    } else if (tlen == 8) {
-	errno = 0;
-	uint64_t optval = strtoull(pos, NULL, 0);
-	if (errno)
-	    return -3;
-	errno = terr;
-/*printf("  opt %d val %llx len %d '%s'\n", optnum, optval, tlen, pos);*/
-	optval = htonq(optval);
-printf("  opt %d val %llx len %d '%s'\n", optnum, optval, tlen, pos);
-	pxechn_setopt(&(opts[optnum]), (void *)(&optval), tlen);
-    } else {
-	return -2;
-    }
-    rv = tlen;
-    return rv;
-}
-
 int pxechn_parse_int(char *data, char istr[], int tlen)
 {
     int terr = errno;
@@ -728,11 +671,6 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     while ((rv == 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
 	dprintf_pc_pa("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
-	case 'b':	/* byte */
-	    rv = pxechn_parseuint_setopt(opts, optarg, 1);
-	    dprintf_pc_pa("brv=%d", rv);
-	    rv = 0;
-	    break;
 	case 'c':	/* config */
 	    pxechn_setopt_str(&(opts[209]), optarg);
 	    break;
@@ -744,12 +682,6 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    if (optnum)
 		pxe->relay = optnum;
 	    break;
-	case 'i':	/* int */
-	    pxechn_parseuint_setopt(opts, optarg, 4);
-	    break;
-	case 'l':	/* long long */
-	    pxechn_parseuint_setopt(opts, optarg, 8);
-	    break;
 	case 'n':	/* native */
 	    break;
 	case 'o':	/* option */
@@ -758,9 +690,6 @@ rv = 0;
 	    break;
 	case 'p':	/* prefix */
 	    pxechn_setopt_str(&(opts[210]), optarg);
-	    break;
-	case 's':	/* short uint16 */
-	    pxechn_parseuint_setopt(opts, optarg, 2);
 	    break;
 	case 't':	/* timeout */
 	    optnum = strtoul(optarg, &p, 0);
