@@ -38,7 +38,7 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 //     Use non-native methods to utilize gPXE/iPXE (if available).
 //
 *-o* 'OPT.TYPE=VALUE'::
-    Specify a generic option.  'OPT' is in 'DECIMAL INPUT' format (below).  'TYPE' specifies the output type and input syntax.  'b'yte, 'w'ord(2B), 'l'ong(4B), 'q'uad(8B), colon-separated he'x' string and character 's'tring.  byte, word, long and quad input values must meet criteria for 'DECIMAL INPUT'
+    Specify a generic option.  'OPT' is in 'DECIMAL INPUT' format (below).  'TYPE' specifies the output type and input syntax.  'b'yte, 'w'ord(2B), 'l'ong(4B), 'q'uad(8B), character 's'tring and colon-separated he'x' string (case insensitive; bytes must have 2 digits and each byte must be separated).  byte, word, long and quad input values must meet criteria for 'DECIMAL INPUT'
 
 *-p* 'PATH'::
     PXELINUX path (DHCP Option 210).
@@ -58,12 +58,15 @@ All parameters that are defaulted to decimal format are processed by *strtoul*(3
 
 
 == EXAMPLES ==
+pxechn.c32 http://myhost.dom.loc/path/nbp.0 -c myconfig
+	Load nbp.0 and set PXELINUX config (option 209).
+
+pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -c myconfig -o 15.s=domain.loc -o 6.x=0A:01:01:01:ac:17:4D:Ec
+	Load gpxelinux.0 from the current directory, set prefix, wait to execute, set first config, set the domain name and 2 domain name servers (case mixed to show insensitivity; 10.1.1.1 and 172.23.77.236).
+
 pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012345678 -x 197:00d0de00
 pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012:3456:78 -x 197:00-d0-de-00
 	Both of these are equivalent.  Load gpxelinux.0 (relative to the current directory and not altering sname/option 66), set the PXELINUX path prefix, wait after loading, set option 160 to 0x12 0x34 0x56 0x78, and option 197 to 0x00 0xD0 0xDE 0x00.
-
-pxechn.c32 http://myhost.dom.loc/path/nbp.0 -c myconfig
-	Load nbp.0 and set PXELINUX config (option 209).
 
 
 == NOTES ==

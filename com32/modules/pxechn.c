@@ -783,7 +783,7 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
 	return -6;
 	break;
     }
-    if (iopt->len >= 0) {
+    if (pxechn_optlen_ok(iopt->len)) {
 	rv = pxechn_setopt(&(opts[optnum]), (void *)(iopt->data), iopt->len);
     }
     return rv;
@@ -793,6 +793,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum, rv = 0;
+    char *p = NULL;
     const char optstr[] = "c:p:t:wo:f:x:X:b:s:i:l:";
     struct dhcp_option iopt;
 
@@ -813,7 +814,6 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    rv = 0;
 	    break;
 	case 'c':	/* config */
-// 	    pxe->cfg = optarg;
 	    pxechn_setopt_str(&(opts[209]), optarg);
 	    break;
 	case 'f':	/* force */
@@ -834,27 +834,25 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	case 'o':	/* option */
 	    rv = pxechn_parse_setopt(opts, &iopt, optarg);
-	    printf("pc_pso() returned %d\n", rv);
 rv = 0;
 	    break;
 	case 'p':	/* prefix */
-//	    pxe->prefix = optarg;
 	    pxechn_setopt_str(&(opts[210]), optarg);
 	    break;
 	case 's':	/* short uint16 */
 	    pxechn_parseuint_setopt(opts, optarg, 2);
 	    break;
 	case 't':	/* timeout */
-/*	    pxe->reboot = strtoul(optarg, NULL, 0);
-	    pxe->rebootn = htonl(pxe->reboot);
-	    pxechn_setopt(&(opts[211]), (void *)(&(pxe->rebootn)), 4);*/
-	    optnum = htonl(strtoul(optarg, NULL, 0));
-	    pxechn_setopt(&(opts[211]), (void *)(&optnum), 4);
+	    optnum = strtoul(optarg, &p, 0);
+	    if (p != optarg) {
+		optnum = htonl(optnum);
+		pxechn_setopt(&(opts[211]), (void *)(&optnum), 4);
+	    }
 	    break;
 	case 'w':	/* wait */
 	    pxe->wait = 1;
 	    if (optarg)
-		pxe->wait = (uint32_t)atoi(optarg);
+		pxe->wait = strtoul(optarg, NULL, 0);
 	    break;
 	case 'x':	/* Friendly hex string */
 	    iopt.len = pxechn_parse_arg_hex(&optnum, &(iopt.data), optarg);
