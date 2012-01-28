@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <getkey.h>
 #include <dhcp.h>
+#include <limits.h>
 
 
 #define PXECHN_DEBUG 1
@@ -99,6 +100,7 @@ struct pxelinux_opt {
     struct dhcp_option pkt0, pkt1;	/* original and modified packets */
     char host[256];	/* 63 bytes per label; 255 max total */
     uint32_t relay;	/* giaddr; Gateway/DHCP relay */
+    uint32_t force;
 };
 
 
@@ -652,12 +654,22 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
     return rv;
 }
 
+int pxechn_parse_force(char istr[])
+{
+    int rv = 0;
+    errno = 0;
+    rv = strtoul(istr, NULL, 0);
+    if ((rv = ULONG_MAX) && (errno))
+	rv = 0;
+    return rv;
+}
+
 int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum, rv = 0;
     char *p = NULL;
-    const char optstr[] = "c:p:t:wo:f:x:X:b:s:i:l:";
+    const char optstr[] = "c:f:g:o:p:t:w";
     struct dhcp_option iopt;
 
     if (pxe->pkt1.data)
@@ -676,6 +688,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	case 'f':	/* force */
 	    puts("Unimplemented option utilized");
+	    pxe->force = pxechn_parse_force(optarg);
 	    break;
 	case 'g':	/* gateway/DHCP relay */
 	    optnum = pxe_dns(optarg);
