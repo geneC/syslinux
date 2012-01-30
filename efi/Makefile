@@ -63,4 +63,4 @@ tidy dist:
 clean: tidy
 
 spotless: clean
-	rm -f $(BTARGET)
+	rm -f $(BTARGET) wrapper
