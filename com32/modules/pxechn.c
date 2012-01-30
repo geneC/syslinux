@@ -85,6 +85,9 @@ typedef union {
 #define NUM_DHCP_OPTS	256
 #define DHCP_OPT_LEN_MAX	256
 #define PXE_VENDOR_RAW_PRN_MAX	0x7F
+#define PXECHN_HOST_LEN	256	/* 63 bytes per label; 255 max total */
+
+#define min(a,b) (((a) < (b)) ? (a) : (b))
 
 const char app_name_str[] = "pxechn.c32";
 
@@ -92,15 +95,11 @@ struct pxelinux_opt {
     char *fn;	/* Filename as passed to us */
     in_addr_t fip;	/* fn's IP component */
     char *fp;	/* fn's path component */
-//     char *cfg;
-//     char *prefix;
-//     uint32_t reboot, rebootn;	/* Host and network order of reboot time out */
-//     uint8_t opt52;	/* DHCP Option Overload value */
+    in_addr_t gip;	/* giaddr; Gateway/DHCP relay */
+    uint32_t force;
     uint32_t wait;	/* Additional decision to wait before boot */
     struct dhcp_option pkt0, pkt1;	/* original and modified packets */
-    char host[256];	/* 63 bytes per label; 255 max total */
-    uint32_t relay;	/* giaddr; Gateway/DHCP relay */
-    uint32_t force;
+    char host[PXECHN_HOST_LEN];
 };
 
 
@@ -172,9 +171,11 @@ enomem:
 
 void usage(void)
 {
-    printf("USAGE: %s [-c config] [-p prefix] [-t reboot]"
-	" [-X xx...]... [-x opt:xx...]... _new-nbp_\n"
-	"    %s -r _new-nbp_    (calls PXE stack PXENV_RESTART_TFTP)\n",
+    printf("USAGE:\n"
+        "    %s [OPTIONS]... _new-nbp_\n"
+	"    %s -r _new-nbp_    (calls PXE stack PXENV_RESTART_TFTP)\n"
+	"OPTIONS:\n"
+	"    [-c config] [-p prefix] [-t reboot] [-w] [-o opt.ty=val]\n\n",
 	app_name_str, app_name_str);
 }
 
@@ -323,6 +324,11 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
     regs->eax.l = regs->ecx.l = regs->edx.l = 0;
 }
 
+int hostlen_limit(int len)
+{
+    return min(len, ((PXECHN_HOST_LEN) - 1));
+}
+
 //FIXME: To a library
 /* Parse a filename into an IPv4 address and filename pointer
  *	returns	Based on the interpretation of fn
@@ -347,7 +353,7 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 	    *fp = &csep[2];
 	    rv = 1;
 	    if (fn[0] != ':') {
-		hlen = csep - fn;
+		hlen = hostlen_limit(csep - fn);
 		memcpy(host, fn, hlen);
 		host[hlen] = 0;
 	    }
@@ -356,10 +362,10 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 		/* proto://[user[:passwd]@]host[:port]/path/file */
 	    ssep = strchr(csep + 3, '/');
 	    if (ssep) {
-		hlen = ssep - (csep + 3);
+		hlen = hostlen_limit(ssep - (csep + 3));
 		*fp = ssep + 1;
 	    } else {
-		hlen = strlen(csep + 3);
+		hlen = hostlen_limit(strlen(csep + 3));
 	    }
 	    memcpy(host, (csep + 3), hlen);
 	    host[hlen] = 0;
@@ -421,12 +427,13 @@ void pxechn_fill_pkt(struct pxelinux_opt *pxe)
 void pxechn_init(struct pxelinux_opt *pxe)
 {
     /* Init for paranoia */
-    pxe->fn = pxe->fp = NULL;
-//     pxe->cfg = pxe->prefix = NULL;
-//     pxe->reboot = REBOOT_TIME;
-//     pxe->opt52 = 0;
-    pxe->wait = pxe->relay = 0;
-    pxe->host[0] = pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
+    pxe->fn = NULL;
+    pxe->fp = NULL;
+    pxe->force = 0;
+    pxe->wait = 0;
+    pxe->gip = 0;
+    pxe->host[0] = 0;
+    pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
     pxechn_fill_pkt(pxe);
 }
 
@@ -489,16 +496,9 @@ int pxechn_optlen_ok(int optlen)
 int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
 {
     void *p;
-/*int i;
-uint8_t *d = data;*/
     if (!opt || !data)
 	return -1;
-/*printf("setopt %08X = %08X:", (int)(opt->data), (int)d);
-for(i=0;i<len;i++)
-printf(" %02X", d[i]);
-printf("\n");*/
     p = realloc(opt->data, len);
-// printf("  setopt %08X\n", (int)(p));
     if (!p) {
 	return -2;
     }
@@ -560,7 +560,7 @@ int pxechn_parse_hex_sep(char *data, char istr[], char sep)
     if (!data || !istr)
 	return -1;
     while ((istr[ipos]) && (len < DHCP_OPT_LEN_MAX)) {
-	printf(" %02X%02X", *((int *)(istr + ipos)) & 0xFF, *((int *)(istr + ipos +1)) & 0xFF);
+	dprintf(" %02X%02X", *((int *)(istr + ipos)) & 0xFF, *((int *)(istr + ipos +1)) & 0xFF);
 	ichar = pxechn_parse_2bhex(istr + ipos);
 	if (ichar >=0) {
 	    data[len++] = ichar;
@@ -632,7 +632,7 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
 	iopt->len = pxechn_parse_int(iopt->data, pos, 8);
 	break;
     case 's':
-    case ('s' + 256 * ('t' + 256 * 'r')):
+    case ('s' + (('t' + ('r' << 8)) << 8)):
 	iopt->len = strlen(pos);
 	if (iopt->len > DHCP_OPT_LEN_MAX)
 	    iopt->len = DHCP_OPT_LEN_MAX;
@@ -680,26 +680,29 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     pxe->fn = argv[0];
     iopt.data = malloc(DHCP_OPT_LEN_MAX);
     iopt.len = 0;
-    while ((rv == 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
+opterr = 1;
+dprintf("opterr: %d\n", opterr);
+    while ((rv >= 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
 	dprintf_pc_pa("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
 	switch(arg) {
 	case 'c':	/* config */
 	    pxechn_setopt_str(&(opts[209]), optarg);
 	    break;
 	case 'f':	/* force */
-	    puts("Unimplemented option utilized");
 	    pxe->force = pxechn_parse_force(optarg);
 	    break;
 	case 'g':	/* gateway/DHCP relay */
-	    optnum = pxe_dns(optarg);
+	    pxe->gip = pxe_dns(optarg);
+/*	    optnum = pxe_dns(optarg);
 	    if (optnum)
-		pxe->relay = optnum;
+		pxe->gip = optnum;
+	    else
+		rv = -3;*/
 	    break;
 	case 'n':	/* native */
 	    break;
 	case 'o':	/* option */
 	    rv = pxechn_parse_setopt(opts, &iopt, optarg);
-rv = 0;
 	    break;
 	case 'p':	/* prefix */
 	    pxechn_setopt_str(&(opts[210]), optarg);
@@ -709,6 +712,8 @@ rv = 0;
 	    if (p != optarg) {
 		optnum = htonl(optnum);
 		pxechn_setopt(&(opts[211]), (void *)(&optnum), 4);
+	    } else {
+		rv = -3;
 	    }
 	    break;
 	case 'w':	/* wait */
@@ -716,6 +721,8 @@ rv = 0;
 	    if (optarg)
 		pxe->wait = strtoul(optarg, NULL, 0);
 	    break;
+	case '?':
+	    rv = -'?';
 	default:
 	    break;
 	}
@@ -723,7 +730,13 @@ rv = 0;
     if (iopt.data)
 	free(iopt.data);
     pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
-    return 0;
+    if (rv >= 0) {
+	rv = 0;
+    } else if (arg != '?') {
+	printf("Invalid argument for -%c: %s\n", arg, optarg);
+    }
+    dprintf("pxechn_parse_args rv=%d\n", rv);
+    return rv;
 }
 
 int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
@@ -750,16 +763,23 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	error("Could not unpack packet\n");
 	return -ret;	/* dhcp_unpack_packet always returns positive errors */
     }
+    pxe->gip = bootp1->gip;
 
     ret = pxechn_parse_args(argc, argv, pxe, opts);
+    if (ret)
+	return ret;
     bootp1->sip = pxe->fip;
+    bootp1->gip = pxe->gip;
     opts[67].len = strlen(pxe->fp);
     opts[67].data = pxe->fp;
     opts[66].len = strlen(pxe->host);
     opts[66].data = pxe->host;
 
     ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->pkt1.len), opts);
-
+    if (ret) {
+	error("Could not pack packet\n");
+	return -ret;	/* dhcp_pack_packet always returns positive errors */
+    }
     return ret;
 }
 
@@ -771,7 +791,6 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
  */
 int dhcp_copy_pkt_to_pxe(pxe_bootp_t *p, size_t len, int ptype)
 {
-//FIXME::HERE
     com32sys_t reg;
     t_PXENV_GET_CACHED_INFO *ci;
     void *cp;
@@ -804,6 +823,7 @@ int dhcp_copy_pkt_to_pxe(pxe_bootp_t *p, size_t len, int ptype)
 	goto ret;
     }
 ret:
+    lfree(ci);
    return rv;
 }
 
@@ -829,8 +849,10 @@ int pxechn(int argc, char *argv[])
     bootp1 = (pxe_bootp_t *)(pxe.pkt1.data);
 
     /* Parse arguments and patch packet 1 */
-    pxechn_args(argc, argv, &pxe);
+    rv = pxechn_args(argc, argv, &pxe);
     dpressanykey();
+    if (rv)
+	goto ret;
     pxe_set_regs(&regs);
     /* Load the file late; it's the most time-expensive operation */
     printf("%s: Attempting to load '%s': ", app_name_str, pxe.fn);
@@ -846,6 +868,9 @@ int pxechn(int argc, char *argv[])
     rv = dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.len,
 			      PXENV_PACKET_TYPE_CACHED_REPLY);
     dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
+    if (pxe.force) {
+	puts("Unimplemented option utilized");
+    }
     if (pxe.wait) {
 	pressanykey();
     } else {
@@ -918,7 +943,6 @@ ret:
 }
 
 /* pxechn_gpxe: Use gPXE to chainload a new NBP
- * If it's around, don't bother with the heavy lifting ourselves
  *	Input:
  *	argc	Count of arguments passed
  *	argv	Values of arguments passed
@@ -942,13 +966,13 @@ int pxechn_gpxe(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     int rv= -1;
-int err;
+    int err;
     const struct syslinux_version *sv;
 
     /* Initialization */
-err = errno;
-    console_ansi_raw();
-printf("%d %d\n", err, errno);
+    err = errno;
+    console_ansi_raw();	/* sets errno = 9 (EBADF) */
+    /* printf("%d %d\n", err, errno); */
     errno = err;
     sv = syslinux_version();
     if (sv->filesystem != SYSLINUX_FS_PXELINUX) {

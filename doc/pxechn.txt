@@ -61,8 +61,8 @@ All parameters that are defaulted to decimal format are processed by *strtoul*(3
 pxechn.c32 http://myhost.dom.loc/path/nbp.0 -c myconfig
 	Load nbp.0 and set PXELINUX config (option 209).
 
-pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -c myconfig -o 15.s=domain.loc -o 6.x=0A:01:01:01:ac:17:4D:Ec
-	Load gpxelinux.0 from the current directory, set prefix, wait to execute, set first config, set the domain name and 2 domain name servers (case mixed to show insensitivity; 10.1.1.1 and 172.23.77.236).
+pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -c myconfig -o 15.s=domain.loc -o 6.x=0A:01:01:02:ac:17:4D:Ec -
+	Load gpxelinux.0 from the current directory, set prefix, wait to execute, set first config, set the domain name and 2 domain name servers (case mixed to show insensitivity; 10.1.1.2 and 172.23.77.236).
 
 pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012345678 -x 197:00d0de00
 pxechn.c32 gpxelinux.0 -p http://172.16.23.1/tftp/ -w -X A012:3456:78 -x 197:00-d0-de-00
