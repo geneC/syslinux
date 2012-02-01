@@ -106,14 +106,22 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	/* Find and load initramfs */
 	temp = strstr(cmdline, "initrd=");
 	if (temp) {
-		i = 0;
+		char *p;
 
 		temp += strlen("initrd=");
-		while (*temp != ' ' && *temp)
-			initrd_name[i++] = *temp++;
-		initrd_name[i] = '\0';
+		do {
+			p = strchr(temp, ',');
+			if (p)
+				*p = '\0';
 
-		initramfs_load_archive(initramfs, initrd_name);
+			if (initramfs_load_archive(initramfs, temp)) {
+				printf("failed!\n");
+				goto bail;
+			}
+
+			if (p)
+				*p++ = ',';
+		} while ((temp = p));
 	}
 
 	//dprintf("loading initrd done");
