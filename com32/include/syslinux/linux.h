@@ -113,4 +113,21 @@ int initramfs_load_file(struct initramfs *ihead, const char *src_filename,
 int initramfs_add_trailer(struct initramfs *ihead);
 int initramfs_load_archive(struct initramfs *ihead, const char *filename);
 
+/* Get the combined size of the initramfs */
+static inline uint32_t initramfs_size(struct initramfs *initramfs)
+{
+    struct initramfs *ip;
+    uint32_t size = 0;
+
+    if (!initramfs)
+	return 0;
+
+    for (ip = initramfs->next; ip->len; ip = ip->next) {
+	size = (size + ip->align - 1) & ~(ip->align - 1);	/* Alignment */
+	size += ip->len;
+    }
+
+    return size;
+}
+
 #endif /* _SYSLINUX_LINUX_H */

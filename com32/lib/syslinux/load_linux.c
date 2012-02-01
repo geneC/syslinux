@@ -94,23 +94,6 @@ static inline uint32_t saturate32(unsigned long long v)
     return (v > 0xffffffff) ? 0xffffffff : (uint32_t) v;
 }
 
-/* Get the combined size of the initramfs */
-static addr_t initramfs_size(struct initramfs *initramfs)
-{
-    struct initramfs *ip;
-    addr_t size = 0;
-
-    if (!initramfs)
-	return 0;
-
-    for (ip = initramfs->next; ip->len; ip = ip->next) {
-	size = (size + ip->align - 1) & ~(ip->align - 1);	/* Alignment */
-	size += ip->len;
-    }
-
-    return size;
-}
-
 /* Create the appropriate mappings for the initramfs */
 static int map_initramfs(struct syslinux_movelist **fraglist,
 			 struct syslinux_memmap **mmap,
