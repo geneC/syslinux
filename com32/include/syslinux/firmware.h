@@ -36,6 +36,7 @@ struct firmware {
 	void (*get_serial_console_info)(uint16_t *, uint16_t *, uint16_t *);
 	bool (*ipappend_strings)(char **, int *);
 	struct adv_ops *adv_ops;
+	int (*boot_linux)(void *, size_t, struct initramfs *, char *);
 };
 
 extern struct firmware *firmware;

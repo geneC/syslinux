@@ -43,6 +43,7 @@
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
+#include <syslinux/firmware.h>
 
 #ifndef DEBUG
 # define DEBUG 0
@@ -53,48 +54,6 @@
 #else
 # define dprintf(f, ...) ((void)0)
 #endif
-
-struct linux_header {
-    uint8_t boot_sector_1[0x0020];
-    uint16_t old_cmd_line_magic;
-    uint16_t old_cmd_line_offset;
-    uint8_t boot_sector_2[0x01f1 - 0x0024];
-    uint8_t setup_sects;
-    uint16_t root_flags;
-    uint32_t syssize;
-    uint16_t ram_size;
-    uint16_t vid_mode;
-    uint16_t root_dev;
-    uint16_t boot_flag;
-    uint16_t jump;
-    uint32_t header;
-    uint16_t version;
-    uint32_t realmode_swtch;
-    uint16_t start_sys;
-    uint16_t kernel_version;
-    uint8_t type_of_loader;
-    uint8_t loadflags;
-    uint16_t setup_move_size;
-    uint32_t code32_start;
-    uint32_t ramdisk_image;
-    uint32_t ramdisk_size;
-    uint32_t bootsect_kludge;
-    uint16_t heap_end_ptr;
-    uint16_t pad1;
-    uint32_t cmd_line_ptr;
-    uint32_t initrd_addr_max;
-    uint32_t kernel_alignment;
-    uint8_t relocatable_kernel;
-    uint8_t pad2[3];
-    uint32_t cmdline_max_len;
-    uint32_t hardware_subarch;
-    uint64_t hardware_subarch_data;
-    uint32_t payload_offset;
-    uint32_t payload_length;
-    uint64_t setup_data;
-    uint64_t pref_address;
-    uint32_t init_size;
-} __packed;
 
 #define BOOT_MAGIC 0xAA55
 #define LINUX_MAGIC ('H' + ('d' << 8) + ('r' << 16) + ('S' << 24))
@@ -136,23 +95,6 @@ static inline uint32_t saturate32(unsigned long long v)
     return (v > 0xffffffff) ? 0xffffffff : (uint32_t) v;
 }
 
-/* Get the combined size of the initramfs */
-static addr_t initramfs_size(struct initramfs *initramfs)
-{
-    struct initramfs *ip;
-    addr_t size = 0;
-
-    if (!initramfs)
-	return 0;
-
-    for (ip = initramfs->next; ip->len; ip = ip->next) {
-	size = (size + ip->align - 1) & ~(ip->align - 1);	/* Alignment */
-	size += ip->len;
-    }
-
-    return size;
-}
-
 /* Create the appropriate mappings for the initramfs */
 static int map_initramfs(struct syslinux_movelist **fraglist,
 			 struct syslinux_memmap **mmap,
@@ -188,8 +130,8 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
     return 0;
 }
 
-int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs, char *cmdline)
+int bios_boot_linux(void *kernel_buf, size_t kernel_size,
+		    struct initramfs *initramfs, char *cmdline)
 {
     struct linux_header hdr, *whdr;
     size_t real_mode_size, prot_mode_size;
@@ -486,4 +428,10 @@ bail:
     syslinux_free_memmap(mmap);
     syslinux_free_memmap(amap);
     return -1;
+}
+
+int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
+			struct initramfs *initramfs, char *cmdline)
+{
+    firmware->boot_linux(kernel_buf, kernel_size, initramfs, cmdline);
 }
