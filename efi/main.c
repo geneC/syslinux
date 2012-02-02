@@ -6,6 +6,7 @@
 #include <sys/ansi.h>
 
 #include "efi.h"
+#include "fio.h"
 
 char KernelName[FILENAME_MAX];
 uint16_t PXERetry;
@@ -52,8 +53,9 @@ void __cdecl core_farcall(uint32_t c, const com32sys_t *a, com32sys_t *b)
 {
 }
 
-void *__syslinux_adv_ptr; /* definitely needs to die: is in ldlinux now */
-size_t __syslinux_adv_size; /* definitely needs to die: is in ldlinux now */
+struct firmware *firmware = NULL;
+void *__syslinux_adv_ptr;
+size_t __syslinux_adv_size;
 char core_xfer_buf[65536];
 struct iso_boot_info {
 	uint32_t pvd;               /* LBA of primary volume descriptor */
@@ -260,6 +262,14 @@ bool efi_ipappend_strings(char **list, int *count)
 	*list = (char *)IPAppends;
 }
 
+extern void efi_adv_init(void);
+extern int efi_adv_write(void);
+
+struct adv_ops efi_adv_ops = {
+	.init = efi_adv_init,
+	.write = efi_adv_write,
+};
+
 extern struct disk *efi_disk_init(com32sys_t *);
 extern void serialcfg(uint16_t *, uint16_t *, uint16_t *);
 
@@ -272,6 +282,7 @@ struct firmware efi_fw = {
 	.get_config_file_name = efi_get_config_file_name,
 	.get_serial_console_info = serialcfg,
 	.ipappend_strings = efi_ipappend_strings,
+	.adv_ops = &efi_adv_ops,
 };
 
 static inline void syslinux_register_efi(void)
@@ -302,9 +313,17 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	status = uefi_call_wrapper(BS->HandleProtocol, 3, image,
 				   &LoadedImageProtocol, (void **)&info);
 	if (status != EFI_SUCCESS) {
-		printf("Failed to lookup LoadedImageProtocol\n");
+		Print(L"Failed to lookup LoadedImageProtocol\n");
 		goto out;
 	}
+
+	/* Use device handle to set up the volume root to proceed with ADV init */
+	if (EFI_ERROR(efi_set_volroot(info->DeviceHandle))) {
+		Print(L"Failed to locate root device to prep for file operations & ADV initialization\n");
+		goto out;
+	}
+
+	/* TODO: once all errors are captured in efi_errno, bail out if necessary */
 
 	/* XXX figure out what file system we're on */
 	fs_init(ops, info->DeviceHandle);

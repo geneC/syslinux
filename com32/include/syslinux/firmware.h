@@ -19,6 +19,11 @@ struct input_ops {
 	char (*getchar)(void);
 };
 
+struct adv_ops {
+	void (*init)(void);
+	int (*write)(void);
+};
+
 struct firmware {
 	void (*init)(void);
 	int (*scan_memory)(scan_memory_callback_t, void *);
@@ -30,10 +35,12 @@ struct firmware {
 	char *(*get_config_file_name)(void);
 	void (*get_serial_console_info)(uint16_t *, uint16_t *, uint16_t *);
 	bool (*ipappend_strings)(char **, int *);
+	struct adv_ops *adv_ops;
 };
 
 extern struct firmware *firmware;
 
 extern void syslinux_register_bios(void);
+extern void init(void);
 
 #endif /* _SYSLINUX_FIRMWARE_H */

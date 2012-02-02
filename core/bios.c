@@ -63,6 +63,36 @@ bool bios_ipappend_strings(char **list, int *count)
 extern char *bios_get_config_file_name(void);
 extern void bios_get_serial_console_info(uint16_t *, uint16_t *, uint16_t *);
 
+void *__syslinux_adv_ptr;
+size_t __syslinux_adv_size;
+
+void bios_adv_init(void)
+{
+    static com32sys_t reg;
+
+    reg.eax.w[0] = 0x0025;
+    __intcall(0x22, &reg, &reg);
+
+    reg.eax.w[0] = 0x001c;
+    __intcall(0x22, &reg, &reg);
+    __syslinux_adv_ptr = MK_PTR(reg.es, reg.ebx.w[0]);
+    __syslinux_adv_size = reg.ecx.w[0];
+}
+
+int bios_adv_write(void)
+{
+    static com32sys_t reg;
+
+    reg.eax.w[0] = 0x001d;
+    __intcall(0x22, &reg, &reg);
+    return (reg.eflags.l & EFLAGS_CF) ? -1 : 0;
+}
+
+struct adv_ops bios_adv_ops = {
+	.init = bios_adv_init,
+	.write = bios_adv_write,
+};
+
 struct firmware bios_fw = {
 	.init = bios_init,
 	.scan_memory = bios_scan_memory,
@@ -74,6 +104,7 @@ struct firmware bios_fw = {
 	.ipappend_strings = bios_ipappend_strings,
 	.get_config_file_name = bios_get_config_file_name,
 	.get_serial_console_info = bios_get_serial_console_info,
+	.adv_ops = &bios_adv_ops,
 };
 
 void syslinux_register_bios(void)
