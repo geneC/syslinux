@@ -65,14 +65,16 @@ struct shuffle_descriptor {
 
 static int shuffler_size;
 
-static void __constructor __syslinux_get_shuffer_size(void)
+static void __syslinux_get_shuffer_size(void)
 {
-    static com32sys_t reg;
+    if (!shuffler_size) {
+	static com32sys_t reg;
 
-    reg.eax.w[0] = 0x0023;
-    __intcall(0x22, &reg, &reg);
+	reg.eax.w[0] = 0x0023;
+	__intcall(0x22, &reg, &reg);
 
-    shuffler_size = (reg.eflags.l & EFLAGS_CF) ? 2048 : reg.ecx.w[0];
+	shuffler_size = (reg.eflags.l & EFLAGS_CF) ? 2048 : reg.ecx.w[0];
+    }
 }
 
 /*
@@ -133,6 +135,7 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
     if (!rxmap)
 	goto bail;
 
+    __syslinux_get_shuffer_size();
     desc_blocks = (nzero + DESC_BLOCK_SIZE - 1) / DESC_BLOCK_SIZE;
     for (;;) {
 	/* We want (desc_blocks) allocation blocks, plus the terminating
