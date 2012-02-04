@@ -87,6 +87,10 @@ typedef union {
 #define PXE_VENDOR_RAW_PRN_MAX	0x7F
 #define PXECHN_HOST_LEN		256	/* 63 bytes per label; 255 max total */
 
+#define PXECHN_FORCE_PKT1	0x80000000
+#define PXECHN_FORCE_PKT2	0x40000000
+#define PXECHN_FORCE_ALL	(PXECHN_FORCE_PKT1 | PXECHN_FORCE_PKT2)
+
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
 const char app_name_str[] = "pxechn.c32";
@@ -654,13 +658,16 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
     return rv;
 }
 
-int pxechn_parse_force(char istr[])
+int pxechn_parse_force(const char istr[])
 {
-    int rv = 0;
+    uint32_t rv = 0;
+    char *pos;
+    int terr = errno;
     errno = 0;
-    rv = strtoul(istr, NULL, 0);
-    if ((rv = ULONG_MAX) && (errno))
+    rv = strtoul(istr, &pos, 0);
+    if ((istr == pos ) || ((rv == ULONG_MAX) && (errno)))
 	rv = 0;
+    errno = terr;
     return rv;
 }
 
@@ -867,8 +874,17 @@ int pxechn(int argc, char *argv[])
 //FIXME::HERE
     rv = dhcp_pkt2pxe(bootp1, pxe.pkt1.len, PXENV_PACKET_TYPE_CACHED_REPLY);
     dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
-    if (pxe.force) {
-	puts("Unimplemented option utilized");
+    if (pxe.force && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
+	printf("Forcing behavior %08X\n", pxe.force);
+	// P2 is the same as P3 if no PXE server present.
+	if (pxe.force & PXECHN_FORCE_PKT2) {
+	    rv = dhcp_pkt2pxe(bootp1, pxe.pkt1.len, PXENV_PACKET_TYPE_DHCP_ACK);
+	}
+	if (pxe.force & PXECHN_FORCE_PKT1) {
+	    puts("Unimplemented force option utilized");
+	}
+    } else if (pxe.force) {
+	printf("FORCE: bad argument %08X\n", pxe.force);
     }
     if (pxe.wait) {
 	pressanykey();
