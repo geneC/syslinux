@@ -104,6 +104,7 @@ struct pxelinux_opt {
     uint32_t wait;	/* Additional decision to wait before boot */
     struct dhcp_option pkt0, pkt1;	/* original and modified packets */
     char host[PXECHN_HOST_LEN];
+    struct dhcp_option opts0[NUM_DHCP_OPTS];
 };
 
 
@@ -438,6 +439,10 @@ void pxechn_init(struct pxelinux_opt *pxe)
     pxe->gip = 0;
     pxe->host[0] = 0;
     pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
+    for (int i = 0; i < NUM_DHCP_OPTS; i++) {
+	pxe->opts0[i].data = NULL;
+	pxe->opts0[i].len = -1;
+    }
     pxechn_fill_pkt(pxe);
 }
 
@@ -749,18 +754,10 @@ dprintf("opterr: %d\n", opterr);
 int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 {
     pxe_bootp_t *bootp0, *bootp1;
-    int i;
     int ret = 0;
     struct dhcp_option *opts;
 
-    opts = calloc(NUM_DHCP_OPTS, sizeof(struct dhcp_option));
-    if (!opts) {
-	error("Could not allocate for options\n");
-	return -2;
-    }
-    for (i = 0; i < NUM_DHCP_OPTS; i++) {
-	opts[i].len = -1;
-    }
+    opts = pxe->opts0;
     /* Start filling packet #1 */
     bootp0 = (pxe_bootp_t *)(pxe->pkt0.data);
     bootp1 = (pxe_bootp_t *)(pxe->pkt1.data);
