@@ -783,13 +783,13 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     return ret;
 }
 
-/* dhcp_copy_pkt_to_pxe: Copy packet to PXE's BC data for a ptype packet
+/* dhcp_pkt2pxe: Copy packet to PXE's BC data for a ptype packet
  *	Input:
  *	p	Packet data to copy
  *	len	length of data to copy
  *	ptype	Packet type to overwrite
  */
-int dhcp_copy_pkt_to_pxe(pxe_bootp_t *p, size_t len, int ptype)
+int dhcp_pkt2pxe(pxe_bootp_t *p, size_t len, int ptype)
 {
     com32sys_t reg;
     t_PXENV_GET_CACHED_INFO *ci;
@@ -865,8 +865,7 @@ int pxechn(int argc, char *argv[])
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
 //FIXME::HERE
-    rv = dhcp_copy_pkt_to_pxe(bootp1, pxe.pkt1.len,
-			      PXENV_PACKET_TYPE_CACHED_REPLY);
+    rv = dhcp_pkt2pxe(bootp1, pxe.pkt1.len, PXENV_PACKET_TYPE_CACHED_REPLY);
     dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
     if (pxe.force) {
 	puts("Unimplemented option utilized");
@@ -881,7 +880,7 @@ int pxechn(int argc, char *argv[])
 	do_boot(&file, 1, &regs);
     }
     /* If failed, copy backup back in and abort */
-    dhcp_copy_pkt_to_pxe(bootp0, pxe.pkt0.len, PXENV_PACKET_TYPE_CACHED_REPLY);
+    dhcp_pkt2pxe(bootp0, pxe.pkt0.len, PXENV_PACKET_TYPE_CACHED_REPLY);
 ret:
     return rv;
 }
