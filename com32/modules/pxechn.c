@@ -82,10 +82,10 @@ typedef union {
 /* same as pxelinux.asm REBOOT_TIME */
 #define REBOOT_TIME	300
 
-#define NUM_DHCP_OPTS	256
+#define NUM_DHCP_OPTS		256
 #define DHCP_OPT_LEN_MAX	256
 #define PXE_VENDOR_RAW_PRN_MAX	0x7F
-#define PXECHN_HOST_LEN	256	/* 63 bytes per label; 255 max total */
+#define PXECHN_HOST_LEN		256	/* 63 bytes per label; 255 max total */
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
