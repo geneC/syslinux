@@ -136,11 +136,12 @@ void print_dhcp_pkt_all(void)
     pxe_bootp_t *p;
     size_t len;
     int i;
+    int ptype[3] = {PXENV_PACKET_TYPE_DHCP_DISCOVER, PXENV_PACKET_TYPE_DHCP_ACK, PXENV_PACKET_TYPE_CACHED_REPLY};
 
     for (i = 0; i < 3; i++) {
-	if (!pxe_get_cached_info(PXENV_PACKET_TYPE_CACHED_REPLY,
+	if (!pxe_get_cached_info(ptype[i],
 		(void **)&(p), &(len))) {
-	    dprintf("Got packet #%d\n", i);
+	    dprintf("Got packet #%d/%d\n", (i + 1), ptype[i]);
 	    print_pxe_bootp_t(p, len);
 	    pressanykey();
 	}
