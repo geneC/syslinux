@@ -29,26 +29,30 @@
 #include <string.h>
 #include <stdlib.h>
 
-char *strreplace( const char *string, const char *string_to_replace, const char *string_to_insert ){
-  char *token = NULL;
-  char *output_buffer = NULL;
+char *strreplace(const char *string, const char *string_to_replace,
+		 const char *string_to_insert )
+{
+    char *token = NULL;
+    char *out = NULL;
 
-  token = strstr(string, string_to_replace);
+    size_t slen, srlen, silen;
 
-  if(token == NULL) 
-	return strdup( string );
+    token = strstr(string, string_to_replace);
+    if (!token)
+	return strdup(string);
 
-  output_buffer = malloc(strlen( string )-strlen( string_to_replace )+strlen(string_to_insert )+ 1);
-
-  if(output_buffer == NULL) 
+    slen  = strlen(string);
+    srlen = strlen(string_to_replace);
+    silen = strlen(string_to_insert);
+    
+    out = malloc(slen - srlen + silen + 1);
+    if (!out)
 	return NULL;
+    
+    memcpy(out, string, token - string);
+    memcpy(out + (token - string), string_to_insert, silen);
+    memcpy(out + (token - string) + silen, token + srlen, 
+	   slen - srlen - (token - string) + 1);
 
-  memcpy(output_buffer, string, token-string);
-  memcpy(output_buffer + (token - string), string_to_insert, strlen(string_to_insert));
-  memcpy(output_buffer + (token - string) + strlen(string_to_insert),
-	token + strlen(string_to_replace), 
-	strlen(string) - strlen(string_to_replace) - (token - string));
-  memset(output_buffer + strlen(string) - strlen(string_to_replace) + strlen(string_to_insert), 0, 1 );
-
-  return output_buffer;
+    return out;
 }
