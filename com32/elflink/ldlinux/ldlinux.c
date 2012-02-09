@@ -11,43 +11,19 @@
 
 #include <sys/module.h>
 
-/*
- * Attempt to load a kernel after deciding what type of image it is.
- *
- * We only return from this function if something went wrong loading
- * the the kernel. If we return the caller should call enter_cmdline()
- * so that the user can help us out.
- */
-static void load_kernel(const char *kernel)
+static enum kernel_type parse_kernel_type(char *kernel)
 {
-	struct menu_entry *me;
 	enum kernel_type type;
-	const char *cmdline, *p;
+	const char *p;
 	int len;
 
-	/* Virtual kernel? */
-	me = find_label(kernel);
-	if (me) {
-		enum kernel_type type = KT_KERNEL;
-
-		/* cmdline contains type specifier */
-		if (me->cmdline[0] == '.')
-			type = KT_NONE;
-
-		execute(me->cmdline, type);
-		/* We shouldn't return */
-		goto bad_kernel;
-	}
-
-	if (!allowimplicit)
-		goto bad_implicit;
-
-	p = kernel;
 	/* Find the end of the command */
+	p = kernel;
 	while (*p && !my_isspace(*p))
 		p++;
 
 	len = p - kernel;
+
 	if (!strncmp(kernel + len - 4, ".c32", 4)) {
 		type = KT_COM32;
 	} else if (!strncmp(kernel + len - 2, ".0", 2)) {
@@ -68,6 +44,40 @@ static void load_kernel(const char *kernel)
 	else
 		type = KT_KERNEL;
 
+	return type;
+}
+
+/*
+ * Attempt to load a kernel after deciding what type of image it is.
+ *
+ * We only return from this function if something went wrong loading
+ * the the kernel. If we return the caller should call enter_cmdline()
+ * so that the user can help us out.
+ */
+static void load_kernel(const char *kernel)
+{
+	struct menu_entry *me;
+	enum kernel_type type;
+	const char *cmdline;
+
+	/* Virtual kernel? */
+	me = find_label(kernel);
+	if (me) {
+		type = parse_kernel_type(me->cmdline);
+
+		/* cmdline contains type specifier */
+		if (me->cmdline[0] == '.')
+			type = KT_NONE;
+
+		execute(me->cmdline, type);
+		/* We shouldn't return */
+		goto bad_kernel;
+	}
+
+	if (!allowimplicit)
+		goto bad_implicit;
+
+	type = parse_kernel_type(kernel);
 	execute(kernel, type);
 
 bad_implicit:
