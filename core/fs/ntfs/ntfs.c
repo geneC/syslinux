@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Paulo Alcantara <pcacjr@gmail.com>
+ * Copyright (C) 2011-2012 Paulo Alcantara <pcacjr@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1181,6 +1181,14 @@ idx_block_next_entry:
     }
 
     readdir_state->entries_count++;
+
+    /* Need to check if this entry has INDEX_ENTRY_END flag set. If
+     * so, then it won't contain a indexed_file file, so continue the
+     * lookup on the next VCN/LCN (if any).
+     */
+    if (ie->flags & INDEX_ENTRY_END)
+        goto next_vcn;
+
     len = ntfs_cvt_filename(filename, ie);
     if (!is_filename_printable(filename))
         goto idx_block_next_entry;
