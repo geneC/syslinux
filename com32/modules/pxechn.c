@@ -701,12 +701,30 @@ int pxechn_parse_force(const char istr[])
     return rv;
 }
 
+int pxechn_uuid_set(struct pxelinux_opt *pxe)
+{
+    int ret = 0;
+
+    if (!pxe->p_unpacked[0])
+	ret = dhcp_unpack_packet((pxe_bootp_t *)(pxe->p[0].data),
+				 pxe->p[0].len, pxe->opts[0]);
+    if (ret) {
+	error("Could not unpack packet\n");
+	return -ret;	/* dhcp_unpack_packet always returns positive errors */
+    }
+
+    if (pxe->opts[0][97].len >= 0 )
+	pxechn_setopt(&(pxe->opts[2][97]), pxe->opts[0][97].data, pxe->opts[0][97].len);
+	return 1;
+    return 0;
+}
+
 int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 			 struct dhcp_option opts[])
 {
     int arg, optnum, rv = 0;
     char *p = NULL;
-    const char optstr[] = "c:f:g:o:p:t:w";
+    const char optstr[] = "c:f:g:o:p:t:uw";
     struct dhcp_option iopt;
 
     if (pxe->p[5].data)
@@ -752,6 +770,9 @@ dprintf("opterr: %d\n", opterr);
 	    } else {
 		rv = -3;
 	    }
+	    break;
+	case 'u':	/* UUID: copy option 97 from packet 1 if present */
+	    pxechn_uuid_set(pxe);
 	    break;
 	case 'w':	/* wait */
 	    pxe->wait = 1;
