@@ -367,10 +367,6 @@ void pm_usingvga(com32sys_t *regs)
 	GXPixCols = regs->ecx.w[0];
 	GXPixRows = regs->edx.w[0];
 
-	if (UsingVGA & 0x08)
-		regs->eflags.l &= ~EFLAGS_CF;
-	else {
+	if (!(UsingVGA & 0x08))
 		adjust_screen();
-		set_flags(regs, EFLAGS_CF);
-	}
 }
