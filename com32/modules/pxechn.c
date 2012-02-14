@@ -87,9 +87,13 @@ typedef union {
 #define PXE_VENDOR_RAW_PRN_MAX	0x7F
 #define PXECHN_HOST_LEN		256	/* 63 bytes per label; 255 max total */
 
+#define PXECHN_NUM_PKT_TYPE	3
+#define PXECHN_PKT_TYPE_START	PXENV_PACKET_TYPE_DHCP_DISCOVER
+
 #define PXECHN_FORCE_PKT1	0x80000000
 #define PXECHN_FORCE_PKT2	0x40000000
 #define PXECHN_FORCE_ALL	(PXECHN_FORCE_PKT1 | PXECHN_FORCE_PKT2)
+#define PXECHN_FORCE_ALL_1	0
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
@@ -102,9 +106,11 @@ struct pxelinux_opt {
     in_addr_t gip;	/* giaddr; Gateway/DHCP relay */
     uint32_t force;
     uint32_t wait;	/* Additional decision to wait before boot */
-    struct dhcp_option pkt0, pkt1;	/* original and modified packets */
+    struct dhcp_option p[(2 * PXECHN_NUM_PKT_TYPE)];
+	/* original _DHCP_DISCOVER, _DHCP_ACK, _CACHED_REPLY then modified packets */
     char host[PXECHN_HOST_LEN];
-    struct dhcp_option opts0[NUM_DHCP_OPTS];
+    struct dhcp_option opts[PXECHN_NUM_PKT_TYPE][NUM_DHCP_OPTS];
+    char p_unpacked[PXECHN_NUM_PKT_TYPE];
 };
 
 
@@ -404,28 +410,39 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
     return rv;
 }
 
-void pxechn_fill_pkt(struct pxelinux_opt *pxe)
+void pxechn_opt_free(struct dhcp_option *opt)
+{
+    free(opt->data);
+    opt->len = -1;
+}
+
+void pxechn_fill_pkt(struct pxelinux_opt *pxe, int ptype)
 {
     int rv = -1;
-    if (!pxe_get_cached_info(PXENV_PACKET_TYPE_CACHED_REPLY,
-	    (void **)&(pxe->pkt0.data), (size_t *)&(pxe->pkt0.len))) {
-	pxe->pkt1.data = malloc(2048);
-	if (pxe->pkt1.data) {
-	    memcpy(pxe->pkt1.data, pxe->pkt0.data, pxe->pkt0.len);
-	    pxe->pkt1.len = pxe->pkt0.len;
+    int p1, p2;
+    if ((ptype < 0) || (ptype > PXECHN_NUM_PKT_TYPE))
+	rv = -2;
+    p1 = ptype - PXECHN_PKT_TYPE_START;
+    p2 = ptype - PXECHN_PKT_TYPE_START + PXECHN_NUM_PKT_TYPE;
+    if ((rv >= -1) && (!pxe_get_cached_info(ptype,
+	    (void **)&(pxe->p[p1].data), (size_t *)&(pxe->p[p1].len)))) {
+	pxe->p[p2].data = malloc(2048);
+	if (pxe->p[p2].data) {
+	    memcpy(pxe->p[p2].data, pxe->p[p1].data, pxe->p[p1].len);
+	    pxe->p[p2].len = pxe->p[p1].len;
 	    rv = 0;
-	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->pkt0.data), pxe->pkt0.len);
+	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->p[p1].data), pxe->p[p1].len);
 	    dpressanykey();
 	} else {
 	    printf("%s: ERROR: Unable to malloc() for second packet\n", app_name_str);
-	    free(pxe->pkt0.data);
+	    pxechn_opt_free(pxe->p[p1]);
 	}
     } else {
 	printf("%s: ERROR: Unable to retrieve first packet\n", app_name_str);
     }
     if (rv <= -1) {
-	pxe->pkt0.data = pxe->pkt1.data = NULL;
-	pxe->pkt0.len = pxe->pkt1.len = 0;
+	pxechn_opt_free(pxe->p[p1]);
+	pxechn_opt_free(pxe->p[p2]);
     }
 }
 
@@ -439,11 +456,15 @@ void pxechn_init(struct pxelinux_opt *pxe)
     pxe->gip = 0;
     pxe->host[0] = 0;
     pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
-    for (int i = 0; i < NUM_DHCP_OPTS; i++) {
-	pxe->opts0[i].data = NULL;
-	pxe->opts0[i].len = -1;
+    for (int j = 0; j < PXECHN_NUM_PKT_TYPE; j++){
+	for (int i = 0; i < NUM_DHCP_OPTS; i++) {
+	    pxe->opts[j][i].data = NULL;
+	    pxe->opts[j][i].len = -1;
+	    pxe->opts[j][i].flags = 0;
+	}
+	pxe->p_unpacked[j] = 0;
     }
-    pxechn_fill_pkt(pxe);
+    pxechn_fill_pkt(pxe, PXENV_PACKET_TYPE_CACHED_REPLY);
 }
 
 int pxechn_to_hex(char i)
@@ -507,8 +528,12 @@ int pxechn_setopt(struct dhcp_option *opt, void *data, int len)
     void *p;
     if (!opt || !data)
 	return -1;
+    if (len < 0) {
+	return -3;
+    }
     p = realloc(opt->data, len);
-    if (!p) {
+    if (!p && len) {	/* Allow for len=0 */
+	pxechn_opt_free(opt);
 	return -2;
     }
     opt->data = p;
@@ -684,8 +709,8 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     const char optstr[] = "c:f:g:o:p:t:w";
     struct dhcp_option iopt;
 
-    if (pxe->pkt1.data)
-	pxe->fip = ( (pxe_bootp_t *)(pxe->pkt1.data) )->sip;
+    if (pxe->p[5].data)
+	pxe->fip = ( (pxe_bootp_t *)(pxe->p[5].data) )->sip;
     else
 	pxe->fip = 0;
     /* Fill */
@@ -740,8 +765,8 @@ dprintf("opterr: %d\n", opterr);
 	}
     }
     if (iopt.data)
-	free(iopt.data);
-    pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
+	pxechn_opt_free(&iopt);
+//FIXME:reorder operations to allow for options to override use fn
     if (rv >= 0) {
 	rv = 0;
     } else if (arg != '?') {
@@ -757,29 +782,29 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     int ret = 0;
     struct dhcp_option *opts;
 
-    opts = pxe->opts0;
+    opts = pxe->opts[2];
     /* Start filling packet #1 */
-    bootp0 = (pxe_bootp_t *)(pxe->pkt0.data);
-    bootp1 = (pxe_bootp_t *)(pxe->pkt1.data);
+    bootp0 = (pxe_bootp_t *)(pxe->p[2].data);
+    bootp1 = (pxe_bootp_t *)(pxe->p[5].data);
 
-    ret = dhcp_unpack_packet(bootp0, pxe->pkt0.len, opts);
+    ret = dhcp_unpack_packet(bootp0, pxe->p[2].len, opts);
     if (ret) {
 	error("Could not unpack packet\n");
-	return -ret;	/* dhcp_unpack_packet always returns positive errors */
+	return -ret;
     }
+    pxe->p_unpacked[2] = 1;
     pxe->gip = bootp1->gip;
 
+    pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
+    pxechn_setopt_str(&(opts[67]), pxe->fp);
+    pxechn_setopt_str(&(opts[66]), pxe->host);
     ret = pxechn_parse_args(argc, argv, pxe, opts);
     if (ret)
 	return ret;
     bootp1->sip = pxe->fip;
     bootp1->gip = pxe->gip;
-    opts[67].len = strlen(pxe->fp);
-    opts[67].data = pxe->fp;
-    opts[66].len = strlen(pxe->host);
-    opts[66].data = pxe->host;
 
-    ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->pkt1.len), opts);
+    ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->p[5].len), opts);
     if (ret) {
 	error("Could not pack packet\n");
 	return -ret;	/* dhcp_pack_packet always returns positive errors */
@@ -831,6 +856,30 @@ ret:
    return rv;
 }
 
+int pxechn_mergeopt(struct pxelinux_opt *pxe, int d, int s)
+{
+    int ret = 0, i;
+//     struct dhcp_option opts1[NUM_DHCP_OPTS];
+
+    if ((d >= PXECHN_NUM_PKT_TYPE) || (s >= PXECHN_NUM_PKT_TYPE) 
+	    || (d < 0) || (s < 0)) {
+	return -2;
+    }
+    if (!pxe->p_unpacked[s])
+	ret = dhcp_unpack_packet(pxe->p[s].data, pxe->p[s].len, pxe->opts[s]);
+    if (ret) {
+	error("Could not unpack packet for merge\n");
+	return -ret;
+    }
+    for (i = 0; i < NUM_DHCP_OPTS; i++) {
+	if (pxe->opts[d][i].len <= -1) {
+	    if (pxe->opts[s][i].len >= 0)
+		pxechn_setopt(&(pxe->opts[d][i]), pxe->opts[s][i].data, pxe->opts[s][i].len);
+	}
+    }
+    return 0;
+}
+
 /* pxechn: Chainload to new PXE file ourselves
  *	Input:
  *	argc	Count of arguments passed
@@ -843,14 +892,16 @@ ret:
 int pxechn(int argc, char *argv[])
 {
     struct pxelinux_opt pxe;
-    pxe_bootp_t *bootp0, *bootp1;
+    pxe_bootp_t* p[(2 * PXECHN_NUM_PKT_TYPE)];
     int rv = 0;
+    int i;
     struct data_area file;
     struct syslinux_rm_regs regs;
 
     pxechn_init(&pxe);
-    bootp0 = (pxe_bootp_t *)(pxe.pkt0.data);
-    bootp1 = (pxe_bootp_t *)(pxe.pkt1.data);
+    for (i = 0; i < (2 * PXECHN_NUM_PKT_TYPE); i++) {
+	p[i] = (pxe_bootp_t *)(pxe.p[i].data);
+    }
 
     /* Parse arguments and patch packet 1 */
     rv = pxechn_args(argc, argv, &pxe);
@@ -869,16 +920,25 @@ int pxechn(int argc, char *argv[])
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
 //FIXME::HERE
-    rv = dhcp_pkt2pxe(bootp1, pxe.pkt1.len, PXENV_PACKET_TYPE_CACHED_REPLY);
-    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe.pkt1.data), pxe.pkt1.len);
     if (pxe.force && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
 	printf("Forcing behavior %08X\n", pxe.force);
 	// P2 is the same as P3 if no PXE server present.
 	if (pxe.force & PXECHN_FORCE_PKT2) {
-	    rv = dhcp_pkt2pxe(bootp1, pxe.pkt1.len, PXENV_PACKET_TYPE_DHCP_ACK);
+	    rv = pxechn_mergeopt(&pxe, 2, 1);
+	    rv = dhcp_pack_packet(p[5], (size_t *)&(pxe.p[5].len), pxe.opts[2]);
+	    rv = dhcp_pkt2pxe(p[5], pxe.p[5].len, PXENV_PACKET_TYPE_DHCP_ACK);
 	}
 	if (pxe.force & PXECHN_FORCE_PKT1) {
 	    puts("Unimplemented force option utilized");
+	}
+    }
+    rv = dhcp_pkt2pxe(p[5], pxe.p[5].len, PXENV_PACKET_TYPE_CACHED_REPLY);
+    dprint_pxe_bootp_t(p[5], pxe.p[5].len);
+    if (pxe.force && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
+	// printf("Forcing behavior %08X\n", pxe.force);
+	// P2 is the same as P3 if no PXE server present.
+	if (pxe.force & PXECHN_FORCE_PKT2) {
+	    rv = dhcp_pkt2pxe(p[5], pxe.p[5].len, PXENV_PACKET_TYPE_DHCP_ACK);
 	}
     } else if (pxe.force) {
 	printf("FORCE: bad argument %08X\n", pxe.force);
@@ -893,7 +953,12 @@ int pxechn(int argc, char *argv[])
 	do_boot(&file, 1, &regs);
     }
     /* If failed, copy backup back in and abort */
-    dhcp_pkt2pxe(bootp0, pxe.pkt0.len, PXENV_PACKET_TYPE_CACHED_REPLY);
+    dhcp_pkt2pxe(p[2], pxe.p[2].len, PXENV_PACKET_TYPE_CACHED_REPLY);
+    if (pxe.force && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
+	if (pxe.force & PXECHN_FORCE_PKT2) {
+	    rv = dhcp_pkt2pxe(p[1], pxe.p[1].len, PXENV_PACKET_TYPE_DHCP_ACK);
+	}
+    }
 ret:
     return rv;
 }
@@ -911,9 +976,9 @@ int pxe_restart(char *ifn)
     t_PXENV_RESTART_TFTP *pxep;	/* PXENV callback Parameter */
 
     pxe.fn = ifn;
-    pxechn_fill_pkt(&pxe);
-    if (pxe.pkt1.data)
-	pxe.fip = ( (pxe_bootp_t *)(pxe.pkt1.data) )->sip;
+    pxechn_fill_pkt(&pxe, PXENV_PACKET_TYPE_CACHED_REPLY);
+    if (pxe.p[5].data)
+	pxe.fip = ( (pxe_bootp_t *)(pxe.p[5].data) )->sip;
     else
 	pxe.fip = 0;
     rv = pxechn_parse_fn(pxe.fn, &(pxe.fip), pxe.host, &(pxe.fp));
