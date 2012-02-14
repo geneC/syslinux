@@ -111,7 +111,8 @@ int dhcp_pack_packet(void *packet, size_t *len,
 	if (opt[67].len > 128)
 		overload |= 1;
 	else
-		ox[67].len = -1;
+		if (!(ox[67].flags & DHCP_OPTION_FLAGS_ASOPT))
+			ox[67].len = -1;
 
 	if (opt[66].len > 64)
 		overload |= 2;
@@ -148,9 +149,11 @@ int dhcp_pack_packet(void *packet, size_t *len,
 		spc = 128;
 		err = dhcp_pack_field_zero(pkt->file, &spc, ox);
 	} else {
-		memset(pkt->file, 0, 128);
-		if (opt[67].len > 0)
-			memcpy(pkt->file, opt[67].data, opt[67].len);
+		if (!(opt[67].flags & DHCP_OPTION_FLAGS_NOTFIELD)) {
+			memset(pkt->file, 0, 128);
+			if (opt[67].len > 0)
+				memcpy(pkt->file, opt[67].data, opt[67].len);
+		}
 	}
 
 	if (overload & 2) {

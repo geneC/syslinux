@@ -2,7 +2,7 @@
 :doctype: manpage
 :author: Gene Cumm
 :email: gene.cumm@gmail.com
-:revdate: 2012-01-04
+:revdate: 2012-02-10
 
 
 == NAME ==
@@ -11,11 +11,13 @@ pxechn.c32 - Chainboot to new NBP
 
 == SYNOPSIS ==
 *pxechn.c32* [-h | --help | -?]
-*pxechn.c32* ['OPTIONS'] 'FILE'
+*pxechn.c32* -r 'FILE'
+*pxechn.c32* 'FILE' ['OPTIONS']
 
 
 == DESCRIPTION ==
-Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE packet #3 (PXENV_PACKET_TYPE_CACHED_REPLY) to alter end behavior.  'FILE' may be a filename, an IP::FN ( 192.168.1.1::path/to/file.0 ), or URL.  'FILE' is parsed to adjust the DHCP 'sname' field/option 66 and 'file' field/option 67 but these may be overridden.
+Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE packet #3 (PXENV_PACKET_TYPE_CACHED_REPLY) to alter end behavior.  'FILE' may be a filename, an IP::FN ( 192.168.1.1::path/to/file.0 ), or URL.  'FILE' is parsed to adjust the DHCP 'sname' field/option 66 and 'file' field/option 67.
+// but these may be override-able in the future.
 
 
 == OPTIONS ==
@@ -44,10 +46,13 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
     PXELINUX path (DHCP Option 210).
 
 *-r*::
-    Call the PXE stack with PXENV_RESTART_TFTP.  Must be the only option.
+    Call the PXE stack with PXENV_RESTART_TFTP.  Must be the only option and before 'FILE'.
 
 *-t* 'SECONDS'::
     PXELINUX timeout (DHCP Option 211).
+
+// *-u*::
+//     Copy UUID (Option 97) if found in packet #1
 
 *-w*::
     wait after loading before booting for user input.

@@ -671,6 +671,7 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
 	if (iopt->len > DHCP_OPT_LEN_MAX)
 	    iopt->len = DHCP_OPT_LEN_MAX;
 	memcpy(iopt->data, pos, iopt->len);
+dprintf("s.len=%d\trv=%d\n", iopt->len, rv);
 	break;
     case 'w':
 	iopt->len = pxechn_parse_int(iopt->data, pos, 2);
@@ -684,7 +685,12 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
     }
     if (pxechn_optlen_ok(iopt->len)) {
 	rv = pxechn_setopt(&(opts[optnum]), (void *)(iopt->data), iopt->len);
+	if (optnum == 67) {
+	    opts[optnum].flags |= DHCP_OPTION_FLAGS_NOTFIELD;
+	}
     }
+if(opttype == 's')
+dprintf("rv=%d\n", rv);
     return rv;
 }
 
@@ -824,6 +830,7 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	return ret;
     bootp1->sip = pxe->fip;
     bootp1->gip = pxe->gip;
+opts[67].flags |= DHCP_OPTION_FLAGS_ASOPT;
 
     ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->p[5].len), opts);
     if (ret) {

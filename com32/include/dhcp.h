@@ -6,6 +6,7 @@
 struct dhcp_option {
 	void *data;
 	int len;
+	uint32_t flags;
 };
 
 struct dhcp_packet {
@@ -28,6 +29,9 @@ struct dhcp_packet {
 };
 
 #define DHCP_VENDOR_MAGIC	0x63825363
+
+#define DHCP_OPTION_FLAGS_ASOPT	(1 << 30)
+#define DHCP_OPTION_FLAGS_NOTFIELD	(1 << 29)
 
 int dhcp_pack_packet(void *packet, size_t *len,
 		     const struct dhcp_option opt[256]);
