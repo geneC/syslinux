@@ -24,7 +24,6 @@ extern char ConfigFile[];
 extern char syslinux_banner[];
 extern char copyright_str[];
 
-extern char aux_seg[];
 extern uint8_t KbdMap[256];
 
 /* diskstart.inc isolinux.asm*/

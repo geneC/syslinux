@@ -669,10 +669,12 @@ comapi_userfont:
 		and al,al
 		jz .done
 		mov al,[VGAFontSize]
-		mov P_ES,aux_seg
-		mov P_BX,aux.fontbuf
+		pm_call pm_userfont
+		mov P_ES,es
+		mov P_BX,bx
 
 .done:		; CF=0 here
+		mov P_AL,al
 		ret
 
 ;

@@ -24,12 +24,8 @@
 #include "bios.h"
 #include "core.h"
 
-struct aux {
-	char fontbuf[8192];
-	char serial[serial_buf_size];
-};
-
-#define fontbuf		offsetof(struct aux, fontbuf)
+char fontbuf[8192];
+char serial[serial_buf_size];
 
 extern uint16_t VGAFontSize;
 extern uint8_t UserFont;
@@ -91,7 +87,7 @@ void loadfont(char *filename)
 
 	/* Copy to font buffer */
 	VGAFontSize = height;
-	di = (uint32_t *)MK_PTR(aux_seg, fontbuf);
+	di = (uint32_t *)fontbuf;
 	si = (uint32_t *)trackbuf;
 	for (i = 0; i < (height << 6); i++)
 		*di++ = *si++;
@@ -118,8 +114,8 @@ void use_font(void)
 
 	memset(&ireg, 0, sizeof(ireg));
 
-	ireg.es = aux_seg;
-	ireg.ebp.w[0] = fontbuf; /* ES:BP -> font */
+	ireg.es = SEG(fontbuf);
+	ireg.ebp.w[0] = OFFS(fontbuf); /* ES:BP -> font */
 
 	/* Are we using a user-specified font? */
 	if (UserFont & 0x1) {
@@ -192,4 +188,10 @@ void adjust_screen(void)
 void pm_adjust_screen(com32sys_t *regs)
 {
 	adjust_screen();
+}
+
+void pm_userfont(com32sys_t *regs)
+{
+	regs->es = SEG(fontbuf);
+	regs->ebx.w[0] = OFFS(fontbuf);
 }

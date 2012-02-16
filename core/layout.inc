@@ -128,21 +128,6 @@ RBFG_brainfuck:	resb 2048		; Bigger than an Ethernet packet...
 serial_buf_size	equ 4096		; Should be a power of 2
 
 ;
-; Contents of aux_seg
-;
-		extern aux_seg		; Actual segment assigned by linker
-
-		struc aux
-.fontbuf	resb 8192
-.serial		resb serial_buf_size
-
-		alignb 4096		; Align the next segment to 4K
-		endstruc
-
-		section .auxseg		write nobits align=16
-auxseg		resb aux_size
-
-;
 ; Transfer buffer segment: guaranteed to be aligned 64K, used for disk I/O
 ; One symbol for the segment number, one for the absolute address
 ;
