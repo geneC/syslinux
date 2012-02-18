@@ -325,7 +325,7 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
 
     LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() -> pxe_call()\n"));
     pxe_call(PXENV_UNDI_TRANSMIT, &pxe.xmit);
-    LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() xmit="X16_F"\n", pxe.xmit.Status));
+    LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() xmit=%"X16_F"\n", pxe.xmit.Status));
   } while (pxe.xmit.Status == PXENV_STATUS_OUT_OF_RESOURCES);
 
   LWIP_DEBUGF(UNDIIF_DEBUG, ("undi_transmit() xmit complete\n"));
