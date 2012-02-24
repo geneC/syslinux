@@ -117,6 +117,7 @@ void *realloc(void *ptr, size_t size)
     newptr = AllocatePool(size);
     memcpy(newptr, ptr, size);
     FreePool(ptr);
+    return newptr;
 #else
     if (!ptr)
 	return malloc(size);
