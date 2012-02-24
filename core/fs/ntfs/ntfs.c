@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Paulo Alcantara <pcacjr@gmail.com>
+ * Copyright (C) 2011-2012 Paulo Alcantara <pcacjr@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,6 +77,8 @@ static void ntfs_fixups_writeback(struct fs_info *fs, struct ntfs_record *nrec)
     uint16_t usa_count;
     uint16_t *blk;
 
+    dprintf("in %s()\n", __func__);
+
     if (nrec->magic != NTFS_MAGIC_FILE && nrec->magic != NTFS_MAGIC_INDX)
         return;
 
@@ -111,6 +113,8 @@ static int ntfs_read(struct fs_info *fs, void *buf, size_t len, uint64_t count,
     uint64_t lbytes;
     uint64_t loffset;
     uint64_t k;
+
+    dprintf("in %s()\n", __func__);
 
     if (count > len)
         goto out;
@@ -188,6 +192,8 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_0(struct fs_info *fs,
     int err;
     struct ntfs_mft_record *mrec;
 
+    dprintf("in %s()\n", __func__);
+
     buf = (uint8_t *)malloc(mft_record_size);
     if (!buf)
         malloc_error("uint8_t *");
@@ -201,7 +207,7 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_0(struct fs_info *fs,
         err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
                         &offset, &next_offset, &lcn);
         if (err) {
-            printf("Error on reading from cache.\n");
+            printf("Error while reading from cache.\n");
             break;
         }
 
@@ -248,6 +254,8 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_1(struct fs_info *fs,
     int err;
     struct ntfs_mft_record *mrec;
 
+    dprintf("in %s()\n", __func__);
+
     buf = (uint8_t *)malloc(mft_record_size);
     if (!buf)
         malloc_error("uint8_t *");
@@ -260,7 +268,7 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_1(struct fs_info *fs,
         err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
                         &offset, &next_offset, &lcn);
         if (err) {
-            printf("Error on reading from cache.\n");
+            printf("Error while reading from cache.\n");
             break;
         }
 
@@ -291,33 +299,13 @@ static struct ntfs_mft_record *ntfs_mft_record_lookup_3_1(struct fs_info *fs,
     return NULL;
 }
 
-static struct ntfs_attr_record *ntfs_attr_lookup(uint32_t type,
-                                            const struct ntfs_mft_record *mrec)
-{
-    struct ntfs_attr_record *attr;
-
-    /* sanity check */
-    if (!mrec || type == NTFS_AT_END)
-        return NULL;
-
-    attr = (struct ntfs_attr_record *)((uint8_t *)mrec + mrec->attrs_offset);
-    /* walk through the file attribute records */
-    for (;; attr = (struct ntfs_attr_record *)((uint8_t *)attr + attr->len)) {
-        if (attr->type == NTFS_AT_END)
-            return NULL;
-
-        if (attr->type == type)
-            break;
-    }
-
-    return attr;
-}
-
 static bool ntfs_filename_cmp(const char *dname, struct ntfs_idx_entry *ie)
 {
     const uint16_t *entry_fn;
     uint8_t entry_fn_len;
     unsigned i;
+
+    dprintf("in %s()\n", __func__);
 
     entry_fn = ie->key.file_name.file_name;
     entry_fn_len = ie->key.file_name.file_name_len;
@@ -368,6 +356,8 @@ static int parse_data_run(const void *stream, uint32_t *offset,
     int64_t res;
 
     (void)attr_len;
+
+    dprintf("in %s()\n", __func__);
 
     chunk->flags &= ~MAP_MASK;
 
@@ -425,6 +415,204 @@ out:
     return -1;
 }
 
+static struct ntfs_mft_record *
+ntfs_attr_list_lookup(struct fs_info *fs, struct ntfs_attr_record *attr,
+                      uint32_t type, struct ntfs_mft_record *mrec)
+{
+    uint8_t *attr_len;
+    struct mapping_chunk chunk;
+    uint32_t offset;
+    uint8_t *stream;
+    int err;
+    const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
+    uint8_t buf[blk_size];
+    uint64_t blk_offset;
+    int64_t vcn;
+    int64_t lcn;
+    int64_t last_lcn;
+    block_t blk;
+    struct ntfs_attr_list_entry *attr_entry;
+    uint32_t len = 0;
+    struct ntfs_mft_record *retval;
+    uint64_t start_blk = 0;
+
+    dprintf("in %s()\n", __func__);
+
+    if (attr->non_resident)
+        goto handle_non_resident_attr;
+
+    attr_entry = (struct ntfs_attr_list_entry *)
+        ((uint8_t *)attr + attr->data.resident.value_offset);
+    len = attr->data.resident.value_len;
+    for (; (uint8_t *)attr_entry < (uint8_t *)attr + len;
+         attr_entry = (struct ntfs_attr_list_entry *)((uint8_t *)attr_entry +
+                                                      attr_entry->length)) {
+        dprintf("<$ATTRIBUTE_LIST> Attribute type: 0x%X\n",
+                attr_entry->type);
+        if (attr_entry->type == type)
+            goto found; /* We got the attribute! :-) */
+    }
+
+    printf("No attribute found.\n");
+    goto out;
+
+handle_non_resident_attr:
+    attr_len = (uint8_t *)attr + attr->len;
+    stream = mapping_chunk_init(attr, &chunk, &offset);
+    do {
+        err = parse_data_run(stream, &offset, attr_len, &chunk);
+        if (err) {
+            printf("parse_data_run()\n");
+            goto out;
+        }
+
+        if (chunk.flags & MAP_UNALLOCATED)
+            continue;
+        if (chunk.flags & MAP_END)
+            break;
+        if (chunk.flags & MAP_ALLOCATED) {
+            vcn = 0;
+            lcn = chunk.lcn;
+            while (vcn < chunk.len) {
+                blk = (lcn + vcn) << NTFS_SB(fs)->clust_byte_shift >>
+                    BLOCK_SHIFT(fs);
+                blk_offset = 0;
+                last_lcn = lcn;
+                lcn += vcn;
+                err = ntfs_read(fs, buf, blk_size, blk_size, &blk,
+                                &blk_offset, NULL, (uint64_t *)&lcn);
+                if (err) {
+                    printf("Error while reading from cache.\n");
+                    goto out;
+                }
+
+                attr_entry = (struct ntfs_attr_list_entry *)&buf;
+                len = attr->data.non_resident.data_size;
+                for (; (uint8_t *)attr_entry < (uint8_t *)&buf[0] + len;
+                     attr_entry = (struct ntfs_attr_list_entry *)
+                         ((uint8_t *)attr_entry + attr_entry->length)) {
+                    dprintf("<$ATTRIBUTE_LIST> Attribute type: 0x%x\n",
+                            attr_entry->type);
+                    if (attr_entry->type == type)
+                        goto found; /* We got the attribute! :-) */
+                }
+
+                lcn = last_lcn; /* restore original LCN */
+                /* go to the next VCN */
+                vcn += (blk_size / (1 << NTFS_SB(fs)->clust_byte_shift));
+            }
+        }
+    } while (!(chunk.flags & MAP_END));
+
+    printf("No attribute found.\n");
+
+out:
+    return NULL;
+
+found:
+    /* At this point we have the attribute we were looking for. Now we
+     * will look for the MFT record that stores information about this
+     * attribute.
+     */
+
+    /* Check if the attribute type we're looking for is in the same
+     * MFT record. If so, we do not need to look it up again - return it.
+     */
+    if (mrec->mft_record_no == attr_entry->mft_ref)
+        return mrec;
+
+    retval = NTFS_SB(fs)->mft_record_lookup(fs, attr_entry->mft_ref,
+                                            &start_blk);
+    if (!retval) {
+        printf("No MFT record found!\n");
+        goto out;
+    }
+
+    /* return the found MFT record */
+    return retval;
+}
+
+static struct ntfs_attr_record *
+__ntfs_attr_lookup(struct fs_info *fs, uint32_t type,
+                   struct ntfs_mft_record **mrec)
+{
+    struct ntfs_mft_record *_mrec = *mrec;
+    struct ntfs_attr_record *attr;
+    struct ntfs_attr_record *attr_list_attr;
+
+    dprintf("in %s()\n", __func__);
+
+    if (!_mrec || type == NTFS_AT_END)
+        goto out;
+
+again:
+    attr_list_attr = NULL;
+
+    attr = (struct ntfs_attr_record *)((uint8_t *)_mrec + _mrec->attrs_offset);
+    /* walk through the file attribute records */
+    for (;; attr = (struct ntfs_attr_record *)((uint8_t *)attr + attr->len)) {
+        if (attr->type == NTFS_AT_END)
+            break;
+
+        if (attr->type == NTFS_AT_ATTR_LIST) {
+            dprintf("MFT record #%lu has an $ATTRIBUTE_LIST attribute.\n",
+                    _mrec->mft_record_no);
+            attr_list_attr = attr;
+            continue;
+        }
+
+        if (attr->type == type)
+            break;
+    }
+
+    /* if the record has an $ATTRIBUTE_LIST attribute associated
+     * with it, then we need to look for the wanted attribute in
+     * it as well.
+     */
+    if (attr->type == NTFS_AT_END && attr_list_attr) {
+        struct ntfs_mft_record *retval;
+
+        retval = ntfs_attr_list_lookup(fs, attr_list_attr, type, _mrec);
+        if (!retval)
+            goto out;
+
+        _mrec = retval;
+        goto again;
+    } else if (attr->type == NTFS_AT_END && !attr_list_attr) {
+        attr = NULL;
+    }
+
+    return attr;
+
+out:
+    return NULL;
+}
+
+static inline struct ntfs_attr_record *
+ntfs_attr_lookup(struct fs_info *fs, uint32_t type,
+                 struct ntfs_mft_record **mmrec,
+                 struct ntfs_mft_record *mrec)
+{
+    struct ntfs_mft_record *_mrec = mrec;
+    struct ntfs_mft_record *other = *mmrec;
+    struct ntfs_attr_record *retval = NULL;
+
+    if (mrec == other)
+        return __ntfs_attr_lookup(fs, type, &other);
+
+    retval = __ntfs_attr_lookup(fs, type, &_mrec);
+    if (!retval) {
+        _mrec = other;
+        retval = __ntfs_attr_lookup(fs, type, &other);
+        if (!retval)
+            other = _mrec;
+    } else if (retval && (_mrec != mrec)) {
+        other = _mrec;
+    }
+
+    return retval;
+}
+
 static inline enum dirent_type get_inode_mode(struct ntfs_mft_record *mrec)
 {
     return mrec->flags & MFT_RECORD_IS_DIRECTORY ? DT_DIR : DT_REG;
@@ -434,22 +622,24 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
                             struct inode *inode)
 {
     uint64_t start_blk = 0;
-    struct ntfs_mft_record *mrec;
+    struct ntfs_mft_record *mrec, *lmrec;
     struct ntfs_attr_record *attr;
     enum dirent_type d_type;
-    uint32_t len;
-    struct ntfs_idx_root *ir;
     uint8_t *attr_len;
     struct mapping_chunk chunk;
     int err;
     uint8_t *stream;
     uint32_t offset;
 
+    dprintf("in %s()\n", __func__);
+
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, mft_no, &start_blk);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
+
+    lmrec = mrec;
 
     NTFS_PVT(inode)->mft_no = mft_no;
     NTFS_PVT(inode)->seq_no = mrec->seq_no;
@@ -460,19 +650,9 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
     d_type = get_inode_mode(mrec);
     if (d_type == DT_DIR) {    /* directory stuff */
         dprintf("Got a directory.\n");
-        attr = ntfs_attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
+        attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ROOT, &mrec, lmrec);
         if (!attr) {
             printf("No attribute found.\n");
-            goto out;
-        }
-
-        /* note: struct ntfs_idx_root is always resident */
-        ir = (struct ntfs_idx_root *)((uint8_t *)attr +
-                                    attr->data.resident.value_offset);
-        len = attr->data.resident.value_len;
-        if ((uint8_t *)ir + len > (uint8_t *)mrec +
-                        NTFS_SB(fs)->mft_record_size) {
-            printf("Corrupt index.\n");
             goto out;
         }
 
@@ -492,7 +672,7 @@ static int index_inode_setup(struct fs_info *fs, unsigned long mft_no,
         readdir_state->in_idx_root = true;
     } else if (d_type == DT_REG) {        /* file stuff */
         dprintf("Got a file.\n");
-        attr = ntfs_attr_lookup(NTFS_AT_DATA, mrec);
+        attr = ntfs_attr_lookup(fs, NTFS_AT_DATA, &mrec, lmrec);
         if (!attr) {
             printf("No attribute found.\n");
             goto out;
@@ -554,12 +734,11 @@ out:
 static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
 {
     struct fs_info *fs = dir->fs;
-    struct ntfs_mft_record *mrec;
+    struct ntfs_mft_record *mrec, *lmrec;
     block_t blk;
     uint64_t blk_offset;
     struct ntfs_attr_record *attr;
     struct ntfs_idx_root *ir;
-    uint32_t len;
     struct ntfs_idx_entry *ie;
     const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
     uint8_t buf[blk_size];
@@ -574,13 +753,16 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
     int64_t last_lcn;
     struct inode *inode;
 
+    dprintf("in %s()\n", __func__);
+
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(dir)->mft_no, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
+    lmrec = mrec;
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ROOT, &mrec, lmrec);
     if (!attr) {
         printf("No attribute found.\n");
         goto out;
@@ -588,11 +770,6 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
 
     ir = (struct ntfs_idx_root *)((uint8_t *)attr +
                             attr->data.resident.value_offset);
-    len = attr->data.resident.value_len;
-    /* sanity check */
-    if ((uint8_t *)ir + len > (uint8_t *)mrec + NTFS_SB(fs)->mft_record_size)
-        goto index_err;
-
     ie = (struct ntfs_idx_entry *)((uint8_t *)&ir->index +
                                 ir->index.entries_offset);
     for (;; ie = (struct ntfs_idx_entry *)((uint8_t *)ie + ie->len)) {
@@ -622,7 +799,7 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
 
     /* then descend into child node */
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ALLOCATION, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ALLOCATION, &mrec, lmrec);
     if (!attr) {
         printf("No attribute found.\n");
         goto out;
@@ -659,7 +836,7 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
                 err = ntfs_read(fs, &buf, blk_size, blk_size, &blk,
                                 &blk_offset, NULL, (uint64_t *)&lcn);
                 if (err) {
-                    printf("Error on reading from cache.\n");
+                    printf("Error while reading from cache.\n");
                     goto not_found;
                 }
 
@@ -687,16 +864,6 @@ static struct inode *ntfs_index_lookup(const char *dname, struct inode *dir)
                     if (ie->flags & INDEX_ENTRY_END)
                         break;
 
-                    /* Do case-sensitive compares for Posix file names */
-                    if (ie->key.file_name.file_name_type == FILE_NAME_POSIX) {
-                        if (ie->key.file_name.file_name[0] > *dname)
-                            break;
-                    } else {
-                        if (tolower(ie->key.file_name.file_name[0]) >
-                            tolower(*dname))
-                            break;
-                    }
-
                     if (ntfs_filename_cmp(dname, ie))
                         goto found;
                 }
@@ -712,8 +879,6 @@ not_found:
     dprintf("Index not found\n");
 
 out:
-    dprintf("%s not found!\n", dname);
-
     free(mrec);
 
     return NULL;
@@ -727,8 +892,6 @@ found:
         free(inode);
         goto out;
     }
-
-    dprintf("%s found!\n", dname);
 
     free(mrec);
 
@@ -767,6 +930,8 @@ static int ntfs_next_extent(struct inode *inode, uint32_t lstart)
     struct runlist *ret;
     const uint32_t sec_size = SECTOR_SIZE(fs);
     const uint32_t sec_shift = SECTOR_SHIFT(fs);
+
+    dprintf("in %s()\n", __func__);
 
     if (!NTFS_PVT(inode)->non_resident) {
         pstart = (sbi->mft_blk + NTFS_PVT(inode)->here) << BLOCK_SHIFT(fs) >>
@@ -811,9 +976,11 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
     uint32_t ret;
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
-    struct ntfs_mft_record *mrec;
+    struct ntfs_mft_record *mrec, *lmrec;
     struct ntfs_attr_record *attr;
     char *p;
+
+    dprintf("in %s()\n", __func__);
 
     non_resident = NTFS_PVT(inode)->non_resident;
 
@@ -823,13 +990,14 @@ static uint32_t ntfs_getfssec(struct file *file, char *buf, int sectors,
 
     if (!non_resident) {
         mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(inode)->mft_no,
-					      NULL);
+                                              NULL);
         if (!mrec) {
             printf("No MFT record found.\n");
             goto out;
         }
 
-        attr = ntfs_attr_lookup(NTFS_AT_DATA, mrec);
+        lmrec = mrec;
+        attr = ntfs_attr_lookup(fs, NTFS_AT_DATA, &mrec, lmrec);
         if (!attr) {
             printf("No attribute found.\n");
             goto out;
@@ -862,7 +1030,7 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 {
     struct fs_info *fs = file->fs;
     struct inode *inode = file->inode;
-    struct ntfs_mft_record *mrec;
+    struct ntfs_mft_record *mrec, *lmrec;
     block_t blk;
     uint64_t blk_offset;
     const uint64_t blk_size = UINT64_C(1) << BLOCK_SHIFT(fs);
@@ -882,13 +1050,16 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     int64_t lcn;
     char filename[NTFS_MAX_FILE_NAME_LEN + 1];
 
+    dprintf("in %s()\n", __func__);
+
     mrec = NTFS_SB(fs)->mft_record_lookup(fs, NTFS_PVT(inode)->mft_no, NULL);
     if (!mrec) {
         printf("No MFT record found.\n");
         goto out;
     }
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ROOT, mrec);
+    lmrec = mrec;
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ROOT, &mrec, lmrec);
     if (!attr) {
         printf("No attribute found.\n");
         goto out;
@@ -896,10 +1067,6 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
 
     ir = (struct ntfs_idx_root *)((uint8_t *)attr +
                             attr->data.resident.value_offset);
-    len = attr->data.resident.value_len;
-    /* sanity check */
-    if ((uint8_t *)ir + len > (uint8_t *)mrec + NTFS_SB(fs)->mft_record_size)
-        goto index_err;
 
     if (!file->offset && readdir_state->in_idx_root) {
         file->offset = (uint32_t)((uint8_t *)&ir->index +
@@ -930,7 +1097,7 @@ descend_into_child_node:
     if (!(ie->flags & INDEX_ENTRY_NODE))
         goto out;
 
-    attr = ntfs_attr_lookup(NTFS_AT_INDEX_ALLOCATION, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_INDEX_ALLOCATION, &mrec, lmrec);
     if (!attr)
         goto out;
 
@@ -947,7 +1114,7 @@ next_run:
     while (count--) {
         err = parse_data_run(stream, &offset, attr_len, &chunk);
         if (err) {
-            printf("Error on parsing data runs.\n");
+            printf("Error while parsing data runs.\n");
             goto out;
         }
 
@@ -978,7 +1145,7 @@ next_vcn:
     err = ntfs_read(fs, &buf, blk_size, blk_size, &blk, &blk_offset, NULL,
                     (uint64_t *)&lcn);
     if (err) {
-        printf("Error on reading from cache.\n");
+        printf("Error while reading from cache.\n");
         goto not_found;
     }
 
@@ -1014,6 +1181,14 @@ idx_block_next_entry:
     }
 
     readdir_state->entries_count++;
+
+    /* Need to check if this entry has INDEX_ENTRY_END flag set. If
+     * so, then it won't contain a indexed_file file, so continue the
+     * lookup on the next VCN/LCN (if any).
+     */
+    if (ie->flags & INDEX_ENTRY_END)
+        goto next_vcn;
+
     len = ntfs_cvt_filename(filename, ie);
     if (!is_filename_printable(filename))
         goto idx_block_next_entry;
@@ -1056,7 +1231,7 @@ index_err:
     goto out;
 }
 
-static struct inode *ntfs_iget(const char *dname, struct inode *parent)
+static inline struct inode *ntfs_iget(const char *dname, struct inode *parent)
 {
     return ntfs_index_lookup(dname, parent);
 }
@@ -1064,11 +1239,13 @@ static struct inode *ntfs_iget(const char *dname, struct inode *parent)
 static struct inode *ntfs_iget_root(struct fs_info *fs)
 {
     uint64_t start_blk;
-    struct ntfs_mft_record *mrec;
+    struct ntfs_mft_record *mrec, *lmrec;
     struct ntfs_attr_record *attr;
     struct ntfs_vol_info *vol_info;
     struct inode *inode;
     int err;
+
+    dprintf("in %s()\n", __func__);
 
     /* Fetch the $Volume MFT record */
     start_blk = 0;
@@ -1078,8 +1255,10 @@ static struct inode *ntfs_iget_root(struct fs_info *fs)
         goto err_mrec;
     }
 
+    lmrec = mrec;
+
     /* Fetch the volume information attribute */
-    attr = ntfs_attr_lookup(NTFS_AT_VOL_INFO, mrec);
+    attr = ntfs_attr_lookup(fs, NTFS_AT_VOL_INFO, &mrec, lmrec);
     if (!attr) {
         printf("Could not find volume info attribute!\n");
         goto err_attr;
@@ -1130,11 +1309,12 @@ static int ntfs_fs_init(struct fs_info *fs)
     struct disk *disk = fs->fs_dev->disk;
     uint8_t mft_record_shift;
 
+    dprintf("in %s()\n", __func__);
+
     read_count = disk->rdwr_sectors(disk, &ntfs, 0, 1, 0);
     if (!read_count)
-	return -1;
+        return -1;
 
-    /* sanity check */
     if (!ntfs_check_sb_fields(&ntfs))
         return -1;
 
@@ -1178,7 +1358,7 @@ static int ntfs_fs_init(struct fs_info *fs)
         sbi->clusters = 0xFFFFFFFFFFF4ULL;
 
     /*
-     * Assume NTFS version 3.0 to begin with.  If we find that the
+     * Assume NTFS version 3.0 to begin with. If we find that the
      * volume is a different version later on, we will adjust at
      * that time.
      */

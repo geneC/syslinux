@@ -1,5 +1,5 @@
 /*
- * Copyright (C) Paulo Alcantara <pcacjr@gmail.com>
+ * Copyright (C) 2011-2012 Paulo Alcantara <pcacjr@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
  * Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
+
+#include "runlist.h"
 
 #ifndef _NTFS_H_
 #define _NTFS_H_
@@ -290,10 +292,29 @@ struct ntfs_attr_record {
             uint8_t compression_unit;
             uint8_t reserved[5];
             int64_t allocated_size;
+            int64_t data_size; /* Byte size of the attribute value.
+                                * Note: it can be larger than
+                                * allocated_size if attribute value is
+                                * compressed or sparse.
+                                */
             int64_t initialized_size;
             int64_t compressed_size;
         } __attribute__((__packed__)) non_resident;
     } __attribute__((__packed__)) data;
+} __attribute__((__packed__));
+
+/* Attribute: Attribute List (0x20)
+ * Note: it can be either resident or non-resident
+ */
+struct ntfs_attr_list_entry {
+    uint32_t type;
+    uint16_t length;
+    uint8_t name_length;
+    uint8_t name_offset;
+    uint64_t lowest_vcn;
+    uint64_t mft_ref;
+    uint16_t instance;
+    uint16_t name[0];
 } __attribute__((__packed__));
 
 #define NTFS_MAX_FILE_NAME_LEN 255

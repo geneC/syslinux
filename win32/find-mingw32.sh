@@ -20,7 +20,8 @@ for prefix in \
     i386-mingw32msvc- \
     i486-mingw32msvc- \
     i586-mingw32msvc- \
-    i686-mingw32msvc-; do
+    i686-mingw32msvc- \
+    i686-w64-mingw32-; do
     if "${prefix}${cc}" -v > /dev/null 2>&1; then
 	echo "$prefix"
 	exit 0

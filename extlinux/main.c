@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2012 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -825,47 +825,46 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 	/* btrfs st_dev is not matched with mnt st_rdev, it is a known issue */
 	switch (fs_type) {
 	case BTRFS:
-		if (!strcmp(mnt->mnt_type, "btrfs") &&
-		    !stat(mnt->mnt_dir, &dst) &&
-		    dst.st_dev == dev) {
-	                if (!subvol[0]) {
-			    get_default_subvol(mnt->mnt_dir, subvol);
-                        }
-			done = true;
-		}
-		break;
+	    if (!strcmp(mnt->mnt_type, "btrfs") &&
+		!stat(mnt->mnt_dir, &dst) &&
+		dst.st_dev == dev) {
+		if (!subvol[0])
+		    get_default_subvol(mnt->mnt_dir, subvol);
+		done = true;
+	    }
+	    break;
 	case EXT2:
-		if ((!strcmp(mnt->mnt_type, "ext2") ||
-		     !strcmp(mnt->mnt_type, "ext3") ||
-		     !strcmp(mnt->mnt_type, "ext4")) &&
-		    !stat(mnt->mnt_fsname, &dst) &&
-		    dst.st_rdev == dev) {
-		    done = true;
-		    break;
-		}
+	    if ((!strcmp(mnt->mnt_type, "ext2") ||
+		 !strcmp(mnt->mnt_type, "ext3") ||
+		 !strcmp(mnt->mnt_type, "ext4")) &&
+		!stat(mnt->mnt_fsname, &dst) &&
+		dst.st_rdev == dev) {
+		done = true;
+		break;
+	    }
 	case VFAT:
-		if ((!strcmp(mnt->mnt_type, "vfat")) &&
-		    !stat(mnt->mnt_fsname, &dst) &&
-		    dst.st_rdev == dev) {
-		    done = true;
-		    break;
-		}
-    case NTFS:
-        if ((!strcmp(mnt->mnt_type, "fuseblk") /* ntfs-3g */ ||
-             !strcmp(mnt->mnt_type, "ntfs")) &&
-            !stat(mnt->mnt_fsname, &dst) &&
-            dst.st_rdev == dev) {
-            done = true;
-            break;
-        }
+	    if ((!strcmp(mnt->mnt_type, "vfat")) &&
+		!stat(mnt->mnt_fsname, &dst) &&
+		dst.st_rdev == dev) {
+		done = true;
+		break;
+	    }
+	case NTFS:
+	    if ((!strcmp(mnt->mnt_type, "fuseblk") /* ntfs-3g */ ||
+		 !strcmp(mnt->mnt_type, "ntfs")) &&
+		!stat(mnt->mnt_fsname, &dst) &&
+		dst.st_rdev == dev) {
+		done = true;
+		break;
+	    }
 
-        break;
+	    break;
 	case NONE:
 	    break;
 	}
 	if (done) {
-		devname = strdup(mnt->mnt_fsname);
-		break;
+	    devname = strdup(mnt->mnt_fsname);
+	    break;
 	}
     }
     endmntent(mtab);
@@ -873,6 +872,54 @@ static const char *find_device(const char *mtab_file, dev_t dev)
     return devname;
 }
 #endif
+
+/*
+ * On newer Linux kernels we can use sysfs to get a backwards mapping
+ * from device names to standard filenames
+ */
+static const char *find_device_sysfs(dev_t dev)
+{
+    char sysname[64];
+    char linkname[PATH_MAX];
+    ssize_t llen;
+    char *p, *q;
+    char *buf = NULL;
+    struct stat st;
+
+    snprintf(sysname, sizeof sysname, "/sys/dev/block/%u:%u",
+	     major(dev), minor(dev));
+
+    llen = readlink(sysname, linkname, sizeof linkname);
+    if (llen < 0 || llen >= sizeof linkname)
+	goto err;
+
+    linkname[llen] = '\0';
+
+    p = strrchr(linkname, '/');
+    p = p ? p+1 : linkname;	/* Leave basename */
+
+    buf = q = malloc(strlen(p) + 6);
+    if (!buf)
+	goto err;
+
+    memcpy(q, "/dev/", 5);
+    q += 5;
+
+    while (*p) {
+	*q++ = (*p == '!') ? '/' : *p;
+	p++;
+    }
+
+    *q = '\0';
+
+    if (!stat(buf, &st) && st.st_dev == dev)
+	return buf;		/* Found it! */
+
+err:
+    if (buf)
+	free(buf);
+    return NULL;
+}
 
 static const char *get_devname(const char *path)
 {
@@ -888,20 +935,25 @@ static const char *get_devname(const char *path)
 	fprintf(stderr, "%s: statfs %s: %s\n", program, path, strerror(errno));
 	return devname;
     }
+
 #ifdef __KLIBC__
 
-    /* klibc doesn't have getmntent and friends; instead, just create
-       a new device with the appropriate device type */
-    snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
-	     major(st.st_dev), minor(st.st_dev));
+    devname = find_device_sysfs(st.st_dev);
 
-    if (mknod(devname_buf, S_IFBLK | 0600, st.st_dev)) {
-	fprintf(stderr, "%s: cannot create device %s\n", program, devname);
-	return devname;
+    if (!devname) {
+	/* klibc doesn't have getmntent and friends; instead, just create
+	   a new device with the appropriate device type */
+	snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
+		 major(st.st_dev), minor(st.st_dev));
+
+	if (mknod(devname_buf, S_IFBLK | 0600, st.st_dev)) {
+	    fprintf(stderr, "%s: cannot create device %s\n", program, devname);
+	    return devname;
+	}
+	
+	atexit(device_cleanup);	/* unlink the device node on exit */
+	devname = devname_buf;
     }
-
-    atexit(device_cleanup);	/* unlink the device node on exit */
-    devname = devname_buf;
 
 #else
 
@@ -911,11 +963,14 @@ static const char *get_devname(const char *path)
         devname = find_device("/etc/mtab", st.st_dev);
     }
     if (!devname) {
+	devname = find_device_sysfs(st.st_dev);
+
 	fprintf(stderr, "%s: cannot find device for path %s\n", program, path);
 	return devname;
     }
 
     fprintf(stderr, "%s is device %s\n", path, devname);
+
 #endif
     return devname;
 }
@@ -994,7 +1049,7 @@ static int ext_read_adv(const char *path, int devfd, const char **namep)
 	if (err == 2)		/* ldlinux.sys does not exist */
 	    err = read_adv(path, name = "extlinux.sys");
 	if (namep)
-	    *namep = name; 
+	    *namep = name;
 	return err;
     }
 }

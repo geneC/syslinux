@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2012 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -38,12 +38,16 @@ SuperSize	equ $+1
 load_bootsec:
 		mov edi,free_high_memory
 		mov [trackbuf+4],edi	; Copy from this address
+		mov eax,0xA0000		; Maximum load
 		xor dx,dx		; No padding
 		mov bx,abort_check	; Don't print dots, but allow abort
 		call load_high
 
 		sub edi,free_high_memory
 		mov [trackbuf+8],edi	; Save length
+
+		cmp edi,0xA0000-7C00h
+		ja bs_too_big
 
 		mov eax,7C00h		; Entry point
 		mov [trackbuf],eax	; Copy to this address
@@ -235,5 +239,15 @@ replace_stub:
 		popfd
 		jmp 0:0
 .csip		equ $-4
+
+		section .text16
+bs_too_big:	
+		call close
+		mov si,err_bs_too_big
+		jmp abort_load
+
+		section .data16
+err_bs_too_big	db "Too large for a bootstrap (need LINUX instead of KERNEL?)"
+		db CR, LF, 0
 
 		section .text16
