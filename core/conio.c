@@ -265,7 +265,7 @@ extern void do_idle(void);
 /*
  * getchar: Read a character from keyboard or serial port
  */
-char getchar(void)
+char getchar(char *hi)
 {
 	com32sys_t ireg, oreg;
 	unsigned char data;
@@ -313,6 +313,8 @@ char getchar(void)
 			__intcall(0x16, &ireg, &oreg);
 
 			data = oreg.eax.b[0];
+			*hi = oreg.eax.b[1];
+
 			if (data == 0xE0)
 				data = 0;
 
@@ -331,7 +333,7 @@ char getchar(void)
 
 void pm_getchar(com32sys_t *regs)
 {
-	regs->eax.b[0] = getchar();
+	regs->eax.b[0] = getchar(&regs->eax.b[1]);
 }
 
 static void msg_setbg(char data)
