@@ -74,7 +74,7 @@ again:
 	if (*p == ':')
 		p++;
 
-	if (!strcmp(path, ".")) {
+	if (path[0] == '.' && i == 1) {
 		if (!core_getcwd(path, sizeof(path))) {
 			DBG_PRINT("Could not get cwd\n");
 			return NULL;
