@@ -1634,6 +1634,13 @@
 #endif
 
 /**
+ * UNDIIF_DEBUG: Enable packet id debugging in undiif.c.
+ */
+#ifndef UNDIIF_ID_DEBUG
+#define UNDIIF_ID_DEBUG                     LWIP_DBG_ON
+#endif
+
+/**
  * UNDIIF_NET_DEBUG: Enable NETIF debugging in undiif.c.
  */
 #ifndef UNDIIF_NET_DEBUG
