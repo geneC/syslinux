@@ -202,6 +202,7 @@ void pxe_start_isr(void)
 	install_irq_vector(pxe_undi_info.IntNumber, pxe_isr, &pxe_irq_chain);
     
     if (!pxe_undi_info.IntNumber ||
+	1 ||
 	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
 	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
 				   pxe_poll_thread, NULL);
