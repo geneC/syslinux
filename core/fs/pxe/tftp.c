@@ -182,6 +182,8 @@ static void tftp_get_packet(struct inode *inode)
 	printf("Wrong packet, wanted %04x, got %04x\n", \
                htons(last_pkt), htons(*(uint16_t *)(data+2)));
 #endif
+	dprintf("Wrong packet, wanted %04x, got %04x\n", \
+               htons(last_pkt), htons(*(uint16_t *)(data+2)));
         goto ack_again;
     }
 
@@ -267,6 +269,7 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
     err = netconn_bind(socket->conn, NULL, 0);
     if (err) {
 	printf("netconn_bind error %d\n", err);
+	dprintf("netconn_bind error %d\n", err);
 	return;
     }
 
@@ -464,6 +467,7 @@ wait_pkt:
 
     default:
 	printf("TFTP unknown opcode %d\n", ntohs(opcode));
+	dprintf("TFTP unknown opcode %d\n", ntohs(opcode));
 	goto err_reply;
     }
 

@@ -240,10 +240,14 @@ low_level_init(struct netif *netif)
   if (MAC_type != pxe_undi_info.HwType) {
     printf("HwType conflicit: %u != %u\n",
 	    MAC_type, pxe_undi_info.HwType);
+    dprintf("HwType conflicit: %u != %u\n",
+	    MAC_type, pxe_undi_info.HwType);
     kaboom();
   }
   if (MAC_len != pxe_undi_info.HwAddrLen) {
      printf("HwAddrLen conflict: %u != %u\n",
+	     MAC_len, pxe_undi_info.HwAddrLen);
+     dprintf("HwAddrLen conflict: %u != %u\n",
 	     MAC_len, pxe_undi_info.HwAddrLen);
      kaboom();
   }

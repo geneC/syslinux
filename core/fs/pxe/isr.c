@@ -55,6 +55,8 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 
     printf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
 	   old->seg, old->offs, entry->seg, entry->offs);
+    dprintf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
+	   old->seg, old->offs, entry->seg, entry->offs);
 
     return true;
 }

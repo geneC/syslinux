@@ -1,6 +1,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+
+#include <dprintf.h>
+
 #include "malloc.h"
 
 struct free_arena_header __malloc_head[NHEAP];
@@ -8,6 +11,7 @@ struct free_arena_header __malloc_head[NHEAP];
 extern char __lowmem_heap[];
 size_t __bss16 MallocStart;
 extern size_t HighMemSize;
+extern char syslinux_banner[], copyright_str[];
 
 void mem_init(void)
 {
@@ -15,6 +19,8 @@ void mem_init(void)
     int i;
     uint16_t *bios_free_mem = (uint16_t *)0x413;
     size_t main_heap_size;
+
+    dprintf("%s %s", syslinux_banner+2, copyright_str);
 
     /* Initialize the head nodes */
 

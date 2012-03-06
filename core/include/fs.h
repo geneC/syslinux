@@ -159,6 +159,7 @@ void put_inode(struct inode *inode);
 static inline void malloc_error(char *obj)
 {
         printf("Out of memory: can't allocate memory for %s\n", obj);
+        dprintf("Out of memory: can't allocate memory for %s\n", obj);
 	kaboom();
 }
 

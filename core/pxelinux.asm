@@ -533,6 +533,7 @@ copyright_str   db ' Copyright (C) 1994-'
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
+		global syslinux_banner, copyright_str
 syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
 
 ;

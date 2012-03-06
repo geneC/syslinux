@@ -64,6 +64,7 @@ void tcp_fill_buffer(struct inode *inode)
     err = netbuf_data(socket->buf, &data, &len);
     if (err) {
 	printf("netbuf_data err: %d\n", err);
+	dprintf("netbuf_data err: %d\n", err);
 	kaboom();
     }
     socket->tftp_dataptr = data;

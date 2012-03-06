@@ -164,6 +164,7 @@ static int pxe_get_cached_info(int type)
     int err;
     static __lowmem struct s_PXENV_GET_CACHED_INFO get_cached_info;
     printf(" %02x", type);
+    dprintf("Get PXE packet %02x\n, type);
 
     memset(&get_cached_info, 0, sizeof get_cached_info);
     get_cached_info.PacketType  = type;
@@ -172,6 +173,7 @@ static int pxe_get_cached_info(int type)
     err = pxe_call(PXENV_GET_CACHED_INFO, &get_cached_info);
     if (err) {
         printf("PXE API call failed, error  %04x\n", err);
+        dprintf("PXE API call failed, error  %04x\n", err);
 	kaboom();
     }
 
@@ -528,6 +530,7 @@ static int pxe_load_config(void)
         return 0;
 
     printf("%-68s\n", "Unable to locate configuration file");
+    dprintf("%-68s\n", "Unable to locate configuration file");
     kaboom();
 }
 
@@ -778,8 +781,12 @@ static int pxe_init(bool quiet)
     if (!quiet) {
 	printf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
 	       type, PXEEntry.seg, PXEEntry.offs, plan);
+	dprintf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
+	       type, PXEEntry.seg, PXEEntry.offs, plan);
 	printf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
+	dprintf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
 	printf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
+	dprintf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
     }
 
     code_seg = code_seg + ((code_len + 15) >> 4);
@@ -792,6 +799,10 @@ static int pxe_init(bool quiet)
     pxe_call(PXENV_UNDI_GET_IFACE_INFO,  &pxe_undi_iface);
     
     printf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
+	   pxe_undi_info.BaseIo, pxe_undi_info.IntNumber,
+	   pxe_undi_info.MaxTranUnit, pxe_undi_info.HwType,
+	   pxe_undi_iface.IfaceType, pxe_undi_iface.ServiceFlags);
+    dprintf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
 	   pxe_undi_info.BaseIo, pxe_undi_info.IntNumber,
 	   pxe_undi_info.MaxTranUnit, pxe_undi_info.HwType,
 	   pxe_undi_iface.IfaceType, pxe_undi_iface.ServiceFlags);
@@ -894,6 +905,7 @@ static void network_init(void)
     err = undiif_start(IPInfo.myip, IPInfo.netmask, IPInfo.gateway);
     if (err) {
        printf("undiif driver failed to start: %d\n", err);
+       dprintf("undiif driver failed to start: %d\n", err);
        kaboom();
     }
 
