@@ -1315,12 +1315,13 @@ do_include:
 		new_path = refstrdup(skipspace(p + 4));
 		len = strlen(PATH);
 		new_len = strlen(new_path);
-		_p = realloc(PATH, len + new_len + 2);
+		_p = malloc(len + new_len + 2);
 		if (_p) {
 			strncpy(_p, PATH, len);
 			_p[len++] = ':';
 			strncpy(_p + len, new_path, new_len);
 			_p[len + new_len] = '\0';
+			free(PATH);
 			PATH = _p;
 		} else
 			eprintf("Failed to realloc PATH\n");
