@@ -68,6 +68,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	}
 	*/
 
+	vgaclearmode();
 	printf("cmdline = %s\n", cmdline);
 	/*
 	printf("VkernelEnd = %x\n", VKernelEnd);
