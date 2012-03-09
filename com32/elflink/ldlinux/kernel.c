@@ -16,7 +16,7 @@ const char *append = NULL;
 int new_linux_kernel(char *okernel, char *ocmdline)
 {
 	const char *kernel_name;
-	struct initramfs *initramfs;
+	struct initramfs *initramfs = NULL;
 	char *temp;
 	void *kernel_data;
 	size_t kernel_len;
@@ -99,15 +99,15 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	if (!opt_quiet)
 		printf("ok\n");
 
-	/* Initialize the initramfs chain */
-	initramfs = initramfs_init();
-	if (!initramfs)
-		goto bail;
-
 	/* Find and load initramfs */
 	temp = strstr(cmdline, "initrd=");
 	if (temp) {
 		i = 0;
+
+		/* Initialize the initramfs chain */
+		initramfs = initramfs_init();
+		if (!initramfs)
+			goto bail;
 
 		temp += strlen("initrd=");
 		while (*temp != ' ' && *temp)
