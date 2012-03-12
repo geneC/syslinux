@@ -47,14 +47,13 @@ CFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
 	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
 SFLAGS     = $(GCCOPT) -D__COM32__ -march=i386
 LDFLAGS    = -m elf_i386 -shared --hash-style=gnu -T $(com32)/lib/elf32.ld
-LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
 C_LIBS	   = $(com32)/libutil/libutil_com.c32 $(GPLLIB) \
-	     $(com32)/lib/libcom32.c32 $(LIBGCC)
+	     $(com32)/lib/libcom32.c32
 C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a \
 	     $(com32)/elflink/ldlinux/ldlinux_lnx.a
 
