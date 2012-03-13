@@ -18,6 +18,7 @@ extern char trackbuf[];
 extern char CurrentDirName[];
 extern char SubvolName[];
 extern char ConfigName[];
+extern char config_cwd[];
 extern char KernelName[];
 extern char cmd_line[];
 extern char ConfigFile[];

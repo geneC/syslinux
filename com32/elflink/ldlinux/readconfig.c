@@ -1345,6 +1345,11 @@ static int parse_one_config(const char *filename)
 	f = fdopen(fd, mode);
 	parse_config_file(f);
 
+	if (config_cwd[0]) {
+		chdir(config_cwd);
+		config_cwd[0] = NULL;
+	}
+
 	return 0;
 }
 

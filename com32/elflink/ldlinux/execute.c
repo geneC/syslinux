@@ -96,6 +96,10 @@ void execute(const char *cmdline, enum kernel_type type)
 		/* kernel contains the config file name */
 		realpath(ConfigName, kernel, FILENAME_MAX);
 
+		/* If we got anything on the command line, do a chdir */
+		if (*args)
+			mangle_name(config_cwd, args);
+
 		start_ldlinux("ldlinux.c32", 1, argv);
 	} else {
 		/* process the image need int 22 support */

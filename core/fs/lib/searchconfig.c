@@ -5,6 +5,7 @@
 #include <fs.h>
 
 char ConfigName[FILENAME_MAX];
+char config_cwd[FILENAME_MAX];
 
 /*
  * Common implementation of load_config
