@@ -86,10 +86,6 @@ void execute(const char *cmdline, enum kernel_type type)
 		/* new entry for elf format c32 */
 		lfree(kernel);
 		create_args_and_load(cmdline);
-	} else if (type == KT_KERNEL) {
-		/* Need add one item for kernel load, as we don't use
-		* the assembly runkernel.inc any more */
-		new_linux_kernel(kernel, cmdline);
 	} else if (type == KT_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };
 
@@ -101,22 +97,15 @@ void execute(const char *cmdline, enum kernel_type type)
 			mangle_name(config_cwd, args);
 
 		start_ldlinux("ldlinux.c32", 1, argv);
-	} else {
+	} else if (type == KT_LOCALBOOT) {
 		/* process the image need int 22 support */
-		if (type == KT_LOCALBOOT) {
-			ireg.eax.w[0] = 0x0014;	/* Local boot */
-			ireg.edx.w[0] = strtoul(kernel, NULL, 0);
-		} else {
-			ireg.eax.w[0] = 0x0016;	/* Run kernel image */
-			ireg.esi.w[0] = OFFS(kernel);
-			ireg.ds = SEG(kernel);
-			ireg.ebx.w[0] = OFFS(args);
-			ireg.es = SEG(args);
-			ireg.edx.l = type - KT_KERNEL;
-			/* ireg.ecx.l    = 0; *//* We do ipappend "manually" */
-		}
-
+		ireg.eax.w[0] = 0x0014;	/* Local boot */
+		ireg.edx.w[0] = strtoul(kernel, NULL, 0);
 		__intcall(0x22, &ireg, NULL);
+	} else {
+		/* Need add one item for kernel load, as we don't use
+		* the assembly runkernel.inc any more */
+		new_linux_kernel(kernel, cmdline);
 	}
 
 	lfree(kernel);
