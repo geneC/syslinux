@@ -243,7 +243,7 @@ static int iso_open_config(struct com32_filedata *filedata)
 	NULL
     };
 
-    return search_config(filedata, search_directories, filenames);
+    return search_dirs(filedata, search_directories, filenames, ConfigName);
 }
 
 static int iso_fs_init(struct fs_info *fs)

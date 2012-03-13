@@ -30,5 +30,5 @@ int generic_open_config(struct com32_filedata *filedata)
 
     dprintf("CurrentDirName: \"%s\"\n", CurrentDirName);
 
-    return search_config(filedata, search_directories, filenames);
+    return search_dirs(filedata, search_directories, filenames, ConfigName);
 }

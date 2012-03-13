@@ -8,28 +8,28 @@ char ConfigName[FILENAME_MAX];
 char config_cwd[FILENAME_MAX];
 
 /*
- * Common implementation of load_config
- *
  * This searches for a specified set of filenames in a specified set
  * of directories.  If found, set the current working directory to
  * match.
  */
-int search_config(struct com32_filedata *filedata,
-		  const char *search_directories[], const char *filenames[])
+int search_dirs(struct com32_filedata *filedata,
+		const char *search_directories[],
+		const char *filenames[],
+		char *realname)
 {
-    char confignamebuf[FILENAME_MAX];
+    char namebuf[FILENAME_MAX];
     const char *sd, **sdp;
     const char *sf, **sfp;
 
     for (sdp = search_directories; (sd = *sdp); sdp++) {
 	for (sfp = filenames; (sf = *sfp); sfp++) {
-	    snprintf(confignamebuf, sizeof confignamebuf,
+	    snprintf(namebuf, sizeof namebuf,
 		     "%s%s%s",
 		     sd, (*sd && sd[strlen(sd)-1] == '/') ? "" : "/",
 		     sf);
-	    realpath(ConfigName, confignamebuf, FILENAME_MAX);
-	    dprintf("Config search: %s\n", ConfigName);
-	    if (open_file(ConfigName, filedata) >= 0) {
+	    realpath(realname, namebuf, FILENAME_MAX);
+	    dprintf("Directory search: %s\n", realname);
+	    if (open_file(realname, filedata) >= 0) {
 		chdir(sd);
 		return 0;	/* Got it */
 	    }

@@ -218,8 +218,9 @@ int generic_chdir_start(void);
 void generic_mangle_name(char *, const char *);
 
 /* loadconfig.c */
-int search_config(struct com32_filedata *filedata,
-		  const char *search_directores[], const char *filenames[]);
+int search_dirs(struct com32_filedata *filedata,
+		const char *search_directores[], const char *filenames[],
+		char *realname);
 int generic_open_config(struct com32_filedata *filedata);
 
 /* close.c */

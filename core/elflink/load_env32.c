@@ -121,6 +121,7 @@ void load_env32(com32sys_t * regs)
 	struct file_info *fp;
 	int fd;
 	char *argv[] = { LDLINUX, NULL };
+	char *realname;
 
 	static const char *search_directories[] = {
 		"/boot/isolinux",
@@ -155,7 +156,7 @@ void load_env32(com32sys_t * regs)
 	/*
 	 * If we failed to load LDLINUX it could be because our
 	 * current working directory isn't the install directory. Try
-	 * a bit harder to find LDLINUX. If search_config() succeeds
+	 * a bit harder to find LDLINUX. If search_dirs() succeeds
 	 * in finding LDLINUX it will set the cwd.
 	 */
 	fd = opendev(&__file_dev, NULL, O_RDONLY);
@@ -164,7 +165,7 @@ void load_env32(com32sys_t * regs)
 
 	fp = &__file_info[fd];
 
-	if (!search_config(&fp->i.fd, search_directories, filenames))
+	if (!search_dirs(&fp->i.fd, search_directories, filenames, realname))
 		start_ldlinux(argv);
 }
 
