@@ -118,10 +118,14 @@ int main(int argc, char **argv)
 	com32sys_t ireg, oreg;
 	uint8_t *adv;
 	int count = 0;
+	char *config_argv[2] = { NULL, NULL };
 
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 
-	parse_configs(NULL);
+	if (ConfigName[0])
+		config_argv[0] = ConfigName;
+
+	parse_configs(config_argv);
 
 	__syslinux_init();
 	adv = syslinux_getadv(ADV_BOOTONCE, &count);

@@ -71,6 +71,50 @@ static void call_constr(void)
 		(*p) ();
 }
 
+int start_ldlinux(char **argv)
+{
+	int rv;
+
+again:
+	rv = spawn_load(LDLINUX, 1, argv);
+	if (rv == EEXIST) {
+		struct elf_module *m, *mod, *begin = NULL;
+
+		/*
+		 * If a COM32 module calls execute() we may need to
+		 * unload all the modules loaded since ldlinux.c32,
+		 * and restart initialisation. This is especially
+		 * important for config files.
+		 */
+		for_each_module(mod) {
+			if (!strcmp(mod->name, LDLINUX)) {
+				begin = mod;
+				break;
+			}
+		}
+
+		for_each_module_safe(mod, m) {
+			if (mod == begin)
+				break;
+
+			if (mod != begin)
+				module_unload(mod);
+		}
+
+		/*
+		 * Finally unload LDLINUX.
+		 *
+		 * We'll reload it when we jump to 'again' which will
+		 * cause all the initialsation steps to be executed
+		 * again.
+		 */
+		module_unload(begin);
+		goto again;
+	}
+
+	return rv;
+}
+
 /* note to self: do _*NOT*_ use static key word on this function */
 void load_env32(com32sys_t * regs)
 {
@@ -97,7 +141,7 @@ void load_env32(com32sys_t * regs)
 
 	init_module_subsystem(&core_module);
 
-	spawn_load(LDLINUX, 1, argv);
+	start_ldlinux(argv);
 
 	/*
 	 * If we failed to load LDLINUX it could be because our
@@ -112,7 +156,7 @@ void load_env32(com32sys_t * regs)
 	fp = &__file_info[fd];
 
 	if (!search_config(&fp->i.fd, search_directories, filenames))
-		spawn_load(LDLINUX, 1, argv);
+		start_ldlinux(argv);
 }
 
 int create_args_and_load(char *cmdline)

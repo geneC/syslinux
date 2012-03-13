@@ -199,6 +199,12 @@ extern struct list_head modules_head;
 #define for_each_module(m)	list_for_each_entry(m, &modules_head, list)
 
 /**
+ * for_each_module - iterator loop through the list of loaded modules safe against removal.
+ */
+#define for_each_module_safe(m, n)				\
+	list_for_each_entry_safe(m, n, &modules_head, list)
+
+/**
  * modules_init - initialize the module subsystem.
  *
  * This function must be called before any module operation is to be performed.

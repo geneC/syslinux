@@ -5,7 +5,7 @@
  *      Author: Stefan Bucur <stefanb@zytor.com>
  */
 
-
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -475,7 +475,7 @@ int module_load(struct elf_module *module) {
 	// Do not allow duplicate modules
 	if (module_find(module->name) != NULL) {
 		DBG_PRINT("Module %s is already loaded.\n", module->name);
-		return -1;
+		return EEXIST;
 	}
 
 	// Get a mapping/copy of the ELF file in memory

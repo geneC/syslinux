@@ -19,6 +19,7 @@
 #include <sys/exec.h>
 #include "core.h"
 #include "menu.h"
+#include "fs.h"
 
 /* Must match enum kernel_type */
 const char *const kernel_types[] = {
@@ -74,8 +75,10 @@ void execute(const char *cmdline, enum kernel_type type)
 		/* It might be a type specifier */
 		enum kernel_type type = KT_NONE;
 		for (pp = kernel_types; *pp; pp++, type++) {
-			if (!strcmp(kernel + 1, *pp))
-				execute(p, type);	/* Strip the type specifier and retry */
+			if (!strcmp(kernel + 1, *pp)) {
+				/* Strip the type specifier and retry */
+				execute(p, type);
+			}
 		}
 	}
 
@@ -88,9 +91,12 @@ void execute(const char *cmdline, enum kernel_type type)
 		* the assembly runkernel.inc any more */
 		new_linux_kernel(kernel, cmdline);
 	} else if (type == KT_CONFIG) {
+		char *argv[] = { "ldlinux.c32", NULL };
+
 		/* kernel contains the config file name */
-		char *spawn_load_param[2] = { args, NULL };
-		spawn_load(kernel, 1, spawn_load_param);
+		realpath(ConfigName, kernel, FILENAME_MAX);
+
+		start_ldlinux("ldlinux.c32", 1, argv);
 	} else {
 		/* process the image need int 22 support */
 		if (type == KT_LOCALBOOT) {
