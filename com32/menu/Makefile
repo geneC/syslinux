@@ -24,7 +24,7 @@ MODULES	  = menu.c32 vesamenu.c32
 TESTFILES =
 
 COMMONOBJS = menumain.o readconfig.o passwd.o drain.o printmsg.o colors.o \
-	background.o refstr.o execute.o
+	background.o refstr.o
 
 all: $(MODULES) $(TESTFILES)
 
