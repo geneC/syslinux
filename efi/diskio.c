@@ -1,4 +1,3 @@
-#define DEBUG 1
 #include <fs.h>
 #include <ilog2.h>
 #include <disk.h>
@@ -69,9 +68,8 @@ struct disk *efi_disk_init(struct disk_private *priv)
     disk.rdwr_sectors  = efi_rdwr_sectors;
     disk.sector_shift  = ilog2(disk.sector_size);
 
-    dprintf("foo!\n");
-    Print(L"sector_size=%d, disk_number=%d\n", disk.sector_size,
-	  disk.disk_number);
+    dprintf("sector_size=%d, disk_number=%d\n", disk.sector_size,
+	    disk.disk_number);
 
     priv->bio = bio;
     priv->dio = dio;
