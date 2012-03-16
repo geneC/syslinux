@@ -438,6 +438,14 @@ void __ansi_putchar(const struct term_info *ti, uint8_t ch)
 	op->scroll_up(st);
     }
 
+    /*
+     * Testing on EFI shows that from (rows-1)th line newline does not
+     * advance anymore.  All further output is always on the same
+     * (rows-1)th line.  Resetting the row to 0 does work.
+     */
+    if (xy.y == rows-1)
+	xy.y = 0;
+
     /* Update cursor position */
     op->set_cursor(xy.x, xy.y, st->cursor);
     st->xy = xy;

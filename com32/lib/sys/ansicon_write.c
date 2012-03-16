@@ -273,7 +273,11 @@ static void ansicon_scroll_up(const struct term_state *st)
 {
     uint8_t rows, cols, attribute;
 
-    cols = ti.cols = 1;
+    /*
+     * Earlier code set ti.cols to 1 causing console output one char
+     * per line.
+     */
+    cols = 1;
     rows = ti.rows - 1;
     attribute = ansicon_attribute(st);
 

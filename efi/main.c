@@ -110,7 +110,10 @@ static UINTN cursor_x, cursor_y;
 static void efi_erase(const struct term_state *st,
 		       int x0, int y0, int x1, int y1)
 {
+	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	cursor_x = cursor_y = 0;
+	/* Really clear the screen */
+	uefi_call_wrapper(out->ClearScreen, 1, out);
 }
 
 static void efi_write_char(uint8_t ch, uint8_t attribute)
@@ -146,7 +149,7 @@ static void efi_scroll_up(uint8_t cols, uint8_t rows, uint8_t attribute)
 }
 
 
-static void efi_get_mode(int *rows, int *cols)
+static void efi_get_mode(int *cols, int *rows)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	UINTN c, r;
