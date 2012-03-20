@@ -53,7 +53,7 @@ SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 COBJS	 = $(filter-out rawcon.o plaincon.o,$(COBJ))
 
 LIB	 = libcom32.a
-LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32min.a
+LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32core.a
 LIBDEP   = $(filter-out -% %start%,$(LIBS))
 LIBOBJS	 = $(COBJS) $(SOBJ)
 
