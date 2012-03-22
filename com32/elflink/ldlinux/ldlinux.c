@@ -121,7 +121,6 @@ int main(int argc, char **argv)
 
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
 
-	__syslinux_get_ipappend_strings();
 	parse_configs(NULL);
 
 	__syslinux_init();

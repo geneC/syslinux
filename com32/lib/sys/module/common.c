@@ -381,7 +381,7 @@ int module_unloadable(struct elf_module *module) {
 
 
 // Unloads the module from the system and releases all the associated memory
-int module_unload(struct elf_module *module) {
+int _module_unload(struct elf_module *module) {
 	struct module_dep *crt_dep, *tmp;
 	// Make sure nobody needs us
 	if (!module_unloadable(module)) {
@@ -410,6 +410,14 @@ int module_unload(struct elf_module *module) {
 	return 0;
 }
 
+int module_unload(struct elf_module *module) {
+	module_ctor_t *dtor;
+
+	for (dtor = module->dtors; *dtor; dtor++)
+		(*dtor) ();
+
+	return _module_unload(module);
+}
 
 static Elf32_Sym *module_find_symbol_sysv(const char *name, struct elf_module *module) {
 	unsigned long h = elf_hash((const unsigned char*)name);

@@ -24,31 +24,12 @@
 /*
  * Some common information about what kind of modules we're dealing with
  */
-#define UNKNOWN_MODULE			-1
 #define EXEC_MODULE			0		
 #define LIB_MODULE			1
 
 /*
  * Initialization and finalization function signatures
  */
-
-
-/**
- * module_init_t - pointer to a initialization routine
- *
- * The initialization routine is called after all module constructors were invoked.
- * It takes no parameters and returns 0 if the module was initialized successfully,
- * or a non-zero value if errors have occurred.
- */
-typedef int (*module_init_t)(void);
-
-/**
- * module_exit_t - pointer to a finalization routine
- *
- * The finalization routine is called before the module destructors are to be invoked.
- * It simply executes some cleanup code, without error reporting.
- */
-typedef void (*module_exit_t)(void);
 
 /**
  * module_main_t - pointer to an entry routine
@@ -58,6 +39,14 @@ typedef void (*module_exit_t)(void);
  */
 typedef int (*module_main_t)(int, char**);
 
+/**
+ * module_ctor_t - pointer to a constructor or destructor routine
+ *
+ * A module may have multiple routines that need to be executed before
+ * or after the main routine. These are the constructors and
+ * destructors, respectively.
+ */
+typedef void (*module_ctor_t) (void);
 
 /**
  * struct elf_module - structure encapsulating a module loaded in memory.
@@ -95,10 +84,9 @@ struct elf_module {
 	struct list_head	dependants;		// Head of module dependants list
 	struct list_head	list;		// The list entry in the module list
 
-	module_init_t		*init_func;	// The initialization entry point
-	module_exit_t		*exit_func;	// The module finalization code
+	module_ctor_t		*ctors;		// module constructors
+	module_ctor_t		*dtors;		// module destructors
 	module_main_t		main_func; // The main function (for executable modules)
-
 
 	void				*module_addr; // The module location in the memory
 	Elf32_Addr			base_addr;	// The base address of the module

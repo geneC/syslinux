@@ -454,17 +454,14 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     return len ? ret : NULL;
 }
 
-static int cli_init(void)
+static int __constructor cli_init(void)
 {
 	INIT_LIST_HEAD(&cli_history_head);
 
 	return 0;
 }
 
-static void cli_exit(void)
+static void __destructor cli_exit(void)
 {
 	/* Nothing to do */
 }
-
-MODULE_INIT(cli_init);
-MODULE_EXIT(cli_exit);

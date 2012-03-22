@@ -20,7 +20,7 @@ LIBS = --whole-archive $(com32)/lib/libcom32min.a
 all: ldlinux.c32 ldlinux_lnx.a
 
 ldlinux.c32 : ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o \
-		adv.o ipappend.o execute.o kernel.o get_key.o \
+		adv.o execute.o kernel.o get_key.o \
 		advwrite.o setadv.o eprintf.o
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

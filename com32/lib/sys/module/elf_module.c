@@ -398,40 +398,79 @@ static int resolve_symbols(struct elf_module *module) {
 	return 0;
 }
 
-
-
 static int extract_operations(struct elf_module *module) {
-	Elf32_Sym *init_sym = module_find_symbol(MODULE_ELF_INIT_PTR, module);
-	Elf32_Sym *exit_sym = module_find_symbol(MODULE_ELF_EXIT_PTR, module);
-	Elf32_Sym *main_sym = module_find_symbol("main", module);
+	Elf32_Sym *ctors_start, *ctors_end;
+	Elf32_Sym *dtors_start, *dtors_end;
+	module_ctor_t *ctors, *dtors;
 
-	if (init_sym) {
-		module->init_func = (module_init_t*)module_get_absolute(
-			init_sym->st_value, module);
-		if (*(module->init_func) == NULL) {
-			module->init_func = NULL;
+	ctors_start = module_find_symbol("__ctors_start", module);
+	ctors_end = module_find_symbol("__ctors_end", module);
+
+	if (ctors_start && ctors_end) {
+		module_ctor_t *start, *end;
+		int nr_ctors = 0;
+		int i, size;
+
+		start = module_get_absolute(ctors_start->st_value, module);
+		end = module_get_absolute(ctors_end->st_value, module);
+
+		nr_ctors = end - start;
+
+		size = nr_ctors * sizeof(module_ctor_t);
+		size += sizeof(module_ctor_t); /* NULL entry */
+
+		ctors = malloc(size);
+		if (!ctors) {
+			printf("Unable to alloc memory for ctors\n");
+			return -1;
 		}
+
+		memset(ctors, 0, size);
+		for (i = 0; i < nr_ctors; i++)
+			ctors[i] = start[i];
+
+		module->ctors = ctors;
 	}
 
-	if (exit_sym) {
-		module->exit_func = (module_exit_t*)module_get_absolute(
-			exit_sym->st_value, module);
-		if (*(module->exit_func) == NULL) {
-			module->exit_func = NULL;
-		}
-	}
+	dtors_start = module_find_symbol("__dtors_start", module);
+	dtors_end = module_find_symbol("__dtors_end", module);
 
-	if (main_sym)
-		module->main_func =
-			module_get_absolute(main_sym->st_value, module);
+	if (dtors_start && dtors_end) {
+		module_ctor_t *start, *end;
+		int nr_dtors = 0;
+		int i, size;
+
+		start = module_get_absolute(dtors_start->st_value, module);
+		end = module_get_absolute(dtors_end->st_value, module);
+
+		nr_dtors = end - start;
+
+		size = nr_dtors * sizeof(module_ctor_t);
+		size += sizeof(module_ctor_t); /* NULL entry */
+
+		dtors = malloc(size);
+		if (!dtors) {
+			printf("Unable to alloc memory for dtors\n");
+			free(ctors);
+			return -1;
+		}
+
+		memset(dtors, 0, size);
+		for (i = 0; i < nr_dtors; i++)
+			dtors[i] = start[i];
+
+		module->dtors = dtors;
+	}
 
 	return 0;
 }
 
 // Loads the module into the system
 int module_load(struct elf_module *module) {
-	int res;
+	int res, i;
+	Elf32_Sym *main_sym;
 	Elf32_Ehdr elf_hdr;
+	module_ctor_t *ctor;
 
 	// Do not allow duplicate modules
 	if (module_find(module->name) != NULL) {
@@ -505,8 +544,11 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, check_symbols(module), error);
 	//printf("check... 5\n");
 
-	// Obtain constructors and destructors
-	CHECKED(res, extract_operations(module), error);
+	main_sym = module_find_symbol("main", module);
+	if (main_sym)
+		module->main_func =
+			module_get_absolute(main_sym->st_value, module);
+
 	//printf("check... 6\n");
 
 	// Add the module at the beginning of the module list
@@ -514,6 +556,9 @@ int module_load(struct elf_module *module) {
 
 	// Perform the relocations
 	resolve_symbols(module);
+
+	// Obtain constructors and destructors
+	CHECKED(res, extract_operations(module), error);
 
 	//dprintf("module->symtable_size = %d\n", module->symtable_size);
 
@@ -529,6 +574,10 @@ int module_load(struct elf_module *module) {
 			(module->init_func == NULL) ? NULL : *(module->init_func),
 			(module->exit_func == NULL) ? NULL : *(module->exit_func));
 	*/
+
+	for (ctor = module->ctors; *ctor; ctor++)
+		(*ctor) ();
+
 	return 0;
 
 error:

@@ -47,64 +47,7 @@ int exec_init(void)
 int get_module_type(struct elf_module *module)
 {
 	if(module->main_func) return EXEC_MODULE;
-	else if(module->init_func) return LIB_MODULE;
-	return UNKNOWN_MODULE;
-}
-
-int load_library(const char *name)
-{
-	int res;
-	struct elf_module *module = module_alloc(name);
-
-	if (module == NULL)
-		return -1;
-
-	res = module_load(module);
-	if (res != 0) {
-		module_unload(module);
-		return res;
-	}
-
-	if (module->main_func != NULL) {
-		DBG_PRINT("Cannot load executable module as library.\n");
-		module_unload(module);
-		return -1;
-	}
-
-	if (module->init_func != NULL) {
-		res = (*(module->init_func))();
-		if (res)
-			DBG_PRINT("Initialization error! function returned: %d\n", res);
-	} else {
-		DBG_PRINT("No initialization function present.\n");
-	}
-
-	if (res != 0) {
-		module_unload(module);
-		return res;
-	}
-
-	return 0;
-}
-
-int unload_library(const char *name)
-{
-	int res;
-	struct elf_module *module = module_find(name);
-
-	if (module == NULL)
-		return -1;
-
-	if (!module_unloadable(module)) {
-		return -1;
-	}
-
-	if (module->exit_func != NULL) {
-		(*(module->exit_func))();
-	}
-
-	res = module_unload(module);
-	return res;
+	return LIB_MODULE;
 }
 
 jmp_buf __process_exit_jmp;
@@ -243,7 +186,6 @@ int spawn_load(const char *name, int argc, char **argv)
 	//malloc_tag_t prev_mem_tag;
 	struct elf_module *module = module_alloc(name);
 	struct elf_module *prev_module;
-
 	int type;
 
 	dprintf("enter: name = %s", name);
@@ -277,7 +219,7 @@ int spawn_load(const char *name, int argc, char **argv)
 
 	res = module_load(module);
 	if (res != 0) {
-		module_unload(module);
+		_module_unload(module);
 		return res;
 	}
 
@@ -288,23 +230,7 @@ int spawn_load(const char *name, int argc, char **argv)
 	dprintf("type = %d, prev = %s, cur = %s",
 		type, prev_module->name, cur_module->name);
 
-	if(type==LIB_MODULE)
-	{
-		if (module->init_func != NULL) {
-			res = (*(module->init_func))();
-			DBG_PRINT("Initialization function returned: %d\n", res);
-		} else {
-			DBG_PRINT("No initialization function present.\n");
-		}
-
-		if (res != 0) {
-			cur_module = prev_module;
-			module_unload(module);
-			return res;
-		}
-		return 0;
-	}
-	else if(type==EXEC_MODULE)
+	if(type==EXEC_MODULE)
 	{
 		previous = __syslinux_current;
 		//prev_mem_tag = __mem_get_tag_global();
@@ -323,7 +249,6 @@ int spawn_load(const char *name, int argc, char **argv)
 		else
 			exit((module->main_func)(argc, argv)); /* Actually run! */
 
-
 		// Clean up the allocation context
 		//__free_tagged(module);
 		// Restore the allocation context
@@ -340,10 +265,8 @@ int spawn_load(const char *name, int argc, char **argv)
 
 		return ((unsigned int)ret_val & 0xFF);
 	}
-	/*
-	module_unload(module);
-	return -1;
-	*/
+
+	return 0;
 }
 
 void exec_term(void)

@@ -55,29 +55,6 @@ extern int exec_init(void);
 
 
 /**
- * load_library - Loads a dynamic library into the environment.
- * @name: 	the name of the library to load, including the extension
- * 			(e.g. 'sort.c32')
- *
- * A dynamic library is an ELF module that may contain initialization and
- * termination routines, but not a main routine. At the same time, any memory
- * allocations using malloc() and its derivatives are made on behalf of the
- * currently executing program or the COM32 root module. If the library
- * is unloaded, no memory cleanup is performed.
- */
-extern int load_library(const char *name);
-
-/**
- * unload_library - unloads a library from the environment.
- * @name:	the name of the library to unload, including the extension
- * 			(e.g. 'sort.c32')
- *
- * Note that no memory allocated by the library code is cleaned up, as the
- * allocations belong to the innermost calling program in the call stack.
- */
-extern int unload_library(const char *name);
-
-/**
  * spawnv - Executes a program in the current environment.
  * @name:	the name of the program to spawn, including the extension
  * 			(e.g. 'hello.c32')
