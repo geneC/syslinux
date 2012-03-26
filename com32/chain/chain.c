@@ -471,10 +471,10 @@ static int setup_handover(const struct part_iter *iter,
 #ifdef DEBUG
 	dprintf("MBR handover:\n");
 	disk_dos_part_dump(ha);
+#endif
     } else {
 	/* shouldn't ever happen */
 	goto bail;
-#endif
     }
 
     data->base = 0x7be;
