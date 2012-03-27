@@ -35,7 +35,7 @@ struct menu *root_menu, *start_menu, *hide_menu, *menu_list;
 /* These are global parameters regardless of which menu we're displaying */
 int shiftkey = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu = 0;
-int clearmenu = 0;
+int clearmenu = 1;
 long long totaltimeout = 0;
 const char *hide_key[KEY_MAX];
 
@@ -744,6 +744,8 @@ static void parse_config_file(FILE * f)
 		refstr_put(command);
 	    } else if ((ep = looking_at(p, "clear"))) {
 		clearmenu = 1;
+	    } else if ((ep = looking_at(p, "noclear"))) {
+		clearmenu = 0;
 	    } else if ((ep = is_message_name(p, &msgnr))) {
 		refstr_put(m->messages[msgnr]);
 		m->messages[msgnr] = refstrdup(skipspace(ep));

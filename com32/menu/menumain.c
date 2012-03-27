@@ -1108,7 +1108,7 @@ int main(int argc, char *argv[])
 {
     const char *cmdline;
     struct menu *m;
-    int rows, cols;
+    int rows, cols, cursorrow;
     int i;
 
     (void)argc;
@@ -1150,11 +1150,15 @@ int main(int argc, char *argv[])
 	local_cursor_enable(true);
 	cmdline = run_menu();
 
-	if (clearmenu)
+	if (clearmenu) {
 	    clear_screen();
+	    cursorrow = 1;
+	} else {
+	    cursorrow = END_ROW;
+	}
 
 	local_cursor_enable(false);
-	printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
+	printf("\033[?25h\033[%d;1H\033[0m", cursorrow);
 
 	if (cmdline) {
 	    execute(cmdline, KT_NONE);
