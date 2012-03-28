@@ -181,6 +181,8 @@ static inline struct file *handle_to_file(uint16_t handle)
 
 extern char *PATH;
 
+/* fs.c */
+void fs_init(const struct fs_ops **ops, struct disk_private *priv);
 void pm_mangle_name(com32sys_t *);
 void pm_searchdir(com32sys_t *);
 void mangle_name(char *, const char *);

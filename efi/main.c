@@ -653,7 +653,7 @@ bail:
 	return -1;
 }
 
-extern struct disk *efi_disk_init(com32sys_t *);
+extern struct disk *efi_disk_init(EFI_HANDLE);
 extern void serialcfg(uint16_t *, uint16_t *, uint16_t *);
 
 struct firmware efi_fw = {
@@ -685,7 +685,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 {
 	EFI_LOADED_IMAGE *info;
 	EFI_STATUS status = EFI_SUCCESS;
-	struct fs_ops *ops[] = { &vfat_fs_ops, NULL };
+	const struct fs_ops *ops[] = { &vfat_fs_ops, NULL };
 	unsigned long len = (unsigned long)__bss_end - (unsigned long)__bss_start;
 	static struct disk_private priv;
 

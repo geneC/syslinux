@@ -25,13 +25,14 @@ struct adv_ops {
 };
 
 struct disk_private;
+struct initramfs;
 
 struct firmware {
 	void (*init)(void);
 	int (*scan_memory)(scan_memory_callback_t, void *);
 	void (*adjust_screen)(void);
 	void (*cleanup)(void);
-	struct disk *(*disk_init)(struct disk_private *);
+	struct disk *(*disk_init)(void *);
 	struct output_ops *o_ops;
 	struct input_ops *i_ops;
 	char *(*get_config_file_name)(void);
