@@ -5,11 +5,11 @@
 static void idle_thread_func(void *dummy)
 {
     (void)dummy;
-    sti();
 
     for (;;) {
-	thread_yield();
-	asm volatile("hlt");
+	cli();
+	__schedule();
+	asm volatile("sti ; hlt" : : : "memory");
     }
 }
 
