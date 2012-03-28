@@ -24,6 +24,8 @@ struct adv_ops {
 	int (*write)(void);
 };
 
+struct disk_private;
+
 struct firmware {
 	void (*init)(void);
 	int (*scan_memory)(scan_memory_callback_t, void *);

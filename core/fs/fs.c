@@ -433,7 +433,7 @@ void pm_close_file(com32sys_t *regs)
  */
 __bss16 uint16_t SectorSize, SectorShift;
 
-void fs_init(const struct fs_ops **ops, void *args)
+void fs_init(const struct fs_ops **ops, struct disk_private *priv)
 {
     static struct fs_info fs;	/* The actual filesystem buffer */
     int blk_shift = -1;
@@ -457,7 +457,7 @@ void fs_init(const struct fs_ops **ops, void *args)
 	    fs.fs_dev = NULL;
 	} else {
 	    if (!dev)
-		dev = device_init(args);
+		dev = device_init(priv);
 	    fs.fs_dev = dev;
 	}
 	/* invoke the fs-specific init code */
@@ -488,9 +488,4 @@ void fs_init(const struct fs_ops **ops, void *args)
 
     SectorShift = fs.sector_shift;
     SectorSize  = fs.sector_size;
-}
-
-void pm_fs_init(com32sys_t *regs)
-{
-	fs_init(regs->eax.l, regs);
 }

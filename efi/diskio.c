@@ -5,11 +5,6 @@
 #include <dprintf.h>
 #include "efi.h"
 
-struct disk_efi_private {
-	EFI_BLOCK_IO *bio;
-	EFI_DISK_IO *dio;
-};
-
 static inline EFI_STATUS read_blocks(EFI_BLOCK_IO *bio, uint32_t id, 
 				     sector_t lba, UINTN bytes, void *buf)
 {
@@ -25,7 +20,7 @@ static inline EFI_STATUS write_blocks(EFI_BLOCK_IO *bio, uint32_t id,
 static int efi_rdwr_sectors(struct disk *disk, void *buf,
 			    sector_t lba, size_t count, bool is_write)
 {
-	struct disk_efi_private *priv = disk->private;
+	struct disk_private *priv = disk->private;
 	EFI_BLOCK_IO *bio = priv->bio;
 	EFI_DISK_IO *dio = priv->dio;
 	EFI_STATUS status;
@@ -45,10 +40,10 @@ static int efi_rdwr_sectors(struct disk *disk, void *buf,
 	return count << disk->sector_shift;
 }
 
-struct disk *efi_disk_init(EFI_HANDLE handle)
+struct disk *efi_disk_init(struct disk_private *priv)
 {
-    static struct disk_efi_private priv;
     static struct disk disk;
+    EFI_HANDLE handle = priv->dev_handle;
     unsigned int hard_max_transfer;
     EFI_BLOCK_IO *bio;
     EFI_DISK_IO *dio;
@@ -78,9 +73,9 @@ struct disk *efi_disk_init(EFI_HANDLE handle)
     Print(L"sector_size=%d, disk_number=%d\n", disk.sector_size,
 	  disk.disk_number);
 
-    priv.bio = bio;
-    priv.dio = dio;
-    disk.private = &priv;
+    priv->bio = bio;
+    priv->dio = dio;
+    disk.private = priv;
 #if 0
 
     disk.part_start    = part_start;

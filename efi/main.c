@@ -687,6 +687,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	EFI_STATUS status = EFI_SUCCESS;
 	struct fs_ops *ops[] = { &vfat_fs_ops, NULL };
 	unsigned long len = (unsigned long)__bss_end - (unsigned long)__bss_start;
+	static struct disk_private priv;
 
 	memset(__bss_start, 0, len);
 	InitializeLib(image, table);
@@ -711,7 +712,8 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	/* TODO: once all errors are captured in efi_errno, bail out if necessary */
 
 	/* XXX figure out what file system we're on */
-	fs_init(ops, info->DeviceHandle);
+	priv.dev_handle = info->DeviceHandle;
+	fs_init(ops, &priv);
 	load_env32();
 
 out:
