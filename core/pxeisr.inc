@@ -5,6 +5,7 @@
 
 		global pxe_isr
 pxe_isr:
+		cld
 		pusha
 		push ds
 		push es
@@ -36,17 +37,11 @@ pxe_isr:
 		; leftover BC doesn't get control.
 		mov byte [pxe_irq_pending],1
 
-		mov al,[pxe_irq_vector]
-		cmp al,8
-		jae .aux_pic
+		cmp byte [pxe_irq_vector], 8
+		mov al,0x20		; Non-specific EOI
+		jb .pri_pic
 
-		add al,0x60		; Specific EOI
-		jmp .pri_pic
-
-.aux_pic:
-		add al,0x60-8
-		out 0xA0,al		; Secondary PIC
-		mov al,0x62		; Specific EOI, cascade interrupt
+		out 0xA0, al		; Secondary PIC
 .pri_pic:
 		out 0x20,al		; Primary PIC
 
@@ -66,6 +61,49 @@ pxe_isr:
 		jmp 0:0
 		global pxe_irq_chain
 pxe_irq_chain	equ $-4
+
+
+; Emulate a PXE interrupt from the polling thread
+		global pxe_poll
+pxe_poll:
+		pushf
+		cli
+		cld
+		pusha
+		push ds
+		push es
+		push fs
+		push gs
+
+		mov bx,PXENV_UNDI_ISR
+		mov di,pxenv_undi_isr_buf
+
+		mov cx,pxenv_undi_isr_buf.size/2
+		push di
+		rep stosw
+		pop di
+		
+		mov byte [pxenv_undi_isr_buf.funcflag],PXENV_UNDI_ISR_IN_START
+
+		call pxenv
+		jc .notus
+
+		cmp word [pxenv_undi_isr_buf.funcflag],PXENV_UNDI_ISR_OUT_OURS
+		jne .notus
+
+		; Its ours - set the flag for the return to PM.
+		; We need to EOI this ourselves, so that the
+		; leftover BC doesn't get control.
+		mov byte [pxe_irq_pending],1
+
+.notus:
+		pop gs
+		pop fs
+		pop es
+		pop ds
+		popa
+		popf
+		ret
 
 		section .bss16
 		alignb 4

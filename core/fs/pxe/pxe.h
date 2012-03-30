@@ -186,6 +186,7 @@ extern const uint8_t TimeoutTable[];
 extern uint8_t pxe_irq_vector;
 extern void pxe_isr(void);
 extern far_ptr_t pxe_irq_chain;
+extern void pxe_poll(void);
 
 /* isr.c */
 void pxe_init_isr(void);
