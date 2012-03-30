@@ -21,7 +21,6 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     far_ptr_t *entry;
     unsigned int vec;
     uint8_t mask;
-    uint16_t maskreg;
     irq_state_t irqstate;
 
     if (irq < 8)
@@ -38,10 +37,18 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     entry->ptr = (uint32_t)isr;
 
     /* Enable this interrupt at the PIC level, just in case... */
-    maskreg = 0x21 + ((irq & 8) << (7-3));
-    mask = inb(maskreg);
-    mask &= ~(1 << (irq & 3));
-    outb(mask, maskreg);
+    if (irq >= 8) {
+	mask = inb(0x21);
+	mask &= ~(1 << 2);	/* Enable cascade */
+	outb(mask, 0x21);
+ 	mask = inb(0xa1);
+	mask &= ~(1 << (irq & 3));
+	outb(0xa1, mask);
+    } else {
+ 	mask = inb(0x21);
+	mask &= ~(1 << (irq & 3));
+	outb(0x21, mask);
+    }
 
     irq_restore(irqstate);
 
@@ -185,13 +192,19 @@ void pxe_init_isr(void)
  */
 void pxe_start_isr(void)
 {
-    pxe_irq_vector = pxe_undi_info.IntNumber; /* Used in 16-bit code */
+    int irq = pxe_undi_info.IntNumber;
 
-    if (pxe_undi_info.IntNumber)
-	install_irq_vector(pxe_undi_info.IntNumber, pxe_isr, &pxe_irq_chain);
+    if (irq == 2)
+	irq = 9;		/* IRQ 2 is really IRQ 9 */
+    else if (irq > 15)
+	irq = 0;		/* Invalid IRQ */
+
+    pxe_irq_vector = irq;
+
+    if (irq)
+	install_irq_vector(irq, pxe_isr, &pxe_irq_chain);
     
-    if (!pxe_undi_info.IntNumber ||
-	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
+    if (!irq ||	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
 	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
 				   pxe_poll_thread, NULL);
 }
@@ -210,8 +223,8 @@ int reset_pxe(void)
     if (undi_close.Status)
 	printf("PXENV_UNDI_CLOSE failed: 0x%x\n", undi_close.Status);
 
-    if (pxe_undi_info.IntNumber)
-	uninstall_irq_vector(pxe_undi_info.IntNumber, pxe_isr, &pxe_irq_chain);
+    if (pxe_irq_vector)
+	uninstall_irq_vector(pxe_irq_vector, pxe_isr, &pxe_irq_chain);
     if (poll_thread)
 	kill_thread(poll_thread);
 
