@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <com32.h>
 #include <string.h>
+#include <fs.h>
 #include "file.h"
 
 int __file_close(struct file_info *fp)
