@@ -9,7 +9,7 @@
 char *lstrdup(const char *s)
 {
     int l = strlen(s) + 1;
-    char *d = clmalloc(l);
+    char *d = lmalloc(l);
 
     if (d)
 	memcpy(d, s, l);
