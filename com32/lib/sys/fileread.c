@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <string.h>
 #include <com32.h>
+#include <pmapi.h>
 #include <syslinux/pmapi.h>
 #include <minmax.h>
 #include "file.h"
