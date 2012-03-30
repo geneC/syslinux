@@ -120,23 +120,6 @@ struct elf_module {
 
 };
 
-static inline void dump_elf_module(struct elf_module *module)
-{
-	/*
-	dprintf("module name = %s", module->name);
-	printf("base_addr = 0x%p, module_size = %d\n", module->base_addr, module->module_size);
-	printf("hash tlb = 0x%p, ghash tbl = 0x%p\n", module->hash_table, module->ghash_table);
-	printf("str tbl = 0x%p, size = %d\n", module->str_table, module->strtable_size);
-	printf("sym tbl = 0x%p, entry = %d, size = %d\n", module->sym_table, module->syment_size, module->symtable_size);
-	printf("init: %p", module->init_func);
-	printf("main: %p", module->main_func);
-	printf("exit: %p", module->exit_func);
-	printf("", module->base_addr);
-	printf("", module->base_addr);
-	printf("", module->base_addr);
-	*/
-}
-
 /**
  * struct module_dep - structure encapsulating a module dependency need
  *

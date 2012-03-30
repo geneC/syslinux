@@ -504,8 +504,6 @@ int module_load(struct elf_module *module) {
 	nr_needed = 0;
 	CHECKED(res, prepare_dynlinking(module), error);
 	//printf("check... 4\n");
-	//
-	//dump_elf_module(module);
 
 	/* Find modules we need to load as dependencies */
 	if (module->str_table) {
