@@ -39,8 +39,11 @@ struct thread_block {
     bool timed_out;
 };
 
+#define THREAD_MAGIC 0x3568eb7d
+
 struct thread {
     struct thread_stack *esp;	/* Must be first; stack pointer */
+    unsigned int thread_magic;
     const char *name;		/* Name (for debugging) */
     struct thread_list  list;
     struct thread_block *blocked;

@@ -1,6 +1,8 @@
+#include <klibc/compiler.h>
 #include <sys/cpu.h>
 #include "thread.h"
 #include "core.h"
+#include <dprintf.h>
 
 void (*sched_hook_func)(void);
 
@@ -13,12 +15,21 @@ void __schedule(void)
     struct thread *curr = current();
     struct thread *st, *nt, *best;
 
+#if DEBUG
+    if (__unlikely(irq_state() & 0x200)) {
+	dprintf("In __schedule with interrupts on!\n");
+	kaboom();
+    }
+#endif
+
     /*
      * Are we called from inside sched_hook_func()?  If so we'll
      * schedule anyway on the way out.
      */
     if (in_sched_hook)
 	return;
+
+    dprintf("Schedule ");
 
     /* Possibly update the information on which we make
      * scheduling decisions.
@@ -37,17 +48,36 @@ void __schedule(void)
     best = NULL;
     nt = st = container_of(curr->list.next, struct thread, list);
     do {
-	if (!nt->blocked)
+	if (__unlikely(nt->thread_magic != THREAD_MAGIC)) {
+	    dprintf("Invalid thread on thread list %p magic = 0x%08x\n",
+		    nt, nt->thread_magic);
+	    kaboom();
+	}
+
+	dprintf("Thread %p (%s) ", nt, nt->name);
+	if (!nt->blocked) {
+	    dprintf("runnable priority %d\n", nt->prio);
 	    if (!best || nt->prio < best->prio)
 		best = nt;
+	} else {
+	    dprintf("blocked\n");
+	}
 	nt = container_of(nt->list.next, struct thread, list);
     } while (nt != st);
 
     if (!best)
 	kaboom();		/* No runnable thread */
 
-    if (best != curr)
+    if (best != curr) {
+	uint64_t tsc;
+	
+	asm volatile("rdtsc" : "=A" (tsc));
+	
+	dprintf("@ %llu -> %p (%s)\n", tsc, best, best->name);
 	__switch_to(best);
+    } else {
+	dprintf("no change\n");
+    }
 }
 
 /*

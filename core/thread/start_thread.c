@@ -5,6 +5,8 @@
 #include "thread.h"
 
 #define REAL_MODE_STACK_SIZE	4096
+#define MIN_STACK_SIZE		16384
+#define THREAD_ALIGN		64 	/* Thread alignment */
 
 extern void __start_thread(void);
 
@@ -14,8 +16,11 @@ struct thread *start_thread(const char *name, size_t stack_size, int prio,
     irq_state_t irq;
     struct thread *curr, *t;
     char *stack, *rmstack;
-    const size_t thread_mask = 31; /* Alignment mask */
+    const size_t thread_mask = THREAD_ALIGN - 1;
     struct thread_stack *sp;
+
+    if (stack_size < MIN_STACK_SIZE)
+	stack_size = MIN_STACK_SIZE;
 
     stack_size = (stack_size + thread_mask) & ~thread_mask;
     stack = malloc(stack_size + sizeof(struct thread));
@@ -49,6 +54,8 @@ struct thread *start_thread(const char *name, size_t stack_size, int prio,
 
     irq = irq_save();
     curr = current();
+
+    t->thread_magic    = THREAD_MAGIC;
 
     t->list.prev       = &curr->list;
     t->list.next       = curr->list.next;
