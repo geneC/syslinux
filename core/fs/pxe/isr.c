@@ -20,7 +20,7 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 {
     far_ptr_t *entry;
     unsigned int vec;
-    uint8_t mask;
+    uint8_t mask, mymask;
     irq_state_t irqstate;
 
     if (irq < 8)
@@ -37,17 +37,18 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     entry->ptr = (uint32_t)isr;
 
     /* Enable this interrupt at the PIC level, just in case... */
+    mymask = ~(1 << (irq & 7));
     if (irq >= 8) {
 	mask = inb(0x21);
 	mask &= ~(1 << 2);	/* Enable cascade */
 	outb(mask, 0x21);
  	mask = inb(0xa1);
-	mask &= ~(1 << (irq & 3));
-	outb(0xa1, mask);
+	mask &= mymask;
+	outb(mask, 0xa1);
     } else {
  	mask = inb(0x21);
-	mask &= ~(1 << (irq & 3));
-	outb(0x21, mask);
+	mask &= mymask;
+	outb(mask, 0x21);
     }
 
     irq_restore(irqstate);
