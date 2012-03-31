@@ -69,6 +69,7 @@
 #include <getopt.h>
 #include <sysexits.h>
 #include "syslxcom.h"
+#include "syslxfs.h"
 #include "setadv.h"
 #include "syslxopt.h" /* unified options */
 
@@ -294,14 +295,14 @@ int main(int argc, char *argv[])
 	die("can't combine an offset with a block device");
     }
 
-    fs_type = VFAT;
     xpread(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
     fsync(dev_fd);
 
     /*
-     * Check to see that what we got was indeed an MS-DOS boot sector/superblock
+     * Check to see that what we got was indeed an FAT/NTFS
+     * boot sector/superblock
      */
-    if ((errmsg = syslinux_check_bootsect(sectbuf))) {
+    if ((errmsg = syslinux_check_bootsect(sectbuf, &fs_type))) {
 	fprintf(stderr, "%s: %s\n", opt.device, errmsg);
 	exit(1);
     }
@@ -357,10 +358,17 @@ int main(int argc, char *argv[])
 	mntpath = mntname;
     }
 
-    if (do_mount(dev_fd, &mnt_cookie, mntpath, "vfat") &&
-	do_mount(dev_fd, &mnt_cookie, mntpath, "msdos")) {
-	rmdir(mntpath);
-	die("mount failed");
+    if (fs_type == VFAT) {
+        if (do_mount(dev_fd, &mnt_cookie, mntpath, "vfat") &&
+            do_mount(dev_fd, &mnt_cookie, mntpath, "msdos")) {
+            rmdir(mntpath);
+            die("failed on mounting fat volume");
+        }
+    } else if (fs_type == NTFS) {
+        if (do_mount(dev_fd, &mnt_cookie, mntpath, "ntfs-3g")) {
+            rmdir(mntpath);
+            die("failed on mounting ntfs volume");
+        }
     }
 
     ldlinux_path = alloca(strlen(mntpath) + strlen(subdir) + 1);
@@ -474,7 +482,7 @@ umount:
     xpread(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     /* Copy the syslinux code into the boot sector */
-    syslinux_make_bootsect(sectbuf);
+    syslinux_make_bootsect(sectbuf, fs_type);
 
     /* Write new boot sector */
     xpwrite(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);

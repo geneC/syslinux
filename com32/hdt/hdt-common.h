@@ -214,10 +214,12 @@ struct s_hardware {
     char modules_alias_path[255];
     char pciids_path[255];
     char dump_path[255]; /* Dump path on the tftp server */
+    char dump_filename[255]; /* Dump filename on the tftp server */
     char tftp_ip[255];   /* IP address of tftp server (dump mode) */
     char memtest_label[255];
     char auto_label[AUTO_COMMAND_SIZE];
     char vesa_background[255];
+    char postexec[255];
 };
 
 void reset_more_printf(void);

@@ -30,8 +30,10 @@
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/vfs.h>
+
 #include "linuxioctl.h"
 #include "syslxcom.h"
+#include "syslxfs.h"
 
 const char *program;
 
@@ -121,9 +123,9 @@ void clear_attributes(int fd)
 	{
 	    int flags;
 
-	    if (!ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
-		flags &= ~EXT2_IMMUTABLE_FL;
-		ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+	    if (!ioctl(fd, FS_IOC_GETFLAGS, &flags)) {
+		flags &= ~FS_IMMUTABLE_FL;
+		ioctl(fd, FS_IOC_SETFLAGS, &flags);
 	    }
 	    break;
 	}
@@ -133,6 +135,8 @@ void clear_attributes(int fd)
 	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
 	    break;
 	}
+    case NTFS:
+        break;
 	default:
 	    break;
 	}
@@ -151,9 +155,9 @@ void set_attributes(int fd)
 	{
 	    int flags;
 
-	    if (st.st_uid == 0 && !ioctl(fd, EXT2_IOC_GETFLAGS, &flags)) {
-		flags |= EXT2_IMMUTABLE_FL;
-		ioctl(fd, EXT2_IOC_SETFLAGS, &flags);
+	    if (st.st_uid == 0 && !ioctl(fd, FS_IOC_GETFLAGS, &flags)) {
+		flags |= FS_IMMUTABLE_FL;
+		ioctl(fd, FS_IOC_SETFLAGS, &flags);
 	    }
 	    break;
 	}
@@ -163,6 +167,8 @@ void set_attributes(int fd)
 	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
 	    break;
 	}
+    case NTFS:
+        break;
 	default:
 	    break;
 	}

@@ -42,6 +42,7 @@ static void show_partition_information(struct driveinfo *drive_info,
     char ostype[64]={0};
     char *parttype;
     unsigned int start, end;
+    char bootable[6] = {0};
 
     int i = nb_partitions_seen;
     start = partition_offset;
@@ -52,6 +53,10 @@ static void show_partition_information(struct driveinfo *drive_info,
 
     get_label(ptab->ostype, &parttype);
     get_bootloader_string(drive_info, ptab, bootloader_name, 9);
+    if (ptab->active_flag == 0x80)
+    	snprintf(bootable,sizeof(bootable),"%s","true");
+    else
+	snprintf(bootable,sizeof(bootable),"%s","false");
 
     snprintf(ostype,sizeof(ostype),"%02X",ptab->ostype);
 
@@ -62,6 +67,7 @@ static void show_partition_information(struct driveinfo *drive_info,
 	    add_as("partition->size",size)
 	    add_as("partition->type",parttype)
 	    add_as("partition->os_type",ostype)
+	    add_as("partition->boot_flag",bootable)
     END_OF_APPEND;
     free(parttype);
 }
@@ -117,7 +123,9 @@ void show_disk(struct s_hardware *hardware, ZZJSON_CONFIG *conf, ZZJSON **it, in
 
 void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item) {
 	bool found=false;
-	for (int drive = 0x80; drive < 0xff; drive++) {
+
+ 	if (hardware->disks_count > 0)  
+	    for (int drive = 0x80; drive < 0xff; drive++) {
 	        if (hardware->disk_info[drive - 0x80].cbios) {
 			if (found==false) {
 				CREATE_NEW_OBJECT;
@@ -131,7 +139,7 @@ void dump_disks(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **ite
 	if (found==false) {
 		CREATE_NEW_OBJECT;
 		add_b("disks->is_valid",false);
-		FLUSH_OBJECT;
 	}
+	FLUSH_OBJECT;
 	to_cpio("disks");
 }

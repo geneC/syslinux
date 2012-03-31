@@ -11,7 +11,7 @@ WCLOPT	= -6 -osx -mt -bt=DOS -l=COM
 UPX     = upx
 
 NASM    = nasm
-NASMOPT = -O9999
+NASMOPT = -Ox
 
 WCTARGETS = mdiskchk.com
 NSTARGETS = eltorito.sys copybs.com

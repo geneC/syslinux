@@ -110,10 +110,16 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	mv hdt.iso hdt-$(VERSION).iso
 	ln -sf hdt-$(VERSION).iso hdt.iso
 
-release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso
+hdt-hybrid.iso: hdt.iso ../../utils/isohybrid
+	cp hdt-$(VERSION).iso hdt-hybrid-$(VERSION).iso
+	../../utils/isohybrid --partok hdt-hybrid-$(VERSION).iso
+	ln -sf hdt-hybrid-$(VERSION).iso hdt-hybrid.iso
+
+release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso hdt-hybrid.iso
 	mv hdt.c32 hdt_$(NODASH_VERSION).c32
 	md5sum hdt_$(NODASH_VERSION).c32 >$(SUM_FILE)
 	md5sum hdt-$(VERSION).iso >>$(SUM_FILE)
+	md5sum hdt-hybrid-$(VERSION).iso >>$(SUM_FILE)
 	md5sum hdt-$(VERSION).img >>$(SUM_FILE)
 	md5sum hdt-$(VERSION).img.gz >>$(SUM_FILE)
 

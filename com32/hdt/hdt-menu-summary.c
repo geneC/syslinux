@@ -52,8 +52,7 @@ void compute_summarymenu(struct s_my_menu *menu, struct s_hardware *hardware)
     add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
     menu->items_count++;
 
-    char features[SUBMENULEN + 1];
-    memset(features, 0, sizeof(features));
+    char features[255]={0};
     if (hardware->dmi.processor.thread_count != 0)
         sprintf(buffer, ", %d thread", hardware->dmi.processor.thread_count);
     else

@@ -25,6 +25,7 @@
 #include <sysexits.h>
 #include "../version.h"
 #include "syslxcom.h"
+#include "syslxfs.h"
 #include "syslxopt.h"
 
 /* These are the options we can set their values */

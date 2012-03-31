@@ -16,6 +16,9 @@ Changes in 4.10:
 	  prefix _Syslinux_ added, on all http transfers.  This can be
 	  overridden with the SENDCOOKIES configuration file command.
 
+Changes in 4.06:
+	* Support for NTFS, by Paulo Alcantara.
+
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
 	  server.
