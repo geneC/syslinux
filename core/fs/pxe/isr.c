@@ -164,9 +164,12 @@ static void pxe_poll_thread(void *dummy)
     (void)dummy;
 
     for (;;) {
-	thread_yield();
-	if (pxe_isr_poll())
+	cli();
+	if (pxe_receive_thread_sem.count < 0 && pxe_isr_poll())
 	    sem_up(&pxe_receive_thread_sem);
+	__schedule();
+	sti();
+	cpu_relax();
     }
 }
 
