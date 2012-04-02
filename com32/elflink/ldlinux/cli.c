@@ -99,7 +99,7 @@ static const char * cmd_reverse_search(int *cursor)
 	    break;
 	}
 
-	while (last_found != &cli_history_head) {
+	while (!list_is_last(&last_found->list, &cli_history_head)) {
 	    p = strstr(last_found->command, buf);
 	    if (p)
 	        break;
