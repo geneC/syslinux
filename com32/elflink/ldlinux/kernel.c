@@ -15,7 +15,7 @@ const char *append = NULL;
 /* Will be called from readconfig.c */
 int new_linux_kernel(char *okernel, char *ocmdline)
 {
-	const char *kernel_name;
+	const char *kernel_name = NULL;
 	struct initramfs *initramfs = NULL;
 	char *temp;
 	void *kernel_data;
