@@ -117,8 +117,8 @@ static void enter_cmdline(void)
 int main(int argc, char **argv)
 {
 	com32sys_t ireg, oreg;
-	uint8_t *adv;
-	int count = 0;
+	const void *adv;
+	size_t count = 0;
 	char *config_argv[2] = { NULL, NULL };
 
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
@@ -134,10 +134,11 @@ int main(int argc, char **argv)
 		 * We apparently have a boot-once set; clear it and
 		 * then execute the boot-once.
 		 */
-		uint8_t *src, *dst, *cmdline;
-		int i;
+		const char *cmdline;
+		char *src, *dst;
+		size_t i;
 
-		src = adv;
+		src = (char *)adv;
 		cmdline = dst = malloc(count + 1);
 		if (!dst) {
 			printf("Failed to allocate memory for ADV\n");
