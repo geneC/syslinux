@@ -96,7 +96,7 @@ void execute(const char *cmdline, enum kernel_type type)
 		if (*args)
 			mangle_name(config_cwd, args);
 
-		start_ldlinux("ldlinux.c32", 1, argv);
+		start_ldlinux(argv);
 	} else if (type == KT_LOCALBOOT) {
 		/* process the image need int 22 support */
 		ireg.eax.w[0] = 0x0014;	/* Local boot */

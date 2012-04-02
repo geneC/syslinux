@@ -99,4 +99,6 @@ static inline void set_flags(com32sys_t *regs, uint32_t flags)
     regs->eflags.l = eflags;
 }
 
+extern int start_ldlinux(char **argv);
+
 #endif /* CORE_H */
