@@ -139,7 +139,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     bool done = false;
     const char *ret;
     int width = 0;
-    struct cli_command *comm_counter;
+    struct cli_command *comm_counter = NULL;
 
     if (!width) {
 	int height;
