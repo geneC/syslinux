@@ -1352,7 +1352,7 @@ static int parse_one_config(const char *filename)
 
 	if (config_cwd[0]) {
 		chdir(config_cwd);
-		config_cwd[0] = NULL;
+		config_cwd[0] = '\0';
 	}
 
 	return 0;
