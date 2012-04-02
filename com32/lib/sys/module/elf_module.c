@@ -14,6 +14,7 @@
 
 #include <linux/list.h>
 #include <sys/module.h>
+#include <sys/exec.h>
 
 #include "elfutils.h"
 #include "common.h"
@@ -531,7 +532,7 @@ int module_load(struct elf_module *module) {
 			}
 
 			if (*p++ == '/') {
-				char argv[2] = { p, NULL };
+				char *argv[2] = { p, NULL };
 				spawn_load(p, 1, argv);
 			}
 		}
