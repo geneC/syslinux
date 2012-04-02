@@ -1,6 +1,7 @@
 #include <linux/list.h>
 #include <sys/times.h>
 #include <stdbool.h>
+#include <string.h>
 #include <core.h>
 #include "cli.h"
 #include "console.h"
