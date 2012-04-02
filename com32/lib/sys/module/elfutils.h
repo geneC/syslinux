@@ -59,6 +59,6 @@ extern int elf_malloc(void **memptr, size_t alignment, size_t size);
  * elf_free - Releases memory previously allocated by elf_malloc.
  * @memptr: the address of the allocated block
  */
-extern void elf_free(void *memptr);
+extern void elf_free(char *memptr);
 
 #endif /*ELF_UTILS_H_*/

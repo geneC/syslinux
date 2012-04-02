@@ -50,7 +50,7 @@ static int check_header(Elf32_Ehdr *elf_hdr) {
 static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	int i;
 	int res = 0;
-	void *pht = NULL;
+	char *pht = NULL;
 	Elf32_Phdr *cr_pht;
 
 	Elf32_Addr min_addr  = 0x00000000; // Min. ELF vaddr
@@ -136,8 +136,8 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 				// headers
 				Elf32_Off aux_off = module->u.l._cr_offset - cr_pht->p_offset;
 
-				if (image_read(module_get_absolute(cr_pht->p_vaddr, module) + aux_off,
-						cr_pht->p_filesz - aux_off, module) < 0) {
+				if (image_read((char *)module_get_absolute(cr_pht->p_vaddr, module) + aux_off,
+					       cr_pht->p_filesz - aux_off, module) < 0) {
 					res = -1;
 					goto out;
 				}
@@ -259,8 +259,7 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 		// Find out details about the symbol
 
 		// The symbol reference
-		Elf32_Sym *sym_ref =
-			(Elf32_Sym*)(module->sym_table + sym * module->syment_size);
+		Elf32_Sym *sym_ref = symbol_get_entry(module, sym);
 
 		// The symbol definition
 		sym_def =
@@ -321,9 +320,9 @@ static int resolve_symbols(struct elf_module *module) {
 	int res;
 
 	Elf32_Word plt_rel_size = 0;
-	void *plt_rel = NULL;
+	char *plt_rel = NULL;
 
-	void *rel = NULL;
+	char *rel = NULL;
 	Elf32_Word rel_size = 0;
 	Elf32_Word rel_entry = 0;
 
