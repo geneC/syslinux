@@ -38,6 +38,7 @@ extern const char *onerror;	//"onerror" command line
 
 extern void cat_help_file(int key);
 extern struct menu_entry *find_label(const char *str);
+extern void print_labels(const char *prefix, size_t len);
 
 extern void eprintf(const char *filename, ...);
 
