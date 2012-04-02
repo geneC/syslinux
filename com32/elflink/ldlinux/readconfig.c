@@ -1121,7 +1121,8 @@ do_include:
 	 * display/font/kbdmap are rather similar, open a file then do sth
 	 */
 	else if (looking_at(p, "display")) {
-		char *filename, *dst = KernelName;
+		const char *filename;
+		char *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
 		filename = refstrdup(skipspace(p + 7));
@@ -1133,7 +1134,8 @@ do_include:
 		get_msg_file(KernelName);
 		refstr_put(filename);
 	} else if (looking_at(p, "font")) {
-		char *filename, *dst = KernelName;
+		const char *filename;
+		char *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
 		filename = refstrdup(skipspace(p + 4));
@@ -1146,7 +1148,8 @@ do_include:
 		refstr_put(filename);
 	} else if (looking_at(p, "kbdmap")) {
 		com32sys_t reg;
-		char *filename, *dst = KernelName;
+		const char *filename;
+		char *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
 		filename = refstrdup(skipspace(p + 4));
@@ -1309,7 +1312,8 @@ do_include:
 		eprintf("%s\n", p+4);
 	} else if (looking_at(p, "path")) {
 		/* PATH-based lookup */
-		char *new_path, *_p;
+		const char *new_path;
+		char *_p;
 		size_t len, new_len;
 
 		new_path = refstrdup(skipspace(p + 4));
