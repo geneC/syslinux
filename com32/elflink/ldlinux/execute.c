@@ -20,6 +20,7 @@
 #include "core.h"
 #include "menu.h"
 #include "fs.h"
+#include "config.h"
 
 /* Must match enum kernel_type */
 const char *const kernel_types[] = {
@@ -105,7 +106,7 @@ void execute(const char *cmdline, enum kernel_type type)
 	} else {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */
-		new_linux_kernel(kernel, cmdline);
+		new_linux_kernel((char *)kernel, (char *)cmdline);
 	}
 
 	lfree((void *)kernel);

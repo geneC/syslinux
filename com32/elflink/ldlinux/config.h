@@ -42,4 +42,6 @@ extern void print_labels(const char *prefix, size_t len);
 
 extern void eprintf(const char *filename, ...);
 
+extern int new_linux_kernel(char *okernel, char *ocmdline);
+
 #endif /* __CONFIG_H__ */
