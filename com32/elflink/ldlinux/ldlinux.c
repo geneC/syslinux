@@ -12,7 +12,7 @@
 
 #include <sys/module.h>
 
-static enum kernel_type parse_kernel_type(char *kernel)
+static enum kernel_type parse_kernel_type(const char *kernel)
 {
 	enum kernel_type type;
 	const char *p;
