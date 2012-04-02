@@ -128,7 +128,6 @@ int main(int argc, char **argv)
 
 	parse_configs(config_argv);
 
-	__syslinux_init();
 	adv = syslinux_getadv(ADV_BOOTONCE, &count);
 	if (adv && count) {
 		/*
