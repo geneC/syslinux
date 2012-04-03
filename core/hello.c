@@ -7,8 +7,6 @@
 
 #include <console.h>
 
-static int console_init = 0;
-
 void myputchar(int c)
 {
     static com32sys_t ireg;
