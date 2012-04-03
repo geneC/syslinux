@@ -26,8 +26,8 @@
 static char serial_buf[serial_buf_size];
 
 static unsigned short SerialIRQPort; /* Serial port w IRQ service */
-unsigned char *SerialHead = serial_buf;    /* Head of serial port rx buffer */
-unsigned char *SerialTail = serial_buf;    /* Tail of serial port rx buffer */
+char *SerialHead = serial_buf;    /* Head of serial port rx buffer */
+char *SerialTail = serial_buf;    /* Tail of serial port rx buffer */
 
 static unsigned char IRQMask[2];	     /* PIC IRQ mask status */
 
@@ -39,11 +39,11 @@ void sirq_cleanup(void);
 
 static void irq_common(unsigned short old_irq)
 {
-	unsigned char *dst;
+	char *dst;
 	irqhandler_t next;
 	char val;
 
-	dst = (unsigned char *)SerialHead;
+	dst = SerialHead;
 	next = (irqhandler_t)oldirq[old_irq];
 
 	/* LSR */
@@ -57,7 +57,7 @@ static void irq_common(unsigned short old_irq)
 		val = inb(SerialPort + 5);
 		if ((val & FlowIgnore) == FlowIgnore) {
 			/* Wrap around if necessary */
-			dst = (unsigned char *)((unsigned long)dst & (serial_buf_size - 1));
+			dst = (char *)((unsigned long)dst & (serial_buf_size - 1));
 
 			/* Would this cause overflow? */
 			if (dst != SerialTail)

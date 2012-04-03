@@ -96,8 +96,8 @@ extern void vgaclearmode(void);
 extern void vgadisplayfile(FILE *fd);
 
 /* serirq.c */
-extern unsigned char *SerialHead;
-extern unsigned char *SerialTail;
+extern char *SerialHead;
+extern char *SerialTail;
 
 extern void bios_init(void);
 extern void bios_cleanup_hardware(void);

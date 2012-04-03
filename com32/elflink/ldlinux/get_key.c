@@ -148,10 +148,10 @@ int get_key_decode(char *buffer, int nc, int *code)
 
 int get_key(FILE * f, clock_t timeout)
 {
-    unsigned char buffer[KEY_MAXLEN];
+    char buffer[KEY_MAXLEN];
     int nc, i, rv;
     int another;
-    unsigned char ch;
+    char ch;
     clock_t start;
     int code;
 
