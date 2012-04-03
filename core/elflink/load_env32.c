@@ -109,7 +109,7 @@ void load_env32(com32sys_t * regs)
 	struct file_info *fp;
 	int fd;
 	char *argv[] = { LDLINUX, NULL };
-	char *realname;
+	char realname[FILENAME_MAX];
 
 	static const char *search_directories[] = {
 		"/boot/isolinux",
