@@ -24,9 +24,6 @@
 
 #define LDLINUX	"ldlinux.c32"
 
-typedef void (*constructor_t) (void);
-constructor_t __ctors_start[], __ctors_end[];
-
 extern char __dynstr_start[];
 extern char __dynstr_len[], __dynsym_len[];
 extern char __dynsym_start[];
@@ -60,15 +57,6 @@ struct elf_module core_module = {
 void init_module_subsystem(struct elf_module *module)
 {
     list_add(&module->list, &modules_head);
-}
-
-/* call_constr: initializes sme things related */
-static void call_constr(void)
-{
-	constructor_t *p;
-
-	for (p = __ctors_start; p < __ctors_end; p++)
-		(*p) ();
 }
 
 int start_ldlinux(char **argv)
@@ -138,7 +126,6 @@ void load_env32(com32sys_t * regs)
 	};
 
 	dprintf("Starting 32 bit elf module subsystem...\n");
-	call_constr();
 
 	PATH = malloc(strlen(PATH_DEFAULT) + 1);
 	if (!PATH) {
