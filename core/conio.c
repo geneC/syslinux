@@ -252,7 +252,7 @@ int pollchar(void)
 	return data;
 }
 
-int pm_pollchar(com32sys_t *regs)
+void pm_pollchar(com32sys_t *regs)
 {
 	if (pollchar())
 		regs->eflags.l &= ~EFLAGS_ZF;
@@ -288,7 +288,7 @@ char getchar(char *hi)
 				sti(); /* We already know we'll consume data */
 				data = *SerialTail++;
 
-				SerialTail = (unsigned char *)((unsigned long)SerialTail & (serial_buf_size - 1));
+				SerialTail = (char *)((unsigned long)SerialTail & (serial_buf_size - 1));
 			} else {
 				/* LSR */
 				data = inb(SerialPort + 5) & 1;
@@ -333,7 +333,7 @@ char getchar(char *hi)
 
 void pm_getchar(com32sys_t *regs)
 {
-	regs->eax.b[0] = getchar(&regs->eax.b[1]);
+	regs->eax.b[0] = getchar((char *)&regs->eax.b[1]);
 }
 
 static void msg_setbg(char data)
