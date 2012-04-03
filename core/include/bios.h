@@ -73,8 +73,6 @@ extern union screen _screensize;
 #define VidCols		_screensize.b.col
 #define VidRows		_screensize.b.row
 
-extern void write_serial(char data);
-
 /* font.c */
 extern uint16_t VGAFontSize;
 extern void use_font(void);
