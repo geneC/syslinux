@@ -79,7 +79,7 @@ static void print_modes(void)
     }
 
 exit:
-	free(vesa);
+	lfree(vesa);
 	return;
 }
 
