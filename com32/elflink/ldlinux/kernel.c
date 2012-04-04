@@ -23,7 +23,6 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	bool opt_quiet = false;
 	char initrd_name[256];
 	char cmdline_buf[256], *cmdline;
-	int i;
 
 	dprintf("okernel = %s, ocmdline = %s", okernel, ocmdline);
 

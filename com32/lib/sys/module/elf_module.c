@@ -467,7 +467,7 @@ static int extract_operations(struct elf_module *module) {
 
 // Loads the module into the system
 int module_load(struct elf_module *module) {
-	int res, i;
+	int res;
 	Elf32_Sym *main_sym;
 	Elf32_Ehdr elf_hdr;
 	module_ctor_t *ctor;

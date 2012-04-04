@@ -36,7 +36,6 @@ extern void local_boot16(void);
 void local_boot(int16_t ax)
 {
 	com32sys_t ireg, oreg;
-	unsigned long data;
 	int i;
 
 	vgaclearmode();

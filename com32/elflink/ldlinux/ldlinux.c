@@ -116,7 +116,6 @@ static void enter_cmdline(void)
 
 int main(int argc, char **argv)
 {
-	com32sys_t ireg, oreg;
 	const void *adv;
 	size_t count = 0;
 	char *config_argv[2] = { NULL, NULL };

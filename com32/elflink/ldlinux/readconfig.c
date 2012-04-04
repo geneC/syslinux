@@ -1147,7 +1147,6 @@ do_include:
 		loadfont(KernelName);
 		refstr_put(filename);
 	} else if (looking_at(p, "kbdmap")) {
-		com32sys_t reg;
 		const char *filename;
 		char *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
@@ -1192,7 +1191,6 @@ do_include:
 
 	/* serial setting, bps, flow control */
 	else if (looking_at(p, "serial")) {
-		com32sys_t ireg;
 		uint16_t port, flow;
 		uint32_t baud;
 
