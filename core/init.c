@@ -62,7 +62,7 @@ static inline void bios_timer_init(void)
 }
 
 extern void printf_init(void);
-void init(com32sys_t *regs)
+void init(com32sys_t *regs __unused)
 {
 	int i;
 

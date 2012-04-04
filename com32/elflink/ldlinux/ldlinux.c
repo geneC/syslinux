@@ -114,7 +114,7 @@ static void enter_cmdline(void)
 	}
 }
 
-int main(int argc, char **argv)
+int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;
 	size_t count = 0;

@@ -83,7 +83,7 @@ exit:
 	return;
 }
 
-int main(int argc, char **argv)
+int main(int argc __unused, char **argv __unused)
 {
     print_modes();
     return 0;

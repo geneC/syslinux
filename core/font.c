@@ -185,7 +185,7 @@ void adjust_screen(void)
 	VidCols = --cols;	/* Store count-1 (same as rows) */
 }
 
-void pm_adjust_screen(com32sys_t *regs)
+void pm_adjust_screen(com32sys_t *regs __unused)
 {
 	adjust_screen();
 }

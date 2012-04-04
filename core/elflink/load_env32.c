@@ -104,7 +104,7 @@ again:
 }
 
 /* note to self: do _*NOT*_ use static key word on this function */
-void load_env32(com32sys_t * regs)
+void load_env32(com32sys_t * regs __unused)
 {
 	struct file_info *fp;
 	int fd;

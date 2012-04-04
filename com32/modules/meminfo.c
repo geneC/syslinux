@@ -122,7 +122,7 @@ static void dump_legacy(void)
 	   oreg.ecx.w[0], oreg.ecx.w[0], oreg.edx.w[0], oreg.edx.w[0] << 6);
 }
 
-int main(int argc, char **argv)
+int main(int argc __unused, char **argv __unused)
 {
     dump_legacy();
     dump_e820();

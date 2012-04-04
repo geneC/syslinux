@@ -54,9 +54,6 @@
 #include <acpi/acpi.h>
 #include <libupload/upload_backend.h>
 
-/* Declare a variable or data structure as unused. */
-#define __unused __attribute__ (( unused ))
-
 /* This two values are used for switching for the menu to the CLI mode */
 #define HDT_SWITCH_TO_CLI "hdt_switch_to_cli"
 #define HDT_DUMP "hdt_dump"
