@@ -223,7 +223,6 @@ adhcp_copy:
 	        mov eax,ROOT_FS_OPS
 		xor ebp,ebp
                 pm_call fs_init
-		pm_call load_env32
 
 		section .rodata
 		alignz 4
@@ -268,6 +267,7 @@ ROOT_FS_OPS:
 ; Jump to 32-bit ELF space
 ;
 		pm_call load_env32
+		jmp kaboom		; load_env32() shouldn't return. If it does, then kaboom!
 
 ;
 ; Now we have the config file open.  Parse the config file and
