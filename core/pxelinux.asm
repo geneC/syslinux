@@ -264,6 +264,16 @@ ROOT_FS_OPS:
 %endmacro
 
 ;
+; Open configuration file. ldlinux.c32 needs ConfigName to be set - so we need
+; to call open_config() before loading it.
+;
+; Note: We don't need to check return value of open_config() function. It will
+; call kaboom() on failure.
+;
+		extern open_config
+		pm_call open_config
+
+;
 ; Jump to 32-bit ELF space
 ;
 		pm_call load_env32
