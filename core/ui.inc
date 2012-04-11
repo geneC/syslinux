@@ -23,7 +23,6 @@ load_kernel:
 kernel_good_saved:
 kernel_corrupt:
 		pm_call hello
-	
 %else		; comment off the original ui.inc
 load_config_file:
 		call parse_config		; Parse configuration file
