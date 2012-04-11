@@ -318,16 +318,25 @@ IPAppends	dw IPOption
 numIPAppends	equ ($-IPAppends)/2
 
 		section .text16
-
+;
 ; COMBOOT-loading code
+;
 %include "comboot.inc"
 %include "com32.inc"
 
-; Hardware cleanup common code
-%include "localboot.inc"
+;
+; Boot sector loading code
+;
 
-		section .text16
-		align 4
+;
+; Abort loading code
+;
+
+;
+; Hardware cleanup common code
+;
+
+%include "localboot.inc"
 
 ;
 ; kaboom: write a message and bail out.  Wait for quite a while,

@@ -1168,6 +1168,10 @@ init_fs:
 		mov di,[bsSecPerTrack]
 		pm_call fs_init
 		pm_call load_env32
+enter_command:
+auto_boot:
+		jmp kaboom		; load_env32() should never return. If
+		                        ; it does, then kaboom!
 		popad
 
 		section .rodata
@@ -1195,11 +1199,56 @@ debug_tracer:	pushad
 		ret
 %endif	; DEBUG_TRACERS
 
+		section .bss16
+		global CmdOptPtr, KbdMap
+		alignb 4
+ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
+ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
+KernelExtPtr	resw 1			; During search, final null pointer
+CmdOptPtr	resw 1			; Pointer to first option on cmd line
+KbdFlags	resb 1			; Check for keyboard escapes
+FuncFlag	resb 1			; Escape sequences received from keyboard
+KernelType	resb 1			; Kernel type, from vkernel, if known
+KbdMap		resb 256		; Keyboard map
+		global KernelName
+KernelName	resb FILENAME_MAX	; Mangled name for kernel
+		section .config
+		global PXERetry
+PXERetry	dw 0			; Extra PXE retries
+		section .data16
+		global SerialNotice
+SerialNotice	db 1			; Only print this once
+%if IS_PXELINUX
+		extern IPOption
+		global IPAppends, numIPAppends
+		alignz 2
+IPAppends	dw IPOption
+numIPAppends	equ ($-IPAppends)/2
+%else
+IPAppends	equ 0
+numIPAppends	equ 0
+%endif
+
+		section .text16
 ;
-; Now we have the config file open.  Parse the config file and
-; run the user interface.
+; COMBOOT-loading code
 ;
-%include "ui.inc"
+%include "comboot.inc"
+%include "com32.inc"
+
+;
+; Boot sector loading code
+;
+
+;
+; Abort loading code
+;
+
+;
+; Hardware cleanup common code
+;
+
+%include "localboot.inc"
 
 ; -----------------------------------------------------------------------------
 ;  Common modules
