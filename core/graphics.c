@@ -92,14 +92,15 @@ static int vgasetmode(void)
 	ireg.eax.w[0] = 0x0012;	/* Set mode = 640x480 VGA 16 colors */
 	__intcall(0x10, &ireg, &oreg);
 
-	ireg.edx.w[0] = (uint16_t)linear_color;
+	ireg.edx.w[0] = (uint32_t)linear_color;
 	ireg.eax.w[0] = 0x1002;	/* Write color registers */
 	__intcall(0x10, &ireg, &oreg);
 
 	UsingVGA = 1;
 
 	/* Set GXPixCols and GXPixRows */
-	GXPixCols = 640+(480 << 16);
+	GXPixCols = 640;
+	GXPixRows = 480;
 
 	use_font();
 	ScrollAttribute = 0;
@@ -219,12 +220,12 @@ static void outputvga(uint32_t *in, uint32_t *out)
 	val = 2;		 /* Sequencer mask */
 
 	/* Select the sequencer mask */
-	outb(val, (uint16_t)addr);
+	outb(val, (uint32_t)addr);
 
 	addr += 1;		/* VGA Sequencer Register data port */
 	for (i = 1; i <= 8; i *= 2) {
 		/* Select the bit plane to write */
-		outb(i, (uint16_t)addr);
+		outb(i, (uint32_t)addr);
 
 		for (j = 0; j < (640 / 32); j++)
 			*(out + j) = *(in + j);
@@ -300,7 +301,8 @@ void vgadisplayfile(FILE *_fd)
 			rledecode(VGARowBuffer, GraphXSize);
 
 			packedpixel2vga(VGARowBuffer, VGAPlaneBuffer, 640);
-			outputvga(VGAPlaneBuffer, MK_PTR(0x0A000, VGAPos));
+			outputvga((uint32_t *)VGAPlaneBuffer,
+				  MK_PTR(0x0A000, VGAPos));
 			VGAPos += 640/8;
 		}
 	}

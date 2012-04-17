@@ -13,7 +13,7 @@
 #define NUM_COUNT		10
 #define MAX_NUM			100
 
-int main(int argc, char **argv)
+int main(int argc __unused, char **argv __unused)
 {
     int *nums = NULL;
 

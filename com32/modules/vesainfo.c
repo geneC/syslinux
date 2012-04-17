@@ -79,11 +79,11 @@ static void print_modes(void)
     }
 
 exit:
-	free(vesa);
+	lfree(vesa);
 	return;
 }
 
-int main(int argc, char **argv)
+int main(int argc __unused, char **argv __unused)
 {
     print_modes();
     return 0;

@@ -4,7 +4,7 @@
 #include <fs.h>
 #include <bios.h>
 
-static uint16_t min_lowmem_heap = 65536;
+static uint32_t min_lowmem_heap = 65536;
 extern char __lowmem_heap[];
 uint8_t KbdFlags;		/* Check for keyboard escapes */
 
@@ -29,7 +29,7 @@ static inline void check_escapes(void)
 
 		__intcall(0x12, &ireg, &oreg);
 
-		mem = ((uint16_t)__lowmem_heap) + min_lowmem_heap + 1023;
+		mem = ((uint32_t)__lowmem_heap) + min_lowmem_heap + 1023;
 		mem = mem >> 10;
 
 		if (mem < oreg.eax.w[0]) {
@@ -54,14 +54,15 @@ extern uint32_t timer_irq;
 static inline void bios_timer_init(void)
 {
 	unsigned long next;
-	uint32_t *hook = BIOS_timer_hook;
+	uint32_t *hook = (uint32_t *)BIOS_timer_hook;
 
 	next = *hook;
 	BIOS_timer_next = next;
-	*hook = &timer_irq;
+	*hook = (uint32_t)&timer_irq;
 }
 
-void init(com32sys_t *regs)
+extern void printf_init(void);
+void init(com32sys_t *regs __unused)
 {
 	int i;
 

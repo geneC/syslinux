@@ -2,6 +2,7 @@
 #include <sys/times.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <string.h>
 #include <core.h>
 #include <fs.h>
 #include "cli.h"
@@ -44,7 +45,7 @@ static inline const char *find_command(const char *str)
 	return p;
 }
 
-static enum kernel_type parse_kernel_type(char *kernel)
+static enum kernel_type parse_kernel_type(const char *kernel)
 {
 	const struct file_ext *ext;
 	const char *p;
@@ -222,11 +223,10 @@ static void enter_cmdline(void)
 	}
 }
 
-int main(int argc, char **argv)
+int main(int argc __unused, char **argv __unused)
 {
-	com32sys_t ireg, oreg;
-	uint8_t *adv;
-	int count = 0;
+	const void *adv;
+	size_t count = 0;
 	char *config_argv[2] = { NULL, NULL };
 
 	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
@@ -236,17 +236,17 @@ int main(int argc, char **argv)
 
 	parse_configs(config_argv);
 
-	__syslinux_init();
 	adv = syslinux_getadv(ADV_BOOTONCE, &count);
 	if (adv && count) {
 		/*
 		 * We apparently have a boot-once set; clear it and
 		 * then execute the boot-once.
 		 */
-		uint8_t *src, *dst, *cmdline;
-		int i;
+		const char *cmdline;
+		char *src, *dst;
+		size_t i;
 
-		src = adv;
+		src = (char *)adv;
 		cmdline = dst = malloc(count + 1);
 		if (!dst) {
 			printf("Failed to allocate memory for ADV\n");

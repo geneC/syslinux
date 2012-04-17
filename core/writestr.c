@@ -17,6 +17,7 @@
  * Code to write a simple string.
  */
 #include <com32.h>
+#include <core.h>
 
 /*
  * crlf: Print a newline

@@ -32,8 +32,8 @@ static int check_header_shallow(Elf32_Ehdr *elf_hdr) {
 static int load_shallow_sections(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	int i;
 	int res = 0;
-	void *sht = NULL;
-	void *buffer = NULL;
+	char *sht = NULL;
+	char *buffer = NULL;
 	Elf32_Shdr *crt_sht;
 	Elf32_Off buff_offset;
 
@@ -100,8 +100,8 @@ static int load_shallow_sections(struct elf_module *module, Elf32_Ehdr *elf_hdr)
 
 	// Setup module information
 	module->module_size = max_offset - min_offset;
-	module->str_table = (char*)(module->module_addr + (str_offset - min_offset));
-	module->sym_table = module->module_addr + (sym_offset - min_offset);
+	module->str_table = (char *)module->module_addr + (str_offset - min_offset);
+	module->sym_table = (char *)module->module_addr + (sym_offset - min_offset);
 
 out:
 	// Release the SHT

@@ -27,6 +27,14 @@
 #define MIN(x,y)	(((x) < (y)) ? (x) : (y))
 #define MAX(x,y)	(((x) > (y)) ? (x) : (y))
 
+static inline Elf32_Sym *symbol_get_entry(struct elf_module *module, int entry)
+{
+	char *sym_table = (char *)module->sym_table;
+	int index = entry * module->syment_size;
+
+	return (Elf32_Sym *)(sym_table + index);
+}
+
 //#define ELF_DEBUG
 
 #ifdef ELF_DEBUG

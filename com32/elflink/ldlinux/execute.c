@@ -20,6 +20,7 @@
 #include "core.h"
 #include "menu.h"
 #include "fs.h"
+#include "config.h"
 
 /* Must match enum kernel_type */
 const char *const kernel_types[] = {
@@ -84,8 +85,8 @@ void execute(const char *cmdline, enum kernel_type type)
 
 	if (type == KT_COM32) {
 		/* new entry for elf format c32 */
-		lfree(kernel);
-		create_args_and_load(cmdline);
+		lfree((void *)kernel);
+		create_args_and_load((char *)cmdline);
 	} else if (type == KT_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };
 
@@ -96,7 +97,7 @@ void execute(const char *cmdline, enum kernel_type type)
 		if (*args)
 			mangle_name(config_cwd, args);
 
-		start_ldlinux("ldlinux.c32", 1, argv);
+		start_ldlinux(argv);
 	} else if (type == KT_LOCALBOOT) {
 		/* process the image need int 22 support */
 		ireg.eax.w[0] = 0x0014;	/* Local boot */
@@ -105,10 +106,10 @@ void execute(const char *cmdline, enum kernel_type type)
 	} else {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */
-		new_linux_kernel(kernel, cmdline);
+		new_linux_kernel((char *)kernel, (char *)cmdline);
 	}
 
-	lfree(kernel);
+	lfree((void *)kernel);
 
 	/* If this returns, something went bad; return to menu */
 }

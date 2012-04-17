@@ -223,7 +223,6 @@ adhcp_copy:
 	        mov eax,ROOT_FS_OPS
 		xor ebp,ebp
                 pm_call fs_init
-		pm_call load_env32
 
 		section .rodata
 		alignz 4
@@ -265,15 +264,79 @@ ROOT_FS_OPS:
 %endmacro
 
 ;
+; Open configuration file. ldlinux.c32 needs ConfigName to be set - so we need
+; to call open_config() before loading it.
+;
+; Note: We don't need to check return value of open_config() function. It will
+; call kaboom() on failure.
+;
+		extern open_config
+		pm_call open_config
+
+;
 ; Jump to 32-bit ELF space
 ;
 		pm_call load_env32
+		jmp kaboom		; load_env32() shouldn't return. If it does, then kaboom!
+
+print_hello:
+enter_command:
+auto_boot:
+		pm_call hello
+
+; As core/ui.inc used to be included here in core/pxelinux.asm, and it's no
+; longer used, its global variables that were previously used by
+; core/pxelinux.asm are now declared here.
+               section .bss16
+		alignb 4
+Kernel_EAX	resd 1
+Kernel_SI	resw 1
+
+		section .bss16
+		global CmdOptPtr, KbdMap
+		alignb 4
+ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
+ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
+KernelExtPtr	resw 1			; During search, final null pointer
+CmdOptPtrj	resw 1			; Pointer to first option on cmd line
+KbdFlags	resb 1			; Check for keyboard escapes
+FuncFlag	resb 1			; Escape sequences received from keyboard
+KernelType	resb 1			; Kernel type, from vkernel, if known
+KbdMap		resb 256		; Keyboard map
+		global KernelName
+KernelName	resb FILENAME_MAX	; Mangled name for kernel
+		section .config
+		global PXERetry
+PXERetry	dw 0			; Extra PXE retries
+		section .data16
+		global SerialNotice
+SerialNotice	db 1			; Only print this once
+		extern IPOption
+		global IPAppends, numIPAppends
+		alignz 2
+IPAppends	dw IPOption
+numIPAppends	equ ($-IPAppends)/2
+
+		section .text16
+;
+; COMBOOT-loading code
+;
+%include "comboot.inc"
+%include "com32.inc"
 
 ;
-; Now we have the config file open.  Parse the config file and
-; run the user interface.
+; Boot sector loading code
 ;
-%include "ui.inc"
+
+;
+; Abort loading code
+;
+
+;
+; Hardware cleanup common code
+;
+
+%include "localboot.inc"
 
 ;
 ; kaboom: write a message and bail out.  Wait for quite a while,
@@ -316,7 +379,6 @@ kaboom:
 		pm_call crlf
 		mov word [BIOS_magic],0	; Cold reboot
 		jmp 0F000h:0FFF0h	; Reset vector address
-
 
 ;
 ; pxenv

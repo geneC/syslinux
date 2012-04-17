@@ -193,6 +193,7 @@ int open_file(const char *name, struct com32_filedata *filedata);
 void pm_open_file(com32sys_t *);
 void close_file(uint16_t handle);
 void pm_close_file(com32sys_t *);
+int open_config(void);
 
 /* chdir.c */
 void pm_realpath(com32sys_t *regs);

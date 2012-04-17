@@ -322,7 +322,7 @@ int check_symbols(struct elf_module *module)
 
 	for(i = 1; i < module->symtable_size; i++)
 	{
-		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
+		crt_sym = symbol_get_entry(module, i);
 		crt_name = module->str_table + crt_sym->st_name;
 
 		strong_count = 0;
@@ -434,7 +434,7 @@ static Elf32_Sym *module_find_symbol_sysv(const char *name, struct elf_module *m
 
 
 	while (crt_index != STN_UNDEF) {
-		crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
+		crt_sym = symbol_get_entry(module, crt_index);
 
 		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
 			return crt_sym;
@@ -489,8 +489,7 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 
 			do {
 				if (((*hasharr ^ h ) >> 1) == 0) {
-					Elf32_Sym *crt_sym = (Elf32_Sym*)(module->sym_table +
-							(hasharr - gnu_chain_zero) * module->syment_size);
+					Elf32_Sym *crt_sym = symbol_get_entry(module, (hasharr - gnu_chain_zero));
 
 					if (strcmp(name, module->str_table + crt_sym->st_name) == 0) {
 						return crt_sym;
@@ -511,7 +510,7 @@ static Elf32_Sym *module_find_symbol_iterate(const char *name,struct elf_module 
 
 	for (i=1; i < module->symtable_size; i++)
 	{
-		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
+		crt_sym = symbol_get_entry(module, i);
 		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
 		{
 			return crt_sym;

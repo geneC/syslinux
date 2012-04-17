@@ -99,4 +99,15 @@ static inline void set_flags(com32sys_t *regs, uint32_t flags)
     regs->eflags.l = eflags;
 }
 
+extern int start_ldlinux(char **argv);
+
+extern void write_serial(char data);
+extern void writestr(char *str);
+extern void writechr(char data);
+extern void crlf(void);
+
+extern void cleanup_hardware(void);
+extern void sirq_cleanup(void);
+extern void adjust_screen(void);
+
 #endif /* CORE_H */

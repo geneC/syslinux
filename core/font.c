@@ -164,7 +164,7 @@ void use_font(void)
 void adjust_screen(void)
 {
 	com32sys_t ireg, oreg;
-	volatile uint8_t *vidrows = BIOS_vidrows;
+	volatile uint8_t *vidrows = (volatile uint8_t *)BIOS_vidrows;
 	uint8_t rows, cols;
 
 	rows = *vidrows;
@@ -185,7 +185,7 @@ void adjust_screen(void)
 	VidCols = --cols;	/* Store count-1 (same as rows) */
 }
 
-void pm_adjust_screen(com32sys_t *regs)
+void pm_adjust_screen(com32sys_t *regs __unused)
 {
 	adjust_screen();
 }

@@ -108,6 +108,13 @@
 # define __unusedfunc
 #endif
 
+/* Declare a variable or data structure as unused. */
+#ifdef __GNUC__
+# define __unused	__attribute__((unused))
+#else
+# define __unused
+#endif
+
 /* Used symbol */
 #define __used				__attribute__((used))
 

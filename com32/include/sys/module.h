@@ -120,23 +120,6 @@ struct elf_module {
 
 };
 
-static inline void dump_elf_module(struct elf_module *module)
-{
-	/*
-	dprintf("module name = %s", module->name);
-	printf("base_addr = 0x%p, module_size = %d\n", module->base_addr, module->module_size);
-	printf("hash tlb = 0x%p, ghash tbl = 0x%p\n", module->hash_table, module->ghash_table);
-	printf("str tbl = 0x%p, size = %d\n", module->str_table, module->strtable_size);
-	printf("sym tbl = 0x%p, entry = %d, size = %d\n", module->sym_table, module->syment_size, module->symtable_size);
-	printf("init: %p", module->init_func);
-	printf("main: %p", module->main_func);
-	printf("exit: %p", module->exit_func);
-	printf("", module->base_addr);
-	printf("", module->base_addr);
-	printf("", module->base_addr);
-	*/
-}
-
 /**
  * struct module_dep - structure encapsulating a module dependency need
  *
@@ -263,14 +246,23 @@ extern int module_load_shallow(struct elf_module *module, Elf32_Addr base_addr);
  * module_unload - unloads the module from the system.
  * @module: the module descriptor structure.
  *
- * The function checks to see whether the module can be safely removed, then
- * it releases all the associated memory. This function can be applied both
- * for standard modules and for shallow modules.
+ * The function checks to see whether the module can be safely
+ * removed, then it executes any destructors and releases all the
+ * associated memory. This function can be applied both for standard
+ * modules and for shallow modules.
  *
  * A module can be safely removed from the system when no other modules reference
  * symbols from it.
  */
 extern int module_unload(struct elf_module *module);
+
+/**
+ * _module_unload - unloads the module without running destructors
+ *
+ * This function is the same as module_unload(), except that the
+ * module's destructors are not executed.
+ */
+extern int _module_unload(struct elf_module *module);
 
 /**
  * module_unload - unloads the module from the system.

@@ -40,7 +40,7 @@ void *__syslinux_adv_ptr;
 size_t __syslinux_adv_size;
 
 extern void adv_init(void);
-void __syslinux_init(void)
+void __constructor __syslinux_init(void)
 {
     static com32sys_t reg;
 
