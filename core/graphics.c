@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include "core.h"
 #include <sys/io.h>
+#include <hw/vga.h>
 #include "fs.h"
 #include "bios.h"
 
@@ -177,29 +178,26 @@ again:
  * packedpixel2vga:
  *	Convert packed-pixel to VGA bitplanes
  *
- * 'in': packed pixel string
- * 'out': output (four planes)
+ * 'in': packed pixel string (640 pixels)
+ * 'out': output (four planes @ 640/8 = 80 bytes)
  * 'count': pixel count (multiple of 8)
  */
-static void packedpixel2vga(uint8_t *in, uint8_t *out, size_t count)
+static void packedpixel2vga(const uint8_t *in, uint8_t *out)
 {
-	uint8_t bx, al, dl;
-	int plane, pixel;
+	int i, j, k;
 
-	for (plane = 0; plane < 4; plane++) {
-		for (bx = 0; bx < count; bx += 8) {
-			for (pixel = 0; pixel < 8; pixel++) {
-				al = *in++;
-				al >>= plane;
+	for (i = 0; i < 4; i++) {
+		const uint8_t *ip = in;
 
-				/*
-				 * VGA is bigendian.  Sigh.
-				 * Left rotate through carry
-				 */
-				dl = dl << 1 | (dl >> (8 - 1));
+		for (j = 0; j < 640/8; j++) {
+			uint8_t ob = 0;
+
+			for (k = 0; k < 8; k++) {
+				uint8_t px = *ip++;
+				ob = (ob << 1) | ((px >> i) & 1);
 			}
 
-			*out++ = dl;
+			*out++ = ob;
 		}
 	}
 }
@@ -211,24 +209,18 @@ static void packedpixel2vga(uint8_t *in, uint8_t *out, size_t count)
  * 'in': four planes @ 640/8=80 bytes
  * 'out': pointer into VGA memory
  */
-static void outputvga(uint32_t *in, uint32_t *out)
+static void outputvga(const void *in, void *out)
 {
-	uint8_t val, *addr;
-	int i, j;
-
-	addr = (uint8_t *)0x3C4; /* VGA Sequencer Register select port */
-	val = 2;		 /* Sequencer mask */
+	int i;
 
 	/* Select the sequencer mask */
-	outb(val, (uint32_t)addr);
+	outb(VGA_SEQ_IX_MAP_MASK, VGA_SEQ_ADDR);
 
-	addr += 1;		/* VGA Sequencer Register data port */
-	for (i = 1; i <= 8; i *= 2) {
+	for (i = 1; i <= 8; i <<= 1) {
 		/* Select the bit plane to write */
-		outb(i, (uint32_t)addr);
-
-		for (j = 0; j < (640 / 32); j++)
-			*(out + j) = *(in + j);
+		outb(i, VGA_SEQ_DATA);
+		memcpy(out, in, 640/8);
+		in = (const char *)in + 640/8;
 	}
 }
 
@@ -300,9 +292,8 @@ void vgadisplayfile(FILE *_fd)
 			/* Decode one row */
 			rledecode(VGARowBuffer, GraphXSize);
 
-			packedpixel2vga(VGARowBuffer, VGAPlaneBuffer, 640);
-			outputvga((uint32_t *)VGAPlaneBuffer,
-				  MK_PTR(0x0A000, VGAPos));
+			packedpixel2vga(VGARowBuffer, VGAPlaneBuffer);
+			outputvga(VGAPlaneBuffer, MK_PTR(0xA000, VGAPos));
 			VGAPos += 640/8;
 		}
 	}
