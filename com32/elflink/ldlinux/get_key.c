@@ -167,7 +167,7 @@ int get_key(FILE * f, clock_t timeout)
 	    clock_t lateness = times(NULL) - start;
 	    if (nc && lateness > 1 + KEY_TIMEOUT) {
 		if (nc == 1)
-		    return buffer[0];	/* timeout in sequence */
+		    return (unsigned char)buffer[0];	/* timeout */
 		else if (timeout && lateness > timeout)
 		    return KEY_NONE;
 	    } else if (!nc && timeout && lateness > timeout)
@@ -194,5 +194,5 @@ int get_key(FILE * f, clock_t timeout)
 
     /* We got an unrecognized sequence; return the first character */
     /* We really should remember this and return subsequent characters later */
-    return buffer[0];
+    return (unsigned char)buffer[0];
 }
