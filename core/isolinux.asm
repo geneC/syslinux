@@ -1035,7 +1035,7 @@ xint13:		mov byte [RetryCount],retry_count
 disk_error:
 kaboom:
 		RESET_STACK_AND_SEGS AX
-		mov si,err_bootfailed
+		mov si,bailmsg
 		pm_call pm_writestr
 		pm_call pm_getchar
 		cli
