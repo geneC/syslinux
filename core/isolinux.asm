@@ -521,7 +521,7 @@ award_string	db	0b8h,1,2,0bbh,0,7ch,0b9h,6,0,0bah,80h,1,09ch,09ah    ;;
 									     ;;
 						;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 award_hack:	mov	si,spec_err_msg		; Moved to this place from
-		call	writemsg		; spec_query_faild
+		call	writemsg		; spec_query_failed
 						;
 %ifdef DEBUG_MESSAGES				;
 						;
