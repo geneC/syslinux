@@ -351,6 +351,7 @@ int open_file(const char *name, int flags, struct com32_filedata *filedata)
     char mangled_name[FILENAME_MAX];
 
     mangle_name(mangled_name, name);
+    dprintf("core/open_file() '%s' '%s'\n", name, mangled_name);
     rv = searchdir(mangled_name, flags);
 
     if (rv < 0)

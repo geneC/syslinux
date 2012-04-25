@@ -164,7 +164,7 @@ static int pxe_get_cached_info(int type)
     int err;
     static __lowmem struct s_PXENV_GET_CACHED_INFO get_cached_info;
     printf(" %02x", type);
-    dprintf("Get PXE packet %02x\n, type);
+    dprintf("Get PXE packet %02x\n", type);
 
     memset(&get_cached_info, 0, sizeof get_cached_info);
     get_cached_info.PacketType  = type;
@@ -318,9 +318,9 @@ static void pxe_searchdir(const char *filename, int flags, struct file *file)
     int i = PXERetry;
 
     do {
-	dprintf("PXE: file = %p, retries left = %d: ", file, i);
+	dprintf("PXE: file = %p, retries left = %d: \n", file, i);
 	__pxe_searchdir(filename, flags, file);
-	dprintf("%s\n", file->inode ? "ok" : "failed");
+	dprintf("    file = %p: %s\n", file, file->inode ? "ok" : "failed");
     } while (!file->inode && i--);
 }
 static void __pxe_searchdir(const char *filename, int flags, struct file *file)
@@ -1079,6 +1079,8 @@ void unload_pxe(void)
 	if (err || unload_call.Status != PXENV_STATUS_SUCCESS) {
 	    printf("PXE unload API call %04x failed: 0x%x\n",
 		   api, unload_call.Status);
+	    dprintf("PXE unload API call %04x failed: 0x%x\n",
+		   api, unload_call.Status);
 	    goto cant_free;
 	}
     }
@@ -1106,6 +1108,8 @@ void unload_pxe(void)
 
 cant_free:
     printf("Failed to free base memory error %04x-%08x (%d/%dK)\n",
+	   api, *(uint32_t *)(4 * 0x1a), BIOS_fbm, real_base_mem);
+    dprintf("Failed to free base memory error %04x-%08x (%d/%dK)\n",
 	   api, *(uint32_t *)(4 * 0x1a), BIOS_fbm, real_base_mem);
     return;
 }

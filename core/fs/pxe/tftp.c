@@ -183,7 +183,7 @@ static void tftp_get_packet(struct inode *inode)
                htons(last_pkt), htons(*(uint16_t *)(data+2)));
 #endif
 	dprintf("Wrong packet, wanted %04x, got %04x\n", \
-               htons(last_pkt), htons(*(uint16_t *)(data+2)));
+               htons(last_pkt), htons(serial));
         goto ack_again;
     }
 
