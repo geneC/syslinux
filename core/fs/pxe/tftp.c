@@ -44,6 +44,39 @@ static void tftp_close_file(struct inode *inode)
     }
 }
 
+/*
+ * Send a UDP packet.
+ */
+static void udp_send(struct netconn *conn, const void *data, size_t len)
+{
+    struct netbuf *nbuf;
+    void *pbuf;
+    int err;
+
+    nbuf = netbuf_new();
+    if (!nbuf) {
+	printf("netbuf allocation error\n");
+	return;
+    }
+    
+    pbuf = netbuf_alloc(nbuf, len);
+    if (!pbuf) {
+	printf("pbuf allocation error\n");
+	goto out;
+    }
+
+    memcpy(pbuf, data, len);
+
+    err = netconn_send(conn, nbuf);
+    if (err) {
+	printf("netconn_send error %d\n", err);
+	goto out;
+    }
+
+out:
+    netbuf_delete(nbuf);
+}
+
 /**
  * Send an ERROR packet.  This is used to terminate a connection.
  *
@@ -59,7 +92,6 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
 	uint16_t err_num;
 	char err_msg[64];
     } __packed err_buf;
-    struct netbuf *nbuf;
     int len = min(strlen(errstr), sizeof(err_buf.err_msg)-1);
     struct pxe_pvt_inode *socket = PVT(inode);
 
@@ -68,11 +100,7 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
     memcpy(err_buf.err_msg, errstr, len);
     err_buf.err_msg[len] = '\0';
 
-    nbuf = netbuf_new();
-    netbuf_ref(nbuf, &err_buf, 4 + len + 1);
-    netconn_send(socket->conn, nbuf);
-    /* If something goes wrong, there is nothing we can do, anyway... */
-    netbuf_delete(nbuf);
+    udp_send(socket->conn, &err_buf, 4 + len + 1);
 }
 
 /**
@@ -84,23 +112,14 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
  */
 static void ack_packet(struct inode *inode, uint16_t ack_num)
 {
-    err_t err;
     static uint16_t ack_packet_buf[2];
-    struct netbuf *nbuf;
     struct pxe_pvt_inode *socket = PVT(inode);
 
     /* Packet number to ack */
     ack_packet_buf[0]     = TFTP_ACK;
     ack_packet_buf[1]     = htons(ack_num);
 
-    nbuf = netbuf_new();
-    netbuf_ref(nbuf, ack_packet_buf, 4);
-    err = netconn_send(socket->conn, nbuf);
-    netbuf_delete(nbuf);
-    (void)err;
-#if 0
-    printf("sent %s\n", err ? "FAILED" : "OK");
-#endif
+    udp_send(socket->conn, ack_packet_buf, 4);
 }
 
 /*
@@ -291,11 +310,9 @@ sendreq:
 	return;			/* No file available... */
     oldtime = jiffies();
 
-    nbuf = netbuf_new();
-    netbuf_ref(nbuf, rrq_packet_buf, rrq_len);
     addr.addr = url->ip;
-    netconn_sendto(socket->conn, nbuf, &addr, url->port);
-    netbuf_delete(nbuf);
+    netconn_connect(socket->conn, &addr, url->port);
+    udp_send(socket->conn, rrq_packet_buf, rrq_len);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
 wait_pkt:
