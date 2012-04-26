@@ -226,7 +226,7 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     if (!url->user)
 	url->user = "anonymous";
     if (!url->passwd)
-	url->passwd = "pxelinux@";
+	url->passwd = "syslinux@";
 
     resp = ftp_cmd_response(socket->ctl, "USER", url->user, NULL, NULL);
     if (resp != 202 && resp != 230) {
