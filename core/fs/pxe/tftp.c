@@ -128,7 +128,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
  */
 static void tftp_get_packet(struct inode *inode)
 {
-    int last_pkt;
+    uint16_t last_pkt;
     const uint8_t *timeout_ptr;
     uint8_t timeout;
     uint16_t buffersize;
