@@ -1036,8 +1036,7 @@ void unload_pxe(void)
 	uint16_t Status;	/* All calls have this as the first member */
     } unload_call;
 
-    printf("Called unload_pxe()...\n");
-
+    dprintf("Called unload_pxe()...\n");
     dprintf("FBM before unload = %d\n", BIOS_fbm);
 
     err = reset_pxe();
