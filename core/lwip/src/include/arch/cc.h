@@ -23,7 +23,7 @@ typedef uintptr_t mem_ptr_t;
 
 #if 1
 #define LWIP_PLATFORM_DIAG(x)	do { printf x; } while(0)
-#define LWIP_PLATFORM_ASSERT(x)	do { printf("LWIP(%s,%d): %s", __FILE__, __LINE__, (x)); kaboom(); } while(0)
+#define LWIP_PLATFORM_ASSERT(x)	do { printf("LWIP(%s,%d,%p): %s", __FILE__, __LINE__, __builtin_return_address(0), (x)); kaboom(); } while(0)
 #else
 #define LWIP_PLATFORM_DIAG(x)	((void)0) /* For now... */
 #define LWIP_PLATFORM_ASSERT(x)	kaboom()
