@@ -4,7 +4,7 @@
 #include "url.h"
 #include "tftp.h"
 
-const uint8_t TimeoutTable[] = {
+static const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44,
     53, 64, 77, 92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };

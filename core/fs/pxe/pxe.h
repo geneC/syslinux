@@ -176,7 +176,6 @@ extern uint8_t uuid_type;
 extern uint8_t uuid[];
 
 extern uint16_t BIOS_fbm;
-extern const uint8_t TimeoutTable[];
 
 /*
  * functions
