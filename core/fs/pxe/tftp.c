@@ -119,6 +119,7 @@ static void tftp_get_packet(struct inode *inode)
     struct netbuf *nbuf;
     u16_t nbuf_len;
     struct pxe_pvt_inode *socket = PVT(inode);
+    err_t err;
 
     /*
      * Start by ACKing the previous packet; this should cause
@@ -132,8 +133,8 @@ static void tftp_get_packet(struct inode *inode)
     ack_packet(inode, socket->tftp_lastpkt);
 
     while (timeout) {
-	nbuf = netconn_recv(socket->conn);
-	if (!nbuf) {
+	err = netconn_recv(socket->conn, &nbuf);
+	if (!nbuf || err) {
 	    jiffies_t now = jiffies();
 
 	    if (now-oldtime >= timeout) {
@@ -301,8 +302,8 @@ sendreq:
 wait_pkt:
     netconn_disconnect(socket->conn);
     for (;;) {
-	nbuf = netconn_recv(socket->conn);
-	if (!nbuf) {
+	err = netconn_recv(socket->conn, &nbuf);
+	if (!nbuf || err) {
 	    jiffies_t now = jiffies();
 	    if (now - oldtime >= timeout)
 		 goto sendreq;

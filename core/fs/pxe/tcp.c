@@ -51,8 +51,8 @@ void tcp_fill_buffer(struct inode *inode)
     }
     /* If needed get a new netbuf */
     if (!socket->buf) {
-	socket->buf = netconn_recv(socket->conn);
-	if (!socket->buf) {
+	err = netconn_recv(socket->conn, &(socket->buf));
+	if (!socket->buf || err) {
 	    socket->tftp_goteof = 1;
 	    if (inode->size == -1)
 		inode->size = socket->tftp_filepos;
