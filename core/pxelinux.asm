@@ -397,9 +397,9 @@ pxenv:
 		pushad
 
 		; We may be removing ourselves from memory
-		cmp bx,0073h		; PXENV_RESTART_TFTP
+		cmp bx,PXENV_RESTART_TFTP
 		jz .disable_timer
-		cmp bx,00E5h		; gPXE PXENV_FILE_EXEC
+		cmp bx,PXENV_FILE_EXEC
 		jnz .store_stack
 
 .disable_timer:
@@ -434,9 +434,9 @@ pxenv:
 		popad
 
 		; If the call failed, it could return.
-		cmp bx,0073h
+		cmp bx,PXENV_RESTART_TFTP
 		jz .enable_timer
-		cmp bx,00E5h
+		cmp bx,PXENV_FILE_EXEC
 		jnz .pop_flags
 
 .enable_timer:
