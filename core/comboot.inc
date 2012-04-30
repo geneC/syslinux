@@ -591,11 +591,11 @@ comapi_ipappend:
 ; INT 22h AX=0010h	Resolve hostname
 ;
 %if IS_PXELINUX
-                extern pxe_dns_resolv
+                extern pm_pxe_dns_resolv
 comapi_dnsresolv:
 		mov ds,P_ES
 		mov si,P_BX
-		pm_call pxe_dns_resolv
+		pm_call pm_pxe_dns_resolv
 		mov P_EAX,eax
 		clc
 		ret
