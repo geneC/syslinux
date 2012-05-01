@@ -37,7 +37,7 @@
 #include "core.h"
 #include "fs.h"
 
-#define MAX_CHUNK	(1 << 20) /* 1 MB */
+#define MAX_CHUNK	(1UL << 20) /* 1 MB */
 
 void pm_load_high(com32sys_t *regs)
 {
