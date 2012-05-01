@@ -124,7 +124,7 @@ static const char *apply_extension(const char *kernel, const char *ext)
 	/* Copy the rest of the command line */
 	strcpy(k + len + elen, p);
 
-	k[len + elen] = '\0';
+	k[len + elen + strlen(p)] = '\0';
 
 	return k;
 }
