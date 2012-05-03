@@ -164,6 +164,12 @@ static void load_kernel(const char *command_line)
 	if (!allowimplicit)
 		goto bad_implicit;
 
+	/* Insert a null character to ignore any user-specified options */
+	if (!allowoptions) {
+		char *p = (char *)find_command(kernel);
+		*p = '\0';
+	}
+
 	type = parse_kernel_type(kernel);
 	if (type == KT_KERNEL) {
 		const char *ext;

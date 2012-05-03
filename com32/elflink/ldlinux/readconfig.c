@@ -1090,7 +1090,7 @@ do_include:
 	    ontimeout = refstrdup(skipspace(p + 9));
 	    ontimeoutlen = strlen(ontimeout);
 	} else if (looking_at(p, "allowoptions")) {
-	    m->allowedit = !!atoi(skipspace(p + 12));
+	    allowoptions = !!atoi(skipspace(p + 12));
 	} else if (looking_at(p, "ipappend")) {
 	    if (ld.label)
 		ld.ipappend = atoi(skipspace(p + 8));
