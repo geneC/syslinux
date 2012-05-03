@@ -209,15 +209,11 @@ static void enter_cmdline(void)
 	/* Enter endless command line prompt, should support "exit" */
 	while (1) {
 		cmdline = edit_cmdline("syslinux$", 1, NULL, cat_help_file);
-		if (!cmdline)
-			continue;
-
-		/* return if user only press enter */
-		if (cmdline[0] == '\0') {
-			printf("\n");
-			continue;
-		}
 		printf("\n");
+
+		/* return if user only press enter or we timed out */
+		if (!cmdline || cmdline[0] == '\0')
+			return;
 
 		load_kernel(cmdline);
 	}
@@ -226,6 +222,7 @@ static void enter_cmdline(void)
 int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;
+	const char *cmdline;
 	size_t count = 0;
 	char *config_argv[2] = { NULL, NULL };
 
@@ -242,7 +239,6 @@ int main(int argc __unused, char **argv __unused)
 		 * We apparently have a boot-once set; clear it and
 		 * then execute the boot-once.
 		 */
-		const char *cmdline;
 		char *src, *dst;
 		size_t i;
 
@@ -270,12 +266,14 @@ int main(int argc __unused, char **argv __unused)
 	if (forceprompt)
 		goto cmdline;
 
+	cmdline = default_cmd;
+auto_boot:
 	/*
 	 * Auto boot
 	 */
 	if (defaultlevel || noescape) {
 		if (defaultlevel) {
-			load_kernel(default_cmd); /* Shouldn't return */
+			load_kernel(cmdline); /* Shouldn't return */
 		} else {
 			printf("No DEFAULT or UI configuration directive found!\n");
 
@@ -285,8 +283,12 @@ int main(int argc __unused, char **argv __unused)
 	}
 
 cmdline:
-	/* Should never return */
+	/* Only returns if the user pressed enter or input timed out */
 	enter_cmdline();
+
+	cmdline = ontimeoutlen ? ontimeout : default_cmd;
+
+	goto auto_boot;
 
 	return 0;
 }

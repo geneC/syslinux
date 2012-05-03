@@ -19,8 +19,6 @@
 #include "cli.h"
 #include "config.h"
 
-static jmp_buf timeout_jump;
-
 static struct list_head cli_history_head;
 
 void clear_screen(void)
@@ -29,46 +27,37 @@ void clear_screen(void)
     fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
 }
 
-int mygetkey(clock_t timeout)
+static int mygetkey_timeout(clock_t *kbd_to, clock_t *tto)
 {
-    clock_t t0, t;
-    clock_t tto, to;
+    clock_t t0, t1;
     int key;
 
-    //dprintf("enter");
-    if (!totaltimeout)
-	return get_key(stdin, 0);
+    t0 = times(NULL);
+    key = get_key(stdin, *kbd_to ? *kbd_to : *tto);
 
-    for (;;) {
-	tto = min(totaltimeout, INT_MAX);
-	to = timeout ? min(tto, timeout) : tto;
+    /* kbdtimeout only applies to the first character */
+    if (*kbd_to)
+	*kbd_to = 0;
 
-	t0 = 0;
-	key = get_key(stdin, 0);
-	t = 0 - t0;
+    t1 = times(NULL) - t0;
+    if (*tto) {
+	/* Timed out. */
+	if (*tto <= (long long)t1)
+	    key = KEY_NONE;
+	else {
+	    /* Did it wrap? */
+	    if (*tto > totaltimeout)
+		key = KEY_NONE;
 
-	if (totaltimeout <= t)
-	    longjmp(timeout_jump, 1);
-
-	totaltimeout -= t;
-
-	if (key != KEY_NONE) {
-		//dprintf("get key 0x%x", key);
-	    return key;
-	}
-
-	if (timeout) {
-	    if (timeout <= t) {
-		//dprintf("timeout");
-		return KEY_NONE;
-		}
-
-	    timeout -= t;
+	    *tto -= t1;
 	}
     }
+
+    return key;
 }
 
-static const char * cmd_reverse_search(int *cursor)
+static const char * cmd_reverse_search(int *cursor, clock_t *kbd_to,
+				       clock_t *tto)
 {
     int key;
     int i = 0;
@@ -83,7 +72,7 @@ static const char * cmd_reverse_search(int *cursor)
 
     eprintf("\033[1G\033[1;36m(reverse-i-search)`': \033[0m");
     while (1) {
-        key = mygetkey(0);
+	key = mygetkey_timeout(kbd_to, tto);
 
 	if (key == KEY_CTRL('C')) {
 	    return NULL;
@@ -140,6 +129,8 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     const char *ret;
     int width = 0;
     struct cli_command *comm_counter = NULL;
+    clock_t kbd_to = kbdtimeout;
+    clock_t tto = totaltimeout;
 
     if (!width) {
 	int height;
@@ -205,9 +196,13 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    redraw = 0;
 	}
 
-	key = mygetkey(0);
+	key = mygetkey_timeout(&kbd_to, &tto);
 
 	switch (key) {
+	case KEY_NONE:
+	    /* We timed out. */
+	    return NULL;
+
 	case KEY_CTRL('L'):
 	    redraw = 2;
 	    break;
@@ -381,7 +376,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	          * Handle this case in another function, since it's 
 	          * a kind of special.
 	          */
-	        const char *p = cmd_reverse_search(&cursor);
+	        const char *p = cmd_reverse_search(&cursor, &kbd_to, &tto);
 	        if (p) {
 	            strcpy(cmdline, p);
 		    len = strlen(cmdline);

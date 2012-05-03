@@ -68,6 +68,7 @@ short nohalt = 1;		//idle.inc
 
 const char *default_cmd = NULL;	//"default" command line
 const char *onerror = NULL;	//"onerror" command line
+const char *ontimeout = NULL;	//"ontimeout" command line
 
 /* Empty refstring */
 const char *empty_string;
@@ -79,6 +80,7 @@ struct menu *root_menu, *start_menu, *hide_menu, *menu_list, *default_menu;
 int shiftkey = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu = 0;
 long long totaltimeout = 0;
+unsigned int kbdtimeout = 0;
 
 /* Keep track of global default */
 static int has_ui = 0;		/* DEFAULT only counts if UI is found */
@@ -1081,11 +1083,12 @@ do_include:
 		//dprintf("got a kernel: %s, type = %d", ld.kernel, ld.type);
 	    }
 	} else if (looking_at(p, "timeout")) {
-	    m->timeout = (atoi(skipspace(p + 7)) * CLK_TCK + 9) / 10;
+	    kbdtimeout = (atoi(skipspace(p + 7)) * CLK_TCK + 9) / 10;
 	} else if (looking_at(p, "totaltimeout")) {
 	    totaltimeout = (atoll(skipspace(p + 13)) * CLK_TCK + 9) / 10;
 	} else if (looking_at(p, "ontimeout")) {
-	    m->ontimeout = refstrdup(skipspace(p + 9));
+	    ontimeout = refstrdup(skipspace(p + 9));
+	    ontimeoutlen = strlen(ontimeout);
 	} else if (looking_at(p, "allowoptions")) {
 	    m->allowedit = !!atoi(skipspace(p + 12));
 	} else if (looking_at(p, "ipappend")) {
