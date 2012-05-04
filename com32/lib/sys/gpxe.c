@@ -1,6 +1,8 @@
+#include <string.h>
+
 #include <sys/gpxe.h>
 #include <syslinux/config.h>
-#include <string.h>
+#include <syslinux/pxe_api.h>
 
 bool is_gpxe(void)
 {
@@ -16,12 +18,13 @@ bool is_gpxe(void)
     fca = lzalloc(sizeof *fca);
     if (!fca)
 	return false;
+
     fca->Size = sizeof *fca;
     fca->Magic = 0x91d447b2;
 
     memset(&reg, 0, sizeof reg);
     reg.eax.w[0] = 0x0009;
-    reg.ebx.w[0] = 0x00e6;      /* PXENV_FILE_API_CHECK */
+    reg.ebx.w[0] = PXENV_FILE_API_CHECK;
     /* reg.edi.w[0] = OFFS(fca); */
     reg.es = SEG(fca);
 

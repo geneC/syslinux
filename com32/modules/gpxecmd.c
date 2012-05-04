@@ -22,7 +22,9 @@
 #include <console.h>
 #include <com32.h>
 #include <string.h>
+
 #include <sys/gpxe.h>
+#include <syslinux/pxe_api.h>
 
 struct segoff16 {
     uint16_t offs, seg;
@@ -57,7 +59,7 @@ static void gpxecmd(const char **args)
 
     memset(&reg, 0, sizeof reg);
     reg.eax.w[0] = 0x0009;
-    reg.ebx.w[0] = 0x00e5;	/* PXENV_FILE_EXEC */
+    reg.ebx.w[0] = PXENV_FILE_EXEC;
     reg.edi.w[0] = OFFS(fx);
     reg.es = SEG(fx);
 
