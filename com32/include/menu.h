@@ -187,6 +187,7 @@ extern int shiftkey;
 extern int hiddenmenu;
 extern int clearmenu;
 extern long long totaltimeout;
+extern clock_t kbdtimeout;
 extern const char *hide_key[KEY_MAX];
 
 void parse_configs(char **argv);

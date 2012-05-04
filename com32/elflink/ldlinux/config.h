@@ -35,6 +35,7 @@ extern short nohalt;		//idle.inc
 
 extern const char *default_cmd;	//"default" command line
 extern const char *onerror;	//"onerror" command line
+extern const char *ontimeout;	//"ontimeout" command line
 
 extern void cat_help_file(int key);
 extern struct menu_entry *find_label(const char *str);
