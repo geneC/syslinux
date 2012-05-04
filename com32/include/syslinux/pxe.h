@@ -34,11 +34,11 @@
 #ifndef _SYSLINUX_PXE_H
 #define _SYSLINUX_PXE_H
 
+#include <pxe.h>
 #include <syslinux/pxe_api.h>
 
 /* SYSLINUX-defined PXE utility functions */
 int pxe_get_cached_info(int level, void **buf, size_t *len);
-int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE * gnt);
-uint32_t pxe_dns(const char *hostname);
+int pxe_get_nic_type(t_PXENV_UNDI_GET_NIC_TYPE *gnt);
 
 #endif /* _SYSLINUX_PXE_H */

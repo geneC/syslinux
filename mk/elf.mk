@@ -44,7 +44,8 @@ endif
 CFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ -DDYNAMIC_MODULE \
 	     -nostdinc -iwithprefix include \
-	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
+	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE) \
+	     -I../../core/include
 SFLAGS     = $(GCCOPT) -D__COM32__ -march=i386
 LDFLAGS    = -m elf_i386 -shared --hash-style=gnu -T $(com32)/lib/elf32.ld
 

@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2012 Paulo Alcantara <pcacjr@zytor.com>
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,51 +26,18 @@
  *
  * ----------------------------------------------------------------------- */
 
-/*
- * pxe_dns.c
- *
- * Resolve a hostname via DNS
- */
+#ifndef PXE_H_
+#define PXE_H_
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
-#include <com32.h>
 
-#include <syslinux/pxe.h>
+extern uint32_t dns_resolv(const char *);
 
-/* Returns the status code from PXE (0 on success),
-   or -1 on invocation failure */
-uint32_t pxe_dns(const char *hostname)
+/* Resolve a hostname via DNS */
+static inline uint32_t pxe_dns_resolv(const char *name)
 {
-    com32sys_t regs;
-    union {
-	unsigned char b[4];
-	uint32_t ip;
-    } q;
-    char *lm_hostname;
-
-    /* Is this a dot-quad? */
-    if (sscanf(hostname, "%hhu.%hhu.%hhu.%hhu",
-	       &q.b[0], &q.b[1], &q.b[2], &q.b[3]) == 4)
-	return q.ip;
-
-    lm_hostname = lstrdup(hostname);
-    if (!lm_hostname)
-	return 0;
-
-    memset(&regs, 0, sizeof regs);
-    regs.eax.w[0] = 0x0010;
-    regs.es = SEG(lm_hostname);
-    /* regs.ebx.w[0] = OFFS(lm_hostname); */
-
-    __intcall(0x22, &regs, &regs);
-
-    lfree(lm_hostname);
-
-    if (regs.eflags.l & EFLAGS_CF)
-	return 0;
-
-    return regs.eax.l;
+    return dns_resolv(name);
 }
+
+#endif /* PXE_H_ */

@@ -22,23 +22,11 @@
 #include <stdlib.h>
 #include <com32.h>
 
-uint32_t resolv(const char *name)
+#include <syslinux/pxe.h>
+
+static inline uint32_t resolv(const char *name)
 {
-    com32sys_t reg;
-
-    strcpy((char *)__com32.cs_bounce, name);
-
-    memset(&reg, 0, sizeof reg);
-    reg.eax.w[0] = 0x0010;
-    reg.ebx.w[0] = OFFS(__com32.cs_bounce);
-    reg.es = SEG(__com32.cs_bounce);
-
-    __intcall(0x22, &reg, &reg);
-
-    if (reg.eflags.l & EFLAGS_CF)
-	return 0;
-    else
-	return reg.eax.l;
+    return pxe_dns_resolv(name);
 }
 
 int main(int argc, char *argv[])
@@ -53,7 +41,6 @@ int main(int argc, char *argv[])
     }
 
     ip = resolv(argv[1]);
-
     if (ip) {
 	printf("%s = %u.%u.%u.%u\n", argv[1],
 	       (ip & 0xff), (ip >> 8) & 0xff,
