@@ -354,12 +354,17 @@ void vgashowcursor(void)
 	vgacursorcommon('_');
 }
 
-void pm_usingvga(com32sys_t *regs)
+void using_vga(uint8_t vga, uint16_t pix_cols, uint16_t pix_rows)
 {
-	UsingVGA = regs->eax.b[0];
-	GXPixCols = regs->ecx.w[0];
-	GXPixRows = regs->edx.w[0];
+    UsingVGA = vga;
+    GXPixCols = pix_cols;
+    GXPixRows = pix_rows;
 
-	if (!(UsingVGA & 0x08))
-		adjust_screen();
+    if (!(UsingVGA & 0x08))
+        adjust_screen();
+}
+
+void pm_using_vga(com32sys_t *regs)
+{
+    using_vga(regs->eax.b[0], regs->ecx.w[0], regs->edx.w[0]);
 }

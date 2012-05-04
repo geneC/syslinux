@@ -654,7 +654,7 @@ comapi_usingvga:
 		ja .error
 		mov cx,P_CX
 		mov dx,P_DX
-		pm_call pm_usingvga
+		pm_call pm_using_vga
 		clc
 		ret
 .error:
