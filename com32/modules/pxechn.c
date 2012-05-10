@@ -88,6 +88,7 @@ typedef union {
 #define PXECHN_HOST_LEN		256	/* 63 bytes per label; 255 max total */
 
 #define PXECHN_NUM_PKT_TYPE	3
+#define PXECHN_NUM_PKT_AVAIL	2*PXECHN_NUM_PKT_TYPE
 #define PXECHN_PKT_TYPE_START	PXENV_PACKET_TYPE_DHCP_DISCOVER
 
 #define PXECHN_FORCE_PKT1	0x80000000
@@ -106,7 +107,7 @@ struct pxelinux_opt {
     in_addr_t gip;	/* giaddr; Gateway/DHCP relay */
     uint32_t force;
     uint32_t wait;	/* Additional decision to wait before boot */
-    struct dhcp_option p[(2 * PXECHN_NUM_PKT_TYPE)];
+    struct dhcp_option p[PXECHN_NUM_PKT_AVAIL];
 	/* original _DHCP_DISCOVER, _DHCP_ACK, _CACHED_REPLY then modified packets */
     char host[PXECHN_HOST_LEN];
     struct dhcp_option opts[PXECHN_NUM_PKT_TYPE][NUM_DHCP_OPTS];
@@ -435,14 +436,14 @@ void pxechn_fill_pkt(struct pxelinux_opt *pxe, int ptype)
 	    dpressanykey();
 	} else {
 	    printf("%s: ERROR: Unable to malloc() for second packet\n", app_name_str);
-	    pxechn_opt_free(pxe->p[p1]);
+	    pxechn_opt_free(&pxe->p[p1]);
 	}
     } else {
 	printf("%s: ERROR: Unable to retrieve first packet\n", app_name_str);
     }
     if (rv <= -1) {
-	pxechn_opt_free(pxe->p[p1]);
-	pxechn_opt_free(pxe->p[p2]);
+	pxechn_opt_free(&pxe->p[p1]);
+// 	pxechn_opt_free(&pxe->p[p2]);
     }
 }
 
@@ -463,6 +464,10 @@ void pxechn_init(struct pxelinux_opt *pxe)
 	    pxe->opts[j][i].flags = 0;
 	}
 	pxe->p_unpacked[j] = 0;
+	pxe->p[j].data = NULL;
+	pxe->p[j+PXECHN_NUM_PKT_TYPE].data = NULL;
+	pxe->p[j].len = 0;
+	pxe->p[j+PXECHN_NUM_PKT_TYPE].len = 0;
     }
     pxechn_fill_pkt(pxe, PXENV_PACKET_TYPE_CACHED_REPLY);
 }
@@ -790,6 +795,8 @@ dprintf("opterr: %d\n", opterr);
 	default:
 	    break;
 	}
+	if (rv >= 0)
+	    optarg = NULL;
     }
     if (iopt.data)
 	pxechn_opt_free(&iopt);
