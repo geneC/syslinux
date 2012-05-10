@@ -107,6 +107,7 @@ struct pxelinux_opt {
     in_addr_t gip;	/* giaddr; Gateway/DHCP relay */
     uint32_t force;
     uint32_t wait;	/* Additional decision to wait before boot */
+    int32_t wds;	/* WDS option/level */
     struct dhcp_option p[PXECHN_NUM_PKT_AVAIL];
 	/* original _DHCP_DISCOVER, _DHCP_ACK, _CACHED_REPLY then modified packets */
     char host[PXECHN_HOST_LEN];
@@ -455,6 +456,7 @@ void pxechn_init(struct pxelinux_opt *pxe)
     pxe->force = 0;
     pxe->wait = 0;
     pxe->gip = 0;
+    pxe->wds = 0;
     pxe->host[0] = 0;
     pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
     for (int j = 0; j < PXECHN_NUM_PKT_TYPE; j++){
@@ -793,6 +795,11 @@ dprintf("opterr: %d\n", opterr);
 	    if (optarg)
 		pxe->wait = strtoul(optarg, NULL, 0);
 	    break;
+	case 'W':	/* WDS */
+	    pxe->wds = 1;
+	    if (optarg)
+		pxe->wds = strtoul(optarg, NULL, 0);
+	    break;
 	case '?':
 	    rv = -'?';
 	default:
@@ -965,10 +972,12 @@ int pxechn(int argc, char *argv[])
     puts("loaded.");
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
-    if (pxe.force && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
+    if ((pxe.wds) || 
+	    (pxe.force) && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
 	printf("Forcing behavior %08X\n", pxe.force);
 	// P2 is the same as P3 if no PXE server present.
-	if (pxe.force & PXECHN_FORCE_PKT2) {
+	if ((pxe.wds) ||
+		(pxe.force & PXECHN_FORCE_PKT2)) {
 	    pxechn_fill_pkt(&pxe, PXENV_PACKET_TYPE_DHCP_ACK);
 	    rv = pxechn_mergeopt(&pxe, 2, 1);
 	    if (rv) {
@@ -983,10 +992,12 @@ int pxechn(int argc, char *argv[])
     }
     rv = dhcp_pkt2pxe(p[5], pxe.p[5].len, PXENV_PACKET_TYPE_CACHED_REPLY);
     dprint_pxe_bootp_t(p[5], pxe.p[5].len);
-    if (pxe.force && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
+    if ((pxe.wds) ||
+	    (pxe.force) && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
 	// printf("Forcing behavior %08X\n", pxe.force);
 	// P2 is the same as P3 if no PXE server present.
-	if (pxe.force & PXECHN_FORCE_PKT2) {
+	if ((pxe.wds) ||
+		(pxe.force & PXECHN_FORCE_PKT2)) {
 	    rv = dhcp_pkt2pxe(p[5], pxe.p[5].len, PXENV_PACKET_TYPE_DHCP_ACK);
 	}
     } else if (pxe.force) {
