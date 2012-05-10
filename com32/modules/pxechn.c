@@ -752,7 +752,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 opterr = 1;
 dprintf("opterr: %d\n", opterr);
     while ((rv >= 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
-	dprintf_pc_pa("  Got arg '%c' val %s\n", arg, optarg ? optarg : "");
+	dprintf_pc_pa("  Got arg '%c' addr %08X val %s\n", arg, (unsigned int)optarg, optarg ? optarg : "");
 	switch(arg) {
 	case 'c':	/* config */
 	    pxechn_setopt_str(&(opts[209]), optarg);
@@ -904,6 +904,17 @@ int pxechn_mergeopt(struct pxelinux_opt *pxe, int d, int s)
 	ret = dhcp_unpack_packet(pxe->p[s].data, pxe->p[s].len, pxe->opts[s]);
     if (ret) {
 	error("Could not unpack packet for merge\n");
+	printf("Error %d (%d)\n", ret, EINVAL);
+	if (ret == EINVAL) {
+	    if (pxe->p[s].len < 240)
+		printf("Packet %d is too short: %d (240)\n", s, pxe->p[s].len);
+	    else if (((const struct dhcp_packet *)(pxe->p[s].data))->magic != htonl(DHCP_VENDOR_MAGIC))
+		printf("Packet %d has no magic\n", s);
+	    else
+		error("Unknown EINVAL error\n");
+	} else {
+	    error("Unknown error\n");
+	}
 	return -ret;
     }
     for (i = 0; i < NUM_DHCP_OPTS; i++) {
