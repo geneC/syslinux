@@ -744,6 +744,9 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	pxe->fip = 0;
     /* Fill */
     pxe->fn = argv[0];
+    pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
+    pxechn_setopt_str(&(opts[67]), pxe->fp);
+    pxechn_setopt_str(&(opts[66]), pxe->host);
     iopt.data = malloc(DHCP_OPT_LEN_MAX);
     iopt.len = 0;
 opterr = 1;
@@ -829,9 +832,6 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     pxe->p_unpacked[2] = 1;
     pxe->gip = bootp1->gip;
 
-    pxechn_parse_fn(pxe->fn, &(pxe->fip), pxe->host, &(pxe->fp));
-    pxechn_setopt_str(&(opts[67]), pxe->fp);
-    pxechn_setopt_str(&(opts[66]), pxe->host);
     ret = pxechn_parse_args(argc, argv, pxe, opts);
     if (ret)
 	return ret;
