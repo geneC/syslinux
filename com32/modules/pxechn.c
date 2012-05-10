@@ -837,7 +837,7 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	return ret;
     bootp1->sip = pxe->fip;
     bootp1->gip = pxe->gip;
-opts[67].flags |= DHCP_OPTION_FLAGS_ASOPT;
+// opts[67].flags |= DHCP_OPTION_FLAGS_ASOPT;
 
     ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->p[5].len), opts);
     if (ret) {
@@ -965,12 +965,15 @@ int pxechn(int argc, char *argv[])
     puts("loaded.");
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
-//FIXME::HERE
     if (pxe.force && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
 	printf("Forcing behavior %08X\n", pxe.force);
 	// P2 is the same as P3 if no PXE server present.
 	if (pxe.force & PXECHN_FORCE_PKT2) {
+	    pxechn_fill_pkt(&pxe, PXENV_PACKET_TYPE_DHCP_ACK);
 	    rv = pxechn_mergeopt(&pxe, 2, 1);
+	    if (rv) {
+		dprintf("Merge Option returned %d\n", rv);
+	    }
 	    rv = dhcp_pack_packet(p[5], (size_t *)&(pxe.p[5].len), pxe.opts[2]);
 	    rv = dhcp_pkt2pxe(p[5], pxe.p[5].len, PXENV_PACKET_TYPE_DHCP_ACK);
 	}
