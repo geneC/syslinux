@@ -82,6 +82,7 @@ EXTBOOTINSTALL = $(MODULES)
 
 # Things to install in /tftpboot
 NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 \
+		 com32/elflink/ldlinux/ldlinux.c32 \
 		 $(MODULES)
 
 all:
