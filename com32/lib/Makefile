@@ -16,7 +16,7 @@ LIBPNG_OBJS = \
 	libpng/pngrio.o libpng/pngwio.o libpng/pngwrite.o		\
 	libpng/pngrtran.o libpng/pngwtran.o libpng/pngmem.o		\
 	libpng/pngerror.o libpng/pngpread.o
-	
+
 # ZIP library object files
 LIBZLIB_OBJS = \
 	zlib/adler32.o zlib/compress.o zlib/crc32.o 			\
@@ -79,6 +79,8 @@ LIBENTRY_OBJS = \
 	sys/openmem.o					\
 	sys/isatty.o sys/fstat.o					\
 	\
+	dprintf.o vdprintf.o						\
+	\
 	syslinux/idle.o							\
 	\
 	exit.o
@@ -93,7 +95,7 @@ LIBGCC_OBJS = \
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o
-	
+
 LIBCONSOLE_OBJS = \
 	\
 	sys/openconsole.o sys/line_input.o				\
@@ -135,8 +137,6 @@ LIBOTHER_OBJS = \
 	inet.o								\
 	\
 	lstrdup.o						\
-	\
-	dprintf.o vdprintf.o						\
 	\
 	suffix_number.o							\
 	\

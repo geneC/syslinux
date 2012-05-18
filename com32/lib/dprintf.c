@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#undef DEBUG
-#define DEBUG 1
+#ifdef DEBUG
+
 #include <dprintf.h>
 
 void dprintf(const char *format, ...)
@@ -17,3 +17,5 @@ void dprintf(const char *format, ...)
     vdprintf(format, ap);
     va_end(ap);
 }
+
+#endif

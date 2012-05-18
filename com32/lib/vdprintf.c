@@ -2,6 +2,8 @@
  * vdprintf.c
  */
 
+#ifdef DEBUG
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -10,8 +12,6 @@
 #include <sys/io.h>
 #include <sys/cpu.h>
 
-#undef DEBUG
-#define DEBUG 1
 #include <dprintf.h>
 
 #define BUFFER_SIZE	4096
@@ -114,5 +114,7 @@ void vdprintf(const char *format, va_list ap)
     while (rv--)
 	debug_putc(*p++);
 
-    _fwrite(buffer, _rv, stdout);
+    /* _fwrite(buffer, _rv, stdout); */
 }
+
+#endif /* DEBUG */
