@@ -113,8 +113,6 @@ void vdprintf(const char *format, va_list ap)
     p = buffer;
     while (rv--)
 	debug_putc(*p++);
-
-    /* _fwrite(buffer, _rv, stdout); */
 }
 
 #endif /* DEBUG */
