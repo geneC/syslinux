@@ -466,6 +466,17 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     dprintf("Initial movelist:\n");
     syslinux_dump_movelist(fraglist);
 
+    if (video_mode != 0x0f04) {
+	/*
+	 * video_mode is not "current", so if we are in graphics mode we
+	 * need to revert to text mode...
+	 */
+	dprintf("*** Calling vgaclearmode()...\n");
+	vgaclearmode();
+    } else {
+	dprintf("*** vga=current, not calling vgaclearmode()...\n");
+    }
+
     syslinux_shuffle_boot_rm(fraglist, mmap, 0, &regs);
 
 bail:
