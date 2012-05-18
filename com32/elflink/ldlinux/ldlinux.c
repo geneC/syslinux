@@ -214,7 +214,7 @@ static void enter_cmdline(void)
 
 	/* Enter endless command line prompt, should support "exit" */
 	while (1) {
-		cmdline = edit_cmdline("boot: ", 1, NULL, cat_help_file);
+		cmdline = edit_cmdline("boot:", 1, NULL, cat_help_file);
 		printf("\n");
 
 		/* return if user only press enter or we timed out */

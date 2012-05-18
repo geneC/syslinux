@@ -165,7 +165,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    eprintf("\033[?7l\033[?25l");
 	    if (y)
 		eprintf("\033[%dA", y);
-	    eprintf("\033[1G\033[1;36m%s \033[0m", input);
+	    eprintf("\033[1G%s ", input);
 
 	    x = strlen(input);
 	    y = 0;
