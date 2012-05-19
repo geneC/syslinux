@@ -21,13 +21,14 @@
 #include <sys/io.h>
 #include <stdio.h>
 #include <fs.h>
+
 #include "bios.h"
+#include "graphics.h"
 #include "core.h"
 
 char fontbuf[8192];
 char serial[serial_buf_size];
 
-extern uint16_t VGAFontSize;
 extern uint8_t UserFont;
 
 uint16_t GXPixCols = 1;		/* Graphics mode pixel columns */
@@ -107,10 +108,9 @@ void use_font(void)
 	com32sys_t ireg, oreg;
 	uint8_t bytes = VGAFontSize;
 
-
 	/* Nonstandard mode? */
 	if (UsingVGA & ~0x3)
-		vgaclearmode();
+		syslinux_force_text_mode();
 
 	memset(&ireg, 0, sizeof(ireg));
 

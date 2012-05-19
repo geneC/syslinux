@@ -151,11 +151,11 @@ kaboom2:
 		cmp byte [kaboom.again+1],18h	; INT 18h version?
 		je .int18
 		pm_call pm_getchar
-		pm_call vgaclearmode
+		pm_call syslinux_force_text_mode
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 .int18:
-		pm_call vgaclearmode
+		pm_call syslinux_force_text_mode
 		int 18h
 .noreg:		jmp short .noreg	; Nynorsk
 

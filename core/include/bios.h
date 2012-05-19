@@ -78,21 +78,6 @@ extern uint16_t VGAFontSize;
 extern void use_font(void);
 extern void bios_adjust_screen(void);
 
-/* graphics.c */
-#ifdef IS_SYSLINUX
-#define VGA_FILE_BUF_SIZE	(FILENAME_MAX + 2)
-#else
-#define VGA_FILE_BUF_SIZE	FILENAME_MAX
-#endif
-
-extern uint8_t UsingVGA;
-extern uint16_t VGAPos;
-extern uint16_t *VGAFilePtr;
-extern char VGAFileBuf[VGA_FILE_BUF_SIZE];
-extern char VGAFileMBuf[];
-extern void vgaclearmode(void);
-extern void vgadisplayfile(FILE *fd);
-
 /* serirq.c */
 extern char *SerialHead;
 extern char *SerialTail;

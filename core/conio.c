@@ -24,11 +24,12 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <fs.h>
-#include "bios.h"
 #include <com32.h>
 #include <sys/cpu.h>
+
+#include "bios.h"
+#include "graphics.h"
 
 union screen _cursor;
 union screen _screensize;
@@ -434,7 +435,7 @@ static void msg_formfeed(void)
 
 static void msg_novga(void)
 {
-	vgaclearmode();
+	syslinux_force_text_mode();
 	msg_initvars();
 }
 

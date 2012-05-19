@@ -429,7 +429,7 @@ comapi_run_default:
 ; Puts the video in standard text mode
 ;
 comapi_textmode:
-		pm_call vgaclearmode
+		pm_call syslinux_force_text_mode
 		clc
 		ret
 

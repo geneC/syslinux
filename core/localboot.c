@@ -16,6 +16,7 @@
 #include <core.h>
 #include <fs.h>
 #include <bios.h>
+#include <graphics.h>
 
 /*
  * localboot.c
@@ -38,7 +39,7 @@ void local_boot(int16_t ax)
 	com32sys_t ireg, oreg;
 	int i;
 
-	vgaclearmode();
+	syslinux_force_text_mode();
 
 	writestr(LOCALBOOT_MSG);
 	crlf();

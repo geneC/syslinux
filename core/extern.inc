@@ -64,7 +64,7 @@
 	extern pm_writehex2, pm_writehex4, pm_writehex8
 
 	; graphics.c
-	extern vgaclearmode, vgashowcursor, vgahidecursor, pm_using_vga
+	extern syslinux_force_text_mode, vgashowcursor, vgahidecursor, pm_using_vga
 
 	; conio.c
 	extern pm_pollchar, pm_write_serial, pm_serialcfg

@@ -1,12 +1,14 @@
-/*
- * writechr:	Write a single character in AL to the console without
- *		mangling any registers; handle video pages correctly.
- */
 #include <sys/io.h>
 #include <fs.h>
 #include <com32.h>
-#include "bios.h"
 
+#include "bios.h"
+#include "graphics.h"
+
+/*
+ * Write a single character in AL to the console without
+ * mangling any registers; handle video pages correctly.
+ */
 void writechr(char data)
 {
 	com32sys_t ireg, oreg;
@@ -14,7 +16,7 @@ void writechr(char data)
 	write_serial(data);	/* write to serial port if needed */
 
 	if (UsingVGA & 0x8)
-		vgaclearmode();
+		syslinux_force_text_mode();
 
 	if (!(DisplayCon & 0x1))
 		return;

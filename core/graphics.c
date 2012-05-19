@@ -21,7 +21,9 @@
 #include <sys/io.h>
 #include <hw/vga.h>
 #include "fs.h"
+
 #include "bios.h"
+#include "graphics.h"
 
 uint8_t UsingVGA = 0;
 uint16_t VGAPos;		/* Pointer into VGA memory */
@@ -238,7 +240,7 @@ void vgadisplayfile(FILE *_fd)
 	 * This is a cheap and easy way to make sure the screen is
 	 * cleared in case we were in graphics mode aready.
 	 */
-	vgaclearmode();
+	syslinux_force_text_mode();
 	vgasetmode();
 
 	size = 4+2*2+16*3;
@@ -302,7 +304,7 @@ void vgadisplayfile(FILE *_fd)
 /*
  * Disable VGA graphics.
  */
-void vgaclearmode(void)
+void syslinux_force_text_mode(void)
 {
 	com32sys_t ireg, oreg;
 

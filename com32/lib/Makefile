@@ -49,8 +49,7 @@ LIBSYSLINUX_OBJS = \
 	syslinux/features.o syslinux/config.o	\
 	syslinux/dsinfo.o syslinux/version.o	\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
-	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
-	syslinux/video/reportmode.o
+	syslinux/video/fontquery.o syslinux/video/reportmode.o
 
 LIBLOAD_OBJS = \
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\

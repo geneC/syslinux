@@ -39,11 +39,13 @@
 #include <string.h>
 #include <minmax.h>
 #include <suffix_number.h>
+#include <graphics.h>
+#include <dprintf.h>
+
 #include <syslinux/align.h>
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
-#include <dprintf.h>
 
 struct linux_header {
     uint8_t boot_sector_1[0x0020];
@@ -471,10 +473,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	 * video_mode is not "current", so if we are in graphics mode we
 	 * need to revert to text mode...
 	 */
-	dprintf("*** Calling vgaclearmode()...\n");
-	vgaclearmode();
+	dprintf("*** Calling syslinux_force_text_mode()...\n");
+	syslinux_force_text_mode();
     } else {
-	dprintf("*** vga=current, not calling vgaclearmode()...\n");
+	dprintf("*** vga=current, not calling syslinux_force_text_mode()...\n");
     }
 
     syslinux_shuffle_boot_rm(fraglist, mmap, 0, &regs);
