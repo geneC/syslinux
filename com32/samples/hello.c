@@ -1,35 +1,26 @@
-/* ----------------------------------------------------------------------- *
- *
- *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
- *
- * ----------------------------------------------------------------------- */
-
 /*
- * hello.c
+ * hello.c - A simple ELF module that sorts a couple of numbers
  *
- * Hello, World! using libcom32
+ *  Created on: Aug 11, 2008
+ *      Author: Stefan Bucur <stefanb@zytor.com>
  */
 
-#include <string.h>
 #include <stdio.h>
-#include <console.h>
+#include <stdlib.h>
 
-int main(int argc, char *argv[])
+#include "sort.h"
+
+#define NUM_COUNT		10
+#define MAX_NUM			100
+
+int main(int argc __unused, char **argv __unused)
 {
-    int i;
+    int *nums = NULL;
 
-    openconsole(&dev_stdcon_r, &dev_stdcon_w);
+    nums = malloc(NUM_COUNT * sizeof(int));
+    printf("Hello, world, from 0x%08X! malloc return %p\n", (unsigned int)&main, nums);
 
-    printf("Hello, World!\n");
-
-    for (i = 1; i < argc; i++)
-	printf("%s%c", argv[i], (i == argc - 1) ? '\n' : ' ');
+    free(nums);
 
     return 0;
 }
