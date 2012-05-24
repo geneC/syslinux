@@ -423,7 +423,7 @@ void pxechn_fill_pkt(struct pxelinux_opt *pxe, int ptype)
     if ((ptype < 0) || (ptype > PXECHN_NUM_PKT_TYPE))
 	rv = -2;
     p1 = ptype - PXECHN_PKT_TYPE_START;
-    p2 = ptype - PXECHN_PKT_TYPE_START + PXECHN_NUM_PKT_TYPE;
+    p2 = p1 + PXECHN_NUM_PKT_TYPE;
     if ((rv >= -1) && (!pxe_get_cached_info(ptype,
 	    (void **)&(pxe->p[p1].data), (size_t *)&(pxe->p[p1].len)))) {
 	pxe->p[p2].data = malloc(2048);
@@ -750,7 +750,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     iopt.data = malloc(DHCP_OPT_LEN_MAX);
     iopt.len = 0;
     while ((rv >= 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
-	dprintf_pc_pa("  Got arg '%c' addr %08X val %s\n", arg, (unsigned int)optarg, optarg ? optarg : "");
+	dprintf_pc_pa("  Got arg '%c'/'%c' addr %08X val %s\n", arg == '?' ? optopt : arg, arg, (unsigned int)optarg, optarg ? optarg : "");
 	switch(arg) {
 	case 'c':	/* config */
 	    pxechn_setopt_str(&(opts[209]), optarg);
@@ -831,7 +831,6 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
 	return ret;
     bootp1->sip = pxe->fip;
     bootp1->gip = pxe->gip;
-// opts[67].flags |= DHCP_OPTION_FLAGS_ASOPT;
 
     ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->p[5].len), opts);
     if (ret) {
@@ -990,6 +989,7 @@ int pxechn(int argc, char *argv[])
     } else if (pxe.force) {
 	printf("FORCE: bad argument %08X\n", pxe.force);
     }
+    printf("\n...Ready to boot:\n");
     if (pxe.wait) {
 	pressanykey(INT_MAX);
     } else {
