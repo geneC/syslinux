@@ -61,7 +61,7 @@ typedef union {
 #  define dprint_pxe_vendor_blk		print_pxe_vendor_blk
 #  define dprint_pxe_vendor_raw		print_pxe_vendor_raw
 #else
-#  define dpressanykey()		((void)0)
+#  define dpressanykey(tm)		((void)0)
 #  define dprintf(f, ...)		((void)0)
 #  define dprint_pxe_bootp_t(p, l)	((void)0)
 #  define dprint_pxe_vendor_blk(p, l)	((void)0)
@@ -201,13 +201,11 @@ void pxe_error(int ierr, const char *evt, const char *msg)
     printf("%d:%s\n", ierr, strerror(ierr));
 }
 
-int pressanykey(void) {
+int pressanykey(clock_t tm) {
     int inc;
 
     printf("Press any key to continue. ");
-    inc = KEY_NONE;
-    while (inc == KEY_NONE)
-	inc = get_key(stdin, 6000);
+    inc = get_key(stdin, tm);
     puts("");
     return inc;
 }
@@ -434,7 +432,7 @@ void pxechn_fill_pkt(struct pxelinux_opt *pxe, int ptype)
 	    pxe->p[p2].len = pxe->p[p1].len;
 	    rv = 0;
 	    dprint_pxe_bootp_t((pxe_bootp_t *)(pxe->p[p1].data), pxe->p[p1].len);
-	    dpressanykey();
+	    dpressanykey(INT_MAX);
 	} else {
 	    printf("%s: ERROR: Unable to malloc() for second packet\n", app_name_str);
 	    pxechn_opt_free(&pxe->p[p1]);
@@ -947,7 +945,7 @@ int pxechn(int argc, char *argv[])
 
     /* Parse arguments and patch packet 1 */
     rv = pxechn_args(argc, argv, &pxe);
-    dpressanykey();
+    dpressanykey(INT_MAX);
     if (rv)
 	goto ret;
     pxe_set_regs(&regs);
@@ -993,9 +991,9 @@ int pxechn(int argc, char *argv[])
 	printf("FORCE: bad argument %08X\n", pxe.force);
     }
     if (pxe.wait) {
-	pressanykey();
+	pressanykey(INT_MAX);
     } else {
-	dpressanykey();
+	dpressanykey(INT_MAX);
     }
     if (true) {
 	puts("  Attempting to boot...");
