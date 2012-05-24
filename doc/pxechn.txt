@@ -57,8 +57,8 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 *-w*::
     wait after loading before booting for user input.
 
-*-W* 'LEVELOPT'::
-    Enable WDS (Windows Deployment Services" - specific) at LEVELOPT level
+*-W*::
+    Enable WDS (Windows Deployment Services) - specific options.
 
 
 == DECIMAL INPUT ==

@@ -737,7 +737,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 {
     int arg, optnum, rv = 0;
     char *p = NULL;
-    const char optstr[] = "c:f:g:o:p:t:uw";
+    const char optstr[] = "c:f:g:o:p:t:uwW";
     struct dhcp_option iopt;
 
     if (pxe->p[5].data)
@@ -751,8 +751,6 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     pxechn_setopt_str(&(opts[66]), pxe->host);
     iopt.data = malloc(DHCP_OPT_LEN_MAX);
     iopt.len = 0;
-opterr = 1;
-dprintf("opterr: %d\n", opterr);
     while ((rv >= 0) && (arg = getopt(argc, argv, optstr)) >= 0) {
 	dprintf_pc_pa("  Got arg '%c' addr %08X val %s\n", arg, (unsigned int)optarg, optarg ? optarg : "");
 	switch(arg) {
@@ -764,11 +762,6 @@ dprintf("opterr: %d\n", opterr);
 	    break;
 	case 'g':	/* gateway/DHCP relay */
 	    pxe->gip = pxe_dns(optarg);
-/*	    optnum = pxe_dns(optarg);
-	    if (optnum)
-		pxe->gip = optnum;
-	    else
-		rv = -3;*/
 	    break;
 	case 'n':	/* native */
 	    break;
@@ -792,20 +785,16 @@ dprintf("opterr: %d\n", opterr);
 	    break;
 	case 'w':	/* wait */
 	    pxe->wait = 1;
-	    if (optarg)
-		pxe->wait = strtoul(optarg, NULL, 0);
 	    break;
 	case 'W':	/* WDS */
 	    pxe->wds = 1;
-	    if (optarg)
-		pxe->wds = strtoul(optarg, NULL, 0);
 	    break;
 	case '?':
 	    rv = -'?';
 	default:
 	    break;
 	}
-	if (rv >= 0)
+	if (rv >= 0)	/* Clear it since getopt() doesn't guarentee it */
 	    optarg = NULL;
     }
     if (iopt.data)
@@ -973,7 +962,7 @@ int pxechn(int argc, char *argv[])
     /* we'll be shuffling to the standard location of 7C00h */
     file.base = 0x7C00;
     if ((pxe.wds) || 
-	    (pxe.force) && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
+	    ((pxe.force) && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0))) {
 	printf("Forcing behavior %08X\n", pxe.force);
 	// P2 is the same as P3 if no PXE server present.
 	if ((pxe.wds) ||
@@ -993,7 +982,7 @@ int pxechn(int argc, char *argv[])
     rv = dhcp_pkt2pxe(p[5], pxe.p[5].len, PXENV_PACKET_TYPE_CACHED_REPLY);
     dprint_pxe_bootp_t(p[5], pxe.p[5].len);
     if ((pxe.wds) ||
-	    (pxe.force) && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0)) {
+	    ((pxe.force) && ((pxe.force & (~PXECHN_FORCE_ALL)) == 0))) {
 	// printf("Forcing behavior %08X\n", pxe.force);
 	// P2 is the same as P3 if no PXE server present.
 	if ((pxe.wds) ||
