@@ -188,7 +188,8 @@ void usage(void)
         "    %s [OPTIONS]... _new-nbp_\n"
 	"    %s -r _new-nbp_    (calls PXE stack PXENV_RESTART_TFTP)\n"
 	"OPTIONS:\n"
-	"    [-c config] [-p prefix] [-t reboot] [-w] [-o opt.ty=val]\n\n",
+	"    [-c config] [-g gateway] [-p prefix] [-t reboot] [-u] [-w] [-W]"
+	" [-o opt.ty=val]\n\n",
 	app_name_str, app_name_str);
 }
 
