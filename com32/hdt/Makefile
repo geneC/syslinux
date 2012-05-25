@@ -45,7 +45,7 @@ FLOPPY_DIR		?= floppy
 PCI_IDS_FILE            ?= $(PWD)/$(FLOPPY_DIR)/pci.ids
 GZ_PCI_IDS_FILE         ?= $(PCI_IDS_FILE).gz
 MENU_COM32              ?= $(com32)/menu/menu.c32
-CHAIN_COM32             ?= $(com32)/modules/chain.c32
+CHAIN_COM32             ?= $(com32)/chain/chain.c32
 ART_DIR                 ?= art/
 QEMU			?= qemu-kvm
 
