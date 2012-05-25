@@ -54,7 +54,7 @@ enum { VERBOSE = 1 , EFI = 2 , MAC = 4};
 uint16_t head = 64;             /* 1 <= head <= 256 */
 uint8_t sector = 32;            /* 1 <= sector <= 63  */
 
-uint8_t entry = 1;              /* partition number: 1 <= entry <= 4 */
+uint8_t entry = 0;              /* partition number: 1 <= entry <= 4 */
 uint8_t offset = 0;             /* partition offset: 0 <= offset <= 64 */
 uint16_t type = 0x17;           /* partition type: 0 <= type <= 255 */
 uint32_t id = 0;                /* MBR: 0 <= id <= 0xFFFFFFFF(4294967296) */
@@ -300,6 +300,8 @@ check_option(int argc, char *argv[])
             entry = strtoul(optarg, &err, 0);
             if (entry < 1 || entry > 4)
                 errx(1, "invalid entry: `%s', 1 <= entry <= 4", optarg);
+	    if (mode & MAC || mode & EFI)
+		errx(1, "setting an entry is unsupported with EFI or Mac");
             break;
 
         case 'o':
@@ -334,10 +336,14 @@ check_option(int argc, char *argv[])
 
 	case 'u':
 	    mode |= EFI;
+	    if (entry)
+		errx(1, "setting an entry is unsupported with EFI or Mac");
 	    break;
 
 	case 'm':
 	    mode |= MAC;
+	    if (entry)
+		errx(1, "setting an entry is unsupported with EFI or Mac");
 	    break;
 
         case 'v':
@@ -581,6 +587,12 @@ initialise_mbr(uint8_t *mbr)
 	memcpy(mbr, afp_header, sizeof(afp_header));
     }
 
+    if (!entry)
+	entry = 1;
+
+    if (mode & EFI)
+	type = 0;
+
     mbr += MBRSIZE;                                 /* offset 432 */
 
     tmp = lendian_int(de_lba * 4);
@@ -631,6 +643,40 @@ initialise_mbr(uint8_t *mbr)
             memcpy(&mbr[8], &tmp, sizeof(tmp));
 
             tmp = lendian_int(psize);
+            memcpy(&mbr[12], &tmp, sizeof(tmp));
+        }
+        if (i == 2 && (mode & EFI))
+        {
+            mbr[0] = 0x0;
+            mbr[1] = 0xfe;
+            mbr[2] = 0xff;
+            mbr[3] = 0xff;
+            mbr[4] = 0xef;
+            mbr[5] = 0xfe;
+            mbr[6] = 0xff;
+            mbr[7] = 0xff;
+
+            tmp = lendian_int(efi_lba * 4);
+            memcpy(&mbr[8], &tmp, sizeof(tmp));
+
+            tmp = lendian_int(efi_count);
+            memcpy(&mbr[12], &tmp, sizeof(tmp));
+        }
+        if (i == 3 && (mode & MAC))
+        {
+            mbr[0] = 0x0;
+            mbr[1] = 0xfe;
+            mbr[2] = 0xff;
+            mbr[3] = 0xff;
+            mbr[4] = 0x0;
+            mbr[5] = 0xfe;
+            mbr[6] = 0xff;
+            mbr[7] = 0xff;
+
+            tmp = lendian_int(mac_lba * 4);
+            memcpy(&mbr[8], &tmp, sizeof(tmp));
+
+            tmp = lendian_int(mac_count);
             memcpy(&mbr[12], &tmp, sizeof(tmp));
         }
         mbr += 16;
@@ -908,8 +954,7 @@ main(int argc, char *argv[])
 	if (!read_efi_section(buf)) {
 	    buf += 32;
 	    if (!read_efi_catalogue(buf, &efi_count, &efi_lba) && efi_lba) {
-		offset = 1;
-		type = 0xee;
+		offset = 0;
 	    } else {
 		errx(1, "%s: invalid efi catalogue", argv[0]);
 	    }
@@ -925,8 +970,7 @@ main(int argc, char *argv[])
 	if (!read_efi_section(buf)) {
 	    buf += 32;
 	    if (!read_efi_catalogue(buf, &mac_count, &mac_lba) && mac_lba) {
-		offset = 1;
-		type = 0xee;
+		offset = 0;
 	    } else {
 		errx(1, "%s: invalid efi catalogue", argv[0]);
 	    }
