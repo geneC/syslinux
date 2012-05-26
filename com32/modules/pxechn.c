@@ -675,7 +675,6 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
 	if (iopt->len > DHCP_OPT_LEN_MAX)
 	    iopt->len = DHCP_OPT_LEN_MAX;
 	memcpy(iopt->data, pos, iopt->len);
-here
 	dprintf_pc_so_s("s.len=%d\trv=%d\n", iopt->len, rv);
 	break;
     case 'w':
