@@ -71,6 +71,7 @@ typedef union {
 #define dprintf_opt_cp		dprintf0
 #define dprintf_opt_inj		dprintf0
 #define dprintf_pc_pa		dprintf
+#define dprintf_pc_so_s		dprintf0
 
 #define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
 
@@ -92,6 +93,7 @@ typedef union {
 #define PXECHN_FORCE_PKT2	0x40000000
 #define PXECHN_FORCE_ALL	(PXECHN_FORCE_PKT1 | PXECHN_FORCE_PKT2)
 #define PXECHN_FORCE_ALL_1	0
+#define STRASINT_str		('s' + (('t' + ('r' << 8)) << 8))
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
@@ -667,12 +669,13 @@ int pxechn_parse_setopt(struct dhcp_option opts[], struct dhcp_option *iopt,
 	iopt->len = pxechn_parse_int(iopt->data, pos, 8);
 	break;
     case 's':
-    case ('s' + (('t' + ('r' << 8)) << 8)):
+    case STRASINT_str:
 	iopt->len = strlen(pos);
 	if (iopt->len > DHCP_OPT_LEN_MAX)
 	    iopt->len = DHCP_OPT_LEN_MAX;
 	memcpy(iopt->data, pos, iopt->len);
-dprintf("s.len=%d\trv=%d\n", iopt->len, rv);
+here
+	dprintf_pc_so_s("s.len=%d\trv=%d\n", iopt->len, rv);
 	break;
     case 'w':
 	iopt->len = pxechn_parse_int(iopt->data, pos, 2);
@@ -690,8 +693,8 @@ dprintf("s.len=%d\trv=%d\n", iopt->len, rv);
 	    opts[optnum].flags |= DHCP_OPTION_FLAGS_NOTFIELD;
 	}
     }
-if(opttype == 's')
-dprintf("rv=%d\n", rv);
+    if((opttype == 's') || (opttype == STRASINT_str))
+	dprintf_pc_so_s("rv=%d\n", rv);
     return rv;
 }
 
