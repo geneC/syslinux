@@ -492,7 +492,8 @@ int pxechn_parse_2bhex(char ins[])
 	ret = -1;
     /* pxechn_to_hex can handle the NULL character by returning -1 and
        breaking the execution of the statement chain */
-    } else if (((n0 = pxechn_to_hex(ins[0])) >= 0) && ((n1 = pxechn_to_hex(ins[1])) >= 0)) {
+    } else if (((n0 = pxechn_to_hex(ins[0])) >= 0)
+	    && ((n1 = pxechn_to_hex(ins[1])) >= 0)) {
 	ret = (n0 * 16) + n1;
     } else if (n0 == -1) {	/* Leading NULL char */
 	ret = -1;
@@ -703,6 +704,7 @@ int pxechn_parse_force(const char istr[])
     uint32_t rv = 0;
     char *pos;
     int terr = errno;
+
     errno = 0;
     rv = strtoul(istr, &pos, 0);
     if ((istr == pos ) || ((rv == ULONG_MAX) && (errno)))
@@ -796,7 +798,8 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     }
     if (iopt.data)
 	pxechn_opt_free(&iopt);
-//FIXME:reorder operations to allow for options to override use fn
+//FIXME: consider reordering the application of parsed command line options
+//    such that the new nbp may be at the end
     if (rv >= 0) {
 	rv = 0;
     } else if (arg != '?') {
