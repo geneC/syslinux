@@ -70,9 +70,6 @@ typedef union {
 
 #define dprintf_opt_cp		dprintf0
 #define dprintf_opt_inj		dprintf0
-#define dprintf_pc_pa_hx_pure	dprintf0
-#define dprintf_pc_pa_hx_dec	dprintf0
-#define dprintf_pc_pa_hx_tl	dprintf0
 #define dprintf_pc_pa		dprintf
 
 #define t_PXENV_RESTART_TFTP	t_PXENV_TFTP_READ_FILE
@@ -436,14 +433,12 @@ void pxechn_fill_pkt(struct pxelinux_opt *pxe, int ptype)
 	    dpressanykey(INT_MAX);
 	} else {
 	    printf("%s: ERROR: Unable to malloc() for second packet\n", app_name_str);
-	    pxechn_opt_free(&pxe->p[p1]);
 	}
     } else {
 	printf("%s: ERROR: Unable to retrieve first packet\n", app_name_str);
     }
     if (rv <= -1) {
 	pxechn_opt_free(&pxe->p[p1]);
-// 	pxechn_opt_free(&pxe->p[p2]);
     }
 }
 
@@ -888,7 +883,6 @@ ret:
 int pxechn_mergeopt(struct pxelinux_opt *pxe, int d, int s)
 {
     int ret = 0, i;
-//     struct dhcp_option opts1[NUM_DHCP_OPTS];
 
     if ((d >= PXECHN_NUM_PKT_TYPE) || (s >= PXECHN_NUM_PKT_TYPE) 
 	    || (d < 0) || (s < 0)) {
@@ -1103,10 +1097,6 @@ int main(int argc, char *argv[])
     if (sv->filesystem != SYSLINUX_FS_PXELINUX) {
 	printf("%s: May only run in PXELINUX\n", app_name_str);
 	argc = 1;	/* prevents further processing to boot */
-/*    } else if (is_gpxe()) {
-	rv = pxechn_gpxe(argc - 1, &argv[1]);
-	if (rv >= 0)
-	    argc = 1;*/
     }
     if (argc == 2) {
 	if ((strcasecmp(argv[1], "-h") == 0) || ((strcmp(argv[1], "-?") == 0))
