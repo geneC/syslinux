@@ -66,6 +66,7 @@
 #define CLI_ENABLE "enable"
 #define CLI_DISABLE "disable"
 #define CLI_DUMP "dump"
+#define CLI_SAY "say"
 
 typedef enum {
     INVALID_MODE,

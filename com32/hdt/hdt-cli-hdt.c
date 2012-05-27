@@ -259,6 +259,61 @@ static void do_dump(int argc __unused, char **argv __unused,
     dump(hardware);
 }
 
+/**
+ * do_say - say message to user
+ **/
+static void do_say(int argc , char **argv ,
+		      struct s_hardware *hardware)
+{
+   (void) hardware;
+   if (argc == 0) return;
+
+   char text_to_say[255]={0};
+   int arg=0;
+   int sleep_time=0;
+#if DEBUG
+   for (int i=0; i<argc;i++) dprintf("SAY: arg[%d]={%s}\n",i,argv[i]);
+#endif
+   char *argument = strchr(argv[arg],'`');
+   if ( argument != NULL) {
+	argument++;
+   	strcat(text_to_say, argument);
+
+   	while ((strchr(argument, '`') == NULL) && (arg+1<argc)) {
+		arg++;
+		argument = (char *)argv[arg];
+		strcat(text_to_say, " ");
+		strcat(text_to_say, argument);
+   	}
+    
+	/* Removing last ` if any */
+    	char *last_quote = strrchr(text_to_say,'`');
+    	if ( last_quote != NULL ) {
+	*last_quote='\0';
+	dprintf("SAY CMD = [%s]\n",text_to_say);	   
+    	}
+
+	/* The % char can be in the same argument, let's consider it again */
+    	arg--;
+
+	/* Searching for a % argument to determine the time to show the message */
+    	char *time_to_display = NULL;
+    	/* Search for a requested time to display */
+    	while ( ((time_to_display=strchr(argument, '%')) == NULL) && (arg+1<argc)) {
+		arg++;
+		argument = (char *)argv[arg];
+    	}
+
+    	if (time_to_display != NULL) {
+		sleep_time=atoi(time_to_display+1);
+		dprintf("SAY CMD :Time to display = %d\n",sleep_time);	   
+    	}
+
+  	printf("%s\n",text_to_say);
+  	sleep(sleep_time);
+  }
+}
+
 /* Default hdt mode */
 struct cli_callback_descr list_hdt_default_modules[] = {
     {
@@ -294,6 +349,12 @@ struct cli_callback_descr list_hdt_default_modules[] = {
     {
      .name = CLI_DUMP,
      .exec = do_dump,
+     .nomodule = false,
+     },
+    {
+     .name = CLI_SAY,
+     .exec = do_say,
+     .nomodule = true,
      },
     {
      .name = NULL,
