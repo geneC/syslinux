@@ -797,8 +797,8 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
     }
     if (iopt.data)
 	pxechn_opt_free(&iopt);
-//FIXME: consider reordering the application of parsed command line options
-//    such that the new nbp may be at the end
+/* FIXME: consider reordering the application of parsed command line options
+       such that the new nbp may be at the end */
     if (rv >= 0) {
 	rv = 0;
     } else if (arg != '?') {
