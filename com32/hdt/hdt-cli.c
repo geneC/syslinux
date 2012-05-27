@@ -391,8 +391,8 @@ static void parse_command_line(char *line, char **command, char **module,
     pch = strtok(line + args_pos, CLI_SPACE);
     while (pch != NULL) {
 	dprintf("CLI DEBUG parse: argv[%d] = %s\n", argc_iter, pch);
-	argv[argc_iter] = malloc(sizeof(pch) * sizeof(char));
-	strlcpy(argv[argc_iter], pch, sizeof(pch));
+	argv[argc_iter] = malloc(strlen(pch) * sizeof(char));
+	strlcpy(argv[argc_iter], pch, strlen(pch));
 	argc_iter++;
 	pch = strtok(NULL, CLI_SPACE);
 	/*
