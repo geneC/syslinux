@@ -2,7 +2,7 @@
 :doctype: manpage
 :author: Gene Cumm
 :email: gene.cumm@gmail.com
-:revdate: 2012-02-10
+:revdate: 2012-05-27
 
 
 == NAME ==
@@ -46,7 +46,7 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
     PXELINUX path (DHCP Option 210).
 
 *-r*::
-    Call the PXE stack with PXENV_RESTART_TFTP.  Must be the only option and before 'FILE'.
+    Call the PXE stack with PXENV_RESTART_TFTP.  _Must_ be the only option and before 'FILE'.
 
 *-t* 'SECONDS'::
     PXELINUX timeout (DHCP Option 211).
