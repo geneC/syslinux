@@ -120,6 +120,7 @@ struct cli_module_descr {
 struct cli_callback_descr {
     const char *name;
     void (*exec) (int argc, char **argv, struct s_hardware * hardware);
+    bool nomodule;
 };
 
 /* Manage aliases */

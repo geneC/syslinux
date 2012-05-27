@@ -626,22 +626,43 @@ static void exec_command(char *line, struct s_hardware *hardware)
     /* This will allocate memory for command and module */
     parse_command_line(line, &command, &module, &argc, argv);
 
+    dprintf("CLI DEBUG exec: Checking for aliases\n");
     /*
      * Expand shortcuts, if needed
      * This will allocate memory for argc/argv
      */
     expand_aliases(line, &command, &module, &argc, argv);
+    
+    find_cli_callback_descr(command, current_mode->default_modules,
+				&current_module);
 
-    if (module == NULL) {
-	dprintf("CLI DEBUG: single command detected\n");
+    if ((module == NULL) || (current_module->nomodule == true)) {
+	dprintf("CLI DEBUG exec : single command detected\n");
 	/*
 	 * A single word was specified: look at the list of default
 	 * commands in the current mode to see if there is a match.
 	 * If not, it may be a generic function (exit, help, ...). These
 	 * are stored in the list of default commands of the hdt mode.
 	 */
-	find_cli_callback_descr(command, current_mode->default_modules,
-				&current_module);
+
+	/* First of all it the command doesn't need module, let's rework the arguments */
+	if ((current_module->nomodule == true) && ( module != NULL)) {
+		dprintf("CLI_DEBUG exec: Reworking arguments with argc=%d\n",argc);
+		char **new_argv=NULL;
+    		new_argv=malloc((argc + 2)*sizeof(char));
+		for (int argc_iter=0; argc_iter<argc; argc_iter++) {
+			dprintf("CLI_DEBUG exec rework : copy %d to %d (%s)\n",argc_iter,argc_iter+1,argv[argc_iter]);
+			new_argv[argc_iter+1] = malloc(strlen(argv[argc_iter]));
+			strlcpy(new_argv[argc_iter+1], argv[argc_iter], strlen(argv[argc_iter]));
+			free(argv[argc_iter]);
+		}
+		new_argv[0] = malloc(strlen(module)*sizeof(char));
+		strlcpy(new_argv[0], module, strlen(module));
+		argc++;
+		free(argv);
+		argv=new_argv;
+	}
+
 	if (current_module != NULL)
 	    current_module->exec(argc, argv, hardware);
 	else if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1) &&
