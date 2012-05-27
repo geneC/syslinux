@@ -33,6 +33,7 @@ static const luaL_Reg lualibs[] = {
   {LUA_PCILIBNAME, luaopen_pci},
   {LUA_SYSLINUXLIBNAME, luaopen_syslinux},
   {LUA_VESALIBNAME, luaopen_vesa},
+  {LUA_DHCPLIBNAME, luaopen_dhcp},
 #endif
   {NULL, NULL}
 };

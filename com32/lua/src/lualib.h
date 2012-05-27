@@ -54,6 +54,9 @@ LUALIB_API int (luaopen_vesa) (lua_State *L);
 
 #define LUA_CPULIBNAME	"cpu"
 LUALIB_API int (luaopen_cpu) (lua_State *L);
+
+#define LUA_DHCPLIBNAME	"dhcp"
+LUALIB_API int (luaopen_dhcp) (lua_State *L);
 #endif
 
 /* open all previous libraries */

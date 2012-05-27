@@ -617,62 +617,77 @@ struct cli_callback_descr list_dmi_show_modules[] = {
     {
      .name = CLI_DMI_BASE_BOARD,
      .exec = show_dmi_base_board,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_BIOS,
      .exec = show_dmi_bios,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_BATTERY,
      .exec = show_dmi_battery,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_CHASSIS,
      .exec = show_dmi_chassis,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_MEMORY,
      .exec = show_dmi_memory_modules,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_MEMORY_BANK,
      .exec = show_dmi_memory_bank,
+     .nomodule = false,
      },
     {
      .name = "module",
      .exec = show_dmi_memory_module,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_PROCESSOR,
      .exec = show_dmi_cpu,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_SYSTEM,
      .exec = show_dmi_system,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_OEM,
      .exec = show_dmi_oem_strings,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_SECURITY,
      .exec = show_dmi_hardware_security,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_IPMI,
      .exec = show_dmi_ipmi,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_CACHE,
      .exec = show_dmi_cache,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI_LIST,
      .exec = show_dmi_modules,
+     .nomodule = false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule = false,
      },
 };
 
