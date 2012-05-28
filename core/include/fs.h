@@ -179,7 +179,7 @@ static inline struct file *handle_to_file(uint16_t handle)
     return handle ? &files[handle-1] : NULL;
 }
 
-#define PATH_DEFAULT	".:/boot/syslinux/:/boot/"
+#define PATH_DEFAULT	"/boot/syslinux/:/boot/"
 extern char *PATH;
 
 /* fs.c */
