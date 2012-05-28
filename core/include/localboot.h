@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2012 Paulo Alcantara <pcacjr@zytor.com>
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,14 +25,9 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <syslinux/boot.h>
-#include <stddef.h>
-#include <com32.h>
-#include <localboot.h>
+#ifndef LOCALBOOT_H_
+#define LOCALBOOT_H_
 
-/* This returns only on failure */
+extern void local_boot(int16_t ax);
 
-void syslinux_local_boot(int16_t flags)
-{
-    local_boot(flags);
-}
+#endif /* LOCALBOOT_H_ */
