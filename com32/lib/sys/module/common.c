@@ -64,6 +64,10 @@ static FILE *findpath(char *name)
 	char *p, *n;
 	int i;
 
+	f = fopen(name, "rb"); /* for full path */
+	if (f)
+		return f;
+
 	p = PATH;
 again:
 	i = 0;
