@@ -43,7 +43,11 @@
 #include <limits.h>
 
 
-#define PXECHN_DEBUG 1
+#ifdef DEBUG
+#  define PXECHN_DEBUG 1
+#else
+#  define PXECHN_DEBUG 0
+#endif
 
 typedef union {
     uint64_t q;
@@ -54,15 +58,21 @@ typedef union {
 
 #define dprintf0(f, ...)		((void)0)
 
+#ifndef dprintf
+#  if (PXECHN_DEBUG > 0)
+#    define dprintf			printf
+#  else
+#    define dprintf(f, ...)		((void)0)
+#  endif
+#endif
+
 #if (PXECHN_DEBUG > 0)
 #  define dpressanykey			pressanykey
-#  define dprintf			printf
 #  define dprint_pxe_bootp_t		print_pxe_bootp_t
 #  define dprint_pxe_vendor_blk		print_pxe_vendor_blk
 #  define dprint_pxe_vendor_raw		print_pxe_vendor_raw
 #else
 #  define dpressanykey(tm)		((void)0)
-#  define dprintf(f, ...)		((void)0)
 #  define dprint_pxe_bootp_t(p, l)	((void)0)
 #  define dprint_pxe_vendor_blk(p, l)	((void)0)
 #  define dprint_pxe_vendor_raw(p, l)	((void)0)
