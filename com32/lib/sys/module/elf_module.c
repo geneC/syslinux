@@ -401,7 +401,8 @@ static int resolve_symbols(struct elf_module *module) {
 static int extract_operations(struct elf_module *module) {
 	Elf32_Sym *ctors_start, *ctors_end;
 	Elf32_Sym *dtors_start, *dtors_end;
-	module_ctor_t *ctors, *dtors;
+	module_ctor_t *ctors = NULL;
+	module_ctor_t *dtors = NULL;
 
 	ctors_start = module_find_symbol("__ctors_start", module);
 	ctors_end = module_find_symbol("__ctors_end", module);
