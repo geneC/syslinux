@@ -235,7 +235,7 @@ bool ip_ok(uint32_t);
 int pxe_call(int, void *);
 
 /* dhcp_options.c */
-void parse_dhcp(int);
+void parse_dhcp(const void *, size_t);
 
 /* dnsresolv.c */
 int dns_mangle(char **, const char *);

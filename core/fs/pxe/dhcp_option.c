@@ -227,12 +227,10 @@ static void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
  * LocalDomain	- Local domain name
  * MAC_len, MAC	- Client identifier, if MAC_len == 0
  *
- * This assumes the DHCP packet is in "trackbuf".
- *
  */
-void parse_dhcp(int pkt_len)
+void parse_dhcp(const void *pkt, size_t pkt_len)
 {
-    struct bootp_t *dhcp = (struct bootp_t *)trackbuf;
+    const struct bootp_t *dhcp = (const struct bootp_t *)pkt;
     int opt_len;
 
     IPInfo.ipv4 = 4;		/* This is IPv4 only for now... */

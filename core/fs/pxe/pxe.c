@@ -340,13 +340,13 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
 
 
 /**
- * Get a DHCP packet from the PXE stack into the trackbuf
+ * Get a DHCP packet from the PXE stack into a lowmem buffer
  *
  * @param:  type,  packet type
  * @return: buffer size
  *
  */
-static int pxe_get_cached_info(int type)
+static int pxe_get_cached_info(int type, char *buf, size_t bufsiz)
 {
     int err;
     static __lowmem struct s_PXENV_GET_CACHED_INFO get_cached_info;
@@ -354,8 +354,8 @@ static int pxe_get_cached_info(int type)
 
     get_cached_info.Status      = 0;
     get_cached_info.PacketType  = type;
-    get_cached_info.BufferSize  = 8192;
-    get_cached_info.Buffer      = FAR_PTR(trackbuf);
+    get_cached_info.BufferSize  = bufsiz;
+    get_cached_info.Buffer      = FAR_PTR(buf);
     err = pxe_call(PXENV_GET_CACHED_INFO, &get_cached_info);
     if (err) {
         printf("PXE API call failed, error  %04x\n", err);
@@ -1450,6 +1450,14 @@ static void network_init(void)
 {
     struct bootp_t *bp = (struct bootp_t *)trackbuf;
     int pkt_len;
+    char *dhcp_packet;
+    const size_t dhcp_max_packet = 4096;
+
+    dhcp_packet = lmalloc(dhcp_max_packet);
+    if (!dhcp_packet) {
+	printf("Out of low memory\n");
+	kaboom();
+    }
 
     *LocalDomain = 0;   /* No LocalDomain received */
 
@@ -1457,8 +1465,8 @@ static void network_init(void)
      * Get the DHCP client identifiers (query info 1)
      */
     printf("Getting cached packet ");
-    pkt_len = pxe_get_cached_info(1);
-    parse_dhcp(pkt_len);
+    pkt_len = pxe_get_cached_info(1, dhcp_packet, dhcp_max_packet);
+    parse_dhcp(dhcp_packet, pkt_len);
     /*
      * We don't use flags from the request packet, so
      * this is a good time to initialize DHCPMagic...
@@ -1474,8 +1482,8 @@ static void network_init(void)
      * Get the BOOTP/DHCP packet that brought us file (and an IP
      * address). This lives in the DHCPACK packet (query info 2)
      */
-    pkt_len = pxe_get_cached_info(2);
-    parse_dhcp(pkt_len);
+    pkt_len = pxe_get_cached_info(2, dhcp_packet, dhcp_max_packet);
+    parse_dhcp(dhcp_packet, pkt_len);
     /*
      * Save away MAC address (assume this is in query info 2. If this
      * turns out to be problematic it might be better getting it from
@@ -1489,9 +1497,11 @@ static void network_init(void)
      * Get the boot file and other info. This lives in the CACHED_REPLY
      * packet (query info 3)
      */
-    pkt_len = pxe_get_cached_info(3);
-    parse_dhcp(pkt_len);
+    pkt_len = pxe_get_cached_info(3, dhcp_packet, dhcp_max_packet);
+    parse_dhcp(dhcp_packet, pkt_len);
     printf("\n");
+
+    lfree(dhcp_packet);
 
     make_bootif_string();
     make_sysuuid_string();
