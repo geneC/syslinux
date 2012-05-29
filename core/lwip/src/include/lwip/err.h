@@ -44,7 +44,7 @@ extern "C" {
 #ifdef LWIP_ERR_T
 typedef LWIP_ERR_T err_t;
 #else /* LWIP_ERR_T */
- typedef s8_t err_t;
+typedef s8_t err_t;
 #endif /* LWIP_ERR_T*/
 
 /* Definitions for error constants. */
@@ -54,24 +54,22 @@ typedef LWIP_ERR_T err_t;
 #define ERR_BUF        -2    /* Buffer error.            */
 #define ERR_TIMEOUT    -3    /* Timeout.                 */
 #define ERR_RTE        -4    /* Routing problem.         */
+#define ERR_INPROGRESS -5    /* Operation in progress    */
+#define ERR_VAL        -6    /* Illegal value.           */
+#define ERR_WOULDBLOCK -7    /* Operation would block.   */
+#define ERR_USE        -8    /* Address in use.          */
+#define ERR_ISCONN     -9    /* Already connected.       */
 
-#define ERR_IS_FATAL(e) ((e) < ERR_RTE)
+#define ERR_IS_FATAL(e) ((e) < ERR_ISCONN)
 
-#define ERR_ABRT       -5    /* Connection aborted.      */
-#define ERR_RST        -6    /* Connection reset.        */
-#define ERR_CLSD       -7    /* Connection closed.       */
-#define ERR_CONN       -8    /* Not connected.           */
+#define ERR_ABRT       -10   /* Connection aborted.      */
+#define ERR_RST        -11   /* Connection reset.        */
+#define ERR_CLSD       -12   /* Connection closed.       */
+#define ERR_CONN       -13   /* Not connected.           */
 
-#define ERR_VAL        -9    /* Illegal value.           */
+#define ERR_ARG        -14   /* Illegal argument.        */
 
-#define ERR_ARG        -10   /* Illegal argument.        */
-
-#define ERR_USE        -11   /* Address in use.          */
-
-#define ERR_IF         -12   /* Low-level netif error    */
-#define ERR_ISCONN     -13   /* Already connected.       */
-
-#define ERR_INPROGRESS -14   /* Operation in progress    */
+#define ERR_IF         -15   /* Low-level netif error    */
 
 
 #ifdef LWIP_DEBUG

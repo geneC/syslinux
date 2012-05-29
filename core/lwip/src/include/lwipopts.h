@@ -2,6 +2,7 @@
 #define __LWIPOPTS_H__
 
 #include <byteswap.h>
+#include <netinet/in.h>
 
 #define SYS_LIGHTWEIGHT_PROT	1
 #define LWIP_NETIF_API		1
@@ -64,6 +65,9 @@
 #define LWIP_PLATFORM_BYTESWAP	1
 #define LWIP_PLATFORM_HTONS(x)	bswap_16(x)
 #define LWIP_PLATFORM_HTONL(x)	bswap_32(x)
+
+#define LWIP_PREFIX_BYTEORDER_FUNCS	0
+#define LWIP_COMPAT_MUTEX	1
 
 void undiarp_tmr(void);
 #endif /* __LWIPOPTS_H__ */

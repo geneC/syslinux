@@ -10,7 +10,12 @@ typedef struct semaphore *sys_sem_t;
 typedef struct mailbox   *sys_mbox_t;
 typedef struct thread    *sys_thread_t;
 
-#define sys_sem_signal(x) sem_up(x)
+static inline void sys_sem_signal(sys_sem_t *sem)
+{
+    if (!!sem)
+	sem_up(*sem);
+}
+
 #define sys_now ms_timer
 
 #define SYS_MBOX_NULL	NULL
