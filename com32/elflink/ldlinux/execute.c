@@ -21,6 +21,7 @@
 #include "menu.h"
 #include "fs.h"
 #include "config.h"
+#include "localboot.h"
 
 /* Must match enum kernel_type */
 const char *const kernel_types[] = {
@@ -99,10 +100,7 @@ void execute(const char *cmdline, enum kernel_type type)
 
 		start_ldlinux(argv);
 	} else if (type == KT_LOCALBOOT) {
-		/* process the image need int 22 support */
-		ireg.eax.w[0] = 0x0014;	/* Local boot */
-		ireg.edx.w[0] = strtoul(kernel, NULL, 0);
-		__intcall(0x22, &ireg, NULL);
+		local_boot(strtoul(kernel, NULL, 0));
 	} else {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */

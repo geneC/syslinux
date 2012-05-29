@@ -40,7 +40,7 @@
 int syslinux_run_command(const char *);
 __noreturn syslinux_run_default(void);
 
-void syslinux_local_boot(uint16_t flags);
+void syslinux_local_boot(int16_t flags);
 
 void syslinux_final_cleanup(uint16_t flags);
 
