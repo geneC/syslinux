@@ -15,6 +15,8 @@ include $(MAKEDIR)/build.mk
 
 BINS    = relocs
 
+INCLUDES += -I./include
+
 all : $(BINS)
 
 relocs : relocs.o

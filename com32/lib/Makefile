@@ -31,7 +31,7 @@ LIBOBJS = \
 	skipspace.o							\
 	chrreplace.o							\
 	bufprintf.o							\
-	inet.o								\
+	inet.o dhcppack.o dhcpunpack.o					\
 	strreplace.o								\
 	\
 	lmalloc.o lstrdup.o						\

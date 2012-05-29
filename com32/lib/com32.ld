@@ -36,36 +36,23 @@ SECTIONS
   .rodata1        : { *(.rodata1) }
   __rodata_end = .;
 
-  /* Ensure the __preinit_array_start label is properly aligned.  We
-     could instead move the label definition inside the section, but
-     the linker would then create the section even if it turns out to
-     be empty, which isn't pretty.  */
+  /*
+   * The difference betwee .ctors/.dtors and .init_array/.fini_array
+   * is the ordering, but we don't use prioritization for libcom32, so
+   * just lump them all together and hope that's okay.
+   */
   . = ALIGN(4);
-  .preinit_array     : {
-    PROVIDE (__preinit_array_start = .);
-    *(.preinit_array)
-    PROVIDE (__preinit_array_end = .);
-  }
-  .init_array     : {
-    PROVIDE (__init_array_start = .);
-    *(.init_array)
-    PROVIDE (__init_array_end = .);
-  }
-  .fini_array     : {
-    PROVIDE (__fini_array_start = .);
-    *(.fini_array)
-    PROVIDE (__fini_array_end = .);
-  }
   .ctors          : {
     PROVIDE (__ctors_start = .);
-    KEEP (*(SORT(.ctors.*)))
-    KEEP (*(.ctors))
+    KEEP (*(SORT(.preinit_array*)))
+    KEEP (*(SORT(.init_array*)))
+    KEEP (*(SORT(.ctors*)))
     PROVIDE (__ctors_end = .);
   }
   .dtors          : {
     PROVIDE (__dtors_start = .);
-    KEEP (*(SORT(.dtors.*)))
-    KEEP (*(.dtors))
+    KEEP (*(SORT(.fini_array*)))
+    KEEP (*(SORT(.dtors*)))
     PROVIDE (__dtors_end = .);
   }
 

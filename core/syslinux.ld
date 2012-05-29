@@ -280,8 +280,9 @@ SECTIONS
 	__ctors_lma = __ctors_vma + __text_lma - __text_vma;
 	.ctors : AT(__ctors_lma) {
 		__ctors_start = .;
-		KEEP (*(SORT(.ctors.*)))
-		KEEP (*(.ctors))
+		KEEP (*(SORT(.preinit_array*)))
+		KEEP (*(SORT(.init_array*)))
+		KEEP (*(SORT(.ctors*)))
 		__ctors_end = .;
 	}
 
@@ -289,8 +290,8 @@ SECTIONS
 	__dtors_lma = __dtors_vma + __text_lma - __text_vma;
 	.dtors : AT(__dtors_lma) {
 		__dtors_start = .;
-		KEEP (*(SORT(.dtors.*)))
-		KEEP (*(.dtors))
+		KEEP (*(SORT(.fini_array*)))
+		KEEP (*(SORT(.dtors*)))
 		__dtors_end = .;
 	}
 
