@@ -260,6 +260,18 @@ static void do_dump(int argc __unused, char **argv __unused,
 }
 
 /**
+ * do_sleep - sleep a number of milliseconds
+ **/ 
+static void do_sleep(int argc , char **argv ,
+		      struct s_hardware *hardware)
+{
+   (void) hardware;
+   if (argc != 1) return;
+   printf("Sleep %d milliseconds\n",atoi(argv[0]));
+   msleep(atoi(argv[0]));
+}
+
+/**
  * do_display - display an image to user
  **/
 static void do_display(int argc , char **argv ,
@@ -371,6 +383,11 @@ struct cli_callback_descr list_hdt_default_modules[] = {
     {
      .name = CLI_DISPLAY,
      .exec = do_display,
+     .nomodule = true,
+     },
+    {
+     .name = CLI_SLEEP,
+     .exec = do_sleep,
      .nomodule = true,
      },
     {
