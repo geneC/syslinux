@@ -260,6 +260,18 @@ static void do_dump(int argc __unused, char **argv __unused,
 }
 
 /**
+ * do_display - display an image to user
+ **/
+static void do_display(int argc , char **argv ,
+		      struct s_hardware *hardware)
+{
+   (void) hardware;
+   if ((argc != 1) || (vesamode == false)) return;
+   printf("Display %s file\n",argv[0]);
+   vesacon_load_background(argv[0]);
+}
+
+/**
  * do_say - say message to user
  **/
 static void do_say(int argc , char **argv ,
@@ -354,6 +366,11 @@ struct cli_callback_descr list_hdt_default_modules[] = {
     {
      .name = CLI_SAY,
      .exec = do_say,
+     .nomodule = true,
+     },
+    {
+     .name = CLI_DISPLAY,
+     .exec = do_display,
      .nomodule = true,
      },
     {

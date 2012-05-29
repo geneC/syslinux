@@ -74,6 +74,7 @@ hdt.img: hdt.c32 $(FLOPPY_DIR)/hdt.cfg $(FLOPPY_DIR)/mtools.conf $(topdir)/mtool
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/syslinux.cfg a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(FLOPPY_DIR)/$(MEMTEST) a:
 	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(ART_DIR)/backgnd.png a:
+	MTOOLSRC=$(PWD)/$(FLOPPY_DIR)/mtools.conf $(MCOPY) $(ART_DIR)/display.png a:
 	mv hdt.img hdt-$(VERSION).img
 	ln -sf hdt-$(VERSION).img hdt.img
 
@@ -94,6 +95,7 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	cp $(MENU_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp $(CHAIN_COM32) $(ISO_DIR)/$(ISOLINUX_DIR)
 	cp -av $(ART_DIR)/backgnd.png $(ISO_DIR)/$(ISOLINUX_DIR)
+	cp -av $(ART_DIR)/display.png $(ISO_DIR)/$(ISOLINUX_DIR)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/hwdata/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
 	-[ ! -f $(GZ_PCI_IDS_FILE) ] && cp /usr/share/pci.ids $(PCI_IDS_FILE) && $(GZIPPROG) $(PCI_IDS_FILE)
 	-[ -f $(MODULES_ALIAS_FILE) ] && cp $(MODULES_ALIAS_FILE) $(ISO_DIR)/$(ISOLINUX_DIR)\
