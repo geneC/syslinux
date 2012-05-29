@@ -52,7 +52,6 @@ void loadfont(const char *filename)
 	if (!f)
 		return;
 
-	p = trackbuf;
 	/* Read header */
 	if (_fread(&hdr, sizeof hdr, f) != sizeof hdr)
 		goto fail;
