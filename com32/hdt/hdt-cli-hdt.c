@@ -294,7 +294,6 @@ static void do_say(int argc , char **argv ,
 
    char text_to_say[255]={0};
    int arg=0;
-   int sleep_time=0;
 #if DEBUG
    for (int i=0; i<argc;i++) dprintf("SAY: arg[%d]={%s}\n",i,argv[i]);
 #endif
@@ -317,24 +316,7 @@ static void do_say(int argc , char **argv ,
 	dprintf("SAY CMD = [%s]\n",text_to_say);	   
     	}
 
-	/* The % char can be in the same argument, let's consider it again */
-    	arg--;
-
-	/* Searching for a % argument to determine the time to show the message */
-    	char *time_to_display = NULL;
-    	/* Search for a requested time to display */
-    	while ( ((time_to_display=strchr(argument, '%')) == NULL) && (arg+1<argc)) {
-		arg++;
-		argument = (char *)argv[arg];
-    	}
-
-    	if (time_to_display != NULL) {
-		sleep_time=atoi(time_to_display+1);
-		dprintf("SAY CMD :Time to display = %d\n",sleep_time);	   
-    	}
-
   	printf("%s\n",text_to_say);
-  	sleep(sleep_time);
   }
 }
 
