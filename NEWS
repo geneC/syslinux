@@ -4,6 +4,9 @@ to all derivatives.
 
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.
+	* pxechn.c32, a PXE NBP chainloader.  More versatile alternative
+	  to pxechain.com and resolves the PXELINUX -> WDS issue with
+	  Microsoft Windows Server 2008R2 (Gene Cumm).
 
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
