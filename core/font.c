@@ -26,8 +26,7 @@
 #include "graphics.h"
 #include "core.h"
 
-char fontbuf[8192];
-char serial[serial_buf_size];
+static __lowmem char fontbuf[8192];
 
 extern uint8_t UserFont;
 
@@ -37,13 +36,14 @@ uint16_t GXPixRows = 1;		/* Graphics mode pixel rows */
 /*
  * loadfont:	Load a .psf font file and install it onto the VGA console
  *		(if we're not on a VGA screen then ignore.)
- *
- * The .psf font file must alredy be open and getc_file must be set.
  */
-void loadfont(char *filename)
+void loadfont(const char *filename)
 {
-	uint16_t height, magic;
-	uint32_t *di, *si;
+	struct psfheader {
+		uint16_t magic;
+		uint8_t mode;
+		uint8_t height;
+	} hdr;
 	FILE *f;
 	char *p;
 	int i;
@@ -54,47 +54,38 @@ void loadfont(char *filename)
 
 	p = trackbuf;
 	/* Read header */
-	for (i = 0; i < 4; i++) {
-		char ch = getc(f);
-		if (ch == EOF)
-			return;
-		*p++ = ch;
-	}
+	if (_fread(&hdr, sizeof hdr, f) != sizeof hdr)
+		goto fail;
 
 	/* Magic number */
-	magic = *(uint16_t *)trackbuf;
-	if (magic != 0x0436)
-		return;
+	if (hdr.magic != 0x0436)
+		goto fail;
 
 	/* File mode: font modes 0-5 supported */
-	if (*(trackbuf) > 5)
-		return;
-
-	height = *(trackbuf + 3); /* Height of font */
+	if (hdr.mode > 5)
+		goto fail;
 
 	/* VGA minimum/maximum */
-	if (height < 2 || height > 32)
-		return;
+	if (hdr.height < 2 || hdr.height > 32)
+		goto fail;
 
-	/* Load the actual font. Bytes = font height * 256 */
-	p = trackbuf;
-	for (i = 0; i < (height << 8); i++) {
-		char ch = getc(f);
+	/* Load the actual font into the font buffer. */
+	memset(fontbuf, 0, 256*32);
 
-		if (ch == EOF)
-			return;
-		*p++ = ch;
+	p = fontbuf;
+	for (i = 0; i < 256; i++) {
+		if (_fread(p, hdr.height, f) != hdr.height)
+			goto fail;
+		p += 32;
 	}
 
-	/* Copy to font buffer */
-	VGAFontSize = height;
-	di = (uint32_t *)fontbuf;
-	si = (uint32_t *)trackbuf;
-	for (i = 0; i < (height << 6); i++)
-		*di++ = *si++;
-
+	/* Loaded OK */
+	VGAFontSize = hdr.height;
 	UserFont = 1;		/* Set font flag */
 	use_font();
+
+fail:
+	fclose(f);
 }
 
 /*
