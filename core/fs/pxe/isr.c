@@ -13,15 +13,19 @@
 #include <sys/io.h>
 
 extern uint8_t pxe_irq_pending;
+extern volatile uint8_t pxe_irq_timeout;
 static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
 static struct thread *pxe_thread, *poll_thread;
 
+/*
+ * Note: this *must* be called with interrupts enabled.
+ */
 static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 {
     far_ptr_t *entry;
     unsigned int vec;
     uint8_t mask, mymask;
-    irq_state_t irqstate;
+    uint32_t now;
 
     if (irq < 8)
 	vec = irq + 0x08;
@@ -30,7 +34,7 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     else
 	return false;
 
-    irqstate = irq_save();
+    cli();
 
     entry = (far_ptr_t *)(vec << 2);
     *old = *entry;
@@ -51,18 +55,28 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 	outb(mask, 0x21);
     }
 
-    irq_restore(irqstate);
+    sti();
+
+    now = jiffies();
+
+    /* Some time to watch for stuck interrupts */
+    while (jiffies() - now < 4 && !pxe_irq_timeout)
+	hlt();
+
+    if (pxe_irq_timeout)
+	*entry = *old;		/* Restore the old vector */
 
     printf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
 	   old->seg, old->offs, entry->seg, entry->offs);
 
-    return true;
+    return !pxe_irq_timeout;
 }
 
 static bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old)
 {
     far_ptr_t *entry;
     unsigned int vec;
+    bool rv;
 
     if (!irq)
 	return true;		/* Nothing to uninstall */
@@ -74,13 +88,19 @@ static bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old)
     else
 	return false;
 
+    cli();
+
     entry = (far_ptr_t *)(vec << 2);
 
-    if (entry->ptr != (uint32_t)isr)
-	return false;
+    if (entry->ptr != (uint32_t)isr) {
+	rv = false;
+    } else {
+	*entry = *old;
+	rv = true;
+    }
 
-    *entry = *old;
-    return true;
+    sti();
+    return rv;
 }
 
 static void pxe_poll_wakeups(void)
@@ -205,8 +225,10 @@ void pxe_start_isr(void)
 
     pxe_irq_vector = irq;
 
-    if (irq)
-	install_irq_vector(irq, pxe_isr, &pxe_irq_chain);
+    if (irq) {
+	if (!install_irq_vector(irq, pxe_isr, &pxe_irq_chain))
+	    irq = 0;		/* Install failed or stuck interrupt */
+    }
     
     if (!irq ||	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
 	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,

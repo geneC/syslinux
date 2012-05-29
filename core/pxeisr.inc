@@ -3,6 +3,8 @@
 ;
 		section .text16
 
+PXEIRQ_MAX	equ 1000	; Max spurious interrupts in a timer tick
+
 		global pxe_isr
 pxe_isr:
 		cld
@@ -27,6 +29,7 @@ pxe_isr:
 		mov byte [pxenv_undi_isr_buf.funcflag],PXENV_UNDI_ISR_IN_START
 
 		call pxenv
+		mov ax,[__jiffies]
 		jc .notus
 
 		cmp word [pxenv_undi_isr_buf.funcflag],PXENV_UNDI_ISR_OUT_OURS
@@ -45,6 +48,10 @@ pxe_isr:
 .pri_pic:
 		out 0x20,al		; Primary PIC
 
+		mov [pxeirq_last],ax
+		mov word [pxeirq_count],PXEIRQ_MAX
+
+.exit:
 		pop gs
 		pop fs
 		pop es
@@ -53,6 +60,12 @@ pxe_isr:
 		iret
 
 .notus:
+		cmp ax,[pxeirq_last]
+		jne .reset_timeout
+		dec word [pxeirq_count]
+		jz .timeout
+
+.chain:
 		pop gs
 		pop fs
 		pop es
@@ -61,6 +74,29 @@ pxe_isr:
 		jmp 0:0
 		global pxe_irq_chain
 pxe_irq_chain	equ $-4
+
+.reset_timeout:
+		mov [pxeirq_last],ax
+		mov word [pxeirq_count],PXEIRQ_MAX
+		jmp .chain
+
+		; Too many spurious interrupts, shut off the interrupts
+		; and go to polling mode
+.timeout:
+		mov al,[pxe_irq_vector]
+		mov dx,21h
+		movzx cx,al
+		shl cx,7-3
+		add dx,cx
+		and al,7
+		xchg ax,cx
+		mov ch,1
+		shl ch,cl
+		in al,dx
+		or al,ch
+		out dx,al
+		mov byte [pxe_irq_timeout],1
+		jmp .exit
 
 
 ; Emulate a PXE interrupt from the polling thread
@@ -118,9 +154,15 @@ pxenv_undi_isr_buf:
 .pkttype:	resb 1
 .size		equ $-pxenv_undi_isr_buf
 
+		alignb 2
+pxeirq_last	resw 1
+pxeirq_count	resw 1
+
 		global pxe_irq_vector
 pxe_irq_vector	resb 1			; PXE IRQ vector
 		global pxe_irq_pending
 pxe_irq_pending	resb 1			; IRQ pending flag
+		global pxe_irq_timeout
+pxe_irq_timeout	resb 1			; Stuck IRQs, disabled timeout
 
 		section .text16
