@@ -23,6 +23,11 @@ common_init:
 		; Initialize PM invocation framework
 		call pm_init
 
+%if IS_PXELINUX
+		; Save derivative-specific data
+		pm_call pm_save_data
+%endif
+
 		; Decompress PM code to its target location
 		pm_call pm_decompress
 		cmp eax,__pm_code_len

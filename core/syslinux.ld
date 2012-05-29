@@ -376,6 +376,8 @@ SECTIONS
 
 	/* Very large objects which don't need to be zeroed */
 
+	. = ALIGN(128);
+
 	__hugebss_vma = .;
 	__hugebss_lma = .;		/* Dummy */
 	.hugebss (NOLOAD) : AT (__hugebss_lma) {
@@ -387,6 +389,19 @@ SECTIONS
 	__hugebss_len = ABSOLUTE(__hugebss_end) - ABSOLUTE(__hugebss_start);
 	__hugebss_dwords = (__hugebss_len + 3) >> 2;
 
+	/* Data saved away before bss initialization */
+	. = ALIGN(128);
+
+	__savedata_vma = .;
+	__savedata_lma = .;		/* Dummy */
+	.savedata (NOLOAD) : AT (__savedata_lma) {
+		__savedata_start = .;
+		*(.savedata)
+		*(.savedata.*)
+		__savedata_end = .;
+	}
+	__savedata_len = ABSOLUTE(__savedata_end) - ABSOLUTE(__savedata_start);
+	__savedata_dwords = (__savedata_len + 3) >> 2;
 
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;

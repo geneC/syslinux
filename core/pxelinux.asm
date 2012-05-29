@@ -154,54 +154,6 @@ _start1:
 
 		lss esp,[BaseStack]
 		sti			; Stack set up and ready
-;
-; Move the hardwired DHCP options (if present) to a safe place...
-;
-bdhcp_copy:
-		mov cx,[bdhcp_len]
-		mov ax,trackbufsize/2
-		jcxz .none
-		cmp cx,ax
-		jbe .oksize
-		mov cx,ax
-		mov [bdhcp_len],ax
-.oksize:
-		mov eax,[bdhcp_offset]
-		add eax,_start
-		mov si,ax
-		and si,000Fh
-		shr eax,4
-		push ds
-		mov ds,ax
-		mov di,trackbuf
-		add cx,3
-		shr cx,2
-		rep movsd
-		pop ds
-.none:
-
-adhcp_copy:
-		mov cx,[adhcp_len]
-		mov ax,trackbufsize/2
-		jcxz .none
-		cmp cx,ax
-		jbe .oksize
-		mov cx,ax
-		mov [adhcp_len],ax
-.oksize:
-		mov eax,[adhcp_offset]
-		add eax,_start
-		mov si,ax
-		and si,000Fh
-		shr eax,4
-		push ds
-		mov ds,ax
-		mov di,trackbuf+trackbufsize/2
-		add cx,3
-		shr cx,2
-		rep movsd
-		pop ds
-.none:
 
 ;
 ; Initialize screen (if we're using one)
@@ -284,10 +236,55 @@ enter_command:
 auto_boot:
 		pm_call hello
 
+;
+; Save hardwired DHCP options.  This is done before the C environment
+; is initialized, so it has to be done in assembly.
+;
+%define MAX_DHCP_OPTS	4096
+		bits 32
+
+		section .savedata
+		global bdhcp_data, adhcp_data
+bdhcp_data:	resb MAX_DHCP_OPTS
+adhcp_data:	resb MAX_DHCP_OPTS
+
+		section .textnr
+pm_save_data:
+		mov eax,MAX_DHCP_OPTS
+		movzx ecx,word [bdhcp_len]
+		cmp ecx,eax
+		jna .oksize
+		mov ecx,eax
+		mov [bdhcp_len],ax
+.oksize:
+		mov esi,[bdhcp_offset]
+		add esi,_start
+		mov edi,bdhcp_data
+		add ecx,3
+		shr ecx,2
+		rep movsd
+
+adhcp_copy:
+		movzx ecx,word [adhcp_len]
+		cmp ecx,eax
+		jna .oksize
+		mov ecx,eax
+		mov [adhcp_len],ax
+.oksize:
+		mov esi,[adhcp_offset]
+		add esi,_start
+		mov edi,adhcp_data
+		add ecx,3
+		shr ecx,2
+		rep movsd
+		ret
+
+		bits 16
+
 ; As core/ui.inc used to be included here in core/pxelinux.asm, and it's no
 ; longer used, its global variables that were previously used by
 ; core/pxelinux.asm are now declared here.
-               section .bss16
+		section .bss16
 		alignb 4
 Kernel_EAX	resd 1
 Kernel_SI	resw 1
