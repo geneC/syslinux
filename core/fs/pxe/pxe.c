@@ -346,7 +346,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
  * @return: buffer size
  *
  */
-static int pxe_get_cached_info(int type, char *buf, size_t bufsiz)
+static int pxe_get_cached_info(int type, void *buf, size_t bufsiz)
 {
     int err;
     static __lowmem struct s_PXENV_GET_CACHED_INFO get_cached_info;
@@ -1151,7 +1151,7 @@ static void make_sysuuid_string(void)
 
 /*
  * Generate an ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
- * option into IPOption based on a DHCP packet in trackbuf.
+ * option into IPOption based on DHCP information in IPInfo.
  *
  */
 char __bss16 IPOption[3+4*16];
@@ -1448,13 +1448,12 @@ static void udp_init(void)
  */
 static void network_init(void)
 {
-    struct bootp_t *bp = (struct bootp_t *)trackbuf;
     int pkt_len;
-    char *dhcp_packet;
+    struct bootp_t *bp;
     const size_t dhcp_max_packet = 4096;
 
-    dhcp_packet = lmalloc(dhcp_max_packet);
-    if (!dhcp_packet) {
+    bp = lmalloc(dhcp_max_packet);
+    if (!bp) {
 	printf("Out of low memory\n");
 	kaboom();
     }
@@ -1465,8 +1464,8 @@ static void network_init(void)
      * Get the DHCP client identifiers (query info 1)
      */
     printf("Getting cached packet ");
-    pkt_len = pxe_get_cached_info(1, dhcp_packet, dhcp_max_packet);
-    parse_dhcp(dhcp_packet, pkt_len);
+    pkt_len = pxe_get_cached_info(1, bp, dhcp_max_packet);
+    parse_dhcp(bp, pkt_len);
     /*
      * We don't use flags from the request packet, so
      * this is a good time to initialize DHCPMagic...
@@ -1482,8 +1481,8 @@ static void network_init(void)
      * Get the BOOTP/DHCP packet that brought us file (and an IP
      * address). This lives in the DHCPACK packet (query info 2)
      */
-    pkt_len = pxe_get_cached_info(2, dhcp_packet, dhcp_max_packet);
-    parse_dhcp(dhcp_packet, pkt_len);
+    pkt_len = pxe_get_cached_info(2, bp, dhcp_max_packet);
+    parse_dhcp(bp, pkt_len);
     /*
      * Save away MAC address (assume this is in query info 2. If this
      * turns out to be problematic it might be better getting it from
@@ -1497,11 +1496,11 @@ static void network_init(void)
      * Get the boot file and other info. This lives in the CACHED_REPLY
      * packet (query info 3)
      */
-    pkt_len = pxe_get_cached_info(3, dhcp_packet, dhcp_max_packet);
-    parse_dhcp(dhcp_packet, pkt_len);
+    pkt_len = pxe_get_cached_info(3, bp, dhcp_max_packet);
+    parse_dhcp(bp, pkt_len);
     printf("\n");
 
-    lfree(dhcp_packet);
+    lfree(bp);
 
     make_bootif_string();
     make_sysuuid_string();
