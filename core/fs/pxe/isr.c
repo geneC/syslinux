@@ -252,7 +252,7 @@ void pxe_start_isr(void)
 			       pxe_poll_thread, NULL);
 
     if (!irq ||	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
-	pxe_need_poll |= 1;
+	asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
 }
 
 int reset_pxe(void)

@@ -313,8 +313,8 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
 	  first_xmit = now;
       } else if (now - first_xmit > 3000) {
 	  /* 3 seconds after first transmit, and no interrupts */
-	  pxe_need_poll |= 1;
-	  pxe_irq_count++;	/* We don't need to do this again... */
+	  asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
+	  asm volatile("incl %0" : "+m" (pxe_irq_count));
       }
   }
 
