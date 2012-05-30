@@ -1,3 +1,6 @@
+/*
+ * This file is taken from the Linux kernel and is distributed under GPL v2.
+ */
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -40,9 +43,7 @@ enum symtype {
 
 static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 /*
- * Following symbols have been audited. There values are constant and do
- * not change if bzImage is loaded at a different physical address than
- * the address for which it has been compiled. Don't warn user about
+ * Following symbols have been audited.  Don't warn user about
  * absolute relocations present w.r.t these symbols.
  */
 	[S_ABS] =
@@ -705,11 +706,11 @@ static void emit_relocs(int as_text, int use_real_mode)
 				printf("\t.long 0x%08lx\n", relocs[i]);
 			}
 		} else {
-			/* Print a stop */
-			printf("\t.long 0x%08lx\n", (unsigned long)0);
 			for (i = 0; i < reloc_count; i++) {
 				printf("\t.long 0x%08lx\n", relocs[i]);
 			}
+			/* Print a stop */
+			printf("\t.long 0x%08lx\n", (unsigned long)0);
 		}
 
 		printf("\n");
@@ -725,13 +726,13 @@ static void emit_relocs(int as_text, int use_real_mode)
 			for (i = 0; i < reloc_count; i++)
 				write32(relocs[i], stdout);
 		} else {
-			/* Print a stop */
-			write32(0, stdout);
-
 			/* Now print each relocation */
 			for (i = 0; i < reloc_count; i++) {
 				write32(relocs[i], stdout);
 			}
+
+			/* Print a stop */
+			write32(0, stdout);
 		}
 	}
 }
