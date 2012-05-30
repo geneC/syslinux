@@ -95,7 +95,7 @@ pxe_irq_chain	equ $-4
 		in al,dx
 		or al,ch
 		out dx,al
-		mov byte [pxe_irq_timeout],1
+		or byte [pxe_need_poll],1
 		jmp .exit
 
 
@@ -162,7 +162,8 @@ pxeirq_count	resw 1
 pxe_irq_vector	resb 1			; PXE IRQ vector
 		global pxe_irq_pending
 pxe_irq_pending	resb 1			; IRQ pending flag
-		global pxe_irq_timeout
-pxe_irq_timeout	resb 1			; Stuck IRQs, disabled timeout
+		global pxe_need_poll
+pxe_need_poll	resb 1			; Bit 0 = need polling
+					; Bit 1 = polling active
 
 		section .text16

@@ -2,12 +2,19 @@
 #include <limits.h>
 #include <sys/cpu.h>
 
+static void default_idle_thread_hook(void)
+{
+}
+
+void (*idle_thread_hook)(void) = default_idle_thread_hook;
+
 static void idle_thread_func(void *dummy)
 {
     (void)dummy;
 
     for (;;) {
 	cli();
+	idle_thread_hook();
 	__schedule();
 	asm volatile("sti ; hlt" : : : "memory");
     }

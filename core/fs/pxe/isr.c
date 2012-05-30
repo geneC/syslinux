@@ -13,8 +13,9 @@
 #include <sys/io.h>
 
 extern uint8_t pxe_irq_pending;
-extern volatile uint8_t pxe_irq_timeout;
+extern volatile uint8_t pxe_need_poll;
 static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
+static DECLARE_INIT_SEMAPHORE(pxe_poll_thread_sem, 0);
 static struct thread *pxe_thread, *poll_thread;
 
 /*
@@ -26,6 +27,7 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     unsigned int vec;
     uint8_t mask, mymask;
     uint32_t now;
+    bool ok;
 
     if (irq < 8)
 	vec = irq + 0x08;
@@ -35,6 +37,11 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
 	return false;
 
     cli();
+
+    if (pxe_need_poll) {
+	sti();
+	return false;
+    }
 
     entry = (far_ptr_t *)(vec << 2);
     *old = *entry;
@@ -60,16 +67,16 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     now = jiffies();
 
     /* Some time to watch for stuck interrupts */
-    while (jiffies() - now < 4 && !pxe_irq_timeout)
+    while (jiffies() - now < 4 && (ok = !pxe_need_poll))
 	hlt();
 
-    if (pxe_irq_timeout)
+    if (!ok)
 	*entry = *old;		/* Restore the old vector */
 
     printf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
 	   old->seg, old->offs, entry->seg, entry->offs);
 
-    return !pxe_irq_timeout;
+    return ok;
 }
 
 static bool uninstall_irq_vector(uint8_t irq, void (*isr), far_ptr_t *old)
@@ -107,6 +114,12 @@ static void pxe_poll_wakeups(void)
 {
     static jiffies_t last_jiffies = 0;
     jiffies_t now = jiffies();
+
+    if (pxe_need_poll == 1) {
+	/* If we need polling now, activate polling */
+	pxe_need_poll = 3;
+	sem_up(&pxe_poll_thread_sem);
+    }
 
     if (now != last_jiffies) {
 	last_jiffies = now;
@@ -183,11 +196,15 @@ static void pxe_poll_thread(void *dummy)
 {
     (void)dummy;
 
+    /* Block indefinitely unless activated */
+    sem_down(&pxe_poll_thread_sem, 0);
+
     for (;;) {
 	cli();
 	if (pxe_receive_thread_sem.count < 0 && pxe_isr_poll())
 	    sem_up(&pxe_receive_thread_sem);
-	__schedule();
+	else
+	    __schedule();
 	sti();
 	cpu_relax();
     }
@@ -206,9 +223,10 @@ void pxe_init_isr(void)
      * avoid packet loss we need to move it into memory that we ourselves
      * manage, as soon as possible.
      */
+    core_pm_hook = __schedule;
+
     pxe_thread = start_thread("pxe receive", 16384, -20,
 			      pxe_receive_thread, NULL);
-    core_pm_hook = __schedule;
 }
 
 /*
@@ -230,9 +248,11 @@ void pxe_start_isr(void)
 	    irq = 0;		/* Install failed or stuck interrupt */
     }
     
+    poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
+			       pxe_poll_thread, NULL);
+
     if (!irq ||	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
-	poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
-				   pxe_poll_thread, NULL);
+	pxe_need_poll |= 1;
 }
 
 int reset_pxe(void)
