@@ -39,6 +39,7 @@ pxe_isr:
 		; We need to EOI this ourselves, so that the
 		; leftover BC doesn't get control.
 		mov byte [pxe_irq_pending],1
+		inc dword [pxe_irq_count]
 
 		cmp byte [pxe_irq_vector], 8
 		mov al,0x20		; Non-specific EOI
@@ -49,7 +50,7 @@ pxe_isr:
 		out 0x20,al		; Primary PIC
 
 		mov [pxeirq_last],ax
-		mov word [pxeirq_count],PXEIRQ_MAX
+		mov word [pxeirq_deadman],PXEIRQ_MAX
 
 .exit:
 		pop gs
@@ -62,7 +63,7 @@ pxe_isr:
 .notus:
 		cmp ax,[pxeirq_last]
 		jne .reset_timeout
-		dec word [pxeirq_count]
+		dec word [pxeirq_deadman]
 		jz .timeout
 
 .chain:
@@ -77,7 +78,7 @@ pxe_irq_chain	equ $-4
 
 .reset_timeout:
 		mov [pxeirq_last],ax
-		mov word [pxeirq_count],PXEIRQ_MAX
+		mov word [pxeirq_deadman],PXEIRQ_MAX
 		jmp .chain
 
 		; Too many spurious interrupts, shut off the interrupts
@@ -154,10 +155,12 @@ pxenv_undi_isr_buf:
 .pkttype:	resb 1
 .size		equ $-pxenv_undi_isr_buf
 
-		alignb 2
+		alignb 4
 pxeirq_last	resw 1
-pxeirq_count	resw 1
+pxeirq_deadman	resw 1
 
+		global pxe_irq_count
+pxe_irq_count	resd 1			; PXE IRQ counter
 		global pxe_irq_vector
 pxe_irq_vector	resb 1			; PXE IRQ vector
 		global pxe_irq_pending

@@ -286,6 +286,9 @@ low_level_init(struct netif *netif)
  *       to become availale since the stack doesn't retry to send a packet
  *       dropped because of memory failure (except for the TCP timers).
  */
+extern volatile uint32_t pxe_irq_count;
+extern volatile uint8_t  pxe_need_poll;
+
 static err_t
 undi_transmit(struct netif *netif, struct pbuf *pbuf,
   hwaddr_t *dest, uint16_t undi_protocol)
@@ -297,10 +300,23 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
   static __lowmem struct pxe_xmit pxe;
   static __lowmem hwaddr_t low_dest;
   static __lowmem char pkt_buf[PKTBUF_SIZE];
+  uint32_t now;
+  static uint32_t first_xmit;
 
   /* Drop jumbo frames */
   if ((pbuf->tot_len > sizeof(pkt_buf)) || (pbuf->tot_len > netif->mtu))
     return ERR_ARG;
+
+  if (__unlikely(!pxe_irq_count)) {
+      now = ms_timer();
+      if (!first_xmit) {
+	  first_xmit = now;
+      } else if (now - first_xmit > 3000) {
+	  /* 3 seconds after first transmit, and no interrupts */
+	  pxe_need_poll |= 1;
+	  pxe_irq_count++;	/* We don't need to do this again... */
+      }
+  }
 
   pbuf_copy_partial( pbuf, pkt_buf, pbuf->tot_len, 0);
   if (dest)
