@@ -3,7 +3,7 @@
 ;
 		section .text16
 
-PXEIRQ_MAX	equ 1000	; Max spurious interrupts in a timer tick
+PXEIRQ_MAX	equ 100		; Max spurious interrupts in a timer tick
 
 		global pxe_isr
 pxe_isr:
