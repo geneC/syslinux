@@ -44,6 +44,7 @@ LIBLUA_OBJS += dmi.o
 LIBLUA_OBJS += cpu.o
 LIBLUA_OBJS += pci.o
 LIBLUA_OBJS += vesa.o
+LIBLUA_OBJS += dhcp.o
 
 CFLAGS += -DLUA_ANSI
 

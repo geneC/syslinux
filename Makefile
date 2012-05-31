@@ -34,7 +34,7 @@ include $(MAKEDIR)/syslinux.mk
 MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
-	com32/sysdump/*.c32 com32/lua/src/*.c32 \
+	com32/sysdump/*.c32 com32/lua/src/*.c32 com32/chain/.*c32 \
 	com32/lib/*.c32 com32/libutil/*.c32 com32/gpllib/*.c32
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
@@ -99,6 +99,13 @@ installer:
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
 installer-local: $(ITARGET) $(BINFILES)
+
+strip:
+	$(MAKE) strip-local
+	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i strip ; done
+	-ls -l $(BOBJECTS) $(IOBJECTS)
+
+strip-local:
 
 version.gen: version version.pl
 	$(PERL) version.pl $< $@ '%define < @'

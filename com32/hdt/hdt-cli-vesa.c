@@ -98,10 +98,12 @@ struct cli_callback_descr list_vesa_show_modules[] = {
     {
      .name = CLI_MODES,
      .exec = show_vesa_modes,
+     .nomodule=false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule=false,
      },
 };
 
@@ -109,15 +111,18 @@ struct cli_callback_descr list_vesa_commands[] = {
     {
      .name = CLI_ENABLE,
      .exec = enable_vesa,
+     .nomodule=false,
      },
     {
      .name = CLI_DISABLE,
      .exec = disable_vesa,
+     .nomodule=false,
      },
 
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule=false,
      },
 };
 

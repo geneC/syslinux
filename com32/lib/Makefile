@@ -134,7 +134,7 @@ LIBOTHER_OBJS = \
 	chrreplace.o							\
 	bufprintf.o							\
 	inet.o								\
-	\
+	strreplace.o							\
 	lstrdup.o						\
 	\
 	suffix_number.o							\
@@ -159,6 +159,7 @@ LIBOTHER_OBJS = \
 	pci/writeb.o pci/writew.o pci/writel.o	\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
+	syslinux/disk.o
 
 CORELIBOBJS = \
 	memcpy.o memset.o memcmp.o printf.o strncmp.o vfprintf.o 	\

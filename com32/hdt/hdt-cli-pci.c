@@ -266,14 +266,17 @@ struct cli_callback_descr list_pci_show_modules[] = {
     {
      .name = CLI_IRQ,
      .exec = show_pci_irq,
+     .nomodule=false,
      },
     {
      .name = CLI_PCI_DEVICE,
      .exec = show_pci_device,
+     .nomodule=false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule=false,
      },
 };
 

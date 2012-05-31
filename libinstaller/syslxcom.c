@@ -30,8 +30,10 @@
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/vfs.h>
+
 #include "linuxioctl.h"
 #include "syslxcom.h"
+#include "syslxfs.h"
 
 const char *program;
 
@@ -133,6 +135,8 @@ void clear_attributes(int fd)
 	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
 	    break;
 	}
+    case NTFS:
+        break;
 	default:
 	    break;
 	}
@@ -163,6 +167,8 @@ void set_attributes(int fd)
 	    ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
 	    break;
 	}
+    case NTFS:
+        break;
 	default:
 	    break;
 	}

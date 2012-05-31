@@ -11,14 +11,14 @@
 ## -----------------------------------------------------------------------
 
 ##
-## Linux FAT installer
+## Linux FAT/NTFS installer
 ##
 
 topdir = ..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/syslinux.mk
 
-OPTFLAGS = -g -O0 -Dalloca=malloc
+OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = 
@@ -28,7 +28,7 @@ SRCS     = syslinux.c \
 	   ../libinstaller/syslxcom.c \
 	   ../libinstaller/setadv.c \
 	   ../libinstaller/advio.c \
-           ../libinstaller/fat.c \
+           ../libinstaller/fs.c \
            ../libinstaller/syslxmod.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c
@@ -56,6 +56,9 @@ syslinux: $(OBJS)
 
 syslinux-nomtools: syslinux
 	ln -f $< $@
+
+strip:
+	$(STRIP) syslinux syslinux-nomtools
 
 %.o: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<

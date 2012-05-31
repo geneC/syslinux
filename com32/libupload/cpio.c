@@ -31,7 +31,7 @@ int cpio_hdr(struct upload_backend *be, uint32_t mode, size_t datalen,
 
     cpio_pad(be);
 
-    sprintf(hdr, "%06o%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x",
+    sprintf(hdr, "%06o%08x%08x%08x%08x%08x%08x%08zx%08x%08x%08x%08x%08x%08x",
 	    070701,		/* c_magic */
 	    inode++,		/* c_ino */
 	    mode,		/* c_mode */

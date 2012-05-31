@@ -204,7 +204,7 @@ scan_partition_table:
 5:
 	decb	(partition)
 	jz	boot
-	addw	$16, %bx
+	addw	$16, %si
 	loopw	5b
 
 	popw	%cx			/* %cx <- 4    */

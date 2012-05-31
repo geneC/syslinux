@@ -579,14 +579,14 @@ void free_pci_domain(struct pci_domain *domain)
 				    free(func->dev_info);
 				free(func);
 			    }
-			    free(slot);
 			}
+			free(slot);
 		    }
-		    free(bus);
 		}
+		free(bus);
 	    }
-	    free(domain);
 	}
+	free(domain);
     }
 }
 

@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2012 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -14,18 +14,18 @@
 /*
  * extlinux.c
  *
- * Install the syslinux boot block on an fat, ext2/3/4 and btrfs filesystem
+ * Install the syslinux boot block on an fat, ntfs, ext2/3/4 and btrfs filesystem
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
 #include <inttypes.h>
 /* This is needed to deal with the kernel headers imported into glibc 3.3.3. */
-typedef uint64_t u64;
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <dirent.h>
 #ifndef __KLIBC__
 #include <mntent.h>
 #endif
@@ -45,9 +45,11 @@ typedef uint64_t u64;
 
 #include "btrfs.h"
 #include "fat.h"
+#include "ntfs.h"
 #include "../version.h"
 #include "syslxint.h"
 #include "syslxcom.h" /* common functions shared with extlinux and syslinux */
+#include "syslxfs.h"
 #include "setadv.h"
 #include "syslxopt.h" /* unified options */
 
@@ -65,7 +67,6 @@ typedef uint64_t u64;
    boot image, the boot sector is from 0~512, the boot image starts after */
 #define BTRFS_BOOTSECT_AREA	65536
 #define BTRFS_EXTLINUX_OFFSET	SECTOR_SIZE
-#define BTRFS_SUBVOL_OPT "subvol="
 #define BTRFS_SUBVOL_MAX 256	/* By btrfs specification */
 static char subvol[BTRFS_SUBVOL_MAX];
 
@@ -112,7 +113,7 @@ static int sysfs_get_offset(int devfd, unsigned long *start)
 
     if ((size_t)snprintf(sysfs_name, sizeof sysfs_name,
 			 "/sys/dev/block/%u:%u/start",
-			 major(st.st_dev), minor(st.st_dev))
+			 major(st.st_rdev), minor(st.st_rdev))
 	>= sizeof sysfs_name)
 	return -1;
 
@@ -153,7 +154,7 @@ int get_geometry(int devfd, uint64_t totalbytes, struct hd_geometry *geo)
 
     memset(geo, 0, sizeof *geo);
 
-    if (!ioctl(devfd, HDIO_GETGEO, &geo)) {
+    if (!ioctl(devfd, HDIO_GETGEO, geo)) {
 	goto ok;
     } else if (!ioctl(devfd, FDGETPRM, &fd_str)) {
 	geo->heads = fd_str.head;
@@ -215,7 +216,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     sector_t *sectp;
     uint64_t totalbytes, totalsectors;
     int nsect;
-    struct boot_sector *sbs;
+    struct fat_boot_sector *sbs;
     char *dirpath, *subpath, *xdirpath;
     int rv;
 
@@ -272,7 +273,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
        early bootstrap share code with the FAT version. */
     dprintf("heads = %u, sect = %u\n", geo.heads, geo.sectors);
 
-    sbs = (struct boot_sector *)syslinux_bootsect;
+    sbs = (struct fat_boot_sector *)syslinux_bootsect;
 
     totalsectors = totalbytes >> SECTOR_SHIFT;
     if (totalsectors >= 65536) {
@@ -293,7 +294,7 @@ int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     nsect = (boot_image_len + SECTOR_SIZE - 1) >> SECTOR_SHIFT;
     nsect += 2;			/* Two sectors for the ADV */
     sectp = alloca(sizeof(sector_t) * nsect);
-    if (fs_type == EXT2 || fs_type == VFAT) {
+    if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS) {
 	if (sectmap(fd, sectp, nsect)) {
 		perror("bmap");
 		exit(1);
@@ -324,7 +325,8 @@ int install_bootblock(int fd, const char *device)
 {
     struct ext2_super_block sb;
     struct btrfs_super_block sb2;
-    struct boot_sector sb3;
+    struct fat_boot_sector sb3;
+    struct ntfs_boot_sector sb4;
     bool ok = false;
 
     if (fs_type == EXT2) {
@@ -347,24 +349,41 @@ int install_bootblock(int fd, const char *device)
 		perror("reading fat superblock");
 		return 1;
 	}
-	if (sb3.bsResSectors && sb3.bsFATs &&
-	    (strstr(sb3.bs16.FileSysType, "FAT") ||
-	     strstr(sb3.bs32.FileSysType, "FAT")))
+	if (fat_check_sb_fields(&sb3))
 		ok = true;
+    } else if (fs_type == NTFS) {
+        if (xpread(fd, &sb4, sizeof(sb4), 0) != sizeof(sb4)) {
+            perror("reading ntfs superblock");
+            return 1;
+        }
+
+        if (ntfs_check_sb_fields(&sb4))
+             ok = true;
     }
     if (!ok) {
-	fprintf(stderr, "no fat, ext2/3/4 or btrfs superblock found on %s\n",
+	fprintf(stderr, "no fat, ntfs, ext2/3/4 or btrfs superblock found on %s\n",
 			device);
 	return 1;
     }
     if (fs_type == VFAT) {
-	struct boot_sector *sbs = (struct boot_sector *)syslinux_bootsect;
-        if (xpwrite(fd, &sbs->bsHead, bsHeadLen, 0) != bsHeadLen ||
-	    xpwrite(fd, &sbs->bsCode, bsCodeLen,
-		    offsetof(struct boot_sector, bsCode)) != bsCodeLen) {
+	struct fat_boot_sector *sbs = (struct fat_boot_sector *)syslinux_bootsect;
+        if (xpwrite(fd, &sbs->FAT_bsHead, FAT_bsHeadLen, 0) != FAT_bsHeadLen ||
+	    xpwrite(fd, &sbs->FAT_bsCode, FAT_bsCodeLen,
+		    offsetof(struct fat_boot_sector, FAT_bsCode)) != FAT_bsCodeLen) {
 	    perror("writing fat bootblock");
 	    return 1;
 	}
+    } else if (fs_type == NTFS) {
+        struct ntfs_boot_sector *sbs =
+                (struct ntfs_boot_sector *)syslinux_bootsect;
+        if (xpwrite(fd, &sbs->NTFS_bsHead,
+                    NTFS_bsHeadLen, 0) != NTFS_bsHeadLen ||
+                    xpwrite(fd, &sbs->NTFS_bsCode, NTFS_bsCodeLen,
+                    offsetof(struct ntfs_boot_sector,
+                    NTFS_bsCode)) != NTFS_bsCodeLen) {
+            perror("writing ntfs bootblock");
+            return 1;
+        }
     } else {
 	if (xpwrite(fd, syslinux_bootsect, syslinux_bootsect_len, 0)
 	    != syslinux_bootsect_len) {
@@ -494,9 +513,270 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
     return 0;
 }
 
+/*
+ *  * test if path is a subvolume:
+ *   * this function return
+ *    * 0-> path exists but it is not a subvolume
+ *     * 1-> path exists and it is  a subvolume
+ *      * -1 -> path is unaccessible
+ *       */
+static int test_issubvolume(char *path)
+{
+
+        struct stat     st;
+        int             res;
+
+        res = stat(path, &st);
+        if(res < 0 )
+                return -1;
+
+        return (st.st_ino == 256) && S_ISDIR(st.st_mode);
+
+}
+
+/*
+ * Get file handle for a file or dir
+ */
+static int open_file_or_dir(const char *fname)
+{
+        int ret;
+        struct stat st;
+        DIR *dirstream;
+        int fd;
+
+        ret = stat(fname, &st);
+        if (ret < 0) {
+                return -1;
+        }
+        if (S_ISDIR(st.st_mode)) {
+                dirstream = opendir(fname);
+                if (!dirstream) {
+                        return -2;
+                }
+                fd = dirfd(dirstream);
+        } else {
+                fd = open(fname, O_RDWR);
+        }
+        if (fd < 0) {
+                return -3;
+        }
+        return fd;
+}
+
+/*
+ * Get the default subvolume of a btrfs filesystem
+ *   rootdir: btrfs root dir
+ *   subvol:  this function will save the default subvolume name here
+ */
+static char * get_default_subvol(char * rootdir, char * subvol)
+{
+    struct btrfs_ioctl_search_args args;
+    struct btrfs_ioctl_search_key *sk = &args.key;
+    struct btrfs_ioctl_search_header *sh;
+    int ret, i;
+    int fd;
+    struct btrfs_root_ref *ref;
+    struct btrfs_dir_item *dir_item;
+    unsigned long off = 0;
+    int name_len;
+    char *name;
+    char dirname[4096];
+    u64 defaultsubvolid = 0;
+
+    ret = test_issubvolume(rootdir);
+    if (ret == 1) {
+        fd = open_file_or_dir(rootdir);
+        if (fd < 0) {
+            fprintf(stderr, "ERROR: failed to open %s\n", rootdir);
+        }
+        ret = fd;
+    }
+    if (ret <= 0) {
+        subvol[0] = '\0';
+        return NULL;
+    }
+
+    memset(&args, 0, sizeof(args));
+
+   /* search in the tree of tree roots */
+   sk->tree_id = 1;
+
+   /*
+    * set the min and max to backref keys.  The search will
+    * only send back this type of key now.
+    */
+   sk->max_type = BTRFS_DIR_ITEM_KEY;
+   sk->min_type = BTRFS_DIR_ITEM_KEY;
+
+   /*
+    * set all the other params to the max, we'll take any objectid
+    * and any trans
+    */
+   sk->min_objectid = BTRFS_ROOT_TREE_DIR_OBJECTID;
+   sk->max_objectid = BTRFS_ROOT_TREE_DIR_OBJECTID;
+
+   sk->max_offset = (u64)-1;
+   sk->min_offset = 0;
+   sk->max_transid = (u64)-1;
+
+   /* just a big number, doesn't matter much */
+   sk->nr_items = 4096;
+
+   while(1) {
+       ret = ioctl(fd, BTRFS_IOC_TREE_SEARCH, &args);
+       if (ret < 0) {
+           fprintf(stderr, "ERROR: can't perform the search\n");
+           subvol[0] = '\0';
+           return NULL;
+       }
+       /* the ioctl returns the number of item it found in nr_items */
+       if (sk->nr_items == 0) {
+           break;
+       }
+
+       off = 0;
+
+       /*
+        * for each item, pull the key out of the header and then
+        * read the root_ref item it contains
+        */
+       for (i = 0; i < sk->nr_items; i++) {
+           sh = (struct btrfs_ioctl_search_header *)(args.buf + off);
+           off += sizeof(*sh);
+           if (sh->type == BTRFS_DIR_ITEM_KEY) {
+               dir_item = (struct btrfs_dir_item *)(args.buf + off);
+               name_len = dir_item->name_len;
+               name = (char *)(dir_item + 1);
+
+
+               /*add_root(&root_lookup, sh->objectid, sh->offset,
+                        dir_id, name, name_len);*/
+               strncpy(dirname, name, name_len);
+               dirname[name_len] = '\0';
+               if (strcmp(dirname, "default") == 0) {
+                   defaultsubvolid = dir_item->location.objectid;
+                   break;
+               }
+           }
+           off += sh->len;
+
+           /*
+            * record the mins in sk so we can make sure the
+            * next search doesn't repeat this root
+            */
+           sk->min_objectid = sh->objectid;
+           sk->min_type = sh->type;
+           sk->max_type = sh->type;
+           sk->min_offset = sh->offset;
+       }
+       if (defaultsubvolid != 0)
+           break;
+       sk->nr_items = 4096;
+       /* this iteration is done, step forward one root for the next
+        * ioctl
+        */
+       if (sk->min_objectid < (u64)-1) {
+           sk->min_objectid = BTRFS_ROOT_TREE_DIR_OBJECTID;
+           sk->max_objectid = BTRFS_ROOT_TREE_DIR_OBJECTID;
+           sk->max_type = BTRFS_ROOT_BACKREF_KEY;
+           sk->min_type = BTRFS_ROOT_BACKREF_KEY;
+           sk->min_offset = 0;
+       } else
+           break;
+   }
+
+   if (defaultsubvolid == 0) {
+       subvol[0] = '\0';
+       return NULL;
+   }
+
+   memset(&args, 0, sizeof(args));
+
+   /* search in the tree of tree roots */
+   sk->tree_id = 1;
+
+   /*
+    * set the min and max to backref keys.  The search will
+    * only send back this type of key now.
+    */
+   sk->max_type = BTRFS_ROOT_BACKREF_KEY;
+   sk->min_type = BTRFS_ROOT_BACKREF_KEY;
+
+   /*
+    * set all the other params to the max, we'll take any objectid
+    * and any trans
+    */
+   sk->max_objectid = (u64)-1;
+   sk->max_offset = (u64)-1;
+   sk->max_transid = (u64)-1;
+
+   /* just a big number, doesn't matter much */
+   sk->nr_items = 4096;
+
+   while(1) {
+       ret = ioctl(fd, BTRFS_IOC_TREE_SEARCH, &args);
+       if (ret < 0) {
+           fprintf(stderr, "ERROR: can't perform the search\n");
+           subvol[0] = '\0';
+           return NULL;
+       }
+       /* the ioctl returns the number of item it found in nr_items */
+       if (sk->nr_items == 0)
+           break;
+
+       off = 0;
+
+       /*
+        * for each item, pull the key out of the header and then
+        * read the root_ref item it contains
+        */
+       for (i = 0; i < sk->nr_items; i++) {
+           sh = (struct btrfs_ioctl_search_header *)(args.buf + off);
+           off += sizeof(*sh);
+           if (sh->type == BTRFS_ROOT_BACKREF_KEY) {
+               ref = (struct btrfs_root_ref *)(args.buf + off);
+               name_len = ref->name_len;
+               name = (char *)(ref + 1);
+
+               if (sh->objectid == defaultsubvolid) {
+                   strncpy(subvol, name, name_len);
+                   subvol[name_len] = '\0';
+                   dprintf("The default subvolume: %s, ID: %llu\n",
+			   subvol, sh->objectid);
+                   break;
+               }
+
+           }
+
+           off += sh->len;
+
+           /*
+            * record the mins in sk so we can make sure the
+            * next search doesn't repeat this root
+            */
+           sk->min_objectid = sh->objectid;
+           sk->min_type = sh->type;
+           sk->min_offset = sh->offset;
+       }
+       if (subvol[0] != '\0')
+           break;
+       sk->nr_items = 4096;
+       /* this iteration is done, step forward one root for the next
+        * ioctl
+        */
+       if (sk->min_objectid < (u64)-1) {
+           sk->min_objectid++;
+           sk->min_type = BTRFS_ROOT_BACKREF_KEY;
+           sk->min_offset = 0;
+       } else
+           break;
+   }
+   return subvol;
+}
+
 int install_file(const char *path, int devfd, struct stat *rst)
 {
-	if (fs_type == EXT2 || fs_type == VFAT)
+	if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS)
 		return ext2_fat_install_file(path, devfd, rst);
 	else if (fs_type == BTRFS)
 		return btrfs_install_file(path, devfd, rst);
@@ -545,47 +825,46 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 	/* btrfs st_dev is not matched with mnt st_rdev, it is a known issue */
 	switch (fs_type) {
 	case BTRFS:
-		if (!strcmp(mnt->mnt_type, "btrfs") &&
-		    !stat(mnt->mnt_dir, &dst) &&
-		    dst.st_dev == dev) {
-		    char *opt = strstr(mnt->mnt_opts, BTRFS_SUBVOL_OPT);
-
-		    if (opt) {
-			if (!subvol[0]) {
-			    char *tmp;
-
-			    strcpy(subvol, opt + sizeof(BTRFS_SUBVOL_OPT) - 1);
-			    tmp = strchr(subvol, 32);
-			    if (tmp)
-				*tmp = '\0';
-			}
-			break; /* should break and let upper layer try again */
-		    } else
-			done = true;
-		}
-		break;
+	    if (!strcmp(mnt->mnt_type, "btrfs") &&
+		!stat(mnt->mnt_dir, &dst) &&
+		dst.st_dev == dev) {
+		if (!subvol[0])
+		    get_default_subvol(mnt->mnt_dir, subvol);
+		done = true;
+	    }
+	    break;
 	case EXT2:
-		if ((!strcmp(mnt->mnt_type, "ext2") ||
-		     !strcmp(mnt->mnt_type, "ext3") ||
-		     !strcmp(mnt->mnt_type, "ext4")) &&
-		    !stat(mnt->mnt_fsname, &dst) &&
-		    dst.st_rdev == dev) {
-		    done = true;
-		    break;
-		}
+	    if ((!strcmp(mnt->mnt_type, "ext2") ||
+		 !strcmp(mnt->mnt_type, "ext3") ||
+		 !strcmp(mnt->mnt_type, "ext4")) &&
+		!stat(mnt->mnt_fsname, &dst) &&
+		dst.st_rdev == dev) {
+		done = true;
+		break;
+	    }
 	case VFAT:
-		if ((!strcmp(mnt->mnt_type, "vfat")) &&
-		    !stat(mnt->mnt_fsname, &dst) &&
-		    dst.st_rdev == dev) {
-		    done = true;
-		    break;
-		}
+	    if ((!strcmp(mnt->mnt_type, "vfat")) &&
+		!stat(mnt->mnt_fsname, &dst) &&
+		dst.st_rdev == dev) {
+		done = true;
+		break;
+	    }
+	case NTFS:
+	    if ((!strcmp(mnt->mnt_type, "fuseblk") /* ntfs-3g */ ||
+		 !strcmp(mnt->mnt_type, "ntfs")) &&
+		!stat(mnt->mnt_fsname, &dst) &&
+		dst.st_rdev == dev) {
+		done = true;
+		break;
+	    }
+
+	    break;
 	case NONE:
 	    break;
 	}
 	if (done) {
-		devname = strdup(mnt->mnt_fsname);
-		break;
+	    devname = strdup(mnt->mnt_fsname);
+	    break;
 	}
     }
     endmntent(mtab);
@@ -593,6 +872,54 @@ static const char *find_device(const char *mtab_file, dev_t dev)
     return devname;
 }
 #endif
+
+/*
+ * On newer Linux kernels we can use sysfs to get a backwards mapping
+ * from device names to standard filenames
+ */
+static const char *find_device_sysfs(dev_t dev)
+{
+    char sysname[64];
+    char linkname[PATH_MAX];
+    ssize_t llen;
+    char *p, *q;
+    char *buf = NULL;
+    struct stat st;
+
+    snprintf(sysname, sizeof sysname, "/sys/dev/block/%u:%u",
+	     major(dev), minor(dev));
+
+    llen = readlink(sysname, linkname, sizeof linkname);
+    if (llen < 0 || llen >= sizeof linkname)
+	goto err;
+
+    linkname[llen] = '\0';
+
+    p = strrchr(linkname, '/');
+    p = p ? p+1 : linkname;	/* Leave basename */
+
+    buf = q = malloc(strlen(p) + 6);
+    if (!buf)
+	goto err;
+
+    memcpy(q, "/dev/", 5);
+    q += 5;
+
+    while (*p) {
+	*q++ = (*p == '!') ? '/' : *p;
+	p++;
+    }
+
+    *q = '\0';
+
+    if (!stat(buf, &st) && st.st_dev == dev)
+	return buf;		/* Found it! */
+
+err:
+    if (buf)
+	free(buf);
+    return NULL;
+}
 
 static const char *get_devname(const char *path)
 {
@@ -608,48 +935,42 @@ static const char *get_devname(const char *path)
 	fprintf(stderr, "%s: statfs %s: %s\n", program, path, strerror(errno));
 	return devname;
     }
+
 #ifdef __KLIBC__
 
-    /* klibc doesn't have getmntent and friends; instead, just create
-       a new device with the appropriate device type */
-    snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
-	     major(st.st_dev), minor(st.st_dev));
+    devname = find_device_sysfs(st.st_dev);
 
-    if (mknod(devname_buf, S_IFBLK | 0600, st.st_dev)) {
-	fprintf(stderr, "%s: cannot create device %s\n", program, devname);
-	return devname;
+    if (!devname) {
+	/* klibc doesn't have getmntent and friends; instead, just create
+	   a new device with the appropriate device type */
+	snprintf(devname_buf, sizeof devname_buf, "/tmp/dev-%u:%u",
+		 major(st.st_dev), minor(st.st_dev));
+
+	if (mknod(devname_buf, S_IFBLK | 0600, st.st_dev)) {
+	    fprintf(stderr, "%s: cannot create device %s\n", program, devname);
+	    return devname;
+	}
+	
+	atexit(device_cleanup);	/* unlink the device node on exit */
+	devname = devname_buf;
     }
-
-    atexit(device_cleanup);	/* unlink the device node on exit */
-    devname = devname_buf;
 
 #else
 
-    /* check /etc/mtab first, since btrfs subvol info is only in here */
-    devname = find_device("/etc/mtab", st.st_dev);
-    if (subvol[0] && !devname) { /* we just find it is a btrfs subvol */
-	char parent[256];
-	char *tmp;
+    devname = find_device("/proc/mounts", st.st_dev);
+    if (!devname) {
+	/* Didn't find it in /proc/mounts, try /etc/mtab */
+        devname = find_device("/etc/mtab", st.st_dev);
+    }
+    if (!devname) {
+	devname = find_device_sysfs(st.st_dev);
 
-	strcpy(parent, path);
-	tmp = strrchr(parent, '/');
-	if (tmp) {
-	    *tmp = '\0';
-	    fprintf(stderr, "%s is subvol, try its parent dir %s\n", path, parent);
-	    devname = get_devname(parent);
-	} else
-	    devname = NULL;
-    }
-    if (!devname) {
-	/* Didn't find it in /etc/mtab, try /proc/mounts */
-	devname = find_device("/proc/mounts", st.st_dev);
-    }
-    if (!devname) {
 	fprintf(stderr, "%s: cannot find device for path %s\n", program, path);
 	return devname;
     }
 
     fprintf(stderr, "%s is device %s\n", path, devname);
+
 #endif
     return devname;
 }
@@ -676,9 +997,12 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
 	fs_type = BTRFS;
     else if (sfs.f_type == MSDOS_SUPER_MAGIC)
 	fs_type = VFAT;
+    else if (sfs.f_type == NTFS_SB_MAGIC ||
+                sfs.f_type == FUSE_SUPER_MAGIC /* ntfs-3g */)
+        fs_type = NTFS;
 
     if (!fs_type) {
-	fprintf(stderr, "%s: not a fat, ext2/3/4 or btrfs filesystem: %s\n",
+	fprintf(stderr, "%s: not a fat, ntfs, ext2/3/4 or btrfs filesystem: %s\n",
 		program, path);
 	return -1;
     }
@@ -725,7 +1049,7 @@ static int ext_read_adv(const char *path, int devfd, const char **namep)
 	if (err == 2)		/* ldlinux.sys does not exist */
 	    err = read_adv(path, name = "extlinux.sys");
 	if (namep)
-	    *namep = name; 
+	    *namep = name;
 	return err;
     }
 }
