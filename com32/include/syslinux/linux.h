@@ -51,8 +51,26 @@ struct initramfs {
 };
 #define INITRAMFS_MAX_ALIGN	4096
 
+struct fdt {
+	void *data;
+	size_t len;
+};
+#define DEVICETREE_MAX_ALIGN	4096
+
+struct setup_data {
+	uint64_t next;
+	uint32_t type;
+	uint32_t len;
+	uint8_t data[0];
+};
+
+#define SETUP_NONE	0
+#define SETUP_E820_EXT	1
+#define SETUP_DTB	2
+
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs, char *cmdline);
+			struct initramfs *initramfs, struct fdt *fdt,
+			char *cmdline);
 
 /* Initramfs manipulation functions */
 
@@ -69,5 +87,10 @@ int initramfs_load_file(struct initramfs *ihead, const char *src_filename,
 			const char *dst_filename, int do_mkdir, uint32_t mode);
 int initramfs_add_trailer(struct initramfs *ihead);
 int initramfs_load_archive(struct initramfs *ihead, const char *filename);
+
+/* Device Tree manipulation functions */
+
+struct fdt *fdt_init(void);
+int fdt_load(struct fdt *fdt, const char *filename);
 
 #endif /* _SYSLINUX_LINUX_H */

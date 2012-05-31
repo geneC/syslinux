@@ -180,7 +180,8 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
 }
 
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs, char *cmdline)
+			struct initramfs *initramfs, struct fdt *fdt,
+			char *cmdline)
 {
     struct linux_header hdr, *whdr;
     size_t real_mode_size, prot_mode_size;
@@ -447,6 +448,44 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    if (map_initramfs(&fraglist, &mmap, initramfs, best_addr))
 		goto bail;
 	}
+    }
+
+    if (fdt && fdt->len > 0) {
+	const addr_t align_mask = DEVICETREE_MAX_ALIGN - 1;
+	struct syslinux_memmap *ml;
+	struct setup_data *setup;
+	addr_t best_addr = 0;
+	size_t size;
+
+	size = sizeof(*setup) + fdt->len;
+
+	setup = malloc(size);
+	if (!setup)
+		goto bail;
+
+	setup->next = 0;
+	setup->type = SETUP_DTB;
+	setup->len = fdt->len;
+	memcpy(setup->data, fdt->data, fdt->len);
+
+	for (ml = amap; ml->type != SMT_END; ml = ml->next) {
+		addr_t adj_start = (ml->start + align_mask) & ~align_mask;
+		addr_t adj_end = ml->next->start & ~align_mask;
+
+		if (ml->type == SMT_FREE && adj_end - adj_start >= size)
+			best_addr = (adj_end - size) & ~align_mask;
+	}
+
+	if (!best_addr)
+		goto bail;
+
+	whdr->setup_data = best_addr;
+
+	if (syslinux_add_memmap(&amap, best_addr, size, SMT_ALLOC))
+	    goto bail;
+
+	if (syslinux_add_movelist(&fraglist, best_addr, (addr_t) setup, size))
+	    goto bail;
     }
 
     /* Set up the registers on entry */

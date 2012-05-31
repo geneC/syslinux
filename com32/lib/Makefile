@@ -129,7 +129,9 @@ LIBOBJS = \
 	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
 	syslinux/video/reportmode.o					\
 	\
-	syslinux/disk.o
+	syslinux/disk.o							\
+	\
+	syslinux/fdt.o
 
 # These are the objects which are also imported into the core
 LIBCOREOBJS = 	\
