@@ -513,11 +513,15 @@ int module_load(struct elf_module *module) {
 		/*
 		 * nr_needed can be modified by recursive calls to
 		 * module_load() so keep a local copy on the stack.
+		 *
+		 * Note that we have to load the dependencies in
+		 * reverse order.
 		 */
-		n = nr_needed;
-		for (i = 0; i < n; i++) {
+		n = nr_needed - 1;
+		for (i = n; i >= 0; i--) {
 			size_t len, j;
 			char *dep, *p;
+			char *argv[2] = { NULL, NULL };
 
 			dep = module->str_table + needed[i];
 
@@ -526,16 +530,14 @@ int module_load(struct elf_module *module) {
 			if (!len)
 				continue;
 
-			p = dep + len - 1;
-			while (j > 0 && *p && *p != '/') {
-				p--;
-				j--;
-			}
+			if (strchr(dep, '/')) {
+				p = strrchr(dep, '/');
+				p++;
+			} else
+				p = dep;
 
-			if (*p++ == '/') {
-				char *argv[2] = { p, NULL };
-				spawn_load(p, 1, argv);
-			}
+			argv[0] = p;
+			spawn_load(p, 1, argv);
 		}
 	}
 
