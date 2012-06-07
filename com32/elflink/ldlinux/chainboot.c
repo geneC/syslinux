@@ -42,8 +42,6 @@ void chainboot_file(const char *file, enum kernel_type type)
     struct syslinux_movelist *fraglist = NULL;
     struct syslinux_memmap *mmap = NULL;
     struct com32_filedata fd;
-    unsigned int free_mem, new_free_mem;
-    unsigned int edx, esi, bx;
     com32sys_t reg;
     char *stack;
     void *buf;
@@ -72,23 +70,26 @@ void chainboot_file(const char *file, enum kernel_type type)
     size = reg.edi.l - (unsigned long)buf;
     if (size > 0xA0000 - 0x7C00) {
 	printf("Too large for a boostrap (need LINUX instead of KERNEL?)\n");
-	goto boot_bail;
+	goto bail;
     }
 
-    esi = 0;
-    bx = 0;
+    mmap = syslinux_memory_map();
+    if (!mmap)
+	goto bail;
 
     sdi = syslinux_derivative_info();
-    edx = sdi->rr.r.edx.b[0];
 
     memset(&regs, 0, sizeof(regs));
+    regs.ip = 0x7c00;
 
     if (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX ||
 	sdi->c.filesystem == SYSLINUX_FS_EXTLINUX) {
-	memcpy((void *)0x800 - 18, sdi->r.esbx, 16);
+	if (syslinux_add_movelist(&fraglist, 0x800 - 18,
+				  (const void *)sdi->r.esbx, 16))
+	    goto bail;
 
 	/* DS:SI points to partition info */
-	esi = 0x800 - 18;
+	regs.esi.l = 0x800 - 18;
     }
 
     /*
@@ -97,39 +98,33 @@ void chainboot_file(const char *file, enum kernel_type type)
      */
     if (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX &&
 	type == KT_BSS && vfat_copy_superblock(buf))
-	goto boot_bail;
+	goto bail;
 
-    /*
-     * Set up initial stack frame (not used by PXE if
-     * keeppxe is set - we use the PXE stack then.)
-     */
     if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX) {
 	keeppxe = 0x03;		/* Chainloading + keep PXE */
 	stack = (char *)sdi->r.fssi;
 
 	/*
-	 * Restore DS, EDX and ESI to the true initial
-	 * values.
+	 * Set up the registers with their initial values
 	 */
-	bx = *(uint16_t *)&stack[6];
-	edx = *(uint32_t *)&stack[28];
-	esi = *(uint32_t *)&stack[12];
 
-	/* Reset stack to PXE original */
-	regs.es = regs.ss = sdi->rr.r.fs;
-	regs.esp.w[0] = sdi->rr.r.esi.w[0] + 44;
+	regs.eax.l = *(uint32_t *)&stack[36];
+	regs.ecx.l = *(uint32_t *)&stack[32];
+	regs.edx.l = *(uint32_t *)&stack[28];
+	regs.ebx.l = *(uint32_t *)&stack[24];
+	regs.esp.l = sdi->rr.r.esi.w[0] + 44;
+	regs.ebp.l = *(uint32_t *)&stack[16];
+	regs.esi.l = *(uint32_t *)&stack[12];
+	regs.edi.l = *(uint32_t *)&stack[8];
+	regs.es = *(uint16_t *)&stack[4];
+	regs.ss = sdi->rr.r.fs;
+	regs.ds = *(uint16_t *)&stack[6];
+	regs.fs = *(uint16_t *)&stack[2];
+	regs.gs = *(uint16_t *)&stack[0];
     } else {
-	char *esdi = (char *)sdi->disk.esdi_ptr;
+	const uint16_t *esdi = (const uint16_t *)sdi->disk.esdi_ptr;
 
-	/*
-	 * StackBuf is guaranteed to have 44 bytes
-	 * free immediately above it, and will not
-	 * interfere with our existing stack.
-	 */
-	stack = StackBuf;
-	memset(stack, 0, 44);
-
-	regs.esp.w[0] = (uint16_t)(unsigned long)stack + 44;
+	regs.esp.l = (uint16_t)(unsigned long)StackBuf + 44;
 
 	/*
 	 * DON'T DO THIS FOR PXELINUX...
@@ -139,37 +134,23 @@ void chainboot_file(const char *file, enum kernel_type type)
 	 * Restore ES:DI -> $PnP (if we were ourselves
 	 * called that way...)
 	 */
+	regs.edi.w[0] = esdi[0]; /* New DI */
+	regs.es       = esdi[2]; /* New ES */
 
-	/* New DI */
-	*(uint16_t *)&stack[8] = *(uint16_t *)&esdi[0];
-
-	/* New ES */
-	*(uint16_t *)&stack[4] = *(uint16_t *)&esdi[2];
-
+	regs.edx.l    = sdi->rr.r.edx.b[0]; /* Drive number -> DL */
     }
 
-    *(uint32_t *)&stack[28] = edx; /* New EDX */
-    *(uint32_t *)&stack[12] = esi; /* New ESI */
-    *(uint16_t *)&stack[6] = bx; /* New DS */
+    if (syslinux_add_movelist(&fraglist, 0x7c00, (addr_t)buf, size))
+	goto bail;
 
-    regs.ip = 0x7c00;
-    regs.esi.l = esi;
-    regs.edx.l = edx;
+    syslinux_shuffle_boot_rm(fraglist, mmap, keeppxe, &regs);
 
-    free_mem = *(volatile unsigned int *)BIOS_fbm;
-    free_mem <<= 10;
-    new_free_mem = free_mem - (0x7c00 + size);
-
-    mmap = syslinux_memory_map();
-    if (!mmap)
-	goto boot_bail;
-
-    if (!syslinux_add_movelist(&fraglist, 0x7c00, (addr_t)buf, size))
-	syslinux_shuffle_boot_rm(fraglist, mmap, keeppxe, &regs);
-
-    free(mmap);
-boot_bail:
-    free(buf);
 bail:
+    if (fraglist)
+	syslinux_free_movelist(fraglist);
+    if (mmap)
+	syslinux_free_memmap(mmap);
+    if (buf)
+	free(buf);
     return;
 }
