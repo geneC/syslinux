@@ -89,6 +89,7 @@ LocalBootType	resw 1			; Local boot return code
 DHCPMagic	resb 1			; PXELINUX magic flags
 
 		section .text16
+		global StackBuf
 StackBuf	equ STACK_TOP-44	; Base of stack if we use our own
 StackHome	equ StackBuf
 

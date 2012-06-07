@@ -47,7 +47,7 @@ LIBPCI_OBJS = \
 LIBSYSLINUX_OBJS = \
 	syslinux/reboot.o syslinux/keyboard.o				\
 	syslinux/features.o syslinux/config.o	\
-	syslinux/dsinfo.o syslinux/version.o	\
+	syslinux/version.o	\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
 	syslinux/video/fontquery.o syslinux/video/reportmode.o
 
@@ -178,6 +178,7 @@ CORELIBOBJS = \
 
 MINLIBOBJS = \
 	syslinux/ipappend.o \
+	syslinux/dsinfo.o \
 	$(LIBOTHER_OBJS) \
 	$(LIBGCC_OBJS) \
 	$(LIBCONSOLE_OBJS) \

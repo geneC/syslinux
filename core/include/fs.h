@@ -234,4 +234,7 @@ uint32_t generic_getfssec(struct file *file, char *buf,
 /* nonextextent.c */
 int no_next_extent(struct inode *, uint32_t);
 
+/* fat.c */
+int vfat_copy_superblock(void *buf);
+
 #endif /* FS_H */

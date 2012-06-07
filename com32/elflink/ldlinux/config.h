@@ -45,4 +45,6 @@ extern void eprintf(const char *filename, ...);
 
 extern int new_linux_kernel(char *okernel, char *ocmdline);
 
+extern void pm_load_high(com32sys_t *regs);
+
 #endif /* __CONFIG_H__ */

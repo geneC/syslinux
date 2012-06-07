@@ -28,6 +28,7 @@
 ; reduce the code size...
 ;
 
+		global StackBuf
 StackBuf	equ STACK_TOP-44-92	; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf
 .mbr		equ PartInfo
