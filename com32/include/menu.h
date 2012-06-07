@@ -234,4 +234,7 @@ void execute(const char *cmdline, enum kernel_type type);
 /* drain.c */
 void drain_keyboard(void);
 
+/* chainboot.c */
+void chainboot_file(const char *file, enum kernel_type type);
+
 #endif /* MENU_H */
