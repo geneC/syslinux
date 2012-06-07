@@ -267,10 +267,12 @@ struct cli_callback_descr list_acpi_show_modules[] = {
     {
      .name = "apic",
      .exec = show_acpi_apic,
+     .nomodule = false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule = false,
      },
 };
 

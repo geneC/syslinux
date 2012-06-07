@@ -27,6 +27,8 @@
 #include "setadv.h"
 #include "sysexits.h"
 #include "syslxopt.h"
+#include "syslxfs.h"
+#include "ntfssect.h"
 
 #ifdef __GNUC__
 # define noreturn void __attribute__((noreturn))
@@ -254,6 +256,7 @@ int main(int argc, char *argv[])
     int ldlinux_sectors;
     uint32_t ldlinux_cluster;
     int nsectors;
+    int fs_type;
 
     if (!checkver()) {
 	fprintf(stderr,
@@ -326,8 +329,10 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
-    /* Check to see that what we got was indeed an MS-DOS boot sector/superblock */
-    if ((errmsg = syslinux_check_bootsect(sectbuf))) {
+    /* Check to see that what we got was indeed an FAT/NTFS
+     * boot sector/superblock
+     */
+    if ((errmsg = syslinux_check_bootsect(sectbuf, &fs_type))) {
 	fprintf(stderr, "%s\n", errmsg);
 	exit(1);
     }
@@ -379,6 +384,38 @@ int main(int argc, char *argv[])
     ldlinux_sectors = (syslinux_ldlinux_len + 2 * ADV_SIZE + SECTOR_SIZE - 1)
 	>> SECTOR_SHIFT;
     sectors = calloc(ldlinux_sectors, sizeof *sectors);
+    if (fs_type == NTFS) {
+	DWORD err;
+	S_NTFSSECT_VOLINFO vol_info;
+	LARGE_INTEGER vcn, lba, len;
+	S_NTFSSECT_EXTENT extent;
+
+	err = NtfsSectGetVolumeInfo(drive_name + 4, &vol_info);
+	if (err != ERROR_SUCCESS) {
+	    error("Could not fetch NTFS volume info");
+	    exit(1);
+	}
+	secp = sectors;
+	nsectors = 0;
+	for (vcn.QuadPart = 0;
+	     NtfsSectGetFileVcnExtent(f_handle, &vcn, &extent) == ERROR_SUCCESS;
+	     vcn = extent.NextVcn) {
+	    err = NtfsSectLcnToLba(&vol_info, &extent.FirstLcn, &lba);
+	    if (err != ERROR_SUCCESS) {
+		error("Could not translate LDLINUX.SYS LCN to disk LBA");
+		exit(1);
+	    }
+	    lba.QuadPart -= vol_info.PartitionLba.QuadPart;
+	    len.QuadPart = ((extent.NextVcn.QuadPart -
+			     extent.FirstVcn.QuadPart) *
+			    vol_info.SectorsPerCluster);
+	    while (len.QuadPart-- && nsectors < ldlinux_sectors) {
+		*secp++ = lba.QuadPart++;
+		nsectors++;
+	    }
+	}
+	goto map_done;
+    }
     fs = libfat_open(libfat_readfile, (intptr_t) d_handle);
     ldlinux_cluster = libfat_searchdir(fs, 0, "LDLINUX SYS", NULL);
     secp = sectors;
@@ -390,6 +427,7 @@ int main(int argc, char *argv[])
 	s = libfat_nextsector(fs, s);
     }
     libfat_close(fs);
+map_done:
 
     /*
      * Patch ldlinux.sys and the boot sector
@@ -472,7 +510,7 @@ int main(int argc, char *argv[])
     }
 
     /* Make the syslinux boot sector */
-    syslinux_make_bootsect(sectbuf);
+    syslinux_make_bootsect(sectbuf, fs_type);
 
     /* Write the syslinux boot sector into the boot sector */
     if (opt.bootsecfile) {

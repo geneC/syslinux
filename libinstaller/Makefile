@@ -26,3 +26,5 @@ clean: tidy
 dist: tidy
 
 spotless: clean
+
+strip:

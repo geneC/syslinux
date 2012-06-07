@@ -36,13 +36,14 @@ static inline void check_escapes(void)
 			char buf[256];
 
 			snprintf(buf, sizeof(buf),
-				 "It appears you computer has less than "
-				 "%dK of low (DOS)\nRAM.  Syslinux "
-				 "needs at least this amount to boot.  "
-				 "If you get\nthis message in error, "
-				 "hold down the Ctrl key while\nbooting, "
-				 "and I will take your word for it.\n",
-				 mem);
+				 "It appears your computer has only "
+				 "%dK of low (\"DOS\") RAM.\n"
+				 "This version of Syslinux needs "
+				 "%dK to boot.  "
+				 "If you get this\nmessage in error, "
+				 "hold down the Ctrl key while booting, "
+				 "and I\nwill take your word for it.\n",
+				 oreg.eax.w[0], mem);
 			writestr(buf);
 			kaboom();
 		}

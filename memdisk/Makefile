@@ -20,7 +20,7 @@ INCLUDES = -I$(topdir)/com32/include
 CFLAGS  += -D__MEMDISK__ -DDATE='"$(DATE)"'
 LDFLAGS  = $(GCCOPT) -g
 NASM     = nasm
-NASMOPT  = -O9999
+NASMOPT  = -Ox
 NFLAGS   = -dDATE='"$(DATE)"'
 NINCLUDE =
 

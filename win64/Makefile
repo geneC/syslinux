@@ -37,9 +37,9 @@ WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) \
 
 .SUFFIXES: .c .obj .lib .exe .i .s .S
 
-SRCS     = ../win/syslinux.c
+SRCS     = ../win/syslinux.c ../win/ntfssect.c
 OBJS     = $(patsubst %.c,%.obj,$(notdir $(SRCS)))
-LIBSRC   = ../libinstaller/fat.c \
+LIBSRC   = ../libinstaller/fs.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/setadv.c \

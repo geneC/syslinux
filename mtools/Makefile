@@ -5,10 +5,10 @@ include $(MAKEDIR)/syslinux.mk
 OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libfat -I../libinstaller
 CFLAGS	 = $(GCCWARN) -D_FILE_OFFSET_BITS=64 $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = -s
+LDFLAGS	 = 
 
 SRCS     = syslinux.c \
-	   ../libinstaller/fat.c \
+	   ../libinstaller/fs.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/setadv.c \
@@ -36,6 +36,9 @@ installer: syslinux
 
 syslinux: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
+
+strip:
+	$(STRIP) syslinux
 
 %.o: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
