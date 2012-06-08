@@ -85,7 +85,7 @@ void chainboot_file(const char *file, enum kernel_type type)
     if (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX ||
 	sdi->c.filesystem == SYSLINUX_FS_EXTLINUX) {
 	if (syslinux_add_movelist(&fraglist, 0x800 - 18,
-				  (const void *)sdi->r.esbx, 16))
+				  (addr_t)sdi->r.esbx, 16))
 	    goto bail;
 
 	/* DS:SI points to partition info */
