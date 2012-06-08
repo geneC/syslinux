@@ -94,24 +94,30 @@ void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, uint32_t m
 uint32_t get_file_lba(const char *filename)
 {
     com32sys_t inregs;
-    uint32_t lba;
+    uint32_t lba = 0;
+    int size = 65536;
+    char *buf;
 
     /* Start with clean registers */
     memset(&inregs, 0, sizeof(com32sys_t));
 
+    buf = lmalloc(size);
+    if (!buf)
+	return 0;
+
     /* Put the filename in the bounce buffer */
-    strlcpy(__com32.cs_bounce, filename, __com32.cs_bounce_size);
+    strlcpy(buf, filename, size);
 
     /* Call comapi_open() which returns a structure pointer in SI
      * to a structure whose first member happens to be the LBA.
      */
     inregs.eax.w[0] = 0x0006;
-    inregs.esi.w[0] = OFFS(__com32.cs_bounce);
-    inregs.es = SEG(__com32.cs_bounce);
+    inregs.esi.w[0] = OFFS(buf);
+    inregs.es = SEG(buf);
     __com32.cs_intcall(0x22, &inregs, &inregs);
 
     if ((inregs.eflags.l & EFLAGS_CF) || inregs.esi.w[0] == 0) {
-	return 0;		/* Filename not found */
+	goto fail;		/* Filename not found */
     }
 
     /* Since the first member is the LBA, we simply cast */
@@ -121,14 +127,16 @@ uint32_t get_file_lba(const char *filename)
     memset(&inregs, 0, sizeof(com32sys_t));
 
     /* Put the filename in the bounce buffer */
-    strlcpy(__com32.cs_bounce, filename, __com32.cs_bounce_size);
+    strlcpy(buf, filename, size);
 
     /* Call comapi_close() to free the structure */
     inregs.eax.w[0] = 0x0008;
-    inregs.esi.w[0] = OFFS(__com32.cs_bounce);
-    inregs.es = SEG(__com32.cs_bounce);
+    inregs.esi.w[0] = OFFS(buf);
+    inregs.es = SEG(buf);
     __com32.cs_intcall(0x22, &inregs, &inregs);
 
+fail:
+    lfree(buf);
     return lba;
 }
 

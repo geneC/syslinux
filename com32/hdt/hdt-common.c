@@ -312,6 +312,7 @@ int detect_vesa(struct s_hardware *hardware)
     struct vesa_mode_info *mi;
     uint16_t mode, *mode_ptr;
     char *oem_ptr;
+    int rv = -1;
 
     if (hardware->vesa_detection == true)
 	return -1;
@@ -319,9 +320,13 @@ int detect_vesa(struct s_hardware *hardware)
     hardware->vesa_detection = true;
     hardware->is_vesa_valid = false;
 
-    /* Allocate space in the bounce buffer for these structures */
-    gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
-    mi = &((struct vesa_info *)__com32.cs_bounce)->mi;
+    gi = lmalloc(sizeof(*gi));
+    if (!gi)
+	return -1;
+
+    mi = lmalloc(sizeof(*mi));
+    if (!mi)
+	goto out;
 
     gi->signature = VBE2_MAGIC;	/* Get VBE2 extended data */
     rm.eax.w[0] = 0x4F00;	/* Get SVGA general information */
@@ -330,7 +335,7 @@ int detect_vesa(struct s_hardware *hardware)
     __intcall(0x10, &rm, &rm);
 
     if (rm.eax.w[0] != 0x004F) {
-	return -1;
+	goto out;
     };
 
     mode_ptr = GET_PTR(gi->video_mode_ptr);
@@ -369,7 +374,12 @@ int detect_vesa(struct s_hardware *hardware)
 	hardware->vesa.vmi_count++;
     }
     hardware->is_vesa_valid = true;
-    return 0;
+
+    rv = 0;
+out:
+    lfree(mi);
+    lfree(gi);
+    return rv;
 }
 
 /* Try to detect disks from port 0x80 to 0xff */

@@ -62,9 +62,13 @@ void set_graphics_mode(const struct multiboot_header *mbh,
     if (!(mbh->flags & MULTIBOOT_VIDEO_MODE) || mbh->mode_type != 0)
 	return;
 
-    /* Allocate space in the bounce buffer for these structures */
-    gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
-    mi = &((struct vesa_info *)__com32.cs_bounce)->mi;
+    gi = lmalloc(sizeof *gi);
+    if (!gi)
+	return;
+
+    mi = lmalloc(sizeof *mi);
+    if (!mi)
+	goto out;
 
     memset(&rm, 0, sizeof rm);
     memset(gi, 0, sizeof *gi);
@@ -76,11 +80,11 @@ void set_graphics_mode(const struct multiboot_header *mbh,
     __intcall(0x10, &rm, &rm);
 
     if (rm.eax.w[0] != 0x004F)
-	return;			/* Function call failed */
+	goto out;		/* Function call failed */
     if (gi->signature != VESA_MAGIC)
-	return;			/* No magic */
+	goto out;		/* No magic */
     if (gi->version < 0x0102)
-	return;			/* VESA 1.2+ required */
+	goto out;		/* VESA 1.2+ required */
 
     memcpy(&vesa_info.gi, gi, sizeof *gi);
 
@@ -183,7 +187,7 @@ void set_graphics_mode(const struct multiboot_header *mbh,
     }
 
     if (!bestpxf)
-	return;			/* No mode found */
+	goto out;		/* No mode found */
 
     mi = &vesa_info.mi;
     mode = bestmode;
@@ -194,7 +198,7 @@ void set_graphics_mode(const struct multiboot_header *mbh,
     rm.ebx.w[0] = mode;
     __intcall(0x10, &rm, &rm);
     if (rm.eax.w[0] != 0x004F)
-	return;			/* Failed to set mode */
+	goto out;		/* Failed to set mode */
 
     mbi->flags |= MB_INFO_VIDEO_INFO;
     mbi->vbe_mode = mode;
@@ -220,4 +224,8 @@ void set_graphics_mode(const struct multiboot_header *mbh,
      * output in VESA modes actually do that...
      */
     graphics_using_vga(0x0F, vesa_info.mi.h_res, vesa_info.mi.v_res);
+
+out:
+    lfree(mi);
+    lfree(gi);
 }

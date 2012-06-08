@@ -120,7 +120,7 @@ static int detect_extensions(struct driveinfo *drive_info)
 static int get_drive_parameters_with_extensions(struct driveinfo *drive_info)
 {
     com32sys_t inreg, outreg;
-    struct edd_device_parameters *dp = __com32.cs_bounce;
+    struct edd_device_parameters *dp;
 
     memset(&inreg, 0, sizeof inreg);
 
@@ -134,6 +134,10 @@ static int get_drive_parameters_with_extensions(struct driveinfo *drive_info)
      * If the buffer length is less than 26 on entry an error shall be
      * returned.
      */
+    dp = lmalloc(sizeof *dp);
+    if (!dp)
+	return -1;
+
     dp->len = sizeof(struct edd_device_parameters);
 
     inreg.esi.w[0] = OFFS(dp);
@@ -144,10 +148,13 @@ static int get_drive_parameters_with_extensions(struct driveinfo *drive_info)
     __intcall(0x13, &inreg, &outreg);
 
     /* CF set on error */
-    if (outreg.eflags.l & EFLAGS_CF)
+    if (outreg.eflags.l & EFLAGS_CF) {
+	lfree(dp);
 	return outreg.eax.b[1];
+    }
 
     memcpy(&drive_info->edd_params, dp, sizeof drive_info->edd_params);
+    lfree(dp);
 
     return 0;
 }
