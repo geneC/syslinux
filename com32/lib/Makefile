@@ -133,7 +133,7 @@ LIBOTHER_OBJS = \
 	skipspace.o							\
 	chrreplace.o							\
 	bufprintf.o							\
-	inet.o								\
+	inet.o dhcppack.o dhcpunpack.o					\
 	strreplace.o							\
 	lstrdup.o						\
 	\
