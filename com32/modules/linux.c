@@ -38,6 +38,7 @@
  * Usage: linux.c32 [-dhcpinfo] kernel arguments...
  */
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -144,9 +145,12 @@ int main(int argc, char *argv[])
 
     kernel_name = arg;
 
+    errno = 0;
     boot_image = malloc(strlen(kernel_name) + 12);
-    if (!boot_image)
+    if (!boot_image) {
+	fprintf(stderr, "Error allocating BOOT_IMAGE string: ");
 	goto bail;
+    }
     strcpy(boot_image, "BOOT_IMAGE=");
     strcpy(boot_image + 11, kernel_name);
     /* argp now points to the kernel name, and the command line follows.
@@ -159,23 +163,30 @@ int main(int argc, char *argv[])
 
     if (!opt_quiet)
 	printf("Loading %s... ", kernel_name);
+    errno = 0;
     if (loadfile(kernel_name, &kernel_data, &kernel_len)) {
 	if (opt_quiet)
 	    printf("Loading %s ", kernel_name);
-	printf("failed!\n");
+	printf("failed: ");
 	goto bail;
     }
     if (!opt_quiet)
 	printf("ok\n");
 
+    errno = 0;
     cmdline = make_cmdline(argp);
-    if (!cmdline)
+    if (!cmdline) {
+	fprintf(stderr, "make_cmdline() failed: ");
 	goto bail;
+    }
 
     /* Initialize the initramfs chain */
+    errno = 0;
     initramfs = initramfs_init();
-    if (!initramfs)
+    if (!initramfs) {
+	fprintf(stderr, "initramfs_init() failed: ");
 	goto bail;
+    }
 
     if ((arg = find_argument(argp, "initrd="))) {
 	do {
@@ -185,10 +196,11 @@ int main(int argc, char *argv[])
 
 	    if (!opt_quiet)
 		printf("Loading %s... ", arg);
+	    errno = 0;
 	    if (initramfs_load_archive(initramfs, arg)) {
 		if (opt_quiet)
 		    printf("Loading %s ", kernel_name);
-		printf("failed!\n");
+		printf("failed: ");
 		goto bail;
 	    }
 	    if (!opt_quiet)
@@ -202,15 +214,30 @@ int main(int argc, char *argv[])
     /* Append the DHCP info */
     if (opt_dhcpinfo &&
 	!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
+	errno = 0;
 	if (initramfs_add_file(initramfs, dhcpdata, dhcplen, dhcplen,
-			       "/dhcpinfo.dat", 0, 0755))
+			       "/dhcpinfo.dat", 0, 0755)) {
+	    fprintf(stderr, "Unable to add DHCP info: ");
 	    goto bail;
+	}
     }
 
     /* This should not return... */
+    errno = 0;
     syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);
+    fprintf(stderr, "syslinux_boot_linux() failed: ");
 
 bail:
-    fprintf(stderr, "Kernel load failure (insufficient memory?)\n");
+    switch(errno) {
+    case ENOENT:
+	fprintf(stderr, "File not found\n");
+	break;
+    case ENOMEM:
+	fprintf(stderr, "Out of memory\n");
+    default:
+	fprintf(stderr, "Error %d\n", errno);
+	break;
+    }
+    fprintf(stderr, "%s: Boot aborted!\n", progname);
     return 1;
 }
