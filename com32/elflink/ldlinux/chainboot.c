@@ -97,7 +97,7 @@ void chainboot_file(const char *file, enum kernel_type type)
      * superblock.
      */
     if (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX &&
-	type == KT_BSS && vfat_copy_superblock(buf))
+	type == KT_BSS && this_fs->fs_ops->copy_super(buf))
 	goto bail;
 
     if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX) {

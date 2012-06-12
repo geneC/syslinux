@@ -779,7 +779,7 @@ static int vfat_fs_init(struct fs_info *fs)
     return fs->block_shift;
 }
 
-int vfat_copy_superblock(void *buf)
+static int vfat_copy_superblock(void *buf)
 {
 	struct fat_bpb fat;
 	struct disk *disk;
@@ -821,4 +821,5 @@ const struct fs_ops vfat_fs_ops = {
     .iget_root     = vfat_iget_root,
     .iget          = vfat_iget,
     .next_extent   = fat_next_extent,
+    .copy_super    = vfat_copy_superblock,
 };
