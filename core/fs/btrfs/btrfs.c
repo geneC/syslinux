@@ -602,12 +602,15 @@ static void btrfs_get_fs_tree(struct fs_info *fs)
 		do {
 			do {
 				struct btrfs_root_ref *ref;
+				int pathlen;
 
 				if (btrfs_comp_keys_type(&search_key,
 							&path.item.key))
 					break;
 				ref = (struct btrfs_root_ref *)path.data;
-				if (!strcmp((char*)(ref + 1), SubvolName)) {
+				pathlen = path.item.size - sizeof(struct btrfs_root_ref);
+
+				if (!strncmp((char*)(ref + 1), SubvolName, pathlen)) {
 					subvol_ok = true;
 					break;
 				}
