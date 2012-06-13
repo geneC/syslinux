@@ -51,7 +51,7 @@ isohdpfx.c: $(ISOHDPFX) isohdpfxarray.pl
 	$(PERL) isohdpfxarray.pl $(ISOHDPFX) > $@
 
 isohybrid: isohybrid.o isohdpfx.o
-	$(CC) $(LDFLAGS) -luuid -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^ -luuid
 
 gethostip: gethostip.o
 	$(CC) $(LDFLAGS) -o $@ $^
