@@ -82,4 +82,4 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a \
 	$(CC) $(LNXCFLAGS) -o $@ $^
 
 %.c32: %.o
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS_$^) $(LDFLAGS) -o $@ $^

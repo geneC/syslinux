@@ -26,13 +26,26 @@ include $(MAKEDIR)/elf.mk
 
 CFLAGS	  += -I./libmenu
 
+LDFLAGS_complex.o = $(com32)/cmenu/libmenu/libmenu.c32 \
+		    $(com32)/libutil/libutil_com.c32 \
+		    $(com32)/lib/libcom32.c32
+LDFLAGS_display.o = $(com32)/cmenu/libmenu/libmenu.c32 \
+		$(com32)/libutil/libutil_com.c32 \
+		$(com32)/lib/libcom32.c32
+LDFLAGS_simple.o = $(com32)/cmenu/libmenu/libmenu.c32 \
+		   $(com32)/libutil/libutil_com.c32 \
+		   $(com32)/lib/libcom32.c32
+LDFLAGS_test.o = $(com32)/cmenu/libmenu/libmenu.c32
+LDFLAGS_test2.o = $(com32)/cmenu/libmenu/libmenu.c32
+
 LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
-	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o
+	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o \
+	$(com32)/libutil/libutil_com.c32 $(com32)/lib/libcom32.c32
 
 CMENUS = $(patsubst %.c,%.c32,$(wildcard *.c))
 IMENUS = $(patsubst %.menu,%.c32,$(wildcard *.menu))
 
-MENUS = $(CMENUS) $(IMENUS) $(LIBS)
+MENUS = $(LIBS) $(CMENUS) $(IMENUS)
 
 .SUFFIXES: .S .c .o .elf .c32 .menu
 

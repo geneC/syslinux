@@ -34,6 +34,8 @@ endif
 CFLAGS		+= -DDATE='"$(DATE)"'
 LNXCFLAGS	+= -DDATE='"$(DATE)"'
 
+LDFLAGS_rosh.o = $(com32)/libutil/libutil_com.c32 $(com32)/lib/libcom32.c32
+
 rosh.o:	rosh.h
 
 rosh.lo:	rosh.h
