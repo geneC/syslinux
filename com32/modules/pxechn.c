@@ -402,7 +402,7 @@ int pxechn_parse_fn(char fn[], in_addr_t *fip, char *host, char *fp[])
 	hsep = strchr(host, '@');
 	if (!hsep)
 	    hsep = host;
-	tip = pxe_dns_resolv(hsep);
+	tip = pxe_dns(hsep);
     }
     if (tip != 0)
 	*fip = tip;
@@ -755,7 +755,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    pxe->force = pxechn_parse_force(optarg);
 	    break;
 	case 'g':	/* gateway/DHCP relay */
-	    pxe->gip = pxe_dns_resolv(optarg);
+	    pxe->gip = pxe_dns(optarg);
 	    break;
 	case 'n':	/* native */
 	    break;

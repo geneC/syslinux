@@ -48,8 +48,7 @@ endif
 CFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
-	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE) \
-	     -I../../core/include
+	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
 SFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
