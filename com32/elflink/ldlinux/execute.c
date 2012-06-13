@@ -92,7 +92,6 @@ void execute(const char *cmdline, enum kernel_type type)
 
 	if (type == KT_COM32) {
 		/* new entry for elf format c32 */
-		lfree((void *)kernel);
 		create_args_and_load((char *)cmdline);
 	} else if (type == KT_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };
