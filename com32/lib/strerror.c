@@ -11,13 +11,11 @@ char *strerror(int errnum)
 	char *p;
 	unsigned int e = (unsigned int)errnum;
 
-#ifdef WITH_ERRLIST
 	extern const int sys_nerr;
 	extern const char *const sys_errlist[];
 
 	if (e < (unsigned int)sys_nerr && sys_errlist[e])
 		return (char *)sys_errlist[e];
-#endif
 
 	p = numbuf + sizeof numbuf;
 	*--p = '\0';
