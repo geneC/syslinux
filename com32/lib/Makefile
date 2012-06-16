@@ -20,7 +20,7 @@ LIBOBJS = \
 	perror.o printf.o puts.o qsort.o realloc.o seed48.o snprintf.o	\
 	sprintf.o srand48.o sscanf.o stack.o strcasecmp.o strcat.o	\
 	strchr.o strcmp.o strcpy.o strdup.o strlen.o			\
-	strerror.o strnlen.o						\
+	strerror.o errlist.o strnlen.o						\
 	strncasecmp.o strncat.o strncmp.o strncpy.o strndup.o		\
 	stpcpy.o stpncpy.o 						\
 	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
@@ -170,7 +170,7 @@ libcomcore.a : $(LIBCOREOBJS)
 	$(RANLIB) $@
 
 tidy dist clean:
-	rm -f sys/vesa/alphatbl.c
+	rm -f sys/vesa/alphatbl.c errlist.c
 	find . \( -name \*.o -o -name \*.a -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
 
@@ -183,6 +183,9 @@ install: all
 	install -m 644 libcom32.a com32.ld $(INSTALLROOT)$(COM32DIR)
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
 	cp -r ../include $(INSTALLROOT)$(COM32DIR)
+
+errlist.c: makeerrlist.pl ../include/errno.h
+	$(PERL) $<  $(CFLAGS) -errlist > $@ || rm -f $@
 
 # These files are performance critical, and doesn't compile well with -Os
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
