@@ -766,17 +766,33 @@ static void device_cleanup(void)
 
 /* Verify that a device fd and a pathname agree.
    Return 0 on valid, -1 on error. */
+static int validate_device_btrfs(int pathfd, int devfd);
 static int validate_device(const char *path, int devfd)
 {
     struct stat pst, dst;
     struct statfs sfs;
+    int pfd;
+    int rv = -1;
+    
+    pfd = open(path, O_RDONLY|O_DIRECTORY);
+    if (pfd < 0)
+	goto err;
 
-    if (stat(path, &pst) || fstat(devfd, &dst) || statfs(path, &sfs))
-	return -1;
+    if (fstat(pfd, &pst) || fstat(devfd, &dst) || statfs(path, &sfs))
+	goto err;
+
     /* btrfs st_dev is not matched with mnt st_rdev, it is a known issue */
-    if (fs_type == BTRFS && sfs.f_type == BTRFS_SUPER_MAGIC)
-	return 0;
-    return (pst.st_dev == dst.st_rdev) ? 0 : -1;
+    if (fs_type == BTRFS) {
+	if (sfs.f_type == BTRFS_SUPER_MAGIC)
+	    rv = validate_device_btrfs(pfd, devfd);
+    } else {
+	rv = (pst.st_dev == dst.st_rdev) ? 0 : -1;
+    }
+
+err:
+    if (pfd >= 0)
+	close(pfd);
+    return rv;
 }
 
 #ifndef __KLIBC__
@@ -907,19 +923,66 @@ static const char *find_device_mountinfo(const char *path, dev_t dev)
 	return NULL;
 }
 
-static const char *find_device_btrfs(const char *path)
+static int validate_device_btrfs(int pfd, int dfd)
 {
-    int fd;
     struct btrfs_ioctl_fs_info_args fsinfo;
     static struct btrfs_ioctl_dev_info_args devinfo;
     struct btrfs_super_block sb2;
+
+    if (ioctl(pfd, BTRFS_IOC_FS_INFO, &fsinfo))
+	return -1;
+
+    /* We do not support multi-device btrfs yet */
+    if (fsinfo.num_devices != 1)
+	return -1;
+
+    /* The one device will have the max devid */
+    memset(&devinfo, 0, sizeof devinfo);
+    devinfo.devid = fsinfo.max_id;
+    if (ioctl(pfd, BTRFS_IOC_DEV_INFO, &devinfo))
+	return -1;
+
+    if (devinfo.path[0] != '/')
+	return -1;
+
+    if (xpread(dfd, &sb2, sizeof sb2, BTRFS_SUPER_INFO_OFFSET) != sizeof sb2)
+	return -1;
+
+    if (memcmp(sb2.magic, BTRFS_MAGIC, BTRFS_MAGIC_L))
+	return -1;
+
+    if (memcmp(sb2.fsid, fsinfo.fsid, sizeof fsinfo.fsid))
+	return -1;
+
+    if (sb2.num_devices != 1)
+	return -1;
+
+    if (sb2.dev_item.devid != devinfo.devid)
+	return -1;
+
+    if (memcmp(sb2.dev_item.uuid, devinfo.uuid, sizeof devinfo.uuid))
+	return -1;
+
+    if (memcmp(sb2.dev_item.fsid, fsinfo.fsid, sizeof fsinfo.fsid))
+	return -1;
+
+    return 0;			/* It's good! */
+}    
+
+static const char *find_device_btrfs(const char *path)
+{
+    int pfd, dfd;
+    struct btrfs_ioctl_fs_info_args fsinfo;
+    static struct btrfs_ioctl_dev_info_args devinfo;
     const char *rv = NULL;
 
-    fd = open(path, O_RDONLY);
-    if (fd < 0)
+    pfd = dfd = -1;
+
+    pfd = open(path, O_RDONLY);
+    if (pfd < 0)
 	goto err;
 
-    if (ioctl(fd, BTRFS_IOC_FS_INFO, &fsinfo))
+    if (ioctl(pfd, BTRFS_IOC_FS_INFO, &fsinfo))
 	goto err;
 
     /* We do not support multi-device btrfs yet */
@@ -929,44 +992,24 @@ static const char *find_device_btrfs(const char *path)
     /* The one device will have the max devid */
     memset(&devinfo, 0, sizeof devinfo);
     devinfo.devid = fsinfo.max_id;
-    if (ioctl(fd, BTRFS_IOC_DEV_INFO, &devinfo))
+    if (ioctl(pfd, BTRFS_IOC_DEV_INFO, &devinfo))
 	goto err;
-    close(fd);
-    fd = -1;
 
     if (devinfo.path[0] != '/')
 	goto err;
 
-    fd = open((const char *)devinfo.path, O_RDONLY);
-    if (fd < 0)
+    dfd = open((const char *)devinfo.path, O_RDONLY);
+    if (dfd < 0)
 	goto err;
 
-    if (xpread(fd, &sb2, sizeof sb2, BTRFS_SUPER_INFO_OFFSET) != sizeof sb2)
-	goto err;
-
-    if (memcmp(sb2.magic, BTRFS_MAGIC, BTRFS_MAGIC_L))
-	goto err;
-
-    if (memcmp(sb2.fsid, fsinfo.fsid, sizeof fsinfo.fsid))
-	goto err;
-
-    if (sb2.num_devices != 1)
-	goto err;
-
-    if (sb2.dev_item.devid != devinfo.devid)
-	goto err;
-
-    if (memcmp(sb2.dev_item.uuid, devinfo.uuid, sizeof devinfo.uuid))
-	goto err;
-
-    if (memcmp(sb2.dev_item.fsid, fsinfo.fsid, sizeof fsinfo.fsid))
-	goto err;
-
-    rv = (const char *)devinfo.path;		/* It's good! */
+    if (!validate_device_btrfs(pfd, dfd))
+	rv = (const char *)devinfo.path; /* It's good! */
 
 err:
-    if (fd >= 0)
-	close(fd);
+    if (pfd >= 0)
+	close(pfd);
+    if (dfd >= 0)
+	close(dfd);
     return rv;
 }
 
