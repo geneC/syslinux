@@ -1028,9 +1028,14 @@ static const char *get_devname(const char *path)
 	return devname;
     }
 
-    if (fs_type == BTRFS) {
-	/* For btrfs try to get the device name from btrfs itself */
-	devname = find_device_btrfs(path);
+    if (opt.device)
+	devname = opt.device;
+
+    if (!devname){
+	if (fs_type == BTRFS) {
+	    /* For btrfs try to get the device name from btrfs itself */
+	    devname = find_device_btrfs(path);
+	}
     }
 
     if (!devname) {
