@@ -4,6 +4,7 @@ to all derivatives.
 
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.
+	* EXTLINUX: more robust device detection, allow user to override.
 
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
