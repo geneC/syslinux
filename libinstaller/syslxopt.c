@@ -89,7 +89,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	/* Actually extlinux can also use -d to provide a directory too... */
 	fprintf(stderr,
 	    "Usage: %s [options] directory\n"
-	    "  --device         Force use of a specific block device (experts only)\n"
+	    "  --device         Force use of a specific block device (experts only)\n",
 	    program);
 	break;
 
@@ -213,7 +213,7 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	    opt.activate_partition = 1;
 	    break;
 	case OPT_DEVICE:
-	    if (mode != EXTLINUX_MODE)
+	    if (mode != MODE_EXTLINUX)
 		usage(EX_USAGE, mode);
 	    opt.device = optarg;
 	    break;
