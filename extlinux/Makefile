@@ -25,6 +25,7 @@ CFLAGS	 = $(GCCWARN) -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
 LDFLAGS	 = 
 
 SRCS     = main.c \
+	   mountinfo.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/syslxcom.c \

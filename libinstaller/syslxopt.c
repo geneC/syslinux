@@ -66,6 +66,7 @@ const struct option long_options[] = {
     {"menu-save", 1, NULL, 'M'},
     {"mbr", 0, NULL, 'm'},	/* DOS/Win32 only */
     {"active", 0, NULL, 'a'},	/* DOS/Win32 only */
+    {"device", 1, NULL, OPT_DEVICE},
     {0, 0, 0, 0}
 };
 
@@ -87,7 +88,8 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	/* Mounted fs installation (extlinux) */
 	/* Actually extlinux can also use -d to provide a directory too... */
 	fprintf(stderr,
-	    "Usage: %s [options] directory\n",
+	    "Usage: %s [options] directory\n"
+	    "  --device         Force use of a specific block device (experts only)\n",
 	    program);
 	break;
 
@@ -209,6 +211,11 @@ void parse_options(int argc, char *argv[], enum syslinux_mode mode)
 	    break;
 	case 'a':
 	    opt.activate_partition = 1;
+	    break;
+	case OPT_DEVICE:
+	    if (mode != MODE_EXTLINUX)
+		usage(EX_USAGE, mode);
+	    opt.device = optarg;
 	    break;
 	case 'v':
 	    fprintf(stderr,

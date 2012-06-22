@@ -45,8 +45,17 @@ Updates a previous \fBEXTLINUX\fP installation.
 .TP
 \fB\-z\fR, \fB\-\-zip\fR
 Force zipdrive geometry (-H 64 -S 32).
+.TP
+\fB\-\-device\fR=\fIdevicename\fR
+Override the automatic detection of device names.  This option is
+intended for special environments only and should not be used by
+normal users.  Misuse of this option can cause disk corruption and
+lost data.
 .SH FILES
-The extlinux configuration file needs to be named extlinux.conf and needs to be stored in the extlinux installation directory. For more information about the contents of extlinux.conf, see syslinux(1) manpage, section files.
+The extlinux configuration file needs to be named syslinux.cfg or
+extlinux.conf and needs to be stored in the extlinux installation
+directory. For more information about the contents of extlinux.conf,
+see syslinux(1) manpage, section files.
 .SH BUGS
 I would appreciate hearing of any problems you have with \s-1SYSLINUX\s+1.  I
 would also like to hear from you if you have successfully used \s-1SYSLINUX\s+1,
