@@ -30,7 +30,9 @@ clean: tidy
 dist:
 	$(MAKE) -C src veryclean > /dev/null 2>&1
 
-spotless: clean dist
+#spotless: clean dist
+#Including 'dist' errors out for make ARCH=x86_64 spotless
+spotless: clean
 	rm -f $(TARGETS)
 
 installer:

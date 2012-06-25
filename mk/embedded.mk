@@ -16,12 +16,30 @@
 
 include $(MAKEDIR)/syslinux.mk
 
-GCCOPT    := $(call gcc_ok,-m32,)
+# Support IA32 and x86_64 platforms with one build
+# Set up architecture specifics; for cross compilation, set ARCH as apt
+# Initialize GCCOPT to null to begin with. Without this, make generates
+# recursive error for GCCOPT
+GCCOPT :=
+ifeq ($(ARCH),i386)
+	GCCOPT := $(call gcc_ok,-m32)
+	GCCOPT += $(call gcc_ok,-march=i386)
+	GCCOPT    += $(call gcc_ok,-mpreferred-stack-boundary=2,)
+	GCCOPT    += $(call gcc_ok,-mincoming-stack-boundary=2,)
+endif
+ifeq ($(ARCH),x86_64)
+	GCCOPT := $(call gcc_ok,-m64)
+	GCCOPT += $(call gcc_ok,-march=x86-64)
+	#let preferred-stack-boundary and incoming-stack-boundary be default(=4)
+# Somewhere down the line ld barfs requiring -fPIC
+	#GCCOPT += $(call gcc_ok,-fPIC)
+endif
 GCCOPT    += $(call gcc_ok,-ffreestanding,)
 GCCOPT	  += $(call gcc_ok,-fno-stack-protector,)
 GCCOPT	  += $(call gcc_ok,-fwrapv,)
 GCCOPT	  += $(call gcc_ok,-freg-struct-return,)
-GCCOPT    += -march=i386 -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3 \
+# FIXME: regparam for i386 and x86_64 could be different
+GCCOPT    += -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3 \
 	     -msoft-float
 GCCOPT    += $(call gcc_ok,-fno-exceptions,)
 GCCOPT	  += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
@@ -30,12 +48,11 @@ GCCOPT	  += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
 GCCOPT    += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
 GCCOPT    += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT    += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
-GCCOPT    += $(call gcc_ok,-mpreferred-stack-boundary=2,)
-GCCOPT    += $(call gcc_ok,-mincoming-stack-boundary=2,)
+
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
-LD        += -m elf_i386
+LD        += -m elf_$(ARCH)
 
 # Note: use += for CFLAGS and SFLAGS in case something is set in MCONFIG.local
 CFLAGS    += $(GCCOPT) -g $(GCCWARN) -Wno-sign-compare $(OPTFLAGS) $(INCLUDES)

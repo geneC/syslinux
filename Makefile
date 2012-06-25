@@ -31,10 +31,19 @@ include $(MAKEDIR)/syslinux.mk
 #
 
 # List of module objects that should be installed for all derivatives
+ifndef EFI_BUILD
 MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
 	com32/sysdump/*.c32 com32/lua/src/*.c32
+else
+# memdump is BIOS specific code exclude it for EFI
+# FIXME: Prune other BIOS-centric modules
+MODULES = memdisk/memdisk modules/*.com \
+	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
+	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
+	com32/sysdump/*.c32 com32/lua/src/*.c32
+endif
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
@@ -53,8 +62,15 @@ BOBJECTS = $(BTARGET) \
 # Note: libinstaller is both a BSUBDIR and an ISUBDIR.  It contains
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
+ifndef EFI_BUILD
 BSUBDIRS = codepage com32 lzo core memdisk modules mbr memdump gpxe sample \
 	   diag libinstaller dos win32 win64 dosutil efi
+else
+# memdump is BIOS specific code exclude it for EFI
+# FIXME: Prune other BIOS-centric modules
+BSUBDIRS = codepage com32 lzo core memdisk modules mbr gpxe sample \
+	   diag libinstaller win32 win64 dosutil efi
+endif
 ITARGET  =
 IOBJECTS = $(ITARGET) \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \

@@ -33,8 +33,9 @@ all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   isohdppx.bin \
 	$(CC) $(MAKEDEPS) $(SFLAGS) -Wa,-a=$*_f.lst -DFORCE_80 -c -o $@ $<
 
 .PRECIOUS: %.elf
-%.elf: %.o mbr.ld
-	$(LD) $(LDFLAGS) -T mbr.ld -e _start -o $@ $<
+#%.elf: %.o mbr.ld
+%.elf: %.o $(ARCH)/mbr.ld
+	$(LD) $(LDFLAGS) -T $(ARCH)/mbr.ld -e _start -o $@ $<
 
 %.bin: %.elf checksize.pl
 	$(OBJCOPY) -O binary $< $@

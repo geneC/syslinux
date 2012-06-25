@@ -64,6 +64,12 @@ WGET	 = wget
 
 com32    = $(topdir)/com32
 
+# Architecture definition
+SUBARCH := $(shell uname -m | sed -e s/i.86/i386/) 
+# on x86_64, ARCH has trailing whitespace
+# strip white spaces in ARCH
+ARCH ?= $(strip $(SUBARCH))
+
 # Common warnings we want for all gcc-generated code
 GCCWARN := -W -Wall -Wstrict-prototypes
 # Extremely useful variant for debugging...

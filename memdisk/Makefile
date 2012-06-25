@@ -84,7 +84,8 @@ memdisk_%.o: memdisk_%.bin
 memdisk16.elf: $(OBJS16)
 	$(LD) -Ttext 0 -o $@ $^
 
-memdisk32.elf: memdisk.ld $(OBJS32)
+#memdisk32.elf: memdisk.ld $(OBJS32)
+memdisk32.elf: $(ARCH)/memdisk.ld $(OBJS32)
 	$(LD) -o $@ -T $^
 
 %.bin: %.elf

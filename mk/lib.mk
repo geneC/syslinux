@@ -2,12 +2,25 @@
 
 include $(MAKEDIR)/syslinux.mk
 
+# Support IA32 and x86_64 platforms with one build
+# Set up architecture specifics; for cross compilation, set ARCH as apt
 GCCOPT := $(call gcc_ok,-std=gnu99,)
-GCCOPT += $(call gcc_ok,-m32,)
+ifeq ($(ARCH),i386)
+	GCCOPT += $(call gcc_ok,-m32,)
+	GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
+	MARCH = i386
+endif
+ifeq ($(ARCH),x86_64)
+	GCCOPT += $(call gcc_ok,-m64,)
+	#let preferred-stack-boundary be default(=4)
+	MARCH = x86-64
+endif
 GCCOPT += $(call gcc_ok,-fno-stack-protector,)
 GCCOPT += $(call gcc_ok,-fwrapv,)
 GCCOPT += $(call gcc_ok,-freg-struct-return,)
-GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
+# Note -fPIE does not work with ld on x86_64, try -fPIC instead
+# Does BIOS build require -fPIE?
+GCCOPT += $(call gcc_ok,-fPIC)
 GCCOPT += $(call gcc_ok,-fno-exceptions,)
 GCCOPT += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
 GCCOPT += $(call gcc_ok,-fno-strict-aliasing,)
@@ -15,7 +28,6 @@ GCCOPT += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
 GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
 GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
-GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
 
 INCLUDE	= -I.
 STRIP	= strip --strip-all -R .comment -R .note
@@ -33,13 +45,25 @@ LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \
 
 REQFLAGS  = $(GCCOPT) -g -D__COM32__ \
 	    -nostdinc -iwithprefix include -I. -I./sys -I../include \
-	    -I../../core/include
-OPTFLAGS  = -Os -march=i386 -falign-functions=0 -falign-jumps=0 \
+	    -I../include/sys -I../../core/include -I$(com32)/lib/ \
+	    -I$(com32)/lib/sys/module
+OPTFLAGS  = -Os -march=$(MARCH) -falign-functions=0 -falign-jumps=0 \
 	    -falign-labels=0 -ffast-math -fomit-frame-pointer
 WARNFLAGS = $(GCCWARN) -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
 
+ifdef EFI_BUILD
+#Add console read fixes to rawcon_read.c
+LIBFLAGS += -DSYSLINUX_EFI -DEFI_FUNCTION_WRAPPER
+ifeq ($(ARCH),i386)
+	EFIINC = -I/usr/local/include/efi -I/usr/local/include/efi/ia32
+endif
+ifeq ($(ARCH),x86_64)
+	EFIINC = -I/usr/include/efi -I/usr/include/efi/x86_64
+endif
+REQFLAGS += $(EFIINC)
+endif
 CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
-LDFLAGS	= -m elf_i386 --hash-style=gnu
+LDFLAGS	= -m elf_$(ARCH) --hash-style=gnu
 
 LIBOTHER_OBJS = \
 	atoi.o atol.o atoll.o calloc.o creat.o		\
@@ -152,8 +176,8 @@ LIBLOAD_OBJS = \
 	syslinux/initramfs_archive.o
 
 LIBMODULE_OBJS = \
-	sys/module/common.o sys/module/elf_module.o		\
-	sys/module/shallow_module.o	sys/module/elfutils.o	\
+	sys/module/$(ARCH)/common.o sys/module/$(ARCH)/elf_module.o		\
+	sys/module/$(ARCH)/shallow_module.o	sys/module/elfutils.o	\
 	sys/module/exec.o
 
 # ZIP library object files

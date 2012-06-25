@@ -25,7 +25,7 @@ include $(MAKEDIR)/embedded.mk
 -include $(topdir)/version.mk
 
 OPTFLAGS =
-INCLUDES = -I./include -I$(com32)/include -I$(com32)/lib
+INCLUDES = -I./include -I$(com32)/include -I$(com32)/include/sys -I$(com32)/lib
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
 # but it's unlikely the characters that are different will be used in
@@ -74,6 +74,19 @@ ifndef DATE
 DATE    := $(shell sh ../gen-id.sh $(VERSION) $(HEXDATE))
 endif
 
+# Set up the NASM and LD options for the architecture
+NASM_ELF = "unknown"
+LD_PIE = "unknown"
+ifeq ($(ARCH),i386)
+	NASM_ELF = elf
+	LD_PIE = -pie
+endif
+ifeq ($(ARCH),x86_64)
+	NASM_ELF = elf64
+	#LD_PIE = --pic-executable
+	LD_PIE = 
+endif
+
 all: $(BTARGET) clean
 
 kwdhash.gen: keywords genhash.pl
@@ -91,14 +104,15 @@ kwdhash.gen: keywords genhash.pl
 	$(PREPCORE) $< $@
 
 %.o: %.asm kwdhash.gen ../version.gen
-	$(NASM) -f elf $(NASMOPT) -DDATE_STR="'$(DATE)'" \
+	$(NASM) -f $(NASM_ELF) $(NASMOPT) -DDATE_STR="'$(DATE)'" \
 		-DHEXDATE="$(HEXDATE)" \
+		-D$(ARCH) \
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
 AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a libpxelinux.a
 
-%.elf: %.o $(LIBDEP) syslinux.ld $(AUXLIBS)
-	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
+%.elf: %.o $(LIBDEP) $(ARCH)/syslinux.ld $(AUXLIBS)
+	$(LD) $(LDFLAGS) -Bsymbolic $(LD_PIE) -E --hash-style=gnu -T $(ARCH)/syslinux.ld -M -o $@ $< \
 		--start-group $(LIBS) lib$(patsubst %.elf,%.a,$@) --end-group \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)

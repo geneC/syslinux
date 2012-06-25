@@ -23,12 +23,22 @@ gfxboot.c32 : gfxboot.o realmode_callback.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 realmode_callback.o: realmode_callback.asm
+ifeq ($(ARCH),i386)
 	$(NASM) -f bin -O99 -o $*.tmp -l $*.lst $<
 	$(OBJCOPY) -B i386 -I binary -O elf32-i386 \
 	  --redefine-sym _binary_$*_tmp_start=$*_start \
 	  --redefine-sym _binary_$*_tmp_end=$*_end \
 	  --strip-symbol _binary_$*_tmp_size \
 	  $*.tmp $@
+endif
+ifeq ($(ARCH),x86_64)
+	$(NASM) -f bin -O99 -o $*.tmp -l $*.lst $<
+	$(OBJCOPY) -B i386:x86-64 -I binary -O elf64-x86-64 \
+	  --redefine-sym _binary_$*_tmp_start=$*_start \
+	  --redefine-sym _binary_$*_tmp_end=$*_end \
+	  --strip-symbol _binary_$*_tmp_size \
+	  $*.tmp $@
+endif
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst .*.d *.tmp

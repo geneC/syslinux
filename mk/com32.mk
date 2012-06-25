@@ -17,13 +17,29 @@
 
 include $(MAKEDIR)/syslinux.mk
 
+# Support IA32 and x86_64 platforms with one build
+# Set up architecture specifics; for cross compilation, set ARCH as apt
 GCCOPT := $(call gcc_ok,-std=gnu99,)
-GCCOPT += $(call gcc_ok,-m32,)
+ifeq ($(strip $(ARCH)),i386)
+	GCCOPT += $(call gcc_ok,-m32,)
+	GCCOPT += $(call gcc_ok,-march=i386)
+	GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
+	GCCOPT += $(call gcc_ok,-incoming-stack-boundary=2,)
+endif
+ifeq ($(strip $(ARCH)),x86_64)
+	GCCOPT += $(call gcc_ok,-m64,)
+	GCCOPT += $(call gcc_ok,-march=x86-64)
+	#let the stack-boundary default to whatever it is on 64bit
+	#GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=8,)
+	#GCCOPT += $(call gcc_ok,-incoming-stack-boundary=8,)
+endif
 GCCOPT += $(call gcc_ok,-fno-stack-protector,)
 GCCOPT += $(call gcc_ok,-fwrapv,)
 GCCOPT += $(call gcc_ok,-freg-struct-return,)
-GCCOPT += -march=i386 -Os
-GCCOPT += $(call gcc_ok,-fPIE,-fPIC)
+GCCOPT += -Os
+# Note -fPIE does not work with ld on x86_64, try -fPIC instead
+# Does BIOS build require -fPIE?
+GCCOPT += $(call gcc_ok,-fPIC)
 GCCOPT += $(call gcc_ok,-fno-exceptions,)
 GCCOPT += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
 GCCOPT += $(call gcc_ok,-fno-strict-aliasing,)
@@ -31,8 +47,6 @@ GCCOPT += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
 GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
 GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
-GCCOPT += $(call gcc_ok,-mpreferred-stack-boundary=2,)
-GCCOPT += $(call gcc_ok,-incoming-stack-boundary=2,)
 
 com32  := $(topdir)/com32
 RELOCS := $(com32)/tools/relocs
@@ -45,17 +59,19 @@ GPLLIB     =
 GPLINCLUDE =
 endif
 
-CFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
+CFLAGS     = $(GCCOPT) $(GCCWARN) \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
-	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
-SFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
+	     -I$(com32)/libutil/include -I$(com32)/include \
+	     -I$(com32)/include/sys $(GPLINCLUDE)
+SFLAGS     = $(GCCOPT) $(GCCWARN) \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
-	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE)
+	     -I$(com32)/libutil/include -I$(com32)/include \
+	     -I$(com32)/include/sys $(GPLINCLUDE)
 
-COM32LD	   = $(com32)/lib/elf32.ld
-LDFLAGS    = -m elf_i386 -shared --hash-style=gnu -T $(COM32LD)
+COM32LD	   = $(com32)/lib/$(ARCH)/elf.ld
+LDFLAGS    = -m elf_$(ARCH) -shared --hash-style=gnu -T $(COM32LD)
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LNXCFLAGS  = -I$(com32)/libutil/include $(GCCWARN) -O -g \
