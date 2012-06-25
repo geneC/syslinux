@@ -15,6 +15,7 @@
 
 #include "elfutils.h"
 
+
 // Performs an operation and jumps to a given label if an error occurs
 #define CHECKED(res, expr, error)		\
 	do { 								\

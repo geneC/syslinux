@@ -24,6 +24,21 @@
 
 #define LDLINUX	"ldlinux.c32"
 
+#if __SIZEOF_POINTER__ == 4
+typedef Elf32_Dyn	Elf_Dyn;
+typedef Elf32_Word	Elf_Word;
+typedef Elf32_Addr	Elf_Addr;
+#define ELF_SYMENT_SIZE	sizeof(Elf32_Sym)
+#define ELF_MOD_SYS	"32 bit"
+#elif __SIZEOF_POINTER__ == 8
+typedef Elf64_Dyn	Elf_Dyn;
+typedef Elf64_Word	Elf_Word;
+typedef Elf64_Addr	Elf_Addr;
+#define ELF_SYMENT_SIZE	sizeof(Elf64_Sym)
+#define ELF_MOD_SYS	"64 bit"
+#else
+#error "unsupported architecture"
+#endif
 typedef void (*constructor_t) (void);
 constructor_t __ctors_start[], __ctors_end[];
 
@@ -31,8 +46,8 @@ extern char __dynstr_start[];
 extern char __dynstr_end[], __dynsym_end[];
 extern char __dynsym_start[];
 extern char __got_start[];
-extern Elf32_Dyn __dynamic_start[];
-extern Elf32_Word __gnu_hash_start[];
+extern Elf_Dyn __dynamic_start[];
+extern Elf_Word __gnu_hash_start[];
 extern char __module_start[];
 
 struct elf_module core_module = {
@@ -47,7 +62,7 @@ struct elf_module core_module = {
     .sym_table		= __dynsym_start,
     .got		= __got_start,
     .dyn_table		= __dynamic_start,
-    .syment_size	= sizeof(Elf32_Sym),
+    .syment_size	= ELF_SYMENT_SIZE,
 };
 
 /*
@@ -91,14 +106,14 @@ void load_env32(com32sys_t * regs)
 		NULL
 	};
 
-	dprintf("Starting 32 bit elf module subsystem...\n");
+	dprintf("Starting %s elf module subsystem...\n", ELF_MOD_SYS);
 	call_constr();
 
 	size = (size_t)__dynstr_end - (size_t)__dynstr_start;
 	core_module.strtable_size = size;
 	size = (size_t)__dynsym_end - (size_t)__dynsym_start;
 	core_module.symtable_size = size;
-	core_module.base_addr = (Elf32_Addr)__module_start;
+	core_module.base_addr = (Elf_Addr)__module_start;
 
 	init_module_subsystem(&core_module);
 

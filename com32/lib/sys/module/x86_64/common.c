@@ -23,7 +23,7 @@ LIST_HEAD(modules_head);
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
-void print_elf_ehdr(Elf32_Ehdr *ehdr) {
+void print_elf_ehdr(Elf64_Ehdr *ehdr) {
 	int i;
 
 	fprintf(stderr, "Identification:\t");
@@ -38,18 +38,18 @@ void print_elf_ehdr(Elf32_Ehdr *ehdr) {
 	fprintf(stderr, "PHT Offset:\t0x%08x\n", ehdr->e_phoff);
 	fprintf(stderr, "SHT Offset:\t0x%08x\n", ehdr->e_shoff);
 	//fprintf(stderr, "Flags:\t\t%u\n", ehdr->e_flags);
-	//fprintf(stderr, "Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,sizeof(Elf32_Ehdr));
+	//fprintf(stderr, "Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,sizeof(Elf64_Ehdr));
 	fprintf(stderr, "phnum: %d shnum: %d\n", ehdr->e_phnum,
 		ehdr->e_shnum);
 }
 
 void print_elf_symbols(struct elf_module *module) {
 	unsigned int i;
-	Elf32_Sym *crt_sym;
+	Elf64_Sym *crt_sym;
 
 	for (i = 1; i < module->symtable_size; i++)
 	{
-		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
+		crt_sym = (Elf64_Sym*)(module->sym_table + i*module->syment_size);
 
 		fprintf(stderr,"%s %d\n", module->str_table + crt_sym->st_name, crt_sym->st_value);
 
@@ -66,6 +66,7 @@ static FILE *findpath(char *name)
 
 	p = PATH;
 again:
+	memset(path, '\0', sizeof(path));
 	i = 0;
 	while (*p && *p != ':' && i < FILENAME_MAX) {
 		path[i++] = *p++;
@@ -79,7 +80,6 @@ again:
 			DBG_PRINT("Could not get cwd\n");
 			return NULL;
 		}
-
 		i = strlen(path);
 	}
 
@@ -164,7 +164,7 @@ int image_skip(size_t size, struct elf_module *module) {
 	return 0;
 }
 
-int image_seek(Elf32_Off offset, struct elf_module *module) {
+int image_seek(Elf64_Off offset, struct elf_module *module) {
 	if (offset < module->u.l._cr_offset) // Cannot seek backwards
 		return -1;
 
@@ -219,14 +219,9 @@ struct elf_module *module_find(const char *name) {
 }
 
 
-// Mouli: This is checking the header for 32bit machine
-// Support 64bit architecture as well.
-// Parts of the ELF header checked are common to both ELF32 and ELF64
-// Adding simple checks for both 32bit and 64bit should work (hopefully)
-//
 // Performs verifications on ELF header to assure that the open file is a
 // valid SYSLINUX ELF module.
-int check_header_common(Elf32_Ehdr *elf_hdr) {
+int check_header_common(Elf64_Ehdr *elf_hdr) {
 	// Check the header magic
 	if (elf_hdr->e_ident[EI_MAG0] != ELFMAG0 ||
 		elf_hdr->e_ident[EI_MAG1] != ELFMAG1 ||
@@ -237,8 +232,7 @@ int check_header_common(Elf32_Ehdr *elf_hdr) {
 		return -1;
 	}
 
-	if (elf_hdr->e_ident[EI_CLASS] != ELFCLASS32 ||
-	    elf_hdr->e_ident[EI_CLASS] != ELFCLASS64) {
+	if (elf_hdr->e_ident[EI_CLASS] != MODULE_ELF_CLASS) {
 		DBG_PRINT("Invalid ELF class code\n");
 		return -1;
 	}
@@ -254,10 +248,10 @@ int check_header_common(Elf32_Ehdr *elf_hdr) {
 		return -1;
 	}
 
-	if (elf_hdr->e_machine != EM_386 ||
-		elf_hdr->e_machine != EM_X86_64) {
+	if (elf_hdr->e_machine != MODULE_ELF_MACHINE) {
 		DBG_PRINT("Invalid ELF architecture\n");
 		return -1;
+	}
 
 	return 0;
 }
@@ -319,7 +313,7 @@ int clear_dependency(struct elf_module *req, struct elf_module *dep) {
 int check_symbols(struct elf_module *module)
 {
 	unsigned int i;
-	Elf32_Sym *crt_sym = NULL, *ref_sym = NULL;
+	Elf64_Sym *crt_sym = NULL, *ref_sym = NULL;
 	char *crt_name;
 	struct elf_module *crt_module;
 
@@ -328,7 +322,7 @@ int check_symbols(struct elf_module *module)
 
 	for(i = 1; i < module->symtable_size; i++)
 	{
-		crt_sym = (Elf32_Sym*)(module->sym_table + i * module->syment_size);
+		crt_sym = (Elf64_Sym*)(module->sym_table + i * module->syment_size);
 		crt_name = module->str_table + crt_sym->st_name;
 
 		strong_count = 0;
@@ -341,7 +335,7 @@ int check_symbols(struct elf_module *module)
 			// If we found a definition for our symbol...
 			if (ref_sym != NULL && ref_sym->st_shndx != SHN_UNDEF)
 			{
-				switch (ELF32_ST_BIND(ref_sym->st_info))
+				switch (ELF64_ST_BIND(ref_sym->st_info))
 				{
 					case STB_GLOBAL:
 						strong_count++;
@@ -359,13 +353,13 @@ int check_symbols(struct elf_module *module)
 			if (strong_count == 0 && weak_count == 0)
 			{
 				DBG_PRINT("Symbol %s is undefined\n", crt_name);
-				printf("Undef symbol FAIL: %s\n",crt_name);
+				//printf("Undef symbol FAIL: %s\n",crt_name);
 				return -1;
 			}
 		}
 		else
 		{
-			if (strong_count > 0 && ELF32_ST_BIND(ref_sym->st_info) == STB_GLOBAL)
+			if (strong_count > 0 && ELF64_ST_BIND(ref_sym->st_info) == STB_GLOBAL)
 			{
 				// It's not an error - at relocation, the most recent symbol
 				// will be considered
@@ -417,22 +411,22 @@ int module_unload(struct elf_module *module) {
 }
 
 
-static Elf32_Sym *module_find_symbol_sysv(const char *name, struct elf_module *module) {
+static Elf64_Sym *module_find_symbol_sysv(const char *name, struct elf_module *module) {
 	unsigned long h = elf_hash((const unsigned char*)name);
-	Elf32_Word *cr_word = module->hash_table;
+	Elf64_Word *cr_word = module->hash_table;
 
-	Elf32_Word nbucket = *cr_word++;
+	Elf64_Word nbucket = *cr_word++;
 	cr_word++; // Skip nchain
 
-	Elf32_Word *bkt = cr_word;
-	Elf32_Word *chn = cr_word + nbucket;
+	Elf64_Word *bkt = cr_word;
+	Elf64_Word *chn = cr_word + nbucket;
 
-	Elf32_Word crt_index = bkt[h % module->hash_table[0]];
-	Elf32_Sym *crt_sym;
+	Elf64_Word crt_index = bkt[h % module->hash_table[0]];
+	Elf64_Sym *crt_sym;
 
 
 	while (crt_index != STN_UNDEF) {
-		crt_sym = (Elf32_Sym*)(module->sym_table + crt_index*module->syment_size);
+		crt_sym = (Elf64_Sym*)(module->sym_table + crt_index*module->syment_size);
 
 		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
 			return crt_sym;
@@ -443,32 +437,33 @@ static Elf32_Sym *module_find_symbol_sysv(const char *name, struct elf_module *m
 	return NULL;
 }
 
-static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *module) {
+static Elf64_Sym *module_find_symbol_gnu(const char *name, struct elf_module *module) {
 	unsigned long h = elf_gnu_hash((const unsigned char*)name);
 
 	// Setup code (TODO: Optimize this by computing only once)
-	Elf32_Word *cr_word = module->ghash_table;
-	Elf32_Word nbucket = *cr_word++;
-	Elf32_Word symbias = *cr_word++;
-	Elf32_Word bitmask_nwords = *cr_word++;
+	Elf64_Word *cr_word = module->ghash_table;
+	Elf64_Word nbucket = *cr_word++;
+	Elf64_Word symbias = *cr_word++;
+	Elf64_Word bitmask_nwords = *cr_word++;
 
 	if ((bitmask_nwords & (bitmask_nwords - 1)) != 0) {
 		DBG_PRINT("Invalid GNU Hash structure\n");
 		return NULL;
 	}
 
-	Elf32_Word gnu_shift = *cr_word++;
+	Elf64_Word gnu_shift = *cr_word++;
 
-	Elf32_Addr *gnu_bitmask = (Elf32_Addr*)cr_word;
+	Elf64_Addr *gnu_bitmask = cr_word;
 	cr_word += MODULE_ELF_CLASS_SIZE / 32 * bitmask_nwords;
 
-	Elf32_Word *gnu_buckets = cr_word;
+	Elf64_Word *gnu_buckets = cr_word;
 	cr_word += nbucket;
 
-	Elf32_Word *gnu_chain_zero = cr_word - symbias;
+	Elf64_Word *gnu_chain_zero = cr_word - symbias;
 
 	// Computations
-	Elf32_Word bitmask_word = gnu_bitmask[(h / MODULE_ELF_CLASS_SIZE) &
+	/* bitask words are 64bit for ELFCLASS64 modules */
+	Elf64_Xword bitmask_word = gnu_bitmask[(h / MODULE_ELF_CLASS_SIZE) &
 	                                       (bitmask_nwords - 1)];
 
 	unsigned int hashbit1 = h & (MODULE_ELF_CLASS_SIZE - 1);
@@ -476,18 +471,18 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 
 	if ((bitmask_word >> hashbit1) & (bitmask_word >> hashbit2) & 1) {
 		unsigned long rem;
-		Elf32_Word bucket;
+		Elf64_Word bucket;
 
 		rem = h % nbucket;
 
 		bucket = gnu_buckets[rem];
 
 		if (bucket != 0) {
-			const Elf32_Word* hasharr = &gnu_chain_zero[bucket];
+			const Elf64_Word* hasharr = &gnu_chain_zero[bucket];
 
 			do {
 				if (((*hasharr ^ h ) >> 1) == 0) {
-					Elf32_Sym *crt_sym = (Elf32_Sym*)(module->sym_table +
+					Elf64_Sym *crt_sym = (Elf64_Sym*)(module->sym_table +
 							(hasharr - gnu_chain_zero) * module->syment_size);
 
 					if (strcmp(name, module->str_table + crt_sym->st_name) == 0) {
@@ -501,15 +496,15 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 	return NULL;
 }
 
-static Elf32_Sym *module_find_symbol_iterate(const char *name,struct elf_module *module)
+static Elf64_Sym *module_find_symbol_iterate(const char *name,struct elf_module *module)
 {
 
 	unsigned int i;
-	Elf32_Sym *crt_sym;
+	Elf64_Sym *crt_sym;
 
 	for (i=1; i < module->symtable_size; i++)
 	{
-		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
+		crt_sym = (Elf64_Sym*)(module->sym_table + i*module->syment_size);
 		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
 		{
 			return crt_sym;
@@ -519,8 +514,8 @@ static Elf32_Sym *module_find_symbol_iterate(const char *name,struct elf_module 
 	return NULL;
 }
 
-Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
-	Elf32_Sym *result = NULL;
+Elf64_Sym *module_find_symbol(const char *name, struct elf_module *module) {
+	Elf64_Sym *result = NULL;
 
 	if (module->ghash_table != NULL)
 		result = module_find_symbol_gnu(name, module);
@@ -529,12 +524,10 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	{
 		if (module->hash_table != NULL)
 		{
-			//printf("Attempting SYSV Symbol search\n");
 			result = module_find_symbol_sysv(name, module);
 		}
 		else
 		{
-			//printf("Attempting Iterative Symbol search\n");
 			result = module_find_symbol_iterate(name, module);
 		}
 	}
@@ -542,16 +535,16 @@ Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	return result;
 }
 
-Elf32_Sym *global_find_symbol(const char *name, struct elf_module **module) {
+Elf64_Sym *global_find_symbol(const char *name, struct elf_module **module) {
 	struct elf_module *crt_module;
-	Elf32_Sym *crt_sym = NULL;
-	Elf32_Sym *result = NULL;
+	Elf64_Sym *crt_sym = NULL;
+	Elf64_Sym *result = NULL;
 
 	for_each_module(crt_module) {
 		crt_sym = module_find_symbol(name, crt_module);
 
 		if (crt_sym != NULL && crt_sym->st_shndx != SHN_UNDEF) {
-			switch (ELF32_ST_BIND(crt_sym->st_info)) {
+			switch (ELF64_ST_BIND(crt_sym->st_info)) {
 			case STB_GLOBAL:
 				if (module != NULL) {
 					*module = crt_module;

@@ -66,10 +66,12 @@ static FILE *findpath(char *name)
 
 	p = PATH;
 again:
+	memset(path, '\0', sizeof(path));
 	i = 0;
 	while (*p && *p != ':' && i < FILENAME_MAX) {
 		path[i++] = *p++;
 	}
+	//path[i] = '\0';	// without null the strcmp will fail
 
 	if (*p == ':')
 		p++;
@@ -79,7 +81,6 @@ again:
 			DBG_PRINT("Could not get cwd\n");
 			return NULL;
 		}
-
 		i = strlen(path);
 	}
 
@@ -219,11 +220,6 @@ struct elf_module *module_find(const char *name) {
 }
 
 
-// Mouli: This is checking the header for 32bit machine
-// Support 64bit architecture as well.
-// Parts of the ELF header checked are common to both ELF32 and ELF64
-// Adding simple checks for both 32bit and 64bit should work (hopefully)
-//
 // Performs verifications on ELF header to assure that the open file is a
 // valid SYSLINUX ELF module.
 int check_header_common(Elf32_Ehdr *elf_hdr) {
@@ -237,8 +233,7 @@ int check_header_common(Elf32_Ehdr *elf_hdr) {
 		return -1;
 	}
 
-	if (elf_hdr->e_ident[EI_CLASS] != ELFCLASS32 ||
-	    elf_hdr->e_ident[EI_CLASS] != ELFCLASS64) {
+	if (elf_hdr->e_ident[EI_CLASS] != MODULE_ELF_CLASS) {
 		DBG_PRINT("Invalid ELF class code\n");
 		return -1;
 	}
@@ -254,10 +249,10 @@ int check_header_common(Elf32_Ehdr *elf_hdr) {
 		return -1;
 	}
 
-	if (elf_hdr->e_machine != EM_386 ||
-		elf_hdr->e_machine != EM_X86_64) {
+	if (elf_hdr->e_machine != MODULE_ELF_MACHINE) {
 		DBG_PRINT("Invalid ELF architecture\n");
 		return -1;
+	}
 
 	return 0;
 }
@@ -359,7 +354,7 @@ int check_symbols(struct elf_module *module)
 			if (strong_count == 0 && weak_count == 0)
 			{
 				DBG_PRINT("Symbol %s is undefined\n", crt_name);
-				printf("Undef symbol FAIL: %s\n",crt_name);
+				//printf("Undef symbol FAIL: %s\n",crt_name);
 				return -1;
 			}
 		}
@@ -452,6 +447,7 @@ static Elf32_Sym *module_find_symbol_gnu(const char *name, struct elf_module *mo
 	Elf32_Word symbias = *cr_word++;
 	Elf32_Word bitmask_nwords = *cr_word++;
 
+
 	if ((bitmask_nwords & (bitmask_nwords - 1)) != 0) {
 		DBG_PRINT("Invalid GNU Hash structure\n");
 		return NULL;
@@ -521,6 +517,7 @@ static Elf32_Sym *module_find_symbol_iterate(const char *name,struct elf_module 
 
 Elf32_Sym *module_find_symbol(const char *name, struct elf_module *module) {
 	Elf32_Sym *result = NULL;
+
 
 	if (module->ghash_table != NULL)
 		result = module_find_symbol_gnu(name, module);

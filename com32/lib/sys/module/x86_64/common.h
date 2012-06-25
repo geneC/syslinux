@@ -36,7 +36,7 @@
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
-extern void print_elf_ehdr(Elf32_Ehdr *ehdr);
+extern void print_elf_ehdr(Elf64_Ehdr *ehdr);
 extern void print_elf_symbols(struct elf_module *module);
 #endif //ELF_DEBUG
 
@@ -49,11 +49,11 @@ extern int image_load(struct elf_module *module);
 extern int image_unload(struct elf_module *module);
 extern int image_read(void *buff, size_t size, struct elf_module *module);
 extern int image_skip(size_t size, struct elf_module *module);
-extern int image_seek(Elf32_Off offset, struct elf_module *module);
+extern int image_seek(Elf64_Off offset, struct elf_module *module);
 
 extern struct module_dep *module_dep_alloc(struct elf_module *module);
 
-extern int check_header_common(Elf32_Ehdr *elf_hdr);
+extern int check_header_common(Elf64_Ehdr *elf_hdr);
 
 extern int enforce_dependency(struct elf_module *req, struct elf_module *dep);
 extern int clear_dependency(struct elf_module *req, struct elf_module *dep);
