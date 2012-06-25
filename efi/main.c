@@ -308,7 +308,13 @@ struct boot_params {
 	struct e820_entry e820_map[E820MAX];
 } __packed;
 
+#if __SIZEOF_POINTER__ == 4
 #define EFI_LOAD_SIG	"EL32"
+#elif __SIZEOF_POINTER__ == 8
+#define EFI_LOAD_SIG	"EL64"
+#else
+#error "unsupported architecture"
+#endif
 
 struct dt_desc {
 	uint16_t limit;
@@ -463,21 +469,34 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	memset(si, 0, sizeof(*si));
 	setup_screen(si);
 
+#if __SIZEOF_POINTER__ == 4
 	gdt.base = (uint16_t *)malloc(gdt.limit);
+#elif __SIZEOF_POINTER__ == 8
+	gdt.base = (uint64_t *)malloc(gdt.limit);
+#else
+#error "unsupported architecture"
+#endif
 	memset(gdt.base, 0x0, gdt.limit);
 
 	first = -1ULL;
 	find_addr(&first, NULL, 0x1000, -1ULL, kernel_size,
 		  hdr->kernel_alignment);
-	if (first != -1ULL)
+	if (first != -1ULL) {
 		status = allocate_addr(&first, kernel_size);
+	}
 
 	if (first == -1ULL || status != EFI_SUCCESS) {
 		printf("Failed to allocate memory for kernel\n");
 		goto bail;
 	}
 
+#if __SIZEOF_POINTER__ == 4
 	hdr->code32_start = (uint32_t)first;
+#elif __SIZEOF_POINTER__ == 8
+	hdr->code32_start = (uint32_t)(uint64_t)first;
+#else
+#error "unsupported architecture"
+#endif
 
 	/* Skip the setup headers and copy the code */
 	kernel_buf += (hdr->setup_sects + 1) * 512;
@@ -539,12 +558,25 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	if (!map)
 		goto free_irf;
 
+#if __SIZEOF_POINTER__ == 4
 	bp->efi.memmap = map;
 	bp->efi.memmap_size = nr_entries * desc_sz;
 
 	bp->efi.systab = ST;
 	bp->efi.desc_size = desc_sz;
 	bp->efi.desc_version = desc_ver;
+#elif __SIZEOF_POINTER__ == 8
+	bp->efi.memmap = (uint32_t)(unsigned long)map;
+	bp->efi.memmap_hi = ((unsigned long)map) >> 32;
+	bp->efi.memmap_size = nr_entries * desc_sz;
+
+	bp->efi.systab = (uint32_t)(unsigned long)ST;
+	bp->efi.systab_hi = ((unsigned long)ST) >> 32;
+	bp->efi.desc_size = desc_sz;
+	bp->efi.desc_version = desc_ver;
+#else
+#error "unsupported architecture"
+#endif
 
 	/*
 	 * Even though 'memmap' contains the memory map we provided
@@ -638,11 +670,32 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	asm volatile ("lidt %0" :: "m" (idt));
 	asm volatile ("lgdt %0" :: "m" (gdt));
 
+#if __SIZEOF_POINTER__ == 4
 	asm volatile ("cli              \n"
                       "movl %0, %%esi   \n"
                       "movl %1, %%ecx   \n"
                       "jmp *%%ecx       \n"
                       :: "m" (bp), "m" (hdr->code32_start));
+#elif __SIZEOF_POINTER__ == 8
+	{
+		struct {
+			uint32_t  kernel_entry;
+			uint16_t  kernel_cs;
+		} kernel_vector;
+		void *kstart;
+
+		kernel_vector.kernel_entry = hdr->code32_start;
+		kernel_vector.kernel_cs = 0x10;
+		kstart = (VOID *)&kernel_vector;
+		asm volatile ("cli              \n"
+                      "mov %0, %%rsi   \n"
+                      "mov %1, %%rcx   \n"
+                      "ljmp *(%%rcx)       \n"
+                      :: "m" (bp), "m" (kstart));
+	}
+#else
+#error "unsupported architecture"
+#endif
 	/* NOTREACHED */
 
 free_map:

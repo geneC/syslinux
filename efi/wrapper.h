@@ -4,8 +4,10 @@
 #define MSDOS_SIGNATURE	0x5a4d
 #define PE_SIGNATURE	0x4550
 #define PE32_FORMAT	0x10b
+#define PE32P_FORMAT	0x20b	/* PE32+ */
 
 #define IMAGE_FILE_MACHINE_I386			0x14c
+#define IMAGE_FILE_MACHINE_X86_64		0x8664
 #define IMAGE_FILE_EXECUTABLE_IMAGE		0x0002
 #define IMAGE_FILE_LINE_NUMBERS_STRIPPED	0x0004
 #define IMAGE_FILE_32BIT_MACHINE		0x0100
@@ -32,6 +34,9 @@ struct header {
 	__uint16_t _pad2;
 } __packed;
 
+/* FIXME: when setting up coff_hdr, set up optional_hdr_sz
+ * based on PE32 or PE32+ format
+ */
 /*
  * COFF header
  */
@@ -57,6 +62,19 @@ struct optional_hdr {
 	__uint32_t data;
 } __packed;
 
+/* For PE32+, the optional_header does NOT have
+ * data after base_code
+ */
+struct optional_hdr_pe32p {
+	__uint16_t format;
+	__uint8_t major_linker_version;
+	__uint8_t minor_linker_version;
+	__uint32_t code_sz;
+	__uint32_t initialized_data_sz;
+	__uint32_t uninitialized_data_sz;
+	__uint32_t entry_point;
+	__uint32_t base_code;
+} __packed;
 /*
  * Extra header fields
  */
@@ -80,6 +98,40 @@ struct extra_hdr {
 	__uint32_t stack_commit_sz;
 	__uint32_t heap_reserve_sz;
 	__uint32_t heap_commit_sz;
+	__uint32_t loader_flags;
+	__uint32_t rva_and_sizes_nr;
+	__uint64_t export_table;
+	__uint64_t import_table;
+	__uint64_t resource_table;
+	__uint64_t exception_table;
+	__uint64_t certification_table;
+	__uint64_t base_relocation_table;
+} __packed;
+
+/* Extra header for PE32+ format 
+ * FIXME: There are additional fields in Microsoft PE COFF v8
+ */
+
+struct extra_hdr_pe32p {
+	__uint64_t image_base;
+	__uint32_t section_align;
+	__uint32_t file_align;
+	__uint16_t major_os_version;
+	__uint16_t minor_os_version;
+	__uint16_t major_image_version;
+	__uint16_t minor_image_version;
+	__uint16_t major_subsystem_version;
+	__uint16_t minor_subsystem_version;
+	__uint32_t win32_version;
+	__uint32_t image_sz;
+	__uint32_t headers_sz;
+	__uint32_t checksum;
+	__uint16_t subsystem;
+	__uint16_t dll_characteristics;
+	__uint64_t stack_reserve_sz;
+	__uint64_t stack_commit_sz;
+	__uint64_t heap_reserve_sz;
+	__uint64_t heap_commit_sz;
 	__uint32_t loader_flags;
 	__uint32_t rva_and_sizes_nr;
 	__uint64_t export_table;

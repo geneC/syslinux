@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2011 Intel Corporation; author Matt Fleming
  *
- * Wrap the ELF shared library in a PE32 suit.
+ * Wrap the ELF shared library in a PE32 (32bit) or PE32+ (64bit) suit.
  *
  * Syslinux plays some games with the ELF sections that are not easily
  * converted to a PE32 executable. For instance, Syslinux requires
@@ -24,14 +24,31 @@
 
 #include "wrapper.h"
 
+#if __SIZEOF_POINTER__ == 4
+typedef Elf32_Ehdr Elf_Ehdr;
+typedef Elf32_Addr Elf_Addr;
+#elif __SIZEOF_POINTER__ == 8
+typedef Elf64_Ehdr Elf_Ehdr;
+typedef Elf64_Addr Elf_Addr;
+#else
+#error "unsupported architecture"
+#endif
+
 /*
  * 'so_size' is the file size of the ELF shared object.
+ *  'class' dictates how the header is written
+ * 	For 32bit machines (class == ELFCLASS32), the optional
+ * 	header includes PE32 header fields
+ * 	For 64bit machines (class == ELFCLASS64), the optional
+ * 	header includes PE32+header fields
  */
-static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size)
+static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size, __uint8_t class)
 {
 	struct optional_hdr o_hdr;
+	struct optional_hdr_pe32p o_hdr_pe32p;
 	struct section t_sec, r_sec;
 	struct extra_hdr e_hdr;
+	struct extra_hdr_pe32p e_hdr_pe32p;
 	struct coff_hdr c_hdr;
 	struct header hdr;
 	struct coff_reloc c_rel;
@@ -40,11 +57,6 @@ static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size)
 	__uint32_t hdr_sz;
 	__uint32_t reloc_start, reloc_end;
 
-	hdr_sz = sizeof(o_hdr) + sizeof(t_sec) + sizeof(e_hdr) +
-		sizeof(r_sec) + sizeof(c_hdr) + sizeof(hdr) + sizeof(c_rel)
-		+ sizeof(dummy);
-	total_sz += hdr_sz;
-	entry += hdr_sz;
 
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.msdos_signature = MSDOS_SIGNATURE;
@@ -53,31 +65,63 @@ static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size)
 	fwrite(&hdr, sizeof(hdr), 1, f);
 
 	memset(&c_hdr, 0, sizeof(c_hdr));
-	c_hdr.arch = IMAGE_FILE_MACHINE_I386;
 	c_hdr.nr_sections = 2;
 	c_hdr.nr_syms = 1;
-	c_hdr.optional_hdr_sz = sizeof(o_hdr) + sizeof(e_hdr);
-	c_hdr.characteristics = IMAGE_FILE_32BIT_MACHINE |
-		IMAGE_FILE_DEBUG_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE |
-		IMAGE_FILE_LINE_NUMBERS_STRIPPED;
-	fwrite(&c_hdr, sizeof(c_hdr), 1, f);
-
-	memset(&o_hdr, 0, sizeof(o_hdr));
-	o_hdr.format = PE32_FORMAT;
-	o_hdr.major_linker_version = 0x02;
-	o_hdr.minor_linker_version = 0x14;
-	o_hdr.code_sz = total_sz;
-	o_hdr.entry_point = entry;
-	fwrite(&o_hdr, sizeof(o_hdr), 1, f);
-
-	memset(&e_hdr, 0, sizeof(e_hdr));
-	e_hdr.section_align = 4096;
-	e_hdr.file_align = 512;
-	e_hdr.image_sz = total_sz;
-	e_hdr.headers_sz = 512;
-	e_hdr.subsystem = IMAGE_SUBSYSTEM_EFI_APPLICATION;
-	e_hdr.rva_and_sizes_nr = 1;
-	fwrite(&e_hdr, sizeof(e_hdr), 1, f);
+	if (class == ELFCLASS32) {
+		hdr_sz = sizeof(o_hdr) + sizeof(t_sec) + sizeof(e_hdr) +
+				sizeof(r_sec) + sizeof(c_hdr) + sizeof(hdr) + sizeof(c_rel)
+				+ sizeof(dummy);
+		total_sz += hdr_sz;
+		entry += hdr_sz;
+		c_hdr.arch = IMAGE_FILE_MACHINE_I386;
+		c_hdr.characteristics = IMAGE_FILE_32BIT_MACHINE |
+			IMAGE_FILE_DEBUG_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE |
+			IMAGE_FILE_LINE_NUMBERS_STRIPPED;
+		c_hdr.optional_hdr_sz = sizeof(o_hdr) + sizeof(e_hdr);
+		fwrite(&c_hdr, sizeof(c_hdr), 1, f);
+		memset(&o_hdr, 0, sizeof(o_hdr));
+		o_hdr.format = PE32_FORMAT;
+		o_hdr.major_linker_version = 0x02;
+		o_hdr.minor_linker_version = 0x14;
+		o_hdr.code_sz = total_sz;
+		o_hdr.entry_point = entry;
+		fwrite(&o_hdr, sizeof(o_hdr), 1, f);
+		memset(&e_hdr, 0, sizeof(e_hdr));
+		e_hdr.section_align = 4096;
+		e_hdr.file_align = 512;
+		e_hdr.image_sz = total_sz;
+		e_hdr.headers_sz = 512;
+		e_hdr.subsystem = IMAGE_SUBSYSTEM_EFI_APPLICATION;
+		e_hdr.rva_and_sizes_nr = 1;
+		fwrite(&e_hdr, sizeof(e_hdr), 1, f);
+	}
+	else if (class == ELFCLASS64) {
+		hdr_sz = sizeof(o_hdr_pe32p) + sizeof(t_sec) + sizeof(e_hdr_pe32p) +
+				sizeof(r_sec) + sizeof(c_hdr) + sizeof(hdr) + sizeof(c_rel)
+				+ sizeof(dummy);
+		total_sz += hdr_sz;
+		entry += hdr_sz;
+		c_hdr.arch = IMAGE_FILE_MACHINE_X86_64;
+		c_hdr.characteristics = IMAGE_FILE_DEBUG_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE |
+			IMAGE_FILE_LINE_NUMBERS_STRIPPED;
+		c_hdr.optional_hdr_sz = sizeof(o_hdr_pe32p) + sizeof(e_hdr_pe32p);
+		fwrite(&c_hdr, sizeof(c_hdr), 1, f);
+		memset(&o_hdr_pe32p, 0, sizeof(o_hdr_pe32p));
+		o_hdr_pe32p.format = PE32P_FORMAT;
+		o_hdr_pe32p.major_linker_version = 0x02;
+		o_hdr_pe32p.minor_linker_version = 0x14;
+		o_hdr_pe32p.code_sz = total_sz;
+		o_hdr_pe32p.entry_point = entry;
+		fwrite(&o_hdr_pe32p, sizeof(o_hdr_pe32p), 1, f);
+		memset(&e_hdr, 0, sizeof(e_hdr));
+		e_hdr_pe32p.section_align = 4096;
+		e_hdr_pe32p.file_align = 512;
+		e_hdr_pe32p.image_sz = total_sz;
+		e_hdr_pe32p.headers_sz = 512;
+		e_hdr_pe32p.subsystem = IMAGE_SUBSYSTEM_EFI_APPLICATION;
+		e_hdr_pe32p.rva_and_sizes_nr = 1;
+		fwrite(&e_hdr_pe32p, sizeof(e_hdr_pe32p), 1, f);
+	}
 
 	memset(&t_sec, 0, sizeof(t_sec));
 	strcpy((char *)t_sec.name, ".text");
@@ -119,7 +163,11 @@ static void usage(char *progname)
 int main(int argc, char **argv)
 {
 	struct stat st;
-	Elf32_Ehdr e_hdr;
+	Elf32_Ehdr e32_hdr;
+	Elf64_Ehdr e64_hdr;
+	__uint32_t entry;
+	__uint8_t class;
+	unsigned char *id;
 	FILE *f_in, *f_out;
 	void *buf;
 	size_t rv;
@@ -149,18 +197,31 @@ int main(int argc, char **argv)
 	/*
 	 * Parse the ELF header and find the entry point.
 	 */
-	fread((void *)&e_hdr, sizeof(e_hdr), 1, f_in);
-	if (e_hdr.e_ident[EI_MAG0] != ELFMAG0 ||
-	    e_hdr.e_ident[EI_MAG1] != ELFMAG1 ||
-	    e_hdr.e_ident[EI_MAG2] != ELFMAG2 ||
-	    e_hdr.e_ident[EI_MAG3] != ELFMAG3) {
-		fprintf(stderr, "Input file not ELF shared object\n");
+ 	fread((void *)&e32_hdr, sizeof(e32_hdr), 1, f_in);
+	if (e32_hdr.e_ident[EI_CLASS] == ELFCLASS32) {
+		id = e32_hdr.e_ident;
+		class = ELFCLASS32;
+		entry = e32_hdr.e_entry;
+	}
+	else if (e32_hdr.e_ident[EI_CLASS] == ELFCLASS64) {
+		/* read the header again for x86_64 
+		 * note that the elf header entry point is 64bit whereas
+		 * the entry point in PE/COFF format is 32bit!*/
+		class = ELFCLASS64;
+		rewind(f_in);
+		fread((void *)&e64_hdr, sizeof(e64_hdr), 1, f_in);
+		id = e64_hdr.e_ident;
+		entry = e64_hdr.e_entry;
+	} else {
+		fprintf(stderr, "Unsupported architecture\n");
 		exit(EXIT_FAILURE);
 	}
-
-	/* We only support 32-bit for now.. */
-	if (e_hdr.e_ident[EI_CLASS] != ELFCLASS32) {
-		fprintf(stderr, "Input file not 32-bit ELF shared object\n");
+		
+	if (id[EI_MAG0] != ELFMAG0 ||
+	    id[EI_MAG1] != ELFMAG1 ||
+	    id[EI_MAG2] != ELFMAG2 ||
+	    id[EI_MAG3] != ELFMAG3) {
+		fprintf(stderr, "Input file not ELF shared object\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -170,7 +231,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	write_header(f_out, e_hdr.e_entry, st.st_size);
+	write_header(f_out, entry, st.st_size, class);
 
 	/* Write out the entire ELF shared object */
 	rewind(f_in);
