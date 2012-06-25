@@ -671,7 +671,13 @@ static void relocate_rm_code(uint32_t newbase)
     set_seg_base(gdt_base, 0x10, rm_args.rm_base);
     set_seg_base(gdt_base, 0x18, rm_args.rm_base);
 
+#if __SIZEOF_POINTER__ == 4
     asm volatile ("lgdtl %0"::"m" (*(char *)gdt_base));
+#elif __SIZEOF_POINTER__ == 8
+    asm volatile ("lgdt %0"::"m" (*(char *)gdt_base));
+#else
+#error "unsupported architecture"
+#endif
 
     *(uint32_t *) rm_args.rm_pmjmp += delta;
     *(uint16_t *) rm_args.rm_rmjmp += delta >> 4;

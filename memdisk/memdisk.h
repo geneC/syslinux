@@ -24,7 +24,10 @@
 /* We use the com32 interface for calling 16-bit code */
 #include <com32.h>
 
+/* define it only for i386 */
+#if __SIZEOF_POINTER__ == 4
 #define __cdecl __attribute__((cdecl,regparm(0)))
+#endif
 
 void __cdecl intcall(uint8_t, com32sys_t *, com32sys_t *);
 

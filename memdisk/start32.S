@@ -62,7 +62,13 @@ _start:
 	addl	$8, %edi
 	loop	1b
 
+#if __SIZEOF_POINTER__ == 4
 	lidtl	idt_ptr
+#elif __SIZEOF_POINTER__ == 8
+	lidt	idt_ptr
+#else
+#error "unsupported architecture"
+#endif
 	
 	/* Save arguments, switch stacks */
 	movl	%esp, %eax		/* Pointer to arguments */
