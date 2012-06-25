@@ -13,7 +13,7 @@
  *	%edi
  *	<return address>
  */
-/*
+
 	.text
 	.align 4
 
@@ -61,12 +61,3 @@ longjmp:
 	jmp *20(%edx)
 
 	.size longjmp,.-longjmp
-*/
-#if __SIZEOF_POINTER__ == 4
-#include <i386/setjmp.S>
-#elif __SIZEOF_POINTER__ == 8
-#include <x86_64/setjmp.S>
-#else
-#error "Unable to build for to-be-defined architecture type"
-#endif
-

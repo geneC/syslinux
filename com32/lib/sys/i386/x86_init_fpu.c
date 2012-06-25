@@ -4,40 +4,19 @@
  * Test for an x86 FPU, and do any necessary setup.
  */
 
-#if __SIZEOF_POINTER__ == 4
-#include <i386/x86_init_fpu.c>
-#elif __SIZEOF_POINTER__ == 8
-#include <x86_64/x86_init_fpu.c>
-#else
-#error "Unable to build for to-be-defined architecture type"
-#endif
-#if 0
 #include <inttypes.h>
 #include <sys/fpu.h>
 
 static inline uint64_t get_cr0(void)
 {
-#if __SIZEOF_POINTER__ == 4
     uint32_t v;
 asm("movl %%cr0,%0":"=r"(v));
-#elif __SIZEOF_POINTER__ == 8
-    uint64_t v;
-asm("movq %%cr0,%0":"=r"(v));
-#else
-#error "Unable to build for to-be-defined architecture type"
-#endif
     return v;
 }
 
 static inline void set_cr0(uint32_t v)
 {
-#if __SIZEOF_POINTER__ == 4
     asm volatile ("movl %0,%%cr0"::"r" (v));
-#elif __SIZEOF_POINTER__ == 8
-    asm volatile ("movq %0,%%cr0"::"r" ((uint64_t)v));
-#else
-#error "Unable to build for to-be-defined architecture type"
-#endif
 }
 
 #define CR0_PE	0x00000001
@@ -77,4 +56,3 @@ int x86_init_fpu(void)
 
     return 0;
 }
-#endif
