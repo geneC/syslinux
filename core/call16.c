@@ -24,9 +24,17 @@ const com32sys_t zero_regs;	/* Common all-zero register set */
 
 static inline uint32_t eflags(void)
 {
-    uint32_t v;
+    //uint32_t v;
 
+#if __SIZEOF_POINTER__ == 4
+    uint32_t v;
     asm volatile("pushfl ; popl %0" : "=rm" (v));
+#elif __SIZEOF_POINTER__ == 8
+    uint64_t v;
+    asm volatile("pushfq ; pop %0" : "=rm" (v));
+#else
+#error "Unable to build for to-be-defined architecture type"
+#endif
     return v;
 }
 

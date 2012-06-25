@@ -42,12 +42,23 @@
 //
 ************************************************************************/
 
+#if __SIZEOF_POINTER__ == 4
         pushl   %ebp
         pushl   %edi
         pushl   %esi
         pushl   %ebx
         pushl   %ecx
         pushl   %edx
+#elif __SIZEOF_POINTER__ == 8
+        push   %rbp
+        push   %rdi
+        push   %rsi
+        push   %rbx
+        push   %rcx
+        push   %rdx
+#else
+#error "unsupported architecture"
+#endif
         subl    $12,%esp
 
         cld

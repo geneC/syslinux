@@ -62,12 +62,23 @@
 
         negl    %eax
         addl    $12,%esp
+#if __SIZEOF_POINTER__ == 4
         popl    %edx
         popl    %ecx
         popl    %ebx
         popl    %esi
         popl    %edi
         popl    %ebp
+#elif __SIZEOF_POINTER__ == 8
+        pop    %rdx
+        pop    %rcx
+        pop    %rbx
+        pop    %rsi
+        pop    %rdi
+        pop    %rbp
+#else
+#error "unsupported architecture"
+#endif
 #if 1
         ret
 #else

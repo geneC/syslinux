@@ -42,10 +42,12 @@
 // <asmconfig.h>
 ************************************************************************/
 
+/*support both i386 and x86_64 */
+/*
 #if !defined(__i386__)
 #  error
 #endif
-
+*/
 #if !defined(IN_CONFIGURE)
 #if defined(LZO_HAVE_CONFIG_H)
 #  include <config.h>
