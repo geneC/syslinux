@@ -27,8 +27,16 @@ static inline __constfunc uint16_t __htons(uint16_t v)
 
 static inline __constfunc uint32_t __htonl(uint32_t v)
 {
+#if __SIZEOF_POINTER__ == 4
     asm("xchgb %h0,%b0 ; roll $16,%0 ; xchgb %h0,%b0"
 	: "+q" (v));
+#elif __SIZEOF_POINTER__ == 8
+    asm("bswap	%0"
+	: "=r" (v)
+	: "0" (v));
+#else
+#error "unable to build for architecture"
+#endif
     return v;
 }
 

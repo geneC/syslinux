@@ -5,10 +5,12 @@
 #ifndef _BITSIZE_LIMITS_H
 #define _BITSIZE_LIMITS_H
 
-#define LONG_BIT	32
-
-#define LONG_MIN	(-2147483647L-1)
-#define LONG_MAX	2147483647L
-#define ULONG_MAX	4294967295UL
+#if __SIZEOF_POINTER__ == 4
+#include <bitsize32/limits.h>
+#elif __SIZEOF_POINTER__ == 8
+#include <bitsize64/limits.h>
+#else
+#error "Unable to build for to-be-defined architecture type"
+#endif
 
 #endif /* _BITSIZE_LIMITS_H */

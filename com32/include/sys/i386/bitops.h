@@ -26,21 +26,29 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * bitops.h
+ * i386 bitops.h
  *
  * Simple bitwise operations
  */
+static inline void set_bit(long __bit, void *__bitmap)
+{
+    asm volatile("btsl %1,%0"
+		 : "+m" (*(unsigned char *)__bitmap)
+		 : "Ir" (__bit) : "memory");
+}
 
-#ifndef _BITOPS_H
-#define _BITOPS_H
+static inline void clr_bit(long __bit, void *__bitmap)
+{
+    asm volatile("btcl %1,%0"
+		 : "+m" (*(unsigned char *)__bitmap)
+		 : "Ir" (__bit) : "memory");
+}
 
-#include <klibc/compiler.h>
-
-#if __SIZEOF_POINTER__ == 4
-#include <i386/bitops.h>
-#elif __SIZEOF_POINTER__ == 8
-#include <x86_64/bitops.h>
-#else
-#error "Unable to build for to-be-defined architecture type"
-#endif
-#endif /* _BITOPS_H */
+static inline int __purefunc test_bit(long __bit, const void *__bitmap)
+{
+    unsigned char __r;
+    asm("btl %2,%1; setc %0"
+	: "=qm" (__r)
+	: "m" (*(const unsigned char *)__bitmap), "Ir" (__bit));
+    return __r;
+}
