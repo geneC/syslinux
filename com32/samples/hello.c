@@ -24,7 +24,13 @@ int main(int argc, char *argv[])
 {
     int i;
 
+#if 0
+	/* this hangs! */
     openconsole(&dev_stdcon_r, &dev_stdcon_w);
+#else
+	/* this works */
+    openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+#endif
 
     printf("Hello, World!\n");
 

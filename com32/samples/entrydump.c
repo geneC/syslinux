@@ -36,7 +36,13 @@ int main(void)
     const union syslinux_derivative_info *di;
     const struct stack_frame *sf;
 
+#if 0
+	/* this hangs! */
     openconsole(&dev_null_r, &dev_stdcon_w);
+#else
+	/* this works */
+    openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+#endif
 
     di = syslinux_derivative_info();
 

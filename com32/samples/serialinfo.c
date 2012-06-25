@@ -25,7 +25,13 @@ int main(void)
 {
     const struct syslinux_serial_console_info *si;
 
+#if 0
+	/* this hangs! */
     openconsole(&dev_null_r, &dev_stdcon_w);
+#else
+	/* this works */
+    openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+#endif
 
     si = syslinux_serial_console_info();
 

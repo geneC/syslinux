@@ -20,10 +20,21 @@ struct cpuid_info {
 
 static void get_cpuid(uint32_t eax, uint32_t ecx, struct cpuid_data *data)
 {
+#if __SIZEOF_POINTER__ == 4
     asm("pushl %%ebx ; cpuid ; movl %%ebx,%1 ; popl %%ebx"
 	: "=a" (data->eax), "=r" (data->ebx),
 	  "=c" (data->ecx), "=d" (data->edx)
 	: "a" (eax), "c" (ecx));
+#elif __SIZEOF_POINTER__ == 8
+        asm volatile("push %%rbx; cpuid; movl %%ebx, %1; pop %%rbx"
+            : "=a" (data->eax),
+              "=b" (data->ebx),
+              "=c" (data->ecx),
+              "=d" (data->edx)
+            : "a" (eax), "c" (ecx));
+#else
+#error "unsupported architecture"
+#endif
 }
 
 #define CPUID_CHUNK 128

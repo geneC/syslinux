@@ -45,7 +45,13 @@ int main(int argc, char *argv[])
 {
     uint32_t ip;
 
+#if 0
+	/* this hangs! */
     openconsole(&dev_null_r, &dev_stdcon_w);
+#else
+	/* this works */
+    openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+#endif
 
     if (argc < 2) {
 	fputs("Usage: resolv hostname\n", stderr);

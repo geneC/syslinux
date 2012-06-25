@@ -27,7 +27,13 @@ int main(void)
     size_t s = syslinux_adv_size();
     char buf[256];
 
+#if 0
+	/* this hangs! */
     openconsole(&dev_stdcon_r, &dev_stdcon_w);
+#else
+	/* this works */
+    openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+#endif
 
     p = syslinux_adv_ptr();
 
