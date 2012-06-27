@@ -50,7 +50,7 @@ void error(char *msg);
 // The following struct should be in the ntddstor.h file, but I didn't have it.
 // mingw32 has <ddk/ntddstor.h>, but including that file causes all kinds
 // of other failures.  mingw64 has it in <winioctl.h>.
-#ifndef __x86_64__
+#if 0 /* Until we can figure out how to auto-detect this? */
 typedef struct _STORAGE_DEVICE_NUMBER {
     DEVICE_TYPE DeviceType;
     ULONG DeviceNumber;
