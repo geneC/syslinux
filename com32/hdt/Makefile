@@ -20,6 +20,9 @@ MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
 
 LIBS      = ../libupload/libcom32upload.a
+C_LIBS    += $(com32)/cmenu/libmenu/libmenu.c32 \
+	     $(com32)/libutil/libutil_com.c32 \
+	     $(com32)/lib/libcom32.c32 $(com32)/gpllib/libcom32gpl.c32
 CFLAGS    += -I$(com32)/cmenu/libmenu -I$(com32)
 
 MODULES	  = hdt.c32

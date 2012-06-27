@@ -76,12 +76,21 @@ int read_sectors(struct driveinfo *drive_info, void *data,
 		 const unsigned int lba, const int sectors)
 {
     com32sys_t inreg, outreg;
-    struct ebios_dapa *dapa = __com32.cs_bounce;
-    void *buf = (char *)__com32.cs_bounce + sectors * SECTOR;
+    struct ebios_dapa *dapa;
+    void *buf;
     char *bufp = data;
+    int rv = -1;
 
     if (get_drive_parameters(drive_info) == -1)
 	return -1;
+
+    buf = lmalloc(sectors * SECTOR);
+    if (!buf)
+	return -1;
+
+    dapa = lmalloc(sizeof(*dapa));
+    if (!dapa)
+	goto fail;
 
     memset(&inreg, 0, sizeof inreg);
 
@@ -102,7 +111,7 @@ int read_sectors(struct driveinfo *drive_info, void *data,
 	if (!drive_info->cbios) {	// XXX errno
 	    /* We failed to get the geometry */
 	    if (lba)
-		return -1;	/* Can only read MBR */
+		goto fail;	/* Can only read MBR */
 
 	    s = 1;
 	    h = 0;
@@ -112,7 +121,7 @@ int read_sectors(struct driveinfo *drive_info, void *data,
 
 	// XXX errno
 	if (s > 63 || h > 256 || c > 1023)
-	    return -1;
+	    goto fail;
 
 	inreg.eax.w[0] = 0x0201;	/* Read one sector */
 	inreg.ecx.b[1] = c & 0xff;
@@ -126,10 +135,14 @@ int read_sectors(struct driveinfo *drive_info, void *data,
     /* Perform the read */
     if (int13_retry(&inreg, &outreg)) {
 	errno_disk = outreg.eax.b[1];
-	return -1;		/* Give up */
+	goto fail;		/* Give up */
     }
 
     memcpy(bufp, buf, sectors * SECTOR);
+    rv = sectors;
 
-    return sectors;
+fail:
+    lfree(dapa);
+    lfree(buf);
+    return rv;
 }

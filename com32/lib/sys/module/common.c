@@ -64,6 +64,10 @@ static FILE *findpath(char *name)
 	char *p, *n;
 	int i;
 
+	f = fopen(name, "rb"); /* for full path */
+	if (f)
+		return f;
+
 	p = PATH;
 again:
 	i = 0;
@@ -73,15 +77,6 @@ again:
 
 	if (*p == ':')
 		p++;
-
-	if (path[0] == '.' && i == 1) {
-		if (!core_getcwd(path, sizeof(path))) {
-			DBG_PRINT("Could not get cwd\n");
-			return NULL;
-		}
-
-		i = strlen(path);
-	}
 
 	n = name;
 	while (*n && i < FILENAME_MAX)

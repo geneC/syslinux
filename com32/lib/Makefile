@@ -49,6 +49,7 @@ LIBSYSLINUX_OBJS = \
 	syslinux/features.o syslinux/config.o	\
 	syslinux/version.o	\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
+	syslinux/pxe_dns.o						\
 	syslinux/video/fontquery.o syslinux/video/reportmode.o
 
 LIBLOAD_OBJS = \
@@ -125,7 +126,7 @@ LIBOTHER_OBJS = \
 	strnlen.o							\
 	strncat.o strndup.o		\
 	stpncpy.o						\
-	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
+	strntoimax.o strntoumax.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
 	strtoumax.o vprintf.o vsprintf.o		\
 	asprintf.o vasprintf.o			\
@@ -133,7 +134,7 @@ LIBOTHER_OBJS = \
 	skipspace.o							\
 	chrreplace.o							\
 	bufprintf.o							\
-	inet.o								\
+	inet.o dhcppack.o dhcpunpack.o					\
 	strreplace.o							\
 	lstrdup.o						\
 	\
@@ -169,7 +170,7 @@ CORELIBOBJS = \
 	fputs.o fwrite2.o fwrite.o fgetc.o fclose.o errno.o lmalloc.o 	\
 	sys/err_read.o sys/err_write.o sys/null_read.o 			\
 	sys/stdcon_write.o sys/openconsole.o				\
-	syslinux/memscan.o						\
+	syslinux/memscan.o strrchr.o					\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\

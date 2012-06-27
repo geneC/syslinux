@@ -43,7 +43,10 @@ static void gpxecmd(const char **args)
 
     memset(&reg, 0, sizeof reg);
 
-    fx = __com32.cs_bounce;
+    fx = lmalloc(sizeof *fx);
+    if (!fx)
+	return;
+
     q = (char *)(fx + 1);
 
     fx->Status = 1;

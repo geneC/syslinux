@@ -49,9 +49,10 @@ struct e820_entry {
 static int mboot_scan_memory(struct AddrRangeDesc **ardp, uint32_t * dosmem)
 {
     com32sys_t ireg, oreg;
-    struct e820_entry *e820buf = __com32.cs_bounce;
+    struct e820_entry *e820buf;
     struct AddrRangeDesc *ard;
     size_t ard_count, ard_space;
+    int rv = 0;
 
     /* Use INT 12h to get DOS memory */
     __intcall(0x12, &__com32_zero_regs, &oreg);
@@ -65,10 +66,14 @@ static int mboot_scan_memory(struct AddrRangeDesc **ardp, uint32_t * dosmem)
 	    *dosmem = 640 * 1024;	/* Hope for the best... */
     }
 
+    e820buf = lmalloc(sizeof(*e820buf));
+    if (!e820buf)
+	return 0;
+
     /* Allocate initial space */
     *ardp = ard = malloc(RANGE_ALLOC_BLOCK * sizeof *ard);
     if (!ard)
-	return 0;
+	goto out;
 
     ard_count = 0;
     ard_space = RANGE_ALLOC_BLOCK;
@@ -93,8 +98,10 @@ static int mboot_scan_memory(struct AddrRangeDesc **ardp, uint32_t * dosmem)
 	if (ard_count >= ard_space) {
 	    ard_space += RANGE_ALLOC_BLOCK;
 	    *ardp = ard = realloc(ard, ard_space * sizeof *ard);
-	    if (!ard)
-		return ard_count;
+	    if (!ard) {
+		rv = ard_count;
+		goto out;
+	    }
 	}
 
 	ard[ard_count].size = 20;
@@ -106,8 +113,10 @@ static int mboot_scan_memory(struct AddrRangeDesc **ardp, uint32_t * dosmem)
 	ireg.ebx.l = oreg.ebx.l;
     } while (oreg.ebx.l);
 
-    if (ard_count)
-	return ard_count;
+    if (ard_count) {
+	rv = ard_count;
+	goto out;
+    };
 
     ard[0].size = 20;
     ard[0].BaseAddr = 0;
@@ -129,10 +138,12 @@ static int mboot_scan_memory(struct AddrRangeDesc **ardp, uint32_t * dosmem)
 	    ard[2].BaseAddr = 16 << 20;
 	    ard[2].Length = oreg.edx.w[0] << 16;
 	    ard[2].Type = 1;
-	    return 3;
+	    rv = 3;
 	} else {
-	    return 2;
+	    rv = 2;
 	}
+
+	goto out;
     }
 
     /* Finally try INT 15h AH=88h */
@@ -142,10 +153,14 @@ static int mboot_scan_memory(struct AddrRangeDesc **ardp, uint32_t * dosmem)
 	ard[1].BaseAddr = 1 << 20;
 	ard[1].Length = oreg.ecx.w[0] << 10;
 	ard[1].Type = 1;
-	return 2;
+	rv = 2;
+	goto out;
     }
 
-    return 1;			/* ... problematic ... */
+    rv = 1;			/* ... problematic ... */
+out:
+    lfree(e820buf);
+    return rv;
 }
 
 void mboot_make_memmap(void)

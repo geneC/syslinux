@@ -72,6 +72,8 @@ struct fs_ops {
     int	     (*readdir)(struct file *, struct dirent *);
 
     int      (*next_extent)(struct inode *, uint32_t);
+
+    int      (*copy_super)(void *buf);
 };
 
 /*
@@ -179,7 +181,7 @@ static inline struct file *handle_to_file(uint16_t handle)
     return handle ? &files[handle-1] : NULL;
 }
 
-#define PATH_DEFAULT	".:/boot/syslinux/:/boot/"
+#define PATH_DEFAULT	"/boot/syslinux/:/boot/"
 extern char *PATH;
 
 /* fs.c */
@@ -233,8 +235,5 @@ uint32_t generic_getfssec(struct file *file, char *buf,
 
 /* nonextextent.c */
 int no_next_extent(struct inode *, uint32_t);
-
-/* fat.c */
-int vfat_copy_superblock(void *buf);
 
 #endif /* FS_H */

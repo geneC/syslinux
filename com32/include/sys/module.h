@@ -27,6 +27,8 @@
 #define EXEC_MODULE			0		
 #define LIB_MODULE			1
 
+#define MAX_NR_DEPS			64
+
 /*
  * Initialization and finalization function signatures
  */
@@ -118,6 +120,9 @@ struct elf_module {
 		} x;
 	} u;
 
+	// ELF DT_NEEDED entries for this module
+	int				nr_needed;
+	Elf32_Word			needed[MAX_NR_DEPS];
 };
 
 /**

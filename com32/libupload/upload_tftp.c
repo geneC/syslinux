@@ -153,7 +153,7 @@ static int upload_tftp_write(struct upload_backend *be)
     tftp.seq      = 0;
 
     if (be->argv[1]) {
-	tftp.srv_ip = pxe_dns_resolv(be->argv[1]);
+	tftp.srv_ip   = pxe_dns(be->argv[1]);
 	if (!tftp.srv_ip) {
 //	    printf("\nUnable to resolve hostname: %s\n", be->argv[1]);
 	    return -TFTP_ERR_UNABLE_TO_RESOLVE;

@@ -1031,10 +1031,7 @@ int pxe_restart(char *ifn)
     }
     printf("  Attempting to boot '%s'...\n\n", pxe.fn);
     memset(&reg, 0, sizeof reg);
-    if (sizeof(t_PXENV_TFTP_READ_FILE) <= __com32.cs_bounce_size) {
-	pxep = __com32.cs_bounce;
-	memset(pxep, 0, sizeof(t_PXENV_RESTART_TFTP));
-    } else if (!(pxep = lzalloc(sizeof(t_PXENV_RESTART_TFTP)))){
+    if (!(pxep = lzalloc(sizeof(t_PXENV_RESTART_TFTP)))){
 	dprintf("Unable to lzalloc() for PXE call structure\n");
 	goto ret;
     }
@@ -1055,8 +1052,7 @@ int pxe_restart(char *ifn)
     __intcall(0x22, &reg, &reg);
 
     printf("PXENV_RESTART_TFTP returned %d\n", pxep->Status);
-    if (pxep != __com32.cs_bounce)
-	lfree(pxep);
+    lfree(pxep);
 
 ret:
     return rv;

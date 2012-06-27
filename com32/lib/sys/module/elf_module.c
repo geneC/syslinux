@@ -19,8 +19,6 @@
 #include "elfutils.h"
 #include "common.h"
 
-#define MAX_NR_DEPS	64
-
 static int check_header(Elf32_Ehdr *elf_hdr) {
 	int res;
 
@@ -181,9 +179,6 @@ out:
 	return res;
 }
 
-static int nr_needed;
-static Elf32_Word needed[MAX_NR_DEPS];;
-
 static int prepare_dynlinking(struct elf_module *module) {
 	Elf32_Dyn  *dyn_entry = module->dyn_table;
 
@@ -196,8 +191,8 @@ static int prepare_dynlinking(struct elf_module *module) {
 			 * are then inform the user that we ran out of
 			 * space.
 			 */
-			if (nr_needed < MAX_NR_DEPS)
-				needed[nr_needed++] = dyn_entry->d_un.d_ptr;
+			if (module->nr_needed < MAX_NR_DEPS)
+				module->needed[module->nr_needed++] = dyn_entry->d_un.d_ptr;
 			else {
 				printf("Too many dependencies!\n");
 				return -1;
@@ -502,40 +497,37 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, load_segments(module, &elf_hdr), error);
 	//printf("bleah... 3\n");
 	// Obtain dynamic linking information
-	nr_needed = 0;
 	CHECKED(res, prepare_dynlinking(module), error);
 	//printf("check... 4\n");
 
 	/* Find modules we need to load as dependencies */
 	if (module->str_table) {
-		int i, n;
+		int i;
 
 		/*
-		 * nr_needed can be modified by recursive calls to
-		 * module_load() so keep a local copy on the stack.
+		 * Note that we have to load the dependencies in
+		 * reverse order.
 		 */
-		n = nr_needed;
-		for (i = 0; i < n; i++) {
+		for (i = module->nr_needed - 1; i >= 0; i--) {
 			size_t len, j;
 			char *dep, *p;
+			char *argv[2] = { NULL, NULL };
 
-			dep = module->str_table + needed[i];
+			dep = module->str_table + module->needed[i];
 
 			/* strip everything but the last component */
 			j = len = strlen(dep);
 			if (!len)
 				continue;
 
-			p = dep + len - 1;
-			while (j > 0 && *p && *p != '/') {
-				p--;
-				j--;
-			}
+			if (strchr(dep, '/')) {
+				p = strrchr(dep, '/');
+				p++;
+			} else
+				p = dep;
 
-			if (*p++ == '/') {
-				char *argv[2] = { p, NULL };
-				spawn_load(p, 1, argv);
-			}
+			argv[0] = p;
+			spawn_load(p, 1, argv);
 		}
 	}
 

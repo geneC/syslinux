@@ -28,10 +28,16 @@ char issyslinux(void)
 
 void runsyslinuxcmd(const char *cmd)
 {
-    strcpy(__com32.cs_bounce, cmd);
+    char *bounce;
+
+    bounce = lmalloc(strlen(cmd) + 1);
+    if (!bounce)
+	return;
+
+    strcpy(bounce, cmd);
     REG_AX(inreg) = 0x0003;	// Run command
-    REG_BX(inreg) = OFFS(__com32.cs_bounce);
-    REG_ES(inreg) = SEG(__com32.cs_bounce);
+    REG_BX(inreg) = OFFS(bounce);
+    REG_ES(inreg) = SEG(bounce);
     __intcall(0x22, &inreg, &outreg);
 }
 
@@ -62,6 +68,7 @@ void runsyslinuximage(const char *cmd, long ipappend)
 {
     unsigned int numfun = 0;
     char *ptr, *cmdline;
+    char *bounce;
 
     (void)ipappend;		// XXX: Unused?!
 
@@ -71,8 +78,12 @@ void runsyslinuximage(const char *cmd, long ipappend)
 	runsyslinuxcmd(cmd);
     // Try the Run Kernel Image function
     // Split command line into
-    strcpy(__com32.cs_bounce, cmd);
-    ptr = __com32.cs_bounce;
+    bounce = lmalloc(strlen(cmd) + 1);
+    if (!bounce)
+	return;
+
+    strcpy(bounce, cmd);
+    ptr = bounce;
     // serach for first space or end of string
     while ((*ptr) && (*ptr != ' '))
 	ptr++;
@@ -87,8 +98,8 @@ void runsyslinuximage(const char *cmd, long ipappend)
     // Now call the interrupt
     REG_BX(inreg) = OFFS(cmdline);
     REG_ES(inreg) = SEG(cmdline);
-    REG_SI(inreg) = OFFS(__com32.cs_bounce);
-    REG_DS(inreg) = SEG(__com32.cs_bounce);
+    REG_SI(inreg) = OFFS(bounce);
+    REG_DS(inreg) = SEG(bounce);
     REG_EDX(inreg) = 0;
 
     __intcall(0x22, &inreg, &outreg);	// If successful does not return
