@@ -46,8 +46,8 @@ LIBPCI_OBJS = \
 
 LIBSYSLINUX_OBJS = \
 	syslinux/reboot.o syslinux/keyboard.o				\
-	syslinux/features.o syslinux/config.o	\
-	syslinux/version.o	\
+	syslinux/features.o 						\
+	syslinux/version.o						\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
 	syslinux/pxe_dns.o						\
 	syslinux/video/fontquery.o syslinux/video/reportmode.o
