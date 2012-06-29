@@ -281,6 +281,7 @@ bail:
 	break;
     case ENOMEM:
 	fprintf(stderr, "Out of memory\n");
+	break;
     default:
 	fprintf(stderr, "Error %d\n", errno);
 	break;
