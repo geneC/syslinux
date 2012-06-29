@@ -38,6 +38,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <minmax.h>
+#include <errno.h>
 #include <suffix_number.h>
 #include <syslinux/align.h>
 #include <syslinux/linux.h>
@@ -460,6 +461,12 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    const addr_t align_mask = 15; /* Header is 16 bytes */
 	    addr_t best_addr = 0;
 	    size_t size = sdp->hdr.len + sizeof(sdp->hdr);
+
+	    if (hdr.version < 0x0209) {
+		/* Setup data not supported */
+		errno = ENXIO;	/* Kind of arbitrary... */
+		goto bail;
+	    }
 
 	    if (!sdp->data || !sdp->hdr.len)
 		continue;
