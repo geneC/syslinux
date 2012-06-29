@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2012 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -90,6 +91,7 @@ int initramfs_load_archive(struct initramfs *ihead, const char *filename);
 
 /* Setup data manipulation functions */
 
+struct setup_data *setup_data_init(void);
 int setup_data_add(struct setup_data *head, uint32_t type,
 		   const void *data, size_t data_len);
 int setup_data_load(struct setup_data *head, uint32_t type,
