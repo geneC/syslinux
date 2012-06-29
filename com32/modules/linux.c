@@ -109,6 +109,26 @@ static char *make_cmdline(char **argv)
     return cmdline;
 }
 
+static int setup_data_file(struct setup_data *setup_data,
+			   uint32_t type, const char *filename,
+			   bool opt_quiet)
+{
+    if (!opt_quiet)
+	printf("Loading %s... ", filename);
+
+    if (setup_data_load(setup_data, type, filename)) {
+	if (opt_quiet)
+	    printf("Loading %s ", filename);
+	printf("failed\n");
+	return -1;
+    }
+	    
+    if (!opt_quiet)
+	printf("ok\n");
+    
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     const char *kernel_name;
@@ -122,7 +142,7 @@ int main(int argc, char *argv[])
     bool opt_quiet = false;
     void *dhcpdata;
     size_t dhcplen;
-    char **argp, *arg, *p;
+    char **argp, **argl, *arg, *p;
 
     openconsole(&dev_null_r, &dev_stdcon_w);
 
@@ -228,19 +248,23 @@ int main(int argc, char *argv[])
     if (!setup_data)
 	goto bail;
 
-    if ((arg = find_argument(argp, "dtb="))) {
-	if (!opt_quiet) {
-	    printf("Loading %s... ", arg);
-
-	    if (setup_data_load(setup_data, SETUP_DTB, arg)) {
-		if (opt_quiet)
-		    printf("Loading %s ", arg);
-		printf("failed\n");
+    for (argl = argv; (arg = *argl); argl++) {
+	if (!memcmp(arg, "dtb=", 4)) {
+	    if (setup_data_file(setup_data, SETUP_DTB, arg+4, opt_quiet))
 		goto bail;
-	    }
-	    
-	    if (!opt_quiet)
-		printf("ok\n");
+	} else if (!memcmp(arg, "blob.", 5)) {
+	    uint32_t type;
+	    char *ep;
+
+	    type = strtoul(arg + 5, &ep, 10);
+	    if (ep[0] != '=' || !ep[1])
+		continue;
+
+	    if (!type)
+		continue;
+
+	    if (setup_data_file(setup_data, type, ep+1, opt_quiet))
+		goto bail;
 	}
     }
 
