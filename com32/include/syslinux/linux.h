@@ -51,17 +51,16 @@ struct initramfs {
 };
 #define INITRAMFS_MAX_ALIGN	4096
 
-struct fdt {
-	void *data;
-	size_t len;
-};
-#define DEVICETREE_MAX_ALIGN	4096
-
-struct setup_data {
+struct setup_data_header {
 	uint64_t next;
 	uint32_t type;
 	uint32_t len;
-	uint8_t data[0];
+} __packed;
+
+struct setup_data {
+    struct setup_data *prev, *next;
+    const void *data;
+    struct setup_data_header hdr;
 };
 
 #define SETUP_NONE	0
@@ -69,7 +68,8 @@ struct setup_data {
 #define SETUP_DTB	2
 
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs, struct fdt *fdt,
+			struct initramfs *initramfs,
+			struct setup_data *setup_data,
 			char *cmdline);
 
 /* Initramfs manipulation functions */
@@ -88,9 +88,11 @@ int initramfs_load_file(struct initramfs *ihead, const char *src_filename,
 int initramfs_add_trailer(struct initramfs *ihead);
 int initramfs_load_archive(struct initramfs *ihead, const char *filename);
 
-/* Device Tree manipulation functions */
+/* Setup data manipulation functions */
 
-struct fdt *fdt_init(void);
-int fdt_load(struct fdt *fdt, const char *filename);
+int setup_data_add(struct setup_data *head, uint32_t type,
+		   const void *data, size_t data_len);
+int setup_data_load(struct setup_data *head, uint32_t type,
+		    const char *filename);
 
 #endif /* _SYSLINUX_LINUX_H */

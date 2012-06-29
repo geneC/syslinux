@@ -131,7 +131,7 @@ LIBOBJS = \
 	\
 	syslinux/disk.o							\
 	\
-	syslinux/fdt.o
+	syslinux/setup_data.o
 
 # These are the objects which are also imported into the core
 LIBCOREOBJS = 	\

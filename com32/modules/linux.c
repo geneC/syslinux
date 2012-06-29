@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
 
     /* This should not return... */
     errno = 0;
-    syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);
+    syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, cmdline);
     fprintf(stderr, "syslinux_boot_linux() failed: ");
 
 bail:
