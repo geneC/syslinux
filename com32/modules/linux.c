@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2012 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -113,6 +113,7 @@ int main(int argc, char *argv[])
 {
     const char *kernel_name;
     struct initramfs *initramfs;
+    struct setup_data *setup_data;
     char *cmdline;
     char *boot_image;
     void *kernel_data;
@@ -222,9 +223,31 @@ int main(int argc, char *argv[])
 	}
     }
 
+    /* Handle dtb and eventually other setup data */
+    setup_data = setup_data_init();
+    if (!setup_data)
+	goto bail;
+
+    if ((arg = find_argument(argp, "dtb="))) {
+	if (!opt_quiet) {
+	    printf("Loading %s... ", arg);
+
+	    if (setup_data_load(setup_data, SETUP_DTB, arg)) {
+		if (opt_quiet)
+		    printf("Loading %s ", arg);
+		printf("failed\n");
+		goto bail;
+	    }
+	    
+	    if (!opt_quiet)
+		printf("ok\n");
+	}
+    }
+
     /* This should not return... */
     errno = 0;
-    syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, cmdline);
+    syslinux_boot_linux(kernel_data, kernel_len, initramfs,
+			setup_data, cmdline);
     fprintf(stderr, "syslinux_boot_linux() failed: ");
 
 bail:
