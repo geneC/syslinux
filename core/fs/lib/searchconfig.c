@@ -27,8 +27,9 @@ int search_dirs(struct com32_filedata *filedata,
 		     "%s%s%s",
 		     sd, (*sd && sd[strlen(sd)-1] == '/') ? "" : "/",
 		     sf);
-	    realpath(realname, namebuf, FILENAME_MAX);
-	    dprintf("Directory search: %s\n", realname);
+	    if (realpath(realname, namebuf, FILENAME_MAX) == (size_t)-1)
+		continue;
+	    dprintf("Config search: %s\n", realname);
 	    if (open_file(realname, filedata) >= 0) {
 		chdir(sd);
 		return 0;	/* Got it */

@@ -43,6 +43,8 @@ void put_inode(struct inode *inode)
     while (inode && --inode->refcnt == 0) {
 	struct inode *dead = inode;
 	inode = inode->parent;
+	if (dead->name)
+	    free((char *)dead->name);
 	free(dead);
     }
 }
@@ -224,6 +226,9 @@ int searchdir(const char *name)
     char *part, *p, echar;
     int symlink_count = MAX_SYMLINK_CNT;
 
+    dprintf("searchdir: %s  root: %p  cwd: %p\n",
+	    name, this_fs->root, this_fs->cwd);
+
     if (!(file = alloc_file()))
 	goto err_no_close;
     file->fs = this_fs;
@@ -322,6 +327,9 @@ int searchdir(const char *name)
 		    goto got_link;
 		}
 
+		inode->name = strdup(part);
+		dprintf("path component: %s\n", inode->name);
+
 		inode->parent = parent;
 		parent = NULL;
 
@@ -366,6 +374,8 @@ int open_file(const char *name, struct com32_filedata *filedata)
     struct file *file;
     char mangled_name[FILENAME_MAX];
 
+    dprintf("open_file %s\n", name);
+
     mangle_name(mangled_name, name);
     rv = searchdir(mangled_name);
 
@@ -392,6 +402,8 @@ void pm_open_file(com32sys_t *regs)
     struct file *file;
     const char *name = MK_PTR(regs->es, regs->esi.w[0]);
     char mangled_name[FILENAME_MAX];
+
+    dprintf("pm_open_file %s\n", name);
 
     mangle_name(mangled_name, name);
     rv = searchdir(mangled_name);
@@ -487,6 +499,7 @@ void fs_init(com32sys_t *regs)
     if (fs.fs_ops->iget_root) {
 	fs.root = fs.fs_ops->iget_root(&fs);
 	fs.cwd = get_inode(fs.root);
+	dprintf("init: root inode %p, cwd inode %p\n", fs.root, fs.cwd);
     }
 
     if (fs.fs_ops->chdir_start) {
