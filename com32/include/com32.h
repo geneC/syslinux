@@ -141,7 +141,7 @@ __noreturn _kaboom(void);
 
 static inline uint16_t SEG(const volatile void *__p)
 {
-    if ((uintptr_t)__p > 0xfffff) {
+    if (__unlikely((uintptr_t)__p > 0xfffff)) {
 	dprintf("Non-lowmem pointer passed to SEG(): %p\n", __p);
 	_kaboom();
     }
