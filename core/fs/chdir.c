@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <dprintf.h>
 #include "fs.h"
 #include "cache.h"
 
@@ -16,11 +17,12 @@ void pm_realpath(com32sys_t *regs)
     realpath(dst, src, FILENAME_MAX);
 }
 
-#define EMIT(x)		     		\
-do {		     			\
-    if (++n < bufsize)	 		\
-    	*q++ = (x);			\
+#define EMIT(x)				\
+do {					\
+    if (++n < bufsize)			\
+	*q++ = (x);			\
 } while (0)
+
 
 static size_t join_paths(char *dst, size_t bufsize,
 			 const char *s1, const char *s2)
@@ -31,8 +33,17 @@ static size_t join_paths(char *dst, size_t bufsize,
     const char *p;
     char *q  = dst;
     size_t n = 0;
-    bool slash = false;
+    bool slash;
+    struct bufstat {
+	struct bufstat *prev;
+	size_t n;
+	char *q;
+    };
+    struct bufstat *stk = NULL;
+    struct bufstat *bp;
     
+    slash = false;
+
     list[0] = s1;
     list[1] = s2;
 
@@ -41,9 +52,33 @@ static size_t join_paths(char *dst, size_t bufsize,
 
 	while ((c = *p++)) {
 	    if (c == '/') {
-		if (!slash)
+		if (!slash) {
 		    EMIT(c);
+		    bp = malloc(sizeof *bp);
+		    bp->n = n;
+		    bp->q = q;
+		    bp->prev = stk;
+		    stk = bp;
+		}
 		slash = true;
+	    } else if (c == '.' && slash) {
+		if (!*p || *p == '/') {
+		    continue;	/* Single dot */
+		}
+		if (*p == '.' && (!p[1] || p[1] == '/')) {
+		    /* Double dot; unwind one level */
+		    p++;
+		    if (stk) {
+			bp = stk;
+			stk = stk->prev;
+			free(bp);
+		    }
+		    if (stk) {
+			n = stk->n;
+			q = stk->q;
+		    }
+		    continue;
+		}
 	    } else {
 		EMIT(c);
 		slash = false;
@@ -53,6 +88,11 @@ static size_t join_paths(char *dst, size_t bufsize,
 
     if (bufsize)
 	*q = '\0';
+
+    while ((bp = stk)) {
+	stk = stk->prev;
+	free(bp);
+    }
 
     return n;
 }
@@ -74,6 +114,8 @@ int chdir(const char *src)
     int rv;
     struct file *file;
     char cwd_buf[CURRENTDIR_MAX];
+
+    dprintf("chdir: from %s add %s\n", this_fs->cwd_name, src);
 
     if (this_fs->fs_ops->chdir)
 	return this_fs->fs_ops->chdir(this_fs, src);
@@ -98,6 +140,8 @@ int chdir(const char *src)
 
     /* Make sure the cwd_name ends in a slash, it's supposed to be a prefix */
     join_paths(this_fs->cwd_name, CURRENTDIR_MAX, cwd_buf, "/");
+
+    dprintf("chdir: final: %s\n", this_fs->cwd_name);
 
     return 0;
 }
