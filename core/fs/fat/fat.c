@@ -220,24 +220,30 @@ static sector_t next_sector(struct file *file)
     return sector;
 }
 
-/*
- * Mangle a filename pointed to by src into a buffer pointed to by dst;
- * ends on encountering any whitespace.
+/**
+ * mangle_name:
+ *
+ * Mangle a filename pointed to by src into a buffer pointed
+ * to by dst; ends on encountering any whitespace.
+ * dst is preserved.
+ *
+ * This verifies that a filename is < FILENAME_MAX characters,
+ * doesn't contain whitespace, zero-pads the output buffer,
+ * and removes redundant slashes.
+ *
+ * Unlike the generic version, this also converts backslashes to
+ * forward slashes.
  *
  */
 static void vfat_mangle_name(char *dst, const char *src)
 {
     char *p = dst;
+    int i = FILENAME_MAX-1;
     char c;
-    int i = FILENAME_MAX -1;
 
-    /*
-     * Copy the filename, converting backslash to slash and
-     * collapsing duplicate separators.
-     */
     while (not_whitespace(c = *src)) {
-        if (c == '\\')
-            c = '/';
+	if (c == '\\')
+	    c = '/';
 
         if (c == '/') {
             if (src[1] == '/' || src[1] == '\\') {
@@ -250,16 +256,13 @@ static void vfat_mangle_name(char *dst, const char *src)
         *dst++ = *src++;
     }
 
-    /* Strip terminal slashes or whitespace */
     while (1) {
         if (dst == p)
             break;
-	if (*(dst-1) == '/' && dst-1 == p) /* it's the '/' case */
-		break;
-	if (dst-2 == p && *(dst-2) == '.' && *(dst-1) == '.' )	/* the '..' case */
-		break;
-        if ((*(dst-1) != '/') && (*(dst-1) != '.'))
+        if (dst[-1] != '/')
             break;
+	if ((dst[-1] == '/') && ((dst - 1) == p))
+	    break;
 
         dst--;
         i++;
