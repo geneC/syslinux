@@ -462,14 +462,14 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    addr_t best_addr = 0;
 	    size_t size = sdp->hdr.len + sizeof(sdp->hdr);
 
+	    if (!sdp->data || !sdp->hdr.len)
+		continue;
+
 	    if (hdr.version < 0x0209) {
 		/* Setup data not supported */
 		errno = ENXIO;	/* Kind of arbitrary... */
 		goto bail;
 	    }
-
-	    if (!sdp->data || !sdp->hdr.len)
-		continue;
 
 	    for (ml = amap; ml->type != SMT_END; ml = ml->next) {
 		addr_t adj_start = (ml->start + align_mask) & ~align_mask;
