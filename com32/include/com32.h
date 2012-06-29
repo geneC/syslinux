@@ -136,15 +136,13 @@ char *lstrdup(const char *);
  * pointer is actually reachable from the target segment.
  */
 #if defined(DEBUG) && (defined(__COM32__) || defined(__SYSLINUX_CORE__))
-#include <dprintf.h>
-__noreturn _kaboom(void);
+__noreturn __bad_SEG(const volatile void *);
 
 static inline uint16_t SEG(const volatile void *__p)
 {
-    if (__unlikely((uintptr_t)__p > 0xfffff)) {
-	dprintf("Non-lowmem pointer passed to SEG(): %p\n", __p);
-	_kaboom();
-    }
+    if (__unlikely((uintptr_t)__p > 0xfffff))
+	__bad_SEG(__p);
+
     return (uint16_t) (((uintptr_t) __p) >> 4);
 }
 #else

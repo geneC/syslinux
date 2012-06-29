@@ -4,6 +4,18 @@
 
 #include "core.h"
 
+#ifdef DEBUG
+
+#include <dprintf.h>
+
+__noreturn __bad_SEG(const volatile void *p)
+{
+    dprintf("SEG() passed an invalid pointer: %p\n", p);
+    kaboom();
+}
+
+#endif
+
 #undef kaboom
 
 __noreturn _kaboom(void)
