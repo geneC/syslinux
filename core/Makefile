@@ -62,7 +62,7 @@ NASMOPT  += $(NASMDEBUG)
 
 PREPCORE = ../lzo/prepcore
 
-# CFLAGS	+= -DDEBUG=1
+CFLAGS	+= -DDEBUG=1 -D__SYSLINUX_CORE__
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much

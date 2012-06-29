@@ -135,10 +135,24 @@ char *lstrdup(const char *);
  * specific segment.  OFFS_VALID() will return whether or not the
  * pointer is actually reachable from the target segment.
  */
+#if defined(DEBUG) && (defined(__COM32__) || defined(__SYSLINUX_CORE__))
+#include <dprintf.h>
+__noreturn _kaboom(void);
+
+static inline uint16_t SEG(const volatile void *__p)
+{
+    if ((uintptr_t)__p > 0xfffff) {
+	dprintf("Non-lowmem pointer passed to SEG(): %p\n", __p);
+	_kaboom();
+    }
+    return (uint16_t) (((uintptr_t) __p) >> 4);
+}
+#else
 static inline uint16_t SEG(const volatile void *__p)
 {
     return (uint16_t) (((uintptr_t) __p) >> 4);
 }
+#endif
 
 static inline uint16_t OFFS(const volatile void *__p)
 {
