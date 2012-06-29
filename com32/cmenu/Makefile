@@ -17,26 +17,15 @@
 
 NOGPL := 1
 
-# This must be defined before com32.mk is included
-LIBS   = libmenu/libmenu.c32
-
 topdir = ../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
 
 CFLAGS	  += -I./libmenu
 
-LDFLAGS_complex.o = $(com32)/cmenu/libmenu/libmenu.c32 \
-		    $(com32)/libutil/libutil_com.c32 \
-		    $(com32)/lib/libcom32.c32
-LDFLAGS_display.o = $(com32)/cmenu/libmenu/libmenu.c32 \
-		$(com32)/libutil/libutil_com.c32 \
-		$(com32)/lib/libcom32.c32
-LDFLAGS_simple.o = $(com32)/cmenu/libmenu/libmenu.c32 \
-		   $(com32)/libutil/libutil_com.c32 \
-		   $(com32)/lib/libcom32.c32
-LDFLAGS_test.o = $(com32)/cmenu/libmenu/libmenu.c32
-LDFLAGS_test2.o = $(com32)/cmenu/libmenu/libmenu.c32
+LIBS  = libmenu/libmenu.c32 \
+        $(com32)/libutil/libutil_com.c32 \
+        $(com32)/lib/libcom32.c32
 
 LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o \
@@ -53,7 +42,7 @@ MENUS = $(LIBS) $(CMENUS) $(IMENUS)
 %.c: %.menu adv_menu.tpl
 	python menugen.py --input=$< --output=$@ --template=adv_menu.tpl
 
-all: menus
+all:	menus
 
 libmenu/libmenu.c32: $(LIBMENU)
 	$(LD) -shared $(LDFLAGS) -o $@ $^
