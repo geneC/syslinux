@@ -1161,9 +1161,13 @@ int main(int argc, char *argv[])
 	printf("\033[?25h\033[%d;1H\033[0m", cursorrow);
 
 	if (cmdline) {
-	    execute(cmdline, KT_NONE);
-	    if (cm->onerror)
-		execute(cm->onerror, KT_NONE);
+	    enum kernel_type type = parse_kernel_type(cmdline);
+
+	    execute(cmdline, type);
+	    if (cm->onerror) {
+		type = parse_kernel_type(cm->onerror);
+		execute(cm->onerror, type);
+	    }
 	} else {
 	    return 0;		/* Exit */
 	}

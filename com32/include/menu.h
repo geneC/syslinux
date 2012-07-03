@@ -94,6 +94,8 @@ enum kernel_type {
 
 extern const char *const kernel_types[];
 
+extern enum kernel_type parse_kernel_type(const char *kernel);
+
 /* Configurable integer parameters */
 enum parameter_number {
     P_WIDTH,

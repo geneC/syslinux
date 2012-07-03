@@ -45,7 +45,7 @@ static inline const char *find_command(const char *str)
 	return p;
 }
 
-static enum kernel_type parse_kernel_type(const char *kernel)
+enum kernel_type parse_kernel_type(const char *kernel)
 {
 	const struct file_ext *ext;
 	const char *p;
