@@ -27,20 +27,23 @@
 
 #include <syslinux/config.h>
 #include <klibc/compiler.h>
-#include <com32.h>
+#include <core.h>
+#include <../../../version.h>
 
 struct syslinux_version __syslinux_version;
 
 void __constructor __syslinux_get_version(void)
 {
-    static com32sys_t reg;
+    __syslinux_version.version = (VERSION_MAJOR << 8) + VERSION_MINOR;
 
-    reg.eax.w[0] = 0x0001;
-    __intcall(0x22, &reg, &reg);
+    /* We no longer support the COMBOOT API  */
+    __syslinux_version.max_api = 0xffff;
 
-    __syslinux_version.version = reg.ecx.w[0];
-    __syslinux_version.max_api = reg.eax.w[0];
-    __syslinux_version.filesystem = reg.edx.b[0];
-    __syslinux_version.version_string = MK_PTR(reg.es, reg.esi.w[0]);
-    __syslinux_version.copyright_string = MK_PTR(reg.es, reg.edi.w[0]);
+    __syslinux_version.filesystem = syslinux_filesystem();
+
+    /* Skip leading CR LF */
+    __syslinux_version.version_string = &syslinux_banner[2];
+
+    /* Skip leading space */
+    __syslinux_version.copyright_string = &copyright_str[1];
 }

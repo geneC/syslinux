@@ -34,14 +34,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslinux/boot.h>
-#include <com32.h>
+#include <syslinux/config.h>
+#include <core.h>
+
+extern unsigned int ipappend;
 
 void syslinux_run_kernel_image(const char *filename, const char *cmdline,
 			       uint32_t ipappend_flags, uint32_t type)
 {
-    static com32sys_t ireg;
     char *bbfilename = NULL;
     char *bbcmdline  = NULL;
+
 
     bbfilename = lstrdup(filename);
     if (!bbfilename)
@@ -51,16 +54,10 @@ void syslinux_run_kernel_image(const char *filename, const char *cmdline,
     if (!bbcmdline)
 	goto fail;
 
+    if (syslinux_filesystem() == SYSLINUX_FS_PXELINUX)
+	ipappend = ipappend_flags;
 
-    ireg.eax.w[0] = 0x0016;
-    ireg.ds = SEG(bbfilename);
-    /* ireg.esi.w[0] = OFFS(bbfilename); */
-    ireg.es = SEG(bbcmdline);
-    /* ireg.ebx.w[0] = OFFS(bbcmdline); */
-    ireg.ecx.l = ipappend_flags;
-    ireg.edx.l = type;
-
-    __intcall(0x22, &ireg, 0);
+    execute(bbfilename, type);
 
 fail:
     if (bbcmdline)

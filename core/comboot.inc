@@ -842,6 +842,7 @@ zero_string	db 0			; Empty, null-terminated string
 ; Note: PXELINUX clears the idle is noop flag if appropriate
 ; in pxe_detect_nic_type
 ;
+		global feature_flags, feature_flags_len
 feature_flags:
 		db 1			; Have local boot, idle is not noop
 feature_flags_len equ ($-feature_flags)

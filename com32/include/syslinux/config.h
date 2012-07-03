@@ -181,4 +181,9 @@ static inline const struct syslinux_ipappend_strings
     return &__syslinux_ipappend_strings;
 }
 
+static inline enum syslinux_filesystem syslinux_filesystem(void)
+{
+    return syslinux_derivative_info()->c.filesystem;
+}
+
 #endif /* _SYSLINUX_CONFIG_H */

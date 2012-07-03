@@ -137,7 +137,7 @@ static const char *apply_extension(const char *kernel, const char *ext)
  * the the kernel. If we return the caller should call enter_cmdline()
  * so that the user can help us out.
  */
-static void load_kernel(const char *command_line)
+void load_kernel(const char *command_line)
 {
 	struct menu_entry *me;
 	const char *cmdline;

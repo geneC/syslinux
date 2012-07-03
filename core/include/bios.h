@@ -74,7 +74,6 @@ extern union screen _screensize;
 #define VidRows		_screensize.b.row
 
 /* font.c */
-extern uint16_t VGAFontSize;
 extern void use_font(void);
 extern void bios_adjust_screen(void);
 

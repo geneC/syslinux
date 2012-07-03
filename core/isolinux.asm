@@ -1219,9 +1219,9 @@ PXERetry	dw 0			; Extra PXE retries
 		section .data16
 		global SerialNotice
 SerialNotice	db 1			; Only print this once
+		global IPAppends, numIPAppends
 %if IS_PXELINUX
 		extern IPOption
-		global IPAppends, numIPAppends
 		alignz 2
 IPAppends	dw IPOption
 numIPAppends	equ ($-IPAppends)/2

@@ -33,26 +33,18 @@
 
 #include <syslinux/config.h>
 #include <klibc/compiler.h>
-#include <com32.h>
+#include <core.h>
 
 struct syslinux_ipappend_strings __syslinux_ipappend_strings;
 static const char *syslinux_ipappend_string_list[32];
 
 void __constructor __syslinux_get_ipappend_strings(void)
 {
-    static com32sys_t reg;
-    int i;
+    unsigned int i;
 
-    reg.eax.w[0] = 0x000f;
-    __intcall(0x22, &reg, &reg);
+    __syslinux_ipappend_strings.count = (size_t)numIPAppends;
+    __syslinux_ipappend_strings.ptr = syslinux_ipappend_string_list;
 
-    if (!(reg.eflags.l & EFLAGS_CF)) {
-	__syslinux_ipappend_strings.count = reg.ecx.w[0];
-	__syslinux_ipappend_strings.ptr = syslinux_ipappend_string_list;
-	for (i = 0; i < reg.ecx.w[0]; i++) {
-	    syslinux_ipappend_string_list[i] =
-		MK_PTR(reg.es,
-		       *(uint16_t *) MK_PTR(reg.es, reg.ebx.w[0] + i * 2));
-	}
-    }
+    for (i = 0; i < (size_t)numIPAppends; i++)
+	syslinux_ipappend_string_list[i] = (const char *)(size_t)IPAppends[i];
 }

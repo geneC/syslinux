@@ -31,15 +31,12 @@
  */
 
 #include <syslinux/video.h>
-#include <com32.h>
+#include <graphics.h>
 
 void syslinux_report_video_mode(uint16_t flags, uint16_t xsize, uint16_t ysize)
 {
-    static com32sys_t ireg;
+    if (flags > 0x0f)
+	return;
 
-    ireg.eax.w[0] = 0x0017;
-    ireg.ebx.w[0] = flags;
-    ireg.ecx.w[0] = xsize;
-    ireg.edx.w[0] = ysize;
-    __intcall(0x22, &ireg, NULL);
+    using_vga(flags, xsize, ysize);
 }

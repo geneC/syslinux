@@ -44,6 +44,11 @@ extern uint16_t VGAPos;
 extern uint16_t *VGAFilePtr;
 extern char VGAFileBuf[VGA_FILE_BUF_SIZE];
 extern char VGAFileMBuf[];
+extern uint16_t VGAFontSize;
+
+extern uint8_t UserFont;
+
+extern __lowmem char fontbuf[8192];
 
 extern void syslinux_force_text_mode(void);
 extern void vgadisplayfile(FILE *_fd);

@@ -1187,9 +1187,6 @@ static void ip_init(void)
 /*
  * Print the IPAPPEND strings, in order
  */
-extern const uint16_t IPAppends[];
-extern const char numIPAppends[];
-
 static void print_ipappend(void)
 {
     size_t i;

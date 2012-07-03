@@ -12,7 +12,10 @@
 
 #include <string.h>
 #include <com32.h>
+#include <core.h>
+#include <graphics.h>
 #include "syslnx.h"
+#include <syslinux/config.h>
 
 com32sys_t inreg, outreg;	// Global registers for this module
 
@@ -35,33 +38,26 @@ void runsyslinuxcmd(const char *cmd)
 	return;
 
     strcpy(bounce, cmd);
-    REG_AX(inreg) = 0x0003;	// Run command
-    REG_BX(inreg) = OFFS(bounce);
-    REG_ES(inreg) = SEG(bounce);
-    __intcall(0x22, &inreg, &outreg);
+    load_kernel(bounce);
 }
 
 void gototxtmode(void)
 {
-    REG_AX(inreg) = 0x0005;
-    __intcall(0x22, &inreg, &outreg);
+    syslinux_force_text_mode();
 }
 
 void syslinux_idle(void)
 {
-    REG_AX(inreg) = 0x0013;
-    __intcall(0x22, &inreg, &outreg);
+    __idle();
 }
 
 unsigned int getversion(char *deriv, unsigned int *numfun)
 {
-    REG_AX(inreg) = 0x0001;
-    __intcall(0x22, &inreg, &outreg);
     if (deriv)
-	*deriv = REG_DL(outreg);
+	*deriv = __syslinux_version.filesystem;
     if (numfun)
-	*numfun = REG_AX(outreg);
-    return REG_CX(outreg);
+	*numfun = __syslinux_version.max_api;
+    return __syslinux_version.version;
 }
 
 void runsyslinuximage(const char *cmd, long ipappend)

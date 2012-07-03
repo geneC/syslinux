@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <string.h>
 #include <com32.h>
+#include <core.h>
 #include <minmax.h>
 #include "file.h"
 
@@ -57,22 +58,16 @@ static int __stdcon_open(struct file_info *fp)
 static ssize_t __stdcon_write(struct file_info *fp, const void *buf,
 			      size_t count)
 {
-    com32sys_t ireg;
     const char *bufp = buf;
     size_t n = 0;
 
     (void)fp;
 
-    memset(&ireg, 0, sizeof ireg);
-    ireg.eax.b[1] = 0x02;
-
     while (count--) {
-	if (*bufp == '\n') {
-	    ireg.edx.b[0] = '\r';
-	    __intcall(0x21, &ireg, NULL);
-	}
-	ireg.edx.b[0] = *bufp++;
-	__intcall(0x21, &ireg, NULL);
+	if (*bufp == '\n')
+	    writechr('\r');
+
+	writechr(*bufp++);
 	n++;
     }
 

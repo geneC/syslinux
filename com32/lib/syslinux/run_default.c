@@ -26,16 +26,14 @@
  * ----------------------------------------------------------------------- */
 
 #include <syslinux/boot.h>
+#include <core.h>
 #include <stddef.h>
-#include <com32.h>
+
+extern const char *default_cmd;
 
 __noreturn syslinux_run_default(void)
 {
-    static com32sys_t ireg;
-
-    ireg.eax.w[0] = 0x0004;
-    __intcall(0x22, &ireg, NULL);
-
+    load_kernel(default_cmd);
     /* Should not return even on failure */
     for (;;) ;
 }
