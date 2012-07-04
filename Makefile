@@ -35,7 +35,8 @@ MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
 	com32/sysdump/*.c32 com32/lua/src/*.c32 com32/chain/*.c32 \
-	com32/lib/*.c32 com32/libutil/*.c32 com32/gpllib/*.c32
+	com32/lib/*.c32 com32/libutil/*.c32 com32/gpllib/*.c32 \
+	com32/elflink/ldlinux/*.c32
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
@@ -83,7 +84,6 @@ EXTBOOTINSTALL = $(MODULES)
 
 # Things to install in /tftpboot
 NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 \
-		 com32/elflink/ldlinux/ldlinux.c32 \
 		 $(MODULES)
 
 all:

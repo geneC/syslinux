@@ -19,8 +19,8 @@ test_memalign.elf : test_memalign.o  $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 test_com32.elf: CFLAGS += -DELF_DEBUG
-test_com32.elf: test_com32.o ../libutil/libutil_com.a ../lib/libcom32min.a $(LIBGCC)
-	$(LD) -n $(LDFLAGS) -o $@ test_com32.o ../libutil/libutil_com.a $(LIBGCC) --whole-archive ../lib/libcom32min.a -Map test_com32.map
+test_com32.elf: test_com32.o ../lib/libcom32min.a $(LIBGCC)
+	$(LD) -n $(LDFLAGS) -o $@ test_com32.o $(LIBGCC) --whole-archive ../lib/libcom32min.a -Map test_com32.map
 
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.map
@@ -31,8 +31,6 @@ clean: tidy
 spotless: clean
 	rm -f *~ \#*
 
-install: all
-	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
-	install -m 644 $(MODULES) $(INSTALLROOT)$(AUXDIR)
+install:
 
 -include .*.d
