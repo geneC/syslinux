@@ -45,14 +45,13 @@ static void debug_putc(char c)
 
 void vdprintf(const char *format, va_list ap)
 {
-    int rv, _rv;
+    int rv;
     char buffer[BUFFER_SIZE];
     char *p;
     static bool debug_init = false;
     static bool debug_ok   = false;
 
-    _rv = rv = vsnprintf(buffer, BUFFER_SIZE, format, ap);
-
+    rv = vsnprintf(buffer, BUFFER_SIZE, format, ap);
     if (rv < 0)
 	return;
 
