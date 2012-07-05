@@ -509,15 +509,13 @@ int module_load(struct elf_module *module) {
 		 * reverse order.
 		 */
 		for (i = module->nr_needed - 1; i >= 0; i--) {
-			size_t len, j;
 			char *dep, *p;
 			char *argv[2] = { NULL, NULL };
 
 			dep = module->str_table + module->needed[i];
 
 			/* strip everything but the last component */
-			j = len = strlen(dep);
-			if (!len)
+			if (!strlen(dep))
 				continue;
 
 			if (strchr(dep, '/')) {
