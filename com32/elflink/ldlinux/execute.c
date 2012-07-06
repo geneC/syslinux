@@ -86,6 +86,7 @@ void execute(const char *cmdline, enum kernel_type type)
 			if (!strcmp(kernel + 1, *pp)) {
 				/* Strip the type specifier and retry */
 				execute(p, type);
+				return;
 			}
 		}
 	}
