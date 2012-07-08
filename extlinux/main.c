@@ -510,6 +510,12 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
     close(fd);
 
     fd = rewrite_boot_image(devfd, file);
+    if (fd < 0)
+	goto bail;
+
+    /* Attempt to set immutable flag and remove all write access */
+    /* Only set immutable flag if file is owned by root */
+    set_attributes(fd);
 
     if (fstat(fd, rst)) {
 	perror(file);
