@@ -38,7 +38,6 @@ struct xfs_mount;
 struct xfs_trans;
 
 #define	XFS_AGF_MAGIC	"XAGF"
-#define	XFS_AGI_MAGIC	"XAGI"
 #define	XFS_AGF_VERSION	1
 #define	XFS_AGI_VERSION	1
 
@@ -121,32 +120,6 @@ extern int xfs_read_agf(struct xfs_mount *mp, struct xfs_trans *tp,
  * Size of the unlinked inode hash table in the agi.
  */
 #define	XFS_AGI_UNLINKED_BUCKETS	64
-
-typedef struct xfs_agi {
-	/*
-	 * Common allocation group header information
-	 */
-	uint32_t		agi_magicnum;	/* magic number == XFS_AGI_MAGIC */
-	uint32_t		agi_versionnum;	/* header version == XFS_AGI_VERSION */
-	uint32_t		agi_seqno;	/* sequence # starting from 0 */
-	uint32_t		agi_length;	/* size in blocks of a.g. */
-	/*
-	 * Inode information
-	 * Inodes are mapped by interpreting the inode number, so no
-	 * mapping data is needed here.
-	 */
-	uint32_t		agi_count;	/* count of allocated inodes */
-	uint32_t		agi_root;	/* root of inode btree */
-	uint32_t		agi_level;	/* levels in inode btree */
-	uint32_t		agi_freecount;	/* number of free inodes */
-	uint32_t		agi_newino;	/* new inode just allocated */
-	uint32_t		agi_dirino;	/* last directory inode chunk */
-	/*
-	 * Hash table of inodes which have been unlinked but are
-	 * still being referenced.
-	 */
-	uint32_t		agi_unlinked[XFS_AGI_UNLINKED_BUCKETS];
-} xfs_agi_t;
 
 #define	XFS_AGI_MAGICNUM	0x00000001
 #define	XFS_AGI_VERSIONNUM	0x00000002

@@ -39,17 +39,37 @@
 struct xfs_fs_info;
 
 #define XFS_INFO(fs) ((struct xfs_fs_info *)((fs)->fs_info))
-#define XFS_PVT(ino) ((xfs_agi_t *)((ino)->pvt))
+#define XFS_PVT(ino) ((struct xfs_inode *)((ino)->pvt))
 
-#define XFS_AG_BLOCK(fs, bytes) \
-    ((block_t)(((bytes) + XFS_INFO((fs))->agblocks - 1) / \
-	       XFS_INFO((fs))->agblocks) - 1)
+#define XFS_INO_TO_AGNO(fs, ino) \
+    (xfs_agnumber_t)((ino) >> XFS_INFO((fs))->ag_relative_ino_shift)
 
-#define XFS_AGI_OFFSET(fs, mp) \
-    ((xfs_agi_t *)((uint8_t *)(mp) + 2 * SECTOR_SIZE((fs))))
+#define XFS_AGNO_TO_FSB(fs, agno) \
+    (block_t)((agno) << XFS_INFO((fs))->agblocks_shift)
+
+#define XFS_AGI_OFFS(fs, mp) \
+    (xfs_agi_t *)((uint8_t *)(mp) + 2 * SECTOR_SIZE((fs)))
 
 /* Superblock's LBA */
 #define XFS_SB_DADDR ((xfs_daddr_t)0) /* daddr in filesystem/ag */
+
+/* Magic numbers */
+#define	XFS_AGI_MAGIC 		"XAGI"
+#define XFS_IBT_MAGIC 		"IABT"
+#define XFS_DINODE_MAGIC	"IN"
+
+/* File types and modes */
+#define S_IFMT  	00170000
+#define S_IFSOCK 	0140000
+#define S_IFLNK 	0120000
+#define S_IFREG  	0100000
+#define S_IFBLK  	0060000
+#define S_IFDIR  	0040000
+#define S_IFCHR  	0020000
+#define S_IFIFO  	0010000
+#define S_ISUID  	0004000
+#define S_ISGID  	0002000
+#define S_ISVTX  	0001000
 
 /*
  * NOTE: The fields in the superblock are stored in big-endian format on disk.
@@ -142,6 +162,95 @@ struct xfs_fs_info {
     uint16_t		inodesize; /* Size of the inode in bytes */
     uint8_t		inode_shift; /* Inode size in bits */
 } __attribute__((__packed__));
+
+typedef struct xfs_agi {
+	/*
+	 * Common allocation group header information
+	 */
+    uint32_t		agi_magicnum;	/* magic number == XFS_AGI_MAGIC */
+    uint32_t		agi_versionnum;	/* header version == XFS_AGI_VERSION */
+    uint32_t		agi_seqno;	/* sequence # starting from 0 */
+    uint32_t		agi_length;	/* size in blocks of a.g. */
+    /*
+     * Inode information
+     * Inodes are mapped by interpreting the inode number, so no
+     * mapping data is needed here.
+     */
+    uint32_t		agi_count;	/* count of allocated inodes */
+    uint32_t		agi_root;	/* root of inode btree */
+    uint32_t		agi_level;	/* levels in inode btree */
+    uint32_t		agi_freecount;	/* number of free inodes */
+    uint32_t		agi_newino;	/* new inode just allocated */
+    uint32_t		agi_dirino;	/* last directory inode chunk */
+    /*
+     * Hash table of inodes which have been unlinked but are
+     * still being referenced.
+     */
+    uint32_t		agi_unlinked[XFS_AGI_UNLINKED_BUCKETS];
+} __attribute__((__packed__)) xfs_agi_t;
+
+typedef struct xfs_btree_sblock {
+    uint32_t bb_magic;
+    uint16_t bb_level;
+    uint16_t bb_numrecs;
+    uint32_t bb_leftsib;
+    uint32_t bb_rightsib;
+} __attribute__((__packed__)) xfs_btree_sblock_t;
+
+typedef struct xfs_inobt_rec {
+    uint32_t ir_startino;
+    uint32_t ir_freecount;
+    uint64_t ir_free;
+} __attribute__((__packed__)) xfs_inobt_rec_t;
+
+typedef struct xfs_timestamp {
+    int32_t t_sec;
+    int32_t t_nsec;
+} __attribute__((__packed__)) xfs_timestamp_t;
+
+typedef enum xfs_dinode_fmt {
+    XFS_DINODE_FMT_DEV,
+    XFS_DINODE_FMT_LOCAL,
+    XFS_DINODE_FMT_EXTENTS,
+    XFS_DINODE_FMT_BTREE,
+    XFS_DINODE_FMT_UUID,
+} xfs_dinode_fmt_t;
+
+typedef struct xfs_dinode {
+    uint16_t		di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
+    uint16_t		di_mode;	/* mode and type of file */
+    uint8_t		di_version;	/* inode version */
+    uint8_t		di_format;	/* format of di_c data */
+    uint16_t		di_onlink;	/* old number of links to file */
+    uint32_t		di_uid;		/* owner's user id */
+    uint32_t		di_gid;		/* owner's group id */
+    uint32_t		di_nlink;	/* number of links to file */
+    uint16_t		di_projid_lo;	/* lower part of owner's project id */
+    uint16_t		di_projid_hi;	/* higher part owner's project id */
+    uint8_t		di_pad[6];	/* unused, zeroed space */
+    uint16_t		di_flushiter;	/* incremented on flush */
+    xfs_timestamp_t	di_atime;	/* time last accessed */
+    xfs_timestamp_t	di_mtime;	/* time last modified */
+    xfs_timestamp_t	di_ctime;	/* time created/inode modified */
+    uint64_t		di_size;	/* number of bytes in file */
+    uint64_t		di_nblocks;	/* # of direct & btree blocks used */
+    uint32_t		di_extsize;	/* basic/minimum extent size for file */
+    uint32_t		di_nextents;	/* number of extents in data fork */
+    uint16_t		di_anextents;	/* number of extents in attribute fork*/
+    uint8_t		di_forkoff;	/* attr fork offs, <<3 for 64b align */
+    int8_t		di_aformat;	/* format of attr fork's data */
+    uint32_t		di_dmevmask;	/* DMIG event mask */
+    uint16_t		di_dmstate;	/* DMIG state info */
+    uint16_t		di_flags;	/* random flags, XFS_DIFLAG_... */
+    uint32_t		di_gen;		/* generation number */
+
+    /* di_next_unlinked is the only non-core field in the old dinode */
+    uint32_t		di_next_unlinked;/* agi unlinked list ptr */
+} __attribute__((packed)) xfs_dinode_t;
+
+struct xfs_inode {
+    xfs_agblock_t i_agblock;
+};
 
 static inline bool xfs_is_valid_magicnum(const xfs_sb_t *sb)
 {

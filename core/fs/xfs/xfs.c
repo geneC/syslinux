@@ -34,11 +34,150 @@
 #include "xfs_ag.h"
 #include "misc.h"
 
-static struct inode *xfs_iget_root(struct fs_info *unused)
+static inline struct inode *xfs_new_inode(struct fs_info *fs)
 {
-    (void)unused;
+    struct inode *inode;
+
+    inode = alloc_inode(fs, 0, sizeof(struct xfs_inode));
+    if (!inode)
+	malloc_error("xfs_inode structure");
+
+    return inode;
+}
+
+static xfs_dinode_t *xfs_get_dinode(struct fs_info *fs, xfs_ino_t ino)
+{
+    block_t blk;
+    block_t blk_offset;
+    xfs_dinode_t *dino;
+
+    blk = ino << XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
+    blk_offset = (blk << BLOCK_SHIFT(fs)) % BLOCK_SIZE(fs);
+
+    dino = (xfs_dinode_t *)((uint8_t *)get_cache(fs->fs_dev, blk) +
+			    blk_offset);
+    if (!dino) {
+	xfs_error("Error in reading filesystem block 0x%llX (%llu)", blk, blk);
+	goto out;
+    }
+
+    if (be16_to_cpu(dino->di_magic) !=
+	be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
+	xfs_error("Inode core's magic number does not match!");
+	goto out;
+    }
+
+    return dino;
+
+out:
+    return NULL;
+}
+
+static struct inode *xfs_iget(const char *unused_0, struct inode *unused_1)
+{
+    (void)unused_0;
+    (void)unused_1;
 
     xfs_debug("in");
+
+    return NULL;
+}
+
+static struct inode *xfs_iget_root(struct fs_info *fs)
+{
+    xfs_agnumber_t agno;
+    block_t blk;
+    xfs_agi_t *agi;
+    xfs_btree_sblock_t *ibt_hdr;
+    uint32_t i;
+    xfs_inobt_rec_t *rec;
+    xfs_dinode_t *dino;
+    struct inode *inode = xfs_new_inode(fs);
+
+    xfs_debug("Looking for the root inode...");
+
+    agno = XFS_INO_TO_AGNO(fs, XFS_INFO(fs)->rootino);
+    if (agno >= XFS_INFO(fs)->agcount) {
+	xfs_error("Invalid AG number");
+	goto out;
+    }
+
+    blk = XFS_AGNO_TO_FSB(fs, agno);
+    agi = XFS_AGI_OFFS(fs, get_cache(fs->fs_dev, blk));
+    if (!agi) {
+	xfs_error("Error in reading filesystem block 0x%llX (%llu)", blk, blk);
+	goto out;
+    }
+
+    XFS_PVT(inode)->i_agblock = blk;
+
+    if (be32_to_cpu(agi->agi_magicnum) !=
+	be32_to_cpu(*(uint32_t *)XFS_AGI_MAGIC)) {
+	xfs_error("AGI's magic number does not match!");
+	goto out;
+    }
+
+    xfs_debug("agi_count %lu", be32_to_cpu(agi->agi_count));
+    xfs_debug("agi_level %lu", be32_to_cpu(agi->agi_level));
+
+    /* Get block number relative to the AG containing the root of the inode
+     * B+tree.
+     */
+    blk = agno + be32_to_cpu(agi->agi_root);
+
+    xfs_debug("inode B+tree's block %llu", blk);
+
+    ibt_hdr = (xfs_btree_sblock_t *)get_cache(fs->fs_dev, blk);
+    if (!ibt_hdr) {
+	xfs_error("Error in reading filesystem block 0x%llX (%llu)", blk, blk);
+	goto out;
+    }
+
+    if (be32_to_cpu(ibt_hdr->bb_magic) !=
+	be32_to_cpu(*(uint32_t *)XFS_IBT_MAGIC)) {
+	xfs_error("AGI inode B+tree header's magic number does not match!");
+	goto out;
+    }
+
+    xfs_debug("bb_level %lu", ibt_hdr->bb_level);
+    xfs_debug("bb_numrecs %lu", ibt_hdr->bb_numrecs);
+
+    rec = (xfs_inobt_rec_t *)((uint8_t *)ibt_hdr + sizeof *ibt_hdr);
+    i = ibt_hdr->bb_numrecs;
+    for ( ; i--; rec++) {
+	if (be32_to_cpu(rec->ir_startino) == XFS_INFO(fs)->rootino)
+	    goto found;
+    }
+
+    xfs_error("Root inode not found!");
+    goto not_found;
+
+found:
+    xfs_debug("Root inode has been found!");
+
+    inode->ino = XFS_INFO(fs)->rootino;
+
+    dino = xfs_get_dinode(fs, XFS_INFO(fs)->rootino);
+    if (!dino) {
+	xfs_error("Failed to get inode core from inode %lu",
+		  XFS_INFO(fs)->rootino);
+	goto out;
+    }
+
+    if (!(be16_to_cpu(dino->di_mode) & S_IFDIR)) {
+	xfs_error("root inode is not a directory ?! No makes sense...");
+	goto out;
+    }
+
+    inode->mode = DT_DIR;
+    inode->size = dino->di_size;
+
+    return inode;
+
+not_found:
+
+out:
+    free(inode);
 
     return NULL;
 }
@@ -136,10 +275,10 @@ const struct fs_ops xfs_fs_ops = {
     .iget_root		= xfs_iget_root,
     .searchdir		= NULL,
     .getfssec		= NULL,
-    .load_config	= NULL,
-    .close_file         = NULL,
-    .mangle_name	= NULL,
+    .load_config	= generic_load_config,
+    .close_file         = generic_close_file,
+    .mangle_name	= generic_mangle_name,
     .readdir		= NULL,
-    .iget		= NULL,
+    .iget		= xfs_iget,
     .next_extent	= NULL,
 };
