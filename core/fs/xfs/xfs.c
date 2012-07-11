@@ -123,7 +123,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
     /* Get block number relative to the AG containing the root of the inode
      * B+tree.
      */
-    blk = agno + be32_to_cpu(agi->agi_root);
+    blk += be32_to_cpu(agi->agi_root);
 
     xfs_debug("inode B+tree's block %llu", blk);
 
