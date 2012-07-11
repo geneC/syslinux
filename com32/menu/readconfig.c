@@ -62,7 +62,7 @@ static const struct messages messages[MSG_COUNT] = {
                       __p; })
 
 /* Must match enum kernel_type */
-const char *const kernel_types[] = {
+static const char *const kernel_types[] = {
     "none",
     "localboot",
     "kernel",

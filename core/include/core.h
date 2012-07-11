@@ -111,4 +111,6 @@ extern void cleanup_hardware(void);
 extern void sirq_cleanup(void);
 extern void adjust_screen(void);
 
+extern void execute(const char *cmdline, uint32_t type);
+
 #endif /* CORE_H */

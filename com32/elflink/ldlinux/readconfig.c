@@ -52,6 +52,22 @@ const struct menu_parameter mparm[NPARAMS] = {
     [P_HIDDEN_ROW] = {"hiddenrow", -2},
 };
 
+/* Must match enum kernel_type */
+static const char *const kernel_types[] = {
+    "none",
+    "localboot",
+    "kernel",
+    "linux",
+    "boot",
+    "bss",
+    "pxe",
+    "fdimage",
+    "comboot",
+    "com32",
+    "config",
+    NULL
+};
+
 short uappendlen = 0;		//bytes in append= command
 short ontimeoutlen = 0;		//bytes in ontimeout command
 short onerrorlen = 0;		//bytes in onerror command

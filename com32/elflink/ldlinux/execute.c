@@ -28,29 +28,28 @@
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
 #include <syslinux/config.h>
+#include <syslinux/boot.h>
 
-/* Must match enum kernel_type */
-const char *const kernel_types[] = {
-    "none",
-    "localboot",
-    "kernel",
-    "linux",
-    "boot",
-    "bss",
-    "pxe",
-    "fdimage",
-    "comboot",
-    "com32",
-    "config",
-    NULL
+const struct image_types image_boot_types[] = {
+    { "localboot", IMAGE_TYPE_LOCALBOOT },
+    { "kernel", IMAGE_TYPE_KERNEL },
+    { "linux", IMAGE_TYPE_LINUX },
+    { "boot", IMAGE_TYPE_BOOT },
+    { "bss", IMAGE_TYPE_BSS },
+    { "pxe", IMAGE_TYPE_PXE },
+    { "fdimage", IMAGE_TYPE_FDIMAGE },
+    { "comboot", IMAGE_TYPE_COMBOOT },
+    { "com32", IMAGE_TYPE_COM32 },
+    { "config", IMAGE_TYPE_CONFIG },
+    { NULL, 0 },
 };
 
 extern int create_args_and_load(char *);
 
-void execute(const char *cmdline, enum kernel_type type)
+void execute(const char *cmdline, uint32_t type)
 {
-	const char *p, *const *pp;
 	const char *kernel, *args;
+	const char *p;
 	com32sys_t ireg;
 	char *q;
 
@@ -79,22 +78,22 @@ void execute(const char *cmdline, enum kernel_type type)
 
 	dprintf("kernel is %s, args = %s  type = %d \n", kernel, args, type);
 
-	if (kernel[0] == '.' && type == KT_NONE) {
+	if (kernel[0] == '.') {
 		/* It might be a type specifier */
-		enum kernel_type type = KT_NONE;
-		for (pp = kernel_types; *pp; pp++, type++) {
-			if (!strcmp(kernel + 1, *pp)) {
+		const struct image_types *t;
+		for (t = image_boot_types; t->name; t++) {
+			if (!strcmp(kernel + 1, t->name)) {
 				/* Strip the type specifier and retry */
-				execute(p, type);
+				execute(p, t->type);
 				return;
 			}
 		}
 	}
 
-	if (type == KT_COM32) {
+	if (type == IMAGE_TYPE_COM32) {
 		/* new entry for elf format c32 */
 		create_args_and_load((char *)cmdline);
-	} else if (type == KT_CONFIG) {
+	} else if (type == IMAGE_TYPE_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };
 
 		/* kernel contains the config file name */
@@ -105,9 +104,10 @@ void execute(const char *cmdline, enum kernel_type type)
 			mangle_name(config_cwd, args);
 
 		start_ldlinux(argv);
-	} else if (type == KT_LOCALBOOT) {
+	} else if (type == IMAGE_TYPE_LOCALBOOT) {
 		local_boot(strtoul(kernel, NULL, 0));
-	} else if (type == KT_PXE || type == KT_BSS || type == KT_BOOT) {
+	} else if (type == IMAGE_TYPE_PXE || type == IMAGE_TYPE_BSS ||
+		   type == IMAGE_TYPE_BOOT) {
 		chainboot_file(kernel, type);
 	} else {
 		/* Need add one item for kernel load, as we don't use

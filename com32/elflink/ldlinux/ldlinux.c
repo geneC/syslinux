@@ -11,6 +11,7 @@
 #include "menu.h"
 #include "config.h"
 #include "syslinux/adv.h"
+#include "syslinux/boot.h"
 
 #include <sys/module.h>
 
@@ -20,15 +21,15 @@ struct file_ext {
 };
 
 static const struct file_ext file_extensions[] = {
-	{ ".com", KT_COMBOOT },
-	{ ".cbt", KT_COMBOOT },
-	{ ".c32", KT_COM32 },
-	{ ".img", KT_FDIMAGE },
-	{ ".bss", KT_BSS },
-	{ ".bin", KT_BOOT },
-	{ ".bs", KT_BOOT },
-	{ ".0", KT_PXE },
-	{ NULL, KT_NONE },
+	{ ".com", IMAGE_TYPE_COMBOOT },
+	{ ".cbt", IMAGE_TYPE_COMBOOT },
+	{ ".c32", IMAGE_TYPE_COM32 },
+	{ ".img", IMAGE_TYPE_FDIMAGE },
+	{ ".bss", IMAGE_TYPE_BSS },
+	{ ".bin", IMAGE_TYPE_BOOT },
+	{ ".bs", IMAGE_TYPE_BOOT },
+	{ ".0", IMAGE_TYPE_PXE },
+	{ NULL, 0 },
 };
 
 /*
@@ -45,7 +46,7 @@ static inline const char *find_command(const char *str)
 	return p;
 }
 
-enum kernel_type parse_kernel_type(const char *kernel)
+uint32_t parse_image_type(const char *kernel)
 {
 	const struct file_ext *ext;
 	const char *p;
@@ -62,8 +63,8 @@ enum kernel_type parse_kernel_type(const char *kernel)
 			return ext->type;
 	}
 
-	/* use KT_KERNEL as default */
-	return KT_KERNEL;
+	/* use IMAGE_TYPE_KERNEL as default */
+	return IMAGE_TYPE_KERNEL;
 }
 
 /*
@@ -139,9 +140,9 @@ static const char *apply_extension(const char *kernel, const char *ext)
 static void load_kernel(const char *command_line)
 {
 	struct menu_entry *me;
-	enum kernel_type type;
 	const char *cmdline;
 	const char *kernel;
+	uint32_t type;
 
 	kernel = strdup(command_line);
 	if (!kernel)
@@ -150,11 +151,7 @@ static void load_kernel(const char *command_line)
 	/* Virtual kernel? */
 	me = find_label(kernel);
 	if (me) {
-		type = parse_kernel_type(me->cmdline);
-
-		/* cmdline contains type specifier */
-		if (me->cmdline[0] == '.')
-			type = KT_NONE;
+		type = parse_image_type(me->cmdline);
 
 		execute(me->cmdline, type);
 		/* We shouldn't return */
@@ -170,8 +167,8 @@ static void load_kernel(const char *command_line)
 		*p = '\0';
 	}
 
-	type = parse_kernel_type(kernel);
-	if (type == KT_KERNEL) {
+	type = parse_image_type(kernel);
+	if (type == IMAGE_TYPE_KERNEL) {
 		const char *ext;
 
 		/*
@@ -189,7 +186,7 @@ static void load_kernel(const char *command_line)
 			free((void *)kernel);
 			kernel = k;
 
-			type = parse_kernel_type(kernel);
+			type = parse_image_type(kernel);
 		}
 	}
 
@@ -204,7 +201,7 @@ bad_kernel:
 	 */
 	if (onerrorlen) {
 		rsprintf(&cmdline, "%s %s", onerror, default_cmd);
-		execute(cmdline, KT_COM32);
+		execute(cmdline, IMAGE_TYPE_COM32);
 	}
 }
 

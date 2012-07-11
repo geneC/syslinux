@@ -92,10 +92,6 @@ enum kernel_type {
     KT_CONFIG,			/* Configuration file */
 };
 
-extern const char *const kernel_types[];
-
-extern enum kernel_type parse_kernel_type(const char *kernel);
-
 /* Configurable integer parameters */
 enum parameter_number {
     P_WIDTH,
@@ -229,9 +225,6 @@ extern const int message_base_color;
 /* background.c */
 extern const char *current_background;
 void set_background(const char *new_background);
-
-/* execute.c */
-void execute(const char *cmdline, enum kernel_type type);
 
 /* drain.c */
 void drain_keyboard(void);

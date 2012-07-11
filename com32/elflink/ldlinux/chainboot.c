@@ -30,11 +30,12 @@
 #include "localboot.h"
 #include "bios.h"
 
+#include <syslinux/boot.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
 #include <syslinux/config.h>
 
-void chainboot_file(const char *file, enum kernel_type type)
+void chainboot_file(const char *file, uint32_t type)
 {
     uint8_t keeppxe = 0;
     const union syslinux_derivative_info *sdi;
@@ -97,7 +98,7 @@ void chainboot_file(const char *file, enum kernel_type type)
      * superblock.
      */
     if (sdi->c.filesystem == SYSLINUX_FS_SYSLINUX &&
-	type == KT_BSS && this_fs->fs_ops->copy_super(buf))
+	type == IMAGE_TYPE_BSS && this_fs->fs_ops->copy_super(buf))
 	goto bail;
 
     if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX) {
