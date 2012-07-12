@@ -6,7 +6,6 @@
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
- *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -249,7 +248,8 @@ typedef struct xfs_dinode {
 } __attribute__((packed)) xfs_dinode_t;
 
 struct xfs_inode {
-    xfs_agblock_t i_agblock;
+    xfs_agblock_t 	i_agblock;
+    block_t		i_ino_blk;
 };
 
 static inline bool xfs_is_valid_magicnum(const xfs_sb_t *sb)

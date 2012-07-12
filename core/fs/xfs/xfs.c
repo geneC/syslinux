@@ -45,32 +45,73 @@ static inline struct inode *xfs_new_inode(struct fs_info *fs)
     return inode;
 }
 
-static xfs_dinode_t *xfs_get_dinode(struct fs_info *fs, xfs_ino_t ino)
+static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
 {
     block_t blk;
-    block_t blk_offset;
-    xfs_dinode_t *dino;
+    xfs_dinode_t *core;
 
     blk = ino << XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
-    blk_offset = (blk << BLOCK_SHIFT(fs)) % BLOCK_SIZE(fs);
-
-    dino = (xfs_dinode_t *)((uint8_t *)get_cache(fs->fs_dev, blk) +
-			    blk_offset);
-    if (!dino) {
+    core = (xfs_dinode_t *)get_cache(fs->fs_dev, blk);
+    if (!core) {
 	xfs_error("Error in reading filesystem block 0x%llX (%llu)", blk, blk);
 	goto out;
     }
 
-    if (be16_to_cpu(dino->di_magic) !=
+    if (be16_to_cpu(core->di_magic) !=
 	be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
 	xfs_error("Inode core's magic number does not match!");
 	goto out;
     }
 
-    return dino;
+    return core;
 
 out:
     return NULL;
+}
+
+/* Allocate a region for the chunk of 64 inodes found in the leaf entries of
+ * inode B+Trees, and return that allocated region.
+ */
+static const void *xfs_get_ino_chunk(struct fs_info *fs, xfs_ino_t ino)
+{
+    const int len = 64 * XFS_INFO(fs)->inodesize;
+    void *buf;
+    block_t nblks;
+    uint8_t *p;
+    block_t start_blk = ino << XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
+    off_t offset = 0;
+
+    buf = malloc(len);
+    if (!buf)
+	malloc_error("buffer memory");
+
+    memset(buf, 0, len);
+
+    nblks = len >> BLOCK_SHIFT(fs);
+    while (nblks--) {
+	p = (uint8_t *)get_cache(fs->fs_dev, start_blk++);
+
+	memcpy(buf, p, BLOCK_SIZE(fs));
+	offset += BLOCK_SIZE(fs);
+    }
+
+    return buf;
+}
+
+/* Find an inode from a chunk of 64 inodes by giving its inode # */
+static xfs_dinode_t *xfs_find_chunk_ino(struct fs_info *fs,
+					block_t start_ino, xfs_ino_t ino)
+{
+    uint8_t *p;
+    uint64_t offset;
+
+    if (start_ino == ino)
+	return xfs_get_ino_core(fs, ino);
+
+    p = (uint8_t *)xfs_get_ino_chunk(fs, start_ino);
+    offset = (ino - start_ino) << XFS_INFO(fs)->inode_shift;
+
+    return (xfs_dinode_t *)p + offset;
 }
 
 static struct inode *xfs_iget(const char *unused_0, struct inode *unused_1)
@@ -91,7 +132,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
     xfs_btree_sblock_t *ibt_hdr;
     uint32_t i;
     xfs_inobt_rec_t *rec;
-    xfs_dinode_t *dino;
+    xfs_dinode_t *core;
     struct inode *inode = xfs_new_inode(fs);
 
     xfs_debug("Looking for the root inode...");
@@ -143,34 +184,37 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
     xfs_debug("bb_numrecs %lu", ibt_hdr->bb_numrecs);
 
     rec = (xfs_inobt_rec_t *)((uint8_t *)ibt_hdr + sizeof *ibt_hdr);
-    i = ibt_hdr->bb_numrecs;
-    for ( ; i--; rec++) {
-	if (be32_to_cpu(rec->ir_startino) == XFS_INFO(fs)->rootino)
+    for (i = ibt_hdr->bb_numrecs; i--; rec++) {
+	xfs_debug("freecount %lu free 0x%llx", be32_to_cpu(rec->ir_freecount),
+		  be64_to_cpu(rec->ir_free));
+
+	core = xfs_find_chunk_ino(fs, be32_to_cpu(rec->ir_startino),
+				  XFS_INFO(fs)->rootino);
+	if (core)
 	    goto found;
     }
 
     xfs_error("Root inode not found!");
+
+    free(core);
+
     goto not_found;
 
 found:
     xfs_debug("Root inode has been found!");
 
-    inode->ino = XFS_INFO(fs)->rootino;
-
-    dino = xfs_get_dinode(fs, XFS_INFO(fs)->rootino);
-    if (!dino) {
-	xfs_error("Failed to get inode core from inode %lu",
-		  XFS_INFO(fs)->rootino);
-	goto out;
-    }
-
-    if (!(be16_to_cpu(dino->di_mode) & S_IFDIR)) {
+    if (!(be16_to_cpu(core->di_mode) & S_IFDIR)) {
 	xfs_error("root inode is not a directory ?! No makes sense...");
 	goto out;
     }
 
-    inode->mode = DT_DIR;
-    inode->size = dino->di_size;
+    XFS_PVT(inode)->i_ino_blk	= XFS_INFO(fs)->rootino <<
+				XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
+    inode->ino			= XFS_INFO(fs)->rootino;
+    inode->mode 		= DT_DIR;
+    inode->size 		= core->di_size;
+
+    free(core);
 
     return inode;
 
