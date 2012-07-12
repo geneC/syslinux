@@ -43,7 +43,6 @@
 int pxe_get_cached_info(int level, void **buf, size_t * len)
 {
     const int max_dhcp_packet = 2048;
-    com32sys_t regs;
     t_PXENV_GET_CACHED_INFO *gci;
     void *bbuf, *nbuf;
     int err;
@@ -51,12 +50,6 @@ int pxe_get_cached_info(int level, void **buf, size_t * len)
     gci = lmalloc(sizeof *gci + max_dhcp_packet);
     if (!gci)
 	return -1;
-
-    memset(&regs, 0, sizeof regs);
-    regs.eax.w[0] = 0x0009;
-    regs.ebx.w[0] = PXENV_GET_CACHED_INFO;
-    regs.es = SEG(gci);
-    /* regs.edi.w[0] = OFFS(gci); */
 
     bbuf = &gci[1];
 
@@ -66,9 +59,9 @@ int pxe_get_cached_info(int level, void **buf, size_t * len)
     gci->Buffer.seg = SEG(bbuf);
     gci->Buffer.offs = OFFS(bbuf);
 
-    __intcall(0x22, &regs, &regs);
+    err = pxe_call(PXENV_GET_CACHED_INFO, gci);
 
-    if (regs.eflags.l & EFLAGS_CF) {
+    if (err) {
 	err = -1;
 	goto exit;
     }

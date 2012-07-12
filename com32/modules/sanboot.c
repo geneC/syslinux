@@ -39,9 +39,6 @@ static void sanboot(const char **args)
 {
     char *q;
     struct s_PXENV_FILE_EXEC *fx;
-    com32sys_t reg;
-
-    memset(&reg, 0, sizeof reg);
 
     fx = lmalloc(sizeof *fx);
     if (!fx)
@@ -61,13 +58,7 @@ static void sanboot(const char **args)
 	args++;
     }
 
-    memset(&reg, 0, sizeof reg);
-    reg.eax.w[0] = 0x0009;
-    reg.ebx.w[0] = PXENV_FILE_EXEC;
-    reg.edi.w[0] = OFFS(fx);
-    reg.es = SEG(fx);
-
-    __intcall(0x22, &reg, &reg);
+    pxe_call(PXENV_FILE_EXEC, fx);
 
     /* This should not return... */
 }

@@ -1653,7 +1653,7 @@ int reset_pxe(void)
  * This function unloads the PXE and UNDI stacks and
  * unclaims the memory.
  */
-void unload_pxe(void)
+void unload_pxe(uint16_t flags)
 {
     /* PXE unload sequences */
     static const uint8_t new_api_unload[] = {
@@ -1682,7 +1682,7 @@ void unload_pxe(void)
     dprintf("FBM after reset_pxe = %d, err = %d\n", BIOS_fbm, err);
 
     /* If we want to keep PXE around, we still need to reset it */
-    if (KeepPXE || err)
+    if (flags || err)
 	return;
 
     dprintf("APIVer = %04x\n", APIVer);

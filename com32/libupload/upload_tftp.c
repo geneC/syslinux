@@ -53,7 +53,6 @@ const char *tftp_string_error_message[]={
 static int send_ack_packet(struct tftp_state *tftp,
 			   const void *pkt, size_t len)
 {
-    com32sys_t ireg, oreg;
     t_PXENV_UDP_WRITE *uw;
     t_PXENV_UDP_READ  *ur;
     clock_t start;
@@ -67,9 +66,6 @@ static int send_ack_packet(struct tftp_state *tftp,
     uw = lmalloc(sizeof *uw + len);
     ur = lmalloc(sizeof *ur + RCV_BUF);
 
-    memset(&ireg, 0, sizeof ireg);
-    ireg.eax.w[0] = 0x0009;
-
     for (timeout = timeouts ; *timeout ; timeout++) {
 	memset(uw, 0, sizeof *uw);
 	memcpy(uw+1, pkt, len);
@@ -80,11 +76,7 @@ static int send_ack_packet(struct tftp_state *tftp,
 	uw->buffer_size = len;
 	uw->buffer = FAR_PTR(uw+1);
 
-	ireg.ebx.w[0] = PXENV_UDP_WRITE;
-	ireg.es = SEG(uw);
-	ireg.edi.w[0] = OFFS(uw);
-
-	__intcall(0x22, &ireg, &oreg);
+	pxe_call(PXENV_UDP_WRITE, uw);
 
 	start = times(NULL);
 
@@ -97,13 +89,9 @@ static int send_ack_packet(struct tftp_state *tftp,
 	    ur->buffer_size = RCV_BUF;
 	    ur->buffer = FAR_PTR(ur+1);
 
-	    ireg.ebx.w[0] = PXENV_UDP_READ;
-	    ireg.es = SEG(ur);
-	    ireg.edi.w[0] = OFFS(ur);
-	    __intcall(0x22, &ireg, &oreg);
+	    err = pxe_call(PXENV_UDP_READ, ur);
 
-	    if (!(oreg.eflags.l & EFLAGS_CF) &&
-		ur->status == PXENV_STATUS_SUCCESS &&
+	    if (!err &&	ur->status == PXENV_STATUS_SUCCESS &&
 		tftp->srv_ip == ur->src_ip &&
 		(tftp->srv_port == 0 ||
 		 tftp->srv_port == ur->s_port)) {

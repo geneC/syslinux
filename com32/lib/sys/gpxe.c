@@ -7,9 +7,9 @@
 bool is_gpxe(void)
 {
     const struct syslinux_version *sv;
-    com32sys_t reg;
     struct s_PXENV_FILE_CHECK_API *fca;
     bool gpxe;
+    int err;
 
     sv = syslinux_version();
     if (sv->filesystem != SYSLINUX_FS_PXELINUX)
@@ -22,20 +22,14 @@ bool is_gpxe(void)
     fca->Size = sizeof *fca;
     fca->Magic = 0x91d447b2;
 
-    memset(&reg, 0, sizeof reg);
-    reg.eax.w[0] = 0x0009;
-    reg.ebx.w[0] = PXENV_FILE_API_CHECK;
-    /* reg.edi.w[0] = OFFS(fca); */
-    reg.es = SEG(fca);
-
-    __intcall(0x22, &reg, &reg);
+    err = pxe_call(PXENV_FILE_API_CHECK, fca);
 
     gpxe = true;
 
-    if (reg.eflags.l & EFLAGS_CF)
+    if (err)
 	gpxe = false;           /* Cannot invoke PXE stack */
 
-    if (reg.eax.w[0] || fca->Status)
+    if (fca->Status)
         gpxe = false;           /* PXE failure */
 
     if (fca->Magic != 0xe9c17b20)

@@ -845,7 +845,6 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
  */
 int dhcp_pkt2pxe(pxe_bootp_t *p, size_t len, int ptype)
 {
-    com32sys_t reg;
     t_PXENV_GET_CACHED_INFO *ci;
     void *cp;
     int rv = -1;
@@ -857,12 +856,7 @@ int dhcp_pkt2pxe(pxe_bootp_t *p, size_t len, int ptype)
     }
     ci->Status = PXENV_STATUS_FAILURE;
     ci->PacketType = ptype;
-    memset(&reg, 0, sizeof(reg));
-    reg.eax.w[0] = 0x0009;
-    reg.ebx.w[0] = PXENV_GET_CACHED_INFO;
-    reg.edi.w[0] = OFFS(ci);
-    reg.es = SEG(ci);
-    __intcall(0x22, &reg, &reg);
+    pxe_call(PXENV_GET_CACHED_INFO, ci);
 
     if (ci->Status != PXENV_STATUS_SUCCESS) {
 	dprintf("PXE Get Cached Info failed: %d\n", ci->Status);
@@ -1015,7 +1009,6 @@ int pxe_restart(char *ifn)
 {
     int rv = 0;
     struct pxelinux_opt pxe;
-    com32sys_t reg;
     t_PXENV_RESTART_TFTP *pxep;	/* PXENV callback Parameter */
 
     pxe.fn = ifn;
@@ -1030,7 +1023,6 @@ int pxe_restart(char *ifn)
 	goto ret;
     }
     printf("  Attempting to boot '%s'...\n\n", pxe.fn);
-    memset(&reg, 0, sizeof reg);
     if (!(pxep = lzalloc(sizeof(t_PXENV_RESTART_TFTP)))){
 	dprintf("Unable to lzalloc() for PXE call structure\n");
 	goto ret;
@@ -1044,12 +1036,8 @@ int pxe_restart(char *ifn)
 	pxep->ServerIPAddress, (unsigned int)pxep,
 	pxep->BufferSize, (unsigned int)pxep->Buffer);
     dprintf("PXENV_RESTART_TFTP status %d\n", pxep->Status);
-    reg.eax.w[0] = 0x0009;
-    reg.ebx.w[0] = PXENV_RESTART_TFTP;
-    reg.edi.w[0] = OFFS(pxep);
-    reg.es = SEG(pxep);
 
-    __intcall(0x22, &reg, &reg);
+    pxe_call(PXENV_RESTART_TFTP, pxep);
 
     printf("PXENV_RESTART_TFTP returned %d\n", pxep->Status);
     lfree(pxep);
