@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <elf.h>
 #include <dprintf.h>
+#include <core.h>
 
 #include <linux/list.h>
 #include <sys/module.h>
@@ -238,6 +239,11 @@ static int prepare_dynlinking(struct elf_module *module) {
 	return 0;
 }
 
+void undefined_symbol(void)
+{
+	printf("Error: An undefined symbol was referenced\n");
+	kaboom();
+}
 
 static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 	Elf32_Word *dest = module_get_absolute(rel->r_offset, module);
@@ -263,11 +269,16 @@ static int perform_relocation(struct elf_module *module, Elf32_Rel *rel) {
 					&sym_module);
 
 		if (sym_def == NULL) {
-			// This should never happen
 			DBG_PRINT("Cannot perform relocation for symbol %s\n",
 					module->str_table + sym_ref->st_name);
 
-			return -1;
+			if (ELF32_ST_BIND(sym_ref->st_info) != STB_WEAK)
+				return -1;
+
+			// This must be a derivative-specific
+			// function. We're OK as long as we never
+			// execute the function.
+			sym_def = global_find_symbol("undefined_symbol", &sym_module);
 		}
 
 		// Compute the absolute symbol virtual address

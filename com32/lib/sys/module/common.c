@@ -321,7 +321,7 @@ int check_symbols(struct elf_module *module)
 		crt_name = module->str_table + crt_sym->st_name;
 
 		strong_count = 0;
-		weak_count = 0;
+		weak_count = (ELF32_ST_BIND(crt_sym->st_info) == STB_WEAK);
 
 		for_each_module(crt_module)
 		{
@@ -345,6 +345,14 @@ int check_symbols(struct elf_module *module)
 		if (crt_sym->st_shndx == SHN_UNDEF)
 		{
 			// We have an undefined symbol
+			//
+			// We use the weak_count to differentiate
+			// between Syslinux-derivative-specific
+			// functions. For example, unload_pxe() is
+			// only provided by PXELINUX, so we mark it as
+			// __weak and replace it with a reference to
+			// undefined_symbol() on SYSLINUX, EXTLINUX,
+			// and ISOLINUX. See perform_relocations().
 			if (strong_count == 0 && weak_count == 0)
 			{
 				DBG_PRINT("Symbol %s is undefined\n", crt_name);
