@@ -45,6 +45,40 @@ static inline struct inode *xfs_new_inode(struct fs_info *fs)
     return inode;
 }
 
+static xfs_agi_t *xfs_get_agi(struct fs_info *fs, xfs_ino_t ino)
+{
+    xfs_agnumber_t agno;
+    block_t blk;
+    xfs_agi_t *agi;
+
+    agno = XFS_INO_TO_AGNO(fs, ino);
+    if (agno >= XFS_INFO(fs)->agcount) {
+	xfs_error("Invalid AG number");
+	goto out;
+    }
+
+    blk = XFS_AGNO_TO_FSB(fs, agno);
+    agi = XFS_AGI_OFFS(fs, get_cache(fs->fs_dev, blk));
+    if (!agi) {
+	xfs_error("Error in reading filesystem block 0x%llX (%llu)", blk, blk);
+	goto out;
+    }
+
+    if (be32_to_cpu(agi->agi_magicnum) !=
+	be32_to_cpu(*(uint32_t *)XFS_AGI_MAGIC)) {
+	xfs_error("AGI's magic number does not match!");
+	goto out;
+    }
+
+    xfs_debug("agi_count %lu", be32_to_cpu(agi->agi_count));
+    xfs_debug("agi_level %lu", be32_to_cpu(agi->agi_level));
+
+    return agi;
+
+out:
+    return NULL;
+}
+
 static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
 {
     block_t blk;
@@ -126,9 +160,8 @@ static struct inode *xfs_iget(const char *unused_0, struct inode *unused_1)
 
 static struct inode *xfs_iget_root(struct fs_info *fs)
 {
-    xfs_agnumber_t agno;
-    block_t blk;
     xfs_agi_t *agi;
+    block_t blk;
     xfs_btree_sblock_t *ibt_hdr;
     uint32_t i;
     xfs_inobt_rec_t *rec;
@@ -137,34 +170,19 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
 
     xfs_debug("Looking for the root inode...");
 
-    agno = XFS_INO_TO_AGNO(fs, XFS_INFO(fs)->rootino);
-    if (agno >= XFS_INFO(fs)->agcount) {
-	xfs_error("Invalid AG number");
-	goto out;
-    }
-
-    blk = XFS_AGNO_TO_FSB(fs, agno);
-    agi = XFS_AGI_OFFS(fs, get_cache(fs->fs_dev, blk));
+    agi = xfs_get_agi(fs, XFS_INFO(fs)->rootino);
     if (!agi) {
-	xfs_error("Error in reading filesystem block 0x%llX (%llu)", blk, blk);
+	xfs_error("Failed to get AGI from inode %lu", XFS_INFO(fs)->rootino);
 	goto out;
     }
 
+    blk = XFS_AGNO_TO_FSB(fs, XFS_INO_TO_AGNO(fs, XFS_INFO(fs)->rootino));
     XFS_PVT(inode)->i_agblock = blk;
-
-    if (be32_to_cpu(agi->agi_magicnum) !=
-	be32_to_cpu(*(uint32_t *)XFS_AGI_MAGIC)) {
-	xfs_error("AGI's magic number does not match!");
-	goto out;
-    }
-
-    xfs_debug("agi_count %lu", be32_to_cpu(agi->agi_count));
-    xfs_debug("agi_level %lu", be32_to_cpu(agi->agi_level));
 
     /* Get block number relative to the AG containing the root of the inode
      * B+tree.
      */
-    blk += be32_to_cpu(agi->agi_root);
+    blk += be32_to_cpu(agi->agi_root);;
 
     xfs_debug("inode B+tree's block %llu", blk);
 
