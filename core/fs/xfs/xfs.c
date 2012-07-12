@@ -230,7 +230,7 @@ found:
 				XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
     inode->ino			= XFS_INFO(fs)->rootino;
     inode->mode 		= DT_DIR;
-    inode->size 		= core->di_size;
+    inode->size 		= be64_to_cpu(core->di_size);
 
     free(core);
 
