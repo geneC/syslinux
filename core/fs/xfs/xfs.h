@@ -40,14 +40,50 @@ struct xfs_fs_info;
 #define XFS_INFO(fs) ((struct xfs_fs_info *)((fs)->fs_info))
 #define XFS_PVT(ino) ((struct xfs_inode *)((ino)->pvt))
 
+#define XFS_INO_MASK(k)                 (uint32_t)((1ULL << (k)) - 1)
+#define XFS_INO_AGINO_BITS(fs) \
+    (XFS_INFO((fs))->inopb_shift + XFS_INFO((fs))->agblk_shift)
+
+#define XFS_INO_TO_AGINO(fs, i) \
+    ((xfs_agino_t)(i) & XFS_INO_MASK(XFS_INO_AGINO_BITS(fs)))
+
 #define XFS_INO_TO_AGNO(fs, ino) \
-    (xfs_agnumber_t)((ino) >> XFS_INFO((fs))->ag_relative_ino_shift)
+    ((xfs_agnumber_t)((ino) >> (XFS_INFO((fs))->inopb_shift + \
+				XFS_INFO((fs))->agblk_shift)))
 
 #define XFS_AGNO_TO_FSB(fs, agno) \
-    (block_t)((agno) << XFS_INFO((fs))->agblocks_shift)
+    ((block_t)((agno) << XFS_INFO((fs))->agblocks_shift))
 
 #define XFS_AGI_OFFS(fs, mp) \
-    (xfs_agi_t *)((uint8_t *)(mp) + 2 * SECTOR_SIZE((fs)))
+    ((xfs_agi_t *)((uint8_t *)(mp) + 2 * SECTOR_SIZE((fs))))
+
+#define XFS_GET_DIR_INO4(di) \
+    (((uint32_t)(di).i[0] << 24) | ((di).i[1] << 16) | ((di).i[2] << 8) | \
+		((di).i[3]))
+
+#define XFS_DI_HI(di) \
+    (((uint32_t)(di).i[1] << 16) | ((di).i[2] << 8) | ((di).i[3]))
+
+#define XFS_DI_LO(di) \
+    (((uint32_t)(di).i[4] << 24) | ((di).i[5] << 16) | ((di).i[6] << 8) | \
+		((di).i[7]))
+
+#define XFS_GET_DIR_INO8(di) \
+    (((xfs_ino_t)XFS_DI_LO(di) & 0xffffffffULL) | \
+     ((xfs_ino_t)XFS_DI_HI(di) << 32))
+
+#define agblock_to_bytes(fs, x) \
+    ((uint64_t)(x) << BLOCK_SHIFT((fs)))
+#define agino_to_bytes(fs, x) \
+    ((uint64_t)(x) << XFS_INFO((fs))->inode_shift)
+#define agnumber_to_bytes(fs, x) \
+    agblock_to_bytes(fs, (uint64_t)(x) * XFS_INFO((fs))->agblocks)
+#define fsblock_to_bytes(x)     \
+    (agnumber_to_bytes(fs, XFS_FSB_TO_AGNO(mp, (x))) +	\
+     agblock_to_bytes(fs, XFS_FSB_TO_AGBNO(mp, (x))))
+#define ino_to_bytes(fs, x)			   \
+    (agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, (x))) +	\
+     agino_to_bytes(fs, XFS_INO_TO_AGINO(fs, (x))))
 
 /* Superblock's LBA */
 #define XFS_SB_DADDR ((xfs_daddr_t)0) /* daddr in filesystem/ag */
@@ -146,18 +182,16 @@ typedef struct xfs_sb {
 struct xfs_fs_info {
     uint32_t 		blocksize; /* Filesystem block size */
     uint8_t		block_shift; /* Filesystem block size in bits */
+    uint8_t		inopb_shift;
+    uint8_t		agblk_shift;
 
-    /* AG relative inode number bits (found within AG's inode structures) */
-    uint8_t		ag_relative_ino_shift;
     /* AG number bits (MSB of the inode number) */
     uint8_t		ag_number_ino_shift;
 
     xfs_ino_t 		rootino; /* Root inode number for the filesystem */
-
     xfs_agblock_t	agblocks; /* Size of each AG in blocks */
     uint8_t		agblocks_shift; /* agblocks in bits */
     xfs_agnumber_t	agcount; /* Number of AGs in the filesytem */
-
     uint16_t		inodesize; /* Size of the inode in bytes */
     uint8_t		inode_shift; /* Inode size in bits */
 } __attribute__((__packed__));
@@ -245,12 +279,52 @@ typedef struct xfs_dinode {
 
     /* di_next_unlinked is the only non-core field in the old dinode */
     uint32_t		di_next_unlinked;/* agi unlinked list ptr */
+    uint8_t		di_literal_area[1];
 } __attribute__((packed)) xfs_dinode_t;
 
 struct xfs_inode {
     xfs_agblock_t 	i_agblock;
     block_t		i_ino_blk;
+    uint64_t		i_chunk_offset;
 };
+
+typedef struct { uint8_t i[8]; } __attribute__((__packed__)) xfs_dir2_ino8_t;
+typedef struct { uint8_t i[4]; } __attribute__((__packed__)) xfs_dir2_ino4_t;
+
+typedef union {
+    xfs_dir2_ino8_t i8;
+    xfs_dir2_ino4_t i4;
+} __attribute__((__packed__)) xfs_dir2_inou_t;
+
+typedef struct { uint8_t i[2]; } __attribute__((__packed__)) xfs_dir2_sf_off_t;
+
+typedef struct xfs_dir2_sf_hdr {
+    uint8_t		count;		/* count of entries */
+    uint8_t           	i8count;        /* count of 8-byte inode #s */
+    xfs_dir2_inou_t     parent;         /* parent dir inode number */
+} __attribute__((__packed__)) xfs_dir2_sf_hdr_t;
+
+typedef struct xfs_dir2_sf_entry {
+    uint8_t             namelen;        /* actual name length */
+    xfs_dir2_sf_off_t   offset;         /* saved offset */
+    uint8_t             name[1];        /* name, variable size */
+    xfs_dir2_inou_t	inumber;	/* inode number, var. offset */
+} __attribute__((__packed__)) xfs_dir2_sf_entry_t;
+
+typedef struct xfs_dir2_sf {
+    xfs_dir2_sf_hdr_t       hdr;            /* shortform header */
+    xfs_dir2_sf_entry_t     list[1];        /* shortform entries */
+} __attribute__((__packed__)) xfs_dir2_sf_t;
+
+typedef xfs_ino_t	xfs_intino_t;
+
+static inline xfs_intino_t xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp,
+						   xfs_dir2_inou_t *from)
+{
+    return ((sfp)->hdr.i8count == 0 ? \
+	    (xfs_intino_t)XFS_GET_DIR_INO4((from)->i4) : \
+	    (xfs_intino_t)XFS_GET_DIR_INO8((from)->i8));
+}
 
 static inline bool xfs_is_valid_magicnum(const xfs_sb_t *sb)
 {
