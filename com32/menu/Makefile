@@ -34,6 +34,12 @@ menu.elf : menu.o $(COMMONOBJS) $(C_LIBS)
 vesamenu.elf : vesamenu.o $(COMMONOBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
+vesamenu.c32: vesamenu.o $(COMMONOBJS) $(C_LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
+
+menu.c32: menu.o $(COMMONOBJS) $(C_LIBS)
+	$(LD) $(LDFLAGS) -o $@ $^
+
 tidy dist:
 	rm -f *.o *.lo *.a *.lst *.elf .*.d *.tmp
 
