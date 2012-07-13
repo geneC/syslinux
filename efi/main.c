@@ -243,6 +243,7 @@ char efi_getchar(void)
 	EFI_STATUS status;
 	char c;
 
+	WaitForSingleEvent(in->WaitForKey, 0);
 	do {
 		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
 	} while (status == EFI_NOT_READY);
