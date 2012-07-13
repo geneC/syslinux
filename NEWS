@@ -11,6 +11,14 @@ Changes in 4.06:
 	* HDT updated, and now can display images regarding some detection
 	  steps. Adding postexec command to run a particular entry after
 	  HDT's execution, adding silent option and various fixes.
+	* ifcpu.c32: Detect hypervisor presence.
+	* lua.c32: Add dhcp support and support for native Syslinux
+	  functions syslinux_config(), syslinux_ipappend_strings() and
+	  syslinux_reboot().
+	* isohybrid: Workaround for various EFI systems.
+	* pxechn.c32: New PXE NBP chainloader.
+	* btrfs: Fix booting off of a subvolume.
+	* com32: Add device tree support.
 
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
