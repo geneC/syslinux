@@ -357,17 +357,13 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
 	core = xfs_get_ino_core(fs, parent->ino);
     }
 
-    if (parent->mode == DT_DIR) { /* Is this inode a directory ? */
-	xfs_debug("Parent inode is a directory");
-
-	/* TODO: Handle both shortform directories and directory blocks */
-	if (core->di_format == XFS_DINODE_FMT_LOCAL) {
-	    inode = xfs_fmt_local_find_entry(dname, parent, core);
-	} else {
-	    xfs_debug("format %hhu", core->di_format);
-	    xfs_debug("TODO: format \"local\" is the only supported ATM");
-	    goto out;
-	}
+    /* TODO: Handle both shortform directories and directory blocks */
+    if (core->di_format == XFS_DINODE_FMT_LOCAL) {
+	inode = xfs_fmt_local_find_entry(dname, parent, core);
+    } else {
+	xfs_debug("format %hhu", core->di_format);
+	xfs_debug("TODO: format \"local\" is the only supported ATM");
+	goto out;
     }
 
     xfs_ino_core_free(inode, core);
