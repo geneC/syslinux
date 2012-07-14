@@ -295,11 +295,8 @@ no_agi_needed:
     ncore = xfs_get_ino_core(fs, ino);
 
 core_found:
-    inode->ino = ino;
-
-    XFS_PVT(inode)->i_ino_blk	= ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     inode->ino			= ino;
-    inode->mode 		= DT_DIR;
+    XFS_PVT(inode)->i_ino_blk	= ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     inode->size 		= be64_to_cpu(ncore->di_size);
 
     if (be16_to_cpu(ncore->di_mode) & S_IFDIR)
