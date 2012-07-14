@@ -139,12 +139,21 @@ static const void *xfs_get_ino_chunk(struct fs_info *fs, xfs_ino_t ino)
     return buf;
 }
 
+static inline void xfs_ino_core_free(struct inode *inode, xfs_dinode_t *core)
+{
+    if (core && (inode && XFS_PVT(inode)->i_chunk_offset))
+	free((void *)((uint8_t *)core - XFS_PVT(inode)->i_chunk_offset));
+}
+
 /* Find an inode from a chunk of 64 inodes by giving its inode # */
 static xfs_dinode_t *xfs_find_chunk_ino(struct fs_info *fs,
 					block_t start_ino, xfs_ino_t ino,
 					uint64_t *chunk_offset)
 {
     uint8_t *p;
+    uint32_t mask = (uint32_t)((1ULL << XFS_INFO(fs)->inopb_shift) - 1);
+
+    xfs_debug("start_ino %llu ino %llu", start_ino, ino);
 
     if (start_ino == ino) {
 	*chunk_offset = 0;
@@ -152,9 +161,14 @@ static xfs_dinode_t *xfs_find_chunk_ino(struct fs_info *fs,
     }
 
     p = (uint8_t *)xfs_get_ino_chunk(fs, start_ino);
-    *chunk_offset = (ino - start_ino) << XFS_INFO(fs)->inode_shift;
+    /* Get the inode number within the chunk from lower bits and calculate
+     * the offset (lower bits * inode size).
+     */
+    *chunk_offset = (uint64_t)((int)ino & mask) << XFS_INFO(fs)->inode_shift;
 
-    return (xfs_dinode_t *)p + *chunk_offset;
+    xfs_debug("chunk_offset %llu", *chunk_offset);
+
+    return (xfs_dinode_t *)((uint8_t *)p + *chunk_offset);
 }
 
 static char *get_entry_name(uint8_t *start, uint8_t *end)
@@ -188,7 +202,7 @@ struct inode *xfs_fmt_local_find_entry(const char *dname, struct inode *parent,
     block_t blk;
     xfs_agi_t *agi;
     xfs_btree_sblock_t *ibt_hdr;
-    uint32_t i;
+    uint16_t i;
     xfs_inobt_rec_t *rec;
     xfs_dinode_t *ncore = NULL;
 
@@ -205,8 +219,10 @@ struct inode *xfs_fmt_local_find_entry(const char *dname, struct inode *parent,
 
 	xfs_debug("entry name: %s", name);
 
-	if (!strncmp(name, dname, strlen(dname)))
+	if (!strncmp(name, dname, strlen(dname))) {
+	    free(name);
 	    goto found;
+	}
 
 	free(name);
 
@@ -269,25 +285,31 @@ found:
 	goto out;
     }
 
-    xfs_debug("bb_level %lu", ibt_hdr->bb_level);
-    xfs_debug("bb_numrecs %lu", ibt_hdr->bb_numrecs);
+    xfs_debug("bb_level %lu", be16_to_cpu(ibt_hdr->bb_level));
+    xfs_debug("bb_numrecs %lu", be16_to_cpu(ibt_hdr->bb_numrecs));
 
     rec = (xfs_inobt_rec_t *)((uint8_t *)ibt_hdr + sizeof *ibt_hdr);
-    for (i = ibt_hdr->bb_numrecs; i--; rec++) {
+    for (i = be16_to_cpu(ibt_hdr->bb_numrecs); i; i--, rec++) {
 	xfs_debug("freecount %lu free 0x%llx", be32_to_cpu(rec->ir_freecount),
 		  be64_to_cpu(rec->ir_free));
 
 	ncore = xfs_find_chunk_ino(fs, be32_to_cpu(rec->ir_startino),
 				   ino, &XFS_PVT(inode)->i_chunk_offset);
-	if (ncore)
-	    goto core_found;
+	if (ncore) {
+	    if (be16_to_cpu(ncore->di_magic) ==
+		be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
+		goto core_found;
+	    } else {
+		xfs_error("Inode core's magic number does not match!");
+		xfs_debug("magic number 0x%04x", be16_to_cpu(ncore->di_magic));
+		goto out;
+	    }
+	}
     }
 
 out:
+    xfs_ino_core_free(inode, ncore);
     free(inode);
-
-    if (ncore && XFS_PVT(inode)->i_chunk_offset)
-	free(ncore);
 
     return NULL;
 
@@ -306,8 +328,7 @@ core_found:
 
     xfs_debug("Found a %s inode", inode->mode == DT_DIR ? "directory" : "file");
 
-    if (ncore && XFS_PVT(inode)->i_chunk_offset)
-	free(ncore);
+    xfs_ino_core_free(inode, ncore);
 
     return inode;
 }
@@ -315,7 +336,7 @@ core_found:
 static struct inode *xfs_iget(const char *dname, struct inode *parent)
 {
     struct fs_info *fs = parent->fs;
-    xfs_dinode_t *core;
+    xfs_dinode_t *core = NULL;
     struct inode *inode = NULL;
 
     xfs_debug("dname %s parent %p parent ino %lu", dname, parent, parent->ino);
@@ -347,17 +368,14 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
 	    xfs_debug("TODO: format \"local\" is the only supported ATM");
 	    goto out;
 	}
-    } else if (parent->mode == DT_REG) {
-	xfs_debug("Parent inode is a file (not working yet)");
-	for (;;)
-	    ;
     }
+
+    xfs_ino_core_free(inode, core);
 
     return inode;
 
 out:
-    if (XFS_PVT(parent)->i_chunk_offset)
-	free(core);
+    xfs_ino_core_free(inode, core);
 
     return NULL;
 }
@@ -367,7 +385,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
     xfs_agi_t *agi;
     block_t blk;
     xfs_btree_sblock_t *ibt_hdr;
-    uint32_t i;
+    uint16_t i;
     xfs_inobt_rec_t *rec;
     xfs_dinode_t *core = NULL;
     struct inode *inode = xfs_new_inode(fs);
@@ -403,19 +421,29 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
 	goto out;
     }
 
-    xfs_debug("bb_level %lu", ibt_hdr->bb_level);
-    xfs_debug("bb_numrecs %lu", ibt_hdr->bb_numrecs);
+    xfs_debug("bb_level %lu", be16_to_cpu(ibt_hdr->bb_level));
+    xfs_debug("bb_numrecs %lu", be16_to_cpu(ibt_hdr->bb_numrecs));
+
+    XFS_PVT(inode)->i_chunk_offset = 0;
 
     rec = (xfs_inobt_rec_t *)((uint8_t *)ibt_hdr + sizeof *ibt_hdr);
-    for (i = ibt_hdr->bb_numrecs; i--; rec++) {
+    for (i = be16_to_cpu(ibt_hdr->bb_numrecs); i--; rec++) {
 	xfs_debug("freecount %lu free 0x%llx", be32_to_cpu(rec->ir_freecount),
 		  be64_to_cpu(rec->ir_free));
 
 	core = xfs_find_chunk_ino(fs, be32_to_cpu(rec->ir_startino),
 				  XFS_INFO(fs)->rootino,
 				  &XFS_PVT(inode)->i_chunk_offset);
-	if (core)
-	    goto found;
+	if (core) {
+	    if (be16_to_cpu(core->di_magic) ==
+		be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
+		goto found;
+	    } else {
+		xfs_error("Inode core's magic number does not match!");
+		xfs_debug("magic number 0x%04x", be16_to_cpu(core->di_magic));
+		goto out;
+	    }
+	}
     }
 
     xfs_error("Root inode not found!");
@@ -435,18 +463,15 @@ found:
     inode->mode 		= DT_DIR;
     inode->size 		= be64_to_cpu(core->di_size);
 
-    if (core && XFS_PVT(inode)->i_chunk_offset)
-	free(core);
+    xfs_ino_core_free(inode, core);
 
     return inode;
 
 not_found:
 
 out:
+    xfs_ino_core_free(inode, core);
     free(inode);
-
-    if (core && XFS_PVT(inode)->i_chunk_offset)
-	free(core);
 
     return NULL;
 }
