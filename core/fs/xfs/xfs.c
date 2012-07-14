@@ -119,7 +119,7 @@ static const void *xfs_get_ino_chunk(struct fs_info *fs, xfs_ino_t ino)
     void *buf;
     block_t nblks;
     uint8_t *p;
-    block_t start_blk = ino << XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
+    block_t start_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     off_t offset = 0;
 
     buf = malloc(len);
@@ -224,17 +224,17 @@ found:
 
     XFS_PVT(inode)->i_chunk_offset = 0;
 
-    ino = (xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
-				       (uint8_t *)sf_entry +
-				       offsetof(struct xfs_dir2_sf_entry,
-						name[0]) +
-				       sf_entry->namelen)));
+    ino = xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
+				      (uint8_t *)sf_entry +
+				      offsetof(struct xfs_dir2_sf_entry,
+					       name[0]) +
+				      sf_entry->namelen));
 
     xfs_debug("entry inode's number %lu", ino);
 
     /* Check if the inode's filesystem block is the as the parent inode */
-    parent_blk = parent->ino << XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
-    blk = ino << XFS_INFO(fs)->inode_shift >> BLOCK_SHIFT(fs);
+    parent_blk = ino_to_bytes(fs, parent->ino) >> BLOCK_SHIFT(fs);
+    blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
 
     xfs_debug("parent_blk %llu blk %llu", parent_blk, blk);
 
@@ -340,6 +340,8 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
     }
 
     if (parent->mode == DT_DIR) { /* Is this inode a directory ? */
+	xfs_debug("Parent inode is a directory");
+
 	/* TODO: Handle both shortform directories and directory blocks */
 	if (core->di_format == XFS_DINODE_FMT_LOCAL) {
 	    inode = xfs_fmt_local_find_entry(dname, parent, core);
@@ -348,6 +350,10 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
 	    xfs_debug("TODO: format \"local\" is the only supported ATM");
 	    goto out;
 	}
+    } else if (parent->mode == DT_REG) {
+	xfs_debug("Parent inode is a file (not working yet)");
+	for (;;)
+	    ;
     }
 
     return inode;
