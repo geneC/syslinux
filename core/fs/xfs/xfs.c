@@ -423,7 +423,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
     XFS_PVT(inode)->i_chunk_offset = 0;
 
     rec = (xfs_inobt_rec_t *)((uint8_t *)ibt_hdr + sizeof *ibt_hdr);
-    for (i = be16_to_cpu(ibt_hdr->bb_numrecs); i--; rec++) {
+    for (i = be16_to_cpu(ibt_hdr->bb_numrecs); i; i--, rec++) {
 	xfs_debug("freecount %lu free 0x%llx", be32_to_cpu(rec->ir_freecount),
 		  be64_to_cpu(rec->ir_free));
 
