@@ -357,7 +357,7 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
 	core = xfs_get_ino_core(fs, parent->ino);
     }
 
-    /* TODO: Handle both shortform directories and directory blocks */
+    /* TODO: Handle both shortform and block directories */
     if (core->di_format == XFS_DINODE_FMT_LOCAL) {
 	inode = xfs_fmt_local_find_entry(dname, parent, core);
     } else {
