@@ -113,7 +113,7 @@ static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size, __uint8_
 		o_hdr_pe32p.code_sz = total_sz;
 		o_hdr_pe32p.entry_point = entry;
 		fwrite(&o_hdr_pe32p, sizeof(o_hdr_pe32p), 1, f);
-		memset(&e_hdr, 0, sizeof(e_hdr));
+		memset(&e_hdr_pe32p, 0, sizeof(e_hdr));
 		e_hdr_pe32p.section_align = 4096;
 		e_hdr_pe32p.file_align = 512;
 		e_hdr_pe32p.image_sz = total_sz;
