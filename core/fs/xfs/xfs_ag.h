@@ -175,17 +175,6 @@ typedef struct xfs_agfl {
 		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_BNOi], \
 		(unsigned int)(pag)->pagf_levels[XFS_BTNUM_CNTi], mp))
 
-#define XFS_AGB_TO_FSB(mp,agno,agbno)	\
-	(((xfs_fsblock_t)(agno) << (mp)->m_sb.sb_agblklog) | (agbno))
-#define	XFS_FSB_TO_AGNO(mp,fsbno)	\
-	((xfs_agnumber_t)((fsbno) >> (mp)->m_sb.sb_agblklog))
-#define	XFS_FSB_TO_AGBNO(mp,fsbno)	\
-	((xfs_agblock_t)((fsbno) & xfs_mask32lo((mp)->m_sb.sb_agblklog)))
-#define	XFS_AGB_TO_DADDR(mp,agno,agbno)	\
-	((xfs_daddr_t)XFS_FSB_TO_BB(mp, \
-		(xfs_fsblock_t)(agno) * (mp)->m_sb.sb_agblocks + (agbno)))
-#define	XFS_AG_DADDR(mp,agno,d)		(XFS_AGB_TO_DADDR(mp, agno, 0) + (d))
-
 /*
  * For checking for bad ranges of xfs_daddr_t's, covering multiple
  * allocation groups or a single xfs_daddr_t that's a superblock copy.

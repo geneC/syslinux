@@ -100,7 +100,6 @@ static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
 	be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
 	xfs_error("Inode core's magic number does not match!");
 	xfs_debug("magic number 0x%04x", (be16_to_cpu(core->di_magic)));
-
 	goto out;
     }
 
@@ -115,9 +114,10 @@ out:
  */
 static const void *xfs_get_ino_chunk(struct fs_info *fs, xfs_ino_t ino)
 {
-    const int len = 64 * XFS_INFO(fs)->inodesize;
+    int nblks = ((64 * XFS_INFO(fs)->inodesize) + BLOCK_SIZE(fs) - 1) >>
+		BLOCK_SHIFT(fs);
+    const int len = (nblks + 1) << BLOCK_SHIFT(fs);
     void *buf;
-    block_t nblks;
     uint8_t *p;
     block_t start_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     off_t offset = 0;
@@ -128,7 +128,6 @@ static const void *xfs_get_ino_chunk(struct fs_info *fs, xfs_ino_t ino)
 
     memset(buf, 0, len);
 
-    nblks = len >> BLOCK_SHIFT(fs);
     while (nblks--) {
 	p = (uint8_t *)get_cache(fs->fs_dev, start_blk++);
 
@@ -298,6 +297,7 @@ found:
 	if (ncore) {
 	    if (be16_to_cpu(ncore->di_magic) ==
 		be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
+		xfs_debug("Inode's core has been found");
 		goto core_found;
 	    } else {
 		xfs_error("Inode core's magic number does not match!");
@@ -321,16 +321,94 @@ core_found:
     XFS_PVT(inode)->i_ino_blk	= ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     inode->size 		= be64_to_cpu(ncore->di_size);
 
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR)
+    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
 	inode->mode = DT_DIR;
-    else if (be16_to_cpu(ncore->di_mode) & S_IFREG)
+	xfs_debug("Found a directory inode!");
+    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
 	inode->mode = DT_REG;
-
-    xfs_debug("Found a %s inode", inode->mode == DT_DIR ? "directory" : "file");
+	xfs_debug("Found a file inode!");
+	xfs_debug("inode size %llu", inode->size);
+    }
 
     xfs_ino_core_free(inode, ncore);
 
     return inode;
+}
+
+static uint32_t xfs_getfssec(struct file *file, char *buf, int sectors,
+			     bool *have_more)
+{
+    xfs_debug("in");
+
+    return generic_getfssec(file, buf, sectors, have_more);
+}
+
+static int xfs_next_extent(struct inode *inode, uint32_t lstart)
+{
+    struct fs_info *fs = inode->fs;
+    xfs_dinode_t *core = NULL;
+    xfs_bmbt_rec_t *rec;
+    uint64_t startoff;
+    uint64_t startblock;
+    uint64_t blockcount;
+    block_t blk;
+
+    (void)lstart;
+
+    xfs_debug("in");
+
+    /* Check if we need the region for the chunk of 64 inodes */
+    if (XFS_PVT(inode)->i_chunk_offset) {
+	core = (xfs_dinode_t *)((uint8_t *)xfs_get_ino_chunk(fs, inode->ino) +
+				XFS_PVT(inode)->i_chunk_offset);
+
+	xfs_debug("core's magic number 0x%04x", be16_to_cpu(core->di_magic));
+
+	if (be16_to_cpu(core->di_magic) !=
+	    be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
+	    xfs_error("Inode core's magic number does not match!");
+	    goto out;
+	}
+    } else {
+	core = xfs_get_ino_core(fs, inode->ino);
+    }
+
+    if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
+	/* The data fork contains the file's data extents */
+	if (XFS_PVT(inode)->i_cur_extent == be32_to_cpu(core->di_nextents))
+	    goto out;
+
+	rec = (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
+				XFS_PVT(inode)->i_cur_extent++;
+
+	xfs_debug("l0 0x%llx l1 0x%llx", rec->l0, rec->l1);
+
+	/* l0:9-62 are startoff */
+	startoff = (be64_to_cpu(rec->l0) & ((1ULL << 63) -1)) >> 9;
+	/* l0:0-8 and l1:21-63 are startblock */
+	startblock = (be64_to_cpu(rec->l0) & ((1ULL << 9) - 1)) |
+			(be64_to_cpu(rec->l1) >> 21);
+	/* l1:0-20 are blockcount */
+	blockcount = be64_to_cpu(rec->l1) & ((1ULL << 21) - 1);
+
+	xfs_debug("startoff 0x%llx startblock 0x%llx blockcount 0x%llx",
+		  startoff, startblock, blockcount);
+
+	blk = fsblock_to_bytes(fs, startblock) >> BLOCK_SHIFT(fs);
+
+	xfs_debug("blk %llu", blk);
+
+	XFS_PVT(inode)->i_offset = startoff;
+
+	inode->next_extent.pstart = blk << BLOCK_SHIFT(fs) >> SECTOR_SHIFT(fs);
+	inode->next_extent.len = ((blockcount << BLOCK_SHIFT(fs)) +
+				  SECTOR_SIZE(fs) - 1) >> SECTOR_SHIFT(fs);
+    }
+
+    return 0;
+
+out:
+    return -1;
 }
 
 static struct inode *xfs_iget(const char *dname, struct inode *parent)
@@ -360,10 +438,19 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
     /* TODO: Handle both shortform and block directories */
     if (core->di_format == XFS_DINODE_FMT_LOCAL) {
 	inode = xfs_fmt_local_find_entry(dname, parent, core);
+	if (!inode) {
+	    xfs_error("Entry not found!");
+	    goto out;
+	}
     } else {
 	xfs_debug("format %hhu", core->di_format);
 	xfs_debug("TODO: format \"local\" is the only supported ATM");
 	goto out;
+    }
+
+    if (inode->mode == DT_REG) {
+	XFS_PVT(inode)->i_offset = 0;
+	XFS_PVT(inode)->i_cur_extent = 0;
     }
 
     xfs_ino_core_free(inode, core);
@@ -557,11 +644,11 @@ const struct fs_ops xfs_fs_ops = {
     .fs_init		= xfs_fs_init,
     .iget_root		= xfs_iget_root,
     .searchdir		= NULL,
-    .getfssec		= NULL,
+    .getfssec		= xfs_getfssec,
     .load_config	= generic_load_config,
     .close_file         = generic_close_file,
     .mangle_name	= generic_mangle_name,
     .readdir		= NULL,
     .iget		= xfs_iget,
-    .next_extent	= NULL,
+    .next_extent	= xfs_next_extent,
 };

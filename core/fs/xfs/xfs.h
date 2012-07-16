@@ -72,15 +72,21 @@ struct xfs_fs_info;
     (((xfs_ino_t)XFS_DI_LO(di) & 0xffffffffULL) | \
      ((xfs_ino_t)XFS_DI_HI(di) << 32))
 
+#define XFS_FSB_TO_AGNO(fs, fsbno) \
+    ((xfs_agnumber_t)((fsbno) >> XFS_INFO((fs))->agblk_shift))
+#define XFS_FSB_TO_AGBNO(fs, fsbno) \
+    ((xfs_agblock_t)((fsbno) & (uint32_t)((1ULL << \
+					   XFS_INFO((fs))->agblk_shift) - 1)))
+
 #define agblock_to_bytes(fs, x) \
     ((uint64_t)(x) << BLOCK_SHIFT((fs)))
 #define agino_to_bytes(fs, x) \
     ((uint64_t)(x) << XFS_INFO((fs))->inode_shift)
 #define agnumber_to_bytes(fs, x) \
     agblock_to_bytes(fs, (uint64_t)(x) * XFS_INFO((fs))->agblocks)
-#define fsblock_to_bytes(x)     \
-    (agnumber_to_bytes(fs, XFS_FSB_TO_AGNO(mp, (x))) +	\
-     agblock_to_bytes(fs, XFS_FSB_TO_AGBNO(mp, (x))))
+#define fsblock_to_bytes(fs,x)				\
+    (agnumber_to_bytes(fs, XFS_FSB_TO_AGNO(fs, (x))) +	\
+     agblock_to_bytes(fs, XFS_FSB_TO_AGBNO(fs, (x))))
 #define ino_to_bytes(fs, x)			   \
     (agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, (x))) +	\
      agino_to_bytes(fs, XFS_INO_TO_AGINO(fs, (x))))
@@ -286,6 +292,8 @@ struct xfs_inode {
     xfs_agblock_t 	i_agblock;
     block_t		i_ino_blk;
     uint64_t		i_chunk_offset;
+    uint64_t		i_offset;
+    uint32_t		i_cur_extent;
 };
 
 typedef struct { uint8_t i[8]; } __attribute__((__packed__)) xfs_dir2_ino8_t;
@@ -315,6 +323,18 @@ typedef struct xfs_dir2_sf {
     xfs_dir2_sf_hdr_t       hdr;            /* shortform header */
     xfs_dir2_sf_entry_t     list[1];        /* shortform entries */
 } __attribute__((__packed__)) xfs_dir2_sf_t;
+
+typedef enum {
+    XFS_EXT_NORM,
+    XFS_EXT_UNWRITTEN,
+    XFS_EXT_DMAPI_OFFLINE,
+    XFS_EXT_INVALID,
+} xfs_exntst_t;
+
+typedef struct xfs_bmbt_rec {
+    uint64_t l0;
+    uint64_t l1;
+} __attribute__((__packed__)) xfs_bmbt_rec_t;
 
 typedef xfs_ino_t	xfs_intino_t;
 
