@@ -41,6 +41,7 @@ struct xfs_fs_info;
 #define XFS_PVT(ino) ((struct xfs_inode *)((ino)->pvt))
 
 #define XFS_INO_MASK(k)                 (uint32_t)((1ULL << (k)) - 1)
+#define XFS_INO_OFFSET_BITS(fs)		(fs)->inopb_shift
 #define XFS_INO_AGINO_BITS(fs) \
     (XFS_INFO((fs))->inopb_shift + XFS_INFO((fs))->agblk_shift)
 
@@ -50,6 +51,9 @@ struct xfs_fs_info;
 #define XFS_INO_TO_AGNO(fs, ino) \
     ((xfs_agnumber_t)((ino) >> (XFS_INFO((fs))->inopb_shift + \
 				XFS_INFO((fs))->agblk_shift)))
+
+#define XFS_INO_TO_OFFSET(fs, i) \
+	((int)(i) & XFS_INO_MASK(XFS_INO_OFFSET_BITS(fs)))
 
 #define XFS_AGNO_TO_FSB(fs, agno) \
     ((block_t)((agno) << XFS_INFO((fs))->agblocks_shift))
@@ -291,7 +295,7 @@ typedef struct xfs_dinode {
 struct xfs_inode {
     xfs_agblock_t 	i_agblock;
     block_t		i_ino_blk;
-    uint64_t		i_chunk_offset;
+    uint64_t		i_block_offset;
     uint64_t		i_offset;
     uint32_t		i_cur_extent;
 };
