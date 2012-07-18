@@ -210,6 +210,10 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
     xfs_debug("in");
 
     core = xfs_get_ino_core(fs, inode->ino);
+    if (!core) {
+	xfs_error("Failed to get dinode from disk (ino %llx)", inode->ino);
+	goto out;
+    }
 
     if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
 	/* The data fork contains the file's data extents */
@@ -259,7 +263,7 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
 
     core = xfs_get_ino_core(fs, parent->ino);
     if (!core) {
-        xfs_debug("Cannot get dinode from disk. ino: 0x%llx", parent->ino);
+        xfs_error("Failed to get dinode from disk (ino 0x%llx)", parent->ino);
         goto out;
     }
 
