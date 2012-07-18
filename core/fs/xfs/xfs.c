@@ -45,37 +45,38 @@ static inline struct inode *xfs_new_inode(struct fs_info *fs)
     return inode;
 }
 
-static inline void fill_xfs_inode_pvt(struct inode *inode, struct  fs_info *fs, xfs_ino_t ino)
+static inline void fill_xfs_inode_pvt(struct inode *inode, struct fs_info *fs,
+				      xfs_ino_t ino)
 {
-    XFS_PVT(inode)->i_agblock = agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, ino)) >> BLOCK_SHIFT(fs);
+    XFS_PVT(inode)->i_agblock =
+	agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, ino)) >> BLOCK_SHIFT(fs);
     XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    XFS_PVT(inode)->i_block_offset = XFS_INO_TO_OFFSET((struct xfs_fs_info *)(fs->fs_info), ino) <<
-                                     ((struct xfs_fs_info *)(fs->fs_info))->inode_shift;
+    XFS_PVT(inode)->i_block_offset =
+	XFS_INO_TO_OFFSET((struct xfs_fs_info *)(fs->fs_info), ino) <<
+			((struct xfs_fs_info *)(fs->fs_info))->inode_shift;
 }
 
 static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
 {
     block_t blk;
     xfs_dinode_t *core;
-    uint8_t *p = NULL;
-    int offset;
+    uint64_t offset;
 
     xfs_debug("ino %lu", ino);
 
     blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    offset = XFS_INO_TO_OFFSET((struct xfs_fs_info *)(fs->fs_info), ino) << 
+    offset = XFS_INO_TO_OFFSET((struct xfs_fs_info *)(fs->fs_info), ino) <<
 	    ((struct xfs_fs_info *)(fs->fs_info))->inode_shift;
     if (offset > BLOCK_SIZE(fs)) {
         xfs_error("Invalid inode offset in block!");
-        xfs_debug("offset: 0x%lx", offset);
+        xfs_debug("offset: 0x%llx", offset);
         goto out;
     }
 
     xfs_debug("blk %llu block offset 0x%llx", blk, blk << BLOCK_SHIFT(fs));
-    xfs_debug("inode offset in block in bytes is 0x%lx", offset) 
+    xfs_debug("inode offset in block (in bytes) is 0x%llx", offset);
 
-    p = (uint8_t *)get_cache(fs->fs_dev, blk);
-    core = (xfs_dinode_t *)(p + offset);
+    core = (xfs_dinode_t *)((uint8_t *)get_cache(fs->fs_dev, blk) + offset);
     if (be16_to_cpu(core->di_magic) !=
 	be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
 	xfs_error("Inode core's magic number does not match!");
@@ -295,7 +296,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
     xfs_debug("Looking for the root inode...");
 
     core = xfs_get_ino_core(fs, XFS_INFO(fs)->rootino);
-    fill_xfs_inode_pvt(inode, fs, XFS_INFO(fs)->rootino);   
+    fill_xfs_inode_pvt(inode, fs, XFS_INFO(fs)->rootino);
     if (!core) {
 	xfs_error("Inode core's magic number does not match!");
 	xfs_debug("magic number 0x%04x", be16_to_cpu(core->di_magic));
