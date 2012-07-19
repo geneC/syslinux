@@ -10,6 +10,8 @@
 #include <sys/io.h>
 #include <sys/cpu.h>
 
+#ifdef DEBUG_PORT
+
 #define BUFFER_SIZE	4096
 
 enum serial_port_regs {
@@ -26,10 +28,6 @@ enum serial_port_regs {
     MSR = 6,
     SCR = 7,
 };
-
-#ifndef DEBUG_PORT
-# define DEBUG_PORT 0x03f8	/* I/O base address */
-#endif
 
 static const uint16_t debug_base = DEBUG_PORT;
 
@@ -109,3 +107,5 @@ void vdprintf(const char *format, va_list ap)
     while (rv--)
 	debug_putc(*p++);
 }
+
+#endif /* DEBUG_PORT */
