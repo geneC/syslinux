@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2012 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -51,8 +52,26 @@ struct initramfs {
 };
 #define INITRAMFS_MAX_ALIGN	4096
 
+struct setup_data_header {
+	uint64_t next;
+	uint32_t type;
+	uint32_t len;
+} __packed;
+
+struct setup_data {
+    struct setup_data *prev, *next;
+    const void *data;
+    struct setup_data_header hdr;
+};
+
+#define SETUP_NONE	0
+#define SETUP_E820_EXT	1
+#define SETUP_DTB	2
+
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs, char *cmdline);
+			struct initramfs *initramfs,
+			struct setup_data *setup_data,
+			char *cmdline);
 
 /* Initramfs manipulation functions */
 
@@ -69,5 +88,13 @@ int initramfs_load_file(struct initramfs *ihead, const char *src_filename,
 			const char *dst_filename, int do_mkdir, uint32_t mode);
 int initramfs_add_trailer(struct initramfs *ihead);
 int initramfs_load_archive(struct initramfs *ihead, const char *filename);
+
+/* Setup data manipulation functions */
+
+struct setup_data *setup_data_init(void);
+int setup_data_add(struct setup_data *head, uint32_t type,
+		   const void *data, size_t data_len);
+int setup_data_load(struct setup_data *head, uint32_t type,
+		    const char *filename);
 
 #endif /* _SYSLINUX_LINUX_H */

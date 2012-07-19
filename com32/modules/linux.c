@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2012 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -109,10 +109,31 @@ static char *make_cmdline(char **argv)
     return cmdline;
 }
 
+static int setup_data_file(struct setup_data *setup_data,
+			   uint32_t type, const char *filename,
+			   bool opt_quiet)
+{
+    if (!opt_quiet)
+	printf("Loading %s... ", filename);
+
+    if (setup_data_load(setup_data, type, filename)) {
+	if (opt_quiet)
+	    printf("Loading %s ", filename);
+	printf("failed\n");
+	return -1;
+    }
+	    
+    if (!opt_quiet)
+	printf("ok\n");
+    
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
     const char *kernel_name;
     struct initramfs *initramfs;
+    struct setup_data *setup_data;
     char *cmdline;
     char *boot_image;
     void *kernel_data;
@@ -121,7 +142,7 @@ int main(int argc, char *argv[])
     bool opt_quiet = false;
     void *dhcpdata;
     size_t dhcplen;
-    char **argp, *arg, *p;
+    char **argp, **argl, *arg, *p;
 
     (void)argc;
     argp = argv + 1;
@@ -220,9 +241,35 @@ int main(int argc, char *argv[])
 	}
     }
 
+    /* Handle dtb and eventually other setup data */
+    setup_data = setup_data_init();
+    if (!setup_data)
+	goto bail;
+
+    for (argl = argv; (arg = *argl); argl++) {
+	if (!memcmp(arg, "dtb=", 4)) {
+	    if (setup_data_file(setup_data, SETUP_DTB, arg+4, opt_quiet))
+		goto bail;
+	} else if (!memcmp(arg, "blob.", 5)) {
+	    uint32_t type;
+	    char *ep;
+
+	    type = strtoul(arg + 5, &ep, 10);
+	    if (ep[0] != '=' || !ep[1])
+		continue;
+
+	    if (!type)
+		continue;
+
+	    if (setup_data_file(setup_data, type, ep+1, opt_quiet))
+		goto bail;
+	}
+    }
+
     /* This should not return... */
     errno = 0;
-    syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);
+    syslinux_boot_linux(kernel_data, kernel_len, initramfs,
+			setup_data, cmdline);
     fprintf(stderr, "syslinux_boot_linux() failed: ");
 
 bail:
@@ -232,6 +279,7 @@ bail:
 	break;
     case ENOMEM:
 	fprintf(stderr, "Out of memory\n");
+	break;
     default:
 	fprintf(stderr, "Error %d\n", errno);
 	break;

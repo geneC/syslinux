@@ -160,7 +160,9 @@ LIBOTHER_OBJS = \
 	pci/writeb.o pci/writew.o pci/writel.o	\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
-	syslinux/disk.o
+	syslinux/disk.o							\
+	\
+	syslinux/setup_data.o
 
 CORELIBOBJS = \
 	memcpy.o memset.o memcmp.o printf.o strncmp.o vfprintf.o 	\

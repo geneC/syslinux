@@ -131,7 +131,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	}
 
 	/* This should not return... */
-	syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);
+	syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, cmdline);
 
 bail:
 	printf("Kernel load failure (insufficient memory?)\n");
