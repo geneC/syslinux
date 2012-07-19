@@ -103,6 +103,10 @@ struct xfs_fs_info;
 #define XFS_IBT_MAGIC 		"IABT"
 #define XFS_DINODE_MAGIC	"IN"
 
+#define XFS_DIR2_BLOCK_MAGIC    0x58443242U      /* XD2B: single block dirs */
+#define XFS_DIR2_DATA_MAGIC     0x58443244U      /* XD2D: multiblock dirs */
+#define XFS_DIR2_FREE_MAGIC     0x58443246U      /* XD2F: free index blocks */
+
 /* File types and modes */
 #define S_IFMT  	00170000
 #define S_IFSOCK 	0140000
@@ -192,6 +196,8 @@ typedef struct xfs_sb {
 struct xfs_fs_info {
     uint32_t 		blocksize; /* Filesystem block size */
     uint8_t		block_shift; /* Filesystem block size in bits */
+    uint32_t		dirblksize;
+    uint8_t		dirblklog;
     uint8_t		inopb_shift;
     uint8_t		agblk_shift;
 
@@ -245,6 +251,48 @@ typedef struct xfs_inobt_rec {
     uint32_t ir_freecount;
     uint64_t ir_free;
 } __attribute__((__packed__)) xfs_inobt_rec_t;
+
+/*
+ * Bmap btree record and extent descriptor.
+ *  l0:63 is an extent flag (value 1 indicates non-normal).
+ *  l0:9-62 are startoff.
+ *  l0:0-8 and l1:21-63 are startblock.
+ *  l1:0-20 are blockcount.
+ */
+typedef struct xfs_bmbt_rec {
+    uint64_t l0, l1;
+} xfs_bmbt_rec_t;
+
+/*
+ * Possible extent states.
+ */
+typedef enum {
+    XFS_EXT_NORM, XFS_EXT_UNWRITTEN,
+    XFS_EXT_DMAPI_OFFLINE, XFS_EXT_INVALID
+} xfs_exntst_t;
+
+typedef struct xfs_bmbt_irec
+{
+    xfs_fileoff_t br_startoff;    /* starting file offset */
+    xfs_fsblock_t br_startblock;  /* starting block number */
+    xfs_filblks_t br_blockcount;  /* number of blocks */
+    xfs_exntst_t  br_state;       /* extent state */
+} xfs_bmbt_irec_t;
+
+static inline void bmbt_irec_get(xfs_bmbt_irec_t *dest,
+				 const xfs_bmbt_rec_t *src)
+{
+    uint64_t l0, l1;
+
+    l0 = be64_to_cpu(src->l0);
+    l1 = be64_to_cpu(src->l1);
+
+    dest->br_startoff = ((xfs_fileoff_t)l0 & 0x7ffffffffffffe00ULL) >> 9;
+    dest->br_startblock = (((xfs_fsblock_t)l0 & 0x00000000000001ffULL) << 43) |
+                          (((xfs_fsblock_t)l1) >> 21);
+    dest->br_blockcount = (xfs_filblks_t)(l1 & 0x00000000001fffffULL);
+    dest->br_state = (l0 & 0x8000000000000000ULL) ? XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+}
 
 typedef struct xfs_timestamp {
     int32_t t_sec;
@@ -328,18 +376,6 @@ typedef struct xfs_dir2_sf {
     xfs_dir2_sf_entry_t     list[1];        /* shortform entries */
 } __attribute__((__packed__)) xfs_dir2_sf_t;
 
-typedef enum {
-    XFS_EXT_NORM,
-    XFS_EXT_UNWRITTEN,
-    XFS_EXT_DMAPI_OFFLINE,
-    XFS_EXT_INVALID,
-} xfs_exntst_t;
-
-typedef struct xfs_bmbt_rec {
-    uint64_t l0;
-    uint64_t l1;
-} __attribute__((__packed__)) xfs_bmbt_rec_t;
-
 typedef xfs_ino_t	xfs_intino_t;
 
 static inline xfs_intino_t xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp,
@@ -349,6 +385,103 @@ static inline xfs_intino_t xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp,
 	    (xfs_intino_t)XFS_GET_DIR_INO4((from)->i4) : \
 	    (xfs_intino_t)XFS_GET_DIR_INO8((from)->i8));
 }
+
+/*
+ * DIR2 Data block structures.
+ *
+ * A pure data block looks like the following drawing on disk:
+ *
+ *    +-------------------------------------------------+
+ *    | xfs_dir2_data_hdr_t                             |
+ *    +-------------------------------------------------+
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | ...                                             |
+ *    +-------------------------------------------------+
+ *    | unused space                                    |
+ *    +-------------------------------------------------+
+ *
+ * As all the entries are variable size structure the accessors below should
+ * be used to iterate over them.
+ *
+ * In addition to the pure data blocks for the data and node formats.
+ * most structures are also used for the combined data/freespace "block"
+ * format below.
+ */
+
+#define XFS_DIR2_DATA_ALIGN_LOG 3
+#define XFS_DIR2_DATA_ALIGN     (1 << XFS_DIR2_DATA_ALIGN_LOG)
+#define XFS_DIR2_DATA_FREE_TAG  0xffff
+#define XFS_DIR2_DATA_FD_COUNT  3
+
+typedef struct xfs_dir2_data_free {
+    uint16_t offset;
+    uint16_t length;
+} xfs_dir2_data_free_t;
+
+typedef struct xfs_dir2_data_hdr {
+    uint32_t magic;
+    xfs_dir2_data_free_t bestfree[XFS_DIR2_DATA_FD_COUNT];
+} xfs_dir2_data_hdr_t;
+
+typedef struct xfs_dir2_data_entry {
+    uint64_t inumber; /* inode number */
+    uint8_t  namelen; /* name length */
+    uint8_t  name[];  /* name types, no null */
+ /* uint16_t tag; */  /* starting offset of us */
+} xfs_dir2_data_entry_t;
+
+typedef struct xfs_dir2_data_unused {
+    uint16_t freetag; /* XFS_DIR2_DATA_FREE_TAG */
+    uint16_t length;  /* total free length */
+                      /* variable offset */
+ /* uint16_t tag; */  /* starting offset of us */
+} xfs_dir2_data_unused_t;
+
+#define roundup(x, y) (					\
+{							\
+	const typeof(y) __y = y;			\
+	(((x) + (__y - 1)) / __y) * __y;		\
+}							\
+)
+
+static inline int xfs_dir2_data_entsize(int n)
+{
+    return (int)roundup(offsetof(struct xfs_dir2_data_entry, name[0]) + n + 
+			(unsigned int)sizeof(uint16_t), XFS_DIR2_DATA_ALIGN);
+}
+
+static inline uint16_t *
+xfs_dir2_data_entry_tag_p(struct xfs_dir2_data_entry *dep)
+{
+    return (uint16_t *)((char *)dep +
+	    xfs_dir2_data_entsize(dep->namelen) - sizeof(uint16_t));
+}
+
+static inline uint16_t *
+xfs_dir2_data_unused_tag_p(struct xfs_dir2_data_unused *dup)
+{
+    return (uint16_t *)((char *)dup +
+	    be16_to_cpu(dup->length) - sizeof(uint16_t));
+}
+
+typedef struct xfs_dir2_block_tail {
+    uint32_t 		count;			/* count of leaf entries */
+    uint32_t 		stale;			/* count of stale lf entries */
+} xfs_dir2_block_tail_t;
+
+static inline struct xfs_dir2_block_tail *
+xfs_dir2_block_tail_p(struct xfs_fs_info *fs_info, struct xfs_dir2_data_hdr *hdr)
+{
+    return ((struct xfs_dir2_block_tail *)
+	    ((char *)hdr + fs_info->dirblksize)) - 1;
+}
+
+typedef struct xfs_dir2_leaf_entry {
+    uint32_t		hashval;		/* hash value of name */
+    uint32_t		address;		/* address of data entry */
+} xfs_dir2_leaf_entry_t;
 
 static inline bool xfs_is_valid_magicnum(const xfs_sb_t *sb)
 {

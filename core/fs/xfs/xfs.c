@@ -30,9 +30,10 @@
 #include "codepage.h"
 #include "xfs_types.h"
 #include "xfs_sb.h"
+#include "misc.h"
 #include "xfs.h"
 #include "xfs_ag.h"
-#include "misc.h"
+
 
 static inline struct inode *xfs_new_inode(struct fs_info *fs)
 {
@@ -51,9 +52,8 @@ static inline void fill_xfs_inode_pvt(struct fs_info *fs, struct inode *inode,
     XFS_PVT(inode)->i_agblock =
 	agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, ino)) >> BLOCK_SHIFT(fs);
     XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    XFS_PVT(inode)->i_block_offset =
-	XFS_INO_TO_OFFSET((struct xfs_fs_info *)(fs->fs_info), ino) <<
-			((struct xfs_fs_info *)(fs->fs_info))->inode_shift;
+    XFS_PVT(inode)->i_block_offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) <<
+                                     XFS_INFO(fs)->inode_shift;
 }
 
 static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
@@ -65,8 +65,7 @@ static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
     xfs_debug("ino %lu", ino);
 
     blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    offset = XFS_INO_TO_OFFSET((struct xfs_fs_info *)(fs->fs_info), ino) <<
-	    ((struct xfs_fs_info *)(fs->fs_info))->inode_shift;
+    offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) << XFS_INFO(fs)->inode_shift;
     if (offset > BLOCK_SIZE(fs)) {
         xfs_error("Invalid inode offset in block!");
         xfs_debug("offset: 0x%llx", offset);
@@ -107,6 +106,38 @@ static char *get_entry_name(uint8_t *start, uint8_t *end)
 
     return s;
 }
+
+/* See if the directory is a single-leaf form directory. */
+static bool xfs_dir2_isleaf(xfs_dinode_t *dip)
+{
+    (void) dip;
+    xfs_debug("in");
+
+    return true;
+}
+
+static void *get_dirblk(struct fs_info *fs, block_t startblock)
+{
+    int count = 1 << XFS_INFO(fs)->dirblklog;
+    uint8_t *p;
+    uint8_t *buf;
+    off_t offset = 0;
+
+    buf = malloc(XFS_INFO(fs)->dirblksize);
+    if (!buf)
+        malloc_error("buffer memory");
+
+    memset(buf, 0, XFS_INFO(fs)->dirblksize);
+
+    while (count--) {
+        p = (uint8_t *)get_cache(fs->fs_dev, startblock++);
+        memcpy(buf + offset, p,  BLOCK_SIZE(fs));
+        offset += BLOCK_SIZE(fs);
+    }
+
+    return buf;
+}
+		       
 
 struct inode *xfs_fmt_local_find_entry(const char *dname, struct inode *parent,
 				       xfs_dinode_t *core)
@@ -253,6 +284,151 @@ out:
     return -1;
 }
 
+static struct inode *dir2_block_find_entry(const char *dname,
+					   struct inode *parent,
+					   xfs_dinode_t *core)
+{
+    xfs_bmbt_irec_t r;
+    block_t dir_blk;
+    struct fs_info *fs = parent->fs;
+    uint8_t *dirblk_buf;
+    uint8_t *p, *endp;
+    xfs_dir2_data_hdr_t *hdr;
+    struct inode *inode = NULL;
+    xfs_dir2_block_tail_t *btp;
+    xfs_dir2_data_unused_t *dup;
+    xfs_dir2_data_entry_t *dep;
+    xfs_intino_t ino;
+    xfs_dinode_t *ncore;
+
+    bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
+    dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
+
+    dirblk_buf = get_dirblk(fs, dir_blk);
+    hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
+    if (be32_to_cpu(hdr->magic) != 
+        XFS_DIR2_BLOCK_MAGIC) {
+        xfs_error("Block directory header's magic number does not match!");
+        xfs_debug("hdr->magic: 0x%lx", be32_to_cpu(hdr->magic));
+        goto out;
+    }
+
+    p = (uint8_t *)(hdr + 1);
+
+    btp = xfs_dir2_block_tail_p(XFS_INFO(fs), hdr);
+    endp = (uint8_t *)((xfs_dir2_leaf_entry_t *)btp - be32_to_cpu(btp->count));
+
+    while (p < endp) {
+        uint8_t *start_name;
+        uint8_t *end_name;
+        char *name;
+
+        dup = (xfs_dir2_data_unused_t *)p;
+        if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+            p += be16_to_cpu(dup->length);
+            continue;
+        }
+
+        dep = (xfs_dir2_data_entry_t *)p;
+        
+        start_name = &dep->name[0];
+        end_name = start_name + dep->namelen;
+        name = get_entry_name(start_name, end_name);
+
+        if (!strncmp(name, dname, strlen(dname))) {
+            free(name);
+            goto found;
+        }
+
+        free(name);
+	p += xfs_dir2_data_entsize(dep->namelen);
+    }
+
+out:
+    free(dirblk_buf);
+
+    return NULL;
+
+found:
+    inode = xfs_new_inode(fs);
+
+    ino = be64_to_cpu(dep->inumber);
+
+    xfs_debug("entry inode's number %lu", ino);
+
+    ncore = xfs_get_ino_core(fs, ino);
+    fill_xfs_inode_pvt(inode, fs, ino);
+    if (!ncore) {
+        xfs_error("Failed to get dinode!");
+        goto failed;
+    }
+
+    inode->ino = ino;
+    XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
+    inode->size = be64_to_cpu(ncore->di_size);
+
+    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
+        inode->mode = DT_DIR;
+        xfs_debug("Found a directory inode!");
+    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
+        inode->mode = DT_REG;
+        xfs_debug("Found a file inode!");
+        xfs_debug("inode size %llu", inode->size);
+    }
+
+    xfs_debug("entry inode's number %lu", ino);
+
+    free(dirblk_buf);
+    return inode;
+
+failed:
+
+    free(inode);
+    free(dirblk_buf);
+
+    return NULL;
+}
+
+static struct inode *dir2_leaf_find_entry(const char *dname,
+					  struct inode *parent,
+					  xfs_dinode_t *core)
+{
+    (void) dname;
+    (void) parent;
+    (void) core;
+    return NULL;
+}
+
+static struct inode *dir2_node_find_entry(const char *dname,
+					  struct inode *parent,
+					  xfs_dinode_t *core)
+{
+    (void) dname;
+    (void) parent;
+    (void) core;
+    return NULL;
+}
+
+static struct inode *xfs_fmt_extents_find_entry(const char *dname,
+						struct inode *parent,
+						xfs_dinode_t *core)
+{
+    struct inode *inode;
+
+    if (be32_to_cpu(core->di_nextents) <= 1) {
+        /* Single-block Directories */
+        inode = dir2_block_find_entry(dname, parent, core);
+    } else if (xfs_dir2_isleaf(core)) {
+        /* Leaf Directory */
+	inode = dir2_leaf_find_entry(dname, parent, core);
+    } else {
+        /* Node Directory */
+        inode = dir2_node_find_entry(dname, parent, core);
+    }
+
+    return inode;
+}
+
 static struct inode *xfs_iget(const char *dname, struct inode *parent)
 {
     struct fs_info *fs = parent->fs;
@@ -270,14 +446,17 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
     /* TODO: Handle both shortform and block directories */
     if (core->di_format == XFS_DINODE_FMT_LOCAL) {
 	inode = xfs_fmt_local_find_entry(dname, parent, core);
-	if (!inode) {
-	    xfs_error("Entry not found!");
-	    goto out;
-	}
+    } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
+        inode = xfs_fmt_extents_find_entry(dname, parent, core);
     } else {
 	xfs_debug("format %hhu", core->di_format);
 	xfs_debug("TODO: format \"local\" is the only supported ATM");
 	goto out;
+    }
+
+    if (!inode) {
+        xfs_error("Entry not found!");
+        goto out;
     }
 
     if (inode->mode == DT_REG) {
@@ -347,6 +526,8 @@ static struct xfs_fs_info *xfs_new_sb_info(xfs_sb_t *sb)
 
     info->blocksize		= be32_to_cpu(sb->sb_blocksize);
     info->block_shift		= sb->sb_blocklog;
+    info->dirblksize		= 1 << (sb->sb_blocklog + sb->sb_dirblklog);
+    info->dirblklog		= sb->sb_dirblklog;
     info->inopb_shift 		= sb->sb_inopblog;
     info->agblk_shift 		= sb->sb_agblklog;
     info->rootino 		= be64_to_cpu(sb->sb_rootino);
