@@ -216,6 +216,225 @@ out:
     return NULL;
 }
 
+static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
+		       uint32_t offset, xfs_ino_t ino, char *name,
+		       size_t namelen)
+{
+    xfs_dinode_t *core;
+
+    dirent->d_ino = ino;
+    dirent->d_off = offset;
+    dirent->d_reclen = offsetof(struct dirent, d_name) + namelen + 1;
+
+    core = xfs_get_ino_core(fs, ino);
+    if (!core) {
+        xfs_error("Failed to get dinode from disk (ino 0x%llx)", ino);
+        return -1;
+    }
+
+    if (be16_to_cpu(core->di_mode) & S_IFDIR)
+	dirent->d_type = DT_DIR;
+    else if (be16_to_cpu(core->di_mode) & S_IFREG)
+	dirent->d_type = DT_REG;
+
+    memcpy(dirent->d_name, name, namelen + 1);
+
+    return 0;
+}
+
+static int xfs_fmt_local_readdir(struct file *file, struct dirent *dirent,
+				 xfs_dinode_t *core)
+{
+    xfs_dir2_sf_t *sf = (xfs_dir2_sf_t *)&core->di_literal_area[0];
+    xfs_dir2_sf_entry_t *sf_entry;
+    uint8_t count = sf->hdr.i8count ? sf->hdr.i8count : sf->hdr.count;
+    uint32_t offset = file->offset;
+    uint8_t *start_name;
+    uint8_t *end_name;
+    char *name;
+    xfs_ino_t ino;
+    struct fs_info *fs = file->fs;
+    int retval = 0;
+
+    xfs_debug("count %hhu i8count %hhu", sf->hdr.count, sf->hdr.i8count);
+
+    if (file->offset + 1 > count)
+	return -1;
+
+    file->offset++;
+
+    sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)&sf->list[0] -
+				       (!sf->hdr.i8count ? 4 : 0));
+
+    if (file->offset - 1) {
+	offset = file->offset;
+	while (--offset) {
+	    sf_entry = (xfs_dir2_sf_entry_t *)(
+				(uint8_t *)sf_entry +
+				offsetof(struct xfs_dir2_sf_entry,
+					 name[0]) +
+				sf_entry->namelen +
+				(sf->hdr.i8count ? 8 : 4));
+	}
+    }
+
+    start_name = &sf_entry->name[0];
+    end_name = start_name + sf_entry->namelen;
+
+    name = get_entry_name(start_name, end_name);
+
+    ino = xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
+				      (uint8_t *)sf_entry +
+				      offsetof(struct xfs_dir2_sf_entry,
+					       name[0]) +
+				      sf_entry->namelen));
+
+    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)name,
+			 end_name - start_name);
+    if (retval)
+	xfs_error("Failed to fill in dirent structure");
+
+    free(name);
+
+    return retval;
+}
+
+static int xfs_dir2_block_readdir(struct file *file, struct dirent *dirent,
+				  xfs_dinode_t *core)
+{
+    xfs_bmbt_irec_t r;
+    block_t dir_blk;
+    struct fs_info *fs = file->fs;
+    uint8_t *dirblk_buf;
+    uint8_t *p;
+    uint32_t offset;
+    xfs_dir2_data_hdr_t *hdr;
+    xfs_dir2_block_tail_t *btp;
+    xfs_dir2_data_unused_t *dup;
+    xfs_dir2_data_entry_t *dep;
+    uint8_t *start_name;
+    uint8_t *end_name;
+    char *name;
+    xfs_ino_t ino;
+    int retval = 0;
+
+    bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
+    dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
+
+    dirblk_buf = get_dirblk(fs, dir_blk);
+    hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
+    if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
+        xfs_error("Block directory header's magic number does not match!");
+        xfs_debug("hdr->magic: 0x%lx", be32_to_cpu(hdr->magic));
+
+	free(dirblk_buf);
+
+	return -1;
+    }
+
+    btp = xfs_dir2_block_tail_p(XFS_INFO(fs), hdr);
+
+    if (file->offset + 1 > be32_to_cpu(btp->count))
+	return -1;
+
+    file->offset++;
+
+    p = (uint8_t *)(hdr + 1);
+
+    if (file->offset - 1) {
+	offset = file->offset;
+	while (--offset) {
+	    dep = (xfs_dir2_data_entry_t *)p;
+
+	    dup = (xfs_dir2_data_unused_t *)p;
+	    if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
+		p += be16_to_cpu(dup->length);
+		continue;
+	    }
+
+	    p += xfs_dir2_data_entsize(dep->namelen);
+	}
+    }
+
+    dep = (xfs_dir2_data_entry_t *)p;
+
+    start_name = &dep->name[0];
+    end_name = start_name + dep->namelen;
+    name = get_entry_name(start_name, end_name);
+
+    ino = be64_to_cpu(dep->inumber);
+
+    retval = fill_dirent(fs, dirent, file->offset, ino, name,
+			 end_name - start_name);
+    if (retval)
+	xfs_error("Failed to fill in dirent structure");
+
+    free(dirblk_buf);
+    free(name);
+
+    return retval;
+}
+
+static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
+				 xfs_dinode_t *core)
+{
+    (void)file;
+    (void)dirent;
+    (void)core;
+
+    return -1;
+}
+
+static int xfs_dir2_node_readdir(struct file *file, struct dirent *dirent,
+				 xfs_dinode_t *core)
+{
+    (void)file;
+    (void)dirent;
+    (void)core;
+
+    return -1;
+}
+
+static int xfs_fmt_extents_readdir(struct file *file, struct dirent *dirent,
+				   xfs_dinode_t *core)
+{
+    int retval;
+
+    if (be32_to_cpu(core->di_nextents) <= 1) {
+	/* Single-block Directories */
+	retval = xfs_dir2_block_readdir(file, dirent, core);
+    } else if (xfs_dir2_isleaf(core)) {
+	/* Leaf Directory */
+	retval = xfs_dir2_leaf_readdir(file, dirent, core);
+    } else {
+	/* Node Directory */
+	retval = xfs_dir2_node_readdir(file, dirent, core);
+    }
+
+    return retval;
+}
+
+static int xfs_readdir(struct file *file, struct dirent *dirent)
+{
+    struct fs_info *fs = file->fs;
+    xfs_dinode_t *core;
+    struct inode *inode = file->inode;
+    int retval = -1;
+
+    core = xfs_get_ino_core(fs, inode->ino);
+    if (!core) {
+	xfs_error("Failed to get dinode from disk (ino %llx)", inode->ino);
+	return -1;
+    }
+
+    if (core->di_format == XFS_DINODE_FMT_LOCAL)
+	retval = xfs_fmt_local_readdir(file, dirent, core);
+    else if (core->di_format == XFS_DINODE_FMT_EXTENTS)
+	retval = xfs_fmt_extents_readdir(file, dirent, core);
+
+    return retval;
+}
+
 static uint32_t xfs_getfssec(struct file *file, char *buf, int sectors,
 			     bool *have_more)
 {
@@ -304,8 +523,7 @@ static struct inode *xfs_dir2_block_find_entry(const char *dname,
 
     dirblk_buf = get_dirblk(fs, dir_blk);
     hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
-    if (be32_to_cpu(hdr->magic) != 
-        XFS_DIR2_BLOCK_MAGIC) {
+    if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
         xfs_error("Block directory header's magic number does not match!");
         xfs_debug("hdr->magic: 0x%lx", be32_to_cpu(hdr->magic));
         goto out;
@@ -381,7 +599,6 @@ found:
     return inode;
 
 failed:
-
     free(inode);
     free(dirblk_buf);
 
@@ -417,14 +634,14 @@ static struct inode *xfs_fmt_extents_find_entry(const char *dname,
     struct inode *inode;
 
     if (be32_to_cpu(core->di_nextents) <= 1) {
-        /* Single-block Directories */
-        inode = xfs_dir2_block_find_entry(dname, parent, core);
+	/* Single-block Directories */
+	inode = xfs_dir2_block_find_entry(dname, parent, core);
     } else if (xfs_dir2_isleaf(core)) {
-        /* Leaf Directory */
+	/* Leaf Directory */
 	inode = xfs_dir2_leaf_find_entry(dname, parent, core);
     } else {
-        /* Node Directory */
-        inode = xfs_dir2_node_find_entry(dname, parent, core);
+	/* Node Directory */
+	inode = xfs_dir2_node_find_entry(dname, parent, core);
     }
 
     return inode;
@@ -598,7 +815,7 @@ const struct fs_ops xfs_fs_ops = {
     .load_config	= generic_load_config,
     .close_file         = generic_close_file,
     .mangle_name	= generic_mangle_name,
-    .readdir		= NULL,
+    .readdir		= xfs_readdir,
     .iget		= xfs_iget,
     .next_extent	= xfs_next_extent,
 };
