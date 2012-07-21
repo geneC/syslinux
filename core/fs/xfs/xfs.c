@@ -45,7 +45,7 @@ static inline struct inode *xfs_new_inode(struct fs_info *fs)
     return inode;
 }
 
-static inline void fill_xfs_inode_pvt(struct inode *inode, struct fs_info *fs,
+static inline void fill_xfs_inode_pvt(struct fs_info *fs, struct inode *inode,
 				      xfs_ino_t ino)
 {
     XFS_PVT(inode)->i_agblock =
@@ -165,10 +165,9 @@ found:
         goto out;
     }
 
-    fill_xfs_inode_pvt(inode, fs, ino);
+    fill_xfs_inode_pvt(fs, inode, ino);
 
     inode->ino			= ino;
-    XFS_PVT(inode)->i_ino_blk	= ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     inode->size 		= be64_to_cpu(ncore->di_size);
 
     if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
@@ -307,7 +306,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
 	goto out;
     }
 
-    fill_xfs_inode_pvt(inode, fs, XFS_INFO(fs)->rootino);
+    fill_xfs_inode_pvt(fs, inode, XFS_INFO(fs)->rootino);
 
     xfs_debug("Root inode has been found!");
 
