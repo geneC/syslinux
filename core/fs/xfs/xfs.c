@@ -34,7 +34,6 @@
 #include "xfs.h"
 #include "xfs_ag.h"
 
-
 static inline struct inode *xfs_new_inode(struct fs_info *fs)
 {
     struct inode *inode;
@@ -137,7 +136,6 @@ static void *get_dirblk(struct fs_info *fs, block_t startblock)
 
     return buf;
 }
-		       
 
 struct inode *xfs_fmt_local_find_entry(const char *dname, struct inode *parent,
 				       xfs_dinode_t *core)
@@ -284,9 +282,9 @@ out:
     return -1;
 }
 
-static struct inode *dir2_block_find_entry(const char *dname,
-					   struct inode *parent,
-					   xfs_dinode_t *core)
+static struct inode *xfs_dir2_block_find_entry(const char *dname,
+					       struct inode *parent,
+					       xfs_dinode_t *core)
 {
     xfs_bmbt_irec_t r;
     block_t dir_blk;
@@ -330,7 +328,7 @@ static struct inode *dir2_block_find_entry(const char *dname,
         }
 
         dep = (xfs_dir2_data_entry_t *)p;
-        
+
         start_name = &dep->name[0];
         end_name = start_name + dep->namelen;
         name = get_entry_name(start_name, end_name);
@@ -357,11 +355,12 @@ found:
     xfs_debug("entry inode's number %lu", ino);
 
     ncore = xfs_get_ino_core(fs, ino);
-    fill_xfs_inode_pvt(inode, fs, ino);
     if (!ncore) {
         xfs_error("Failed to get dinode!");
         goto failed;
     }
+
+    fill_xfs_inode_pvt(fs, inode, ino);
 
     inode->ino = ino;
     XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
@@ -389,23 +388,25 @@ failed:
     return NULL;
 }
 
-static struct inode *dir2_leaf_find_entry(const char *dname,
-					  struct inode *parent,
-					  xfs_dinode_t *core)
+static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
+					      struct inode *parent,
+					      xfs_dinode_t *core)
 {
-    (void) dname;
-    (void) parent;
-    (void) core;
+    (void)dname;
+    (void)parent;
+    (void)core;
+
     return NULL;
 }
 
-static struct inode *dir2_node_find_entry(const char *dname,
-					  struct inode *parent,
-					  xfs_dinode_t *core)
+static struct inode *xfs_dir2_node_find_entry(const char *dname,
+					      struct inode *parent,
+					      xfs_dinode_t *core)
 {
-    (void) dname;
-    (void) parent;
-    (void) core;
+    (void)dname;
+    (void)parent;
+    (void)core;
+
     return NULL;
 }
 
@@ -417,13 +418,13 @@ static struct inode *xfs_fmt_extents_find_entry(const char *dname,
 
     if (be32_to_cpu(core->di_nextents) <= 1) {
         /* Single-block Directories */
-        inode = dir2_block_find_entry(dname, parent, core);
+        inode = xfs_dir2_block_find_entry(dname, parent, core);
     } else if (xfs_dir2_isleaf(core)) {
         /* Leaf Directory */
-	inode = dir2_leaf_find_entry(dname, parent, core);
+	inode = xfs_dir2_leaf_find_entry(dname, parent, core);
     } else {
         /* Node Directory */
-        inode = dir2_node_find_entry(dname, parent, core);
+        inode = xfs_dir2_node_find_entry(dname, parent, core);
     }
 
     return inode;
