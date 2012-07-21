@@ -107,6 +107,8 @@ struct xfs_fs_info;
 #define XFS_DIR2_DATA_MAGIC     0x58443244U      /* XD2D: multiblock dirs */
 #define XFS_DIR2_FREE_MAGIC     0x58443246U      /* XD2F: free index blocks */
 
+#define XFS_DIR2_NULL_DATAPTR   ((uint32_t)0)
+
 /* File types and modes */
 #define S_IFMT  	00170000
 #define S_IFSOCK 	0140000
@@ -200,6 +202,7 @@ struct xfs_fs_info {
     uint8_t		dirblklog;
     uint8_t		inopb_shift;
     uint8_t		agblk_shift;
+    uint32_t		dirleafblk;
 
     /* AG number bits (MSB of the inode number) */
     uint8_t		ag_number_ino_shift;
@@ -418,6 +421,12 @@ static inline xfs_intino_t xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp,
 #define XFS_DIR2_DATA_FREE_TAG  0xffff
 #define XFS_DIR2_DATA_FD_COUNT  3
 
+/*
+ * Directory address space divided into sections.
+ * spaces separated by 32GB.
+ */
+#define XFS_DIR2_SPACE_SIZE	(1ULL << (32 + XFS_DIR2_DATA_ALIGN_LOG))
+
 typedef struct xfs_dir2_data_free {
     uint16_t offset;
     uint16_t length;
@@ -441,6 +450,16 @@ typedef struct xfs_dir2_data_unused {
                       /* variable offset */
  /* uint16_t tag; */  /* starting offset of us */
 } __attribute__((__packed__)) xfs_dir2_data_unused_t;
+
+/**
+ * rol32 - rotate a 32-bit value left
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline uint32_t rol32(uint32_t word, signed int shift)
+{
+    return (word << shift) | (word >> (32 - shift));
+}
 
 #define roundup(x, y) (					\
 {							\
@@ -481,10 +500,76 @@ xfs_dir2_block_tail_p(struct xfs_fs_info *fs_info, struct xfs_dir2_data_hdr *hdr
 	    ((char *)hdr + fs_info->dirblksize)) - 1;
 }
 
+static inline uint32_t
+xfs_dir2_db_to_da(struct fs_info *fs, uint32_t db)
+{
+    return db << XFS_INFO(fs)->dirblklog;
+}
+
+static inline int64_t
+xfs_dir2_dataptr_to_byte(uint32_t dp)
+{
+    return (int64_t)dp << XFS_DIR2_DATA_ALIGN_LOG;
+}
+
+static inline uint32_t
+xfs_dir2_byte_to_db(struct fs_info *fs, int64_t by)
+{
+    return (uint32_t)
+	    (by >> (XFS_INFO(fs)->block_shift + XFS_INFO(fs)->dirblklog));
+}
+
+static inline uint32_t
+xfs_dir2_dataptr_to_db(struct fs_info *fs, uint32_t dp)
+{
+    return xfs_dir2_byte_to_db(fs, xfs_dir2_dataptr_to_byte(dp));
+}
+
+static inline unsigned int
+xfs_dir2_byte_to_off(struct fs_info *fs, int64_t by)
+{
+    return (unsigned int)(by &
+        (( 1 << (XFS_INFO(fs)->block_shift + XFS_INFO(fs)->dirblklog)) - 1));
+}
+
+static inline unsigned int
+xfs_dir2_dataptr_to_off(struct fs_info *fs, uint32_t dp)
+{
+    return xfs_dir2_byte_to_off(fs, xfs_dir2_dataptr_to_byte(dp));
+}
+
+#define XFS_DIR2_LEAF_SPACE	1
+#define XFS_DIR2_LEAF_OFFSET	(XFS_DIR2_LEAF_SPACE * XFS_DIR2_SPACE_SIZE)
+#define XFS_DIR2_LEAF_FIRSTDB(fs)	\
+	xfs_dir2_byte_to_db(fs, XFS_DIR2_LEAF_OFFSET)
+
+typedef struct xfs_da_blkinfo {
+    uint32_t		forw;
+    uint32_t 		back;
+    uint16_t		magic;
+    uint16_t	 	pad;
+} __attribute__((__packed__)) xfs_da_blkinfo_t;
+
+typedef struct xfs_dir2_leaf_hdr {
+    xfs_da_blkinfo_t	info;
+    uint16_t		count;
+    uint16_t		stale;
+} __attribute__((__packed__)) xfs_dir2_leaf_hdr_t;
+    
 typedef struct xfs_dir2_leaf_entry {
     uint32_t		hashval;		/* hash value of name */
     uint32_t		address;		/* address of data entry */
 } __attribute__((__packed__)) xfs_dir2_leaf_entry_t;
+
+typedef struct xfs_dir2_leaf {
+    xfs_dir2_leaf_hdr_t 	hdr;	/* leaf header */
+    xfs_dir2_leaf_entry_t	ents[];	/* entries */
+} __attribute__((__packed__)) xfs_dir2_leaf_t;
+
+#define XFS_DA_NODE_MAGIC	0xfebe	/* magic number: non-leaf blocks */
+#define XFS_ATTR_LEAF_MAGIC	0xfbee	/* magic number: attribute leaf blks */
+#define XFS_DIR2_LEAF1_MAGIC	0xd2f1  /* magic number: v2 dirlf single blks */
+#define XFS_DIR2_LEAFN_MAGIC	0xd2ff	/* magic number: V2 dirlf multi blks */
 
 static inline bool xfs_is_valid_magicnum(const xfs_sb_t *sb)
 {
