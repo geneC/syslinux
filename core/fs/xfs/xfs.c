@@ -160,11 +160,12 @@ found:
     xfs_debug("entry inode's number %lu", ino);
 
     ncore = xfs_get_ino_core(fs, ino);
-    fill_xfs_inode_pvt(inode, fs, ino);
     if (!ncore) {
         xfs_error("Failed to get dinode!");
         goto out;
     }
+
+    fill_xfs_inode_pvt(inode, fs, ino);
 
     inode->ino			= ino;
     XFS_PVT(inode)->i_ino_blk	= ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
@@ -300,12 +301,13 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
     xfs_debug("Looking for the root inode...");
 
     core = xfs_get_ino_core(fs, XFS_INFO(fs)->rootino);
-    fill_xfs_inode_pvt(inode, fs, XFS_INFO(fs)->rootino);
     if (!core) {
 	xfs_error("Inode core's magic number does not match!");
 	xfs_debug("magic number 0x%04x", be16_to_cpu(core->di_magic));
 	goto out;
     }
+
+    fill_xfs_inode_pvt(inode, fs, XFS_INFO(fs)->rootino);
 
     xfs_debug("Root inode has been found!");
 
