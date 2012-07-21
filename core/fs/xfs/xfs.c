@@ -438,8 +438,6 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
 static uint32_t xfs_getfssec(struct file *file, char *buf, int sectors,
 			     bool *have_more)
 {
-    xfs_debug("in");
-
     return generic_getfssec(file, buf, sectors, have_more);
 }
 
