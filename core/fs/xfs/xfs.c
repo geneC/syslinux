@@ -607,7 +607,7 @@ failed:
     return NULL;
 }
 
-uint32_t xfs_da_hashname(const uint8_t *name, int namelen)
+static uint32_t xfs_da_hashname(const uint8_t *name, int namelen)
 {
     uint32_t hash;
 
