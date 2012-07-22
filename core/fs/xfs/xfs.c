@@ -34,33 +34,6 @@
 #include "xfs.h"
 #include "xfs_ag.h"
 
-uint32_t xfs_da_hashname(const uint8_t *name, int namelen)
-{
-    uint32_t hash;
-
-    /*
-     * Do four characters at a time as long as we can.
-     */
-    for (hash = 0; namelen >= 4; namelen -=4, name += 4)
-        hash = (name[0] << 21) ^ (name[1] << 14) ^ (name[2] << 7) ^
-               (name[3] << 0) ^ rol32(hash, 7 * 4);
-
-    /*
-     * Now do the rest of the characters.
-     */
-    switch (namelen) {
-    case 3:
-        return (name[0] << 14) ^ (name[1] << 7) ^ (name[2] << 0) ^
-               rol32(hash, 7 * 3);
-    case 2:
-        return (name[0] << 7) ^ (name[1] << 0) ^ rol32(hash, 7 * 2);
-    case 1:
-        return (name[0] << 0) ^ rol32(hash, 7 * 1);
-    default: /* case 0: */
-        return hash;
-    }
-}
-
 static inline struct inode *xfs_new_inode(struct fs_info *fs)
 {
     struct inode *inode;
@@ -70,16 +43,6 @@ static inline struct inode *xfs_new_inode(struct fs_info *fs)
 	malloc_error("xfs_inode structure");
 
     return inode;
-}
-
-static inline void fill_xfs_inode_pvt(struct fs_info *fs, struct inode *inode,
-				      xfs_ino_t ino)
-{
-    XFS_PVT(inode)->i_agblock =
-	agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, ino)) >> BLOCK_SHIFT(fs);
-    XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    XFS_PVT(inode)->i_block_offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) <<
-                                     XFS_INFO(fs)->inode_shift;
 }
 
 static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
@@ -138,7 +101,7 @@ static bool xfs_dir2_isleaf(struct fs_info *fs, xfs_dinode_t *dip)
 {
     uint64_t last = 0;
     xfs_bmbt_irec_t irec;
-    
+
     bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&dip->di_literal_area[0]) + 
 		         be32_to_cpu(dip->di_nextents) - 1);
     last = irec.br_startoff + irec.br_blockcount;
@@ -166,6 +129,16 @@ static void *get_dirblk(struct fs_info *fs, block_t startblock)
     }
 
     return buf;
+}
+
+static inline void fill_xfs_inode_pvt(struct fs_info *fs, struct inode *inode,
+				      xfs_ino_t ino)
+{
+    XFS_PVT(inode)->i_agblock =
+	agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, ino)) >> BLOCK_SHIFT(fs);
+    XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
+    XFS_PVT(inode)->i_block_offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) <<
+                                     XFS_INFO(fs)->inode_shift;
 }
 
 struct inode *xfs_fmt_local_find_entry(const char *dname, struct inode *parent,
@@ -634,6 +607,33 @@ failed:
     return NULL;
 }
 
+uint32_t xfs_da_hashname(const uint8_t *name, int namelen)
+{
+    uint32_t hash;
+
+    /*
+     * Do four characters at a time as long as we can.
+     */
+    for (hash = 0; namelen >= 4; namelen -=4, name += 4)
+        hash = (name[0] << 21) ^ (name[1] << 14) ^ (name[2] << 7) ^
+               (name[3] << 0) ^ rol32(hash, 7 * 4);
+
+    /*
+     * Now do the rest of the characters.
+     */
+    switch (namelen) {
+    case 3:
+        return (name[0] << 14) ^ (name[1] << 7) ^ (name[2] << 0) ^
+               rol32(hash, 7 * 3);
+    case 2:
+        return (name[0] << 7) ^ (name[1] << 0) ^ rol32(hash, 7 * 2);
+    case 1:
+        return (name[0] << 0) ^ rol32(hash, 7 * 1);
+    default: /* case 0: */
+        return hash;
+    }
+}
+
 static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
 					      struct inode *parent,
 					      xfs_dinode_t *core)
@@ -642,23 +642,27 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
     xfs_bmbt_irec_t irec;
     block_t leaf_blk, dir_blk;
     xfs_dir2_leaf_entry_t *lep;
-    int low, high, mid;
-    uint32_t hash, hashwant;
+    int low;
+    int high;
+    int mid = 0;
+    uint32_t hash = 0;
+    uint32_t hashwant;
     uint32_t newdb, curdb = -1;
     xfs_dir2_data_entry_t *dep;
     struct inode *ip;
     xfs_dir2_data_hdr_t *data_hdr;
-    uint8_t *start_name, *end_name;
+    uint8_t *start_name;
+    uint8_t *end_name;
     char *name;
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
     uint8_t *buf = NULL;
 
     bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
-                         be32_to_cpu(core->di_nextents) - 1);
+					be32_to_cpu(core->di_nextents) - 1);
     leaf_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
 	    BLOCK_SHIFT(parent->fs);
-    
+
     leaf = (xfs_dir2_leaf_t *)get_dirblk(parent->fs, leaf_blk);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
         xfs_error("Single leaf block header's magic number does not match!");
@@ -682,14 +686,14 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
             high = mid + 1;
     }
 
-    if (hash == hashwant) 
-        while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant) 
-            mid--;
-    else
-        goto out;
+    if (hash != hashwant)
+	goto out;
 
-    for (lep = &leaf->ents[mid]; 
-	 mid < be16_to_cpu(leaf->hdr.count) && 
+    while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
+	mid--;
+
+    for (lep = &leaf->ents[mid];
+	 mid < be16_to_cpu(leaf->hdr.count) &&
 	 be32_to_cpu(lep->hashval) == hashwant;
 	 lep++, mid++) {
         /* Skip over stale leaf entries. */
@@ -701,7 +705,7 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
             if (buf)
                 free(buf);
 
-            bmbt_irec_get(&irec, 
+            bmbt_irec_get(&irec,
 		  ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + newdb);
             dir_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
 		      BLOCK_SHIFT(parent->fs);
@@ -714,7 +718,7 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
             curdb = newdb;
         }
         /* Point to the data entry */
-        dep = (xfs_dir2_data_entry_t *)((char *)buf + 
+        dep = (xfs_dir2_data_entry_t *)((char *)buf +
                xfs_dir2_dataptr_to_off(parent->fs, be32_to_cpu(lep->address)));
 
         start_name = &dep->name[0];
@@ -740,7 +744,7 @@ found:
     ino = be64_to_cpu(dep->inumber);
 
     xfs_debug("entry inode's number %lu", ino);
-    
+
     ncore = xfs_get_ino_core(parent->fs, ino);
     if (!ncore) {
         xfs_error("Failed to get dinode!");
@@ -750,7 +754,7 @@ found:
     fill_xfs_inode_pvt(parent->fs, ip, ino);
 
     ip->ino = ino;
-    XFS_PVT(ip)->i_ino_blk = ino_to_bytes(parent->fs, ino) >> 
+    XFS_PVT(ip)->i_ino_blk = ino_to_bytes(parent->fs, ino) >>
 	                        BLOCK_SHIFT(parent->fs);
     ip->size = be64_to_cpu(ncore->di_size);
 

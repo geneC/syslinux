@@ -555,7 +555,7 @@ typedef struct xfs_dir2_leaf_hdr {
     uint16_t		count;
     uint16_t		stale;
 } __attribute__((__packed__)) xfs_dir2_leaf_hdr_t;
-    
+
 typedef struct xfs_dir2_leaf_entry {
     uint32_t		hashval;		/* hash value of name */
     uint32_t		address;		/* address of data entry */
