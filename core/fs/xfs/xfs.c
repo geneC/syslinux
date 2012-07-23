@@ -530,10 +530,7 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
 {
     struct fs_info *fs = inode->fs;
     xfs_dinode_t *core = NULL;
-    xfs_bmbt_rec_t *rec;
-    uint64_t startoff;
-    uint64_t startblock;
-    uint64_t blockcount;
+    xfs_bmbt_irec_t rec;
     block_t blk;
 
     (void)lstart;
@@ -551,30 +548,15 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
 	if (XFS_PVT(inode)->i_cur_extent == be32_to_cpu(core->di_nextents))
 	    goto out;
 
-	rec = (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
-				XFS_PVT(inode)->i_cur_extent++;
+	bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
+						XFS_PVT(inode)->i_cur_extent++);
 
-	xfs_debug("l0 0x%llx l1 0x%llx", rec->l0, rec->l1);
+	blk = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
 
-	/* l0:9-62 are startoff */
-	startoff = (be64_to_cpu(rec->l0) & ((1ULL << 63) -1)) >> 9;
-	/* l0:0-8 and l1:21-63 are startblock */
-	startblock = (be64_to_cpu(rec->l0) & ((1ULL << 9) - 1)) |
-			(be64_to_cpu(rec->l1) >> 21);
-	/* l1:0-20 are blockcount */
-	blockcount = be64_to_cpu(rec->l1) & ((1ULL << 21) - 1);
-
-	xfs_debug("startoff 0x%llx startblock 0x%llx blockcount 0x%llx",
-		  startoff, startblock, blockcount);
-
-	blk = fsblock_to_bytes(fs, startblock) >> BLOCK_SHIFT(fs);
-
-	xfs_debug("blk %llu", blk);
-
-	XFS_PVT(inode)->i_offset = startoff;
+	XFS_PVT(inode)->i_offset = rec.br_startoff;
 
 	inode->next_extent.pstart = blk << BLOCK_SHIFT(fs) >> SECTOR_SHIFT(fs);
-	inode->next_extent.len = ((blockcount << BLOCK_SHIFT(fs)) +
+	inode->next_extent.len = ((rec.br_blockcount << BLOCK_SHIFT(fs)) +
 				  SECTOR_SIZE(fs) - 1) >> SECTOR_SHIFT(fs);
     }
 
