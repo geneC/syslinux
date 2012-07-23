@@ -683,7 +683,7 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
         if (hash < hashwant)
             low = mid + 1;
         else
-            high = mid + 1;
+            high = mid - 1;
     }
 
     if (hash != hashwant)
