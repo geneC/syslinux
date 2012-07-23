@@ -25,6 +25,7 @@
 
 #include <disk.h>
 #include <fs.h>
+#include <dprintf.h>
 
 #include "xfs_types.h"
 #include "xfs_ag.h"
@@ -33,7 +34,7 @@
     printf("xfs: " fmt "\n", ## args);
 
 #define xfs_debug(fmt, args...) \
-    printf("%s: " fmt "\n", __func__, ## args);
+    dprintf("%s: " fmt "\n", __func__, ## args);
 
 struct xfs_fs_info;
 
