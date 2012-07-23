@@ -382,9 +382,90 @@ static int xfs_dir2_block_readdir(struct file *file, struct dirent *dirent,
 static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
 				 xfs_dinode_t *core)
 {
-    (void)file;
-    (void)dirent;
-    (void)core;
+    xfs_bmbt_irec_t irec;
+    struct fs_info *fs = file->fs;
+    xfs_dir2_leaf_t *leaf;
+    block_t leaf_blk, dir_blk;
+    xfs_dir2_leaf_entry_t *lep;
+    uint32_t newdb;
+    uint32_t curdb = -1;
+    xfs_dir2_data_entry_t *dep;
+    xfs_dir2_data_hdr_t *data_hdr;
+    uint8_t *start_name;
+    uint8_t *end_name;
+    char *name;
+    xfs_intino_t ino;
+    uint8_t *buf = NULL;
+    int retval = 0;
+
+    bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
+					be32_to_cpu(core->di_nextents) - 1);
+    leaf_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
+					BLOCK_SHIFT(file->fs);
+
+    leaf = (xfs_dir2_leaf_t *)get_dirblk(fs, leaf_blk);
+    if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
+        xfs_error("Single leaf block header's magic number does not match!");
+        goto out;
+    }
+
+    if (!leaf->hdr.count)
+        goto out;
+
+    if (file->offset + 1 > be16_to_cpu(leaf->hdr.count))
+	goto out;
+
+    lep = &leaf->ents[file->offset++];
+
+    /* Skip over stale leaf entries */
+    for ( ; be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR;
+	  lep++, file->offset++);
+
+    newdb = xfs_dir2_dataptr_to_db(fs, be32_to_cpu(lep->address));
+    if (newdb != curdb) {
+	if (buf)
+	    free(buf);
+
+	bmbt_irec_get(&irec,
+		      ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + newdb);
+	dir_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
+						BLOCK_SHIFT(fs);
+	buf = get_dirblk(fs, dir_blk);
+	data_hdr = (xfs_dir2_data_hdr_t *)buf;
+	if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
+	    xfs_error("Leaf directory's data magic number does not much!");
+	    goto out1;
+	}
+
+	curdb = newdb;
+    }
+
+    dep = (xfs_dir2_data_entry_t *)(
+	(char *)buf + xfs_dir2_dataptr_to_off(fs,
+					      be32_to_cpu(lep->address)));
+
+    start_name = &dep->name[0];
+    end_name = start_name + dep->namelen;
+    name = get_entry_name(start_name, end_name);
+
+    ino = be64_to_cpu(dep->inumber);
+
+    retval = fill_dirent(fs, dirent, file->offset, ino, name,
+			 end_name - start_name);
+    if (retval)
+	xfs_error("Failed to fill in dirent structure");
+
+    free(name);
+    free(buf);
+    free(leaf);
+
+    return retval;
+
+out1:
+    free(buf);
+
+out:
+    free(leaf);
 
     return -1;
 }
@@ -826,14 +907,14 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
         goto out;
     }
 
-    /* TODO: Handle both shortform and block directories */
     if (core->di_format == XFS_DINODE_FMT_LOCAL) {
 	inode = xfs_fmt_local_find_entry(dname, parent, core);
     } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
         inode = xfs_fmt_extents_find_entry(dname, parent, core);
     } else {
 	xfs_debug("format %hhu", core->di_format);
-	xfs_debug("TODO: format \"local\" is the only supported ATM");
+	xfs_debug("TODO: format \"local\" and \"extents\" are the only "
+		  "supported ATM");
 	goto out;
     }
 
@@ -850,7 +931,6 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
     return inode;
 
 out:
-
     return NULL;
 }
 
