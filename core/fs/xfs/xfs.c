@@ -901,8 +901,8 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
     }
 
     if (!inode) {
-        xfs_error("Entry not found!");
-        goto out;
+	xfs_debug("Entry not found!");
+	goto out;
     }
 
     if (inode->mode == DT_REG) {
