@@ -572,6 +572,21 @@ typedef struct xfs_dir2_leaf {
 #define XFS_DIR2_LEAF1_MAGIC	0xd2f1  /* magic number: v2 dirlf single blks */
 #define XFS_DIR2_LEAFN_MAGIC	0xd2ff	/* magic number: V2 dirlf multi blks */
 
+typedef struct xfs_da_intnode {
+    struct xfs_da_node_hdr {	/* constant-structure header block */
+	xfs_da_blkinfo_t info;	/* block type, links, etc. */
+	uint16_t count;		/* count of active entries */
+	uint16_t level;		/* level above leaves (leaf == 0) */
+    } hdr;
+    struct xfs_da_node_entry {
+	uint32_t hashval;	/* hash value for this descendant */
+	uint32_t before;	/* Btree block before this key */
+    } btree[1];
+} __attribute__((__packed__)) xfs_da_intnode_t;
+
+typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;
+typedef struct xfs_da_node_entry xfs_da_node_entry_t;
+
 static inline bool xfs_is_valid_magicnum(const xfs_sb_t *sb)
 {
     return sb->sb_magicnum == *(uint32_t *)XFS_SB_MAGIC;

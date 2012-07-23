@@ -843,13 +843,245 @@ failed:
     return ip;
 }
 
+static block_t get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
+			     uint32_t offset)
+{
+    uint32_t cur_extent = 0;
+    block_t blk = 0;
+    xfs_bmbt_irec_t irec;
+
+    /* We ignore the last extent (which is the "freeindex" block) */
+    while (cur_extent < be32_to_cpu(core->di_nextents) - 1) {
+	bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
+								cur_extent++);
+
+	if (offset == irec.br_startoff) {
+	    blk = irec.br_startblock;
+	    break;
+	}
+
+	if (offset <= (irec.br_startoff + irec.br_blockcount) - 1) {
+	    blk = irec.br_startblock + ((irec.br_startoff +
+					 irec.br_blockcount) - offset);
+	    break;
+	}
+    }
+
+    xfs_debug("blk %llu", blk);
+
+    return fsblock_to_bytes(fs, blk) >> BLOCK_SHIFT(fs);
+}
+
 static struct inode *xfs_dir2_node_find_entry(const char *dname,
 					      struct inode *parent,
 					      xfs_dinode_t *core)
 {
-    (void)dname;
-    (void)parent;
-    (void)core;
+
+    xfs_bmbt_irec_t irec;
+    uint32_t cur_extent;
+    block_t blk;
+    struct fs_info *fs = parent->fs;
+    xfs_da_intnode_t *node = NULL;
+    uint16_t count;
+    xfs_da_node_entry_t *entry;
+    xfs_dir2_leaf_t *leaf = NULL;
+    int low;
+    int high;
+    int mid = 0;
+    uint32_t hash = 0;
+    uint32_t hashwant;
+    block_t dir_blk;
+    xfs_dir2_leaf_entry_t *lep;
+    uint32_t newdb;
+    uint32_t curdb;
+    xfs_dir2_data_entry_t *dep;
+    struct inode *ip;
+    xfs_dir2_data_hdr_t *data_hdr;
+    uint8_t *start_name;
+    uint8_t *end_name;
+    char *name;
+    xfs_intino_t ino;
+    xfs_dinode_t *ncore;
+    uint8_t *buf = NULL;
+
+    cur_extent = 0;
+    do {
+	bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
+								cur_extent++);
+    } while (irec.br_startoff != 8388608);
+
+    cur_extent--;
+
+    if (cur_extent >= be32_to_cpu(core->di_nextents))
+	goto out;
+
+    blk = fsblock_to_bytes(fs, irec.br_startblock) >> BLOCK_SHIFT(fs);
+
+    node = (xfs_da_intnode_t *)get_dirblk(fs, blk);
+    if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
+        xfs_error("Leaf block header's magic number does not match!");
+	goto out;
+    }
+
+    for (entry = &node->btree[0], count = 0;
+	 count < be16_to_cpu(node->hdr.count); count++, entry++) {
+	mid = 0;
+	hash = 0;
+	curdb = -1;
+	buf = NULL;
+
+	xfs_debug("before %lu", be32_to_cpu(entry->before));
+
+	blk = get_right_blk(fs, core, be32_to_cpu(entry->before));
+
+	xfs_debug("blk %lu", blk);
+
+	leaf = (xfs_dir2_leaf_t *)get_dirblk(fs, blk);
+	if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
+	    xfs_error("magic does not match!");
+	    goto out;
+	}
+
+	if (!leaf->hdr.count) {
+	    free(leaf);
+	    continue;
+	}
+
+	hashwant = xfs_da_hashname((uint8_t *)dname, strlen(dname));
+	if (hashwant >= be32_to_cpu(entry->hashval))
+	    continue;
+
+	/* Binary search */
+	for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
+								low <= high; ) {
+	    mid = (low + high) >> 1;
+
+	    if ((hash = be32_to_cpu(lep[mid].hashval)) == hashwant)
+		break;
+	    if (hash < hashwant)
+		low = mid + 1;
+	    else
+		high = mid - 1;
+	}
+
+	if (hash != hashwant)
+	    goto out;
+
+	while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
+	    mid--;
+
+	xfs_debug("mid %u count %u", mid, be16_to_cpu(leaf->hdr.count));
+	for (lep = &leaf->ents[mid]; mid < be16_to_cpu(leaf->hdr.count) &&
+					be32_to_cpu(lep->hashval) == hashwant;
+								lep++, mid++) {
+	    uint32_t offset;
+
+	    /* Skip over stale leaf entries. */
+	    if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
+		continue;
+
+	    xfs_debug("hashval 0x%lx", be32_to_cpu(lep->hashval));
+	    xfs_debug("address 0x%lx", be32_to_cpu(lep->address));
+
+	    newdb = xfs_dir2_dataptr_to_db(fs, be32_to_cpu(lep->address));
+	    if (newdb != curdb) {
+		if (buf)
+		    free(buf);
+
+		bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)
+				      &core->di_literal_area[0]) + newdb);
+		dir_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
+							BLOCK_SHIFT(fs);
+
+		xfs_debug("startblock %llu", irec.br_startblock);
+
+		buf = get_dirblk(parent->fs, dir_blk);
+		data_hdr = (xfs_dir2_data_hdr_t *)buf;
+		if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
+		    xfs_error("Leaf directory's data magic number does not "
+			      "match!");
+		    xfs_debug("mid %u count %u", mid, be16_to_cpu(leaf->hdr.count));
+		    goto buf_free_out;
+		}
+
+		curdb = newdb;
+	    }
+
+	    offset = xfs_dir2_dataptr_to_off(fs, be32_to_cpu(lep->address));
+
+	    dep = (xfs_dir2_data_entry_t *)((uint8_t *)buf + offset);
+
+	    start_name = &dep->name[0];
+	    end_name = start_name + dep->namelen;
+	    name = get_entry_name(start_name, end_name);
+
+	    if (!strncmp(name, dname, strlen(dname))) {
+		free(name);
+		goto found;
+	    }
+
+	    free(name);
+	}
+
+	free(leaf);
+	free(buf);
+
+	buf = NULL;
+    }
+
+buf_free_out:
+    free(buf);
+
+out:
+    free(leaf);
+    free(node);
+
+    return NULL;
+
+found:
+    ip = xfs_new_inode(fs);
+
+    ino = be64_to_cpu(dep->inumber);
+
+    xfs_debug("entry inode's number %lu", ino);
+
+    ncore = xfs_get_ino_core(fs, ino);
+    if (!ncore) {
+        xfs_error("Failed to get dinode!");
+        goto bail;
+    }
+
+    fill_xfs_inode_pvt(fs, ip, ino);
+
+    ip->ino 			= ino;
+    XFS_PVT(ip)->i_ino_blk 	= ino_to_bytes(fs, ino) >>
+					BLOCK_SHIFT(fs);
+    ip->size 			= be64_to_cpu(ncore->di_size);
+
+    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
+        ip->mode = DT_DIR;
+        xfs_debug("Found a directory inode!");
+    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
+        ip->mode = DT_REG;
+        xfs_debug("Found a file inode!");
+        xfs_debug("inode size %llu", ip->size);
+    }
+
+    xfs_debug("entry inode's number %lu", ino);
+
+    free(node);
+    free(leaf);
+    free(buf);
+
+    return ip;
+
+bail:
+    free(ip);
+    free(node);
+    free(buf);
+    free(leaf);
+
+    return ip;
 
     return NULL;
 }
@@ -860,7 +1092,8 @@ static struct inode *xfs_fmt_extents_find_entry(const char *dname,
 {
     struct inode *inode;
 
-    xfs_debug("ino: %d", parent->ino);
+    xfs_debug("parent ino %llu", parent->ino);
+
     if (be32_to_cpu(core->di_nextents) <= 1) {
         /* Single-block Directories */
         inode = xfs_dir2_block_find_entry(dname, parent, core);
