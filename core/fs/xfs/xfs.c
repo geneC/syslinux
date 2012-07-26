@@ -434,7 +434,7 @@ static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
 	buf = get_dirblks(fs, dir_blk, irec.br_blockcount);
 	data_hdr = (xfs_dir2_data_hdr_t *)buf;
 	if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
-	    xfs_error("Leaf directory's data magic number does not much!");
+	    xfs_error("Leaf directory's data magic number does not match!");
 	    goto out1;
 	}
 
@@ -777,7 +777,7 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
             buf = get_dirblks(parent->fs, dir_blk, irec.br_blockcount);
             data_hdr = (xfs_dir2_data_hdr_t *)buf;
             if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
-                xfs_error("Leaf directory's data magic number does not much!");
+                xfs_error("Leaf directory's data magic No. does not match!");
                 goto out1;
             }
             curdb = newdb;
@@ -846,219 +846,214 @@ failed:
 }
 
 static block_t get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
-			     uint32_t offset)
+                             uint32_t from, uint32_t to, block_t fsblkno,
+                             int *error)
 {
-    uint32_t cur_extent = 0;
-    block_t blk = 0;
+    uint32_t idx;
     xfs_bmbt_irec_t irec;
 
-    /* We ignore the last extent (which is the "freeindex" block) */
-    while (cur_extent < be32_to_cpu(core->di_nextents) - 1) {
-	bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
-								cur_extent++);
-
-	if (offset == irec.br_startoff) {
-	    blk = irec.br_startblock;
-	    break;
-	}
-
-	if (offset <= (irec.br_startoff + irec.br_blockcount) - 1) {
-	    blk = irec.br_startblock + ((irec.br_startoff +
-					 irec.br_blockcount) - offset);
-	    break;
-	}
+    *error = 0;
+    for (idx = from; idx < to; idx++) {
+        bmbt_irec_get(&irec,
+                      ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + idx);
+        if (fsblkno >= irec.br_startoff &&
+            fsblkno < irec.br_startoff + irec.br_blockcount)
+            break;
     }
 
-    xfs_debug("blk %llu", blk);
+    if (fsblkno < irec.br_startoff ||
+        fsblkno >= irec.br_startoff + irec.br_blockcount)
+        *error = 1;
 
-    return fsblock_to_bytes(fs, blk) >> BLOCK_SHIFT(fs);
+    return fsblock_to_bytes(fs,
+                fsblkno - irec.br_startoff + irec.br_startblock) >>
+                BLOCK_SHIFT(fs);
 }
 
 static struct inode *xfs_dir2_node_find_entry(const char *dname,
 					      struct inode *parent,
 					      xfs_dinode_t *core)
 {
-
     xfs_bmbt_irec_t irec;
-    uint32_t cur_extent;
-    block_t blk;
-    struct fs_info *fs = parent->fs;
+    uint32_t node_off = 0;
+    block_t fsblkno;
     xfs_da_intnode_t *node = NULL;
-    uint16_t count;
-    xfs_da_node_entry_t *entry;
-    xfs_dir2_leaf_t *leaf = NULL;
-    int low;
-    int high;
-    int mid = 0;
-    uint32_t hash = 0;
     uint32_t hashwant;
-    block_t dir_blk;
+    uint32_t hash = 0;
+    xfs_da_node_entry_t *btree;
+    uint16_t max;
+    uint16_t span;
+    uint16_t probe;
+    int error;
+    xfs_dir2_data_hdr_t *data_hdr;
+    xfs_dir2_leaf_t *leaf;
     xfs_dir2_leaf_entry_t *lep;
-    uint32_t newdb;
-    uint32_t curdb;
     xfs_dir2_data_entry_t *dep;
     struct inode *ip;
-    xfs_dir2_data_hdr_t *data_hdr;
     uint8_t *start_name;
     uint8_t *end_name;
     char *name;
+    int low;
+    int high;
+    int mid = 0;
+    uint32_t newdb, curdb = -1;
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
     uint8_t *buf = NULL;
 
-    cur_extent = 0;
     do {
-	bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
-								cur_extent++);
-    } while (irec.br_startoff != 8388608);
+        bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
+                                                (++node_off));
+    } while (irec.br_startoff <
+             xfs_dir2_byte_to_db(parent->fs, XFS_DIR2_LEAF_OFFSET));
 
-    cur_extent--;
+    fsblkno = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
+               BLOCK_SHIFT(parent->fs);
 
-    if (cur_extent >= be32_to_cpu(core->di_nextents))
-	goto out;
-
-    blk = fsblock_to_bytes(fs, irec.br_startblock) >> BLOCK_SHIFT(fs);
-
-    node = (xfs_da_intnode_t *)get_dirblks(fs, blk, 1);
+    node = (xfs_da_intnode_t *)get_dirblks(parent->fs, fsblkno, 1);
     if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
-        xfs_error("Leaf block header's magic number does not match!");
-	goto out;
+        xfs_error("XFS_DA_NODE_MAGIC does not match!");
+        xfs_debug("error magic: 0x%hx, should be: 0x%hx",
+                  be16_to_cpu(node->hdr.info.magic),
+                  XFS_DA_NODE_MAGIC);
+        goto out;
     }
 
-    for (entry = &node->btree[0], count = 0;
-	 count < be16_to_cpu(node->hdr.count); count++, entry++) {
-	mid = 0;
-	hash = 0;
-	curdb = -1;
-	buf = NULL;
+    if (!node->hdr.count)
+        goto out;
 
-	xfs_debug("before %lu", be32_to_cpu(entry->before));
+    hashwant = xfs_da_hashname((uint8_t *)dname, strlen(dname));
 
-	blk = get_right_blk(fs, core, be32_to_cpu(entry->before));
+    /*
+     * Given a hash to lookup, you read the node's btree array and first
+     * "hashval" in the array that exceeds the given hash and it can then
+     * be found in the block pointed by the "before" value.
+     */
+    max = be16_to_cpu(node->hdr.count);
 
-	xfs_debug("blk %lu", blk);
-
-	leaf = (xfs_dir2_leaf_t *)get_dirblks(fs, blk, 1);
-	if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
-	    xfs_error("magic does not match!");
-	    goto out;
-	}
-
-	if (!leaf->hdr.count) {
-	    free(leaf);
-	    continue;
-	}
-
-	hashwant = xfs_da_hashname((uint8_t *)dname, strlen(dname));
-	if (hashwant >= be32_to_cpu(entry->hashval))
-	    continue;
-
-	/* Binary search */
-	for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
-								low <= high; ) {
-	    mid = (low + high) >> 1;
-
-	    if ((hash = be32_to_cpu(lep[mid].hashval)) == hashwant)
-		break;
-	    if (hash < hashwant)
-		low = mid + 1;
-	    else
-		high = mid - 1;
-	}
-
-	if (hash != hashwant)
-	    goto out;
-
-	while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
-	    mid--;
-
-	xfs_debug("mid %u count %u", mid, be16_to_cpu(leaf->hdr.count));
-	for (lep = &leaf->ents[mid]; mid < be16_to_cpu(leaf->hdr.count) &&
-					be32_to_cpu(lep->hashval) == hashwant;
-								lep++, mid++) {
-	    uint32_t offset;
-
-	    /* Skip over stale leaf entries. */
-	    if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
-		continue;
-
-	    xfs_debug("hashval 0x%lx", be32_to_cpu(lep->hashval));
-	    xfs_debug("address 0x%lx", be32_to_cpu(lep->address));
-
-	    newdb = xfs_dir2_dataptr_to_db(fs, be32_to_cpu(lep->address));
-	    if (newdb != curdb) {
-		if (buf)
-		    free(buf);
-
-		bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)
-				      &core->di_literal_area[0]) + newdb);
-		dir_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
-							BLOCK_SHIFT(fs);
-
-		xfs_debug("startblock %llu", irec.br_startblock);
-
-		buf = get_dirblks(parent->fs, dir_blk, 1);
-		data_hdr = (xfs_dir2_data_hdr_t *)buf;
-		if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
-		    xfs_error("Leaf directory's data magic number does not "
-			      "match!");
-		    xfs_debug("mid %u count %u", mid, be16_to_cpu(leaf->hdr.count));
-		    goto buf_free_out;
-		}
-
-		curdb = newdb;
-	    }
-
-	    offset = xfs_dir2_dataptr_to_off(fs, be32_to_cpu(lep->address));
-
-	    dep = (xfs_dir2_data_entry_t *)((uint8_t *)buf + offset);
-
-	    start_name = &dep->name[0];
-	    end_name = start_name + dep->namelen;
-	    name = get_entry_name(start_name, end_name);
-
-	    if (!strncmp(name, dname, strlen(dname))) {
-		free(name);
-		goto found;
-	    }
-
-	    free(name);
-	}
-
-	free(leaf);
-	free(buf);
-
-	buf = NULL;
+    probe = span = max/2;
+    for (btree = &node->btree[probe]; span > 4; btree = &node->btree[probe]) {
+        span /= 2;
+        hash = be32_to_cpu(btree->hashval);
+        if (hash < hashwant)
+            probe += span;
+        else if (hash > hashwant)
+            probe -= span;
+        else
+            break;
     }
 
-buf_free_out:
+    while ((probe > 0) && (be32_to_cpu(btree->hashval) >= hashwant)) {
+        btree--;
+        probe--;
+    }
+    while ((probe < max) && (be32_to_cpu(btree->hashval) < hashwant)) {
+        btree++;
+        probe++;
+    }
+
+    if (probe == max)
+        fsblkno = be32_to_cpu(node->btree[max-1].before);
+    else
+        fsblkno = be32_to_cpu(node->btree[probe].before);
+
+    fsblkno = get_right_blk(parent->fs, core,
+                       node_off + 1, be32_to_cpu(core->di_nextents) - 1,
+                       fsblkno, &error);
+    if (error) {
+        xfs_error("Cannot find leaf rec!");
+        goto out;
+    }
+
+    leaf = (xfs_dir2_leaf_t*)get_dirblks(parent->fs, fsblkno, 1);
+    if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
+        xfs_error("XFS_DIR2_LEAFN_MAGIC does not match!");
+        goto out;
+    }
+
+    if (!leaf->hdr.count)
+        goto out;
+
+    for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
+         low <= high; ) {
+        mid = (low + high) >> 1;
+        if ((hash = be32_to_cpu(lep[mid].hashval)) == hashwant)
+            break;
+        if (hash < hashwant)
+            low = mid + 1;
+        else
+            high = mid - 1;
+    }
+
+    if (hash != hashwant) {
+        xfs_error("Cannot find right hashval in leaf entries!");
+        goto out;
+    }
+
+    while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
+        mid--;
+
+    for (lep = &leaf->ents[mid];
+         mid < be16_to_cpu(leaf->hdr.count) &&
+         be32_to_cpu(lep->hashval) == hashwant;
+         lep++, mid++) {
+        /* Skip over stale leaf entries. */
+        if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
+            continue;
+
+        newdb = xfs_dir2_dataptr_to_db(parent->fs, be32_to_cpu(lep->address));
+        if (newdb != curdb) {
+            if (buf)
+                free(buf);
+
+            fsblkno = get_right_blk(parent->fs, core, 0, node_off,
+                                    newdb, &error);
+            if (error) {
+                xfs_error("Cannot find data rec!");
+                goto out;
+            }
+
+            buf = get_dirblks(parent->fs, fsblkno, 1);
+            data_hdr = (xfs_dir2_data_hdr_t *)buf;
+            if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
+                xfs_error("Leaf directory's data magic No. does not match!");
+                goto out1;
+            }
+            curdb = newdb;
+        }
+        dep = (xfs_dir2_data_entry_t *)((char *)buf +
+               xfs_dir2_dataptr_to_off(parent->fs, be32_to_cpu(lep->address)));
+
+        start_name = &dep->name[0];
+        end_name = start_name + dep->namelen;
+        name = get_entry_name(start_name, end_name);
+        if (!strncmp(name, dname, strlen(dname))) {
+            free(name);
+            goto found;
+        }
+        free(name);
+    }
+
+out1:
     free(buf);
-
 out:
-    free(leaf);
     free(node);
-
     return NULL;
 
 found:
-    ip = xfs_new_inode(fs);
-
+    ip = xfs_new_inode(parent->fs);
     ino = be64_to_cpu(dep->inumber);
-
-    xfs_debug("entry inode's number %lu", ino);
-
-    ncore = xfs_get_ino_core(fs, ino);
+    ncore = xfs_get_ino_core(parent->fs, ino);
     if (!ncore) {
         xfs_error("Failed to get dinode!");
-        goto bail;
+        goto failed;
     }
 
-    fill_xfs_inode_pvt(fs, ip, ino);
-
-    ip->ino 			= ino;
-    XFS_PVT(ip)->i_ino_blk 	= ino_to_bytes(fs, ino) >>
-					BLOCK_SHIFT(fs);
-    ip->size 			= be64_to_cpu(ncore->di_size);
+    fill_xfs_inode_pvt(parent->fs, ip, ino);
+    ip->ino = ino;
+    XFS_PVT(ip)->i_ino_blk = ino_to_bytes(parent->fs, ino) >>
+        BLOCK_SHIFT(parent->fs);
+    ip->size = be64_to_cpu(ncore->di_size);
 
     if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
         ip->mode = DT_DIR;
@@ -1071,20 +1066,14 @@ found:
 
     xfs_debug("entry inode's number %lu", ino);
 
-    free(node);
-    free(leaf);
     free(buf);
-
+    free(node);
     return ip;
 
-bail:
+failed:
     free(ip);
-    free(node);
     free(buf);
-    free(leaf);
-
-    return ip;
-
+    free(node);
     return NULL;
 }
 

@@ -567,10 +567,10 @@ typedef struct xfs_dir2_leaf {
     xfs_dir2_leaf_entry_t	ents[];	/* entries */
 } __attribute__((__packed__)) xfs_dir2_leaf_t;
 
-#define XFS_DA_NODE_MAGIC	0xfebe	/* magic number: non-leaf blocks */
-#define XFS_ATTR_LEAF_MAGIC	0xfbee	/* magic number: attribute leaf blks */
-#define XFS_DIR2_LEAF1_MAGIC	0xd2f1  /* magic number: v2 dirlf single blks */
-#define XFS_DIR2_LEAFN_MAGIC	0xd2ff	/* magic number: V2 dirlf multi blks */
+#define XFS_DA_NODE_MAGIC	0xfebeU	/* magic number: non-leaf blocks */
+#define XFS_ATTR_LEAF_MAGIC	0xfbeeU	/* magic number: attribute leaf blks */
+#define XFS_DIR2_LEAF1_MAGIC	0xd2f1U /* magic number: v2 dirlf single blks */
+#define XFS_DIR2_LEAFN_MAGIC	0xd2ffU	/* magic number: V2 dirlf multi blks */
 
 typedef struct xfs_da_intnode {
     struct xfs_da_node_hdr {	/* constant-structure header block */
