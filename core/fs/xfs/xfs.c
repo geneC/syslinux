@@ -109,14 +109,15 @@ static bool xfs_dir2_isleaf(struct fs_info *fs, xfs_dinode_t *dip)
     return (last == XFS_INFO(fs)->dirleafblk + (1 << XFS_INFO(fs)->dirblklog));
 }
 
-static void *get_dirblk(struct fs_info *fs, block_t startblock)
+static void *get_dirblks(struct fs_info *fs, block_t startblock,
+			 xfs_filblks_t c)
 {
-    int count = 1 << XFS_INFO(fs)->dirblklog;
+    int count = c << XFS_INFO(fs)->dirblklog;
     uint8_t *p;
     uint8_t *buf;
     off_t offset = 0;
 
-    buf = malloc(XFS_INFO(fs)->dirblksize);
+    buf = malloc(c * XFS_INFO(fs)->dirblksize);
     if (!buf)
         malloc_error("buffer memory");
 
@@ -325,7 +326,7 @@ static int xfs_dir2_block_readdir(struct file *file, struct dirent *dirent,
     bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
 
-    dirblk_buf = get_dirblk(fs, dir_blk);
+    dirblk_buf = get_dirblks(fs, dir_blk, r.br_blockcount);
     hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
     if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
         xfs_error("Block directory header's magic number does not match!");
@@ -403,7 +404,7 @@ static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
     leaf_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
 					BLOCK_SHIFT(file->fs);
 
-    leaf = (xfs_dir2_leaf_t *)get_dirblk(fs, leaf_blk);
+    leaf = (xfs_dir2_leaf_t *)get_dirblks(fs, leaf_blk, irec.br_blockcount);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
         xfs_error("Single leaf block header's magic number does not match!");
         goto out;
@@ -430,7 +431,7 @@ static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
 		      ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + newdb);
 	dir_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
 						BLOCK_SHIFT(fs);
-	buf = get_dirblk(fs, dir_blk);
+	buf = get_dirblks(fs, dir_blk, irec.br_blockcount);
 	data_hdr = (xfs_dir2_data_hdr_t *)buf;
 	if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
 	    xfs_error("Leaf directory's data magic number does not much!");
@@ -586,7 +587,7 @@ static struct inode *xfs_dir2_block_find_entry(const char *dname,
     bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
 
-    dirblk_buf = get_dirblk(fs, dir_blk);
+    dirblk_buf = get_dirblks(fs, dir_blk, r.br_blockcount);
     hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
     if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
         xfs_error("Block directory header's magic number does not match!");
@@ -726,7 +727,8 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
     leaf_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
 	    BLOCK_SHIFT(parent->fs);
 
-    leaf = (xfs_dir2_leaf_t *)get_dirblk(parent->fs, leaf_blk);
+    leaf = (xfs_dir2_leaf_t *)get_dirblks(parent->fs, leaf_blk,
+					  irec.br_blockcount);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
         xfs_error("Single leaf block header's magic number does not match!");
         goto out;
@@ -772,7 +774,7 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
 		  ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + newdb);
             dir_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
 		      BLOCK_SHIFT(parent->fs);
-            buf = get_dirblk(parent->fs, dir_blk);
+            buf = get_dirblks(parent->fs, dir_blk, irec.br_blockcount);
             data_hdr = (xfs_dir2_data_hdr_t *)buf;
             if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
                 xfs_error("Leaf directory's data magic number does not much!");
@@ -917,7 +919,7 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
 
     blk = fsblock_to_bytes(fs, irec.br_startblock) >> BLOCK_SHIFT(fs);
 
-    node = (xfs_da_intnode_t *)get_dirblk(fs, blk);
+    node = (xfs_da_intnode_t *)get_dirblks(fs, blk, 1);
     if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
         xfs_error("Leaf block header's magic number does not match!");
 	goto out;
@@ -936,7 +938,7 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
 
 	xfs_debug("blk %lu", blk);
 
-	leaf = (xfs_dir2_leaf_t *)get_dirblk(fs, blk);
+	leaf = (xfs_dir2_leaf_t *)get_dirblks(fs, blk, 1);
 	if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
 	    xfs_error("magic does not match!");
 	    goto out;
@@ -995,7 +997,7 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
 
 		xfs_debug("startblock %llu", irec.br_startblock);
 
-		buf = get_dirblk(parent->fs, dir_blk);
+		buf = get_dirblks(parent->fs, dir_blk, 1);
 		data_hdr = (xfs_dir2_data_hdr_t *)buf;
 		if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
 		    xfs_error("Leaf directory's data magic number does not "
