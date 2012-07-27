@@ -1,7 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -27,16 +26,25 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * syslinux/video/forcetext.c
+ * syslinux/ipappend.c
+ *
+ * Get ipappend strings
  */
 
-#include <syslinux/video.h>
-#include <com32.h>
+#include <syslinux/config.h>
+#include <klibc/compiler.h>
+#include <core.h>
 
-void syslinux_force_text_mode(void)
+struct syslinux_ipappend_strings __syslinux_ipappend_strings;
+static const char *syslinux_ipappend_string_list[32];
+
+void __constructor __syslinux_get_ipappend_strings(void)
 {
-    static com32sys_t ireg;
+    unsigned int i;
 
-    ireg.eax.w[0] = 0x0005;
-    __intcall(0x22, &ireg, NULL);
+    __syslinux_ipappend_strings.count = (size_t)numIPAppends;
+    __syslinux_ipappend_strings.ptr = syslinux_ipappend_string_list;
+
+    for (i = 0; i < (size_t)numIPAppends; i++)
+	syslinux_ipappend_string_list[i] = (const char *)(size_t)IPAppends[i];
 }

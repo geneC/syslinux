@@ -2,8 +2,8 @@
  * bits32/limits.h
  */
 
-#ifndef _BITSIZE_LIMITS_H
-#define _BITSIZE_LIMITS_H
+#ifndef _BITSIZE32_LIMITS_H
+#define _BITSIZE32_LIMITS_H
 
 #define LONG_BIT	32
 

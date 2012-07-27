@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <string.h>
 #include <com32.h>
+#include <core.h>
 #include <minmax.h>
 #include <colortbl.h>
 #include <syslinux/config.h>
@@ -42,12 +43,7 @@
 
 static void emit(char ch)
 {
-    static com32sys_t ireg;	/* Zeroed with the BSS */
-
-    ireg.eax.b[1] = 0x04;
-    ireg.edx.b[0] = ch;
-
-    __intcall(0x21, &ireg, NULL);
+    write_serial(ch);
 }
 
 ssize_t __xserial_write(struct file_info *fp, const void *buf, size_t count)

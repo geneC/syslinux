@@ -6,12 +6,14 @@
 #include <sys/io.h>
 #include <fs.h>
 #include <com32.h>
+
 #include "bios.h"
+#include "graphics.h"
 
 void writechr(char data)
 {
 	if (UsingVGA & 0x08)
-		vgaclearmode();
+		syslinux_force_text_mode();
 
 	write_serial(data);	/* write to serial port if needed */
 

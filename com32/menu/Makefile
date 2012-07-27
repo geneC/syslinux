@@ -24,14 +24,14 @@ MODULES	  = menu.c32 vesamenu.c32
 TESTFILES =
 
 COMMONOBJS = menumain.o readconfig.o passwd.o drain.o printmsg.o colors.o \
-	background.o refstr.o execute.o
+	background.o refstr.o
 
 all: $(MODULES) $(TESTFILES)
 
-menu.elf : menu.o $(COMMONOBJS) $(C_LIBS)
+menu.c32 : menu.o $(COMMONOBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-vesamenu.elf : vesamenu.o $(COMMONOBJS) $(C_LIBS)
+vesamenu.c32 : vesamenu.o $(COMMONOBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 vesamenu.c32: vesamenu.o $(COMMONOBJS) $(C_LIBS)

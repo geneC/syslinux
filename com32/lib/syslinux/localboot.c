@@ -28,15 +28,11 @@
 #include <syslinux/boot.h>
 #include <stddef.h>
 #include <com32.h>
+#include <localboot.h>
 
 /* This returns only on failure */
 
-void syslinux_local_boot(uint16_t flags)
+void syslinux_local_boot(int16_t flags)
 {
-    static com32sys_t ireg;
-
-    ireg.eax.w[0] = 0x0014;
-    ireg.edx.w[0] = flags;
-
-    __intcall(0x22, &ireg, NULL);
+    local_boot(flags);
 }

@@ -41,6 +41,7 @@
 #include "libfat.h"
 #include "setadv.h"
 #include "syslxopt.h"
+#include "syslxfs.h"
 
 char *program;			/* Name of program */
 pid_t mypid;
@@ -197,7 +198,7 @@ int main(int argc, char *argv[])
     /*
      * Check to see that what we got was indeed an MS-DOS boot sector/superblock
      */
-    if ((errmsg = syslinux_check_bootsect(sectbuf))) {
+    if ((errmsg = syslinux_check_bootsect(sectbuf, NULL))) {
 	die(errmsg);
     }
 
@@ -356,7 +357,7 @@ int main(int argc, char *argv[])
     xpread(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);
 
     /* Copy the syslinux code into the boot sector */
-    syslinux_make_bootsect(sectbuf);
+    syslinux_make_bootsect(sectbuf, VFAT);
 
     /* Write new boot sector */
     xpwrite(dev_fd, sectbuf, SECTOR_SIZE, opt.offset);

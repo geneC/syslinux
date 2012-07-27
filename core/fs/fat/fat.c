@@ -220,24 +220,30 @@ static sector_t next_sector(struct file *file)
     return sector;
 }
 
-/*
- * Mangle a filename pointed to by src into a buffer pointed to by dst;
- * ends on encountering any whitespace.
+/**
+ * mangle_name:
+ *
+ * Mangle a filename pointed to by src into a buffer pointed
+ * to by dst; ends on encountering any whitespace.
+ * dst is preserved.
+ *
+ * This verifies that a filename is < FILENAME_MAX characters,
+ * doesn't contain whitespace, zero-pads the output buffer,
+ * and removes redundant slashes.
+ *
+ * Unlike the generic version, this also converts backslashes to
+ * forward slashes.
  *
  */
 static void vfat_mangle_name(char *dst, const char *src)
 {
     char *p = dst;
+    int i = FILENAME_MAX-1;
     char c;
-    int i = FILENAME_MAX -1;
 
-    /*
-     * Copy the filename, converting backslash to slash and
-     * collapsing duplicate separators.
-     */
     while (not_whitespace(c = *src)) {
-        if (c == '\\')
-            c = '/';
+	if (c == '\\')
+	    c = '/';
 
         if (c == '/') {
             if (src[1] == '/' || src[1] == '\\') {
@@ -250,16 +256,13 @@ static void vfat_mangle_name(char *dst, const char *src)
         *dst++ = *src++;
     }
 
-    /* Strip terminal slashes or whitespace */
     while (1) {
         if (dst == p)
             break;
-	if (*(dst-1) == '/' && dst-1 == p) /* it's the '/' case */
-		break;
-	if (dst-2 == p && *(dst-2) == '.' && *(dst-1) == '.' )	/* the '..' case */
-		break;
-        if ((*(dst-1) != '/') && (*(dst-1) != '.'))
+        if (dst[-1] != '/')
             break;
+	if ((dst[-1] == '/') && ((dst - 1) == p))
+	    break;
 
         dst--;
         i++;
@@ -779,6 +782,34 @@ static int vfat_fs_init(struct fs_info *fs)
     return fs->block_shift;
 }
 
+static int vfat_copy_superblock(void *buf)
+{
+	struct fat_bpb fat;
+	struct disk *disk;
+	size_t sb_off;
+	void *dst;
+	int sb_len;
+
+	disk = this_fs->fs_dev->disk;
+	disk->rdwr_sectors(disk, &fat, 0, 1, 0);
+
+	/* XXX: Find better sanity checks... */
+	if (!fat.bxResSectors || !fat.bxFATs)
+		return -1;
+
+	sb_off = offsetof(struct fat_bpb, sector_size);
+	sb_len = offsetof(struct fat_bpb, fat12_16) - sb_off \
+		+ sizeof(fat.fat12_16);
+
+	/*
+	 * Only copy fields of the superblock we actually care about.
+	 */
+	dst = buf + sb_off;
+	memcpy(dst, (void *)&fat + sb_off, sb_len);
+
+	return 0;
+}
+
 const struct fs_ops vfat_fs_ops = {
     .fs_name       = "vfat",
     .fs_flags      = FS_USEMEM | FS_THISIND,
@@ -793,4 +824,5 @@ const struct fs_ops vfat_fs_ops = {
     .iget_root     = vfat_iget_root,
     .iget          = vfat_iget,
     .next_extent   = fat_next_extent,
+    .copy_super    = vfat_copy_superblock,
 };

@@ -22,7 +22,9 @@
 #include <console.h>
 #include <com32.h>
 #include <string.h>
+
 #include <sys/gpxe.h>
+#include <syslinux/pxe_api.h>
 
 struct segoff16 {
     uint16_t offs, seg;
@@ -37,11 +39,11 @@ static void sanboot(const char **args)
 {
     char *q;
     struct s_PXENV_FILE_EXEC *fx;
-    com32sys_t reg;
 
-    memset(&reg, 0, sizeof reg);
+    fx = lmalloc(sizeof *fx);
+    if (!fx)
+	return;
 
-    fx = __com32.cs_bounce;
     q = (char *)(fx + 1);
 
     fx->Status = 1;
@@ -56,13 +58,7 @@ static void sanboot(const char **args)
 	args++;
     }
 
-    memset(&reg, 0, sizeof reg);
-    reg.eax.w[0] = 0x0009;
-    reg.ebx.w[0] = 0x00e5;	/* PXENV_FILE_EXEC */
-    reg.edi.w[0] = OFFS(fx);
-    reg.es = SEG(fx);
-
-    __intcall(0x22, &reg, &reg);
+    pxe_call(PXENV_FILE_EXEC, fx);
 
     /* This should not return... */
 }

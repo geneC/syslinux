@@ -44,6 +44,7 @@ GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
 
 com32 = $(topdir)/com32
+core = $(topdir)/core
 
 ifneq ($(NOGPL),1)
 GPLLIB     = $(com32)/gpllib/libcom32gpl.c32
@@ -57,9 +58,9 @@ CFLAGS     = $(GCCOPT) -W -Wall \
 	     -fomit-frame-pointer -D__COM32__ -DDYNAMIC_MODULE \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \
-		-I$(com32)/include/sys $(GPLINCLUDE)
+		-I$(com32)/include/sys $(GPLINCLUDE) -I$(core)/include
 SFLAGS     = $(GCCOPT) -D__COM32__ 
-LDFLAGS    = -m elf_$(ARCH) -shared --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld
+LDFLAGS    = -m elf_$(ARCH) -shared --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld --as-needed
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 
 LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
@@ -67,7 +68,7 @@ LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
 C_LIBS	   = $(com32)/libutil/libutil_com.c32 $(GPLLIB) \
-	     $(com32)/lib/libcom32.c32 $(LIBGCC)
+	     $(com32)/lib/libcom32.c32
 C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a \
 	     $(com32)/elflink/ldlinux/ldlinux_lnx.a
 
@@ -93,5 +94,5 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a \
 %.lnx: %.lo $(LNXLIBS) $(C_LNXLIBS)
 	$(CC) $(LNXCFLAGS) -o $@ $^
 
-%.c32: %.o
-	$(LD) $(LDFLAGS) -o $@ $^
+%.c32: %.o $(LIBS)
+	$(LD) $(LDFLAGS_$^) $(LDFLAGS) -o $@ $^

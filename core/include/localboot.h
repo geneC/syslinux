@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2012 Paulo Alcantara <pcacjr@zytor.com>
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,23 +25,9 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <syslinux/firmware.h>
-#include <syslinux/config.h>
-#include <klibc/compiler.h>
-#include <com32.h>
+#ifndef LOCALBOOT_H_
+#define LOCALBOOT_H_
 
-const char *__syslinux_config_file;
+extern void local_boot(int16_t ax);
 
-char *bios_get_config_file_name(void)
-{
-    static com32sys_t reg;
-
-    reg.eax.w[0] = 0x000e;
-    __intcall(0x22, &reg, &reg);
-    return MK_PTR(reg.es, reg.ebx.w[0]);
-}
-
-void __constructor __syslinux_get_config_file_name(void)
-{
-	__syslinux_config_file = firmware->get_config_file_name();
-}
+#endif /* LOCALBOOT_H_ */

@@ -72,6 +72,8 @@ struct fs_ops {
     int	     (*readdir)(struct file *, struct dirent *);
 
     int      (*next_extent)(struct inode *, uint32_t);
+
+    int      (*copy_super)(void *buf);
 };
 
 /*
@@ -96,6 +98,7 @@ struct extent {
 struct inode {
     struct fs_info *fs;	 /* The filesystem this inode is associated with */
     struct inode *parent;	/* Parent directory, if any */
+    const char *name;		/* Name, valid for generic path search only */
     int		 refcnt;
     int          mode;   /* FILE , DIR or SYMLINK */
     uint32_t     size;
@@ -179,6 +182,7 @@ static inline struct file *handle_to_file(uint16_t handle)
     return handle ? &files[handle-1] : NULL;
 }
 
+#define PATH_DEFAULT	"/boot/syslinux/:/boot/"
 extern char *PATH;
 
 /* fs.c */
@@ -193,6 +197,7 @@ int open_file(const char *name, struct com32_filedata *filedata);
 void pm_open_file(com32sys_t *);
 void close_file(uint16_t handle);
 void pm_close_file(com32sys_t *);
+int open_config(void);
 
 /* chdir.c */
 void pm_realpath(com32sys_t *regs);
@@ -218,8 +223,9 @@ int generic_chdir_start(void);
 void generic_mangle_name(char *, const char *);
 
 /* loadconfig.c */
-int search_config(struct com32_filedata *filedata,
-		  const char *search_directores[], const char *filenames[]);
+int search_dirs(struct com32_filedata *filedata,
+		const char *search_directores[], const char *filenames[],
+		char *realname);
 int generic_open_config(struct com32_filedata *filedata);
 
 /* close.c */

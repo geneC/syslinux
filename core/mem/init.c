@@ -15,7 +15,6 @@ extern char free_high_memory[];
 int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 {
 	struct free_arena_header *fp;
-	addr_t end;
 
 	(void)data;
 
@@ -31,7 +30,6 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 	}
 	if (len > E820_MEM_MAX - start)
 		len = E820_MEM_MAX - start;
-	end = start + len;
 
 	if (len >= 2 * sizeof(struct arena_header)) {
 		fp = (struct free_arena_header *)start;

@@ -28,7 +28,9 @@
 #include <setjmp.h>
 #include <limits.h>
 #include <com32.h>
+#include <core.h>
 #include <syslinux/adv.h>
+#include <syslinux/boot.h>
 
 #include "menu.h"
 
@@ -1108,7 +1110,7 @@ int main(int argc, char *argv[])
 {
     const char *cmdline;
     struct menu *m;
-    int rows, cols;
+    int rows, cols, cursorrow;
     int i;
 
     (void)argc;
@@ -1150,16 +1152,24 @@ int main(int argc, char *argv[])
 	local_cursor_enable(true);
 	cmdline = run_menu();
 
-	if (clearmenu)
+	if (clearmenu) {
 	    clear_screen();
+	    cursorrow = 1;
+	} else {
+	    cursorrow = END_ROW;
+	}
 
 	local_cursor_enable(false);
-	printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
+	printf("\033[?25h\033[%d;1H\033[0m", cursorrow);
 
 	if (cmdline) {
-	    execute(cmdline, KT_NONE);
-	    if (cm->onerror)
-		execute(cm->onerror, KT_NONE);
+	    uint32_t type = parse_image_type(cmdline);
+
+	    execute(cmdline, type);
+	    if (cm->onerror) {
+		type = parse_image_type(cm->onerror);
+		execute(cm->onerror, type);
+	    }
 	} else {
 	    return 0;		/* Exit */
 	}

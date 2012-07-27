@@ -31,15 +31,6 @@
 #include <string.h>
 #include <syslinux/pmapi.h>
 
-void *clmalloc(size_t size)
-{
-    void *p;
-    p = lmalloc(size);
-    if (!p)
-	errno = ENOMEM;
-    return p;
-}
-
 void *lzalloc(size_t size)
 {
     void *p;

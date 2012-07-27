@@ -92,8 +92,6 @@ enum kernel_type {
     KT_CONFIG,			/* Configuration file */
 };
 
-extern const char *const kernel_types[];
-
 /* Configurable integer parameters */
 enum parameter_number {
     P_WIDTH,
@@ -187,6 +185,7 @@ extern int shiftkey;
 extern int hiddenmenu;
 extern int clearmenu;
 extern long long totaltimeout;
+extern clock_t kbdtimeout;
 extern const char *hide_key[KEY_MAX];
 
 void parse_configs(char **argv);
@@ -227,10 +226,10 @@ extern const int message_base_color;
 extern const char *current_background;
 void set_background(const char *new_background);
 
-/* execute.c */
-void execute(const char *cmdline, enum kernel_type type);
-
 /* drain.c */
 void drain_keyboard(void);
+
+/* chainboot.c */
+void chainboot_file(const char *file, enum kernel_type type);
 
 #endif /* MENU_H */

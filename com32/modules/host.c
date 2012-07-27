@@ -1,39 +1,41 @@
 #include <stdio.h>
-#include <console.h>
+#include <stdlib.h>
 #include <string.h>
+#include <console.h>
 #include <netinet/in.h>
 #include <com32.h>
+#include <syslinux/pxe.h>
 
-static struct in_addr dnsresolve(const char *hostname)
+static inline uint32_t dns_resolve(const char *hostname)
 {
-    com32sys_t regs;
-    struct in_addr addr;
+    return pxe_dns(hostname);
+}
 
-    strcpy(__com32.cs_bounce, hostname);
-    
-    regs.eax.w[0] = 0x0010;
-    regs.es       = SEG(__com32.cs_bounce);
-    regs.ebx.w[0] = OFFS(__com32.cs_bounce);
-    __intcall(0x22, &regs, &regs);
-
-    addr.s_addr = regs.eax.l;
-    return addr;
+static inline void usage(const char *s)
+{
+    fprintf(stderr, "Usage: %s hostname [, hostname_1, hostname_2, ...]\n", s);
 }
 
 int main(int argc, char *argv[])
 {
     int i;
-    struct in_addr addr;
+    uint32_t ip;
+
+    openconsole(&dev_null_r, &dev_stdcon_w);
+
+    if (argc < 2) {
+        usage(argv[0]);
+        return 1;
+    }
 
     for (i = 1; i < argc; i++) {
-	addr = dnsresolve(argv[i]);
-
-	printf("%-39s %08X %d.%d.%d.%d\n",
-	       argv[i], ntohl(addr.s_addr),
-	       ((uint8_t *)&addr.s_addr)[0], 
-	       ((uint8_t *)&addr.s_addr)[1], 
-	       ((uint8_t *)&addr.s_addr)[2], 
-	       ((uint8_t *)&addr.s_addr)[3]);
+        ip = dns_resolve(argv[i]);
+        if (!ip) {
+            printf("%s not found.\n", argv[i]);
+        } else {
+            printf("%-39s %08X %u.%u.%u.%u\n", argv[i], ntohl(ip), ip & 0xFF,
+                   (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF);
+        }
     }
 
     return 0;

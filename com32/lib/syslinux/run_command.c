@@ -28,21 +28,16 @@
 #include <syslinux/boot.h>
 #include <stddef.h>
 #include <string.h>
-#include <com32.h>
+#include <core.h>
 
 int syslinux_run_command(const char *command)
 {
-    static com32sys_t ireg;
     char *lm_command = lstrdup(command);
 
     if (!lm_command)
 	return -1;
     
-    ireg.eax.w[0] = 0x0003;
-    ireg.es = SEG(lm_command);
-    /* ireg.ebx.w[0] = OFFS(lm_command); */
-
-    __intcall(0x22, &ireg, NULL);
+    create_args_and_load(lm_command);
 
     /* Should not return even on failure, but in case... */
     lfree(lm_command);

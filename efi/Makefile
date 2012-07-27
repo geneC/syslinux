@@ -22,7 +22,7 @@ CORE_COBJ := $(patsubst %.c,%.o,$(CORE_CSRC))
 CORE_OBJS = $(filter-out $(core)/hello.o $(core)/rawcon.o \
 	$(core)/plaincon.o $(core)/strcasecmp.o $(core)/bios.o \
 	$(core)/fs/diskio_bios.o,$(CORE_COBJ))
-LIB_OBJS = $(addprefix $(com32)/lib/,$(MINLIBOBJS))
+LIB_OBJS = $(addprefix $(com32)/lib/,$(CORELIBOBJS))
 
 CSRC = $(wildcard *.c)
 OBJ = $(patsubst %.c,%.o,$(CSRC))

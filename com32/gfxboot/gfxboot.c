@@ -962,7 +962,7 @@ void boot_entry(menu_t *menu_ptr, char *arg)
 
   gfx_done();
 
-  syslinux_boot_linux(kernel, kernel_size, initrd, arg);
+  syslinux_boot_linux(kernel, kernel_size, initrd, NULL, arg);
 }
 
 

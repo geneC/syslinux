@@ -26,6 +26,14 @@
 #define MIN(x,y)	(((x) < (y)) ? (x) : (y))
 #define MAX(x,y)	(((x) > (y)) ? (x) : (y))
 
+static inline Elf_Sym *symbol_get_entry(struct elf_module *module, int entry)
+{
+	char *sym_table = (char *)module->sym_table;
+	int index = entry * module->syment_size;
+
+	return (Elf_Sym *)(sym_table + index);
+}
+
 //#define ELF_DEBUG
 
 #ifdef ELF_DEBUG
@@ -36,7 +44,7 @@
 
 // User-space debugging routines
 #ifdef ELF_DEBUG
-extern void print_elf_ehdr(Elf32_Ehdr *ehdr);
+extern void print_elf_ehdr(Elf_Ehdr *ehdr);
 extern void print_elf_symbols(struct elf_module *module);
 #endif //ELF_DEBUG
 
@@ -49,11 +57,11 @@ extern int image_load(struct elf_module *module);
 extern int image_unload(struct elf_module *module);
 extern int image_read(void *buff, size_t size, struct elf_module *module);
 extern int image_skip(size_t size, struct elf_module *module);
-extern int image_seek(Elf32_Off offset, struct elf_module *module);
+extern int image_seek(Elf_Off offset, struct elf_module *module);
 
 extern struct module_dep *module_dep_alloc(struct elf_module *module);
 
-extern int check_header_common(Elf32_Ehdr *elf_hdr);
+extern int check_header_common(Elf_Ehdr *elf_hdr);
 
 extern int enforce_dependency(struct elf_module *req, struct elf_module *dep);
 extern int clear_dependency(struct elf_module *req, struct elf_module *dep);

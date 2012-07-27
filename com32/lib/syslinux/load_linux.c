@@ -38,22 +38,16 @@
 #include <inttypes.h>
 #include <string.h>
 #include <minmax.h>
+#include <errno.h>
 #include <suffix_number.h>
+#include <graphics.h>
+#include <dprintf.h>
+
 #include <syslinux/align.h>
 #include <syslinux/linux.h>
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
 #include <syslinux/firmware.h>
-
-#ifndef DEBUG
-# define DEBUG 0
-#endif
-#if DEBUG
-# include <stdio.h>
-# define dprintf printf
-#else
-# define dprintf(f, ...) ((void)0)
-#endif
 
 #define BOOT_MAGIC 0xAA55
 #define LINUX_MAGIC ('H' + ('d' << 8) + ('r' << 16) + ('S' << 24))
@@ -131,13 +125,16 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
 }
 
 int bios_boot_linux(void *kernel_buf, size_t kernel_size,
-		    struct initramfs *initramfs, char *cmdline)
+		    struct initramfs *initramfs,
+		    struct setup_data *setup_data,
+		    char *cmdline)
 {
     struct linux_header hdr, *whdr;
     size_t real_mode_size, prot_mode_size;
     addr_t real_mode_base, prot_mode_base;
     addr_t irf_size;
     size_t cmdline_size, cmdline_offset;
+    struct setup_data *sdp;
     struct syslinux_rm_regs regs;
     struct syslinux_movelist *fraglist = NULL;
     struct syslinux_memmap *mmap = NULL;
@@ -260,10 +257,8 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     if (!mmap || !amap)
 	goto bail;
 
-#if DEBUG
     dprintf("Initial memory map:\n");
-    syslinux_dump_memmap(stdout, mmap);
-#endif
+    syslinux_dump_memmap(mmap);
 
     /* If the user has specified a memory limit, mark that as unavailable.
        Question: should we mark this off-limit in the mmap as well (meaning
@@ -402,6 +397,49 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 	}
     }
 
+    if (setup_data) {
+	uint64_t *prev_ptr = &whdr->setup_data;
+
+	for (sdp = setup_data->next; sdp != setup_data; sdp = sdp->next) {
+	    struct syslinux_memmap *ml;
+	    const addr_t align_mask = 15; /* Header is 16 bytes */
+	    addr_t best_addr = 0;
+	    size_t size = sdp->hdr.len + sizeof(sdp->hdr);
+
+	    if (!sdp->data || !sdp->hdr.len)
+		continue;
+
+	    if (hdr.version < 0x0209) {
+		/* Setup data not supported */
+		errno = ENXIO;	/* Kind of arbitrary... */
+		goto bail;
+	    }
+
+	    for (ml = amap; ml->type != SMT_END; ml = ml->next) {
+		addr_t adj_start = (ml->start + align_mask) & ~align_mask;
+		addr_t adj_end = ml->next->start & ~align_mask;
+
+		if (ml->type == SMT_FREE && adj_end - adj_start >= size)
+		    best_addr = (adj_end - size) & ~align_mask;
+	    }
+
+	    if (!best_addr)
+		goto bail;
+
+	    *prev_ptr = best_addr;
+	    prev_ptr = &sdp->hdr.next;
+
+	    if (syslinux_add_memmap(&amap, best_addr, size, SMT_ALLOC))
+		goto bail;
+	    if (syslinux_add_movelist(&fraglist, best_addr,
+				      (addr_t)&sdp->hdr, sizeof sdp->hdr))
+		goto bail;
+	    if (syslinux_add_movelist(&fraglist, best_addr + sizeof sdp->hdr,
+				      (addr_t)sdp->data, sdp->hdr.len))
+		goto bail;
+	}
+    }
+
     /* Set up the registers on entry */
     memset(&regs, 0, sizeof regs);
     regs.es = regs.ds = regs.ss = regs.fs = regs.gs = real_mode_base >> 4;
@@ -410,16 +448,25 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     /* Linux is OK with sp = 0 = 64K, but perhaps other things aren't... */
     regs.esp.w[0] = min(cmdline_offset, (size_t) 0xfff0);
 
-#if DEBUG
     dprintf("Final memory map:\n");
-    syslinux_dump_memmap(stdout, mmap);
+    syslinux_dump_memmap(mmap);
 
     dprintf("Final available map:\n");
-    syslinux_dump_memmap(stdout, amap);
+    syslinux_dump_memmap(amap);
 
     dprintf("Initial movelist:\n");
-    syslinux_dump_movelist(stdout, fraglist);
-#endif
+    syslinux_dump_movelist(fraglist);
+
+    if (video_mode != 0x0f04) {
+	/*
+	 * video_mode is not "current", so if we are in graphics mode we
+	 * need to revert to text mode...
+	 */
+	dprintf("*** Calling syslinux_force_text_mode()...\n");
+	syslinux_force_text_mode();
+    } else {
+	dprintf("*** vga=current, not calling syslinux_force_text_mode()...\n");
+    }
 
     syslinux_shuffle_boot_rm(fraglist, mmap, 0, &regs);
 
@@ -431,7 +478,15 @@ bail:
 }
 
 int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
-			struct initramfs *initramfs, char *cmdline)
+			struct initramfs *initramfs,
+			struct setup_data *setup_data,
+			char *cmdline)
 {
-    firmware->boot_linux(kernel_buf, kernel_size, initramfs, cmdline);
+    if (!firmware->boot_linux) {
+	printf("No linux boot function registered for firmware\n");
+	return -1;
+    }
+
+    firmware->boot_linux(kernel_buf, kernel_size, initramfs,
+			 setup_data, cmdline);
 }

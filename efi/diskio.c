@@ -33,7 +33,7 @@ static int efi_rdwr_sectors(struct disk *disk, void *buf,
 
 	if (status != EFI_SUCCESS)
 		Print(L"Failed to %s blocks: 0x%x\n",
-			is_write ? "write" : "read",
+			is_write ? L"write" : L"read",
 			status);
 
 	return count << disk->sector_shift;

@@ -63,51 +63,41 @@ endif
 REQFLAGS += $(EFIINC)
 endif
 CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
-LDFLAGS	= -m elf_$(ARCH) --hash-style=gnu
 
 LIBOTHER_OBJS = \
 	atoi.o atol.o atoll.o calloc.o creat.o		\
-	ctypes.o errno.o fgetc.o fgets.o fopen.o fprintf.o fputc.o	\
-	fclose.o putchar.o setjmp.o				\
-	fputs.o fread2.o fread.o fwrite2.o fwrite.o 			\
+	fgets.o fprintf.o fputc.o	\
+	putchar.o				\
 	getopt.o getopt_long.o						\
-	lrand48.o stack.o memccpy.o memchr.o memcmp.o		\
-	memcpy.o mempcpy.o memmem.o memmove.o memset.o memswap.o	\
-	perror.o printf.o puts.o qsort.o seed48.o snprintf.o	\
-	sprintf.o srand48.o sscanf.o strcasecmp.o strcat.o	\
-	strchr.o strcmp.o strcpy.o strdup.o strerror.o strlen.o		\
+	lrand48.o stack.o memccpy.o memchr.o 		\
+	mempcpy.o memmem.o memmove.o memswap.o	\
+	perror.o qsort.o seed48.o \
+	srand48.o sscanf.o strcasecmp.o strcat.o	\
+	strerror.o		\
 	strnlen.o							\
-	strncat.o strncmp.o strncpy.o strndup.o		\
-	strncasecmp.o							\
-	stpcpy.o stpncpy.o						\
-	strntoimax.o strntoumax.o strrchr.o strsep.o strspn.o strstr.o	\
+	strncat.o strndup.o		\
+	stpncpy.o						\
+	strntoimax.o strntoumax.o strsep.o strspn.o strstr.o	\
 	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
-	strtoumax.o vfprintf.o vprintf.o vsnprintf.o vsprintf.o		\
-	asprintf.o vasprintf.o strlcpy.o strlcat.o			\
+	strtoumax.o vprintf.o vsprintf.o		\
+	asprintf.o vasprintf.o			\
 	vsscanf.o							\
 	skipspace.o							\
 	chrreplace.o							\
 	bufprintf.o							\
-	inet.o								\
-	\
-	lmalloc.o lstrdup.o						\
-	\
-	dprintf.o vdprintf.o						\
+	inet.o dhcppack.o dhcpunpack.o					\
+	strreplace.o							\
+	lstrdup.o						\
 	\
 	suffix_number.o							\
 	\
 	getcwd.o fdopendir.o	\
 	\
-	libgcc/__ashldi3.o libgcc/__udivdi3.o			\
-	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
-	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
-	libgcc/__divdi3.o libgcc/__moddi3.o				\
-	\
-	sys/openconsole.o sys/line_input.o				\
+	sys/line_input.o				\
 	sys/colortable.o sys/screensize.o				\
 	\
 	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
-	sys/rawcon_write.o sys/err_read.o sys/err_write.o		\
+	sys/rawcon_write.o		\
 	sys/null_read.o sys/null_write.o sys/serial_write.o		\
 	\
 	sys/xserial_write.o						\
@@ -121,8 +111,9 @@ LIBOTHER_OBJS = \
 	pci/writeb.o pci/writew.o pci/writel.o	\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
+	syslinux/disk.o							\
 	\
-	syslinux/memscan.o
+	syslinux/setup_data.o
 
 ## CORE OBJECTS, INCLUDED IN THE ROOT COM32 MODULE
 LIBENTRY_OBJS = \
@@ -132,6 +123,8 @@ LIBENTRY_OBJS = \
 	sys/close.o sys/open.o sys/fileread.o sys/fileclose.o		\
 	sys/openmem.o					\
 	sys/isatty.o sys/fstat.o					\
+	\
+	dprintf.o vdprintf.o						\
 	\
 	syslinux/idle.o							\
 	\
@@ -148,9 +141,9 @@ LIBCONSOLE_OBJS = \
 	sys/openconsole.o sys/line_input.o				\
 	sys/colortable.o sys/screensize.o				\
 	\
-	sys/stdcon_read.o sys/stdcon_write.o sys/rawcon_read.o		\
-	sys/rawcon_write.o sys/err_read.o sys/err_write.o		\
-	sys/null_read.o sys/null_write.o sys/serial_write.o		\
+	sys/stdcon_read.o sys/rawcon_read.o		\
+	sys/rawcon_write.o						\
+	sys/null_write.o sys/serial_write.o		\
 	\
 	sys/xserial_write.o						\
 	\
@@ -176,7 +169,7 @@ LIBLOAD_OBJS = \
 	syslinux/initramfs_archive.o
 
 LIBMODULE_OBJS = \
-	sys/module/$(ARCH)/common.o sys/module/$(ARCH)/elf_module.o		\
+	sys/module/common.o sys/module/$(ARCH)/elf_module.o		\
 	sys/module/$(ARCH)/shallow_module.o	sys/module/elfutils.o	\
 	sys/module/exec.o
 
@@ -188,14 +181,32 @@ LIBZLIB_OBJS = \
 	sys/zfile.o sys/zfopen.o
 
 MINLIBOBJS = \
+	syslinux/ipappend.o \
+	syslinux/dsinfo.o \
 	$(LIBOTHER_OBJS) \
-	$(LIBENTRY_OBJS) \
 	$(LIBGCC_OBJS) \
 	$(LIBCONSOLE_OBJS) \
 	$(LIBLOAD_OBJS) \
-	$(LIBMODULE_OBJS) \
 	$(LIBZLIB_OBJS)
 #	$(LIBVESA_OBJS)
+
+CORELIBOBJS = \
+	memcpy.o memset.o memcmp.o printf.o strncmp.o vfprintf.o 	\
+	strlen.o vsnprintf.o snprintf.o stpcpy.o strcmp.o strdup.o 	\
+	strcpy.o strncpy.o setjmp.o fopen.o fread.o fread2.o puts.o 	\
+	sprintf.o strlcat.o strchr.o strlcpy.o strncasecmp.o ctypes.o 	\
+	fputs.o fwrite2.o fwrite.o fgetc.o fclose.o errno.o lmalloc.o 	\
+	sys/err_read.o sys/err_write.o sys/null_read.o 			\
+	sys/stdcon_write.o sys/openconsole.o				\
+	syslinux/memscan.o strrchr.o					\
+	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
+	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
+	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
+	libgcc/__divdi3.o libgcc/__moddi3.o				\
+	$(LIBENTRY_OBJS) \
+	$(LIBMODULE_OBJS)
+
+LDFLAGS	= -m elf_$(ARCH) --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld
 
 .SUFFIXES: .c .o .a .so .lo .i .S .s .ls .ss .lss
 

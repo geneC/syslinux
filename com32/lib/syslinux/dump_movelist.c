@@ -33,14 +33,17 @@
  */
 
 #include <stdio.h>
+#include <dprintf.h>
 #include <syslinux/movebits.h>
 
-void syslinux_dump_movelist(FILE * file, struct syslinux_movelist *ml)
+#ifdef DEBUG
+void syslinux_dump_movelist(struct syslinux_movelist *ml)
 {
-    fprintf(file, "%10s %10s %10s\n"
+    dprintf("%10s %10s %10s\n"
 	    "--------------------------------\n", "Dest", "Src", "Length");
     while (ml) {
-	fprintf(file, "0x%08x 0x%08x 0x%08x\n", ml->dst, ml->src, ml->len);
+	dprintf("0x%08x 0x%08x 0x%08x\n", ml->dst, ml->src, ml->len);
 	ml = ml->next;
     }
 }
+#endif

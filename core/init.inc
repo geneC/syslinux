@@ -23,6 +23,11 @@ common_init:
 		; Initialize PM invocation framework
 		call pm_init
 
+%if IS_PXELINUX
+		; Save derivative-specific data
+		pm_call pm_save_data
+%endif
+
 		; Decompress PM code to its target location
 		pm_call pm_decompress
 		cmp eax,__pm_code_len
@@ -65,7 +70,7 @@ pm_decompress:
 		mov edi,__bss16_start
 		mov ecx,__bss16_dwords
 		rep stosd
-		mov edi,__high_clear_start	; .uibss, .auxseg, .lowmem
+		mov edi,__high_clear_start	; .uibss, .lowmem
 		mov ecx,__high_clear_dwords
 		rep stosd
 

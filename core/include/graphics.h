@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2012 Paulo Alcantara <pcacjr@zytor.com>
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,24 +25,39 @@
  *
  * ----------------------------------------------------------------------- */
 
-/*
- * syslinux/ipappend.c
- *
- * Get ipappend strings
- */
+#ifndef GRAPHICS_H_
+#define GRAPHICS_H_
 
-#include <syslinux/firmware.h>
-#include <syslinux/config.h>
+#include <stddef.h>
 
-struct syslinux_ipappend_strings __syslinux_ipappend_strings;
+#include "core.h"
+#include "fs.h"
 
-void __syslinux_get_ipappend_strings(void)
+#ifdef IS_SYSLINUX
+#define VGA_FILE_BUF_SIZE	(FILENAME_MAX + 2)
+#else
+#define VGA_FILE_BUF_SIZE	FILENAME_MAX
+#endif
+
+extern uint8_t UsingVGA;
+extern uint16_t VGAPos;
+extern uint16_t *VGAFilePtr;
+extern char VGAFileBuf[VGA_FILE_BUF_SIZE];
+extern char VGAFileMBuf[];
+extern uint16_t VGAFontSize;
+
+extern uint8_t UserFont;
+
+extern __lowmem char fontbuf[8192];
+
+extern void syslinux_force_text_mode(void);
+extern void vgadisplayfile(FILE *_fd);
+extern void using_vga(uint8_t vga, uint16_t pix_cols, uint16_t pix_rows);
+
+static inline void graphics_using_vga(uint8_t vga, uint16_t pix_cols,
+                                      uint16_t pix_rows)
 {
-    char *list;
-    int count;
-
-    if (firmware->ipappend_strings(&list, &count)) {
-	__syslinux_ipappend_strings.count = count;
-	__syslinux_ipappend_strings.ptr = list;
-    }
+    using_vga(vga, pix_cols, pix_rows);
 }
+
+#endif /* GRAPHICS_H_ */

@@ -52,6 +52,22 @@ const struct menu_parameter mparm[NPARAMS] = {
     [P_HIDDEN_ROW] = {"hiddenrow", -2},
 };
 
+/* Must match enum kernel_type */
+static const char *const kernel_types[] = {
+    "none",
+    "localboot",
+    "kernel",
+    "linux",
+    "boot",
+    "bss",
+    "pxe",
+    "fdimage",
+    "comboot",
+    "com32",
+    "config",
+    NULL
+};
+
 short uappendlen = 0;		//bytes in append= command
 short ontimeoutlen = 0;		//bytes in ontimeout command
 short onerrorlen = 0;		//bytes in onerror command
@@ -68,6 +84,7 @@ short nohalt = 1;		//idle.inc
 
 const char *default_cmd = NULL;	//"default" command line
 const char *onerror = NULL;	//"onerror" command line
+const char *ontimeout = NULL;	//"ontimeout" command line
 
 /* Empty refstring */
 const char *empty_string;
@@ -79,6 +96,7 @@ struct menu *root_menu, *start_menu, *hide_menu, *menu_list, *default_menu;
 int shiftkey = 0;		/* Only display menu if shift key pressed */
 int hiddenmenu = 0;
 long long totaltimeout = 0;
+unsigned int kbdtimeout = 0;
 
 /* Keep track of global default */
 static int has_ui = 0;		/* DEFAULT only counts if UI is found */
@@ -1081,13 +1099,14 @@ do_include:
 		//dprintf("got a kernel: %s, type = %d", ld.kernel, ld.type);
 	    }
 	} else if (looking_at(p, "timeout")) {
-	    m->timeout = (atoi(skipspace(p + 7)) * CLK_TCK + 9) / 10;
+	    kbdtimeout = (atoi(skipspace(p + 7)) * CLK_TCK + 9) / 10;
 	} else if (looking_at(p, "totaltimeout")) {
 	    totaltimeout = (atoll(skipspace(p + 13)) * CLK_TCK + 9) / 10;
 	} else if (looking_at(p, "ontimeout")) {
-	    m->ontimeout = refstrdup(skipspace(p + 9));
+	    ontimeout = refstrdup(skipspace(p + 9));
+	    ontimeoutlen = strlen(ontimeout);
 	} else if (looking_at(p, "allowoptions")) {
-	    m->allowedit = !!atoi(skipspace(p + 12));
+	    allowoptions = !!atoi(skipspace(p + 12));
 	} else if (looking_at(p, "ipappend")) {
 	    if (ld.label)
 		ld.ipappend = atoi(skipspace(p + 8));
@@ -1121,7 +1140,8 @@ do_include:
 	 * display/font/kbdmap are rather similar, open a file then do sth
 	 */
 	else if (looking_at(p, "display")) {
-		char *filename, *dst = KernelName;
+		const char *filename;
+		char *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
 		filename = refstrdup(skipspace(p + 7));
@@ -1133,7 +1153,8 @@ do_include:
 		get_msg_file(KernelName);
 		refstr_put(filename);
 	} else if (looking_at(p, "font")) {
-		char *filename, *dst = KernelName;
+		const char *filename;
+		char *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
 		filename = refstrdup(skipspace(p + 4));
@@ -1145,8 +1166,8 @@ do_include:
 		loadfont(KernelName);
 		refstr_put(filename);
 	} else if (looking_at(p, "kbdmap")) {
-		com32sys_t reg;
-		char *filename, *dst = KernelName;
+		const char *filename;
+		char *dst = KernelName;
 		size_t len = FILENAME_MAX - 1;
 
 		filename = refstrdup(skipspace(p + 4));
@@ -1189,7 +1210,6 @@ do_include:
 
 	/* serial setting, bps, flow control */
 	else if (looking_at(p, "serial")) {
-		com32sys_t ireg;
 		uint16_t port, flow;
 		uint32_t baud;
 
@@ -1309,18 +1329,20 @@ do_include:
 		eprintf("%s\n", p+4);
 	} else if (looking_at(p, "path")) {
 		/* PATH-based lookup */
-		char *new_path, *_p;
+		const char *new_path;
+		char *_p;
 		size_t len, new_len;
 
 		new_path = refstrdup(skipspace(p + 4));
 		len = strlen(PATH);
 		new_len = strlen(new_path);
-		_p = realloc(PATH, len + new_len + 2);
+		_p = malloc(len + new_len + 2);
 		if (_p) {
 			strncpy(_p, PATH, len);
 			_p[len++] = ':';
 			strncpy(_p + len, new_path, new_len);
 			_p[len + new_len] = '\0';
+			free(PATH);
 			PATH = _p;
 		} else
 			eprintf("Failed to realloc PATH\n");
@@ -1344,6 +1366,11 @@ static int parse_one_config(const char *filename)
 
 	f = fdopen(fd, mode);
 	parse_config_file(f);
+
+	if (config_cwd[0]) {
+		chdir(config_cwd);
+		config_cwd[0] = '\0';
+	}
 
 	return 0;
 }

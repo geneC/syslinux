@@ -15,15 +15,14 @@ const char *append = NULL;
 /* Will be called from readconfig.c */
 int new_linux_kernel(char *okernel, char *ocmdline)
 {
-	const char *kernel_name;
-	struct initramfs *initramfs;
+	const char *kernel_name = NULL;
+	struct initramfs *initramfs = NULL;
 	char *temp;
 	void *kernel_data;
 	size_t kernel_len;
 	bool opt_quiet = false;
 	char initrd_name[256];
 	char cmdline_buf[256], *cmdline;
-	int i;
 
 	dprintf("okernel = %s, ocmdline = %s", okernel, ocmdline);
 
@@ -98,36 +97,41 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	if (!opt_quiet)
 		printf("ok\n");
 
-	/* Initialize the initramfs chain */
-	initramfs = initramfs_init();
-	if (!initramfs)
-		goto bail;
-
 	/* Find and load initramfs */
 	temp = strstr(cmdline, "initrd=");
 	if (temp) {
-		char *p;
+		/* Initialize the initramfs chain */
+		initramfs = initramfs_init();
+		if (!initramfs)
+			goto bail;
 
-		temp += strlen("initrd=");
+		temp += 6; /* strlen("initrd") */
 		do {
-			p = strchr(temp, ',');
-			if (p)
-				*p = '\0';
+		    char *p = initrd_name;
 
-			if (initramfs_load_archive(initramfs, temp)) {
-				printf("failed!\n");
-				goto bail;
-			}
+		    temp++;	/* Skip = or , */
 
-			if (p)
-				*p++ = ',';
-		} while ((temp = p));
+		    while (*temp != ' ' && *temp != ',' && *temp)
+			*p++ = *temp++;
+		    *p = '\0';
+
+		    if (!opt_quiet)
+			printf("Loading %s...", initrd_name);
+
+		    if (initramfs_load_archive(initramfs, initrd_name)) {
+			if (opt_quiet)
+			    printf("Loading %s ", initrd_name);
+			printf("failed!\n");
+			goto bail;
+		    }
+
+		    if (!opt_quiet)
+			printf("ok\n");
+		} while (*temp == ',');
 	}
 
-	//dprintf("loading initrd done");
-
 	/* This should not return... */
-	syslinux_boot_linux(kernel_data, kernel_len, initramfs, cmdline);
+	syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, cmdline);
 
 bail:
 	printf("Kernel load failure (insufficient memory?)\n");

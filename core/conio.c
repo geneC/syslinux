@@ -24,12 +24,13 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <fs.h>
-#include "bios.h"
 #include <com32.h>
 #include <sys/cpu.h>
 #include <syslinux/firmware.h>
+
+#include "bios.h"
+#include "graphics.h"
 
 union screen _cursor;
 union screen _screensize;
@@ -209,7 +210,7 @@ static void write_serial_str_displaymask(char *data)
  *
  * Returns 1 if character pending.
  */
-int pollchar(void)
+int bios_pollchar(void)
 {
 	com32sys_t ireg, oreg;
 	uint8_t data = 0;
@@ -249,7 +250,12 @@ int pollchar(void)
 	return data;
 }
 
-int pm_pollchar(com32sys_t *regs)
+int pollchar(void)
+{
+	return firmware->i_ops->pollchar();
+}
+
+void pm_pollchar(com32sys_t *regs)
 {
 	if (pollchar())
 		regs->eflags.l &= ~EFLAGS_ZF;
@@ -259,7 +265,7 @@ int pm_pollchar(com32sys_t *regs)
 
 extern void do_idle(void);
 
-char bios_getchar(void)
+char bios_getchar(char *hi)
 {
 	com32sys_t ireg, oreg;
 	unsigned char data;
@@ -282,7 +288,7 @@ char bios_getchar(void)
 				sti(); /* We already know we'll consume data */
 				data = *SerialTail++;
 
-				SerialTail = (unsigned char *)((unsigned long)SerialTail & (serial_buf_size - 1));
+				SerialTail = (char *)((unsigned long)SerialTail & (serial_buf_size - 1));
 			} else {
 				/* LSR */
 				data = inb(SerialPort + 5) & 1;
@@ -307,6 +313,8 @@ char bios_getchar(void)
 			__intcall(0x16, &ireg, &oreg);
 
 			data = oreg.eax.b[0];
+			*hi = oreg.eax.b[1];
+
 			if (data == 0xE0)
 				data = 0;
 
@@ -326,14 +334,14 @@ char bios_getchar(void)
 /*
  * getchar: Read a character from keyboard or serial port
  */
-char getchar(void)
+char getchar(char *hi)
 {
-	return firmware->i_ops->getchar();
+	return firmware->i_ops->getchar(hi);
 }
 
 void pm_getchar(com32sys_t *regs)
 {
-	regs->eax.b[0] = getchar();
+	regs->eax.b[0] = getchar((char *)&regs->eax.b[1]);
 }
 
 static void msg_setbg(char data)
@@ -410,7 +418,7 @@ static void msg_formfeed(void)
 
 static void msg_novga(void)
 {
-	vgaclearmode();
+	syslinux_force_text_mode();
 	msg_initvars();
 }
 

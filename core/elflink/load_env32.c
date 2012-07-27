@@ -24,24 +24,6 @@
 
 #define LDLINUX	"ldlinux.c32"
 
-#if __SIZEOF_POINTER__ == 4
-typedef Elf32_Dyn	Elf_Dyn;
-typedef Elf32_Word	Elf_Word;
-typedef Elf32_Addr	Elf_Addr;
-#define ELF_SYMENT_SIZE	sizeof(Elf32_Sym)
-#define ELF_MOD_SYS	"32 bit"
-#elif __SIZEOF_POINTER__ == 8
-typedef Elf64_Dyn	Elf_Dyn;
-typedef Elf64_Word	Elf_Word;
-typedef Elf64_Addr	Elf_Addr;
-#define ELF_SYMENT_SIZE	sizeof(Elf64_Sym)
-#define ELF_MOD_SYS	"64 bit"
-#else
-#error "unsupported architecture"
-#endif
-typedef void (*constructor_t) (void);
-constructor_t __ctors_start[], __ctors_end[];
-
 extern char __dynstr_start[];
 extern char __dynstr_end[], __dynsym_end[];
 extern char __dynsym_start[];
@@ -62,7 +44,7 @@ struct elf_module core_module = {
     .sym_table		= __dynsym_start,
     .got		= __got_start,
     .dyn_table		= __dynamic_start,
-    .syment_size	= ELF_SYMENT_SIZE,
+    .syment_size	= sizeof(Elf_Sym),
 };
 
 /*
@@ -75,21 +57,57 @@ void init_module_subsystem(struct elf_module *module)
     list_add(&module->list, &modules_head);
 }
 
-/* call_constr: initializes sme things related */
-static void call_constr(void)
+int start_ldlinux(char **argv)
 {
-	constructor_t *p;
+	int rv;
 
-	for (p = __ctors_start; p < __ctors_end; p++)
-		(*p) ();
+again:
+	rv = spawn_load(LDLINUX, 1, argv);
+	if (rv == EEXIST) {
+		struct elf_module *m, *mod, *begin = NULL;
+
+		/*
+		 * If a COM32 module calls execute() we may need to
+		 * unload all the modules loaded since ldlinux.c32,
+		 * and restart initialisation. This is especially
+		 * important for config files.
+		 */
+		for_each_module(mod) {
+			if (!strcmp(mod->name, LDLINUX)) {
+				begin = mod;
+				break;
+			}
+		}
+
+		for_each_module_safe(mod, m) {
+			if (mod == begin)
+				break;
+
+			if (mod != begin)
+				module_unload(mod);
+		}
+
+		/*
+		 * Finally unload LDLINUX.
+		 *
+		 * We'll reload it when we jump to 'again' which will
+		 * cause all the initialsation steps to be executed
+		 * again.
+		 */
+		module_unload(begin);
+		goto again;
+	}
+
+	return rv;
 }
 
 /* note to self: do _*NOT*_ use static key word on this function */
-void load_env32(com32sys_t * regs)
+void load_env32(com32sys_t * regs __unused)
 {
 	struct file_info *fp;
 	int fd;
 	char *argv[] = { LDLINUX, NULL };
+	char realname[FILENAME_MAX];
 	size_t size;
 
 	static const char *search_directories[] = {
@@ -107,7 +125,15 @@ void load_env32(com32sys_t * regs)
 	};
 
 	dprintf("Starting %s elf module subsystem...\n", ELF_MOD_SYS);
-	call_constr();
+
+	PATH = malloc(strlen(PATH_DEFAULT) + 1);
+	if (!PATH) {
+		printf("Couldn't allocate memory for PATH\n");
+		return;
+	}
+
+	strcpy(PATH, PATH_DEFAULT);
+	PATH[strlen(PATH_DEFAULT)] = '\0';
 
 	size = (size_t)__dynstr_end - (size_t)__dynstr_start;
 	core_module.strtable_size = size;
@@ -117,12 +143,12 @@ void load_env32(com32sys_t * regs)
 
 	init_module_subsystem(&core_module);
 
-	spawn_load(LDLINUX, 1, argv);
+	start_ldlinux(argv);
 
 	/*
 	 * If we failed to load LDLINUX it could be because our
 	 * current working directory isn't the install directory. Try
-	 * a bit harder to find LDLINUX. If search_config() succeeds
+	 * a bit harder to find LDLINUX. If search_dirs() succeeds
 	 * in finding LDLINUX it will set the cwd.
 	 */
 	fd = opendev(&__file_dev, NULL, O_RDONLY);
@@ -131,8 +157,8 @@ void load_env32(com32sys_t * regs)
 
 	fp = &__file_info[fd];
 
-	if (!search_config(&fp->i.fd, search_directories, filenames))
-		spawn_load(LDLINUX, 1, argv);
+	if (!search_dirs(&fp->i.fd, search_directories, filenames, realname))
+		start_ldlinux(argv);
 }
 
 int create_args_and_load(char *cmdline)

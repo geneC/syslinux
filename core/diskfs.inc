@@ -70,7 +70,6 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 ;
 %include "diskstart.inc"
 
-
 ;
 ; Now, everything is "up and running"... patch kaboom for more
 ; verbosity and using the full screen system
@@ -87,11 +86,61 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 ; If we get to this point ldlinux.c32 failed to run. There's nothing
 ; left to do but inform that user that something went wrong.
 ;
+enter_command:
+auto_boot:
 		jmp kaboom
 
-%include "ui.inc"
+		section .bss16
+		global CmdOptPtr, KbdMap
+		alignb 4
+ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
+ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
+KernelExtPtr	resw 1			; During search, final null pointer
+CmdOptPtr	resw 1			; Pointer to first option on cmd line
+KbdFlags	resb 1			; Check for keyboard escapes
+FuncFlag	resb 1			; Escape sequences received from keyboard
+KernelType	resb 1			; Kernel type, from vkernel, if known
+KbdMap		resb 256		; Keyboard map
+		global KernelName
+KernelName	resb FILENAME_MAX	; Mangled name for kernel
+		section .config
+		global PXERetry
+PXERetry	dw 0			; Extra PXE retries
+		section .data16
+		global SerialNotice
+SerialNotice	db 1			; Only print this once
+		global IPAppends, numIPAppends
+%if IS_PXELINUX
+		extern IPOption
+		alignz 2
+IPAppends	dw IPOption
+numIPAppends	equ ($-IPAppends)/2
+%else
+IPAppends	equ 0
+numIPAppends	equ 0
+%endif
+
+		section .text16
+;
+; COMBOOT-loading code
+;
+%include "comboot.inc"
+%include "com32.inc"
 
 ;
+; Boot sector loading code
+;
+
+;
+; Abort loading code
+;
+
+;
+; Hardware cleanup common code
+;
+
+%include "localboot.inc"
+
 ;
 ; kaboom2: once everything is loaded, replace the part of kaboom
 ;	   starting with "kaboom.patch" with this part
@@ -102,11 +151,11 @@ kaboom2:
 		cmp byte [kaboom.again+1],18h	; INT 18h version?
 		je .int18
 		pm_call pm_getchar
-		pm_call vgaclearmode
+		pm_call syslinux_force_text_mode
 		int 19h			; And try once more to boot...
 .norge:		jmp short .norge	; If int 19h returned; this is the end
 .int18:
-		pm_call vgaclearmode
+		pm_call syslinux_force_text_mode
 		int 18h
 .noreg:		jmp short .noreg	; Nynorsk
 

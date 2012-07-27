@@ -365,14 +365,14 @@ static void parse_command_line(char *line, char **command, char **module,
 	    *command = malloc((token_len + 1) * sizeof(char));
 	    strlcpy(*command, pch, token_len);
 	    (*command)[token_len] = '\0';
-	    dprintf("CLI DEBUG: command = %s\n", *command);
+	    dprintf("CLI DEBUG parse: command = %s\n", *command);
 	    args_pos += args_len;
 	} else if (token_found == 1) {
 	    /* Module */
 	    *module = malloc((token_len + 1) * sizeof(char));
 	    strlcpy(*module, pch, token_len);
 	    (*module)[token_len] = '\0';
-	    dprintf("CLI DEBUG: module  = %s\n", *module);
+	    dprintf("CLI DEBUG parse: module  = %s\n", *module);
 	    args_pos += args_len;
 	} else
 	    (*argc)++;
@@ -380,7 +380,7 @@ static void parse_command_line(char *line, char **command, char **module,
 	token_found++;
 	pch = pch_next;
     }
-    dprintf("CLI DEBUG: argc    = %d\n", *argc);
+    dprintf("CLI DEBUG parse: argc    = %d\n", *argc);
 
     /* Skip arguments handling if none is supplied */
     if (!*argc)
@@ -390,9 +390,9 @@ static void parse_command_line(char *line, char **command, char **module,
     *argv = malloc(*argc * sizeof(char *));
     pch = strtok(line + args_pos, CLI_SPACE);
     while (pch != NULL) {
-	dprintf("CLI DEBUG: argv[%d] = %s\n", argc_iter, pch);
-	argv[argc_iter] = malloc(sizeof(pch) * sizeof(char));
-	strlcpy(argv[argc_iter], pch, sizeof(pch));
+	dprintf("CLI DEBUG parse: argv[%d] = %s\n", argc_iter, pch);
+	argv[argc_iter] = malloc(strlen(pch) * sizeof(char));
+	strlcpy(argv[argc_iter], pch, strlen(pch));
 	argc_iter++;
 	pch = strtok(NULL, CLI_SPACE);
 	/*
@@ -585,6 +585,7 @@ static void autocomplete(char *line)
 
     parse_command_line(line, &command, &module, &argc, argv);
 
+    dprintf("CLI DEBUG autocomplete: before checking args\n");
     /* If the user specified arguments, there is nothing we can complete */
     if (argc != 0)
 	goto out;
@@ -625,22 +626,43 @@ static void exec_command(char *line, struct s_hardware *hardware)
     /* This will allocate memory for command and module */
     parse_command_line(line, &command, &module, &argc, argv);
 
+    dprintf("CLI DEBUG exec: Checking for aliases\n");
     /*
      * Expand shortcuts, if needed
      * This will allocate memory for argc/argv
      */
     expand_aliases(line, &command, &module, &argc, argv);
+    
+    find_cli_callback_descr(command, current_mode->default_modules,
+				&current_module);
 
-    if (module == NULL) {
-	dprintf("CLI DEBUG: single command detected\n");
+    if ((module == NULL) || (current_module->nomodule == true)) {
+	dprintf("CLI DEBUG exec : single command detected\n");
 	/*
 	 * A single word was specified: look at the list of default
 	 * commands in the current mode to see if there is a match.
 	 * If not, it may be a generic function (exit, help, ...). These
 	 * are stored in the list of default commands of the hdt mode.
 	 */
-	find_cli_callback_descr(command, current_mode->default_modules,
-				&current_module);
+
+	/* First of all it the command doesn't need module, let's rework the arguments */
+	if ((current_module->nomodule == true) && ( module != NULL)) {
+		dprintf("CLI_DEBUG exec: Reworking arguments with argc=%d\n",argc);
+		char **new_argv=NULL;
+    		new_argv=malloc((argc + 2)*sizeof(char));
+		for (int argc_iter=0; argc_iter<argc; argc_iter++) {
+			dprintf("CLI_DEBUG exec rework : copy %d to %d (%s)\n",argc_iter,argc_iter+1,argv[argc_iter]);
+			new_argv[argc_iter+1] = malloc(strlen(argv[argc_iter]));
+			strlcpy(new_argv[argc_iter+1], argv[argc_iter], strlen(argv[argc_iter]));
+			free(argv[argc_iter]);
+		}
+		new_argv[0] = malloc(strlen(module)*sizeof(char));
+		strlcpy(new_argv[0], module, strlen(module));
+		argc++;
+		free(argv);
+		argv=new_argv;
+	}
+
 	if (current_module != NULL)
 	    current_module->exec(argc, argv, hardware);
 	else if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1) &&
@@ -673,7 +695,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
 	 *    hdt> set mode dmi
 	 */
 	if (!strncmp(command, CLI_SHOW, sizeof(CLI_SHOW) - 1)) {
-	    dprintf("CLI DEBUG: %s command detected\n", CLI_SHOW);
+	    dprintf("CLI DEBUG exec: %s command detected\n", CLI_SHOW);
 	    /* Look first for a 'show' callback in the current mode */
 	    find_cli_callback_descr(module, current_mode->show_modules,
 				    &current_module);
@@ -681,6 +703,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
 	    if (current_module != NULL)
 		current_module->exec(argc, argv, hardware);
 	    else {
+		dprintf("CLI DEBUG exec: Looking for callback\n");
 		/* Look now for a 'show' callback in the hdt mode */
 		find_cli_callback_descr(module, hdt_mode.show_modules,
 					&current_module);
@@ -691,7 +714,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
 		    printf("unknown module: '%s'\n", module);
 	    }
 	} else if (!strncmp(command, CLI_SET, sizeof(CLI_SET) - 1)) {
-	    dprintf("CLI DEBUG: %s command detected\n", CLI_SET);
+	    dprintf("CLI DEBUG exec : %s command detected\n", CLI_SET);
 	    /* Look now for a 'set' callback in the hdt mode */
 	    find_cli_callback_descr(module, current_mode->set_modules,
 				    &current_module);

@@ -14,6 +14,7 @@
 #ifdef SYSLINUX_EFI
 #include <efi.h>
 #include <efilib.h>
+#undef DEBUG
 #include <efistdarg.h>
 #endif
 
@@ -23,14 +24,28 @@ extern char trackbuf[];
 extern char CurrentDirName[];
 extern char SubvolName[];
 extern char ConfigName[];
+extern char config_cwd[];
 extern char KernelName[];
 extern char cmd_line[];
 extern char ConfigFile[];
 extern char syslinux_banner[];
 extern char copyright_str[];
+extern char StackBuf[];
+extern unsigned int __bcopyxx_len;
 
-extern char aux_seg[];
 extern uint8_t KbdMap[256];
+
+extern const uint16_t IPAppends[];
+extern const char numIPAppends[];
+
+extern uint16_t SerialPort;
+extern uint16_t BaudDivisor;
+extern uint8_t FlowOutput;
+extern uint8_t FlowInput;
+extern uint8_t FlowIgnore;
+
+extern uint8_t ScrollAttribute;
+extern uint16_t DisplayCon;
 
 /* diskstart.inc isolinux.asm*/
 extern void getlinsec(void);
@@ -103,5 +118,22 @@ static inline void set_flags(com32sys_t *regs, uint32_t flags)
     eflags |= flags;
     regs->eflags.l = eflags;
 }
+
+extern int start_ldlinux(char **argv);
+extern int create_args_and_load(char *);
+
+extern void write_serial(char data);
+extern void writestr(char *str);
+extern void writechr(char data);
+extern void crlf(void);
+extern int pollchar(void);
+extern char getchar(char *hi);
+
+extern void cleanup_hardware(void);
+extern void sirq_cleanup(void);
+extern void adjust_screen(void);
+
+extern void execute(const char *cmdline, uint32_t type);
+extern void load_kernel(const char *cmdline);
 
 #endif /* CORE_H */

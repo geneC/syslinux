@@ -12,7 +12,10 @@
 
 #include <string.h>
 #include <com32.h>
+#include <core.h>
+#include <graphics.h>
 #include "syslnx.h"
+#include <syslinux/config.h>
 
 com32sys_t inreg, outreg;	// Global registers for this module
 
@@ -28,40 +31,40 @@ char issyslinux(void)
 
 void runsyslinuxcmd(const char *cmd)
 {
-    strcpy(__com32.cs_bounce, cmd);
-    REG_AX(inreg) = 0x0003;	// Run command
-    REG_BX(inreg) = OFFS(__com32.cs_bounce);
-    REG_ES(inreg) = SEG(__com32.cs_bounce);
-    __intcall(0x22, &inreg, &outreg);
+    char *bounce;
+
+    bounce = lmalloc(strlen(cmd) + 1);
+    if (!bounce)
+	return;
+
+    strcpy(bounce, cmd);
+    load_kernel(bounce);
 }
 
 void gototxtmode(void)
 {
-    REG_AX(inreg) = 0x0005;
-    __intcall(0x22, &inreg, &outreg);
+    syslinux_force_text_mode();
 }
 
 void syslinux_idle(void)
 {
-    REG_AX(inreg) = 0x0013;
-    __intcall(0x22, &inreg, &outreg);
+    __idle();
 }
 
 unsigned int getversion(char *deriv, unsigned int *numfun)
 {
-    REG_AX(inreg) = 0x0001;
-    __intcall(0x22, &inreg, &outreg);
     if (deriv)
-	*deriv = REG_DL(outreg);
+	*deriv = __syslinux_version.filesystem;
     if (numfun)
-	*numfun = REG_AX(outreg);
-    return REG_CX(outreg);
+	*numfun = __syslinux_version.max_api;
+    return __syslinux_version.version;
 }
 
 void runsyslinuximage(const char *cmd, long ipappend)
 {
     unsigned int numfun = 0;
     char *ptr, *cmdline;
+    char *bounce;
 
     (void)ipappend;		// XXX: Unused?!
 
@@ -71,8 +74,12 @@ void runsyslinuximage(const char *cmd, long ipappend)
 	runsyslinuxcmd(cmd);
     // Try the Run Kernel Image function
     // Split command line into
-    strcpy(__com32.cs_bounce, cmd);
-    ptr = __com32.cs_bounce;
+    bounce = lmalloc(strlen(cmd) + 1);
+    if (!bounce)
+	return;
+
+    strcpy(bounce, cmd);
+    ptr = bounce;
     // serach for first space or end of string
     while ((*ptr) && (*ptr != ' '))
 	ptr++;
@@ -87,8 +94,8 @@ void runsyslinuximage(const char *cmd, long ipappend)
     // Now call the interrupt
     REG_BX(inreg) = OFFS(cmdline);
     REG_ES(inreg) = SEG(cmdline);
-    REG_SI(inreg) = OFFS(__com32.cs_bounce);
-    REG_DS(inreg) = SEG(__com32.cs_bounce);
+    REG_SI(inreg) = OFFS(bounce);
+    REG_DS(inreg) = SEG(bounce);
     REG_EDX(inreg) = 0;
 
     __intcall(0x22, &inreg, &outreg);	// If successful does not return

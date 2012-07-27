@@ -13,4 +13,4 @@
 #error "Unable to build for to-be-defined architecture type"
 #endif
 
-#endif /* _BITSIZE_STDINTCONST_H */
+#endif				/* _BITSIZE_STDINTCONST_H */

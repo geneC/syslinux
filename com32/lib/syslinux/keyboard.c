@@ -26,19 +26,13 @@
  * ----------------------------------------------------------------------- */
 
 #include <syslinux/keyboard.h>
-#include <com32.h>
+#include <core.h>
 
 struct syslinux_keyboard_map __syslinux_keyboard_map;
 
 void __constructor __syslinux_get_keyboard_map(void)
 {
-    static com32sys_t reg;
-
-    reg.eax.w[0] = 0x001e;
-    __intcall(0x22, &reg, &reg);
-    if (!(reg.eflags.l & EFLAGS_CF)) {
-	__syslinux_keyboard_map.version = reg.eax.w[0];
-	__syslinux_keyboard_map.length = reg.ecx.w[0];
-	__syslinux_keyboard_map.map = MK_PTR(reg.es, reg.ebx.w[0]);
-    }
+    __syslinux_keyboard_map.version = 1;
+    __syslinux_keyboard_map.length = sizeof(KbdMap);
+    __syslinux_keyboard_map.map = (void *)KbdMap;
 }

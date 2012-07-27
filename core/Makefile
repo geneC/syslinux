@@ -53,16 +53,16 @@ SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 COBJS	 = $(filter-out rawcon.o plaincon.o,$(COBJ))
 
 LIB	 = libcom32.a
-LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32min.a
+LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32core.a
 LIBDEP   = $(filter-out -% %start%,$(LIBS))
-LIBOBJS	 = $(COBJS) $(SOBJ)
+LIBOBJS  = $(COBJS) $(SOBJ)
 
 NASMDEBUG = -g -F dwarf
 NASMOPT  += $(NASMDEBUG)
 
 PREPCORE = ../lzo/prepcore
 
-# CFLAGS	+= -DDEBUG=1
+CFLAGS += -D__SYSLINUX_CORE__
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much

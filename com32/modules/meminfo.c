@@ -44,9 +44,9 @@ static void dump_e820(void)
     uint32_t type;
     void *low_ed;
 
-	low_ed = lmalloc(sizeof ed);
-	if (!low_ed)
-		return;
+    low_ed = lmalloc(sizeof ed);
+    if (!low_ed)
+	return;
 
     memset(&ireg, 0, sizeof ireg);
 
@@ -90,7 +90,7 @@ static void dump_e820(void)
 	ireg.ebx.l = oreg.ebx.l;
     } while (ireg.ebx.l);
 
-    free(low_ed);
+    lfree(low_ed);
 }
 
 static void dump_legacy(void)
@@ -122,7 +122,7 @@ static void dump_legacy(void)
 	   oreg.ecx.w[0], oreg.ecx.w[0], oreg.edx.w[0], oreg.edx.w[0] << 6);
 }
 
-int main(int argc, char **argv)
+int main(int argc __unused, char **argv __unused)
 {
     dump_legacy();
     dump_e820();

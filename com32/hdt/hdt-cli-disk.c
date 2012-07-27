@@ -225,14 +225,17 @@ struct cli_callback_descr list_disk_show_modules[] = {
     {
      .name = "disks",
      .exec = main_show_disks,
+     .nomodule = false,
      },
     {
      .name = "disk",
      .exec = main_show_disk,
+     .nomodule = false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule = false,
      },
 };
 

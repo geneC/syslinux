@@ -33,6 +33,7 @@
 
 #include <stddef.h>
 #include <com32.h>
+#include <core.h>
 #include <syslinux/pmapi.h>
 #include <syslinux/idle.h>
 

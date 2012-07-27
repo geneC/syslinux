@@ -429,7 +429,7 @@ comapi_run_default:
 ; Puts the video in standard text mode
 ;
 comapi_textmode:
-		pm_call vgaclearmode
+		pm_call syslinux_force_text_mode
 		clc
 		ret
 
@@ -591,11 +591,11 @@ comapi_ipappend:
 ; INT 22h AX=0010h	Resolve hostname
 ;
 %if IS_PXELINUX
-                extern pxe_dns_resolv
+                extern pm_pxe_dns_resolv
 comapi_dnsresolv:
 		mov ds,P_ES
 		mov si,P_BX
-		pm_call pxe_dns_resolv
+		pm_call pm_pxe_dns_resolv
 		mov P_EAX,eax
 		clc
 		ret
@@ -654,7 +654,7 @@ comapi_usingvga:
 		ja .error
 		mov cx,P_CX
 		mov dx,P_DX
-		pm_call pm_usingvga
+		pm_call pm_using_vga
 		clc
 		ret
 .error:
@@ -669,10 +669,12 @@ comapi_userfont:
 		and al,al
 		jz .done
 		mov al,[VGAFontSize]
-		mov P_ES,aux_seg
-		mov P_BX,aux.fontbuf
+		pm_call pm_userfont
+		mov P_ES,es
+		mov P_BX,bx
 
 .done:		; CF=0 here
+		mov P_AL,al
 		ret
 
 ;
@@ -840,6 +842,7 @@ zero_string	db 0			; Empty, null-terminated string
 ; Note: PXELINUX clears the idle is noop flag if appropriate
 ; in pxe_detect_nic_type
 ;
+		global feature_flags, feature_flags_len
 feature_flags:
 		db 1			; Have local boot, idle is not noop
 feature_flags_len equ ($-feature_flags)

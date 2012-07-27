@@ -106,12 +106,36 @@ void detect_parameters(const int argc, const char *argv[],
 	    max_console_lines = MAX_CLI_LINES;
 	} else if (!strncmp(argv[i], "nomenu", 6)) {
 	    menumode = false;
+	} else if (!strncmp(argv[i], "dump_filename=", 14)) {
+	    strlcpy(hardware->dump_filename, argv[i] + 14,
+		    sizeof(hardware->dump_filename));
 	} else if (!strncmp(argv[i], "dump_path=", 10)) {
 	    strlcpy(hardware->dump_path, argv[i] + 10,
 		    sizeof(hardware->dump_path));
 	} else if (!strncmp(argv[i], "tftp_ip=", 8)) {
 	    strlcpy(hardware->tftp_ip, argv[i] + 8,
 		    sizeof(hardware->tftp_ip));
+	} else if (!strncmp(argv[i], "postexec=", 9)) {
+	    /* The postexec= parameter is separated in several argv[]
+	     * as it can contains spaces.
+	     * We use the AUTO_DELIMITER char to define the limits
+	     * of this parameter.
+	     * i.e postexec='linux memtest.bin'
+	     */
+
+	    char *argument = (char*)argv[i]+10;
+	    /* Extracting the first parameter */
+	    strcpy(hardware->postexec, argument);
+
+	    /* While we can't find the other AUTO_DELIMITER, let's process the argv[] */
+	    while ((strchr(argument, AUTO_DELIMITER) == NULL) && (i+1<argc)) {
+		i++;
+	    	argument = (char *)argv[i];
+		strcat(hardware->postexec, " ");
+		strcat(hardware->postexec, argument);
+	    } 
+	
+	     hardware->postexec[strlen(hardware->postexec) - 1] = 0;
 	} else if (!strncmp(argv[i], "auto=", 5)) {
 	    /* The auto= parameter is separated in several argv[]
 	     * as it can contains spaces.
@@ -204,9 +228,12 @@ void init_hardware(struct s_hardware *hardware)
     memset(hardware->memtest_label, 0, sizeof hardware->memtest_label);
     memset(hardware->auto_label, 0, sizeof hardware->auto_label);
     memset(hardware->dump_path, 0, sizeof hardware->dump_path);
+    memset(hardware->dump_filename, 0, sizeof hardware->dump_filename);
     memset(hardware->vesa_background, 0, sizeof hardware->vesa_background);
     memset(hardware->tftp_ip, 0, sizeof hardware->tftp_ip);
+    memset(hardware->postexec, 0, sizeof hardware->postexec);
     strcat(hardware->dump_path, "hdt");
+    strcat(hardware->dump_filename, "%{m}+%{p}+%{v}");
     strcat(hardware->pciids_path, "pci.ids");
     strcat(hardware->modules_pcimap_path, "modules.pcimap");
     strcat(hardware->modules_alias_path, "modules.alias");
@@ -285,6 +312,7 @@ int detect_vesa(struct s_hardware *hardware)
     struct vesa_mode_info *mi;
     uint16_t mode, *mode_ptr;
     char *oem_ptr;
+    int rv = -1;
 
     if (hardware->vesa_detection == true)
 	return -1;
@@ -292,9 +320,13 @@ int detect_vesa(struct s_hardware *hardware)
     hardware->vesa_detection = true;
     hardware->is_vesa_valid = false;
 
-    /* Allocate space in the bounce buffer for these structures */
-    gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
-    mi = &((struct vesa_info *)__com32.cs_bounce)->mi;
+    gi = lmalloc(sizeof(*gi));
+    if (!gi)
+	return -1;
+
+    mi = lmalloc(sizeof(*mi));
+    if (!mi)
+	goto out;
 
     gi->signature = VBE2_MAGIC;	/* Get VBE2 extended data */
     rm.eax.w[0] = 0x4F00;	/* Get SVGA general information */
@@ -303,7 +335,7 @@ int detect_vesa(struct s_hardware *hardware)
     __intcall(0x10, &rm, &rm);
 
     if (rm.eax.w[0] != 0x004F) {
-	return -1;
+	goto out;
     };
 
     mode_ptr = GET_PTR(gi->video_mode_ptr);
@@ -342,7 +374,12 @@ int detect_vesa(struct s_hardware *hardware)
 	hardware->vesa.vmi_count++;
     }
     hardware->is_vesa_valid = true;
-    return 0;
+
+    rv = 0;
+out:
+    lfree(mi);
+    lfree(gi);
+    return rv;
 }
 
 /* Try to detect disks from port 0x80 to 0xff */

@@ -44,12 +44,6 @@ static inline void io_delay(void)
 	outb(0x0, IO_DELAY_PORT);
 }
 
-/* conio.c */
-extern unsigned short SerialPort;
-extern unsigned char FlowIgnore;
-extern uint8_t ScrollAttribute;
-extern uint16_t DisplayCon;
-
 /*
  * Sometimes we need to access screen coordinates as separate 8-bit
  * entities and sometimes we need to use them as 16-bit entities. Using
@@ -73,31 +67,13 @@ extern union screen _screensize;
 #define VidCols		_screensize.b.col
 #define VidRows		_screensize.b.row
 
-extern void write_serial(char data);
-
 /* font.c */
-extern uint16_t VGAFontSize;
 extern void use_font(void);
 extern void bios_adjust_screen(void);
 
-/* graphics.c */
-#ifdef IS_SYSLINUX
-#define VGA_FILE_BUF_SIZE	(FILENAME_MAX + 2)
-#else
-#define VGA_FILE_BUF_SIZE	FILENAME_MAX
-#endif
-
-extern uint8_t UsingVGA;
-extern uint16_t VGAPos;
-extern uint16_t *VGAFilePtr;
-extern char VGAFileBuf[VGA_FILE_BUF_SIZE];
-extern char VGAFileMBuf[];
-extern void vgaclearmode(void);
-extern void vgadisplayfile(FILE *fd);
-
 /* serirq.c */
-extern unsigned char *SerialHead;
-extern unsigned char *SerialTail;
+extern char *SerialHead;
+extern char *SerialTail;
 
 extern void bios_init(void);
 extern void bios_cleanup_hardware(void);

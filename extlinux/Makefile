@@ -11,7 +11,7 @@
 ## -----------------------------------------------------------------------
 
 ##
-## Linux vfat, ext2/ext3/ext4 and btrfs installer
+## Linux vfat, ntfs, ext2/ext3/ext4 and btrfs installer
 ##
 
 topdir = ..
@@ -22,9 +22,10 @@ OPTFLAGS = -g -Os
 INCLUDES = -I. -I.. -I../libinstaller
 CFLAGS	 = $(GCCWARN) -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
 	   $(OPTFLAGS) $(INCLUDES)
-LDFLAGS	 = # -s
+LDFLAGS	 = 
 
 SRCS     = main.c \
+	   mountinfo.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/syslxcom.c \
@@ -53,6 +54,9 @@ installer: extlinux
 
 extlinux: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
+
+strip:
+	$(STRIP) extlinux
 
 %.o: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<

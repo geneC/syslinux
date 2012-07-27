@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <core.h>
 
 #define BUFFER_SIZE	4096
 

@@ -11,7 +11,12 @@
  * -----------------------------------------------------------------------
  */
 #include <sys/cpu.h>
+#include <sys/io.h>
+#include <string.h>
 #include <core.h>
+#include <fs.h>
+#include <bios.h>
+#include <graphics.h>
 
 /*
  * localboot.c
@@ -32,10 +37,9 @@ extern void local_boot16(void);
 void local_boot(int16_t ax)
 {
 	com32sys_t ireg, oreg;
-	unsigned long data;
 	int i;
 
-	vgaclearmode();
+	syslinux_force_text_mode();
 
 	writestr(LOCALBOOT_MSG);
 	crlf();
@@ -73,7 +77,7 @@ void local_boot(int16_t ax)
 		kaboom();
 
 	cli();			/* Abandon hope, ye who enter here */
-	memcpy(0x07C00, trackbuf, 512);
+	memcpy((void *)0x07C00, trackbuf, 512);
 
 	ireg.esi.w[0] = OFFS(trackbuf);
 	ireg.edi.w[0] = 0x07C00;

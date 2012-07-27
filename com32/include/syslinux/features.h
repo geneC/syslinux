@@ -31,18 +31,16 @@
 #define SYSLINUX_FEATURE_LOCAL_BOOT	(0*8+0)
 #define SYSLINUX_FEATURE_NOOP_IDLE	(0*8+1)
 
-extern struct __syslinux_feature_flags {
-    unsigned int len;
-    const unsigned char *ptr;
-} __syslinux_feature_flags;
+extern uint8_t feature_flags;
+extern uint8_t feature_flags_len;
 
 static inline int syslinux_has_feature(unsigned int __flag)
 {
     unsigned int __byte = __flag >> 3;
     unsigned int __bit = __flag & 7;
 
-    if (__byte <= __syslinux_feature_flags.len)
-	return (__syslinux_feature_flags.ptr[__byte] >> __bit) & 1;
+    if (__byte <= feature_flags_len)
+	return (feature_flags[__byte] >> __bit) & 1;
     else
 	return 0;
 }

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <dprintf.h>
 #include "fs.h"
 #include "cache.h"
 
@@ -16,57 +17,70 @@ void pm_realpath(com32sys_t *regs)
     realpath(dst, src, FILENAME_MAX);
 }
 
-#define EMIT(x)		     		\
-do {		     			\
-    if (++n < bufsize)	 		\
-    	*q++ = (x);			\
-} while (0)
-
-static size_t join_paths(char *dst, size_t bufsize,
-			 const char *s1, const char *s2)
+static size_t copy_string(char *buf, size_t ix, size_t bufsize, const char *src)
 {
-    const char *list[2];
-    int i;
     char c;
-    const char *p;
-    char *q  = dst;
-    size_t n = 0;
-    bool slash = false;
-    
-    list[0] = s1;
-    list[1] = s2;
 
-    for (i = 0; i < 2; i++) {
-	p = list[i];
-
-	while ((c = *p++)) {
-	    if (c == '/') {
-		if (!slash)
-		    EMIT(c);
-		slash = true;
-	    } else {
-		EMIT(c);
-		slash = false;
-	    }
-	}
+    while ((c = *src++)) {
+	if (ix+1 < bufsize)
+	    buf[ix] = c;
+	ix++;
     }
 
-    if (bufsize)
-	*q = '\0';
+    if (ix < bufsize)
+	buf[ix] = '\0';
 
-    return n;
+    return ix;
+}
+
+static size_t generic_inode_to_path(struct inode *inode, char *dst, size_t bufsize)
+{
+    size_t s = 0;
+
+    dprintf("inode %p name %s\n", inode, inode->name);
+
+    if (inode->parent) {
+	if (!inode->name)	/* Only the root should have no name */
+	    return -1;
+
+	s = generic_inode_to_path(inode->parent, dst, bufsize);
+	if (s == (size_t)-1)
+	    return s;		/* Error! */
+
+	s = copy_string(dst, s, bufsize, "/");
+	s = copy_string(dst, s, bufsize, inode->name);
+    }
+
+    return s;
 }
 
 size_t realpath(char *dst, const char *src, size_t bufsize)
 {
+    int rv;
+    struct file *file;
+    size_t s;
+
+    dprintf("realpath: input: %s\n", src);
+
     if (this_fs->fs_ops->realpath) {
-	return this_fs->fs_ops->realpath(this_fs, dst, src, bufsize);
+	s = this_fs->fs_ops->realpath(this_fs, dst, src, bufsize);
     } else {
-	/* Filesystems with "common" pathname resolution */
-	return join_paths(dst, bufsize, 
-			  src[0] == '/' ? "" : this_fs->cwd_name,
-			  src);
+	rv = searchdir(src);
+	if (rv < 0) {
+	    dprintf("realpath: searchpath failure\n");
+	    return -1;
+	}
+
+	file = handle_to_file(rv);
+	s = generic_inode_to_path(file->inode, dst, bufsize);
+	if (s == 0)
+	    s = copy_string(dst, 0, bufsize, "/");
+
+	_close_file(file);
     }
+
+    dprintf("realpath: output: %s\n", dst);
+    return s;
 }
 
 int chdir(const char *src)
@@ -74,6 +88,10 @@ int chdir(const char *src)
     int rv;
     struct file *file;
     char cwd_buf[CURRENTDIR_MAX];
+    size_t s;
+
+    dprintf("chdir: from %s (inode %p) add %s\n",
+	    this_fs->cwd_name, this_fs->cwd, src);
 
     if (this_fs->fs_ops->chdir)
 	return this_fs->fs_ops->chdir(this_fs, src);
@@ -94,10 +112,20 @@ int chdir(const char *src)
     _close_file(file);
 
     /* Save the current working directory */
-    realpath(cwd_buf, src, CURRENTDIR_MAX);
+    s = generic_inode_to_path(this_fs->cwd, cwd_buf, CURRENTDIR_MAX-1);
 
     /* Make sure the cwd_name ends in a slash, it's supposed to be a prefix */
-    join_paths(this_fs->cwd_name, CURRENTDIR_MAX, cwd_buf, "/");
+    if (s < 1 || cwd_buf[s-1] != '/')
+	cwd_buf[s++] = '/';
+
+    if (s >= CURRENTDIR_MAX)
+	s = CURRENTDIR_MAX - 1;
+
+    cwd_buf[s++] = '\0';
+    memcpy(this_fs->cwd_name, cwd_buf, s);
+
+    dprintf("chdir: final %s (inode %p)\n",
+	    this_fs->cwd_name, this_fs->cwd);
 
     return 0;
 }

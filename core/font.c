@@ -21,18 +21,12 @@
 #include <sys/io.h>
 #include <stdio.h>
 #include <fs.h>
+
 #include "bios.h"
+#include "graphics.h"
 #include "core.h"
 
-struct aux {
-	char fontbuf[8192];
-	char serial[serial_buf_size];
-};
-
-#define fontbuf		offsetof(struct aux, fontbuf)
-
-extern uint16_t VGAFontSize;
-extern uint8_t UserFont;
+__lowmem char fontbuf[8192];
 
 uint16_t GXPixCols = 1;		/* Graphics mode pixel columns */
 uint16_t GXPixRows = 1;		/* Graphics mode pixel rows */
@@ -40,13 +34,14 @@ uint16_t GXPixRows = 1;		/* Graphics mode pixel rows */
 /*
  * loadfont:	Load a .psf font file and install it onto the VGA console
  *		(if we're not on a VGA screen then ignore.)
- *
- * The .psf font file must alredy be open and getc_file must be set.
  */
-void loadfont(char *filename)
+void loadfont(const char *filename)
 {
-	uint16_t height, magic;
-	uint32_t *di, *si;
+	struct psfheader {
+		uint16_t magic;
+		uint8_t mode;
+		uint8_t height;
+	} hdr;
 	FILE *f;
 	char *p;
 	int i;
@@ -55,49 +50,39 @@ void loadfont(char *filename)
 	if (!f)
 		return;
 
-	p = trackbuf;
 	/* Read header */
-	for (i = 0; i < 4; i++) {
-		char ch = getc(f);
-		if (ch == EOF)
-			return;
-		*p++ = ch;
-	}
+	if (_fread(&hdr, sizeof hdr, f) != sizeof hdr)
+		goto fail;
 
 	/* Magic number */
-	magic = *(uint16_t *)trackbuf;
-	if (magic != 0x0436)
-		return;
+	if (hdr.magic != 0x0436)
+		goto fail;
 
 	/* File mode: font modes 0-5 supported */
-	if (*(trackbuf) > 5)
-		return;
-
-	height = *(trackbuf + 3); /* Height of font */
+	if (hdr.mode > 5)
+		goto fail;
 
 	/* VGA minimum/maximum */
-	if (height < 2 || height > 32)
-		return;
+	if (hdr.height < 2 || hdr.height > 32)
+		goto fail;
 
-	/* Load the actual font. Bytes = font height * 256 */
-	p = trackbuf;
-	for (i = 0; i < (height << 8); i++) {
-		char ch = getc(f);
+	/* Load the actual font into the font buffer. */
+	memset(fontbuf, 0, 256*32);
 
-		if (ch == EOF)
-			return;
-		*p++ = ch;
+	p = fontbuf;
+	for (i = 0; i < 256; i++) {
+		if (_fread(p, hdr.height, f) != hdr.height)
+			goto fail;
+		p += 32;
 	}
 
-	/* Copy to font buffer */
-	VGAFontSize = height;
-	di = (uint32_t *)MK_PTR(aux_seg, fontbuf);
-	si = (uint32_t *)trackbuf;
-	for (i = 0; i < (height << 6); i++)
-		*di++ = *si++;
-
+	/* Loaded OK */
+	VGAFontSize = hdr.height;
 	UserFont = 1;		/* Set font flag */
 	use_font();
+
+fail:
+	fclose(f);
 }
 
 /*
@@ -111,15 +96,14 @@ void use_font(void)
 	com32sys_t ireg, oreg;
 	uint8_t bytes = VGAFontSize;
 
-
 	/* Nonstandard mode? */
 	if (UsingVGA & ~0x3)
-		vgaclearmode();
+		syslinux_force_text_mode();
 
 	memset(&ireg, 0, sizeof(ireg));
 
-	ireg.es = aux_seg;
-	ireg.ebp.w[0] = fontbuf; /* ES:BP -> font */
+	ireg.es = SEG(fontbuf);
+	ireg.ebp.w[0] = OFFS(fontbuf); /* ES:BP -> font */
 
 	/* Are we using a user-specified font? */
 	if (UserFont & 0x1) {
@@ -169,7 +153,7 @@ void use_font(void)
 void bios_adjust_screen(void)
 {
 	com32sys_t ireg, oreg;
-	volatile uint8_t *vidrows = BIOS_vidrows;
+	volatile uint8_t *vidrows = (volatile uint8_t *)BIOS_vidrows;
 	uint8_t rows, cols;
 
 	rows = *vidrows;
@@ -190,7 +174,13 @@ void bios_adjust_screen(void)
 	VidCols = --cols;	/* Store count-1 (same as rows) */
 }
 
-void pm_adjust_screen(com32sys_t *regs)
+void pm_adjust_screen(com32sys_t *regs __unused)
 {
 	bios_adjust_screen();
+}
+
+void pm_userfont(com32sys_t *regs)
+{
+	regs->es = SEG(fontbuf);
+	regs->ebx.w[0] = OFFS(fontbuf);
 }

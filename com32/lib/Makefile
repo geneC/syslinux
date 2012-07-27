@@ -47,15 +47,23 @@ LIBPCI_OBJS = \
 
 LIBSYSLINUX_OBJS = \
 	syslinux/reboot.o syslinux/keyboard.o				\
-	syslinux/features.o syslinux/config.o	\
-	syslinux/dsinfo.o syslinux/version.o	\
+	syslinux/version.o						\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
 	syslinux/pxe_dns.o						\
-	syslinux/video/fontquery.o syslinux/video/forcetext.o		\
-	syslinux/video/reportmode.o
+	syslinux/video/fontquery.o syslinux/video/reportmode.o
 
 DYNENTRY_OBJS = \
 	atexit.o onexit.o abort.o
+
+MINLIBOBJS = \
+	syslinux/ipappend.o \
+	syslinux/dsinfo.o \
+	$(LIBOTHER_OBJS) \
+	$(LIBGCC_OBJS) \
+	$(LIBCONSOLE_OBJS) \
+	$(LIBLOAD_OBJS) \
+	$(LIBZLIB_OBJS)
+#	$(LIBVESA_OBJS)
 
 DYNLIBOBJS = \
 	$(LIBZLIB_OBJS) \
@@ -79,13 +87,18 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.c32 libcom32min.a
+all: libcom32.c32 libcom32min.a libcom32core.a
 
 libcom32.c32 : $(LIBOBJS)
 	rm -f $@
 	$(LD) -shared $(LDFLAGS) -o $@ $^
 
 libcom32min.a : $(MINLIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+
+libcom32core.a : $(CORELIBOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@

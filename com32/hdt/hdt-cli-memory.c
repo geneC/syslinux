@@ -101,22 +101,27 @@ struct cli_callback_descr list_memory_show_modules[] = {
     {
      .name = "e820",
      .exec = show_memory_e820,
+     .nomodule=false,
      },
     {
      .name = "e801",
      .exec = show_memory_e801,
+     .nomodule=false,
      },
     {
      .name = "88",
      .exec = show_memory_88,
+     .nomodule=false,
      },
     {
      .name = CLI_DMI_MEMORY_BANK,
      .exec = show_dmi_memory_bank,
+     .nomodule=false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule=false,
      },
 };
 

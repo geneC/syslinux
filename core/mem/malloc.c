@@ -97,7 +97,12 @@ void *malloc(size_t size)
 
 void *lmalloc(size_t size)
 {
-    return _malloc(size, HEAP_LOWMEM, MALLOC_CORE);
+    void *p;
+
+    p = _malloc(size, HEAP_LOWMEM, MALLOC_CORE);
+    if (!p)
+	errno = ENOMEM;
+    return p;
 }
 
 void *pmapi_lmalloc(size_t size)

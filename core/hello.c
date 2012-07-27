@@ -7,18 +7,12 @@
 
 #include <console.h>
 
-static int console_init = 0;
-
 void myputchar(int c)
 {
-    static com32sys_t ireg;
-
     if (c == '\n')
 	myputchar('\r');
 
-    ireg.eax.b[1] = 0x02;
-    ireg.edx.b[0] = c;
-    __intcall(0x21, &ireg, NULL);
+    writechr(c);
 }
 
 void myputs(const char *str)

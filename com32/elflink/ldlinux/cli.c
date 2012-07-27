@@ -19,8 +19,6 @@
 #include "cli.h"
 #include "config.h"
 
-static jmp_buf timeout_jump;
-
 static struct list_head cli_history_head;
 
 void clear_screen(void)
@@ -29,71 +27,37 @@ void clear_screen(void)
     fputs("\033e\033%@\033)0\033(B\1#0\033[?25l\033[2J", stdout);
 }
 
-static int __get_key(void)
+static int mygetkey_timeout(clock_t *kbd_to, clock_t *tto)
 {
-    unsigned char buffer[KEY_MAXLEN];
-    int another;
-    int nc, rv;
-    int code;
-
-    nc = 0;
-    do {
-	buffer[nc++] = getchar();
-
-	another = 0;
-	rv = get_key_decode(buffer, nc, &code);
-	if (!rv)
-		return code;
-	else if (rv == 1)
-		another = 1;
-
-    } while (another);
-
-    /* We got an unrecognized sequence; return the first character */
-    /* We really should remember this and return subsequent characters later */
-    return buffer[0];
-}
-
-int mygetkey(clock_t timeout)
-{
-    clock_t t0, t;
-    clock_t tto, to;
+    clock_t t0, t1;
     int key;
 
-    //dprintf("enter");
-    if (!totaltimeout)
-	return __get_key();
+    t0 = times(NULL);
+    key = get_key(stdin, *kbd_to ? *kbd_to : *tto);
 
-    for (;;) {
-	tto = min(totaltimeout, INT_MAX);
-	to = timeout ? min(tto, timeout) : tto;
+    /* kbdtimeout only applies to the first character */
+    if (*kbd_to)
+	*kbd_to = 0;
 
-	t0 = 0;
-	key = __get_key();
-	t = 0 - t0;
+    t1 = times(NULL) - t0;
+    if (*tto) {
+	/* Timed out. */
+	if (*tto <= (long long)t1)
+	    key = KEY_NONE;
+	else {
+	    /* Did it wrap? */
+	    if (*tto > totaltimeout)
+		key = KEY_NONE;
 
-	if (totaltimeout <= t)
-	    longjmp(timeout_jump, 1);
-
-	totaltimeout -= t;
-
-	if (key != KEY_NONE) {
-		//dprintf("get key 0x%x", key);
-	    return key;
-	}
-
-	if (timeout) {
-	    if (timeout <= t) {
-		//dprintf("timeout");
-		return KEY_NONE;
-		}
-
-	    timeout -= t;
+	    *tto -= t1;
 	}
     }
+
+    return key;
 }
 
-static const char * cmd_reverse_search(int *cursor)
+static const char * cmd_reverse_search(int *cursor, clock_t *kbd_to,
+				       clock_t *tto)
 {
     int key;
     int i = 0;
@@ -108,7 +72,7 @@ static const char * cmd_reverse_search(int *cursor)
 
     eprintf("\033[1G\033[1;36m(reverse-i-search)`': \033[0m");
     while (1) {
-        key = mygetkey(0);
+	key = mygetkey_timeout(kbd_to, tto);
 
 	if (key == KEY_CTRL('C')) {
 	    return NULL;
@@ -124,7 +88,7 @@ static const char * cmd_reverse_search(int *cursor)
 	    break;
 	}
 
-	while (last_found != &cli_history_head) {
+	while (!list_is_last(&last_found->list, &cli_history_head)) {
 	    p = strstr(last_found->command, buf);
 	    if (p)
 	        break;
@@ -164,7 +128,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     bool done = false;
     const char *ret;
     int width = 0;
-    struct cli_command *comm_counter;
+    struct cli_command *comm_counter = NULL;
+    clock_t kbd_to = kbdtimeout;
+    clock_t tto = totaltimeout;
 
     if (!width) {
 	int height;
@@ -199,7 +165,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    eprintf("\033[?7l\033[?25l");
 	    if (y)
 		eprintf("\033[%dA", y);
-	    eprintf("\033[1G\033[1;36m%s \033[0m", input);
+	    eprintf("\033[1G%s ", input);
 
 	    x = strlen(input);
 	    y = 0;
@@ -230,9 +196,13 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    redraw = 0;
 	}
 
-	key = mygetkey(0);
+	key = mygetkey_timeout(&kbd_to, &tto);
 
 	switch (key) {
+	case KEY_NONE:
+	    /* We timed out. */
+	    return NULL;
+
 	case KEY_CTRL('L'):
 	    redraw = 2;
 	    break;
@@ -406,7 +376,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	          * Handle this case in another function, since it's 
 	          * a kind of special.
 	          */
-	        const char *p = cmd_reverse_search(&cursor);
+	        const char *p = cmd_reverse_search(&cursor, &kbd_to, &tto);
 	        if (p) {
 	            strcpy(cmdline, p);
 		    len = strlen(cmdline);
@@ -479,17 +449,14 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     return len ? ret : NULL;
 }
 
-static int cli_init(void)
+static int __constructor cli_init(void)
 {
 	INIT_LIST_HEAD(&cli_history_head);
 
 	return 0;
 }
 
-static void cli_exit(void)
+static void __destructor cli_exit(void)
 {
 	/* Nothing to do */
 }
-
-MODULE_INIT(cli_init);
-MODULE_EXIT(cli_exit);

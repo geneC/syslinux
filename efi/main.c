@@ -81,12 +81,14 @@ void pxenv(void)
 {
 }
 
-uint16_t numIPAppends = 0;
-char *IPAppends = NULL;
+const char numIPAppends[4];
+const uint16_t IPAppends[32];
 uint16_t BIOS_fbm = 1;
 far_ptr_t InitStack;
+char StackBuf[4096];
 uint16_t APIVer;
 far_ptr_t PXEEntry;
+unsigned int __bcopyxx_len = 0;
 
 void gpxe_unload(void)
 {
@@ -126,7 +128,7 @@ static void efi_write_char(uint8_t ch, uint8_t attribute)
 	uefi_call_wrapper(out->OutputString, 2, out, c);
 }
 
-static void efi_showcursor(uint16_t cursor)
+static void efi_showcursor(const struct term_state *st)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	uefi_call_wrapper(out->SetCursorPosition, 3, out, cursor_x, cursor_y);
@@ -236,7 +238,7 @@ void efi_init(void)
 	mem_init();
 }
 
-char efi_getchar(void)
+char efi_getchar(char *hi)
 {
 	SIMPLE_INPUT_INTERFACE *in = ST->ConIn;
 	EFI_INPUT_KEY key;
@@ -252,14 +254,19 @@ char efi_getchar(void)
 	return c;
 }
 
+int efi_pollchar(void)
+{
+	SIMPLE_INPUT_INTERFACE *in = ST->ConIn;
+	EFI_STATUS status;
+
+	status = WaitForSingleEvent(in->WaitForKey, 1);
+	return status != EFI_TIMEOUT;
+}
+
 struct input_ops efi_iops = {
 	.getchar = efi_getchar,
+	.pollchar = efi_pollchar,
 };
-
-char *efi_get_config_file_name(void)
-{
-	return ConfigName;
-}
 
 bool efi_ipappend_strings(char **list, int *count)
 {
@@ -436,7 +443,9 @@ static void free_addr(EFI_PHYSICAL_ADDRESS addr, size_t size)
 }
 
 int efi_boot_linux(void *kernel_buf, size_t kernel_size,
-		   struct initramfs *initramfs, char *cmdline)
+		   struct initramfs *initramfs,
+		   struct setup_data *setup_data,
+		   char *cmdline)
 {
 	EFI_MEMORY_DESCRIPTOR *map;
 	struct linux_header *hdr;
@@ -719,7 +728,6 @@ struct firmware efi_fw = {
 	.disk_init = efi_disk_init,
 	.o_ops = &efi_ops,
 	.i_ops = &efi_iops,
-	.get_config_file_name = efi_get_config_file_name,
 	.get_serial_console_info = serialcfg,
 	.ipappend_strings = efi_ipappend_strings,
 	.adv_ops = &efi_adv_ops,

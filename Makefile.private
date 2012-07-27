@@ -38,6 +38,7 @@ burn: isolinux.iso
 official:
 	$(MAKE) spotless CC='$(CC) -m32'
 	$(MAKE) all CC='$(CC) -m32'
+	$(MAKE) strip CC='$(CC) -m32'
 	$(MAKE) dist CC='$(CC) -m32'
 
 release:
@@ -99,7 +100,3 @@ LATEST_PREREL   := syslinux-$(VERSION)-pre$(LATEST_PRERELNO)
 unprerel:
 	echo $(LATEST_PRERELNO) > $(PRERELDIR)/.prerel
 	@echo Next release will be $(LATEST_PREREL)
-
-preupload:
-	scp $(PRERELDIR)/$(LATEST_PREREL).* $(UPLOAD)/Testing
-	git push --tags

@@ -5,20 +5,20 @@
  *      Author: Stefan Bucur <stefanb@zytor.com>
  */
 
-
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <elf.h>
 #include <dprintf.h>
+#include <core.h>
 
 #include <linux/list.h>
 #include <sys/module.h>
+#include <sys/exec.h>
 
 #include "elfutils.h"
-#include "common.h"
-
-#define MAX_NR_DEPS	64
+#include "../common.h"
 
 static int check_header(Elf64_Ehdr *elf_hdr) {
 	int res;
@@ -50,7 +50,7 @@ static int check_header(Elf64_Ehdr *elf_hdr) {
 static int load_segments(struct elf_module *module, Elf64_Ehdr *elf_hdr) {
 	int i;
 	int res = 0;
-	void *pht = NULL;
+	char *pht = NULL;
 	Elf64_Phdr *cr_pht;
 
 	Elf64_Addr min_addr  = 0x0000000000000000; // Min. ELF vaddr
@@ -136,8 +136,8 @@ static int load_segments(struct elf_module *module, Elf64_Ehdr *elf_hdr) {
 				// headers
 				Elf64_Off aux_off = module->u.l._cr_offset - cr_pht->p_offset;
 
-				if (image_read(module_get_absolute(cr_pht->p_vaddr, module) + aux_off,
-						cr_pht->p_filesz - aux_off, module) < 0) {
+				if (image_read((char *)module_get_absolute(cr_pht->p_vaddr, module) + aux_off,
+					       cr_pht->p_filesz - aux_off, module) < 0) {
 					res = -1;
 					goto out;
 				}
@@ -180,9 +180,6 @@ out:
 	return res;
 }
 
-static int nr_needed;
-static Elf64_Word needed[MAX_NR_DEPS];;
-
 static int prepare_dynlinking(struct elf_module *module) {
 	Elf64_Dyn  *dyn_entry = module->dyn_table;
 
@@ -195,8 +192,8 @@ static int prepare_dynlinking(struct elf_module *module) {
 			 * are then inform the user that we ran out of
 			 * space.
 			 */
-			if (nr_needed < MAX_NR_DEPS)
-				needed[nr_needed++] = dyn_entry->d_un.d_ptr;
+			if (module->nr_needed < MAX_NR_DEPS)
+				module->needed[module->nr_needed++] = dyn_entry->d_un.d_ptr;
 			else {
 				printf("Too many dependencies!\n");
 				return -1;
@@ -242,6 +239,11 @@ static int prepare_dynlinking(struct elf_module *module) {
 	return 0;
 }
 
+void undefined_symbol(void)
+{
+	printf("Error: An undefined symbol was referenced\n");
+	kaboom();
+}
 
 static int perform_relocation(struct elf_module *module, Elf64_Rel *rel) {
 	Elf64_Xword *dest = module_get_absolute(rel->r_offset, module);
@@ -259,8 +261,7 @@ static int perform_relocation(struct elf_module *module, Elf64_Rel *rel) {
 		// Find out details about the symbol
 
 		// The symbol reference
-		Elf64_Sym *sym_ref =
-			(Elf64_Sym*)(module->sym_table + sym * module->syment_size);
+		Elf64_Sym *sym_ref = symbol_get_entry(module, sym);
 
 		// The symbol definition
 		sym_def =
@@ -268,11 +269,16 @@ static int perform_relocation(struct elf_module *module, Elf64_Rel *rel) {
 					&sym_module);
 
 		if (sym_def == NULL) {
-			// This should never happen
 			DBG_PRINT("Cannot perform relocation for symbol %s\n",
 					module->str_table + sym_ref->st_name);
 
-			return -1;
+			if (ELF64_ST_BIND(sym_ref->st_info) != STB_WEAK)
+				return -1;
+
+			// This must be a derivative-specific
+			// function. We're OK as long as we never
+			// execute the function.
+			sym_def = global_find_symbol("undefined_symbol", &sym_module);
 		}
 
 		// Compute the absolute symbol virtual address
@@ -422,73 +428,93 @@ static int resolve_symbols(struct elf_module *module) {
 
 			res = perform_relocation(module, crt_rel);
 
-			if (res < 0) {
+			if (res < 0)
 				return res;
-			}
 		}
 	}
 
 	return 0;
 }
-
-
 
 static int extract_operations(struct elf_module *module) {
-	Elf64_Sym *init_sym = module_find_symbol(MODULE_ELF_INIT_PTR, module);
-	Elf64_Sym *exit_sym = module_find_symbol(MODULE_ELF_EXIT_PTR, module);
-	Elf64_Sym *main_sym = module_find_symbol("main", module);
+	Elf64_Sym *ctors_start, *ctors_end;
+	Elf64_Sym *dtors_start, *dtors_end;
+	module_ctor_t *ctors = NULL;
+	module_ctor_t *dtors = NULL;
 
-	if (init_sym) {
-		module->init_func = (module_init_t*)module_get_absolute(
-			init_sym->st_value, module);
-		if (*(module->init_func) == NULL) {
-			module->init_func = NULL;
+	ctors_start = module_find_symbol("__ctors_start", module);
+	ctors_end = module_find_symbol("__ctors_end", module);
+
+	if (ctors_start && ctors_end) {
+		module_ctor_t *start, *end;
+		int nr_ctors = 0;
+		int i, size;
+
+		start = module_get_absolute(ctors_start->st_value, module);
+		end = module_get_absolute(ctors_end->st_value, module);
+
+		nr_ctors = end - start;
+
+		size = nr_ctors * sizeof(module_ctor_t);
+		size += sizeof(module_ctor_t); /* NULL entry */
+
+		ctors = malloc(size);
+		if (!ctors) {
+			printf("Unable to alloc memory for ctors\n");
+			return -1;
 		}
+
+		memset(ctors, 0, size);
+		for (i = 0; i < nr_ctors; i++)
+			ctors[i] = start[i];
+
+		module->ctors = ctors;
 	}
 
-	if (exit_sym) {
-		module->exit_func = (module_exit_t*)module_get_absolute(
-			exit_sym->st_value, module);
-		if (*(module->exit_func) == NULL) {
-			module->exit_func = NULL;
-		}
-	}
+	dtors_start = module_find_symbol("__dtors_start", module);
+	dtors_end = module_find_symbol("__dtors_end", module);
 
-	if (main_sym)
-		module->main_func =
-			module_get_absolute(main_sym->st_value, module);
+	if (dtors_start && dtors_end) {
+		module_ctor_t *start, *end;
+		int nr_dtors = 0;
+		int i, size;
+
+		start = module_get_absolute(dtors_start->st_value, module);
+		end = module_get_absolute(dtors_end->st_value, module);
+
+		nr_dtors = end - start;
+
+		size = nr_dtors * sizeof(module_ctor_t);
+		size += sizeof(module_ctor_t); /* NULL entry */
+
+		dtors = malloc(size);
+		if (!dtors) {
+			printf("Unable to alloc memory for dtors\n");
+			free(ctors);
+			return -1;
+		}
+
+		memset(dtors, 0, size);
+		for (i = 0; i < nr_dtors; i++)
+			dtors[i] = start[i];
+
+		module->dtors = dtors;
+	}
 
 	return 0;
 }
 
-void print_elf_ehdr(Elf64_Ehdr *ehdr) {
-	int i;
-
-	printf("Identification:\t");
-	for (i=0; i < EI_NIDENT; i++) {
-		printf("%d ", ehdr->e_ident[i]);
-	}
-	printf("\n");
-	printf("Type:\t\t%u\n", ehdr->e_type);
-	printf("Machine:\t%u\n", ehdr->e_machine);
-	printf("Version:\t%u\n", ehdr->e_version);
-	printf("Entry:\t\t0x%08x\n", ehdr->e_entry);
-	printf("PHT Offset:\t0x%08x\n", ehdr->e_phoff);
-	printf("SHT Offset:\t0x%08x\n", ehdr->e_shoff);
-	//fprintf(stderr, "Flags:\t\t%u\n", ehdr->e_flags);
-	//fprintf(stderr, "Header size:\t%u (Structure size: %u)\n", ehdr->e_ehsize,sizeof(Elf64_Ehdr));
-	printf("phnum: %d shnum: %d\n", ehdr->e_phnum,
-		ehdr->e_shnum);
-}
 // Loads the module into the system
 int module_load(struct elf_module *module) {
 	int res;
+	Elf64_Sym *main_sym;
 	Elf64_Ehdr elf_hdr;
+	module_ctor_t *ctor;
 
 	// Do not allow duplicate modules
 	if (module_find(module->name) != NULL) {
 		DBG_PRINT("Module %s is already loaded.\n", module->name);
-		return -1;
+		return EEXIST;
 	}
 
 	// Get a mapping/copy of the ELF file in memory
@@ -512,45 +538,37 @@ int module_load(struct elf_module *module) {
 
 	// Load the segments in the memory
 	CHECKED(res, load_segments(module, &elf_hdr), error);
-	//!!!!! Passed load_segments....
 	//printf("bleah... 3\n");
 	// Obtain dynamic linking information
-	nr_needed = 0;
 	CHECKED(res, prepare_dynlinking(module), error);
 	//printf("check... 4\n");
-	//
-	//dump_elf_module(module);
 
 	/* Find modules we need to load as dependencies */
 	if (module->str_table) {
-		int i, n;
+		int i;
 
 		/*
-		 * nr_needed can be modified by recursive calls to
-		 * module_load() so keep a local copy on the stack.
+		 * Note that we have to load the dependencies in
+		 * reverse order.
 		 */
-		n = nr_needed;
-		for (i = 0; i < n; i++) {
-			size_t len, j;
+		for (i = module->nr_needed - 1; i >= 0; i--) {
 			char *dep, *p;
+			char *argv[2] = { NULL, NULL };
 
-			dep = module->str_table + needed[i];
+			dep = module->str_table + module->needed[i];
 
 			/* strip everything but the last component */
-			j = len = strlen(dep);
-			if (!len)
+			if (!strlen(dep))
 				continue;
 
-			p = dep + len - 1;
-			while (j > 0 && *p && *p != '/') {
-				p--;
-				j--;
-			}
+			if (strchr(dep, '/')) {
+				p = strrchr(dep, '/');
+				p++;
+			} else
+				p = dep;
 
-			if (*p++ == '/') {
-				char argv[2] = { p, NULL };
-				spawn_load(p, 1, argv);
-			}
+			argv[0] = p;
+			spawn_load(p, 1, argv);
 		}
 	}
 
@@ -558,8 +576,11 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, check_symbols(module), error);
 	//printf("check... 5\n");
 
-	// Obtain constructors and destructors
-	CHECKED(res, extract_operations(module), error);
+	main_sym = module_find_symbol("main", module);
+	if (main_sym)
+		module->main_func =
+			module_get_absolute(main_sym->st_value, module);
+
 	//printf("check... 6\n");
 
 	// Add the module at the beginning of the module list
@@ -567,6 +588,9 @@ int module_load(struct elf_module *module) {
 
 	// Perform the relocations
 	resolve_symbols(module);
+
+	// Obtain constructors and destructors
+	CHECKED(res, extract_operations(module), error);
 
 	//dprintf("module->symtable_size = %d\n", module->symtable_size);
 
@@ -582,6 +606,10 @@ int module_load(struct elf_module *module) {
 			(module->init_func == NULL) ? NULL : *(module->init_func),
 			(module->exit_func == NULL) ? NULL : *(module->exit_func));
 	*/
+
+	for (ctor = module->ctors; *ctor; ctor++)
+		(*ctor) ();
+
 	return 0;
 
 error:

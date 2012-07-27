@@ -20,6 +20,9 @@ MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
 
 LIBS      = ../libupload/libcom32upload.a
+C_LIBS    += $(com32)/cmenu/libmenu/libmenu.c32 \
+	     $(com32)/libutil/libutil_com.c32 \
+	     $(com32)/lib/libcom32.c32 $(com32)/gpllib/libcom32gpl.c32
 CFLAGS    += -I$(com32)/cmenu/libmenu -I$(com32)
 
 MODULES	  = hdt.c32
@@ -45,7 +48,7 @@ FLOPPY_DIR		?= floppy
 PCI_IDS_FILE            ?= $(PWD)/$(FLOPPY_DIR)/pci.ids
 GZ_PCI_IDS_FILE         ?= $(PCI_IDS_FILE).gz
 MENU_COM32              ?= $(com32)/menu/menu.c32
-CHAIN_COM32             ?= $(com32)/modules/chain.c32
+CHAIN_COM32             ?= $(com32)/chain/chain.c32
 ART_DIR                 ?= art/
 QEMU			?= qemu-kvm
 
@@ -110,10 +113,16 @@ hdt.iso: hdt.c32 $(topdir)/core/isolinux.bin $(FLOPPY_DIR)/hdt.cfg memtest
 	mv hdt.iso hdt-$(VERSION).iso
 	ln -sf hdt-$(VERSION).iso hdt.iso
 
-release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso
+hdt-hybrid.iso: hdt.iso ../../utils/isohybrid
+	cp hdt-$(VERSION).iso hdt-hybrid-$(VERSION).iso
+	../../utils/isohybrid --partok hdt-hybrid-$(VERSION).iso
+	ln -sf hdt-hybrid-$(VERSION).iso hdt-hybrid.iso
+
+release: spotless hdt.c32 hdt.img hdt.img.gz hdt.iso hdt-hybrid.iso
 	mv hdt.c32 hdt_$(NODASH_VERSION).c32
 	md5sum hdt_$(NODASH_VERSION).c32 >$(SUM_FILE)
 	md5sum hdt-$(VERSION).iso >>$(SUM_FILE)
+	md5sum hdt-hybrid-$(VERSION).iso >>$(SUM_FILE)
 	md5sum hdt-$(VERSION).img >>$(SUM_FILE)
 	md5sum hdt-$(VERSION).img.gz >>$(SUM_FILE)
 

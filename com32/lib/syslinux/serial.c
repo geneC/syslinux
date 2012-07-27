@@ -35,31 +35,16 @@
 #include <syslinux/firmware.h>
 #include <syslinux/config.h>
 #include <string.h>
-#include <com32.h>
 
 struct syslinux_serial_console_info __syslinux_serial_console_info;
 
-void bios_get_serial_console_info(uint16_t *iobase, uint16_t *divisor,
-				  uint16_t *flowctl)
-{
-    static com32sys_t reg;
-
-    memset(&reg, 0, sizeof reg);
-    reg.eax.w[0] = 0x000b;
-    __intcall(0x22, &reg, &reg);
-
-    *iobase = reg.edx.w[0];
-    *divisor = reg.ecx.w[0];
-    *flowctl = reg.ebx.w[0];
-}
-
 void __constructor __syslinux_get_serial_console_info(void)
 {
-	uint16_t iobase, divisor, flowctl;
+    uint16_t iobase, divisor, flowctl;
 
-	firmware->get_serial_console_info(&iobase, &divisor, &flowctl);
+    firmware->get_serial_console_info(&iobase, &divisor, &flowctl);
 
-	__syslinux_serial_console_info.iobase = iobase;
-	__syslinux_serial_console_info.divisor = divisor;
-	__syslinux_serial_console_info.flowctl = flowctl;
+    __syslinux_serial_console_info.iobase = iobase;
+    __syslinux_serial_console_info.divisor = divisor;
+    __syslinux_serial_console_info.flowctl = flowctl;
 }

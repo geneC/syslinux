@@ -1,6 +1,6 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2011 Erwan Velu - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -23,29 +23,36 @@
  *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
- * ----------------------------------------------------------------------- */
-
-/*
- * syslinux/features.c
- *
- * SYSLINUX feature flag query
+ * -----------------------------------------------------------------------
  */
 
-#include <klibc/compiler.h>
-#include <syslinux/features.h>
 #include <string.h>
-#include <com32.h>
+#include <stdlib.h>
 
-struct __syslinux_feature_flags __syslinux_feature_flags;
-
-void __constructor __syslinux_detect_features(void)
+char *strreplace(const char *string, const char *string_to_replace,
+		 const char *string_to_insert)
 {
-    static com32sys_t reg;
+    char *token = NULL;
+    char *out = NULL;
 
-    memset(&reg, 0, sizeof reg);
-    reg.eax.w[0] = 0x0015;
-    __intcall(0x22, &reg, &reg);
+    size_t slen, srlen, silen;
 
-    __syslinux_feature_flags.len = reg.ecx.w[0];
-    __syslinux_feature_flags.ptr = MK_PTR(reg.es, reg.ebx.w[0]);
+    token = strstr(string, string_to_replace);
+    if (!token)
+	return strdup(string);
+
+    slen  = strlen(string);
+    srlen = strlen(string_to_replace);
+    silen = strlen(string_to_insert);
+    
+    out = malloc(slen - srlen + silen + 1);
+    if (!out)
+	return NULL;
+    
+    memcpy(out, string, token - string);
+    memcpy(out + (token - string), string_to_insert, silen);
+    memcpy(out + (token - string) + silen, token + srlen, 
+	   slen - srlen - (token - string) + 1);
+
+    return out;
 }

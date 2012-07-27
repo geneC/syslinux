@@ -259,101 +259,184 @@ static void do_dump(int argc __unused, char **argv __unused,
     dump(hardware);
 }
 
+/**
+ * do_say - say message to user
+ **/
+static void do_say(int argc , char **argv ,
+		      struct s_hardware *hardware)
+{
+   (void) hardware;
+   if (argc == 0) return;
+
+   char text_to_say[255]={0};
+   int arg=0;
+   int sleep_time=0;
+#if DEBUG
+   for (int i=0; i<argc;i++) dprintf("SAY: arg[%d]={%s}\n",i,argv[i]);
+#endif
+   char *argument = strchr(argv[arg],'`');
+   if ( argument != NULL) {
+	argument++;
+   	strcat(text_to_say, argument);
+
+   	while ((strchr(argument, '`') == NULL) && (arg+1<argc)) {
+		arg++;
+		argument = (char *)argv[arg];
+		strcat(text_to_say, " ");
+		strcat(text_to_say, argument);
+   	}
+    
+	/* Removing last ` if any */
+    	char *last_quote = strrchr(text_to_say,'`');
+    	if ( last_quote != NULL ) {
+	*last_quote='\0';
+	dprintf("SAY CMD = [%s]\n",text_to_say);	   
+    	}
+
+	/* The % char can be in the same argument, let's consider it again */
+    	arg--;
+
+	/* Searching for a % argument to determine the time to show the message */
+    	char *time_to_display = NULL;
+    	/* Search for a requested time to display */
+    	while ( ((time_to_display=strchr(argument, '%')) == NULL) && (arg+1<argc)) {
+		arg++;
+		argument = (char *)argv[arg];
+    	}
+
+    	if (time_to_display != NULL) {
+		sleep_time=atoi(time_to_display+1);
+		dprintf("SAY CMD :Time to display = %d\n",sleep_time);	   
+    	}
+
+  	printf("%s\n",text_to_say);
+  	sleep(sleep_time);
+  }
+}
+
 /* Default hdt mode */
 struct cli_callback_descr list_hdt_default_modules[] = {
     {
      .name = CLI_CLEAR,
      .exec = cli_clear_screen,
+     .nomodule = false,
      },
     {
      .name = CLI_EXIT,
      .exec = do_exit,
+     .nomodule = false,
      },
     {
      .name = CLI_HELP,
      .exec = show_cli_help,
+     .nomodule = false,
      },
     {
      .name = CLI_MENU,
      .exec = goto_menu,
+     .nomodule = false,
      },
     {
      .name = CLI_REBOOT,
      .exec = do_reboot,
+     .nomodule = false,
      },
     {
      .name = CLI_HISTORY,
      .exec = print_history,
+     .nomodule = false,
      },
     {
      .name = CLI_DUMP,
      .exec = do_dump,
+     .nomodule = false,
+     },
+    {
+     .name = CLI_SAY,
+     .exec = do_say,
+     .nomodule = true,
      },
     {
      .name = NULL,
-     .exec = NULL},
+     .exec = NULL,
+     .nomodule = false},
 };
 
 struct cli_callback_descr list_hdt_show_modules[] = {
     {
      .name = CLI_SUMMARY,
      .exec = main_show_summary,
+     .nomodule = false,
      },
     {
      .name = CLI_PCI,
      .exec = main_show_pci,
+     .nomodule = false,
      },
     {
      .name = CLI_DMI,
      .exec = main_show_dmi,
+     .nomodule = false,
      },
     {
      .name = CLI_CPU,
      .exec = main_show_cpu,
+     .nomodule = false,
      },
     {
      .name = CLI_DISK,
      .exec = disks_summary,
+     .nomodule = false,
      },
     {
      .name = CLI_PXE,
      .exec = main_show_pxe,
+     .nomodule = false,
      },
     {
      .name = CLI_SYSLINUX,
      .exec = main_show_syslinux,
+     .nomodule = false,
      },
     {
      .name = CLI_KERNEL,
      .exec = main_show_kernel,
+     .nomodule = false,
      },
     {
      .name = CLI_VESA,
      .exec = main_show_vesa,
+     .nomodule = false,
      },
     {
      .name = CLI_HDT,
      .exec = main_show_hdt,
+     .nomodule = false,
      },
     {
      .name = CLI_VPD,
      .exec = main_show_vpd,
+     .nomodule = false,
      },
     {
      .name = CLI_MEMORY,
      .exec = show_dmi_memory_modules,
+     .nomodule = false,
      },
     {
      .name = CLI_ACPI,
      .exec = main_show_acpi,
+     .nomodule = false,
      },
     {
      .name = "modes",
      .exec = main_show_modes,
+     .nomodule = false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule = false,
      },
 };
 
@@ -361,10 +444,12 @@ struct cli_callback_descr list_hdt_set_modules[] = {
     {
      .name = CLI_MODE,
      .exec = cli_set_mode,
+     .nomodule = false,
      },
     {
      .name = NULL,
      .exec = NULL,
+     .nomodule = false,
      },
 };
 

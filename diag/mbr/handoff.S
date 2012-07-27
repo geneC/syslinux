@@ -43,11 +43,11 @@
  * Install instructions (assuming your target is /dev/dev; file or block device):
  *
  * MBR:
- * dd conv=notrunc bs=440 count=1 if=mbr_ho.bin of=/dev/dev
+ * dd conv=notrunc bs=440 count=1 if=handoff.bin of=/dev/dev
  *
  * VBR/PBR (should work for FAT12/16/32, ext[234]fs, btrfs):
  * echo -en "\0353\0130\0220" |dd conv=notrunc bs=1 count=3 of=/dev/dev
- * dd conv=notrunc bs=2 count=210 seek=45 if=mbr_ho.bin of=/dev/dev
+ * dd conv=notrunc bs=2 count=210 seek=45 if=handoff.bin of=/dev/dev
  */
 
 // #define DEBUG_MARKER1	/* Insert markers in binary */

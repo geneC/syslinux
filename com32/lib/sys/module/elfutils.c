@@ -37,7 +37,7 @@ struct memalign_info {
 };
 
 int elf_malloc(void **memptr, size_t alignment, size_t size) {
-	void *start_addr = NULL;
+	char *start_addr = NULL;
 	struct memalign_info *info;
 
 	if ((alignment & (alignment - 1)) != 0)
@@ -63,7 +63,7 @@ int elf_malloc(void **memptr, size_t alignment, size_t size) {
 	return 0;
 }
 
-void elf_free(void *memptr) {
+void elf_free(char *memptr) {
 	struct memalign_info *info = (struct memalign_info*)(memptr -
 			sizeof(struct memalign_info));
 

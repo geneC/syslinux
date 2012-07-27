@@ -17,10 +17,15 @@ static int vesa_getmodes(lua_State *L)
   struct vesa_general_info *gi;
   struct vesa_mode_info *mi;
   int nmode = 1;
+  int rv = -1;
 
-  /* Allocate space in the bounce buffer for these structures */
-  gi = &((struct vesa_info *)__com32.cs_bounce)->gi;
-  mi = &((struct vesa_info *)__com32.cs_bounce)->mi;
+  gi = lmalloc(sizeof *gi);
+  if (!gi)
+      return -1;
+
+  mi = lmalloc(sizeof *mi);
+  if (!mi)
+      goto out;
 
   memset(&rm, 0, sizeof rm);
   memset(gi, 0, sizeof *gi);
@@ -32,11 +37,15 @@ static int vesa_getmodes(lua_State *L)
   __intcall(0x10, &rm, &rm);
 
   if ( rm.eax.w[0] != 0x004F )
-    return -1;                   /* Function call failed */
-  if ( gi->signature != VESA_MAGIC )
-    return -2;                   /* No magic */
-  if ( gi->version < 0x0102 )
-    return -3;                   /* VESA 1.2+ required */
+    goto out;                   /* Function call failed */
+  if ( gi->signature != VESA_MAGIC ) {
+    rv = -2;                   /* No magic */
+    goto out;
+  }
+  if ( gi->version < 0x0102 ) {
+    rv = -3;                   /* VESA 1.2+ required */
+    goto out;
+  }
 
   lua_newtable(L);      /* list of modes */
 
@@ -86,7 +95,11 @@ static int vesa_getmodes(lua_State *L)
 
   }
 
-  return 1;
+  rv = 1;
+out:
+  lfree(mi);
+  lfree(gi);
+  return rv;
 }
 
 

@@ -39,12 +39,7 @@
 #include <com32.h>
 #include <sys/pci.h>
 #include <stdbool.h>
-
-#ifdef DEBUG
-# define dprintf printf
-#else
-# define dprintf(...) ((void)0)
-#endif
+#include <dprintf.h>
 
 char display_line = 0;
 #define moreprintf(...)				\

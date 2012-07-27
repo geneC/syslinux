@@ -120,7 +120,7 @@ extern const com32sys_t __com32_zero_regs;
 /*
  * Lowmem allocation functions
  */
-void *clmalloc(size_t);
+void *lmalloc(size_t);
 void *lzalloc(size_t);
 void lfree(void *);
 char *lstrdup(const char *);
@@ -135,10 +135,22 @@ char *lstrdup(const char *);
  * specific segment.  OFFS_VALID() will return whether or not the
  * pointer is actually reachable from the target segment.
  */
+#if defined(DEBUG) && (defined(__COM32__) || defined(__SYSLINUX_CORE__))
+__noreturn __bad_SEG(const volatile void *);
+
+static inline uint16_t SEG(const volatile void *__p)
+{
+    if (__unlikely((uintptr_t)__p > 0xfffff))
+	__bad_SEG(__p);
+
+    return (uint16_t) (((uintptr_t) __p) >> 4);
+}
+#else
 static inline uint16_t SEG(const volatile void *__p)
 {
     return (uint16_t) (((uintptr_t) __p) >> 4);
 }
+#endif
 
 static inline uint16_t OFFS(const volatile void *__p)
 {

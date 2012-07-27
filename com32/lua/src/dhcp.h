@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2007 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2011 Timothy J Gleason <timmgleason_at_gmail.com> - All Rights Reserved
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -25,17 +26,24 @@
  *
  * ----------------------------------------------------------------------- */
 
-#include <syslinux/config.h>
-#include <klibc/compiler.h>
-#include <com32.h>
+#include <stdint.h>
 
-const char *__syslinux_config_file;
+typedef struct dhcp {
+  uint8_t	op;			/* message opcode */
+  uint8_t	htype;			/* Hardware address type */
+  uint8_t	hlen;			/* Hardware address length */
+  uint8_t	hops;			/* Used by relay agents */
+  uint32_t	xid;			/* transaction id */
+  uint16_t	secs;			/* Secs elapsed since client boot */
+  uint16_t	flags;			/* DHCP Flags field */
+  uint8_t	ciaddr[4];		/* client IP addr */
+  uint8_t	yiaddr[4];		/* 'Your' IP addr. (from server) */
+  uint8_t	siaddr[4];		/* Boot server IP addr */
+  uint8_t	giaddr[4];		/* Relay agent IP addr */
+  uint8_t	chaddr[16];		/* Client hardware addr */
+  uint8_t	sname[64];		/* Optl. boot server hostname */
+  uint8_t	file[128];		/* boot file name (ascii path) */
+  uint8_t	cookie[4];		/* Magic cookie */
+  uint8_t	options[1020];		/* Options */
+} dhcp_t;
 
-void __constructor __syslinux_get_config_file_name(void)
-{
-    static com32sys_t reg;
-
-    reg.eax.w[0] = 0x000e;
-    __intcall(0x22, &reg, &reg);
-    __syslinux_config_file = MK_PTR(reg.es, reg.ebx.w[0]);
-}

@@ -164,10 +164,10 @@ static inline const struct syslinux_serial_console_info
     return &__syslinux_serial_console_info;
 }
 
-extern __nocommon const char *__syslinux_config_file;
+extern char ConfigName[];
 static inline const char *syslinux_config_file(void)
 {
-    return __syslinux_config_file;
+    return ConfigName;
 }
 
 struct syslinux_ipappend_strings {
@@ -179,6 +179,11 @@ static inline const struct syslinux_ipappend_strings
     *syslinux_ipappend_strings(void)
 {
     return &__syslinux_ipappend_strings;
+}
+
+static inline enum syslinux_filesystem syslinux_filesystem(void)
+{
+    return syslinux_derivative_info()->c.filesystem;
 }
 
 #endif /* _SYSLINUX_CONFIG_H */

@@ -41,12 +41,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <syslinux/zio.h>
-
-#ifdef DEBUG
-# define dprintf printf
-#else
-# define dprintf(...) ((void)0)
-#endif
+#include <dprintf.h>
 
 #define MAX_LINE 512
 
@@ -584,14 +579,14 @@ void free_pci_domain(struct pci_domain *domain)
 				    free(func->dev_info);
 				free(func);
 			    }
-			    free(slot);
 			}
+			free(slot);
 		    }
-		    free(bus);
 		}
+		free(bus);
 	    }
-	    free(domain);
 	}
+	free(domain);
     }
 }
 

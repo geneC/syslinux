@@ -34,13 +34,13 @@
 #include <errno.h>
 #include <string.h>
 #include <com32.h>
+#include <core.h>
 #include <minmax.h>
 #include <syslinux/config.h>
 #include "file.h"
 
 ssize_t __serial_write(struct file_info *fp, const void *buf, size_t count)
 {
-    com32sys_t ireg;
     const char *bufp = buf;
     size_t n = 0;
 
@@ -49,12 +49,8 @@ ssize_t __serial_write(struct file_info *fp, const void *buf, size_t count)
     if (!syslinux_serial_console_info()->iobase)
 	return count;		/* Nothing to do */
 
-    memset(&ireg, 0, sizeof ireg);
-    ireg.eax.b[1] = 0x04;
-
     while (count--) {
-	ireg.edx.b[0] = *bufp++;
-	__intcall(0x21, &ireg, NULL);
+	write_serial(*bufp++);
 	n++;
     }
 
