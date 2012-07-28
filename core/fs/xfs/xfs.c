@@ -123,13 +123,18 @@ out:
     return -1;
 }
 
-static struct inode *xfs_fmt_extents_find_entry(const char *dname,
-						struct inode *parent,
-						xfs_dinode_t *core)
+static inline struct inode *xfs_fmt_local_find_entry(const char *dname,
+						     struct inode *parent,
+						     xfs_dinode_t *core)
+{
+    return xfs_dir2_local_find_entry(dname, parent, core);
+}
+
+static inline struct inode *xfs_fmt_extents_find_entry(const char *dname,
+						       struct inode *parent,
+						       xfs_dinode_t *core)
 {
     struct inode *inode;
-
-    xfs_debug("parent ino %llu", parent->ino);
 
     if (be32_to_cpu(core->di_nextents) <= 1) {
         /* Single-block Directories */
@@ -160,7 +165,7 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
     }
 
     if (core->di_format == XFS_DINODE_FMT_LOCAL) {
-	inode = xfs_dir2_local_find_entry(dname, parent, core);
+	inode = xfs_fmt_local_find_entry(dname, parent, core);
     } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
         inode = xfs_fmt_extents_find_entry(dname, parent, core);
     } else {
