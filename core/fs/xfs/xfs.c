@@ -37,8 +37,15 @@
 #include "xfs_dir2.h"
 #include "xfs_readdir.h"
 
-static int xfs_fmt_extents_readdir(struct file *file, struct dirent *dirent,
-				   xfs_dinode_t *core)
+static inline int xfs_fmt_local_readdir(struct file *file,
+					struct dirent *dirent, xfs_dinode_t *core)
+{
+    return xfs_readdir_dir2_block(file, dirent, core);
+}
+
+static inline int xfs_fmt_extents_readdir(struct file *file,
+					  struct dirent *dirent,
+					  xfs_dinode_t *core)
 {
     int retval;
 
@@ -70,7 +77,7 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
     }
 
     if (core->di_format == XFS_DINODE_FMT_LOCAL)
-	retval = xfs_readdir_dir2_local(file, dirent, core);
+	retval = xfs_fmt_local_readdir(file, dirent, core);
     else if (core->di_format == XFS_DINODE_FMT_EXTENTS)
 	retval = xfs_fmt_extents_readdir(file, dirent, core);
 
