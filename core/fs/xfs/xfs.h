@@ -597,4 +597,25 @@ static inline bool xfs_is_valid_agi(xfs_agi_t *agi)
     return agi->agi_magicnum == *(uint32_t *)XFS_AGI_MAGIC;
 }
 
+static inline struct inode *xfs_new_inode(struct fs_info *fs)
+{
+    struct inode *inode;
+
+    inode = alloc_inode(fs, 0, sizeof(struct xfs_inode));
+    if (!inode)
+	malloc_error("xfs_inode structure");
+
+    return inode;
+}
+
+static inline void fill_xfs_inode_pvt(struct fs_info *fs, struct inode *inode,
+				      xfs_ino_t ino)
+{
+    XFS_PVT(inode)->i_agblock =
+	agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, ino)) >> BLOCK_SHIFT(fs);
+    XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
+    XFS_PVT(inode)->i_block_offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) <<
+                                     XFS_INFO(fs)->inode_shift;
+}
+
 #endif /* XFS_H_ */

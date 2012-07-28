@@ -30,196 +30,11 @@
 #include "codepage.h"
 #include "xfs_types.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "misc.h"
 #include "xfs.h"
-#include "xfs_ag.h"
-
-static inline struct inode *xfs_new_inode(struct fs_info *fs)
-{
-    struct inode *inode;
-
-    inode = alloc_inode(fs, 0, sizeof(struct xfs_inode));
-    if (!inode)
-	malloc_error("xfs_inode structure");
-
-    return inode;
-}
-
-static xfs_dinode_t *xfs_get_ino_core(struct fs_info *fs, xfs_ino_t ino)
-{
-    block_t blk;
-    xfs_dinode_t *core;
-    uint64_t offset;
-
-    xfs_debug("ino %lu", ino);
-
-    blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) << XFS_INFO(fs)->inode_shift;
-    if (offset > BLOCK_SIZE(fs)) {
-        xfs_error("Invalid inode offset in block!");
-        xfs_debug("offset: 0x%llx", offset);
-        goto out;
-    }
-
-    xfs_debug("blk %llu block offset 0x%llx", blk, blk << BLOCK_SHIFT(fs));
-    xfs_debug("inode offset in block (in bytes) is 0x%llx", offset);
-
-    core = (xfs_dinode_t *)((uint8_t *)get_cache(fs->fs_dev, blk) + offset);
-    if (be16_to_cpu(core->di_magic) !=
-	be16_to_cpu(*(uint16_t *)XFS_DINODE_MAGIC)) {
-	xfs_error("Inode core's magic number does not match!");
-	xfs_debug("magic number 0x%04x", (be16_to_cpu(core->di_magic)));
-	goto out;
-    }
-
-    return core;
-
-out:
-    return NULL;
-}
-
-static char *get_entry_name(uint8_t *start, uint8_t *end)
-{
-    char *s;
-    char *p;
-
-    s = malloc(end - start + 1);
-    if (!s)
-	malloc_error("string");
-
-    p = s;
-    while (start < end)
-	*p++ = *start++;
-
-    *p = '\0';
-
-    return s;
-}
-
-/* See if the directory is a single-leaf form directory. */
-static bool xfs_dir2_isleaf(struct fs_info *fs, xfs_dinode_t *dip)
-{
-    uint64_t last = 0;
-    xfs_bmbt_irec_t irec;
-
-    bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&dip->di_literal_area[0]) + 
-		         be32_to_cpu(dip->di_nextents) - 1);
-    last = irec.br_startoff + irec.br_blockcount;
-
-    return (last == XFS_INFO(fs)->dirleafblk + (1 << XFS_INFO(fs)->dirblklog));
-}
-
-static void *get_dirblks(struct fs_info *fs, block_t startblock,
-			 xfs_filblks_t c)
-{
-    int count = c << XFS_INFO(fs)->dirblklog;
-    uint8_t *p;
-    uint8_t *buf;
-    off_t offset = 0;
-
-    buf = malloc(c * XFS_INFO(fs)->dirblksize);
-    if (!buf)
-        malloc_error("buffer memory");
-
-    memset(buf, 0, XFS_INFO(fs)->dirblksize);
-
-    while (count--) {
-        p = (uint8_t *)get_cache(fs->fs_dev, startblock++);
-        memcpy(buf + offset, p,  BLOCK_SIZE(fs));
-        offset += BLOCK_SIZE(fs);
-    }
-
-    return buf;
-}
-
-static inline void fill_xfs_inode_pvt(struct fs_info *fs, struct inode *inode,
-				      xfs_ino_t ino)
-{
-    XFS_PVT(inode)->i_agblock =
-	agnumber_to_bytes(fs, XFS_INO_TO_AGNO(fs, ino)) >> BLOCK_SHIFT(fs);
-    XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    XFS_PVT(inode)->i_block_offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) <<
-                                     XFS_INFO(fs)->inode_shift;
-}
-
-struct inode *xfs_fmt_local_find_entry(const char *dname, struct inode *parent,
-				       xfs_dinode_t *core)
-{
-    xfs_dir2_sf_t *sf = (xfs_dir2_sf_t *)&core->di_literal_area[0];
-    xfs_dir2_sf_entry_t *sf_entry;
-    uint8_t count = sf->hdr.i8count ? sf->hdr.i8count : sf->hdr.count;
-    struct fs_info *fs = parent->fs;
-    struct inode *inode;
-    xfs_intino_t ino;
-    xfs_dinode_t *ncore = NULL;
-
-    xfs_debug("count %hhu i8count %hhu", sf->hdr.count, sf->hdr.i8count);
-
-    sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)&sf->list[0] -
-				       (!sf->hdr.i8count ? 4 : 0));
-    while (count--) {
-	uint8_t *start_name = &sf_entry->name[0];
-	uint8_t *end_name = start_name + sf_entry->namelen;
-	char *name;
-
-	name = get_entry_name(start_name, end_name);
-
-	xfs_debug("entry name: %s", name);
-
-	if (!strncmp(name, dname, strlen(dname))) {
-	    free(name);
-	    goto found;
-	}
-
-	free(name);
-
-	sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)sf_entry +
-					   offsetof(struct xfs_dir2_sf_entry,
-						    name[0]) +
-					   sf_entry->namelen +
-					   (sf->hdr.i8count ? 8 : 4));
-    }
-
-    return NULL;
-
-found:
-    inode = xfs_new_inode(fs);
-
-    ino = xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
-				      (uint8_t *)sf_entry +
-				      offsetof(struct xfs_dir2_sf_entry,
-					       name[0]) +
-				      sf_entry->namelen));
-
-    xfs_debug("entry inode's number %lu", ino);
-
-    ncore = xfs_get_ino_core(fs, ino);
-    if (!ncore) {
-        xfs_error("Failed to get dinode!");
-        goto out;
-    }
-
-    fill_xfs_inode_pvt(fs, inode, ino);
-
-    inode->ino			= ino;
-    inode->size 		= be64_to_cpu(ncore->di_size);
-
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
-	inode->mode = DT_DIR;
-	xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
-	inode->mode = DT_REG;
-	xfs_debug("Found a file inode!");
-	xfs_debug("inode size %llu", inode->size);
-    }
-
-    return inode;
-
-out:
-    free(inode);
-
-    return NULL;
-}
+#include "xfs_dinode.h"
+#include "xfs_dir2.h"
 
 static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
 		       uint32_t offset, xfs_ino_t ino, char *name,
@@ -231,7 +46,7 @@ static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
     dirent->d_off = offset;
     dirent->d_reclen = offsetof(struct dirent, d_name) + namelen + 1;
 
-    core = xfs_get_ino_core(fs, ino);
+    core = xfs_dinode_get_core(fs, ino);
     if (!core) {
         xfs_error("Failed to get dinode from disk (ino 0x%llx)", ino);
         return -1;
@@ -286,7 +101,7 @@ static int xfs_fmt_local_readdir(struct file *file, struct dirent *dirent,
     start_name = &sf_entry->name[0];
     end_name = start_name + sf_entry->namelen;
 
-    name = get_entry_name(start_name, end_name);
+    name = xfs_dir2_get_entry_name(start_name, end_name);
 
     ino = xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
 				      (uint8_t *)sf_entry +
@@ -326,7 +141,7 @@ static int xfs_dir2_block_readdir(struct file *file, struct dirent *dirent,
     bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
 
-    dirblk_buf = get_dirblks(fs, dir_blk, r.br_blockcount);
+    dirblk_buf = xfs_dir2_get_dirblks(fs, dir_blk, r.br_blockcount);
     hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
     if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
         xfs_error("Block directory header's magic number does not match!");
@@ -365,7 +180,7 @@ static int xfs_dir2_block_readdir(struct file *file, struct dirent *dirent,
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = get_entry_name(start_name, end_name);
+    name = xfs_dir2_get_entry_name(start_name, end_name);
 
     ino = be64_to_cpu(dep->inumber);
 
@@ -404,7 +219,8 @@ static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
     leaf_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
 					BLOCK_SHIFT(file->fs);
 
-    leaf = (xfs_dir2_leaf_t *)get_dirblks(fs, leaf_blk, irec.br_blockcount);
+    leaf = (xfs_dir2_leaf_t *)xfs_dir2_get_dirblks(fs, leaf_blk,
+						   irec.br_blockcount);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
         xfs_error("Single leaf block header's magic number does not match!");
         goto out;
@@ -431,7 +247,7 @@ static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
 		      ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + newdb);
 	dir_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
 						BLOCK_SHIFT(fs);
-	buf = get_dirblks(fs, dir_blk, irec.br_blockcount);
+	buf = xfs_dir2_get_dirblks(fs, dir_blk, irec.br_blockcount);
 	data_hdr = (xfs_dir2_data_hdr_t *)buf;
 	if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
 	    xfs_error("Leaf directory's data magic number does not match!");
@@ -447,7 +263,7 @@ static int xfs_dir2_leaf_readdir(struct file *file, struct dirent *dirent,
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = get_entry_name(start_name, end_name);
+    name = xfs_dir2_get_entry_name(start_name, end_name);
 
     ino = be64_to_cpu(dep->inumber);
 
@@ -507,7 +323,7 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
     struct inode *inode = file->inode;
     int retval = -1;
 
-    core = xfs_get_ino_core(fs, inode->ino);
+    core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
 	xfs_error("Failed to get dinode from disk (ino %llx)", inode->ino);
 	return -1;
@@ -538,7 +354,7 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
 
     xfs_debug("in");
 
-    core = xfs_get_ino_core(fs, inode->ino);
+    core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
 	xfs_error("Failed to get dinode from disk (ino %llx)", inode->ino);
 	goto out;
@@ -565,525 +381,6 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
 
 out:
     return -1;
-}
-
-static struct inode *xfs_dir2_block_find_entry(const char *dname,
-					       struct inode *parent,
-					       xfs_dinode_t *core)
-{
-    xfs_bmbt_irec_t r;
-    block_t dir_blk;
-    struct fs_info *fs = parent->fs;
-    uint8_t *dirblk_buf;
-    uint8_t *p, *endp;
-    xfs_dir2_data_hdr_t *hdr;
-    struct inode *inode = NULL;
-    xfs_dir2_block_tail_t *btp;
-    xfs_dir2_data_unused_t *dup;
-    xfs_dir2_data_entry_t *dep;
-    xfs_intino_t ino;
-    xfs_dinode_t *ncore;
-
-    bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
-    dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
-
-    dirblk_buf = get_dirblks(fs, dir_blk, r.br_blockcount);
-    hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
-    if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
-        xfs_error("Block directory header's magic number does not match!");
-        xfs_debug("hdr->magic: 0x%lx", be32_to_cpu(hdr->magic));
-        goto out;
-    }
-
-    p = (uint8_t *)(hdr + 1);
-
-    btp = xfs_dir2_block_tail_p(XFS_INFO(fs), hdr);
-    endp = (uint8_t *)((xfs_dir2_leaf_entry_t *)btp - be32_to_cpu(btp->count));
-
-    while (p < endp) {
-        uint8_t *start_name;
-        uint8_t *end_name;
-        char *name;
-
-        dup = (xfs_dir2_data_unused_t *)p;
-        if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-            p += be16_to_cpu(dup->length);
-            continue;
-        }
-
-        dep = (xfs_dir2_data_entry_t *)p;
-
-        start_name = &dep->name[0];
-        end_name = start_name + dep->namelen;
-        name = get_entry_name(start_name, end_name);
-
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
-            goto found;
-        }
-
-        free(name);
-	p += xfs_dir2_data_entsize(dep->namelen);
-    }
-
-out:
-    free(dirblk_buf);
-
-    return NULL;
-
-found:
-    inode = xfs_new_inode(fs);
-
-    ino = be64_to_cpu(dep->inumber);
-
-    xfs_debug("entry inode's number %lu", ino);
-
-    ncore = xfs_get_ino_core(fs, ino);
-    if (!ncore) {
-        xfs_error("Failed to get dinode!");
-        goto failed;
-    }
-
-    fill_xfs_inode_pvt(fs, inode, ino);
-
-    inode->ino = ino;
-    XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
-    inode->size = be64_to_cpu(ncore->di_size);
-
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
-        inode->mode = DT_DIR;
-        xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
-        inode->mode = DT_REG;
-        xfs_debug("Found a file inode!");
-        xfs_debug("inode size %llu", inode->size);
-    }
-
-    xfs_debug("entry inode's number %lu", ino);
-
-    free(dirblk_buf);
-    return inode;
-
-failed:
-    free(inode);
-    free(dirblk_buf);
-
-    return NULL;
-}
-
-static uint32_t xfs_da_hashname(const uint8_t *name, int namelen)
-{
-    uint32_t hash;
-
-    /*
-     * Do four characters at a time as long as we can.
-     */
-    for (hash = 0; namelen >= 4; namelen -=4, name += 4)
-        hash = (name[0] << 21) ^ (name[1] << 14) ^ (name[2] << 7) ^
-               (name[3] << 0) ^ rol32(hash, 7 * 4);
-
-    /*
-     * Now do the rest of the characters.
-     */
-    switch (namelen) {
-    case 3:
-        return (name[0] << 14) ^ (name[1] << 7) ^ (name[2] << 0) ^
-               rol32(hash, 7 * 3);
-    case 2:
-        return (name[0] << 7) ^ (name[1] << 0) ^ rol32(hash, 7 * 2);
-    case 1:
-        return (name[0] << 0) ^ rol32(hash, 7 * 1);
-    default: /* case 0: */
-        return hash;
-    }
-}
-
-static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
-					      struct inode *parent,
-					      xfs_dinode_t *core)
-{
-    xfs_dir2_leaf_t *leaf;
-    xfs_bmbt_irec_t irec;
-    block_t leaf_blk, dir_blk;
-    xfs_dir2_leaf_entry_t *lep;
-    int low;
-    int high;
-    int mid = 0;
-    uint32_t hash = 0;
-    uint32_t hashwant;
-    uint32_t newdb, curdb = -1;
-    xfs_dir2_data_entry_t *dep;
-    struct inode *ip;
-    xfs_dir2_data_hdr_t *data_hdr;
-    uint8_t *start_name;
-    uint8_t *end_name;
-    char *name;
-    xfs_intino_t ino;
-    xfs_dinode_t *ncore;
-    uint8_t *buf = NULL;
-
-    bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
-					be32_to_cpu(core->di_nextents) - 1);
-    leaf_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
-	    BLOCK_SHIFT(parent->fs);
-
-    leaf = (xfs_dir2_leaf_t *)get_dirblks(parent->fs, leaf_blk,
-					  irec.br_blockcount);
-    if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
-        xfs_error("Single leaf block header's magic number does not match!");
-        goto out;
-    }
-
-    if (!leaf->hdr.count)
-        goto out;
-
-    hashwant = xfs_da_hashname((uint8_t *)dname, strlen(dname));
-
-    /* Binary search */
-    for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
-	 low <= high; ) {
-        mid = (low + high) >> 1;
-        if ((hash = be32_to_cpu(lep[mid].hashval)) == hashwant)
-            break;
-        if (hash < hashwant)
-            low = mid + 1;
-        else
-            high = mid - 1;
-    }
-
-    /* If hash is not the one we want, then the directory does not contain the
-     * entry we're looking for and there is nothing to do anymore.
-     */
-    if (hash != hashwant)
-	goto out;
-
-    while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
-	mid--;
-
-    for (lep = &leaf->ents[mid];
-	 mid < be16_to_cpu(leaf->hdr.count) &&
-	 be32_to_cpu(lep->hashval) == hashwant;
-	 lep++, mid++) {
-        /* Skip over stale leaf entries. */
-        if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
-            continue;
-
-        newdb = xfs_dir2_dataptr_to_db(parent->fs, be32_to_cpu(lep->address));
-        if (newdb != curdb) {
-            if (buf)
-                free(buf);
-
-            bmbt_irec_get(&irec,
-		  ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + newdb);
-            dir_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
-		      BLOCK_SHIFT(parent->fs);
-            buf = get_dirblks(parent->fs, dir_blk, irec.br_blockcount);
-            data_hdr = (xfs_dir2_data_hdr_t *)buf;
-            if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
-                xfs_error("Leaf directory's data magic No. does not match!");
-                goto out1;
-            }
-            curdb = newdb;
-        }
-        /* Point to the data entry */
-        dep = (xfs_dir2_data_entry_t *)((char *)buf +
-               xfs_dir2_dataptr_to_off(parent->fs, be32_to_cpu(lep->address)));
-
-        start_name = &dep->name[0];
-        end_name = start_name + dep->namelen;
-        name = get_entry_name(start_name, end_name);
-
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
-            goto found;
-        }
-        free(name);
-    }
-
-out1:
-    free(buf);
-out:
-    free(leaf);
-    return NULL;
-
-found:
-    ip = xfs_new_inode(parent->fs);
-
-    ino = be64_to_cpu(dep->inumber);
-
-    xfs_debug("entry inode's number %lu", ino);
-
-    ncore = xfs_get_ino_core(parent->fs, ino);
-    if (!ncore) {
-        xfs_error("Failed to get dinode!");
-        goto failed;
-    }
-
-    fill_xfs_inode_pvt(parent->fs, ip, ino);
-
-    ip->ino = ino;
-    XFS_PVT(ip)->i_ino_blk = ino_to_bytes(parent->fs, ino) >>
-	                        BLOCK_SHIFT(parent->fs);
-    ip->size = be64_to_cpu(ncore->di_size);
-
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
-        ip->mode = DT_DIR;
-        xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
-        ip->mode = DT_REG;
-        xfs_debug("Found a file inode!");
-        xfs_debug("inode size %llu", ip->size);
-    }
-
-    xfs_debug("entry inode's number %lu", ino);
-
-    free(buf);
-    free(leaf);
-    return ip;
-
-failed:
-    free(ip);
-    free(buf);
-    free(leaf);
-    return ip;
-}
-
-static block_t get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
-                             uint32_t from, uint32_t to, block_t fsblkno,
-                             int *error)
-{
-    uint32_t idx;
-    xfs_bmbt_irec_t irec;
-
-    *error = 0;
-    for (idx = from; idx < to; idx++) {
-        bmbt_irec_get(&irec,
-                      ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + idx);
-        if (fsblkno >= irec.br_startoff &&
-            fsblkno < irec.br_startoff + irec.br_blockcount)
-            break;
-    }
-
-    if (fsblkno < irec.br_startoff ||
-        fsblkno >= irec.br_startoff + irec.br_blockcount)
-        *error = 1;
-
-    return fsblock_to_bytes(fs,
-                fsblkno - irec.br_startoff + irec.br_startblock) >>
-                BLOCK_SHIFT(fs);
-}
-
-static struct inode *xfs_dir2_node_find_entry(const char *dname,
-					      struct inode *parent,
-					      xfs_dinode_t *core)
-{
-    xfs_bmbt_irec_t irec;
-    uint32_t node_off = 0;
-    block_t fsblkno;
-    xfs_da_intnode_t *node = NULL;
-    uint32_t hashwant;
-    uint32_t hash = 0;
-    xfs_da_node_entry_t *btree;
-    uint16_t max;
-    uint16_t span;
-    uint16_t probe;
-    int error;
-    xfs_dir2_data_hdr_t *data_hdr;
-    xfs_dir2_leaf_t *leaf;
-    xfs_dir2_leaf_entry_t *lep;
-    xfs_dir2_data_entry_t *dep;
-    struct inode *ip;
-    uint8_t *start_name;
-    uint8_t *end_name;
-    char *name;
-    int low;
-    int high;
-    int mid = 0;
-    uint32_t newdb, curdb = -1;
-    xfs_intino_t ino;
-    xfs_dinode_t *ncore;
-    uint8_t *buf = NULL;
-
-    do {
-        bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
-                                                (++node_off));
-    } while (irec.br_startoff <
-             xfs_dir2_byte_to_db(parent->fs, XFS_DIR2_LEAF_OFFSET));
-
-    fsblkno = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
-               BLOCK_SHIFT(parent->fs);
-
-    node = (xfs_da_intnode_t *)get_dirblks(parent->fs, fsblkno, 1);
-    if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
-        xfs_error("Node's magic number does not match!");
-        goto out;
-    }
-
-    if (!node->hdr.count)
-        goto out;
-
-    hashwant = xfs_da_hashname((uint8_t *)dname, strlen(dname));
-
-    /* Given a hash to lookup, you read the node's btree array and first
-     * "hashval" in the array that exceeds the given hash and it can then
-     * be found in the block pointed by the "before" value.
-     */
-    max = be16_to_cpu(node->hdr.count);
-
-    probe = span = max/2;
-    for (btree = &node->btree[probe]; span > 4; btree = &node->btree[probe]) {
-        span /= 2;
-        hash = be32_to_cpu(btree->hashval);
-        if (hash < hashwant)
-            probe += span;
-        else if (hash > hashwant)
-            probe -= span;
-        else
-            break;
-    }
-
-    while ((probe > 0) && (be32_to_cpu(btree->hashval) >= hashwant)) {
-        btree--;
-        probe--;
-    }
-    while ((probe < max) && (be32_to_cpu(btree->hashval) < hashwant)) {
-        btree++;
-        probe++;
-    }
-
-    if (probe == max)
-        fsblkno = be32_to_cpu(node->btree[max-1].before);
-    else
-        fsblkno = be32_to_cpu(node->btree[probe].before);
-
-    fsblkno = get_right_blk(parent->fs, core,
-                       node_off + 1, be32_to_cpu(core->di_nextents) - 1,
-                       fsblkno, &error);
-    if (error) {
-        xfs_error("Cannot find leaf rec!");
-        goto out;
-    }
-
-    leaf = (xfs_dir2_leaf_t*)get_dirblks(parent->fs, fsblkno, 1);
-    if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
-        xfs_error("Leaf's magic number does not match!");
-        goto out1;
-    }
-
-    if (!leaf->hdr.count)
-        goto out1;
-
-    for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
-         low <= high; ) {
-        mid = (low + high) >> 1;
-        if ((hash = be32_to_cpu(lep[mid].hashval)) == hashwant)
-            break;
-        if (hash < hashwant)
-            low = mid + 1;
-        else
-            high = mid - 1;
-    }
-
-    /* If hash is not the one we want, then the directory does not contain the
-     * entry we're looking for and there is nothing to do anymore.
-     */
-    if (hash != hashwant)
-        goto out1;
-
-    while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
-        mid--;
-
-    for (lep = &leaf->ents[mid];
-         mid < be16_to_cpu(leaf->hdr.count) &&
-         be32_to_cpu(lep->hashval) == hashwant;
-         lep++, mid++) {
-        /* Skip over stale leaf entries. */
-        if (be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR)
-            continue;
-
-        newdb = xfs_dir2_dataptr_to_db(parent->fs, be32_to_cpu(lep->address));
-        if (newdb != curdb) {
-            if (buf)
-                free(buf);
-
-            fsblkno = get_right_blk(parent->fs, core, 0, node_off,
-                                    newdb, &error);
-            if (error) {
-                xfs_error("Cannot find data rec!");
-                goto out;
-            }
-
-            buf = get_dirblks(parent->fs, fsblkno, 1);
-            data_hdr = (xfs_dir2_data_hdr_t *)buf;
-            if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
-                xfs_error("Leaf directory's data magic No. does not match!");
-                goto out2;
-            }
-            curdb = newdb;
-        }
-        dep = (xfs_dir2_data_entry_t *)((char *)buf +
-               xfs_dir2_dataptr_to_off(parent->fs, be32_to_cpu(lep->address)));
-
-        start_name = &dep->name[0];
-        end_name = start_name + dep->namelen;
-        name = get_entry_name(start_name, end_name);
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
-            goto found;
-        }
-        free(name);
-    }
-
-out2:
-    free(buf);
-
-out1:
-    free(leaf);
-
-out:
-    free(node);
-
-    return NULL;
-
-found:
-    ip = xfs_new_inode(parent->fs);
-    ino = be64_to_cpu(dep->inumber);
-    ncore = xfs_get_ino_core(parent->fs, ino);
-    if (!ncore) {
-        xfs_error("Failed to get dinode!");
-        goto failed;
-    }
-
-    fill_xfs_inode_pvt(parent->fs, ip, ino);
-    ip->ino = ino;
-    XFS_PVT(ip)->i_ino_blk = ino_to_bytes(parent->fs, ino) >>
-        BLOCK_SHIFT(parent->fs);
-    ip->size = be64_to_cpu(ncore->di_size);
-
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
-        ip->mode = DT_DIR;
-        xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
-        ip->mode = DT_REG;
-        xfs_debug("Found a file inode!");
-        xfs_debug("inode size %llu", ip->size);
-    }
-
-    xfs_debug("entry inode's number %lu", ino);
-
-    free(buf);
-    free(leaf);
-    free(node);
-
-    return ip;
-
-failed:
-    free(ip);
-    free(buf);
-    free(leaf);
-    free(node);
-
-    return NULL;
 }
 
 static struct inode *xfs_fmt_extents_find_entry(const char *dname,
@@ -1116,14 +413,14 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
 
     xfs_debug("dname %s parent %p parent ino %lu", dname, parent, parent->ino);
 
-    core = xfs_get_ino_core(fs, parent->ino);
+    core = xfs_dinode_get_core(fs, parent->ino);
     if (!core) {
         xfs_error("Failed to get dinode from disk (ino 0x%llx)", parent->ino);
         goto out;
     }
 
     if (core->di_format == XFS_DINODE_FMT_LOCAL) {
-	inode = xfs_fmt_local_find_entry(dname, parent, core);
+	inode = xfs_dir2_local_find_entry(dname, parent, core);
     } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
         inode = xfs_fmt_extents_find_entry(dname, parent, core);
     } else {
@@ -1156,7 +453,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
 
     xfs_debug("Looking for the root inode...");
 
-    core = xfs_get_ino_core(fs, XFS_INFO(fs)->rootino);
+    core = xfs_dinode_get_core(fs, XFS_INFO(fs)->rootino);
     if (!core) {
 	xfs_error("Inode core's magic number does not match!");
 	xfs_debug("magic number 0x%04x", be16_to_cpu(core->di_magic));
