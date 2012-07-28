@@ -751,6 +751,9 @@ static struct inode *xfs_dir2_leaf_find_entry(const char *dname,
             high = mid - 1;
     }
 
+    /* If hash is not the one we want, then the directory does not contain the
+     * entry we're looking for and there is nothing to do anymore.
+     */
     if (hash != hashwant)
 	goto out;
 
@@ -912,10 +915,7 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
 
     node = (xfs_da_intnode_t *)get_dirblks(parent->fs, fsblkno, 1);
     if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
-        xfs_error("XFS_DA_NODE_MAGIC does not match!");
-        xfs_debug("error magic: 0x%hx, should be: 0x%hx",
-                  be16_to_cpu(node->hdr.info.magic),
-                  XFS_DA_NODE_MAGIC);
+        xfs_error("Node's magic number does not match!");
         goto out;
     }
 
@@ -924,8 +924,7 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
 
     hashwant = xfs_da_hashname((uint8_t *)dname, strlen(dname));
 
-    /*
-     * Given a hash to lookup, you read the node's btree array and first
+    /* Given a hash to lookup, you read the node's btree array and first
      * "hashval" in the array that exceeds the given hash and it can then
      * be found in the block pointed by the "before" value.
      */
@@ -967,12 +966,12 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
 
     leaf = (xfs_dir2_leaf_t*)get_dirblks(parent->fs, fsblkno, 1);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
-        xfs_error("XFS_DIR2_LEAFN_MAGIC does not match!");
-        goto out;
+        xfs_error("Leaf's magic number does not match!");
+        goto out1;
     }
 
     if (!leaf->hdr.count)
-        goto out;
+        goto out1;
 
     for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
          low <= high; ) {
@@ -985,10 +984,11 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
             high = mid - 1;
     }
 
-    if (hash != hashwant) {
-        xfs_error("Cannot find right hashval in leaf entries!");
-        goto out;
-    }
+    /* If hash is not the one we want, then the directory does not contain the
+     * entry we're looking for and there is nothing to do anymore.
+     */
+    if (hash != hashwant)
+        goto out1;
 
     while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
         mid--;
@@ -1017,7 +1017,7 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
             data_hdr = (xfs_dir2_data_hdr_t *)buf;
             if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
                 xfs_error("Leaf directory's data magic No. does not match!");
-                goto out1;
+                goto out2;
             }
             curdb = newdb;
         }
@@ -1034,10 +1034,15 @@ static struct inode *xfs_dir2_node_find_entry(const char *dname,
         free(name);
     }
 
-out1:
+out2:
     free(buf);
+
+out1:
+    free(leaf);
+
 out:
     free(node);
+
     return NULL;
 
 found:
@@ -1067,13 +1072,17 @@ found:
     xfs_debug("entry inode's number %lu", ino);
 
     free(buf);
+    free(leaf);
     free(node);
+
     return ip;
 
 failed:
     free(ip);
     free(buf);
+    free(leaf);
     free(node);
+
     return NULL;
 }
 
