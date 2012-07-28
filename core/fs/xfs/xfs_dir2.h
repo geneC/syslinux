@@ -42,7 +42,7 @@ static inline bool xfs_dir2_isleaf(struct fs_info *fs, xfs_dinode_t *dip)
     uint64_t last = 0;
     xfs_bmbt_irec_t irec;
 
-    bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&dip->di_literal_area[0]) + 
+    bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&dip->di_literal_area[0]) +
 		         be32_to_cpu(dip->di_nextents) - 1);
     last = irec.br_startoff + irec.br_blockcount;
 
