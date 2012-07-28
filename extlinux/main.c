@@ -14,7 +14,8 @@
 /*
  * extlinux.c
  *
- * Install the syslinux boot block on an fat, ntfs, ext2/3/4 and btrfs filesystem
+ * Install the syslinux boot block on an fat, ntfs, ext2/3/4, btrfs and xfs
+ * filesystem.
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
@@ -49,6 +50,7 @@
 #include "xfs.h"
 #include "xfs_types.h"
 #include "xfs_sb.h"
+#include "misc.h"
 #include "../version.h"
 #include "syslxint.h"
 #include "syslxcom.h" /* common functions shared with extlinux and syslinux */
@@ -71,7 +73,8 @@
  * we will use the first 0~512 bytes starting from 2048 for the Syslinux
  * boot sector.
  */
-#define XFS_BOOTSECT_OFFSET	4 * SECTOR_SIZE
+#define XFS_BOOTSECT_OFFSET	(4 << SECTOR_SHIFT)
+#define XFS_SUPPORTED_BLOCKSIZE 4096 /* 4 KiB filesystem block size */
 
 /* the btrfs partition first 64K blank area is used to store boot sector and
    boot image, the boot sector is from 0~512, the boot image starts after */
@@ -379,8 +382,19 @@ int install_bootblock(int fd, const char *device)
 	    return 1;
 	}
 
-	if (sb5.sb_magicnum == *(u32 *)XFS_SB_MAGIC)
+	if (sb5.sb_magicnum == *(u32 *)XFS_SB_MAGIC) {
+	    if (be32_to_cpu(sb5.sb_blocksize) != XFS_SUPPORTED_BLOCKSIZE) {
+		fprintf(stderr,
+			"You need to have 4 KiB filesystem block size for "
+			" being able to install Syslinux in your XFS "
+			"partition (because there is no enough space in MBR to "
+			"determine where Syslinux bootsector can be installed "
+			"regardless the filesystem block size)\n");
+		return 1;
+	    }
+
 	    ok = true;
+	}
     }
 
     if (!ok) {
