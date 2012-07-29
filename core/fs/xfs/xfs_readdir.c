@@ -357,7 +357,7 @@ try_next_btree:
 
     fsblkno = xfs_dir2_get_right_blk(fs, core, 0, node_off, db, &error);
     if (error) {
-	xfs_error("Cannot find data rec!");
+	xfs_error("Cannot find data block!");
 	goto out1;
     }
 

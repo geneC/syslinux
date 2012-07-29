@@ -592,8 +592,8 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             fsblkno = xfs_dir2_get_right_blk(parent->fs, core, 0, node_off,
 					     newdb, &error);
             if (error) {
-                xfs_error("Cannot find data rec!");
-                goto out;
+                xfs_error("Cannot find data block!");
+                goto out1;
             }
 
             buf = xfs_dir2_get_dirblks(parent->fs, fsblkno, 1);
