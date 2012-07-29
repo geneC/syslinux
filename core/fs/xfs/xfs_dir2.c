@@ -74,7 +74,7 @@ uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen)
 }
 
 void *xfs_dir2_get_dirblks(struct fs_info *fs, block_t startblock,
-			       xfs_filblks_t c)
+			   xfs_filblks_t c)
 {
     int count = c << XFS_INFO(fs)->dirblklog;
     uint8_t *p;
@@ -432,9 +432,9 @@ failed:
     return ip;
 }
 
-static block_t get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
-                             uint32_t from, uint32_t to, block_t fsblkno,
-                             int *error)
+block_t xfs_dir2_get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
+			       uint32_t from, uint32_t to, block_t fsblkno,
+			       int *error)
 {
     uint32_t idx;
     xfs_bmbt_irec_t irec;
@@ -539,9 +539,9 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     else
         fsblkno = be32_to_cpu(node->btree[probe].before);
 
-    fsblkno = get_right_blk(parent->fs, core,
-                       node_off + 1, be32_to_cpu(core->di_nextents) - 1,
-                       fsblkno, &error);
+    fsblkno = xfs_dir2_get_right_blk(parent->fs, core, node_off + 1,
+				     be32_to_cpu(core->di_nextents) - 1,
+				     fsblkno, &error);
     if (error) {
         xfs_error("Cannot find leaf rec!");
         goto out;
@@ -589,8 +589,8 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             if (buf)
                 free(buf);
 
-            fsblkno = get_right_blk(parent->fs, core, 0, node_off,
-                                    newdb, &error);
+            fsblkno = xfs_dir2_get_right_blk(parent->fs, core, 0, node_off,
+					     newdb, &error);
             if (error) {
                 xfs_error("Cannot find data rec!");
                 goto out;

@@ -354,6 +354,8 @@ struct xfs_inode {
     uint64_t		i_block_offset;
     uint64_t		i_offset;
     uint32_t		i_cur_extent;
+    uint32_t		i_btree_offset;
+    uint16_t		i_leaf_ent_offset;
 };
 
 typedef struct { uint8_t i[8]; } __attribute__((__packed__)) xfs_dir2_ino8_t;

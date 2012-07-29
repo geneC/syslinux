@@ -190,6 +190,9 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
     if (inode->mode == DT_REG) {
 	XFS_PVT(inode)->i_offset = 0;
 	XFS_PVT(inode)->i_cur_extent = 0;
+    } else if (inode->mode == DT_DIR) {
+	XFS_PVT(inode)->i_btree_offset = 0;
+	XFS_PVT(inode)->i_leaf_ent_offset = 0;
     }
 
     return inode;

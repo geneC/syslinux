@@ -27,6 +27,9 @@ char *xfs_dir2_get_entry_name(uint8_t *start, uint8_t *end);
 void *xfs_dir2_get_dirblks(struct fs_info *fs, block_t startblock,
 			   xfs_filblks_t c);
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen);
+block_t xfs_dir2_get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
+			       uint32_t from, uint32_t to, block_t fsblkno,
+			       int *error);
 
 struct inode *xfs_dir2_local_find_entry(const char *dname, struct inode *parent,
 					xfs_dinode_t *core);
