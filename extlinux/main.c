@@ -76,7 +76,7 @@ static char subvol[BTRFS_SUBVOL_MAX];
 /*
  * Get the size of a block device
  */
-uint64_t get_size(int devfd)
+static uint64_t get_size(int devfd)
 {
     uint64_t bytes;
     uint32_t sects;
@@ -210,7 +210,7 @@ ok:
  *
  * Returns the number of modified bytes in the boot file.
  */
-int patch_file_and_bootblock(int fd, const char *dir, int devfd)
+static int patch_file_and_bootblock(int fd, const char *dir, int devfd)
 {
     struct stat dirst, xdst;
     struct hd_geometry geo;
@@ -746,7 +746,7 @@ static char * get_default_subvol(char * rootdir, char * subvol)
    return subvol;
 }
 
-int install_file(const char *path, int devfd, struct stat *rst)
+static int install_file(const char *path, int devfd, struct stat *rst)
 {
 	if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS)
 		return ext2_fat_install_file(path, devfd, rst);
@@ -1174,7 +1174,7 @@ static int ext_write_adv(const char *path, const char *cfg, int devfd)
     return write_adv(path, cfg);
 }
 
-int install_loader(const char *path, int update_only)
+static int install_loader(const char *path, int update_only)
 {
     struct stat st, fst;
     int devfd, rv;
