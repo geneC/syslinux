@@ -138,6 +138,14 @@ struct module_dep {
 };
 
 
+/**
+ * Unload all modules that have been loaded since @name.
+ *
+ * Returns the struct elf_module * for @name or %NULL if no modules
+ * have been loaded since @name.
+ */
+extern struct elf_module *unload_modules_since(const char *name);
+
 
 #ifdef DYNAMIC_MODULE
 

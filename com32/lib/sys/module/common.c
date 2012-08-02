@@ -422,6 +422,30 @@ int module_unload(struct elf_module *module) {
 	return _module_unload(module);
 }
 
+struct elf_module *unload_modules_since(const char *name) {
+	struct elf_module *m, *mod, *begin = NULL;
+
+	for_each_module(mod) {
+		if (!strcmp(mod->name, name)) {
+			begin = mod;
+			break;
+		}
+	}
+
+	if (!begin)
+		return begin;
+
+	for_each_module_safe(mod, m) {
+		if (mod == begin)
+			break;
+
+		if (mod != begin)
+			module_unload(mod);
+	}
+
+	return begin;
+}
+
 static Elf32_Sym *module_find_symbol_sysv(const char *name, struct elf_module *module) {
 	unsigned long h = elf_hash((const unsigned char*)name);
 	Elf32_Word *cr_word = module->hash_table;

@@ -222,6 +222,35 @@ static void enter_cmdline(void)
 	}
 }
 
+void ldlinux_enter_command(bool prompt)
+{
+	const char *cmdline = default_cmd;
+
+	if (prompt)
+		goto cmdline;
+auto_boot:
+	/*
+	 * Auto boot
+	 */
+	if (defaultlevel || noescape) {
+		if (defaultlevel) {
+			load_kernel(cmdline); /* Shouldn't return */
+		} else {
+			printf("No DEFAULT or UI configuration directive found!\n");
+
+			if (noescape)
+				kaboom();
+		}
+	}
+
+cmdline:
+	/* Only returns if the user pressed enter or input timed out */
+	enter_cmdline();
+
+	cmdline = ontimeoutlen ? ontimeout : default_cmd;
+
+	goto auto_boot;
+}
 int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;
@@ -249,7 +278,7 @@ int main(int argc __unused, char **argv __unused)
 		cmdline = dst = malloc(count + 1);
 		if (!dst) {
 			printf("Failed to allocate memory for ADV\n");
-			goto cmdline;
+			ldlinux_enter_command(true);
 		}
 
 		for (i = 0; i < count; i++)
@@ -261,37 +290,11 @@ int main(int argc __unused, char **argv __unused)
 			syslinux_adv_write();
 
 		load_kernel(cmdline); /* Shouldn't return */
-		goto cmdline;
+		ldlinux_enter_command(true);
 	}
 
 	/* TODO: Check KbdFlags? */
 
-	if (forceprompt)
-		goto cmdline;
-
-	cmdline = default_cmd;
-auto_boot:
-	/*
-	 * Auto boot
-	 */
-	if (defaultlevel || noescape) {
-		if (defaultlevel) {
-			load_kernel(cmdline); /* Shouldn't return */
-		} else {
-			printf("No DEFAULT or UI configuration directive found!\n");
-
-			if (noescape)
-				kaboom();
-		}
-	}
-
-cmdline:
-	/* Only returns if the user pressed enter or input timed out */
-	enter_cmdline();
-
-	cmdline = ontimeoutlen ? ontimeout : default_cmd;
-
-	goto auto_boot;
-
+	ldlinux_enter_command(forceprompt);
 	return 0;
 }
