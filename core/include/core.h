@@ -36,7 +36,7 @@ extern unsigned int __bcopyxx_len;
 extern uint8_t KbdMap[256];
 
 extern const uint16_t IPAppends[];
-extern const char numIPAppends[];
+extern size_t numIPAppends;
 
 extern uint16_t SerialPort;
 extern uint16_t BaudDivisor;

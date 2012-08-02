@@ -81,7 +81,7 @@ void pxenv(void)
 {
 }
 
-const char numIPAppends[4];
+size_t numIPAppends = 0;
 const uint16_t IPAppends[32];
 uint16_t BIOS_fbm = 1;
 far_ptr_t InitStack;
