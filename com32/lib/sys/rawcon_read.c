@@ -44,15 +44,16 @@ ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count)
 {
     char *bufp = buf;
     size_t n = 0;
-    char hi = 0;
+    static char hi = 0;
+    static bool hi_key = false;
 
     (void)fp;
 
     while (n < count) {
-	if (hi) {
+	if (hi_key) {
 	    *bufp++ = hi;
 	    n++;
-	    hi = 0;
+	    hi_key = false;
 	    continue;
 	}
 
@@ -61,7 +62,11 @@ ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count)
 	    break;
 
 	/* We have data, go get it */
-	*bufp++ = getchar(&hi);
+	*bufp = getchar(&hi);
+	if (!*bufp)
+		hi_key = true;
+
+	bufp++;
 	n++;
     }
 
