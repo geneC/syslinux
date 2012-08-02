@@ -164,6 +164,9 @@ static struct inode *ext2_iget_by_inr(struct fs_info *fs, uint32_t inr)
     struct inode *inode;
 
     e_inode = ext2_get_inode(fs, inr);
+    if (!e_inode)
+	return NULL;
+
     if (!(inode = alloc_inode(fs, inr, sizeof(struct ext2_pvt_inode))))
 	return NULL;
     fill_inode(inode, e_inode);
