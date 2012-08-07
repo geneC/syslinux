@@ -83,19 +83,20 @@ static const char *get_extension(const char *kernel)
 	for (ext = file_extensions; ext->name; ext++) {
 		char *str;
 		int elen = strlen(ext->name);
-		int fd;
+		FILE *f;
 
 		str = malloc(len + elen + 1);
 
 		strncpy(str, kernel, len);
 		strncpy(str + len, ext->name, elen);
 		str[len + elen] = '\0';
-
-		fd = searchdir(str);
+		f = findpath(str);
 		free(str);
 
-		if (fd >= 0)
+		if (f) {
+			fclose(f);
 			return ext->name;
+		}
 	}
 
 	return NULL;

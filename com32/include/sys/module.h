@@ -146,6 +146,8 @@ struct module_dep {
  */
 extern struct elf_module *unload_modules_since(const char *name);
 
+extern FILE *findpath(char *name);
+
 
 #ifdef DYNAMIC_MODULE
 
