@@ -108,16 +108,6 @@ uint8_t KeepPXE;
 volatile uint32_t __ms_timer = 0xdeadbeef;
 volatile uint32_t __jiffies = 0;
 
-static UINTN cursor_x, cursor_y;
-static void efi_erase(const struct term_state *st,
-		       int x0, int y0, int x1, int y1)
-{
-	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
-	cursor_x = cursor_y = 0;
-	/* Really clear the screen */
-	uefi_call_wrapper(out->ClearScreen, 1, out);
-}
-
 static void efi_write_char(uint8_t ch, uint8_t attribute)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
@@ -131,35 +121,52 @@ static void efi_write_char(uint8_t ch, uint8_t attribute)
 static void efi_showcursor(const struct term_state *st)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
-	uefi_call_wrapper(out->SetCursorPosition, 3, out, cursor_x, cursor_y);
+
+	uefi_call_wrapper(out->EnableCursor, 2, out, true);
 }
 
 static void efi_set_cursor(int x, int y, bool visible)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 
-	if (visible) {
-		uefi_call_wrapper(out->SetCursorPosition, 3, out, x, y);
-		cursor_x = x;
-		cursor_y = y;
-	} else
-		uefi_call_wrapper(out->EnableCursor, 2, out, false);
+	uefi_call_wrapper(out->SetCursorPosition, 3, out, x, y);
 }
 
 static void efi_scroll_up(uint8_t cols, uint8_t rows, uint8_t attribute)
 {
+	efi_write_char('\n', 0);
+	efi_write_char('\r', 0);
 }
-
 
 static void efi_get_mode(int *cols, int *rows)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	UINTN c, r;
 
-	/* XXX: Assume we're at 80x25 for now (mode 0) */
-	uefi_call_wrapper(out->QueryMode, 4, out, 0, &c, &r);
+	uefi_call_wrapper(out->QueryMode, 4, out, out->Mode->Mode, &c, &r);
 	*rows = r;
 	*cols = c;
+}
+
+static void efi_erase(const struct term_state *st,
+		       int x0, int y0, int x1, int y1)
+{
+	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
+	int cols, rows;
+
+	efi_get_mode(&cols, &rows);
+
+	/*
+	 * The BIOS version of this function has the ability to erase
+	 * parts or all of the screen - the UEFI console doesn't
+	 * support this so we just set the cursor position unless
+	 * we're clearing the whole screen.
+	 */
+	if (!x0 && !y0 && x1 == (rows - 1) && y1 == (cols - 1)) {
+		/* Really clear the screen */
+		uefi_call_wrapper(out->ClearScreen, 1, out);
+	} else
+		uefi_call_wrapper(out->SetCursorPosition, 3, out, y0, x0);
 }
 
 static void efi_set_mode(uint16_t mode)
@@ -168,8 +175,9 @@ static void efi_set_mode(uint16_t mode)
 
 static void efi_get_cursor(int *x, int *y)
 {
-	*x = cursor_x;
-	*y = cursor_y;
+	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
+	*x = out->Mode->CursorColumn;
+	*y = out->Mode->CursorRow;
 }
 
 struct output_ops efi_ops = {
