@@ -83,19 +83,20 @@ static const char *get_extension(const char *kernel)
 	for (ext = file_extensions; ext->name; ext++) {
 		char *str;
 		int elen = strlen(ext->name);
-		int fd;
+		FILE *f;
 
 		str = malloc(len + elen + 1);
 
 		strncpy(str, kernel, len);
 		strncpy(str + len, ext->name, elen);
 		str[len + elen] = '\0';
-
-		fd = searchdir(str);
+		f = findpath(str);
 		free(str);
 
-		if (fd >= 0)
+		if (f) {
+			fclose(f);
 			return ext->name;
+		}
 	}
 
 	return NULL;
@@ -222,6 +223,35 @@ static void enter_cmdline(void)
 	}
 }
 
+void ldlinux_enter_command(bool prompt)
+{
+	const char *cmdline = default_cmd;
+
+	if (prompt)
+		goto cmdline;
+auto_boot:
+	/*
+	 * Auto boot
+	 */
+	if (defaultlevel || noescape) {
+		if (defaultlevel) {
+			load_kernel(cmdline); /* Shouldn't return */
+		} else {
+			printf("No DEFAULT or UI configuration directive found!\n");
+
+			if (noescape)
+				kaboom();
+		}
+	}
+
+cmdline:
+	/* Only returns if the user pressed enter or input timed out */
+	enter_cmdline();
+
+	cmdline = ontimeoutlen ? ontimeout : default_cmd;
+
+	goto auto_boot;
+}
 int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;
@@ -249,7 +279,7 @@ int main(int argc __unused, char **argv __unused)
 		cmdline = dst = malloc(count + 1);
 		if (!dst) {
 			printf("Failed to allocate memory for ADV\n");
-			goto cmdline;
+			ldlinux_enter_command(true);
 		}
 
 		for (i = 0; i < count; i++)
@@ -261,37 +291,11 @@ int main(int argc __unused, char **argv __unused)
 			syslinux_adv_write();
 
 		load_kernel(cmdline); /* Shouldn't return */
-		goto cmdline;
+		ldlinux_enter_command(true);
 	}
 
 	/* TODO: Check KbdFlags? */
 
-	if (forceprompt)
-		goto cmdline;
-
-	cmdline = default_cmd;
-auto_boot:
-	/*
-	 * Auto boot
-	 */
-	if (defaultlevel || noescape) {
-		if (defaultlevel) {
-			load_kernel(cmdline); /* Shouldn't return */
-		} else {
-			printf("No DEFAULT or UI configuration directive found!\n");
-
-			if (noescape)
-				kaboom();
-		}
-	}
-
-cmdline:
-	/* Only returns if the user pressed enter or input timed out */
-	enter_cmdline();
-
-	cmdline = ontimeoutlen ? ontimeout : default_cmd;
-
-	goto auto_boot;
-
+	ldlinux_enter_command(forceprompt);
 	return 0;
 }

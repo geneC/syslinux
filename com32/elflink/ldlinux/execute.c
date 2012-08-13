@@ -18,6 +18,7 @@
 #include <com32.h>
 #include <sys/exec.h>
 #include <sys/io.h>
+#include <sys/module.h>
 #include "core.h"
 #include "menu.h"
 #include "fs.h"
@@ -93,6 +94,15 @@ void execute(const char *cmdline, uint32_t type)
 	if (type == IMAGE_TYPE_COM32) {
 		/* new entry for elf format c32 */
 		create_args_and_load((char *)cmdline);
+
+		/*
+		 * The old COM32 module code would run the module then
+		 * drop the user back at the command prompt,
+		 * irrespective of how the COM32 module was loaded,
+		 * e.g. from vesamenu.c32.
+		 */
+		unload_modules_since("ldlinux.c32");
+		ldlinux_enter_command(!noescape);
 	} else if (type == IMAGE_TYPE_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };
 

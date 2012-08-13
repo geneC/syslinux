@@ -57,7 +57,7 @@ void print_elf_symbols(struct elf_module *module) {
 }
 #endif //ELF_DEBUG
 
-static FILE *findpath(char *name)
+FILE *findpath(char *name)
 {
 	char path[FILENAME_MAX];
 	FILE *f;
@@ -427,6 +427,30 @@ int module_unload(struct elf_module *module) {
 		(*dtor) ();
 
 	return _module_unload(module);
+}
+
+struct elf_module *unload_modules_since(const char *name) {
+	struct elf_module *m, *mod, *begin = NULL;
+
+	for_each_module(mod) {
+		if (!strcmp(mod->name, name)) {
+			begin = mod;
+			break;
+		}
+	}
+
+	if (!begin)
+		return begin;
+
+	for_each_module_safe(mod, m) {
+		if (mod == begin)
+			break;
+
+		if (mod != begin)
+			module_unload(mod);
+	}
+
+	return begin;
 }
 
 static Elf_Sym *module_find_symbol_sysv(const char *name, struct elf_module *module) {

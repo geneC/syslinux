@@ -15,6 +15,9 @@
 ## COM32 standard modules
 ##
 
+LIBS = $(com32)/gpllib/libcom32gpl.c32 $(com32)/lib/libcom32.c32 \
+	$(com32)/libutil/libutil_com.c32
+
 topdir = ../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
@@ -27,21 +30,6 @@ MODULES	  = config.c32 ethersel.c32 dmitest.c32 cpuidtest.c32 \
 	    whichsys.c32 hello.c32 pxechn.c32
 
 TESTFILES =
-
-LDFLAGS_cpuidtest.o = $(com32)/gpllib/libcom32gpl.c32
-LDFLAGS_disk.o = $(com32)/gpllib/libcom32gpl.c32
-LDFLAGS_ethersel.o = $(com32)/lib/libcom32.c32
-LDFLAGS_gpxecmd.o = $(com32)/lib/libcom32.c32
-LDFLAGS_host.o = $(com32)/lib/libcom32.c32
-LDFLAGS_ifcpu.o = $(com32)/libutil/libutil_com.c32 \
-		  $(com32)/gpllib/libcom32gpl.c32
-LDFLAGS_kbdmap.o = $(com32)/lib/libcom32.c32
-LDFLAGS_linux.o = $(com32)/lib/libcom32.c32
-LDFLAGS_pxechn.o = $(com32)/lib/libcom32.c32 \
-	$(com32)/libutil/libutil_com.c32
-LDFLAGS_sanboot.o = $(com32)/lib/libcom32.c32
-LDFLAGS_vpdtest.o = $(com32)/gpllib/libcom32gpl.c32
-LDFLAGS_zzjson.o = $(com32)/gpllib/libcom32gpl.c32
 
 all: $(MODULES) $(TESTFILES)
 

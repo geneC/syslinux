@@ -64,28 +64,15 @@ int start_ldlinux(char **argv)
 again:
 	rv = spawn_load(LDLINUX, 1, argv);
 	if (rv == EEXIST) {
-		struct elf_module *m, *mod, *begin = NULL;
-
 		/*
 		 * If a COM32 module calls execute() we may need to
 		 * unload all the modules loaded since ldlinux.c32,
 		 * and restart initialisation. This is especially
 		 * important for config files.
 		 */
-		for_each_module(mod) {
-			if (!strcmp(mod->name, LDLINUX)) {
-				begin = mod;
-				break;
-			}
-		}
+		struct elf_module *ldlinux;
 
-		for_each_module_safe(mod, m) {
-			if (mod == begin)
-				break;
-
-			if (mod != begin)
-				module_unload(mod);
-		}
+		ldlinux = unload_modules_since(LDLINUX);
 
 		/*
 		 * Finally unload LDLINUX.
@@ -94,7 +81,7 @@ again:
 		 * cause all the initialsation steps to be executed
 		 * again.
 		 */
-		module_unload(begin);
+		module_unload(ldlinux);
 		goto again;
 	}
 

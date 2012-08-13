@@ -17,15 +17,15 @@
 
 NOGPL := 1
 
+LIBS  = libmenu/libmenu.c32 \
+        $(com32)/libutil/libutil_com.c32 \
+        $(com32)/lib/libcom32.c32
+
 topdir = ../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
 
 CFLAGS	  += -I./libmenu
-
-LIBS  = libmenu/libmenu.c32 \
-        $(com32)/libutil/libutil_com.c32 \
-        $(com32)/lib/libcom32.c32
 
 LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o \

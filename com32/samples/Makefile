@@ -14,12 +14,11 @@
 ## samples for syslinux users
 ##
 
+LIBS = $(com32)/libutil/libutil_com.c32
+
 topdir = ../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
-
-LDFLAGS_fancyhello.o = $(com32)/libutil/libutil_com.c32
-LDFLAGS_keytest.o = $(com32)/libutil/libutil_com.c32
 
 all:	hello.c32 resolv.c32 serialinfo.c32 \
 	localboot.c32 \
