@@ -171,7 +171,7 @@ LIBLOAD_OBJS = \
 LIBMODULE_OBJS = \
 	sys/module/common.o sys/module/$(ARCH)/elf_module.o		\
 	sys/module/$(ARCH)/shallow_module.o	sys/module/elfutils.o	\
-	sys/module/exec.o
+	sys/module/exec.o sys/module/elf_module.o
 
 # ZIP library object files
 LIBZLIB_OBJS = \
