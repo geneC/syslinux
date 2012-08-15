@@ -493,68 +493,73 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     } while (irec.br_startoff <
              xfs_dir2_byte_to_db(parent->fs, XFS_DIR2_LEAF_OFFSET));
 
+    hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
+
     fsblkno = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
                BLOCK_SHIFT(parent->fs);
-
     node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(parent->fs, fsblkno, 1);
     if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
         xfs_error("Node's magic number does not match!");
         goto out;
     }
 
-    if (!node->hdr.count)
-        goto out;
+    do {
+        if (!node->hdr.count)
+            goto out;
 
-    hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
+        /* Given a hash to lookup, you read the node's btree array and first
+         * "hashval" in the array that exceeds the given hash and it can then
+         * be found in the block pointed by the "before" value.
+         */
+        max = be16_to_cpu(node->hdr.count);
 
-    /* Given a hash to lookup, you read the node's btree array and first
-     * "hashval" in the array that exceeds the given hash and it can then
-     * be found in the block pointed by the "before" value.
-     */
-    max = be16_to_cpu(node->hdr.count);
+        probe = span = max/2;
+        for (btree = &node->btree[probe]; 
+             span > 4; btree = &node->btree[probe]) {
+            span /= 2;
+            hash = be32_to_cpu(btree->hashval);
+            if (hash < hashwant)
+                probe += span;
+            else if (hash > hashwant)
+                probe -= span;
+            else
+                break;
+        }
 
-    probe = span = max/2;
-    for (btree = &node->btree[probe]; span > 4; btree = &node->btree[probe]) {
-        span /= 2;
-        hash = be32_to_cpu(btree->hashval);
-        if (hash < hashwant)
-            probe += span;
-        else if (hash > hashwant)
-            probe -= span;
+        while ((probe > 0) && (be32_to_cpu(btree->hashval) >= hashwant)) {
+            btree--;
+            probe--;
+        }
+        while ((probe < max) && (be32_to_cpu(btree->hashval) < hashwant)) {
+            btree++;
+            probe++;
+        }
+
+        if (probe == max)
+            fsblkno = be32_to_cpu(node->btree[max-1].before);
         else
-            break;
-    }
+            fsblkno = be32_to_cpu(node->btree[probe].before);
 
-    while ((probe > 0) && (be32_to_cpu(btree->hashval) >= hashwant)) {
-        btree--;
-        probe--;
-    }
-    while ((probe < max) && (be32_to_cpu(btree->hashval) < hashwant)) {
-        btree++;
-        probe++;
-    }
+        fsblkno = xfs_dir2_get_right_blk(parent->fs, core, node_off + 1,
+                                         be32_to_cpu(core->di_nextents) - 1,
+                                         fsblkno, &error);
+        if (error) {
+            xfs_error("Cannot find right rec!");
+            goto out;
+        }
+        free(node);
+        node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(parent->fs, 
+                                                        fsblkno, 1);
+    } while(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 
-    if (probe == max)
-        fsblkno = be32_to_cpu(node->btree[max-1].before);
-    else
-        fsblkno = be32_to_cpu(node->btree[probe].before);
-
-    fsblkno = xfs_dir2_get_right_blk(parent->fs, core, node_off + 1,
-				     be32_to_cpu(core->di_nextents) - 1,
-				     fsblkno, &error);
-    if (error) {
-        xfs_error("Cannot find leaf rec!");
-        goto out;
-    }
-
-    leaf = (xfs_dir2_leaf_t*)xfs_dir2_get_dirblks(parent->fs, fsblkno, 1);
+    leaf = (xfs_dir2_leaf_t*)node;
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
         xfs_error("Leaf's magic number does not match!");
-        goto out1;
+        goto out;
     }
 
     if (!leaf->hdr.count)
-        goto out1;
+        goto out;
 
     for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
          low <= high; ) {
@@ -571,7 +576,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
      * entry we're looking for and there is nothing to do anymore.
      */
     if (hash != hashwant)
-        goto out1;
+        goto out;
 
     while (mid > 0 && be32_to_cpu(lep[mid - 1].hashval) == hashwant)
         mid--;
@@ -593,14 +598,14 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
 					     newdb, &error);
             if (error) {
                 xfs_error("Cannot find data block!");
-                goto out1;
+                goto out;
             }
 
             buf = xfs_dir2_get_dirblks(parent->fs, fsblkno, 1);
             data_hdr = (xfs_dir2_data_hdr_t *)buf;
             if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
                 xfs_error("Leaf directory's data magic No. does not match!");
-                goto out2;
+                goto out1;
             }
             curdb = newdb;
         }
@@ -617,11 +622,8 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
         free(name);
     }
 
-out2:
-    free(buf);
-
 out1:
-    free(leaf);
+    free(buf);
 
 out:
     free(node);
@@ -655,7 +657,6 @@ found:
     xfs_debug("entry inode's number %lu", ino);
 
     free(buf);
-    free(leaf);
     free(node);
 
     return ip;
@@ -663,7 +664,6 @@ found:
 failed:
     free(ip);
     free(buf);
-    free(leaf);
     free(node);
 
     return NULL;
