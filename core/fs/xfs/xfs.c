@@ -157,6 +157,13 @@ static inline struct inode *xfs_fmt_extents_find_entry(const char *dname,
     return inode;
 }
 
+static inline struct inode *xfs_fmt_btree_find_entry(const char *dname,
+                                                     struct inode *parent,
+                                                     xfs_dinode_t *core)
+{
+    return xfs_dir2_node_find_entry(dname, parent, core);
+}
+
 static struct inode *xfs_iget(const char *dname, struct inode *parent)
 {
     struct fs_info *fs = parent->fs;
@@ -175,6 +182,8 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
 	inode = xfs_fmt_local_find_entry(dname, parent, core);
     } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
         inode = xfs_fmt_extents_find_entry(dname, parent, core);
+    } else if (core->di_format == XFS_DINODE_FMT_BTREE) {
+        inode = xfs_fmt_btree_find_entry(dname, parent, core);
     } else {
 	xfs_debug("format %hhu", core->di_format);
 	xfs_debug("TODO: format \"local\" and \"extents\" are the only "
