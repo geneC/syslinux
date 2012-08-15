@@ -95,7 +95,14 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
     struct fs_info *fs = inode->fs;
     xfs_dinode_t *core = NULL;
     xfs_bmbt_irec_t rec;
-    block_t blk;
+    block_t bno;
+    xfs_bmdr_block_t *rblock;
+    int fsize;
+    xfs_bmbt_ptr_t *pp;
+    xfs_btree_block_t *blk;
+    uint16_t nextents;
+    block_t nextbno;
+    uint32_t index;
 
     (void)lstart;
 
@@ -107,21 +114,63 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
 	goto out;
     }
 
-    if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
-	/* The data fork contains the file's data extents */
-	if (XFS_PVT(inode)->i_cur_extent == be32_to_cpu(core->di_nextents))
-	    goto out;
+    /* The data fork contains the file's data extents */
+    if (XFS_PVT(inode)->i_cur_extent == be32_to_cpu(core->di_nextents))
+        goto out;
 
+    if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
 	bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
 						XFS_PVT(inode)->i_cur_extent++);
 
-	blk = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
+	bno = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
 
 	XFS_PVT(inode)->i_offset = rec.br_startoff;
 
-	inode->next_extent.pstart = blk << BLOCK_SHIFT(fs) >> SECTOR_SHIFT(fs);
+	inode->next_extent.pstart = bno << BLOCK_SHIFT(fs) >> SECTOR_SHIFT(fs);
 	inode->next_extent.len = ((rec.br_blockcount << BLOCK_SHIFT(fs)) +
 				  SECTOR_SIZE(fs) - 1) >> SECTOR_SHIFT(fs);
+    } else if (core->di_format == XFS_DINODE_FMT_BTREE) {
+        xfs_debug("XFS_DINODE_FMT_BTREE");
+        index = XFS_PVT(inode)->i_cur_extent++;
+        rblock = (xfs_bmdr_block_t *)&core->di_literal_area[0];
+        fsize = XFS_DFORK_SIZE(core, fs, XFS_DATA_FORK);
+        pp = XFS_BMDR_PTR_ADDR(rblock, 1, xfs_bmdr_maxrecs(fsize, 0));
+        bno = fsblock_to_bytes(fs, be64_to_cpu(pp[0])) >> BLOCK_SHIFT(fs);
+
+        /* Find the leaf */
+        for (;;) {
+            blk = (xfs_btree_block_t *)get_cache(fs->fs_dev, bno);
+            if (be16_to_cpu(blk->bb_level) == 0)
+                break;
+            pp = XFS_BMBT_PTR_ADDR(fs, blk, 1,
+                    xfs_bmdr_maxrecs(XFS_INFO(fs)->blocksize, 0));
+            bno = fsblock_to_bytes(fs, be64_to_cpu(pp[0])) >> BLOCK_SHIFT(fs);
+        }
+
+        /* Find the right extent among threaded leaves */
+        for (;;) {
+            nextbno = be64_to_cpu(blk->bb_u.l.bb_rightsib);
+            nextents = be16_to_cpu(blk->bb_numrecs);
+            if (nextents - index > 0) {
+                bmbt_irec_get(&rec, XFS_BMDR_REC_ADDR(blk, index + 1));
+
+                bno = fsblock_to_bytes(fs, rec.br_startblock) 
+                        >> BLOCK_SHIFT(fs);
+
+                XFS_PVT(inode)->i_offset = rec.br_startoff;
+
+                inode->next_extent.pstart = bno << BLOCK_SHIFT(fs) 
+                                                >> SECTOR_SHIFT(fs);
+                inode->next_extent.len = ((rec.br_blockcount 
+                                            << BLOCK_SHIFT(fs)) 
+                                            + SECTOR_SIZE(fs) - 1) 
+                                            >> SECTOR_SHIFT(fs);
+                break;
+            }
+            index -= nextents;
+            bno = fsblock_to_bytes(fs, nextbno) >> BLOCK_SHIFT(fs);
+            blk = (xfs_btree_block_t *)get_cache(fs->fs_dev, bno);
+        }
     }
 
     return 0;

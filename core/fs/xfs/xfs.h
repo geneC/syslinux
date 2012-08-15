@@ -734,4 +734,17 @@ typedef uint64_t xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
                  (maxrecs) * sizeof(xfs_bmdr_key_t) + \
                  ((index) - 1) * sizeof(xfs_bmdr_ptr_t)))
 
+/*
+ * Calculate number of records in a bmap btree inode root.
+ */
+static inline int
+xfs_bmdr_maxrecs(int blocklen, int leaf)
+{
+    blocklen -= sizeof(xfs_bmdr_block_t);
+
+    if (leaf)
+        return blocklen / sizeof(xfs_bmdr_rec_t);
+    return blocklen / (sizeof(xfs_bmdr_key_t) + sizeof(xfs_bmdr_ptr_t));
+}
+
 #endif /* XFS_H_ */

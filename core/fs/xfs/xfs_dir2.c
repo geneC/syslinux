@@ -432,19 +432,6 @@ failed:
     return ip;
 }
 
-/*
- * Calculate number of records in a bmap btree inode root.
- */
-static inline int
-xfs_bmdr_maxrecs(int blocklen, int leaf)
-{
-    blocklen -= sizeof(xfs_bmdr_block_t);
-
-    if (leaf)
-        return blocklen / sizeof(xfs_bmdr_rec_t);
-    return blocklen / (sizeof(xfs_bmdr_key_t) + sizeof(xfs_bmdr_ptr_t));
-}
-
 static xfs_fsblock_t
 select_child(xfs_dfiloff_t off,
              xfs_bmbt_key_t *kp,
