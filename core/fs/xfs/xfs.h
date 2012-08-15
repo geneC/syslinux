@@ -254,6 +254,8 @@ typedef struct xfs_bmbt_rec {
     uint64_t l1;
 } __attribute__((__packed__)) xfs_bmbt_rec_t;
 
+typedef xfs_bmbt_rec_t xfs_bmdr_rec_t;
+
 /*
  * Possible extent states.
  */
@@ -292,6 +294,12 @@ typedef struct xfs_timestamp {
     int32_t t_sec;
     int32_t t_nsec;
 } __attribute__((__packed__)) xfs_timestamp_t;
+
+/*
+ * Fork identifiers.
+ */
+#define XFS_DATA_FORK 0
+#define xFS_ATTR_FORK 1
 
 typedef enum xfs_dinode_fmt {
     XFS_DINODE_FMT_DEV,
@@ -333,6 +341,34 @@ typedef struct xfs_dinode {
     uint32_t		di_next_unlinked;/* agi unlinked list ptr */
     uint8_t		di_literal_area[1];
 } __attribute__((packed)) xfs_dinode_t;
+
+/*
+ * Inode size for given fs.
+ */
+#define XFS_LITINO(fs) \
+        ((int)((XFS_INFO(fs)->inodesize) - sizeof(struct xfs_dinode) - 1))
+
+#define XFS_BROOT_SIZE_ADJ \
+        (XFS_BTREE_LBLOCK_LEN - sizeof(xfs_bmdr_block_t))
+
+/*
+ * Inode data & attribute fork sizes, per inode.
+ */
+#define XFS_DFORK_Q(dip)	((dip)->di_forkoff != 0)
+#define XFS_DFORK_BOFF(dip)	((int)((dip)->di_forkoff << 3))
+
+#define XFS_DFORK_DSIZE(dip, fs) \
+        (XFS_DFORK_Q(dip) ? \
+                XFS_DFORK_BOFF(dip) : \
+                XFS_LITINO(fs))
+#define XFS_DFORK_ASIZE(dip, fs) \
+        (XFS_DFORK_Q(dip) ? \
+                XFS_LITINO(fs) - XFS_DFORK_BOFF(dip) : \
+                0)
+#define XFS_DFORK_SIZE(dip, fs, w) \
+        ((w) == XFS_DATA_FORK ? \
+                XFS_DFORK_DSIZE(dip, fs) : \
+                XFS_DFORK_ASIZE(dip, fs))
 
 struct xfs_inode {
     xfs_agblock_t 	i_agblock;
@@ -605,5 +641,97 @@ static inline void fill_xfs_inode_pvt(struct fs_info *fs, struct inode *inode,
     XFS_PVT(inode)->i_block_offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) <<
                                      XFS_INFO(fs)->inode_shift;
 }
+
+/*
+ * Generic btree header.
+ *
+ * This is a combination of the actual format used on disk for short and long
+ * format btrees. The first three fields are shared by both format, but
+ * the pointers are different and should be used with care.
+ *
+ * To get the size of the actual short or long form headers please use
+ * the size macros belows. Never use sizeof(xfs_btree_block);
+ */
+typedef struct xfs_btree_block {
+    uint32_t bb_magic;			/* magic number for block type */
+    uint16_t bb_level;			/* 0 is a leaf */
+    uint16_t bb_numrecs;		/* current # of data records */
+    union {
+        struct {
+            uint32_t bb_leftsib;
+            uint32_t bb_rightsib;
+        } s;				/* short form pointers */
+        struct {
+            uint64_t bb_leftsib;
+            uint64_t bb_rightsib;
+        } l;				/* long form pointers */
+    } bb_u;				/* rest */
+} xfs_btree_block_t;
+
+#define XFS_BTREE_SBLOCK_LEN 16 /* size of a short form block */
+#define XFS_BTREE_LBLOCK_LEN 24 /* size of a long form block */
+
+/*
+ * Bmap root header, on-disk form only.
+ */
+typedef struct xfs_bmdr_block {
+    uint16_t bb_level;		/* 0 is a leaf */
+    uint16_t bb_numrecs;	/* current # of data records */
+} xfs_bmdr_block_t;
+
+/*
+ * Key structure for non-leaf levels of the tree.
+ */
+typedef struct xfs_bmbt_key {
+    uint64_t br_startoff;	/* starting file offset */
+} xfs_bmbt_key_t, xfs_bmdr_key_t;
+
+/* btree pointer type */
+typedef uint64_t xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
+
+/*
+ * Btree block header size depends on a superblock flag.
+ *
+ * (not quite yet, but soon)
+ */
+#define XFS_BMBT_BLOCK_LEN(fs) XFS_BTREE_LBLOCK_LEN
+
+#define XFS_BMBT_REC_ADDR(fs, block, index) \
+        ((xfs_bmbt_rec_t *) \
+                ((char *)(block) + \
+                 XFS_BMBT_BLOCK_LEN(fs) + \
+                 ((index) - 1) * sizeof(xfs_bmbt_rec_t)))
+
+#define XFS_BMBT_KEY_ADDR(fs, block, index) \
+        ((xfs_bmbt_key_t *) \
+                ((char *)(block) + \
+                 XFS_BMBT_BLOCK_LEN(fs) + \
+                 ((index) - 1) * sizeof(xfs_bmbt_key_t)))
+
+#define XFS_BMBT_PTR_ADDR(fs, block, index, maxrecs) \
+        ((xfs_bmbt_ptr_t *) \
+                ((char *)(block) + \
+                 XFS_BMBT_BLOCK_LEN(fs) + \
+                 (maxrecs) * sizeof(xfs_bmbt_key_t) + \
+                 ((index) - 1) * sizeof(xfs_bmbt_ptr_t)))
+
+#define XFS_BMDR_REC_ADDR(block, index) \
+        ((xfs_bmdr_rec_t *) \
+                ((char *)(block) + \
+                 sizeof(struct xfs_bmdr_block) + \
+                 ((index) - 1) * sizeof(xfs_bmdr_rec_t)))
+
+#define XFS_BMDR_KEY_ADDR(block, index) \
+        ((xfs_bmdr_key_t *) \
+                ((char *)(block) + \
+                 sizeof(struct xfs_bmdr_block) + \
+                 ((index) - 1) * sizeof(xfs_bmdr_key_t)))
+
+#define XFS_BMDR_PTR_ADDR(block, index, maxrecs) \
+        ((xfs_bmdr_ptr_t *) \
+                ((char *)(block) + \
+                 sizeof(struct xfs_bmdr_block) + \
+                 (maxrecs) * sizeof(xfs_bmdr_key_t) + \
+                 ((index) - 1) * sizeof(xfs_bmdr_ptr_t)))
 
 #endif /* XFS_H_ */

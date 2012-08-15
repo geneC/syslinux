@@ -432,20 +432,108 @@ failed:
     return ip;
 }
 
+/*
+ * Calculate number of records in a bmap btree inode root.
+ */
+static inline int
+xfs_bmdr_maxrecs(int blocklen, int leaf)
+{
+    blocklen -= sizeof(xfs_bmdr_block_t);
+
+    if (leaf)
+        return blocklen / sizeof(xfs_bmdr_rec_t);
+    return blocklen / (sizeof(xfs_bmdr_key_t) + sizeof(xfs_bmdr_ptr_t));
+}
+
+static xfs_fsblock_t
+select_child(xfs_dfiloff_t off,
+             xfs_bmbt_key_t *kp,
+             xfs_bmbt_ptr_t *pp,
+             int nrecs)
+{
+    int i;
+
+    for (i = 0; i < nrecs; i++) {
+        if (be64_to_cpu(kp[i].br_startoff) == off)
+            return be64_to_cpu(pp[i]);
+        if (be64_to_cpu(kp[i].br_startoff) > off) {
+            if (i == 0)
+                return be64_to_cpu(pp[i]);
+            else
+                return be64_to_cpu(pp[i-1]);
+        }
+    }
+
+    return be64_to_cpu(pp[nrecs - 1]);
+}
+
 block_t xfs_dir2_get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
-			       uint32_t from, uint32_t to, block_t fsblkno,
-			       int *error)
+			       block_t fsblkno, int *error)
 {
     uint32_t idx;
     xfs_bmbt_irec_t irec;
+    block_t bno;
+    block_t nextbno;
+    xfs_bmdr_block_t *rblock;
+    int fsize;
+    int nextents;
+    xfs_bmbt_ptr_t *pp;
+    xfs_bmbt_key_t *kp;
+    xfs_btree_block_t *blk;
+    xfs_bmbt_rec_t *xp;
 
     *error = 0;
-    for (idx = from; idx < to; idx++) {
-        bmbt_irec_get(&irec,
-                      ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + idx);
-        if (fsblkno >= irec.br_startoff &&
-            fsblkno < irec.br_startoff + irec.br_blockcount)
-            break;
+    if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
+        xfs_debug("XFS_DINODE_FMT_EXTENTS");
+        for (idx = 0; idx < be32_to_cpu(core->di_nextents); idx++) {
+            bmbt_irec_get(&irec,
+                          ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + idx);
+            if (fsblkno >= irec.br_startoff &&
+                fsblkno < irec.br_startoff + irec.br_blockcount)
+                break;
+        }
+    } else if (core->di_format == XFS_DINODE_FMT_BTREE) {
+        xfs_debug("XFS_DINODE_FMT_BTREE");
+        bno = NULLFSBLOCK;
+        rblock = (xfs_bmdr_block_t *)&core->di_literal_area[0];
+        fsize = XFS_DFORK_SIZE(core, fs, XFS_DATA_FORK);
+        pp = XFS_BMDR_PTR_ADDR(rblock, 1, xfs_bmdr_maxrecs(fsize, 0));
+        kp = XFS_BMDR_KEY_ADDR(rblock, 1);
+        bno = fsblock_to_bytes(fs,
+                  select_child(fsblkno, kp, pp, 
+                      be16_to_cpu(rblock->bb_numrecs))) >> BLOCK_SHIFT(fs);
+
+        /* Find the leaf */
+        for (;;) {
+            blk = (xfs_btree_block_t *)get_cache(fs->fs_dev, bno);
+            if (be16_to_cpu(blk->bb_level) == 0)
+                break;
+            pp = XFS_BMBT_PTR_ADDR(fs, blk, 1, 
+                     xfs_bmdr_maxrecs(XFS_INFO(fs)->blocksize, 0));
+            kp = XFS_BMBT_KEY_ADDR(fs, blk, 1);
+            bno = fsblock_to_bytes(fs,
+                      select_child(fsblkno, kp, pp,
+                          be16_to_cpu(blk->bb_numrecs))) >> BLOCK_SHIFT(fs);
+        }
+
+        /* Find the records among leaves */
+        for (;;) {
+            nextbno = be64_to_cpu(blk->bb_u.l.bb_rightsib);
+            nextents = be16_to_cpu(blk->bb_numrecs);
+            xp = (xfs_bmbt_rec_t *)XFS_BMBT_REC_ADDR(fs, blk, 1);
+            for (idx = 0; idx < nextents; idx++) {
+                bmbt_irec_get(&irec, xp + idx);
+                if (fsblkno >= irec.br_startoff &&
+                    fsblkno < irec.br_startoff + irec.br_blockcount) {
+                    nextbno = NULLFSBLOCK;
+                    break;
+                }
+            }
+            if (nextbno == NULLFSBLOCK)
+                break;
+            bno = fsblock_to_bytes(fs, nextbno) >> BLOCK_SHIFT(fs);
+            blk = (xfs_btree_block_t *)get_cache(fs->fs_dev, bno);
+        }
     }
 
     if (fsblkno < irec.br_startoff ||
@@ -460,8 +548,6 @@ block_t xfs_dir2_get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
 struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
 				       xfs_dinode_t *core)
 {
-    xfs_bmbt_irec_t irec;
-    uint32_t node_off = 0;
     block_t fsblkno;
     xfs_da_intnode_t *node = NULL;
     uint32_t hashwant;
@@ -487,16 +573,16 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     xfs_dinode_t *ncore;
     uint8_t *buf = NULL;
 
-    do {
-        bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
-                                                (++node_off));
-    } while (irec.br_startoff <
-             xfs_dir2_byte_to_db(parent->fs, XFS_DIR2_LEAF_OFFSET));
-
     hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
 
-    fsblkno = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
-               BLOCK_SHIFT(parent->fs);
+    fsblkno = xfs_dir2_get_right_blk(parent->fs, core, 
+                  xfs_dir2_byte_to_db(parent->fs, XFS_DIR2_LEAF_OFFSET), 
+                  &error);
+    if (error) {
+        xfs_error("Cannot find right rec!");
+        return NULL;
+    }
+
     node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(parent->fs, fsblkno, 1);
     if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
         xfs_error("Node's magic number does not match!");
@@ -542,9 +628,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
         else
             fsblkno = be32_to_cpu(node->btree[probe].before);
 
-        fsblkno = xfs_dir2_get_right_blk(parent->fs, core, node_off + 1,
-                                         be32_to_cpu(core->di_nextents) - 1,
-                                         fsblkno, &error);
+        fsblkno = xfs_dir2_get_right_blk(parent->fs, core, fsblkno, &error);
         if (error) {
             xfs_error("Cannot find right rec!");
             goto out;
@@ -597,8 +681,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             if (buf)
                 free(buf);
 
-            fsblkno = xfs_dir2_get_right_blk(parent->fs, core, 0, node_off,
-					     newdb, &error);
+            fsblkno = xfs_dir2_get_right_blk(parent->fs, core, newdb, &error);
             if (error) {
                 xfs_error("Cannot find data block!");
                 goto out;

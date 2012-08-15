@@ -315,9 +315,7 @@ try_next_btree:
         goto out;
 
     fsblkno = be32_to_cpu(node->btree[XFS_PVT(inode)->i_btree_offset].before);
-    fsblkno = xfs_dir2_get_right_blk(fs, core, node_off + 1,
-				     be32_to_cpu(core->di_nextents) - 1,
-				     fsblkno, &error);
+    fsblkno = xfs_dir2_get_right_blk(fs, core, fsblkno, &error);
     if (error) {
         xfs_error("Cannot find leaf rec!");
         goto out;
@@ -355,7 +353,7 @@ try_next_btree:
 
     db = xfs_dir2_dataptr_to_db(fs, be32_to_cpu(lep->address));
 
-    fsblkno = xfs_dir2_get_right_blk(fs, core, 0, node_off, db, &error);
+    fsblkno = xfs_dir2_get_right_blk(fs, core, db, &error);
     if (error) {
 	xfs_error("Cannot find data block!");
 	goto out1;
