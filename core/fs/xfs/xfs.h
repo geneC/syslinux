@@ -242,20 +242,6 @@ typedef struct xfs_agi {
     uint32_t		agi_unlinked[XFS_AGI_UNLINKED_BUCKETS];
 } __attribute__((__packed__)) xfs_agi_t;
 
-typedef struct xfs_btree_sblock {
-    uint32_t bb_magic;
-    uint16_t bb_level;
-    uint16_t bb_numrecs;
-    uint32_t bb_leftsib;
-    uint32_t bb_rightsib;
-} __attribute__((__packed__)) xfs_btree_sblock_t;
-
-typedef struct xfs_inobt_rec {
-    uint32_t ir_startino;
-    uint32_t ir_freecount;
-    uint64_t ir_free;
-} __attribute__((__packed__)) xfs_inobt_rec_t;
-
 /*
  * Bmap btree record and extent descriptor.
  *  l0:63 is an extent flag (value 1 indicates non-normal).
