@@ -123,6 +123,7 @@ struct xfs_fs_info;
 #define S_ISGID  	0002000
 #define S_ISVTX  	0001000
 
+#define MAXPATHLEN 1024
 /*
  * NOTE: The fields in the superblock are stored in big-endian format on disk.
  */

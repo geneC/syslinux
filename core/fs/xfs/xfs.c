@@ -259,6 +259,53 @@ out:
     return NULL;
 }
 
+static int xfs_readlink(struct inode *inode, char *buf)
+{
+    struct fs_info *fs = inode->fs;
+    xfs_dinode_t *core;
+    int pathlen = -1;
+    xfs_bmbt_irec_t rec;
+    block_t db;
+    char *dir_buf;
+
+    xfs_debug("in");
+
+    core = xfs_dinode_get_core(fs, inode->ino);
+    if (!core) {
+        xfs_error("Failed to get dinode from disk (ino 0x%llx)", inode->ino);
+        goto out;
+    }
+
+    pathlen = be64_to_cpu(core->di_size);
+    if (!pathlen)
+        goto out;
+
+    if (pathlen < 0 || pathlen > MAXPATHLEN) {
+        xfs_error("inode (%llu) bad symlink length (%ldd)", 
+            inode->ino, pathlen);
+        goto out;
+    }
+
+    if (core->di_format == XFS_DINODE_FMT_LOCAL) {
+        memcpy(buf, (char *)&core->di_literal_area[0], pathlen);
+    } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
+        bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
+        db = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
+        dir_buf = xfs_dir2_get_dirblks(fs, db, rec.br_blockcount);
+
+        /* 
+         * Syslinux only supports filesystem block size larger than 4K. 
+         * Thus, one directory block is far enough to hold the maxium symbolic
+         * link file content, which is only 1024 bytes.
+         */
+        memcpy(buf, dir_buf, pathlen);
+        free(dir_buf);
+    }
+
+out:
+    return pathlen;
+}
+
 static struct inode *xfs_iget_root(struct fs_info *fs)
 {
     xfs_dinode_t *core = NULL;
@@ -390,4 +437,5 @@ const struct fs_ops xfs_fs_ops = {
     .readdir		= xfs_readdir,
     .iget		= xfs_iget,
     .next_extent	= xfs_next_extent,
+    .readlink		= xfs_readlink,
 };

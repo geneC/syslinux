@@ -165,6 +165,9 @@ found:
 	inode->mode = DT_REG;
 	xfs_debug("Found a file inode!");
 	xfs_debug("inode size %llu", inode->size);
+    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+        inode->mode = DT_LNK;
+        xfs_debug("Found a symbolic link inode!");
     }
 
     return inode;
@@ -264,6 +267,9 @@ found:
         inode->mode = DT_REG;
         xfs_debug("Found a file inode!");
         xfs_debug("inode size %llu", inode->size);
+    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+        inode->mode = DT_LNK;
+        xfs_debug("Found a symbolic link inode!");
     }
 
     xfs_debug("entry inode's number %lu", ino);
@@ -415,6 +421,9 @@ found:
         ip->mode = DT_REG;
         xfs_debug("Found a file inode!");
         xfs_debug("inode size %llu", ip->size);
+    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+        ip->mode = DT_LNK;
+        xfs_debug("Found a symbolic link inode!");
     }
 
     xfs_debug("entry inode's number %lu", ino);
@@ -729,6 +738,9 @@ found:
         ip->mode = DT_REG;
         xfs_debug("Found a file inode!");
         xfs_debug("inode size %llu", ip->size);
+    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+        ip->mode = DT_LNK;
+        xfs_debug("Found a symbolic link inode!");
     }
 
     xfs_debug("entry inode's number %lu", ino);

@@ -49,6 +49,8 @@ static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
 	dirent->d_type = DT_DIR;
     else if (be16_to_cpu(core->di_mode) & S_IFREG)
 	dirent->d_type = DT_REG;
+    else if (be16_to_cpu(core->di_mode) & S_IFLNK)
+        dirent->d_type = DT_LNK;
 
     memcpy(dirent->d_name, name, namelen + 1);
 
