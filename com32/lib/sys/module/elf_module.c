@@ -288,7 +288,7 @@ int module_load(struct elf_module *module) {
 			(module->exit_func == NULL) ? NULL : *(module->exit_func));
 	*/
 
-	for (ctor = module->ctors; *ctor; ctor++)
+	for (ctor = module->ctors; ctor && *ctor; ctor++)
 		(*ctor) ();
 
 	return 0;

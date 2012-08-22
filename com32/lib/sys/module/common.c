@@ -423,7 +423,7 @@ int _module_unload(struct elf_module *module) {
 int module_unload(struct elf_module *module) {
 	module_ctor_t *dtor;
 
-	for (dtor = module->dtors; *dtor; dtor++)
+	for (dtor = module->dtors; dtor && *dtor; dtor++)
 		(*dtor) ();
 
 	return _module_unload(module);

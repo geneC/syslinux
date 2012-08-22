@@ -91,13 +91,9 @@ SECTIONS
   	__ctors_start = .;
     KEEP (*(SORT(.ctors.*)))
     KEEP (*(.ctors))
-    LONG(0x00000000)
-    __module_init_ptr = .;
     KEEP (*(.ctors_modinit))
-    LONG(0x00000000)
-    __module_main_ptr = .;
     KEEP (*(.ctors_modmain))
-    LONG(0x00000000)
+	__ctors_end = .;
   }
   
   .dtors          :
@@ -105,10 +101,8 @@ SECTIONS
   	__dtors_start = .;
     KEEP (*(SORT(.dtors.*)))
     KEEP (*(.dtors))
-    LONG(0x00000000)
-    __module_exit_ptr = .;
     KEEP (*(.dtors_modexit))
-    LONG(0x00000000)
+	__dtors_end = .;
   }
   
   .jcr            : { KEEP (*(.jcr)) }
