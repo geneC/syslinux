@@ -199,6 +199,8 @@ void close_file(uint16_t handle);
 void pm_close_file(com32sys_t *);
 int open_config(void);
 
+extern uint16_t SectorShift;
+
 /* chdir.c */
 void pm_realpath(com32sys_t *regs);
 size_t realpath(char *dst, const char *src, size_t bufsize);

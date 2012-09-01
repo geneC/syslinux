@@ -28,7 +28,7 @@
 ; reduce the code size...
 ;
 
-		global StackBuf
+		global StackBuf, PartInfo, Hidden, OrigESDI, DriveNumber
 StackBuf	equ STACK_TOP-44-92	; Start the stack here (grow down - 4K)
 PartInfo	equ StackBuf
 .mbr		equ PartInfo

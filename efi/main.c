@@ -66,14 +66,6 @@ struct iso_boot_info {
 	uint32_t reserved[10];      /* Currently unused */
 } iso_boot_info;
 
-struct ip_info {
-	uint32_t ipv4;
-	uint32_t myip;
-	uint32_t serverip;
-	uint32_t gateway;
-	uint32_t netmask;
-} IPInfo;
-
 uint8_t DHCPMagic;
 uint32_t RebootTime;
 
@@ -86,7 +78,6 @@ const uint16_t IPAppends[32];
 uint16_t BIOS_fbm = 1;
 far_ptr_t InitStack;
 char StackBuf[4096];
-uint16_t APIVer;
 far_ptr_t PXEEntry;
 unsigned int __bcopyxx_len = 0;
 

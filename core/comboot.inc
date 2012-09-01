@@ -486,52 +486,6 @@ comapi_pxecall	equ comapi_err			; Not available
 %endif
 
 ;
-; INT 22h AX=000Ah	Get Derivative-Specific Info
-;
-comapi_derinfo:
-		mov P_AL,my_id
-%if IS_PXELINUX
-		mov ax,[APIVer]
-		mov P_DX,ax
-		mov ax,[StrucPtr]
-		mov P_BX,ax
-		mov ax,[StrucPtr+2]
-		mov P_ES,ax
-		mov ax,[InitStack]
-		mov P_SI,ax
-		mov ax,[InitStack+2]
-		mov P_FS,ax
-		mov eax,[IPInfo.MyIP]
-		mov P_ECX,eax
-		mov P_GS,0
-		mov P_DI,IPInfo
-%else
-		; Physical medium...
-
-		mov al,[SectorShift]
-		mov P_CL,al
-		mov al,[DriveNumber]
-		mov P_DL,al
-		mov P_FS,cs
-		mov P_SI,OrigESDI
-		mov P_GS,cs
-		mov P_DI,Hidden
-%if IS_SYSLINUX || IS_EXTLINUX
-		mov P_ES,cs
-		mov P_BX,PartInfo
-%elif IS_ISOLINUX
-		mov P_ES,cs
-		mov P_BX,spec_packet
-		mov ax,[BIOSType]
-		sub ax,bios_cdrom
-		shr ax,2
-		mov P_CH,al		; Mode (el torito/cbios/ebios)
-%endif
-%endif
-		clc
-		ret
-
-;
 ; INT 22h AX=000Bh	Get Serial Console Configuration
 ;
 comapi_serialcfg:
@@ -801,7 +755,7 @@ int22_table:
 		dw comapi_read		; 0007 read file
 		dw comapi_close		; 0008 close file
 		dw comapi_pxecall	; 0009 call PXE stack
-		dw comapi_derinfo	; 000A derivative-specific info
+		dw comapi_err		; 000A derivative-specific info
 		dw comapi_serialcfg	; 000B get serial port config
 		dw comapi_cleanup	; 000C perform final cleanup
 		dw comapi_err		; 000D clean up then bootstrap

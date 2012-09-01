@@ -21,7 +21,8 @@ CORE_COBJ := $(patsubst %.c,%.o,$(CORE_CSRC))
 # Don't include console objects
 CORE_OBJS = $(filter-out $(core)/hello.o $(core)/rawcon.o \
 	$(core)/plaincon.o $(core)/strcasecmp.o $(core)/bios.o \
-	$(core)/fs/diskio_bios.o,$(CORE_COBJ))
+	$(core)/fs/diskio_bios.o $(core)/ldlinux-c.o $(core)/isolinux-c.o \
+	$(core)/pxelinux-c.o,$(CORE_COBJ))
 LIB_OBJS = $(addprefix $(com32)/lib/,$(CORELIBOBJS))
 
 CSRC = $(wildcard *.c)

@@ -21,6 +21,7 @@
 #define PXE_H
 
 #include <syslinux/pxe_api.h>
+#include <syslinux/config.h>
 #include "fs.h"			/* For MAX_OPEN, should go away */
 
 /*
@@ -169,20 +170,9 @@ struct pxe_pvt_inode {
 #define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))
 
 /*
- * Network boot information
- */
-struct ip_info {
-    uint32_t ipv4;
-    uint32_t myip;
-    uint32_t serverip;
-    uint32_t gateway;
-    uint32_t netmask;
-};
-
-/*
  * Variable externs
  */
-extern struct ip_info IPInfo;
+extern struct syslinux_ipinfo IPInfo;
 
 extern uint8_t MAC[];
 extern char BOOTIFStr[];

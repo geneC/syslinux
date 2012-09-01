@@ -49,8 +49,8 @@ ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
-# Don't include console objects
-COBJS	 = $(filter-out rawcon.o plaincon.o,$(COBJ))
+# Don't include derivative-specific objects
+COBJS	 = $(filter-out rawcon.o plaincon.o pxelinux-c.o ldlinux-c.o isolinux-c.o,$(COBJ))
 
 LIB	 = libcom32.a
 LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32core.a
@@ -118,7 +118,7 @@ AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a libpxelinux.a
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
-libisolinux.a: rawcon.o
+libisolinux.a: rawcon.o isolinux-c.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
@@ -126,10 +126,12 @@ libisolinux.a: rawcon.o
 libisolinux-debug.a: libisolinux.a
 	cp $^ $@
 
-libpxelinux.a: libisolinux.a
-	cp $^ $@
+libpxelinux.a: rawcon.o pxelinux-c.o
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
 
-libldlinux.a: plaincon.o
+libldlinux.a: plaincon.o ldlinux-c.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@

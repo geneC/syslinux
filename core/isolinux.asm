@@ -78,13 +78,16 @@ ImageSectors	resw 1			; isolinux.bin size, sectors
 GetlinsecPtr	resw 1			; The sector-read pointer
 BIOSName	resw 1			; Display string for BIOS type
 %define HAVE_BIOSNAME 1
+		global BIOSType
 BIOSType	resw 1
 DiskError	resb 1			; Error code for disk I/O
+		global DriveNumber
 DriveNumber	resb 1			; CD-ROM BIOS drive number
 ISOFlags	resb 1			; Flags for ISO directory search
 RetryCount      resb 1			; Used for disk access retries
 
 		alignb 8
+		global Hidden
 Hidden		resq 1			; Used in hybrid mode
 bsSecPerTrack	resw 1			; Used in hybrid mode
 bsHeads		resw 1			; Used in hybrid mode
@@ -96,6 +99,7 @@ bsHeads		resw 1			; Used in hybrid mode
 
 		alignb 8
 _spec_start	equ $
+		global spec_packet
 spec_packet:	resb 1				; Size of packet
 sp_media:	resb 1				; Media type
 sp_drive:	resb 1				; Drive number
@@ -171,6 +175,7 @@ _spec_len	equ _spec_end - _spec_start
 StackBuf	equ STACK_TOP-44	; 44 bytes needed for
 					; the bootsector chainloading
 					; code!
+		global OrigESDI
 OrigESDI	equ StackBuf-4          ; The high dword on the stack
 StackHome	equ OrigESDI
 
@@ -1092,6 +1097,7 @@ bios_ebios_str	db 'EHDD' ,0
 %endif
 
 		alignz 4
+		global bios_cdrom
 bios_cdrom:	dw getlinsec_cdrom, bios_cdrom_str
 %ifndef DEBUG_MESSAGES
 bios_cbios:	dw getlinsec_cbios, bios_cbios_str

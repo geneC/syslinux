@@ -233,7 +233,7 @@ void parse_dhcp(const void *pkt, size_t pkt_len)
     const struct bootp_t *dhcp = (const struct bootp_t *)pkt;
     int opt_len;
 
-    IPInfo.ipv4 = 4;		/* This is IPv4 only for now... */
+    IPInfo.ipver = 4;		/* This is IPv4 only for now... */
 
     over_load = 0;
     if (ip_ok(dhcp->yip))

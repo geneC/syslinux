@@ -81,10 +81,9 @@ InitStack	resd 1
 PXEStack	resd 1			; Saved stack during PXE call
 
 		alignb 4
-                global DHCPMagic, RebootTime, APIVer
+                global DHCPMagic, RebootTime, StrucPtr
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resw 2			; Pointer to PXENV+ or !PXE structure
-APIVer		resw 1			; PXE API version found
 LocalBootType	resw 1			; Local boot return code
 DHCPMagic	resb 1			; PXELINUX magic flags
 
@@ -571,17 +570,3 @@ syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
 		section .data16
                 global KeepPXE
 KeepPXE		db 0			; Should PXE be kept around?
-
-;
-; IP information.  Note that the field are in the same order as the
-; Linux kernel expects in the ip= option.
-;
-		section .bss16
-		alignb 4
-		global IPInfo
-IPInfo:
-.IPv4		resd 1			; IPv4 information
-.MyIP		resd 1			; My IP address 
-.ServerIP	resd 1
-.GatewayIP	resd 1
-.Netmask	resd 1
