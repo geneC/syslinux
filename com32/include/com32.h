@@ -135,7 +135,7 @@ char *lstrdup(const char *);
  * specific segment.  OFFS_VALID() will return whether or not the
  * pointer is actually reachable from the target segment.
  */
-#if defined(DEBUG) && (defined(__COM32__) || defined(__SYSLINUX_CORE__))
+#if defined(CORE_DEBUG) && (defined(__COM32__) || defined(__SYSLINUX_CORE__))
 __noreturn __bad_SEG(const volatile void *);
 
 static inline uint16_t SEG(const volatile void *__p)

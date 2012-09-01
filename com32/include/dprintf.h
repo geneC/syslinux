@@ -6,10 +6,10 @@
 #define _DPRINTF_H
 
 #if !defined(DEBUG_PORT) && !defined(DEBUG_STDIO)
-# undef DEBUG
+# undef CORE_DEBUG
 #endif
 
-#ifdef DEBUG
+#ifdef CORE_DEBUG
 
 # include <stdio.h>
 
@@ -26,9 +26,9 @@ void vdprintf(const char *, va_list);
 # define dprintf(fmt, ...)	((void)(0))
 # define vdprintf(fmt, ap)	((void)(0))
 
-#endif /* DEBUG */
+#endif /* CORE_DEBUG */
 
-# if DEBUG >= 2
+# if CORE_DEBUG >= 2
 /* Really verbose debugging... */
 #  define dprintf2  dprintf
 #  define vdprintf2 vdprintf

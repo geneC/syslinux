@@ -4,7 +4,7 @@
 
 #include "core.h"
 
-#ifdef DEBUG
+#ifdef CORE_DEBUG
 
 #include <dprintf.h>
 
