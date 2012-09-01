@@ -359,6 +359,7 @@ int searchdir(const char *name)
     return file_to_handle(file);
 
 err:
+    dprintf("serachdir: error seraching file %s\n", name);
     put_inode(inode);
     put_inode(parent);
     if (pathbuf)

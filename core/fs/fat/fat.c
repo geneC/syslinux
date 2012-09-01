@@ -140,6 +140,7 @@ static int fat_next_extent(struct inode *inode, uint32_t lstart)
     return 0;
 
 err:
+    dprintf("fat_next_extent: return error\n");
     return -1;
 }
 
@@ -325,7 +326,7 @@ static bool vfat_match_longname(const char *str, const uint16_t *match,
     unsigned char c = -1;	/* Nonzero: we have not yet seen NUL */
     uint16_t cp;
 
-    dprintf("Matching: %s\n", str);
+    dprintf("Matching: %s len %d\n", str, len);
 
     while (len) {
 	cp = *match++;
