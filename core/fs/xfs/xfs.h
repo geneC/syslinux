@@ -744,6 +744,7 @@ xfs_bmdr_maxrecs(int blocklen, int leaf)
 
     if (leaf)
         return blocklen / sizeof(xfs_bmdr_rec_t);
+
     return blocklen / (sizeof(xfs_bmdr_key_t) + sizeof(xfs_bmdr_ptr_t));
 }
 

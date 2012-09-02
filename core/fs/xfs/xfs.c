@@ -106,8 +106,6 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
 
     (void)lstart;
 
-    xfs_debug("in");
-
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
 	xfs_error("Failed to get dinode from disk (ino %llx)", inode->ino);
@@ -142,6 +140,7 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
             blk = (xfs_btree_block_t *)get_cache(fs->fs_dev, bno);
             if (be16_to_cpu(blk->bb_level) == 0)
                 break;
+
             pp = XFS_BMBT_PTR_ADDR(fs, blk, 1,
                     xfs_bmdr_maxrecs(XFS_INFO(fs)->blocksize, 0));
             bno = fsblock_to_bytes(fs, be64_to_cpu(pp[0])) >> BLOCK_SHIFT(fs);
@@ -154,19 +153,20 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
             if (nextents - index > 0) {
                 bmbt_irec_get(&rec, XFS_BMDR_REC_ADDR(blk, index + 1));
 
-                bno = fsblock_to_bytes(fs, rec.br_startblock) 
-                        >> BLOCK_SHIFT(fs);
+                bno = fsblock_to_bytes(fs, rec.br_startblock)
+						>> BLOCK_SHIFT(fs);
 
                 XFS_PVT(inode)->i_offset = rec.br_startoff;
 
-                inode->next_extent.pstart = bno << BLOCK_SHIFT(fs) 
+                inode->next_extent.pstart = bno << BLOCK_SHIFT(fs)
                                                 >> SECTOR_SHIFT(fs);
-                inode->next_extent.len = ((rec.br_blockcount 
-                                            << BLOCK_SHIFT(fs)) 
-                                            + SECTOR_SIZE(fs) - 1) 
+                inode->next_extent.len = ((rec.br_blockcount
+                                            << BLOCK_SHIFT(fs))
+                                            + SECTOR_SIZE(fs) - 1)
                                             >> SECTOR_SHIFT(fs);
                 break;
             }
+
             index -= nextents;
             bno = fsblock_to_bytes(fs, nextbno) >> BLOCK_SHIFT(fs);
             blk = (xfs_btree_block_t *)get_cache(fs->fs_dev, bno);
