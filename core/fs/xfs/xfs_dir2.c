@@ -158,14 +158,14 @@ found:
     inode->ino			= ino;
     inode->size 		= be64_to_cpu(ncore->di_size);
 
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
+    if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFDIR) {
 	inode->mode = DT_DIR;
 	xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFREG) {
 	inode->mode = DT_REG;
 	xfs_debug("Found a file inode!");
 	xfs_debug("inode size %llu", inode->size);
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFLNK) {
 	inode->mode = DT_LNK;
 	xfs_debug("Found a symbolic link inode!");
     }
@@ -260,14 +260,14 @@ found:
     XFS_PVT(inode)->i_ino_blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     inode->size = be64_to_cpu(ncore->di_size);
 
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
+    if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFDIR) {
         inode->mode = DT_DIR;
         xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFREG) {
         inode->mode = DT_REG;
         xfs_debug("Found a file inode!");
         xfs_debug("inode size %llu", inode->size);
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFLNK) {
         inode->mode = DT_LNK;
         xfs_debug("Found a symbolic link inode!");
     }
@@ -414,14 +414,14 @@ found:
 	                        BLOCK_SHIFT(parent->fs);
     ip->size = be64_to_cpu(ncore->di_size);
 
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
+    if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFDIR) {
         ip->mode = DT_DIR;
         xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFREG) {
         ip->mode = DT_REG;
         xfs_debug("Found a file inode!");
         xfs_debug("inode size %llu", ip->size);
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFLNK) {
         ip->mode = DT_LNK;
         xfs_debug("Found a symbolic link inode!");
     }
@@ -731,14 +731,14 @@ found:
         BLOCK_SHIFT(parent->fs);
     ip->size = be64_to_cpu(ncore->di_size);
 
-    if (be16_to_cpu(ncore->di_mode) & S_IFDIR) {
+    if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFDIR) {
         ip->mode = DT_DIR;
         xfs_debug("Found a directory inode!");
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFREG) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFREG) {
         ip->mode = DT_REG;
         xfs_debug("Found a file inode!");
         xfs_debug("inode size %llu", ip->size);
-    } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
+    } else if ((be16_to_cpu(ncore->di_mode) & S_IFMT) == S_IFLNK) {
         ip->mode = DT_LNK;
         xfs_debug("Found a symbolic link inode!");
     }

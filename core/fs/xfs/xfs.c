@@ -322,7 +322,7 @@ static struct inode *xfs_iget_root(struct fs_info *fs)
 
     xfs_debug("Root inode has been found!");
 
-    if (!(be16_to_cpu(core->di_mode) & S_IFDIR)) {
+    if ((be16_to_cpu(core->di_mode) & S_IFMT) != S_IFDIR) {
 	xfs_error("root inode is not a directory ?! No makes sense...");
 	goto out;
     }
