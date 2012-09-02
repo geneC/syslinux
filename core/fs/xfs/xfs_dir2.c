@@ -514,10 +514,11 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
         max = be16_to_cpu(node->hdr.count);
 
         probe = span = max/2;
-        for (btree = &node->btree[probe]; 
+        for (btree = &node->btree[probe];
              span > 4; btree = &node->btree[probe]) {
             span /= 2;
             hash = be32_to_cpu(btree->hashval);
+
             if (hash < hashwant)
                 probe += span;
             else if (hash > hashwant)
@@ -530,6 +531,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             btree--;
             probe--;
         }
+
         while ((probe < max) && (be32_to_cpu(btree->hashval) < hashwant)) {
             btree++;
             probe++;
@@ -547,8 +549,9 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             xfs_error("Cannot find right rec!");
             goto out;
         }
+
         free(node);
-        node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(parent->fs, 
+        node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(parent->fs,
                                                         fsblkno, 1);
     } while(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 
