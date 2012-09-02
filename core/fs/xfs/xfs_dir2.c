@@ -166,8 +166,8 @@ found:
 	xfs_debug("Found a file inode!");
 	xfs_debug("inode size %llu", inode->size);
     } else if (be16_to_cpu(ncore->di_mode) & S_IFLNK) {
-        inode->mode = DT_LNK;
-        xfs_debug("Found a symbolic link inode!");
+	inode->mode = DT_LNK;
+	xfs_debug("Found a symbolic link inode!");
     }
 
     return inode;
