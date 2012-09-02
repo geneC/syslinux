@@ -500,7 +500,7 @@ block_t xfs_dir2_get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
         pp = XFS_BMDR_PTR_ADDR(rblock, 1, xfs_bmdr_maxrecs(fsize, 0));
         kp = XFS_BMDR_KEY_ADDR(rblock, 1);
         bno = fsblock_to_bytes(fs,
-                  select_child(fsblkno, kp, pp, 
+                  select_child(fsblkno, kp, pp,
                       be16_to_cpu(rblock->bb_numrecs))) >> BLOCK_SHIFT(fs);
 
         /* Find the leaf */
@@ -508,7 +508,7 @@ block_t xfs_dir2_get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
             blk = (xfs_btree_block_t *)get_cache(fs->fs_dev, bno);
             if (be16_to_cpu(blk->bb_level) == 0)
                 break;
-            pp = XFS_BMBT_PTR_ADDR(fs, blk, 1, 
+            pp = XFS_BMBT_PTR_ADDR(fs, blk, 1,
                      xfs_bmdr_maxrecs(XFS_INFO(fs)->blocksize, 0));
             kp = XFS_BMBT_KEY_ADDR(fs, blk, 1);
             bno = fsblock_to_bytes(fs,
@@ -575,8 +575,8 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
 
     hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
 
-    fsblkno = xfs_dir2_get_right_blk(parent->fs, core, 
-                  xfs_dir2_byte_to_db(parent->fs, XFS_DIR2_LEAF_OFFSET), 
+    fsblkno = xfs_dir2_get_right_blk(parent->fs, core,
+                  xfs_dir2_byte_to_db(parent->fs, XFS_DIR2_LEAF_OFFSET),
                   &error);
     if (error) {
         xfs_error("Cannot find right rec!");
@@ -651,6 +651,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     for (lep = leaf->ents, low = 0, high = be16_to_cpu(leaf->hdr.count) - 1;
          low <= high; ) {
         mid = (low + high) >> 1;
+
         if ((hash = be32_to_cpu(lep[mid].hashval)) == hashwant)
             break;
         if (hash < hashwant)
@@ -693,8 +694,10 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
                 xfs_error("Leaf directory's data magic No. does not match!");
                 goto out1;
             }
+
             curdb = newdb;
         }
+
         dep = (xfs_dir2_data_entry_t *)((char *)buf +
                xfs_dir2_dataptr_to_off(parent->fs, be32_to_cpu(lep->address)));
 
@@ -705,6 +708,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             free(name);
             goto found;
         }
+
         free(name);
     }
 
