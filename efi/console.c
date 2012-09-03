@@ -46,19 +46,26 @@ void setup_screen(struct screen_info *si)
 {
 	EFI_HANDLE *handles = NULL;
 	EFI_STATUS status;
+	EFI_GRAPHICS_OUTPUT_PROTOCOL *gop, *found;
+	EFI_GRAPHICS_PIXEL_FORMAT pixel_fmt;
+	EFI_PIXEL_BITMASK pixel_info;
+	uint32_t pixel_scanline;
 	UINTN nr_handles;
 	UINTN size;
 	uint16_t lfb_width, lfb_height;
 	uint32_t lfb_base, lfb_size;
 	int i;
+	void **gop_handle = NULL;
 
+	size = 0;
+	status = uefi_call_wrapper(BS->LocateHandle, 5, ByProtocol, &GraphicsOutputProtocol,
+				NULL, &size, gop_handle);
+	/* LibLocateHandle handle already returns the number of handles.
+	 * There is no need to divide by sizeof(EFI_HANDLE)
+	 */
 	status = LibLocateHandle(ByProtocol, &GraphicsOutputProtocol,
 				 NULL, &nr_handles, &handles);
 	if (status == EFI_BUFFER_TOO_SMALL) {
-		EFI_GRAPHICS_OUTPUT_PROTOCOL *gop, *found;
-		EFI_GRAPHICS_PIXEL_FORMAT pixel_fmt;
-		EFI_PIXEL_BITMASK pixel_info;
-		uint32_t pixel_scanline;
 
 		handles = AllocatePool(nr_handles);
 		if (!handles)
@@ -66,34 +73,22 @@ void setup_screen(struct screen_info *si)
 
 		status = LibLocateHandle(ByProtocol, &GraphicsOutputProtocol,
 					 NULL, &nr_handles, &handles);
+	}
+	if (status != EFI_SUCCESS)
+		goto out;
+
+	found = NULL;
+	for (i = 0; i < nr_handles; i++) {
+		EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info;
+		EFI_PCI_IO *pciio = NULL;
+		EFI_HANDLE *h = handles[i];
+
+		status = uefi_call_wrapper(BS->HandleProtocol, 3, h, &GraphicsOutputProtocol, &gop);
 		if (status != EFI_SUCCESS)
-			goto out;
-
-		found = NULL;
-		for (i = 0; i < (nr_handles / sizeof(EFI_HANDLE)); i++) {
-			EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info;
-			EFI_PCI_IO *pciio = NULL;
-			EFI_HANDLE *h = handles[i];
-
-			status = open_protocol(h, &GraphicsOutputProtocol,
-					       (void **)&gop,
-					       image_handle, NULL,
-					       EFI_OPEN_PROTOCOL_GET_PROTOCOL);
-			if (status != EFI_SUCCESS)
-				continue;
-
-			status = open_protocol(h, &PciIoProtocol,
-					       (void **)&pciio,
-					       image_handle, NULL,
-					       EFI_OPEN_PROTOCOL_GET_PROTOCOL);
-			status = gop_query_mode(gop, &size, &info);
-			if (status != EFI_SUCCESS)
-				continue;
-
-			if (!pciio && found)
-				continue;
-			found = gop;
-
+			continue;
+		uefi_call_wrapper(BS->HandleProtocol, 3, h, &PciIoProtocol, &pciio);
+		status = gop_query_mode(gop, &size, &info);
+		if (status == EFI_SUCCESS && (!found || pciio)) {
 			lfb_width = info->HorizontalResolution;
 			lfb_height = info->VerticalResolution;
 			lfb_base = gop->Mode->FrameBufferBase;
@@ -101,75 +96,84 @@ void setup_screen(struct screen_info *si)
 			pixel_fmt = info->PixelFormat;
 			pixel_info = info->PixelInformation;
 			pixel_scanline = info->PixelsPerScanLine;
-
 			if (pciio)
 				break;
-		}
-
-		if (!found)
-			goto out;
-
-		si->orig_video_isVGA = 0x70; /* EFI framebuffer */
-
-		si->lfb_base = lfb_base;
-		si->lfb_size = lfb_size;
-		si->lfb_width = lfb_width;
-		si->lfb_height = lfb_height;
-		si->pages = 1;
-
-		switch (pixel_fmt) {
-		case PixelRedGreenBlueReserved8BitPerColor:
-			si->lfb_depth = 32;
-			si->lfb_linelength = pixel_scanline * 4;
-			si->red_size = 8;
-			si->red_pos = 0;
-			si->green_size = 8;
-			si->green_pos = 8;
-			si->blue_size = 8;
-			si->blue_pos = 16;
-			si->rsvd_size = 8;
-			si->rsvd_pos = 24;
-			break;
-		case PixelBlueGreenRedReserved8BitPerColor:
-			si->lfb_depth = 32;
-			si->lfb_linelength = pixel_scanline * 4;
-			si->red_size = 8;
-			si->red_pos = 16;
-			si->green_size = 8;
-			si->green_pos = 8;
-			si->blue_size = 8;
-			si->blue_pos = 0;
-			si->rsvd_size = 8;
-			si->rsvd_pos = 24;
-			break;
-		case PixelBitMask:
-			bit_mask(pixel_info.RedMask, &si->red_pos,
-				 &si->red_size);
-			bit_mask(pixel_info.GreenMask, &si->green_pos,
-				 &si->green_size);
-			bit_mask(pixel_info.BlueMask, &si->blue_pos,
-				 &si->blue_size);
-			bit_mask(pixel_info.ReservedMask, &si->rsvd_pos,
-				 &si->rsvd_size);
-			si->lfb_depth = si->red_size + si->green_size +
-				si->blue_size + si->rsvd_size;
-			si->lfb_linelength = (pixel_scanline * si->lfb_depth) / 8;
-			break;
-		default:
-			si->lfb_depth = 4;;
-			si->lfb_linelength = si->lfb_width / 2;
-			si->red_size = 0;
-			si->red_pos = 0;
-			si->green_size = 0;
-			si->green_pos = 0;
-			si->blue_size = 0;
-			si->blue_pos = 0;
-			si->rsvd_size = 0;
-			si->rsvd_pos = 0;
-			break;
+			found = gop;
 		}
 	}
 
+	if (!found)
+		goto out;
+
+	dprintf("setup_screen: set up screen parameters for EFI GOP\n");
+	si->orig_video_isVGA = 0x70; /* EFI framebuffer */
+
+	si->lfb_base = lfb_base;
+	si->lfb_size = lfb_size;
+	si->lfb_width = lfb_width;
+	si->lfb_height = lfb_height;
+	si->pages = 1;
+
+	dprintf("setup_screen: lfb_base 0x%x lfb_size %d lfb_width %d lfb_height %d\n", lfb_base, lfb_size, lfb_width, lfb_height);
+	switch (pixel_fmt) {
+	case PixelRedGreenBlueReserved8BitPerColor:
+		si->lfb_depth = 32;
+		si->lfb_linelength = pixel_scanline * 4;
+		si->red_size = 8;
+		si->red_pos = 0;
+		si->green_size = 8;
+		si->green_pos = 8;
+		si->blue_size = 8;
+		si->blue_pos = 16;
+		si->rsvd_size = 8;
+		si->rsvd_pos = 24;
+		break;
+	case PixelBlueGreenRedReserved8BitPerColor:
+		si->lfb_depth = 32;
+		si->lfb_linelength = pixel_scanline * 4;
+		si->red_size = 8;
+		si->red_pos = 16;
+		si->green_size = 8;
+		si->green_pos = 8;
+		si->blue_size = 8;
+		si->blue_pos = 0;
+		si->rsvd_size = 8;
+		si->rsvd_pos = 24;
+		break;
+	case PixelBitMask:
+		bit_mask(pixel_info.RedMask, &si->red_pos,
+			 &si->red_size);
+		bit_mask(pixel_info.GreenMask, &si->green_pos,
+			 &si->green_size);
+		bit_mask(pixel_info.BlueMask, &si->blue_pos,
+			 &si->blue_size);
+		bit_mask(pixel_info.ReservedMask, &si->rsvd_pos,
+			 &si->rsvd_size);
+		si->lfb_depth = si->red_size + si->green_size +
+			si->blue_size + si->rsvd_size;
+		si->lfb_linelength = (pixel_scanline * si->lfb_depth) / 8;
+		break;
+	default:
+		si->lfb_depth = 4;;
+		si->lfb_linelength = si->lfb_width / 2;
+		si->red_size = 0;
+		si->red_pos = 0;
+		si->green_size = 0;
+		si->green_pos = 0;
+		si->blue_size = 0;
+		si->blue_pos = 0;
+		si->rsvd_size = 0;
+		si->rsvd_pos = 0;
+		break;
+	}
+	dprintf("setup_screen: depth %d line %d rpos %d rsize %d gpos %d gsize %d bpos %d bsize %d rsvpos %d rsvsize %d\n",
+		si->lfb_depth, si->lfb_linelength,
+		si->red_pos, si->red_size,
+		si->green_pos, si->green_size,
+		si->blue_pos, si->blue_size,
+		si->blue_pos, si->blue_size,
+		si->rsvd_pos, si->rsvd_size);
+	
 out:
-	FreePool(handles);
+	if (handles) FreePool(handles);
 }

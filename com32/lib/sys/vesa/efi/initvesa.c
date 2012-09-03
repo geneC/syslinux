@@ -355,7 +355,6 @@ static int vesacon_set_mode(int x, int y)
     int err = 0;
 
     //debug("Hello, World!\r\n");
-    printf("Hello, world, entering EFI graphics mode set operation (x=%d, y=%d)\n", x,y);//debug
     /* At this point, we assume that gnu-efi library is initialized */
     st = LibLocateProtocol(&GraphicsOutputProtocolGuid, (VOID **) &GraphicsOutput);
     if (EFI_ERROR(st)) {
@@ -366,24 +365,15 @@ static int vesacon_set_mode(int x, int y)
     /* We use the VESA info structure to store relevant GOP info as much as possible */
     gop_mode = GraphicsOutput->Mode;
 
+    dprintf("mode %d version %d pixlfmt %d hres=%d vres=%d\n", mode_num, 
+			mode_info->Version, mode_info->PixelFormat,
+			mode_info->HorizontalResolution, mode_info->VerticalResolution);
+    
     /* simply pick the best mode that suits the caller's resolution */
     for (mode_num = 0; mode_num < gop_mode->MaxMode; mode_num++) {
 	st = uefi_call_wrapper(GraphicsOutput->QueryMode, 4, GraphicsOutput, mode_num, &sz_info, &mode_info);
 	debug("mode_num = %d query_status %d\n", mode_num, st);
 	if (st == EFI_SUCCESS && sz_info >= sizeof(EFI_GRAPHICS_OUTPUT_MODE_INFORMATION)) {
-		/*
-		Print(L"mode %d ver %d (Hres=%d, Vres=%d) PixlFmt %d ",
-				mode_num,
-				info->Version, info->HorizontalResolution,
-				info->VerticalResolution,
-				info->PixelFormat);
-		if (info->PixelFormat == PixelBitMask)
-			Print(L"PixelBitMask RMask 0x%x GMask 0x%x BMask 0x%x ", 
-				info->PixelInformation.RedMask,
-				info->PixelInformation.GreenMask,
-				info->PixelInformation.BlueMask);
-		Print(L"ScanPerLine %d\n", info->PixelsPerScanLine);
-		*/
 
 		/* For now, simply pick the best mode that suits caller's resolution (x,y)
 		 * FIXME: Consider any additional criteria for matching mode
@@ -403,7 +393,7 @@ static int vesacon_set_mode(int x, int y)
     }
 
     /* Allocate space in the bounce buffer for these structures */
-    vi = lzalloc(sizeof *vi);
+    vi = malloc(sizeof(*vi));
     if (!vi) {
 	err = 10;		/* Out of memory */
 	goto exit;
@@ -423,6 +413,7 @@ static int vesacon_set_mode(int x, int y)
 
     switch (mode_info->PixelFormat) {
     case PixelRedGreenBlueReserved8BitPerColor:
+	dprintf("RGB8bit ");
 	mi->mode_attr = 0x0080;		/* supports physical frame buffer */
 	mi->bpp = sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL) * 8;
 	mi->rpos = 0;
@@ -432,8 +423,11 @@ static int vesacon_set_mode(int x, int y)
 	mi->resv_size = 8;
 	mi->logical_scan = mi->lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
 	bestpxf = PXF_BGRA32;
+	dprintf("bpp %d pixperScanLine %d logical_scan %d bytesperPix %d\n", mi->bpp, mode_info->PixelsPerScanLine, 
+		mi->logical_scan, (mi->bpp + 7)>>3);
 	break;
     case PixelBlueGreenRedReserved8BitPerColor:
+	dprintf("BGR8bit ");
 	mi->mode_attr = 0x0080;		/* supports physical frame buffer */
 	mi->bpp = sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL) * 8;
 	mi->bpos = 0;
@@ -443,9 +437,16 @@ static int vesacon_set_mode(int x, int y)
 	mi->resv_size = 8;
 	mi->logical_scan = mi->lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
 	bestpxf = PXF_BGRA32;
+	dprintf("bpp %d pixperScanLine %d logical_scan %d bytesperPix %d\n", mi->bpp, mode_info->PixelsPerScanLine, 
+		mi->logical_scan, (mi->bpp + 7)>>3);
 	break;
     case PixelBitMask:
 	mi->mode_attr = 0x0080;		/* supports physical frame buffer */
+	dprintf("RedMask 0x%x GrnMask 0x%x BluMask 0x%x RsvMask 0x%x\n",
+		mode_info->PixelInformation.RedMask,
+		mode_info->PixelInformation.GreenMask,
+		mode_info->PixelInformation.BlueMask,
+		mode_info->PixelInformation.ReservedMask);
 	find_pixmask_bits(mode_info->PixelInformation.RedMask,
                           &mi->rpos, &mi->lfb_rsize);
 	find_pixmask_bits(mode_info->PixelInformation.GreenMask,
@@ -453,11 +454,28 @@ static int vesacon_set_mode(int x, int y)
 	find_pixmask_bits(mode_info->PixelInformation.BlueMask,
                           &mi->bpos, &mi->lfb_bsize);
 	find_pixmask_bits(mode_info->PixelInformation.ReservedMask,
-                          &mi->resv_pos, &mi->resv_size);
+                          &mi->resv_pos, &mi->lfb_resv_size);
 	mi->bpp = mi->lfb_rsize + mi->lfb_gsize +
                                   mi->lfb_bsize + mi->lfb_resv_size;
 	mi->logical_scan = mi->lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
-	bestpxf = PXF_BGRA32; /* FIXME: correct? */
+	dprintf("RPos %d Rsize %d GPos %d Gsize %d\n", mi->rpos, mi->lfb_rsize, mi->gpos, mi->lfb_gsize);
+	dprintf("BPos %d Bsize %d RsvP %d RsvSz %d\n", mi->bpos, mi->lfb_bsize, mi->resv_pos, mi->lfb_resv_size);
+	dprintf("bpp %d logical_scan %d bytesperPix %d\n", mi->bpp, mi->logical_scan, (mi->bpp + 7)>>3);
+	switch (mi->bpp) {
+	case 32:
+		bestpxf = PXF_BGRA32;
+		break;
+	case 24:
+		bestpxf = PXF_BGR24;
+		break;
+	case 16:
+		bestpxf = PXF_LE_RGB16_565;
+		break;
+	default:
+		dprintf("Unable to handle bits per pixel %d, bailing out\n", mi->bpp);
+		err = 4;
+		goto exit;
+	}
 	break;
     case PixelBltOnly:
 	/* FIXME: unsupported */
@@ -501,6 +519,7 @@ static int vesacon_set_mode(int x, int y)
     st = uefi_call_wrapper(GraphicsOutput->SetMode, 2, GraphicsOutput, bestmode);
     if (EFI_ERROR(st)) {
 	err = 9;		/* Failed to set mode */
+	dprintf("Failed to set mode %d\n", bestmode);
 	goto exit;
     }	
 
@@ -540,7 +559,7 @@ static int vesacon_set_mode(int x, int y)
 
 exit:
     if (vi)
-	lfree(vi);
+	free(vi);
 
     return err;
 }
@@ -587,11 +606,9 @@ int __vesacon_init(int x, int y)
     int rv;
 
     /* We need the FPU for graphics, at least libpng et al will need it... */
-printf("vesacon_init: enter\n");
     if (x86_init_fpu())
 	return 10;
 
-printf("vesacon_init: set mode\n");
     rv = vesacon_set_mode(x, y);
     /* FIXME: Accessing Video BIOS from EFI will probably not work */
 #ifndef SYSLINUX_EFI

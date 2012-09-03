@@ -151,19 +151,10 @@ void __vesacon_copy_to_screen(size_t dst, const uint32_t * src, size_t npixels)
 
     s = (const char *)__vesacon_format_pixels(rowbuf, src, npixels);
 
-    while (bytes) {
-	win_off = dst & omask;
-	win_pos = dst & ~omask;
-
-	if (__unlikely(win_pos != wi.win_pos))
-	    set_window_pos(win_pos);
-
-	l = min(bytes, win_size - win_off);
-	memcpy(win_base + win_off, s, l);
-
-	bytes -= l;
-	s += l;
-	dst += l;
-    }
+    /* For EFI, we simply take the offset from the framebuffer and write to it
+     * FIXME: any gotchas?
+     */
+    win_off = dst;
+    memcpy(win_base + win_off, s, bytes);
 }
 #endif /* SYSLINUX_EFI */
