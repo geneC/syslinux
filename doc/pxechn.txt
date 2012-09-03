@@ -2,14 +2,15 @@
 :doctype: manpage
 :author: Gene Cumm
 :email: gene.cumm@gmail.com
-:revdate: 2012-06-01
+:revdate: 2012-09-03
 
 
 == NAME ==
-pxechn.c32 - Chainboot to new NBP
+pxechn.c32 - Chainboot to new Network Boot Program
 
 
 == SYNOPSIS ==
+[verse]
 *pxechn.c32* [-h | --help | -?]
 *pxechn.c32* -r 'FILE'
 *pxechn.c32* 'FILE' ['OPTIONS']
@@ -22,48 +23,48 @@ Chainboot to a new NBP (Network Boot Program) 'FILE' with options to adjust PXE 
 
 == OPTIONS ==
 *-c* 'CONFIG'::
-    PXELINUX config file (DHCP Option 209).
+    'config' file for PXELINUX (DHCP Option 209).
 
 // *-f* 'MOD'::
-//     Force behavior specified by 'MOD'
+//     'Force' behavior specified by modifier 'MOD'
 //
 // *-g* 'HOST'::
-//     Set DHCP gateway/relay.  Parsed by pxe_dns().
+//     Set 'gateway'/relay DHCP field to 'HOST'.  Parsed by pxe_dns().
 //
 *-h*, *--help*, *-?*::
-    Print usage information; invalid options will also cause this.
+    Print 'help'/usage information; invalid options will also cause this.
 
 // *-n*::
-//     Use native methods, ignoring underlying gPXE/iPXE.
+//     Use 'native' methods, ignoring underlying gPXE/iPXE.
 // 
 // *-N*::
-//     Use non-native methods to utilize gPXE/iPXE (if available).
+//     Use 'non-native' methods to utilize gPXE/iPXE (if available).
 //
 *-o* 'OPT.TYPE=VALUE'::
-    Specify a generic option.  'OPT' is in 'DECIMAL INPUT' format (below).  'TYPE' specifies the output type and input syntax.  'b'yte, 'w'ord(2B), 'l'ong(4B), 'q'uad(8B), character 's'tring and colon-separated he'x' string (case insensitive; bytes must have 2 digits and each byte must be separated).  byte, word, long and quad input values must meet criteria for 'DECIMAL INPUT'
+    Set 'option'.  'OPT' is in 'DECIMAL INPUT' format (below).  'TYPE' specifies the output type and input syntax.  ''b'yte', ''w'ord'(2B), ''l'ong'(4B), ''q'uad'(8B), character ''s'tring' and colon-separated 'he'x'' string (case insensitive; bytes must have 2 digits and each byte must be separated).  byte, word, long and quad input values must meet criteria for 'DECIMAL INPUT'
 
 *-p* 'PATH'::
-    PXELINUX path (DHCP Option 210).
+    'path' option for PXELINUX (DHCP Option 210).
 
 *-r*::
-    Call the PXE stack with PXENV_RESTART_TFTP.  _Must_ be the only option and before 'FILE'.
+    'restart'.  Call the PXE stack with PXENV_RESTART_TFTP.  _Must_ be the only option and before 'FILE'.
 
 *-S*::
-    Set sip based on sname field/option 66 (by direct IP if a period-delimited address or otherwise DNS).
+    Set 'sip' based on sname field/option 66 (by direct IP if a period-delimited address or otherwise DNS).
 
 *-t* 'SECONDS'::
-    PXELINUX timeout (DHCP Option 211).
+    'timeout' option for PXELINUX (DHCP Option 211).
 
 // *-u*::
-//     Copy UUID (Option 97) if found in packet #1
+//     Copy 'UUID' (Option 97) if found in packet #1
 
 *-w*::
-    wait after loading before booting for user input.
+    'wait'.  After loading, wait for user input before booting.
 
 *-W*::
-    Enable WDS (Windows Deployment Services) - specific options.  'FILE' (or its overrides for DHCP fields siaddr and file) must point at the WDS server.
+    Enable 'WDS' (Windows Deployment Services) - specific options.  'FILE' (or its overrides for DHCP fields siaddr and file) must point at the WDS server.
     *NOTE:* As of 2012-05-31, there is a known issue with gPXE/iPXE, at least with undionly.kkpxe.
-// It appears as if wdsnbp.com walks memory to find a PXE stack
+// PXELINUX asks gPXE/iPXE to unload, reverting to an underlying stack
 
 
 == DECIMAL INPUT ==
@@ -71,19 +72,23 @@ All parameters that are defaulted to decimal format are processed by *strtoul*(3
 
 
 == EXAMPLES ==
-pxechn.c32 http://myhost.dom.loc/path/nbp.0 -c myconfig
+`pxechn.c32 http://myhost.dom.loc/path/nbp.0 -c myconfig`::
 	Load nbp.0 and set PXELINUX config (option 209).
 
-pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -c myconfig -o 15.s=domain.loc -o 6.x=0A:01:01:02:ac:17:4D:Ec -
+`pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -c myconfig -o 15.s=domain.loc -o 6.x=0A:01:01:02:ac:17:4D:Ec -`::
 	Load gpxelinux.0 from the current directory, set prefix, wait to execute, set first config, set the domain name and 2 domain name servers (case mixed to show insensitivity; 10.1.1.2 and 172.23.77.236).
 
-pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -X A012345678 -x 197:00d0de00
-pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -X A012:3456:78 -x 197:00-d0-de-00
-	Both of these are equivalent.  Load gpxelinux.0 (relative to the current directory and not altering sname/option 66), set the PXELINUX path prefix, wait after loading, set option 160 to 0x12 0x34 0x56 0x78, and option 197 to 0x00 0xD0 0xDE 0x00.
+`pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -X A012345678 -x 197:00d0de00`::
+	Load gpxelinux.0 (relative to the current directory and not altering sname/option 66), set the PXELINUX path prefix, wait after loading, set option 160 to 0x12 0x34 0x56 0x78, and option 197 to 0x00 0xD0 0xDE 0x00.
 
-pxechn.c32 10.1.1.8:boot\x86\wdsnbp.com -W
-pxechn.c32 10.1.1.4:boot\x86\wdsnbp.com -W -o 66.x=0a:01:01:08 -S
-	These are similar but not identical.  Load wdsnbp.com (first example from 10.1.1.8 and the second from 10.1.1.4) but point the packets at 10.1.1.8 for use with WDS.  DHCP Option 66 will be placed in DHCP field sname when there's room.  -S decodes this to an IPv4 address.
+`pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -X A012:3456:78 -x 197:00-d0-de-00`::
+	Equivalent to the above example.
+
+`pxechn.c32 10.1.1.8:boot\x86\wdsnbp.com -W`::
+	Load wdsnbp.com from 10.1.1.8 and copy DHCP Option 66 to DHCP field sname if there's room.
+ 
+`pxechn.c32 10.1.1.4:boot\x86\wdsnbp.com -W -o 66.x=0a:01:01:08 -S`::
+	Load wdsnbp.com from 10.1.1.4, point packets to 10.1.1.8 for use with WDS, copy DHCP Option 66 to DHCP field sname if there's room and decode this to an IPv4 address.
 
 
 == NOTES ==
@@ -91,7 +96,7 @@ Please note that some NBPs may ignore packet #3 by either not examining it at al
 
 URL specifications in 'FILE' that include user/password before the host will currently cause the siaddr field to not be set properly.
 
-The non-space constraint is due to how Syslinux variants parse the command line as of 2012-05-31.
+The non-space constraint is due to how Syslinux variants parse the command line as of 2012-09-03.
 
 
 == AUTHOR ==
@@ -100,4 +105,5 @@ The non-space constraint is due to how Syslinux variants parse the command line 
 
 == COPYRIGHT ==
 Copyright \(C) 2012 {author}. Free use of this software is granted under
-the terms of the GNU General Public License (GPL).
+the terms of the GNU General Public License (GPL), version 2 (GPLv2)
+(or, at your option, any later version).
