@@ -252,6 +252,18 @@ cmdline:
 
 	goto auto_boot;
 }
+
+/*
+ * Undo the work we did in openconsole().
+ */
+static void __destructor close_console(void)
+{
+	int i;
+
+	for (i = 0; i <= 2; i++)
+		close(i);
+}
+
 int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;

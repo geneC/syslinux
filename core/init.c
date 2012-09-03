@@ -62,7 +62,6 @@ static inline void bios_timer_init(void)
 	*hook = (uint32_t)&timer_irq;
 }
 
-extern void printf_init(void);
 void init(com32sys_t *regs __unused)
 {
 	int i;
@@ -74,7 +73,6 @@ void init(com32sys_t *regs __unused)
 		KbdMap[i] = i;
 
 	adjust_screen();
-	printf_init();
 
 	/* Init the memory subsystem */
 	mem_init();
