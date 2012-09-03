@@ -1,4 +1,4 @@
-= pxechn.c32 =
+= pxechn.c32(1) =
 :doctype: manpage
 :author: Gene Cumm
 :email: gene.cumm@gmail.com
