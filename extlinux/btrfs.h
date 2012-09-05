@@ -8,8 +8,10 @@
 #define BTRFS_SUPER_INFO_OFFSET (64 * 1024)
 #define BTRFS_SUPER_INFO_SIZE 4096
 #define BTRFS_MAGIC "_BHRfS_M"
+#define BTRFS_MAGIC_L 8
 #define BTRFS_CSUM_SIZE 32
 #define BTRFS_FSID_SIZE 16
+#define BTRFS_UUID_SIZE 16
 
 typedef __u64 u64;
 typedef __u32 u32;
@@ -46,16 +48,51 @@ struct btrfs_dir_item {
 } __attribute__ ((__packed__));
 
 struct btrfs_super_block {
-	unsigned char csum[BTRFS_CSUM_SIZE];
-	/* the first 3 fields must match struct btrfs_header */
-	unsigned char fsid[BTRFS_FSID_SIZE];    /* FS specific uuid */
-	u64 bytenr; /* this block number */
-	u64 flags;
-
-	/* allowed to be different from the btrfs_header from here own down */
-	u64 magic;
+        uint8_t csum[32];
+        uint8_t fsid[16];
+        uint64_t bytenr;
+        uint64_t flags;
+        uint8_t magic[8];
+        uint64_t generation;
+        uint64_t root;
+        uint64_t chunk_root;
+        uint64_t log_root;
+        uint64_t log_root_transid;
+        uint64_t total_bytes;
+        uint64_t bytes_used;
+        uint64_t root_dir_objectid;
+        uint64_t num_devices;
+        uint32_t sectorsize;
+        uint32_t nodesize;
+        uint32_t leafsize;
+        uint32_t stripesize;
+        uint32_t sys_chunk_array_size;
+        uint64_t chunk_root_generation;
+        uint64_t compat_flags;
+        uint64_t compat_ro_flags;
+        uint64_t incompat_flags;
+        uint16_t csum_type;
+        uint8_t root_level;
+        uint8_t chunk_root_level;
+        uint8_t log_root_level;
+        struct btrfs_dev_item {
+                uint64_t devid;
+                uint64_t total_bytes;
+                uint64_t bytes_used;
+                uint32_t io_align;
+                uint32_t io_width;
+                uint32_t sector_size;
+                uint64_t type;
+                uint64_t generation;
+                uint64_t start_offset;
+                uint32_t dev_group;
+                uint8_t seek_speed;
+                uint8_t bandwidth;
+                uint8_t uuid[16];
+                uint8_t fsid[16];
+        } __attribute__ ((__packed__)) dev_item;
+        uint8_t label[256];
 } __attribute__ ((__packed__));
-
 
 #define BTRFS_IOCTL_MAGIC 0x94
 #define BTRFS_VOL_NAME_MAX 255
@@ -110,6 +147,23 @@ struct btrfs_ioctl_search_header {
 	__u32 len;
 } __attribute__((may_alias));
 
+#define BTRFS_DEVICE_PATH_NAME_MAX 1024
+struct btrfs_ioctl_dev_info_args {
+	__u64 devid;				/* in/out */
+	__u8 uuid[BTRFS_UUID_SIZE];		/* in/out */
+	__u64 bytes_used;			/* out */
+	__u64 total_bytes;			/* out */
+	__u64 unused[379];			/* pad to 4k */
+	__u8 path[BTRFS_DEVICE_PATH_NAME_MAX];	/* out */
+};
+
+struct btrfs_ioctl_fs_info_args {
+	__u64 max_id;				/* out */
+	__u64 num_devices;			/* out */
+	__u8 fsid[BTRFS_FSID_SIZE];		/* out */
+	__u64 reserved[124];			/* pad to 1k */
+};
+
 #define BTRFS_SEARCH_ARGS_BUFSIZE (4096 - sizeof(struct btrfs_ioctl_search_key))
 /*
  * the buf is an array of search headers where
@@ -123,5 +177,9 @@ struct btrfs_ioctl_search_args {
 
 #define BTRFS_IOC_TREE_SEARCH _IOWR(BTRFS_IOCTL_MAGIC, 17, \
                                    struct btrfs_ioctl_search_args)
+#define BTRFS_IOC_DEV_INFO _IOWR(BTRFS_IOCTL_MAGIC, 30, \
+				 struct btrfs_ioctl_dev_info_args)
+#define BTRFS_IOC_FS_INFO _IOR(BTRFS_IOCTL_MAGIC, 31, \
+			       struct btrfs_ioctl_fs_info_args)
 
 #endif

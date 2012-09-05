@@ -278,7 +278,7 @@ static int sl_boot_linux(lua_State * L)
        msleep(10000);
      */
 
-    ret = syslinux_boot_linux(kernel_data, kernel_len, initramfs, newcmdline);
+    ret = syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, newcmdline);
 
     printf("syslinux_boot_linux returned %d\n", ret);
 
@@ -405,7 +405,7 @@ static int sl_boot_it(lua_State * L)
     (void)mem_limit;
 
     return syslinux_boot_linux(kernel->data, kernel->size,
-			       initramfs, (char *)cmdline);
+			       initramfs, NULL, (char *)cmdline);
 }
 
 static int sl_derivative(lua_State * L)

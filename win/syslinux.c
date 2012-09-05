@@ -50,16 +50,16 @@ void error(char *msg);
 // The following struct should be in the ntddstor.h file, but I didn't have it.
 // mingw32 has <ddk/ntddstor.h>, but including that file causes all kinds
 // of other failures.  mingw64 has it in <winioctl.h>.
-#ifndef __x86_64__
-typedef struct _STORAGE_DEVICE_NUMBER {
+// Thus, instead of STORAGE_DEVICE_NUMBER, use a lower-case private
+// definition...
+struct storage_device_number {
     DEVICE_TYPE DeviceType;
     ULONG DeviceNumber;
     ULONG PartitionNumber;
-} STORAGE_DEVICE_NUMBER, *PSTORAGE_DEVICE_NUMBER;
-#endif
+};
 
 BOOL GetStorageDeviceNumberByHandle(HANDLE handle,
-				    const STORAGE_DEVICE_NUMBER * sdn)
+				    const struct storage_device_number *sdn)
 {
     BOOL result = FALSE;
     DWORD count;
@@ -447,7 +447,7 @@ map_done:
 
     /* If desired, fix the MBR */
     if (opt.install_mbr || opt.activate_partition) {
-	STORAGE_DEVICE_NUMBER sdn;
+	struct storage_device_number sdn;
 	if (GetStorageDeviceNumberByHandle(d_handle, &sdn)) {
 	    if (!FixMBR(sdn.DeviceNumber, sdn.PartitionNumber, opt.install_mbr, opt.activate_partition)) {
 		fprintf(stderr,

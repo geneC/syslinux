@@ -37,10 +37,10 @@ void cache_init(struct device *dev, int block_size_shift)
 
     dev->cache_head = head = (struct cache *)
 	(data + (dev->cache_entries << block_size_shift));
-    cache = dev->cache_head + 1; /* First cache descriptor */
+    cache = head + 1;		/* First cache descriptor */
 
     head->prev  = &cache[dev->cache_entries-1];
-    head->next->prev = dev->cache_head;
+    head->prev->next = head;
     head->block = -1;
     head->data  = NULL;
 

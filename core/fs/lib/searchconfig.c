@@ -25,7 +25,8 @@ int search_config(const char *search_directories[], const char *filenames[])
 		     "%s%s%s",
 		     sd, (*sd && sd[strlen(sd)-1] == '/') ? "" : "/",
 		     sf);
-	    realpath(ConfigName, confignamebuf, FILENAME_MAX);
+	    if (realpath(ConfigName, confignamebuf, FILENAME_MAX) == (size_t)-1)
+		continue;
 	    regs.edi.w[0] = OFFS_WRT(ConfigName, 0);
 	    dprintf("Config search: %s\n", ConfigName);
 	    call16(core_open, &regs, &regs);

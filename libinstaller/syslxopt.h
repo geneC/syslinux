@@ -24,6 +24,7 @@ enum long_only_opt {
     OPT_NONE,
     OPT_RESET_ADV,
     OPT_ONCE,
+    OPT_DEVICE,
 };
 
 enum syslinux_mode {

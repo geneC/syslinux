@@ -95,6 +95,7 @@ struct extent {
 struct inode {
     struct fs_info *fs;	 /* The filesystem this inode is associated with */
     struct inode *parent;	/* Parent directory, if any */
+    const char *name;		/* Name, valid for generic path search only */
     int		 refcnt;
     int          mode;   /* FILE , DIR or SYMLINK */
     uint32_t     size;
