@@ -197,7 +197,7 @@ CORELIBOBJS = \
 	sprintf.o strlcat.o strchr.o strlcpy.o strncasecmp.o ctypes.o 	\
 	fputs.o fwrite2.o fwrite.o fgetc.o fclose.o errno.o lmalloc.o 	\
 	sys/err_read.o sys/err_write.o sys/null_read.o 			\
-	sys/stdcon_write.o sys/openconsole.o				\
+	sys/stdcon_write.o						\
 	syslinux/memscan.o strrchr.o					\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\

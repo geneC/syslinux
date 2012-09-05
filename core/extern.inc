@@ -27,8 +27,6 @@
 
 	extern hexdump, mydump
 
-	extern printf_init
-
 	extern mem_init
 
 	; fs.c

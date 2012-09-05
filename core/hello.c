@@ -76,8 +76,3 @@ void mp5(void)
 	myprint(5);
 }
 
-void printf_init(void)
-{
-	openconsole(&dev_null_r, &dev_stdcon_w);
-}
-

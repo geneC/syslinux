@@ -261,7 +261,6 @@ static inline void bios_timer_init(void)
 }
 
 extern uint8_t bios_free_mem;
-extern void printf_init(void);
 
 void bios_init(void)
 {
@@ -274,7 +273,6 @@ void bios_init(void)
 		KbdMap[i] = i;
 
 	bios_adjust_screen();
-	printf_init();
 
 	/* Init the memory subsystem */
 	bios_free_mem = (uint16_t *)0x413;
