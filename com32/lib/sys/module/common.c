@@ -47,7 +47,7 @@ void print_elf_symbols(struct elf_module *module) {
 	unsigned int i;
 	Elf32_Sym *crt_sym;
 
-	for (i = 1; i < module->symtable_size; i++)
+	for (i = 1; i < module->symtable_size/module->syment_size; i++)
 	{
 		crt_sym = (Elf32_Sym*)(module->sym_table + i*module->syment_size);
 
@@ -315,7 +315,7 @@ int check_symbols(struct elf_module *module)
 	int strong_count;
 	int weak_count;
 
-	for(i = 1; i < module->symtable_size; i++)
+	for (i = 1; i < module->symtable_size/module->syment_size; i++)
 	{
 		crt_sym = symbol_get_entry(module, i);
 		crt_name = module->str_table + crt_sym->st_name;
@@ -535,7 +535,7 @@ static Elf32_Sym *module_find_symbol_iterate(const char *name,struct elf_module 
 	unsigned int i;
 	Elf32_Sym *crt_sym;
 
-	for (i=1; i < module->symtable_size; i++)
+	for (i = 1; i < module->symtable_size/module->syment_size; i++)
 	{
 		crt_sym = symbol_get_entry(module, i);
 		if (strcmp(name, module->str_table + crt_sym->st_name) == 0)
