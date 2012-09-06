@@ -39,6 +39,7 @@
 #include <string.h>
 #include <sys/fpu.h>
 #include <syslinux/video.h>
+#include <dprintf.h>
 #ifdef SYSLINUX_EFI
 #include <efi.h>
 #include <efilib.h>
@@ -101,7 +102,7 @@ static int vesacon_paged_mode_ok(const struct vesa_mode_info *mi)
 }
 
 #ifndef SYSLINUX_EFI
-static int vesacon_set_mode(int x, int y)
+static int vesacon_set_mode(int *x, int *y)
 {
     com32sys_t rm;
     uint8_t *rom_font;
@@ -196,7 +197,7 @@ static int vesacon_set_mode(int x, int y)
 	    continue;
 
 	/* Must be the chosen size */
-	if (mi->h_res != x || mi->v_res != y)
+	if (mi->h_res != *x || mi->v_res != *y)
 	    continue;
 
 	/* We don't support multibank (interlaced memory) modes */
@@ -338,7 +339,7 @@ static void find_pixmask_bits(uint32_t mask, uint8_t *first_bit, uint8_t *len) {
     *first_bit = bit_pos;
     *len = bit_len;
 }
-static int vesacon_set_mode(int x, int y)
+static int vesacon_set_mode(int *x, int *y)
 {
     EFI_GUID GraphicsOutputProtocolGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput = NULL;
@@ -365,6 +366,7 @@ static int vesacon_set_mode(int x, int y)
     /* We use the VESA info structure to store relevant GOP info as much as possible */
     gop_mode = GraphicsOutput->Mode;
 
+    mode_info = gop_mode->Info;
     dprintf("mode %d version %d pixlfmt %d hres=%d vres=%d\n", mode_num, 
 			mode_info->Version, mode_info->PixelFormat,
 			mode_info->HorizontalResolution, mode_info->VerticalResolution);
@@ -378,7 +380,7 @@ static int vesacon_set_mode(int x, int y)
 		/* For now, simply pick the best mode that suits caller's resolution (x,y)
 		 * FIXME: Consider any additional criteria for matching mode
 		 */
-		mode_match = ((uint32_t)x == mode_info->HorizontalResolution && (uint32_t)y == mode_info->VerticalResolution);
+		mode_match = ((uint32_t)*x == mode_info->HorizontalResolution && (uint32_t)*y == mode_info->VerticalResolution);
 		debug("mode %d hres=%d vres=%d\n", mode_num, mode_info->HorizontalResolution, mode_info->VerticalResolution);
 		if (mode_match) {
 			bestmode = mode_num;
@@ -388,8 +390,15 @@ static int vesacon_set_mode(int x, int y)
     }
 
     if (!mode_match) {
-	debug("No matching mode available for resolution (x=%d, y=%d)\n", x, y);
-	return 4; /* no mode found */
+	/* Instead of bailing out, set the mode to the system default.
+ 	 * Some systems do not have support for 640x480 for instance
+ 	 * This code deals with such cases.
+ 	 */
+	mode_info = gop_mode->Info;
+	*x = mode_info->HorizontalResolution;
+	*y = mode_info->VerticalResolution;
+	bestmode = gop_mode->Mode;
+	debug("No matching mode, setting to available default mode %d (x=%d, y=%d)\n", bestmode, *x, *y);
     }
 
     /* Allocate space in the bounce buffer for these structures */
@@ -402,8 +411,8 @@ static int vesacon_set_mode(int x, int y)
     gi = &vi->gi;
     mi = &vi->mi;
     /* Set up mode-specific information */
-    mi->h_res = x;
-    mi->v_res = y;
+    mi->h_res = *x;
+    mi->v_res = *y;
     mi->lfb_ptr = (uint8_t *)(VOID *)(UINTN)gop_mode->FrameBufferBase;
     mi->lfb_size = gop_mode->FrameBufferSize;
 
@@ -601,7 +610,12 @@ static int init_text_display(void)
     return 0;
 }
 
-int __vesacon_init(int x, int y)
+/* On input, VESA initialization is passed a desirable resolution
+ * On return, either the requested resolution is set or the system
+ * supported default resolution is set and returned to the caller
+ * This change is added for EFI enabled platforms.
+ */
+int __vesacon_init(int *x, int *y)
 {
     int rv;
 
@@ -614,7 +628,7 @@ int __vesacon_init(int x, int y)
 #ifndef SYSLINUX_EFI
     if (rv) {
 	/* Try to see if we can just patch the BIOS... */
-	if (__vesacon_i915resolution(x, y))
+	if (__vesacon_i915resolution(*x, *y))
 	    return rv;
 	if (vesacon_set_mode(x, y))
 	    return rv;
