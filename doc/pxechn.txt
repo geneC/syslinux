@@ -99,14 +99,11 @@ suitable non-space separating character.
     servers (case mixed to show insensitivity; 10.1.1.2 and
     172.23.77.236).
 
-`pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -X A012345678 -x 197:00d0de00`::
+`pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -o 0xA0.x=12:34:56:78 -x 197.x=00:d0:de:00`::
     Load gpxelinux.0 (relative to the current directory and not
     altering sname/option 66), set the PXELINUX path prefix, wait after
     loading, set option 160 to 0x12 0x34 0x56 0x78, and option 197 to
     0x00 0xD0 0xDE 0x00.
-
-`pxechn.c32 gpxelinux.0 -p http://10.1.1.4/tftp/ -w -X A012:3456:78 -x 197:00-d0-de-00`::
-    Equivalent to the above example.
 
 `pxechn.c32 10.1.1.8:boot\x86\wdsnbp.com -W`::
     Load wdsnbp.com from 10.1.1.8 and copy DHCP Option 66 to DHCP
