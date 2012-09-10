@@ -87,6 +87,9 @@ struct upload_backend *upload;
 /* Defines if the cli is quiet*/
 bool quiet;
 
+/* Defines if the cli is totally silent*/
+bool silent;
+
 /* Defines if we must use the vesa mode */
 bool vesamode;
 
@@ -114,16 +117,18 @@ extern bool disable_more_printf;
  * one \n (and only one)
  */
 #define more_printf(...) do {\
- if (__likely(!disable_more_printf)) {\
-  if (display_line_nb == max_console_lines) {\
-   display_line_nb=0;\
-   printf("\n--More--");\
-   get_key(stdin, 0);\
-   printf("\033[2K\033[1G\033[1F");\
+ if (__likely(!silent)) {\
+  if (__likely(!disable_more_printf)) {\
+   if (display_line_nb == max_console_lines) {\
+    display_line_nb=0;\
+    printf("\n--More--");\
+    get_key(stdin, 0);\
+    printf("\033[2K\033[1G\033[1F");\
+   }\
+   display_line_nb++;\
   }\
-  display_line_nb++;\
+  printf(__VA_ARGS__);\
  }\
- printf(__VA_ARGS__);\
 } while (0);
 
 /* Display CPU registers for debugging purposes */

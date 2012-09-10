@@ -63,6 +63,9 @@ void detect_parameters(const int argc, const char *argv[],
     /* Quiet mode - make the output more quiet */
     quiet = true;
 
+    /* Silent mode - make not output at all */
+    silent = false;
+
     /* Vesa mode isn't set until we explictly call it */
     vesamode = false;
 
@@ -75,6 +78,8 @@ void detect_parameters(const int argc, const char *argv[],
     for (int i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "quiet", 5)) {
 	    quiet = true;
+	} else if (!strncmp(argv[i], "silent", 6)) {
+	    silent = true;
 	} else	if (!strncmp(argv[i], "verbose", 7)) {
 	    quiet = false;
 	} else if (!strncmp(argv[i], "modules_pcimap=", 15)) {
