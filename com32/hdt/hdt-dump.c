@@ -156,7 +156,7 @@ void flush(ZZJSON_CONFIG * config, ZZJSON ** item)
 void dump(struct s_hardware *hardware)
 {
     if (hardware->is_pxe_valid == false) {
-	printf("PXE stack was not detected, Dump feature is not available\n");
+	more_printf("PXE stack was not detected, Dump feature is not available\n");
 	return;
     }
 

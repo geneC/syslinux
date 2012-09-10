@@ -54,12 +54,12 @@ static void main_show_modes(int argc __unused, char **argv __unused,
     int i = 0;
 
     reset_more_printf();
-    printf("Available modes:\n");
+    more_printf("Available modes:\n");
     while (list_modes[i]) {
 	printf("%s ", list_modes[i]->name);
 	i++;
     }
-    printf("\n");
+    more_printf("\n");
 }
 
 /**
@@ -119,7 +119,7 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 
     find_cli_mode_descr(hdt_cli.mode, &current_mode);
 
-    printf("Available commands are:\n");
+    more_printf("Available commands are:\n");
 
     /* List first default modules of the mode */
     if (current_mode->default_modules && current_mode->default_modules->modules) {
@@ -154,7 +154,7 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 
     /* List secondly the show modules of the mode */
     if (current_mode->show_modules && current_mode->show_modules->modules) {
-	printf("\nshow commands:\n");
+	more_printf("\nshow commands:\n");
 	j = 0;
 	while (current_mode->show_modules->modules[j].name) {
 	    printf("%s ", current_mode->show_modules->modules[j].name);
@@ -165,7 +165,7 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 
     /* List thirdly the set modules of the mode */
     if (current_mode->set_modules && current_mode->set_modules->modules) {
-	printf("\nset commands:\n");
+	more_printf("\nset commands:\n");
 	j = 0;
 	while (current_mode->set_modules->modules[j].name) {
 	    printf("%s ", current_mode->set_modules->modules[j].name);
@@ -267,7 +267,7 @@ static void do_sleep(int argc , char **argv ,
 {
    (void) hardware;
    if (argc != 1) return;
-   printf("Sleep %d milliseconds\n",atoi(argv[0]));
+   more_printf("Sleep %d milliseconds\n",atoi(argv[0]));
    msleep(atoi(argv[0]));
 }
 
@@ -279,7 +279,7 @@ static void do_display(int argc , char **argv ,
 {
    (void) hardware;
    if ((argc != 1) || (vesamode == false)) return;
-   printf("Display %s file\n",argv[0]);
+   more_printf("Display %s file\n",argv[0]);
    vesacon_load_background(argv[0]);
 }
 
@@ -316,7 +316,7 @@ static void do_say(int argc , char **argv ,
 	dprintf("SAY CMD = [%s]\n",text_to_say);	   
     	}
 
-  	printf("%s\n",text_to_say);
+  	more_printf("%s\n",text_to_say);
   }
 }
 

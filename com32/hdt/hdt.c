@@ -72,7 +72,7 @@ int main(const int argc, const char *argv[])
     clear_screen();
     printf("\033[1;1H");
 
-    printf("%s\n", version_string);
+    more_printf("%s\n", version_string);
 
     int return_code = 0;
 
@@ -86,7 +86,7 @@ int main(const int argc, const char *argv[])
 
     /* Do we got request to do something at exit time ? */
     if (strlen(hardware.postexec)>0) {
-	    printf("Executing postexec instructions : %s\n",hardware.postexec);
+	    more_printf("Executing postexec instructions : %s\n",hardware.postexec);
 	    runsyslinuxcmd(hardware.postexec);
     }
 

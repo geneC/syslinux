@@ -739,8 +739,8 @@ void detect_hardware(struct s_hardware *hardware)
     if (!quiet)
         more_printf("DMI: Detecting Table\n");
     if (detect_dmi(hardware) == -ENODMITABLE) {
-        printf("DMI: ERROR ! Table not found ! \n");
-        printf("DMI: Many hardware components will not be detected ! \n");
+        more_printf("DMI: ERROR ! Table not found ! \n");
+        more_printf("DMI: Many hardware components will not be detected ! \n");
     } else {
         if (!quiet)
             more_printf("DMI: Table found ! (version %u.%u)\n",
