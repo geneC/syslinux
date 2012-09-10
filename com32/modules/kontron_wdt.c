@@ -378,6 +378,10 @@ int main(int argc, const char *argv[]) {
         status = kempld_read8(&pld, KEMPLD_WDT_CFG);
 	/* kick the watchdog if it is already enabled, otherwise start it */
         if (status & KEMPLD_WDT_CFG_ENABLE) {
+		/* Maybye the BIOS did setup a first timer
+		 * in this case, let's enforce the timeout
+		 * to be sure we do have the proper value */
+		kempld_wdt_settimeout(&wdt);
                 kempld_wdt_keepalive(&wdt);
         } else {
 		ret = kempld_wdt_settimeout(&wdt);
