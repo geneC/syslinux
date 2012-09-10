@@ -10,7 +10,7 @@ Changes in 4.06:
 	  and then booting a given image.
 	* HDT updated, and now can display images regarding some detection
 	  steps. Adding postexec command to run a particular entry after
-	  HDT's execution and various fixes.
+	  HDT's execution, adding silent option and various fixes.
 
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
