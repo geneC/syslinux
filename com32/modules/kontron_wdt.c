@@ -380,28 +380,31 @@ int main(int argc, const char *argv[]) {
         if (status & KEMPLD_WDT_CFG_ENABLE) {
                 kempld_wdt_keepalive(&wdt);
         } else {
-                ret = kempld_wdt_settimeout(&wdt);
+		ret = kempld_wdt_settimeout(&wdt);
                 if (ret) {
 			printf("Unable to setup timeout !\n");
-        		kempld_release_mutex(&pld);
-			return -1;
+			goto booting;
 		}
-                ret = kempld_wdt_start(&wdt);
+
+		ret = kempld_wdt_start(&wdt);
                 if (ret) {
 			printf("Unable to start watchdog !\n");
-        		kempld_release_mutex(&pld);
-			return -1;
+			goto booting;
 		}
 
         }
 
+	printf("Watchog armed ! Rebooting in %d seconds if no feed occurs !\n",wdt.timeout);
+
+booting:
 	/* Release Mutex to let Linux's Driver taking control */
         kempld_release_mutex(&pld);
-	printf("Watchog armed ! Rebooting in %d seconds if no feed occurs !\n",wdt.timeout);
 
 	/* Let's boot the default entry if specified */
 	if (strlen(default_label)>0) {
 		printf("Executing default label = '%s'\n",default_label);
 		syslinux_run_command(default_label);
+	} else {
+		return ret;
 	}
 }
