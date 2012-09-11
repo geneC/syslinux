@@ -905,8 +905,8 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 			goto free_map;
 		}
 
-		hdr->ramdisk_image = (uint32_t)last;
-		hdr->ramdisk_size = irf_size;
+		bhdr->ramdisk_image = (uint32_t)last;
+		bhdr->ramdisk_size = irf_size;
 
 		/* Copy initramfs into allocated memory */
 		for (ip = initramfs->next; ip->len; ip = ip->next) {
