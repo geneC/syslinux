@@ -639,49 +639,6 @@ static EFI_STATUS setup_default_timer(EFI_EVENT ev)
 }
 
 /**
- * memory_map - Allocate and fill out an array of memory descriptors
- * @map_buf: buffer containing the memory map
- * @map_size: size of the buffer containing the memory map
- * @map_key: key for the current memory map
- * @desc_size: size of the desc
- * @desc_version: memory descriptor version
- *
- * On success, @map_size contains the size of the memory map pointed
- * to by @map_buf and @map_key, @desc_size and @desc_version are
- * updated.
- */
-EFI_STATUS
-memory_map(EFI_MEMORY_DESCRIPTOR **map_buf, UINTN *map_size,
-	   UINTN *map_key, UINTN *desc_size, UINT32 *desc_version)
-{
-	EFI_STATUS err = EFI_SUCCESS;
-
-	*map_size = sizeof(**map_buf) * 31;
-
-	/*
-	 * Because we're about to allocate memory, we may
-	 * potentially create a new memory descriptor, thereby
-	 * increasing the size of the memory map. So increase
-	 * the buffer size by the size of one memory
-	 * descriptor, just in case.
-	 */
-	*map_size += sizeof(**map_buf);
-
-	err = allocate_pool(EfiLoaderData, *map_size,
-			    (void **)map_buf);
-	if (err == EFI_SUCCESS) {
-		*map_buf = get_memory_map(map_size, map_key, desc_size, desc_version);
-		if (*map_buf == (EFI_MEMORY_DESCRIPTOR *)NULL) {
-			Print(L"Failed to get memory map");
-			err = EFI_OUT_OF_RESOURCES;
-		}
-	} else {
-		Print(L"Failed to allocate pool for memory map");
-	}
-
-	return err;
-}
-/**
  * emalloc - Allocate memory with a strict alignment requirement
  * @size: size in bytes of the requested allocation
  * @align: the required alignment of the allocation
@@ -691,22 +648,22 @@ memory_map(EFI_MEMORY_DESCRIPTOR **map_buf, UINTN *map_size,
  */
 EFI_STATUS emalloc(UINTN size, UINTN align, EFI_PHYSICAL_ADDRESS *addr)
 {
-	UINTN map_size, map_key, desc_size;
+	UINTN nr_entries, map_key, desc_size;
 	EFI_MEMORY_DESCRIPTOR *map_buf;
-	UINTN d, map_end;
+	UINTN d;
 	UINT32 desc_version;
 	EFI_STATUS err;
 	UINTN nr_pages = EFI_SIZE_TO_PAGES(size);
+	int i;
 
-	err = memory_map(&map_buf, &map_size, &map_key,
-			 &desc_size, &desc_version);
-	if (err != EFI_SUCCESS)
+	map_buf = get_memory_map(&nr_entries, &map_key,
+				 &desc_size, &desc_version);
+	if (!map_buf)
 		goto fail;
 
 	d = (UINTN)map_buf;
-	map_end = (UINTN)map_buf + map_size;
 
-	for (; d < map_end; d += desc_size) {
+	for (i = 0; i < nr_entries; i++, d += desc_size) {
 		EFI_MEMORY_DESCRIPTOR *desc;
 		EFI_PHYSICAL_ADDRESS start, end, aligned;
 
@@ -740,7 +697,7 @@ EFI_STATUS emalloc(UINTN size, UINTN align, EFI_PHYSICAL_ADDRESS *addr)
 		}
 	}
 
-	if (d == map_end)
+	if (i == nr_entries)
 		err = EFI_OUT_OF_RESOURCES;
 
 	free_pool(map_buf);
