@@ -915,6 +915,8 @@ static const char *find_device_mountinfo(const char *path, dev_t dev)
     struct stat st;
 
     m = find_mount(path, NULL);
+    if (!m)
+	return NULL;
 
     if (m->devpath[0] == '/' && m->dev == dev &&
 	!stat(m->devpath, &st) && S_ISBLK(st.st_mode) && st.st_rdev == dev)
