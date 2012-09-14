@@ -236,6 +236,53 @@ int libfat_readfile(intptr_t pp, void *buf, size_t secsize,
     return secsize;
 }
 
+static void move_file(char *pathname, char *filename)
+{
+    char new_name[strlen(opt.directory) + 16];
+    char *cp = new_name + 3;
+    const char *sd;
+    int slash = 1;
+
+    new_name[0] = opt.device[0];
+    new_name[1] = ':';
+    new_name[2] = '\\';
+
+    for (sd = opt.directory; *sd; sd++) {
+	char c = *sd;
+
+	if (c == '/' || c == '\\') {
+	    if (slash)
+		continue;
+	    c = '\\';
+	    slash = 1;
+	} else {
+	    slash = 0;
+	}
+
+	*cp++ = c;
+    }
+
+    /* Skip if subdirectory == root */
+    if (cp > new_name + 3) {
+	if (!slash)
+	    *cp++ = '\\';
+
+	memcpy(cp, filename, 12);
+
+	/* Delete any previous file */
+	SetFileAttributes(pathname, FILE_ATTRIBUTE_NORMAL);
+	DeleteFile(pathname);
+	if (!MoveFile(pathname, new_name))
+	    SetFileAttributes(pathname, FILE_ATTRIBUTE_READONLY |
+			      FILE_ATTRIBUTE_SYSTEM |
+			      FILE_ATTRIBUTE_HIDDEN);
+	else
+	    SetFileAttributes(new_name, FILE_ATTRIBUTE_READONLY |
+			      FILE_ATTRIBUTE_SYSTEM |
+			      FILE_ATTRIBUTE_HIDDEN);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     HANDLE f_handle, d_handle;
@@ -249,6 +296,7 @@ int main(int argc, char *argv[])
     static char drive_name[] = "\\\\.\\?:";
     static char drive_root[] = "?:\\";
     static char ldlinux_name[] = "?:\\ldlinux.sys";
+    static char ldlinuxc32_name[] = "?:\\ldlinux.c32";
     const char *errmsg;
     struct libfat_filesystem *fs;
     libfat_sector_t s, *secp;
@@ -290,6 +338,7 @@ int main(int argc, char *argv[])
     /* Determines the drive type */
     drive_name[4] = opt.device[0];
     ldlinux_name[0] = opt.device[0];
+    ldlinuxc32_name[0] = opt.device[0];
     drive_root[0] = opt.device[0];
     drive_type = GetDriveType(drive_root);
 
@@ -340,10 +389,12 @@ int main(int argc, char *argv[])
     /* Change to normal attributes to enable deletion */
     /* Just ignore error if the file do not exists */
     SetFileAttributes(ldlinux_name, FILE_ATTRIBUTE_NORMAL);
+    SetFileAttributes(ldlinuxc32_name, FILE_ATTRIBUTE_NORMAL);
 
     /* Delete the file */
     /* Just ignore error if the file do not exists */
     DeleteFile(ldlinux_name);
+    DeleteFile(ldlinuxc32_name);
 
     /* Initialize the ADV -- this should be smarter */
     syslinux_reset_adv(syslinux_adv);
@@ -463,51 +514,39 @@ map_done:
     CloseHandle(f_handle);
 
     /* Move the file to the desired location */
-    if (opt.directory) {
-	char new_ldlinux_name[strlen(opt.directory) + 16];
-	char *cp = new_ldlinux_name + 3;
-	const char *sd;
-	int slash = 1;
+    if (opt.directory)
+	move_file(ldlinux_name, "ldlinux.sys");
 
-	new_ldlinux_name[0] = opt.device[0];
-	new_ldlinux_name[1] = ':';
-	new_ldlinux_name[2] = '\\';
+    f_handle = CreateFile(ldlinuxc32_name, GENERIC_READ | GENERIC_WRITE,
+			  FILE_SHARE_READ | FILE_SHARE_WRITE,
+			  NULL, CREATE_ALWAYS,
+			  FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_SYSTEM |
+			  FILE_ATTRIBUTE_HIDDEN, NULL);
 
-	for (sd = opt.directory; *sd; sd++) {
-	    char c = *sd;
-
-	    if (c == '/' || c == '\\') {
-		if (slash)
-		    continue;
-		c = '\\';
-		slash = 1;
-	    } else {
-		slash = 0;
-	    }
-
-	    *cp++ = c;
-	}
-
-	/* Skip if subdirectory == root */
-	if (cp > new_ldlinux_name + 3) {
-	    if (!slash)
-		*cp++ = '\\';
-
-	    memcpy(cp, "ldlinux.sys", 12);
-
-	    /* Delete any previous file */
-	    SetFileAttributes(new_ldlinux_name, FILE_ATTRIBUTE_NORMAL);
-	    DeleteFile(new_ldlinux_name);
-	    if (!MoveFile(ldlinux_name, new_ldlinux_name))
-		SetFileAttributes(ldlinux_name, FILE_ATTRIBUTE_READONLY |
-				  FILE_ATTRIBUTE_SYSTEM |
-				  FILE_ATTRIBUTE_HIDDEN);
-	    else
-		SetFileAttributes(new_ldlinux_name, FILE_ATTRIBUTE_READONLY |
-				  FILE_ATTRIBUTE_SYSTEM |
-				  FILE_ATTRIBUTE_HIDDEN);
-	}
+    if (f_handle == INVALID_HANDLE_VALUE) {
+	error("Unable to create ldlinux.c32");
+	exit(1);
     }
+
+    /* Write ldlinux.c32 file */
+    if (!WriteFile(f_handle, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len,
+		   &bytes_written, NULL) ||
+	bytes_written != syslinux_ldlinuxc32_len) {
+	error("Could not write ldlinux.c32");
+	exit(1);
+    }
+
+    /* Now flush the media */
+    if (!FlushFileBuffers(f_handle)) {
+	error("FlushFileBuffers failed");
+	exit(1);
+    }
+
+    CloseHandle(f_handle);
+
+    /* Move the file to the desired location */
+    if (opt.directory)
+	move_file(ldlinuxc32_name, "ldlinux.c32");
 
     /* Make the syslinux boot sector */
     syslinux_make_bootsect(sectbuf, fs_type);

@@ -398,16 +398,18 @@ int install_bootblock(int fd, const char *device)
 
 int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 {
-    char *file, *oldfile;
+    char *file, *oldfile, *c32file;
     int fd = -1, dirfd = -1;
     int modbytes;
-    int r1, r2;
+    int r1, r2, r3;
 
     r1 = asprintf(&file, "%s%sldlinux.sys",
 		  path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
     r2 = asprintf(&oldfile, "%s%sextlinux.sys",
 		  path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
-    if (r1 < 0 || !file || r2 < 0 || !oldfile) {
+    r3 = asprintf(&c32file, "%s%sldlinux.c32",
+		  path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
+    if (r1 < 0 || !file || r2 < 0 || !oldfile || r3 < 0 || !c32file) {
 	perror(program);
 	return 1;
     }
@@ -474,8 +476,22 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 	unlink(oldfile);
     }
 
+    fd = open(c32file, O_WRONLY | O_TRUNC | O_CREAT | O_SYNC,
+	      S_IRUSR | S_IRGRP | S_IROTH);
+    if (fd < 0) {
+	perror(c32file);
+	goto bail;
+    }
+
+    r3 = xpwrite(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len, 0);
+    if (r3 != syslinux_ldlinuxc32_len) {
+	fprintf(stderr, "%s: write failure on %s\n", program, c32file);
+	goto bail;
+    }
+
     free(file);
     free(oldfile);
+    free(c32file);
     return 0;
 
 bail:
@@ -486,6 +502,7 @@ bail:
 
     free(file);
     free(oldfile);
+    free(c32file);
     return 1;
 }
 
@@ -494,6 +511,9 @@ bail:
    since the cow feature of btrfs will move the ldlinux.sys every where */
 int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 {
+    char *file;
+    int fd, rv;
+
     patch_file_and_bootblock(-1, path, devfd);
     if (xpwrite(devfd, boot_image, boot_image_len, BTRFS_EXTLINUX_OFFSET)
 		!= boot_image_len) {
@@ -511,7 +531,37 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 	perror(path);
 	return 1;
     }
-    return 0;
+
+    /*
+     * Note that we *can* install ldinux.c32 as a regular file because
+     * it doesn't need to be within the first 64K. The Syslinux core
+     * has enough smarts to search the btrfs dirs and find this file.
+     */
+    rv = asprintf(&file, "%s%sldlinux.c32",
+		  path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
+    if (rv < 0 || !file) {
+	perror(program);
+	return 1;
+    }
+
+    fd = open(file, O_WRONLY | O_TRUNC | O_CREAT | O_SYNC,
+	      S_IRUSR | S_IRGRP | S_IROTH);
+    if (fd < 0) {
+	perror(file);
+	free(file);
+	return 1;
+    }
+
+    rv = xpwrite(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len, 0);
+    if (rv != (int)syslinux_ldlinuxc32_len) {
+	fprintf(stderr, "%s: write failure on %s\n", program, file);
+	rv = 1;
+    } else
+	rv = 0;
+
+    close(fd);
+    free(file);
+    return rv;
 }
 
 /*

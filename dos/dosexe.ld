@@ -26,7 +26,7 @@ SECTIONS
 	__header_size = .;
 	__payload_lma = .;
 
-	. = 0x100000000 - syslinux_ldlinux_size;
+	. = 0x100000000 - syslinux_size;
 	.payload : AT (__payload_lma) {
 		 __payload_start = .;
 		 *(.payload)
@@ -35,13 +35,13 @@ SECTIONS
 	__payload_len = ABSOLUTE(__payload_end) - ABSOLUTE(__payload_start);
 	__payload_dwords = __payload_len >> 2;
 
-	__text_lma = __payload_lma + syslinux_ldlinux_size;
+	__text_lma = __payload_lma + syslinux_size;
 	__payload_sseg = (__payload_lma - __text_lma) >> 4;
 	_exe_text_seg  = (__text_lma - __header_size) >> 4;
 
 /*
  *	__assert1 = ASSERT((__payload_len == syslinux_ldlinux_size),
- *	"syslinux_ldlinux_size must equal the size of .payload");
+ *	"syslinux_size must equal the size of .payload");
  */
 	. = 0;
 	.text : AT (__text_lma) {
