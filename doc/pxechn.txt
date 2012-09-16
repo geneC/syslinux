@@ -2,11 +2,11 @@
 :doctype: manpage
 :author: Gene Cumm
 :email: gene.cumm@gmail.com
-:revdate: 2012-09-03
+:revdate: 2012-09-16
 
 
 == NAME ==
-pxechn.c32 - Chainboot to new Network Boot Program
+pxechn.c32 - Chainboot to new Network Boot Program (NBP)
 
 
 == SYNOPSIS ==
@@ -17,7 +17,7 @@ pxechn.c32 - Chainboot to new Network Boot Program
 
 
 == DESCRIPTION ==
-Chainboot to a new NBP (Network Boot Program) 'FILE' with options to
+Chainboot to a new Network Boot Program (NBP) 'FILE' with options to
 adjust PXE packet #3 (PXENV_PACKET_TYPE_CACHED_REPLY) to alter end
 behavior.  'FILE' may be a filename, an IP::FN (
 192.168.1.1::path/to/file.0 ), or URL.  'FILE' is parsed to adjust the
@@ -119,13 +119,13 @@ suitable non-space separating character.
 Please note that some NBPs may ignore packet #3 by either not examining
 it at all or by issuing its own DHCP DISCOVER/REQUEST, negating all DHCP
 field/option modifications by pxechn.c32, including Microsoft Windows
-Server 2008R2 WDS's wdsnbp.com.
+Server 2008R2 WDS's wdsnbp.com.  See also option '-W'.
 
 URL specifications in 'FILE' that include user/password before the host
 will currently cause the siaddr field to not be set properly.
 
 The non-space constraint is due to how Syslinux variants parse the
-command line as of 2012-09-03.
+command line as of 2012-09-16.
 
 
 == AUTHOR ==
