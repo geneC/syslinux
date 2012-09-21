@@ -1,0 +1,149 @@
+= syslinux(1) =
+:doctype: manpage
+:revdate: 2012-09-21
+:author: H. Peter Anvin
+:author-email: hpa@zytor.com
+:editor1: Gene Cumm
+:editor1-email: gene.cumm@gmail.com
+:editor1-revlast: 2012-09-21
+
+
+== NAME ==
+syslinux - Install SYSLINUX to a file system
+
+
+== SYNOPSIS ==
+[verse]
+*syslinux* ['OPTIONS'] 'DEVICE'
+*extlinux* ['OPTIONS'] 'PATH'
+*syslinux* [-h | --help]
+*extlinux* [-h | --help]
+
+
+== DESCRIPTION ==
+Install *SYSLINUX* to the 'DEVICE'/'PATH', altering the boot sector and
+installing the 'ldlinux.sys' boot loader file.  For the Linux installer
+extlinux, 'PATH' is the desired install path on a mounted, supported
+file system and sets the install-time working directory.  For all
+others, 'DEVICE' must specify a FAT12/FAT16/FAT32 file system.  For the
+Linux installers syslinux and syslinux-mtools, 'DEVICE' should be an
+unmounted file system.  For the DOS/Win32/Win64 installers, 'DEVICE'
+should be a drive like 'a:' (case insensitive).
+
+For versions ~4.00 and later, either -i/--install or -U/--update must be
+specified unless modifying the ADV of an existing install (options
+tagged with 'ADV') or requesting the help/usage or version info, .
+
+If, during boot, the Shift or Alt keys are held down, or the Caps or
+Scroll locks are set, *Syslinux* will display a *lilo*(8) -style "boot:"
+prompt. The user can then type a kernel file name followed by any kernel
+parameters. The *Syslinux* bootloader does not need to know about the
+kernel or config files in advance.
+
+*Syslinux* supports the loading of initial ramdisks (initrd) and the
+bzImage kernel format.
+
+Please note, the ldlinux.sys boot loader file is flagged as immutable
+(where applicable) and is modified after copying in to help ensure
+boot-time integrity.  File systems with a sufficiently large boot loader
+reserved area, like btrfs, will have ldlinux.sys installed there rather
+than as a normal file.
+
+
+== OPTIONS ==
+=== Standalone options ===
+*-i*, *--install*::
+(~4.00+) Install SYSLINUX, regardless of an existing install.
+
+*-U*, *--update*::
+(~4.00+) Update an existing SYSLINUX/EXTLINUX install.  If no Syslinux
+boot loader is present, return an error.
+
+*-h*, *--help*::
+Display help/usage information.
+
+*-v*, *--version*::
+Display version information and exit immediately.
+
+=== Regular Options ===
+// Sorted generally by short argument
+*-a*, *--active*::
+(DOS/Win32/Win64 ONLY) Mark the install target file system's partition
+active.
+
+*-d*, *--directory* 'subdirectory'::
+(Not necessary for extlinux as it is implied by 'PATH') Install the
+*SYSLINUX* control files in a subdirectory with the specified name
+(relative to the root directory on the device).
+
+*--device* 'DEVICE'::
+(extlinux ONLY; 4.06+) Force use of a specific block device (experts
+only).
+
+*-f*, *--force*::
+Force install even if it appears unsafe.  Before 4.00, -f was used for
+--offset in the Linux installers.
+
+*-H*, *--heads* 'head-count'::
+Override the detected number of heads for the geometry.  See also
+*--sector*.
+
+*-m*, *--mbr*:
+(DOS/Win32/Win64 ONLY) Install the regular Syslinux MBR code to the MBR.
+
+*-M*, *--menu-save*::
+(4.00+; ADV) Set the label to select as default on the next boot.
+
+*-o*, *--once* 'command'::
+(ADV) Declare a boot command to be tried on the first boot only.  The
+use of *-o* for the Linux installers syslinux or syslinux-mtools has
+been deprecated as of ~4.00 and is no longer valid as of ~4.02.
+
+*-O*, *--clear-once*::
+Clear the boot-once command.
+
+*-r*, *--raid*::
+(ADV) RAID mode.  If boot fails, tell the BIOS to boot the next device
+in the boot sequence (usually the next hard disk) instead of stopping
+with an error message.  This is useful for RAID-1 booting.
+
+*--reset-adv*::
+(ADV) Reset auxilliary data vector.
+
+*-S*, *--sectors* 'sector-count'::
+Override the detected number of sectors for the geometry.  See also
+*--head*.
+
+*-s*, *--stupid*::
+Install a "safe, slow and stupid" version of *SYSLINUX*. This version
+may work on some very buggy BIOSes on which *SYSLINUX* would otherwise
+fail. If you find a machine on which the -s option is required to make
+it boot reliably, please send as much info about your machine as you
+can, and include the failure mode.
+
+*-t*, *--offset* 'offset'::
+(Linux syslinux/syslinux-mtools ONLY) Indicates that the filesystem is
+at an offset from the base of the device or file.
+
+*-z*, *--zipdrive*
+Assume zipdrive geometry ('--heads 64 --sectors 32').  See also *--head*
+and *--sector*.
+
+
+== SEE ALSO ==
+*syslxcfg*(5), *lilo*(8), *keytab-lilo.pl*(8), *fdisk*(8), *mkfs*(8),
+*superformat*(1).
+
+
+== AUTHOR ==
+This AsciiDoc derived document is a modified version of the original
+*SYSLINUX* documentation by {author} <{author-email}>. The conversion to
+a manpage was made by Arthur Korn <arthur@korn.ch>.  The conversion to
+an AsciiDoc was made by {editor1} <{editor1-email}>
+
+
+== COPYRIGHT ==
+Copyright \(C) 1994-2012 {author}. Free use of this software is granted
+under
+the terms of the GNU General Public License (GPL), version 2 (GPLv2)
+(or, at your option, any later version).
