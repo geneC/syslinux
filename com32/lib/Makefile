@@ -4,8 +4,7 @@
 
 # Include configuration rules
 NOGPL := 1
-topdir = ../../
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/lib.mk
 
 ## OPTIONAL OBJECTS, AVAILABLE AS DYNAMIC LINKED MODULES
@@ -77,8 +76,7 @@ DYNLIBOBJS = \
 	$(DYNENTRY_OBJS)
 
 
-LIBOBJS = \
-	$(DYNLIBOBJS)
+LIBOBJS = $(DYNLIBOBJS)
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
@@ -87,7 +85,11 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32.c32 libcom32min.a libcom32core.a
+all: makeoutputdirs libcom32.c32 libcom32min.a libcom32core.a
+
+makeoutputdirs:
+	@mkdir -p $(foreach b, \
+		$(addprefix $(OBJ)/,$(sort $(dir $(LIBOBJS) $(MINLIBOBJS) $(CORELIBOBJS)))),$(b))
 
 libcom32.c32 : $(LIBOBJS)
 	rm -f $@
@@ -114,9 +116,9 @@ spotless: clean
 
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
-	install -m 644 com32.ld $(INSTALLROOT)$(COM32DIR)
+	install -m 644 $(SRC)/com32.ld $(INSTALLROOT)$(COM32DIR)
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
-	cp -r ../include $(INSTALLROOT)$(COM32DIR)
+	cp -r $(SRC)/../include $(INSTALLROOT)$(COM32DIR)
 
 # These files are performance critical, and doesn't compile well with -Os
 #FIXME: determine if drawtxt.c is really EFI-dependent

@@ -14,11 +14,11 @@
 ## Non-COM32 simple Syslinux modules
 ##
 
-topdir = ..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/embedded.mk
 
 INCLUDES   = -I$(com32)/include
+NASMOPT = -I$(SRC)/ -I$(SRC)/../core/
 
 BINS = pxechain.com poweroff.com int18.com ver.com
 

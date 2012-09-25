@@ -1,8 +1,7 @@
 #
 # OpenWatcom compile and link utility
 #
-topdir = ..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/syslinux.mk
 
 WCL	= wcl
@@ -15,6 +14,8 @@ NASMOPT = -Ox
 
 WCTARGETS = mdiskchk.com
 NSTARGETS = eltorito.sys copybs.com
+WCOBJS    = $(addprefix $(SRC)/,$(WCTARGETS))
+NSOBJS    = $(addprefix $(OBJ)/,$(NSTARGETS))
 TARGETS   = $(WCTARGETS) $(NSTARGETS)
 
 %.obj: %.c
@@ -58,4 +59,5 @@ installer: all
 
 install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/dosutil
-	install -m 644 $(TARGETS) $(INSTALLROOT)$(AUXDIR)/dosutil
+	install -m 644 $(WCOBJS) $(INSTALLROOT)$(AUXDIR)/dosutil
+	install -m 644 $(NSOBJS) $(INSTALLROOT)$(AUXDIR)/dosutil

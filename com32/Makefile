@@ -1,5 +1,22 @@
 SUBDIRS = libupload tools lib elflink/ldlinux gpllib libutil modules mboot \
 	  menu samples elflink rosh cmenu hdt gfxboot sysdump lua/src chain
 
-all tidy dist clean spotless install:
-	set -e; for d in $(SUBDIRS); do $(MAKE) -C $$d $@; done
+.PHONY: subdirs $(SUBDIRS)
+subdirs: $(SUBDIRS)
+$(SUBDIRS):
+	@mkdir -p $(OBJ)/$@
+	$(MAKE) -C $(OBJ)/$@ SRC="$(SRC)"/$@ OBJ="$(OBJ)"/$@/ \
+		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
+
+all tidy dist clean spotless install: subdirs
+
+# Parallel dependencies
+chain lua/src mboot menu: libutil gpllib
+cmenu: lib libutil
+elflink/ldlinux: lib
+gfxboot: libutil
+hdt: lib libupload cmenu gpllib libutil
+modules: lib libutil gpllib
+rosh: lib libutil
+samples: libutil elflink/ldlinux
+sysdump: libupload gpllib

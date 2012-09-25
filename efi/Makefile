@@ -10,26 +10,23 @@
 ##
 ## -----------------------------------------------------------------------
 
-topdir = ..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/lib.mk
 include $(MAKEDIR)/efi.mk
 
 CORE_CSRC := $(wildcard $(core)/*.c $(core)/*/*.c $(core)/*/*/*.c)
-CORE_COBJ := $(patsubst %.c,%.o,$(CORE_CSRC))
+CORE_COBJ := $(subst $(core),$(OBJ)/../core/,$(patsubst %.c,%.o,$(CORE_CSRC)))
 
 # Don't include console objects
-CORE_OBJS = $(filter-out $(core)/hello.o $(core)/rawcon.o \
-	$(core)/plaincon.o $(core)/strcasecmp.o $(core)/bios.o \
-	$(core)/fs/diskio_bios.o $(core)/ldlinux-c.o $(core)/isolinux-c.o \
-	$(core)/pxelinux-c.o,$(CORE_COBJ))
-LIB_OBJS = $(addprefix $(com32)/lib/,$(CORELIBOBJS))
+CORE_OBJS = $(filter-out %hello.o %rawcon.o %plaincon.o %strcasecmp.o %bios.o \
+	%diskio_bios.o %ldlinux-c.o %isolinux-c.o %pxelinux-c.o,$(CORE_COBJ))
 
-CSRC = $(wildcard *.c)
-OBJ = $(patsubst %.c,%.o,$(CSRC))
-OBJS = $(filter-out wrapper.o,$(OBJ))
+LIB_OBJS = $(addprefix $(objdir)/com32/lib/,$(CORELIBOBJS))
 
-OBJS += $(core)/codepage.o
+CSRC = $(wildcard $(SRC)/*.c)
+OBJS = $(subst $(SRC)/,,$(filter-out %wrapper.o, $(patsubst %.c,%.o,$(CSRC))))
+
+OBJS += $(objdir)/core/codepage.o
 
 # The targets to build in this directory
 BTARGET  = syslinux.efi
@@ -49,13 +46,19 @@ wrapper: wrapper.c
 #
 # Build the wrapper app and wrap our .so to produce a .efi
 syslinux.efi: syslinux.so wrapper
-	./wrapper syslinux.so $@
+	$(OBJ)/wrapper syslinux.so $@
 
 all: $(BTARGET)
 
-$(core)/codepage.o: ../codepage/cp865.cp
-	cp ../codepage/cp865.cp codepage.cp
+codepage.o: ../codepage/cp865.cp
+	cp $(objdir)/../codepage/cp865.cp codepage.cp
 	$(CC) $(SFLAGS) -c -o $@ $(core)/codepage.S
+
+installer: syslinux.efi
+
+install: all
+	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
+	install -m 755 $(BTARGET) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 
 tidy dist:
 	rm -f *.so *.o

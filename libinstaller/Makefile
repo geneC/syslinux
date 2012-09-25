@@ -4,19 +4,23 @@ BINFILES = bootsect_bin.c ldlinux_bin.c \
 
 PERL	 = perl
 
-all: $(BINFILES)
+VPATH = $(SRC)
 
-bootsect_bin.c: ../core/ldlinux.bss bin2c.pl
-	$(PERL) bin2c.pl syslinux_bootsect < $< > $@
+all: installer
 
-ldlinux_bin.c: ../core/ldlinux.sys bin2c.pl
-	$(PERL) bin2c.pl syslinux_ldlinux 512 < $< > $@
+bootsect_bin.c: $(OBJ)/../core/ldlinux.bss bin2c.pl
+	$(PERL) $(SRC)/bin2c.pl syslinux_bootsect < $< > $@
 
-mbr_bin.c: ../mbr/mbr.bin bin2c.pl
-	$(PERL) bin2c.pl syslinux_mbr < $< > $@
+ldlinux_bin.c: $(OBJ)/../core/ldlinux.sys bin2c.pl
+	$(PERL) $(SRC)/bin2c.pl syslinux_ldlinux 512 < $< > $@
 
-gptmbr_bin.c: ../mbr/gptmbr.bin bin2c.pl
-	$(PERL) bin2c.pl syslinux_gptmbr < $< > $@
+mbr_bin.c: $(OBJ)/../mbr/mbr.bin bin2c.pl
+	$(PERL) $(SRC)/bin2c.pl syslinux_mbr < $< > $@
+
+gptmbr_bin.c: $(OBJ)/../mbr/gptmbr.bin bin2c.pl
+	$(PERL) $(SRC)/bin2c.pl syslinux_gptmbr < $< > $@
+
+installer: $(BINFILES)
 
 tidy:
 	rm -f $(BINFILES)

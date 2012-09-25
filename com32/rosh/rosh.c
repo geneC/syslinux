@@ -37,7 +37,7 @@
  * debugging enabled; Comment to remove.
  */
 #include "rosh.h"
-#include "../../version.h"
+#include "version.h"
 
 #define APP_LONGNAME	"Read-Only Shell"
 #define APP_NAME	"rosh"

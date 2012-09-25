@@ -14,17 +14,17 @@
 ## MS-DOS FAT installer
 ##
 
-topdir = ..
-MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/embedded.mk
 
 CFLAGS	+= -D__MSDOS__
 # CFLAGS  += -DDEBUG
 
-LDFLAGS	 = -T dosexe.ld
+LDFLAGS	 = -T $(SRC)/dosexe.ld
 OPTFLAGS = -g
 INCLUDES = -include code16.h -nostdinc -iwithprefix include \
-	   -I. -I.. -I../libfat -I ../libinstaller -I ../libinstaller/getopt
+	   -I$(SRC) -I$(SRC)/.. -I$(SRC)/../libfat \
+	   -I $(SRC)/../libinstaller -I $(SRC)/../libinstaller/getopt \
+	   -I$(objdir)
 
 SRCS     = syslinux.c \
 	   ../libinstaller/fs.c \
@@ -34,14 +34,14 @@ SRCS     = syslinux.c \
 	   ../libinstaller/getopt/getopt_long.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/mbr_bin.c \
-           $(wildcard ../libfat/*.c)
+           $(wildcard $(SRC)/../libfat/*.c)
 OBJS	 = header.o crt0.o ldlinux.o \
 	   $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = int2526.o conio.o memcpy.o memset.o memmove.o skipatou.o atou.o \
 	   malloc.o free.o getopt_long.o getsetsl.o strchr.o strtoul.o \
 	   strntoumax.o argv.o printf.o __divdi3.o __udivmoddi4.o
 
-VPATH = .:../libfat:../libinstaller:../libinstaller/getopt
+VPATH = $(SRC):$(SRC)/../libfat:$(SRC)/../libinstaller:$(SRC)/../libinstaller/getopt:$(OBJ)/../libinstaller
 
 TARGETS = syslinux.com
 
@@ -74,6 +74,6 @@ syslinux.com: syslinux.elf
 %.com: %.asm
 	$(NASM) $(NASMOPT) -f bin -o $@ -MP -MD .$@.d -l $*.lst $<
 
-ldlinux.o: ldlinux.S ../core/ldlinux.sys
+ldlinux.o: ldlinux.S $(OBJ)/../core/ldlinux.sys
 
 -include .*.d *.tmp

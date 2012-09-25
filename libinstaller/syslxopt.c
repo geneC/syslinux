@@ -23,7 +23,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <sysexits.h>
-#include "../version.h"
+#include "version.h"
 #include "syslxcom.h"
 #include "syslxfs.h"
 #include "syslxopt.h"

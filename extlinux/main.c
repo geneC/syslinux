@@ -46,7 +46,7 @@
 #include "btrfs.h"
 #include "fat.h"
 #include "ntfs.h"
-#include "../version.h"
+#include "version.h"
 #include "syslxint.h"
 #include "syslxcom.h" /* common functions shared with extlinux and syslinux */
 #include "syslxfs.h"

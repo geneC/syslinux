@@ -29,8 +29,7 @@
 ## Utility companion library for the COM32 library
 ##
 
-topdir = ../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
 LIBOBJS	   = ansiline.o ansiraw.o keyname.o \

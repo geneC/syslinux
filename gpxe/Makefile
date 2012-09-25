@@ -17,9 +17,10 @@
 # Very simple, really...
 #
 
+VPATH = $(SRC)
 TARGETS	= gpxelinux.0 gpxelinuxk.0
 
-PXEMAKE = $(MAKE) -C src NO_WERROR=1
+PXEMAKE = $(MAKE) -C $(SRC)/src NO_WERROR=1
 
 all: $(TARGETS)
 
@@ -28,7 +29,7 @@ tidy:
 clean: tidy
 
 dist:
-	$(MAKE) -C src veryclean > /dev/null 2>&1
+	$(MAKE) -C $(SRC)/src veryclean > /dev/null 2>&1
 
 #spotless: clean dist
 #Including 'dist' errors out for make ARCH=x86_64 spotless
@@ -42,14 +43,14 @@ installer:
 src/bin/blib.a:
 	$(PXEMAKE) bin/blib.a
 
-src/bin/undionly.kkpxe: src/bin/blib.a pxelinux.gpxe ../core/pxelinux.0
-	$(PXEMAKE) bin/undionly.kkpxe EMBEDDED_IMAGE=../pxelinux.gpxe,../../core/pxelinux.0
+src/bin/undionly.kkpxe: src/bin/blib.a pxelinux.gpxe $(objdir)/core/pxelinux.0
+	$(PXEMAKE) bin/undionly.kkpxe EMBEDDED_IMAGE=$(SRC)/pxelinux.gpxe,$(objdir)/core/pxelinux.0
 
 gpxelinux.0: src/bin/undionly.kkpxe
-	cp -f $< $@
+	cp -f $(SRC)/$< $@
 
-src/bin/undionly.kpxe: src/bin/blib.a pxelinuxk.gpxe ../core/pxelinux.0
-	$(PXEMAKE) bin/undionly.kpxe EMBEDDED_IMAGE=../pxelinuxk.gpxe,../../core/pxelinux.0
+src/bin/undionly.kpxe: src/bin/blib.a pxelinuxk.gpxe $(objdir)/core/pxelinux.0
+	$(PXEMAKE) bin/undionly.kpxe EMBEDDED_IMAGE=$(SRC)/pxelinuxk.gpxe,$(objdir)/core/pxelinux.0
 
 gpxelinuxk.0: src/bin/undionly.kpxe
-	cp -f $< $@
+	cp -f $(SRC)/$< $@

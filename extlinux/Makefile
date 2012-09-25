@@ -14,12 +14,10 @@
 ## Linux vfat, ntfs, ext2/ext3/ext4 and btrfs installer
 ##
 
-topdir = ..
-MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/syslinux.mk
 
 OPTFLAGS = -g -Os
-INCLUDES = -I. -I.. -I../libinstaller
+INCLUDES = -I$(SRC) -I$(objdir) -I$(SRC)/../libinstaller
 CFLAGS	 = $(GCCWARN) -Wno-sign-compare -D_FILE_OFFSET_BITS=64 \
 	   $(OPTFLAGS) $(INCLUDES)
 LDFLAGS	 = 
@@ -37,7 +35,7 @@ OBJS	 = $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
 .SUFFIXES: .c .o .i .s .S
 
-VPATH = .:../libinstaller
+VPATH = $(SRC):$(SRC)/../libinstaller:$(OBJ)/../libinstaller
 
 all: installer
 

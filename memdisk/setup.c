@@ -22,7 +22,7 @@
 #include "conio.h"
 #include "version.h"
 #include "memdisk.h"
-#include "../version.h"
+#include <version.h>
 
 const char memdisk_version[] = "MEMDISK " VERSION_STR " " DATE;
 const char copyright[] =

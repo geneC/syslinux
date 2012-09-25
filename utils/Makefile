@@ -14,23 +14,23 @@
 # SYSLINUX utilities
 #
 
-topdir = ..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/syslinux.mk
 
-CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64 -I$(SRC)
 LDFLAGS  = -O2
 
 C_TARGETS	 = isohybrid gethostip memdiskfind
 SCRIPT_TARGETS	 = mkdiskimage
 SCRIPT_TARGETS	+= isohybrid.pl  # about to be obsoleted
-ASIS		 = keytab-lilo lss16toppm md5pass ppmtolss16 sha1pass \
-		   syslinux2ansi pxelinux-options
+ASIS		 = $(addprefix $(SRC)/,keytab-lilo lss16toppm md5pass \
+		   ppmtolss16 sha1pass syslinux2ansi pxelinux-options)
 
 TARGETS = $(C_TARGETS) $(SCRIPT_TARGETS)
 
-ISOHDPFX = ../mbr/isohdpfx.bin ../mbr/isohdpfx_f.bin ../mbr/isohdpfx_c.bin \
-	   ../mbr/isohdppx.bin ../mbr/isohdppx_f.bin ../mbr/isohdppx_c.bin
+ISOHDPFX = $(addprefix $(OBJ)/,../mbr/isohdpfx.bin ../mbr/isohdpfx_f.bin \
+	   ../mbr/isohdpfx_c.bin \
+	   ../mbr/isohdppx.bin ../mbr/isohdppx_f.bin ../mbr/isohdppx_c.bin)
 
 all: $(TARGETS)
 
@@ -38,17 +38,17 @@ all: $(TARGETS)
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 mkdiskimage: mkdiskimage.in ../mbr/mbr.bin bin2hex.pl
-	$(PERL) bin2hex.pl < ../mbr/mbr.bin | cat mkdiskimage.in - > $@
+	$(PERL) $(SRC)/bin2hex.pl < $(OBJ)/../mbr/mbr.bin | cat $(SRC)/mkdiskimage.in - > $@
 	chmod a+x $@
 
 # Works on anything with a Perl interpreter...
 isohybrid.pl: isohybrid.in $(ISOHDPFX) bin2hex.pl
-	cp -f isohybrid.in $@
-	for f in $(ISOHDPFX) ; do $(PERL) bin2hex.pl < $$f >> $@ ; done
+	cp -f $(SRC)/isohybrid.in $@
+	for f in $(ISOHDPFX) ; do $(PERL) $(SRC)/bin2hex.pl < $$f >> $@ ; done
 	chmod a+x $@
 
 isohdpfx.c: $(ISOHDPFX) isohdpfxarray.pl
-	$(PERL) isohdpfxarray.pl $(ISOHDPFX) > $@
+	$(PERL) $(SRC)/isohdpfxarray.pl $(ISOHDPFX) > $@
 
 isohybrid: isohybrid.o isohdpfx.o
 	$(CC) $(LDFLAGS) -o $@ $^ -luuid

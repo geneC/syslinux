@@ -29,7 +29,7 @@ GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
 GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
 
-INCLUDE	= -I.
+INCLUDE	= -I$(SRC)
 STRIP	= strip --strip-all -R .comment -R .note
 
 # zlib and libpng configuration flags
@@ -44,9 +44,10 @@ LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \
 # LIBFLAGS += -DPNG_NO_FLOATING_POINT_SUPPORTED
 
 REQFLAGS  = $(GCCOPT) -g -D__COM32__ \
-	    -nostdinc -iwithprefix include -I. -I./sys -I../include \
-	    -I../include/sys -I../../core/include -I$(com32)/lib/ \
-	    -I$(com32)/lib/sys/module
+	    -nostdinc -iwithprefix include -I. -I$(SRC)/sys \
+	    -I$(SRC)/../include -I$(com32)/include/sys \
+	    -I$(topdir)/core/include -I$(com32)/lib/ \
+	    -I$(com32)/lib/sys/module -I$(OBJ)/../..
 OPTFLAGS  = -Os -march=$(MARCH) -falign-functions=0 -falign-jumps=0 \
 	    -falign-labels=0 -ffast-math -fomit-frame-pointer
 WARNFLAGS = $(GCCWARN) -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
@@ -64,6 +65,7 @@ REQFLAGS += $(EFIINC)
 endif
 CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
 
+VPATH = $(SRC)
 LIBOTHER_OBJS = \
 	atoi.o atol.o atoll.o calloc.o creat.o		\
 	fgets.o fprintf.o fputc.o	\
@@ -181,13 +183,13 @@ LIBZLIB_OBJS = \
 	sys/zfile.o sys/zfopen.o
 
 MINLIBOBJS = \
-	syslinux/ipappend.o \
+	$(addprefix $(OBJ)/,syslinux/ipappend.o \
 	syslinux/dsinfo.o \
 	$(LIBOTHER_OBJS) \
 	$(LIBGCC_OBJS) \
 	$(LIBCONSOLE_OBJS) \
 	$(LIBLOAD_OBJS) \
-	$(LIBZLIB_OBJS)
+	$(LIBZLIB_OBJS))
 #	$(LIBVESA_OBJS)
 
 CORELIBOBJS = \
@@ -214,16 +216,16 @@ LDFLAGS	= -m elf_$(ARCH) --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld
 
 % : %.S
 
-.c.o:
+%.o: %.c
 	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 .c.i:
 	$(CC) $(MAKEDEPS) $(CFLAGS) -E -o $@ $<
 
-.c.s:
+%.s: %.c
 	$(CC) $(MAKEDEPS) $(CFLAGS) -S -o $@ $<
 
-.S.o:
+%.o: %.S
 	$(CC) $(MAKEDEPS) $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
 
 .S.s:
@@ -235,7 +237,7 @@ LDFLAGS	= -m elf_$(ARCH) --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld
 .S.ls:
 	$(CC) $(MAKEDEPS) $(CFLAGS) $(SOFLAGS) -D__ASSEMBLY__ -E -o $@ $<
 
-.s.o:
+%(OBJ)/%.o: $(SRC)/%.s
 	$(CC) $(MAKEDEPS) $(CFLAGS) -x assembler -c -o $@ $<
 
 .ls.lo:

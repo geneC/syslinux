@@ -3,14 +3,12 @@
 #
 
 # Include configuration rules
-topdir = ../..
-MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/lib.mk
 
-REQFLAGS += -I../gplinclude -I../gplinclude/zzjson
+REQFLAGS += -I$(SRC)/../gplinclude -I$(SRC)/../gplinclude/zzjson
 
-GPLDIRS := . disk dmi vpd acpi zzjson
-LIBOBJS := $(foreach dir,$(GPLDIRS),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c)))
+GPLDIRS := $(SRC) $(addprefix $(SRC)/,disk dmi vpd acpi zzjson)
+LIBOBJS := $(subst $(SRC)/,,$(foreach dir,$(GPLDIRS),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c))))
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
@@ -19,7 +17,11 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: libcom32gpl.c32
+all: makeoutputdirs libcom32gpl.c32
+
+makeoutputdirs:
+	@mkdir -p $(foreach b, \
+		$(addprefix $(OBJ),$(sort $(dir $(LIBOBJS)))),$(b))
 
 libcom32gpl.c32 : $(LIBOBJS)
 	$(LD) -shared $(LDFLAGS) -o $@ $^
@@ -38,6 +40,6 @@ install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
 	install -m 644 libcom32gpl.c32 $(INSTALLROOT)$(COM32DIR)
 	mkdir -p $(INSTALLROOT)$(COM32DIR)/include/
-	cp -r ../gplinclude $(INSTALLROOT)$(COM32DIR)/include/
+	cp -r $(SRC)/../gplinclude $(INSTALLROOT)$(COM32DIR)/include/
 
 -include .*.d */.*.d */*/.*.d

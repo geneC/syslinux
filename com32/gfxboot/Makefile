@@ -11,15 +11,16 @@
 ##
 ## -----------------------------------------------------------------------
 
-topdir = ../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
 MODULES	  = gfxboot.c32
 
 all: $(MODULES)
 
-gfxboot.c32 : gfxboot.o realmode_callback.o $(LIBS) $(C_LIBS)
+OBJS = gfxboot.o realmode_callback.o
+
+gfxboot.c32 : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 realmode_callback.o: realmode_callback.asm

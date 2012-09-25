@@ -15,21 +15,20 @@
 ## Simple menu system
 ##
 
-topdir = ../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 -include $(topdir)/version.mk
 
-LIBS	   = ../libupload/libcom32upload.a
-LNXLIBS	   = ../libutil/libutil_lnx.a
+LIBS	   = $(objdir)/com32/libupload/libcom32upload.a
+LNXLIBS	   = $(objdir)/com32/libutil/libutil_lnx.a
 
 CFLAGS += -I$(com32) -I$(topdir)
 
 MODULES	  = sysdump.c32
 TESTFILES =
 
-SRCS = $(wildcard *.c)
-OBJS = $(patsubst %.c,%.o,$(SRCS))
+SRCS = $(wildcard $(SRC)/*.c)
+OBJS = $(subst $(SRC)/,,$(patsubst %.c,%.o,$(SRCS)))
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much

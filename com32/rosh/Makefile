@@ -16,10 +16,10 @@
 ## ROSH Read Only Shell
 ##
 
-LIBS = $(com32)/libutil/libutil_com.c32 $(com32)/lib/libcom32.c32
+LIBS = $(objdir)/com32/libutil/libutil_com.c32 \
+	$(objdir)/com32/lib/libcom32.c32
 
-topdir = ../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/rosh.mk
 
 # from com32/sysdump/Makefile

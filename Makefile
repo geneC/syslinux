@@ -14,8 +14,89 @@
 #
 # Main Makefile for SYSLINUX
 #
-topdir = .
+
+#
+# topdir is only set when we are doing a recursive make. Do a bunch of
+# initialisation if it's unset since this is the first invocation.
+#
+ifeq ($(topdir),)
+
+topdir = $(CURDIR)
+
+#
+# Because we need to build modules multiple times, e.g. for BIOS,
+# efi32, efi64, we output all object and executable files to a
+# separate object directory for each firmware.
+#
+# The output directory can be customised by setting the O=/obj/path/
+# variable when invoking make. If no value is specified the default
+# directory is 'obj'.
+#
+ifeq ("$(origin O)", "command line")
+	OBJDIR := $(O)
+else
+	OBJDIR = $(CURDIR)/obj
+	foo := $(shell mkdir -p $(OBJDIR) && /bin/true)
+endif
+
+# If the output directory does not exist we bail because that is the
+# least surprising thing to do.
+cd-output := $(shell cd $(OBJDIR) && /bin/pwd)
+$(if $(cd-output),, \
+	$(error output directory "$(OBJDIR)" does not exist))
+
+#
+# These environment variables are exported to every invocation of
+# make,
+#
+# 'topdir' - the top-level directory containing the Syslinux source
+# 'objdir' - the top-level directory of output files
+# 'MAKEDIR' - contains Makefile fragments
+#
+# There are also a handful of variables that are passed to each
+# sub-make,
+#
+# SRC - source tree location of the module being compiled
+# OBJ - output tree location of the module being compiled
+#
+# A couple of rules for writing Makefiles,
+#
+# - Do not use relative paths, use the above variables
+# - You can write $(SRC) a lot less if you add it to VPATH
+#
+
 MAKEDIR = $(topdir)/mk
+export MAKEDIR topdir
+
+ifeq ($(MAKECMDGOALS),)
+	MAKECMDGOALS += all
+endif
+
+#
+# The 'bios', 'efi32' and 'efi64' are dummy targets. Their only
+# purpose is to instruct us which output directories need
+# creating. Which means that we always need a *real* target, such as
+# 'all', appended to the make goals.
+#
+firmware = bios efi32 efi64
+real-target := $(filter-out $(firmware), $(MAKECMDGOALS))
+real-firmware := $(filter $(firmware), $(MAKECMDGOALS))
+
+ifeq ($(real-target),)
+	real-target = all
+endif
+
+ifeq ($(real-firmware),)
+	real-firmware = $(firmware)
+endif
+
+.PHONY: $(MAKECMDGOALS)
+$(MAKECMDGOALS):
+	$(MAKE) -C $(OBJDIR) -f $(CURDIR)/Makefile SRC="$(topdir)" \
+		OBJ=$(OBJDIR) objdir=$(OBJDIR) $(MAKECMDGOALS)
+
+else # ifeq ($(topdir),)
+
 include $(MAKEDIR)/syslinux.mk
 -include $(topdir)/version.mk
 
@@ -41,8 +122,7 @@ MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 else
 # memdump is BIOS specific code exclude it for EFI
 # FIXME: Prune other BIOS-centric modules
-MODULES = memdisk/memdisk modules/*.com \
-	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
+MODULES = com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
 	com32/sysdump/*.c32 com32/lua/src/*.c32 com32/chain/*.c32 \
 	com32/lib/*.c32 com32/libutil/*.c32 com32/gpllib/*.c32 \
@@ -66,15 +146,19 @@ BOBJECTS = $(BTARGET) \
 # Note: libinstaller is both a BSUBDIR and an ISUBDIR.  It contains
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
-ifndef EFI_BUILD
-BSUBDIRS = codepage com32 lzo core memdisk modules mbr memdump gpxe sample \
-	   diag libinstaller dos win32 win64 dosutil efi
+
+ifdef EFI_BUILD
+
+BSUBDIRS = codepage com32 lzo core modules mbr sample efi
+ISUBDIRS = efi utils
+
+INSTALLSUBDIRS = efi
+
 else
-# memdump is BIOS specific code exclude it for EFI
-# FIXME: Prune other BIOS-centric modules
-BSUBDIRS = codepage com32 lzo core memdisk modules mbr gpxe sample \
-	   diag libinstaller win32 win64 dosutil efi
-endif
+
+BSUBDIRS = codepage com32 lzo core memdisk sample diag mbr memdump dos \
+	   modules gpxe libinstaller win32 win64 dosutil
+
 ITARGET  =
 IOBJECTS = $(ITARGET) \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \
@@ -104,33 +188,117 @@ EXTBOOTINSTALL = $(MODULES)
 NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 \
 		 $(MODULES)
 
-all:
-	$(MAKE) all-local
-	set -e ; for i in $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
-	-ls -l $(BOBJECTS) $(IOBJECTS)
+endif # ifdef EFI_BUILD
+
+.PHONY: subdirs $(BSUBDIRS) $(ISUBDIRS)
+
+ifeq ($(HAVE_FIRMWARE),)
+
+firmware = bios efi32 efi64
+
+# If no firmware was specified the rest of MAKECMDGOALS applies to all
+# firmware.
+ifeq ($(filter $(firmware),$(MAKECMDGOALS)),)
+all strip tidy clean dist spotless install installer: bios efi32 efi64
+
+else
+
+# Don't do anything for the rest of MAKECMDGOALS at this level. It
+# will be handled for each of $(firmware).
+strip tidy clean dist spotless install installer:
+
+endif
+
+# Convert 'make bios strip' to 'make strip', etc for rest of the Makefiles.
+MAKECMDGOALS := $(filter-out $(firmware),$(MAKECMDGOALS))
+ifeq ($(MAKECMDGOALS),)
+	MAKECMDGOALS += all
+endif
+
+#
+# You'd think that we'd be able to use the 'define' directive to
+# abstract the code for invoking make(1) in the output directory, but
+# by using 'define' we lose the ability to build in parallel.
+#
+.PHONY: $(firmware)
+bios:
+	@mkdir -p $(OBJ)/bios
+	$(MAKE) -C $(OBJ)/bios -f $(SRC)/Makefile SRC="$(SRC)" \
+		objdir=$(OBJ)/bios OBJ=$(OBJ)/bios HAVE_FIRMWARE=1 \
+		ARCH=i386 $(MAKECMDGOALS)
+
+efi32:
+	@mkdir -p $(OBJ)/efi32
+	$(MAKE) -C $(OBJ)/efi32 -f $(SRC)/Makefile SRC="$(SRC)" \
+		objdir=$(OBJ)/efi32 OBJ=$(OBJ)/efi32 HAVE_FIRMWARE=1 \
+		ARCH=i386 BITS=32 EFI_BUILD=1 $(MAKECMDGOALS)
+
+efi64:
+	@mkdir -p $(OBJ)/efi64
+	$(MAKE) -C $(OBJ)/efi64 -f $(SRC)/Makefile SRC="$(SRC)" \
+		objdir=$(OBJ)/efi64 OBJ=$(OBJ)/efi64 HAVE_FIRMWARE=1 \
+		ARCH=x86_64 BITS=64 EFI_BUILD=1 $(MAKECMDGOALS)
+
+else # ifeq($(HAVE_FIRMWARE),)
+
+all: all-local subdirs
 
 all-local: $(BTARGET) $(ITARGET)
-
-installer:
-	$(MAKE) installer-local
-	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i all ; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
+subdirs: $(BSUBDIRS) $(ISUBDIRS)
+
+# Note the double-colon which avoids the make warning about redefining
+# a rule for libinstaller.
+$(BSUBDIRS):
+	@mkdir -p $@
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
+		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
+
+$(ISUBDIRS):
+	@mkdir -p $@
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
+		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
+
+$(ITARGET):
+	@mkdir -p $@
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
+		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
+
+$(BINFILES):
+	@mkdir -p $@
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
+		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
+
+#
+# List the dependencies to help out parallel builds.
+dos extlinux linux mtools win32 win64: libinstaller
+libinstaller: core
+utils: mbr
+core: com32
+efi: core
+
+installer: installer-local
+	set -e; for i in $(ISUBDIRS); \
+		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
+		-f $(SRC)/$$i/Makefile all; done
+
 
 installer-local: $(ITARGET) $(BINFILES)
 
-strip:
-	$(MAKE) strip-local
-	set -e ; for i in $(ISUBDIRS); do $(MAKE) -C $$i strip ; done
+strip: strip-local
+	set -e; for i in $(ISUBDIRS); \
+		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
+		-f $(SRC)/$$i/Makefile strip; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
 strip-local:
 
-version.gen: version version.pl
-	$(PERL) version.pl $< $@ '%define < @'
-version.h: version version.pl
-	$(PERL) version.pl $< $@ '#define < @'
-version.mk: version version.pl
-	$(PERL) version.pl $< $@ '< := @'
+version.gen: $(topdir)/version $(topdir)/version.pl
+	$(PERL) $(topdir)/version.pl $< $@ '%define < @'
+version.h: $(topdir)/version $(topdir)/version.pl
+	$(PERL) $(topdir)/version.pl $< $@ '#define < @'
+version.mk: $(topdir)/version $(topdir)/version.pl
+	$(PERL) $(topdir)/version.pl $< $@ '< := @'
 
 local-install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)
@@ -143,12 +311,24 @@ local-install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(DIAGDIR)
 	install -m 644 -c $(INSTALL_DIAG) $(INSTALLROOT)$(DIAGDIR)
 	mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man1
-	install -m 644 -c man/*.1 $(INSTALLROOT)$(MANDIR)/man1
+	install -m 644 -c $(topdir)/man/*.1 $(INSTALLROOT)$(MANDIR)/man1
 	: mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man8
 	: install -m 644 -c man/*.8 $(INSTALLROOT)$(MANDIR)/man8
 
+ifndef EFI_BUILD
 install: local-install
-	set -e ; for i in $(INSTALLSUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+	set -e ; for i in $(INSTALLSUBDIRS) ; \
+		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
+		-f $(SRC)/$$i/Makefile $@; done
+else
+install:
+	set -e ; for i in $(INSTALLSUBDIRS) ; \
+		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
+		BITS="$(BITS)" -f $(SRC)/$$i/Makefile $@; done
+
+	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
+	install -m 755 $(MODULES) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
+endif
 
 netinstall: installer
 	mkdir -p $(INSTALLROOT)$(TFTPBOOT)
@@ -165,33 +345,32 @@ local-tidy:
 	rm -f *.lsr *.lst *.map *.sec *.tmp
 	rm -f $(OBSOLETE)
 
-tidy: local-tidy
-	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+tidy: local-tidy $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS)
 
 local-clean:
 	rm -f $(ITARGET)
 
-clean: local-tidy local-clean
-	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+clean: local-tidy local-clean $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS)
 
 local-dist:
 	find . \( -name '*~' -o -name '#*' -o -name core \
 		-o -name '.*.d' -o -name .depend \) -type f -print0 \
 	| xargs -0rt rm -f
 
-dist: local-dist local-tidy
-	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+dist: local-dist local-tidy $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS)
 
 local-spotless:
 	rm -f $(BTARGET) .depend *.so.*
 
-spotless: local-clean local-dist local-spotless
-	set -e ; for i in $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS) ; do $(MAKE) -C $$i $@ ; done
+spotless: local-clean local-dist local-spotless $(BESUBDIRS) $(IESUBDIRS) $(ISUBDIRS) $(BSUBDIRS)
 
 # Shortcut to build linux/syslinux using klibc
 klibc:
 	$(MAKE) clean
 	$(MAKE) CC=klcc ITARGET= ISUBDIRS='linux extlinux' BSUBDIRS=
+endif # ifeq ($(HAVE_FIRMWARE),)
 
 # Hook to add private Makefile targets for the maintainer.
 -include Makefile.private
+
+endif # ifeq ($(topdir),)

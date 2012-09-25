@@ -15,11 +15,11 @@
 ## COM32 standard modules
 ##
 
-LIBS = $(com32)/gpllib/libcom32gpl.c32 $(com32)/lib/libcom32.c32 \
-	$(com32)/libutil/libutil_com.c32
+LIBS = $(objdir)/com32/gpllib/libcom32gpl.c32 \
+	$(objdir)/com32/lib/libcom32.c32 \
+	$(objdir)/com32/libutil/libutil_com.c32
 
-topdir = ../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
 MODULES	  = config.c32 ethersel.c32 dmitest.c32 cpuidtest.c32 \
@@ -37,7 +37,7 @@ all: $(MODULES) $(TESTFILES)
 dmitest.o: dmitest.c
 	$(CC) $(CFLAGS) $(GPLINCLUDE) -c -o $@ $<
 
-dmitest.c32 :  dmi_utils.o dmitest.o $(GPLLIB) $(LIBS) $(C_LIBS)
+dmitest.c32 : dmi_utils.o dmitest.o $(GPLLIB) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

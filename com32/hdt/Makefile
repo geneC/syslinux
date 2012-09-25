@@ -15,20 +15,20 @@
 ## Hardware Detection Tool
 ##
 
-topdir = ../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
-LIBS      = ../libupload/libcom32upload.a
-C_LIBS    += $(com32)/cmenu/libmenu/libmenu.c32 \
-	     $(com32)/libutil/libutil_com.c32 \
-	     $(com32)/lib/libcom32.c32 $(com32)/gpllib/libcom32gpl.c32
+LIBS      = $(objdir)/com32/libupload/libcom32upload.a
+C_LIBS    += $(objdir)/com32/cmenu/libmenu/libmenu.c32 \
+	     $(objdir)/com32/libutil/libutil_com.c32 \
+	     $(objdir)/com32/lib/libcom32.c32 \
+	     $(objdir)/com32/gpllib/libcom32gpl.c32
 CFLAGS    += -I$(com32)/cmenu/libmenu -I$(com32)
 
 MODULES	  = hdt.c32
 TESTFILES =
 
-OBJS	  = $(patsubst %.c,%.o,$(wildcard *.c))
+OBJS	  = $(subst $(SRC)/,,$(patsubst %.c,%.o,$(wildcard $(SRC)/*.c)))
 VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
 NODASH_VERSION = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')

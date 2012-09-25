@@ -20,20 +20,21 @@
 
 OSTYPE   = $(shell uname -msr)
 # Don't know how to do a native compile here...
-WINPREFIX  := $(shell ./find-mingw64.sh gcc)
+WINPREFIX  := $(shell $(SRC)/find-mingw64.sh gcc)
 WINCFLAGS  := $(GCCWARN) -Wno-sign-compare -Os -fomit-frame-pointer \
 	      -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -Os -s
 
-WINCFLAGS += -I. -I../win -I.. -I../libfat -I../libinstaller \
-	     -I../libinstaller/getopt
+WINCFLAGS += -I$(SRC) -I$(SRC)/../win -I$(objdir) \
+	     -I$(SRC)/../libfat -I$(SRC)/../libinstaller \
+	     -I$(SRC)/../libinstaller/getopt
 
 WINCC      := $(WINPREFIX)gcc
 WINAR	   := $(WINPREFIX)ar
 WINRANLIB  := $(WINPREFIX)ranlib
 
 WINCC_IS_GOOD := $(shell $(WINCC) $(WINCFLAGS) $(WINLDFLAGS) \
-	-o hello.exe ../win/hello.c >/dev/null 2>&1 ; echo $$?)
+	-o hello.exe $(SRC)/../win/hello.c >/dev/null 2>&1 ; echo $$?)
 
 .SUFFIXES: .c .obj .lib .exe .i .s .S
 
@@ -47,12 +48,12 @@ LIBSRC   = ../libinstaller/fs.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/mbr_bin.c \
-	   $(wildcard ../libfat/*.c)
+	   $(wildcard $(SRC)/../libfat/*.c)
 LIBOBJS  = $(patsubst %.c,%.obj,$(notdir $(LIBSRC)))
 
 LIB	 = syslinux.lib
 
-VPATH = .:../win:../libfat:../libinstaller:../libinstaller/getopt
+VPATH = $(SRC):$(SRC)/../win:$(SRC)/../libfat:$(SRC)/../libinstaller:$(SRC)/../libinstaller/getopt:$(OBJ)/../libinstaller
 
 TARGETS = syslinux64.exe
 

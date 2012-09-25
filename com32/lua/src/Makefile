@@ -15,8 +15,7 @@
 ## Lua Makefile
 ##
 
-topdir = ../../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
 LNXLIBS	   = 

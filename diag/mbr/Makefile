@@ -15,10 +15,9 @@
 # Makefile for MBR
 #
 
-topdir = ../..
 mbrdir = $(topdir)/mbr
-MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/embedded.mk
+VPATH = $(SRC)
 
 all:	handoff.bin
 

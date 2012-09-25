@@ -14,13 +14,12 @@
 ## memory dump utility
 ##
 
-topdir = ..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/embedded.mk
 
 OPTFLAGS = 
-INCLUDES = -include code16.h -I.
-LDFLAGS	 = -T com16.ld
+INCLUDES = -include $(SRC)/code16.h -I$(SRC)
+LDFLAGS	 = -T $(SRC)/com16.ld
 
 SRCS     = main.c serial.c ymsend.c srecsend.c
 OBJS	 = crt0.o $(patsubst %.c,%.o,$(notdir $(SRCS)))

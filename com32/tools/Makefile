@@ -10,12 +10,12 @@
 ##
 ## -----------------------------------------------------------------------
 
-MAKEDIR = ../../mk
+VPATH = $(SRC)
 include $(MAKEDIR)/build.mk
 
 BINS    = relocs
 
-INCLUDES += -I./include
+INCLUDES += -I$(SRC)/include
 
 all : $(BINS)
 

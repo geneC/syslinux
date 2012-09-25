@@ -40,7 +40,7 @@ CFLAGS = -I$(EFIINC) -I$(EFIINC)/$(EFI_SUBARCH) \
 CRT0 := $(shell find $(LIBDIR) -name crt0-efi-$(EFI_SUBARCH).o 2>/dev/null | tail -n1)
 LDSCRIPT := $(shell find $(LIBDIR) -name elf_$(EFI_SUBARCH)_efi.lds 2>/dev/null | tail -n1)
 
-LDFLAGS = -T $(ARCH)/syslinux.ld -Bsymbolic -pie -nostdlib -znocombreloc \
+LDFLAGS = -T $(SRC)/$(ARCH)/syslinux.ld -Bsymbolic -pie -nostdlib -znocombreloc \
 		-L$(LIBDIR) --hash-style=gnu -m elf_$(ARCH) $(CRT0) -E
 
 SFLAGS     = $(GCCOPT) $(GCCWARN) $(SARCHOPT) \

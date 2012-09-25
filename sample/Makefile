@@ -14,9 +14,8 @@
 ## samples for syslinux users
 ##
 
-topdir = ..
-MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/embedded.mk
+VPATH = $(SRC)
 
 PPMTOLSS16 = $(topdir)/utils/ppmtolss16
 

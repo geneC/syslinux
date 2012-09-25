@@ -10,18 +10,19 @@
 ##
 ## -----------------------------------------------------------------------
 
-topdir = ../../..
-MAKEDIR = $(topdir)/mk
+VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
 CFLAGS += -I$(topdir)/core/elflink -I$(topdir)/core/include
-LIBS = --whole-archive $(com32)/lib/libcom32min.a
+LIBS = --whole-archive $(objdir)/com32/lib/libcom32min.a
+
+OBJS = ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o adv.o \
+	execute.o chainboot.o kernel.o get_key.o advwrite.o setadv.o \
+	eprintf.o loadhigh.o
 
 all: ldlinux.c32 ldlinux_lnx.a
 
-ldlinux.c32 : ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o \
-		adv.o execute.o chainboot.o kernel.o get_key.o \
-		advwrite.o setadv.o eprintf.o loadhigh.o
+ldlinux.c32 : $(OBJS)
 	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 LNXLIBOBJS = get_key.lo

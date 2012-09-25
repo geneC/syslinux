@@ -28,7 +28,7 @@
 #include <syslinux/config.h>
 #include <klibc/compiler.h>
 #include <core.h>
-#include <../../../version.h>
+#include <version.h>
 
 struct syslinux_version __syslinux_version;
 
