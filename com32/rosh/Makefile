@@ -36,11 +36,11 @@ endif
 CFLAGS		+= -DDATE='"$(DATE)"'
 LNXCFLAGS	+= -DDATE='"$(DATE)"'
 
+all:	rosh.c32
+
 rosh.o:	rosh.h
 
 rosh.lo:	rosh.h
-
-all:	rosh.c32
 
 allgrc:	rosh.c32 rosh.lnx
 
