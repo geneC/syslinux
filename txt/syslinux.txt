@@ -23,7 +23,7 @@ syslinux - Install SYSLINUX to a file system
 == DESCRIPTION ==
 Install *SYSLINUX* to the 'DEVICE'/'PATH', altering the boot sector and
 installing the 'ldlinux.sys' boot loader file.  For the Linux installer
-extlinux, 'PATH' is the desired install path on a mounted, supported
+extlinux, 'PATH' is the desired path for the control files on a mounted, supported
 file system and sets the install-time working directory.  For all
 others, 'DEVICE' must specify a FAT12/FAT16/FAT32 file system.  For the
 Linux installers syslinux and syslinux-mtools, 'DEVICE' should be an
@@ -51,6 +51,7 @@ than as a normal file.
 
 
 == OPTIONS ==
+// "See"/"See also" notes should reference long options.
 === Standalone options ===
 *-i*, *--install*::
 (~4.00+) Install SYSLINUX, regardless of an existing install.
@@ -100,7 +101,7 @@ use of *-o* for the Linux installers syslinux or syslinux-mtools has
 been deprecated as of ~4.00 and is no longer valid as of ~4.02.
 
 *-O*, *--clear-once*::
-Clear the boot-once command.
+Clear the boot-once command.  See also *--once*.
 
 *-r*, *--raid*::
 (ADV) RAID mode.  If boot fails, tell the BIOS to boot the next device
