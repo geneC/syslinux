@@ -18,7 +18,8 @@ topdir = ..
 MAKEDIR = $(topdir)/mk
 # include $(MAKEDIR)/embedded.mk
 
-A2X_OPTS = -k -v
+A2X_OPTS	 = -k -v
+XSLTPROC_OPTS	 = --nonet --stringparam callout.graphics 1 --stringparam navig.graphics 0 --stringparam admon.textlabel 0 --stringparam admon.graphics 1 --stringparam admon.graphics.path /etc/asciidoc/images/icons// --stringparam callout.graphics.path /etc/asciidoc/images/icons//callouts/ --stringparam navig.graphics.path /etc/asciidoc/images/icons//
 
 DOCS1 		 = syslinux.txt
 DOCS5		 = syslxcfg.txt
@@ -41,26 +42,40 @@ html/%.html:	%.txt
 xhtml/%.html:	%.txt
 	a2x $(A2X_OPTS) -f xhtml $<
 
-%.html:	%.txt
-	a2x $(A2X_OPTS) -f xhtml $<
+%.xml:	%.txt
+	asciidoc --backend docbook  --doctype article --verbose --out-file $@ $<
+	xmllint --nonet --noout --valid $@
 
-%.1: %.txt
-	a2x $(A2X_OPTS) -f manpage $<
+%.html:	%.xml
+# 	a2x $(A2X_OPTS) -f xhtml $<
+	xsltproc $(XSLTPROC_OPTS) --output $@ /etc/asciidoc/docbook-xsl/xhtml.xsl $<
 
-%.5: %.txt
-	a2x $(A2X_OPTS) -f manpage $<
+
+# %.1: %.txt
+# 	a2x $(A2X_OPTS) -f manpage $<
+%.1:	%.xml
+	xsltproc $(XSLTPROC_OPTS) /etc/asciidoc/docbook-xsl/manpage.xsl $<
+
+# %.5: %.txt
+# 	a2x $(A2X_OPTS) -f manpage $<
+%.5:	%.xml
+	xsltproc $(XSLTPROC_OPTS) /etc/asciidoc/docbook-xsl/manpage.xsl $<
 
 text/%.text:	%.txt
 	a2x $(A2X_OPTS) -f text $<
 
-%.text:	%.txt
-	a2x $(A2X_OPTS) -f text $<
+%.text:	%.xml
+# 	a2x $(A2X_OPTS) -f text $<
+	xsltproc $(XSLTPROC_OPTS) --output $@.html /etc/asciidoc/docbook-xsl/text.xsl $<
+	w3m -cols 70 -dump -T text/html -no-graph $@.html > $@
+
 
 tidy dist:
+	rm -f *.xml *.text.html text/*.text.html
 
 clean: tidy
 
 spotless: clean
-	rm -f *.1 *.5 *.html *.text *.xml html/*.html text/*.text xhtml/*.html
+	rm -f *.1 *.5 *.html *.text html/*.html text/*.text xhtml/*.html *.css
 
 -include .*.d
