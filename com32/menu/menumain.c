@@ -958,8 +958,7 @@ static const char *run_menu(void)
 
 	case KEY_DOWN:
 	case KEY_CTRL('N'):
-	    while (entry < cm->nentries - 1) {
-		entry++;
+	    while (++entry < cm->nentries) {
 		if (entry >= top + MENU_ROWS)
 		    top += MENU_ROWS;
 		if (!is_disabled(cm->menu_entries[entry]))
