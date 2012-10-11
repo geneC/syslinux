@@ -16,7 +16,9 @@ Changes in 4.06:
 	  functions syslinux_config(), syslinux_ipappend_strings() and
 	  syslinux_reboot().
 	* isohybrid: Workaround for various EFI systems.
-	* pxechn.c32: New PXE NBP chainloader.
+	* pxechn.c32, a PXE NBP chainloader.  More versatile alternative
+	  to pxechain.com and resolves the PXELINUX -> WDS issue with
+	  Microsoft Windows Server 2008R2 (Gene Cumm).
 	* btrfs: Fix booting off of a subvolume.
 	* com32: Add device tree support.
 
