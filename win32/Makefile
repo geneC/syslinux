@@ -22,7 +22,8 @@ OSTYPE   = $(shell uname -msr)
 ifeq ($(findstring CYGWIN,$(OSTYPE)),CYGWIN)
 ## Compiling on Cygwin
 WINPREFIX  :=
-WINCFLAGS  := -mno-cygwin $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+WINCFLAGS  := -mno-cygwin -mno-ms-bitfields $(GCCWARN) -Os \
+	      -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -mno-cygwin -Os -s
 else
 ## Compiling on some variant of MinGW
@@ -31,8 +32,8 @@ WINPREFIX  :=
 else
 WINPREFIX  := $(shell ./find-mingw32.sh gcc)
 endif
-WINCFLAGS  := $(GCCWARN) -Wno-sign-compare -Os -fomit-frame-pointer \
-	      -D_FILE_OFFSET_BITS=64
+WINCFLAGS  := -mno-ms-bitfields $(GCCWARN) -Wno-sign-compare -Os \
+	      -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -Os -s
 endif
 WINCFLAGS += -I. -I../win -I.. -I../libfat -I../libinstaller \
