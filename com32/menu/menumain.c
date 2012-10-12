@@ -806,7 +806,7 @@ static const char *run_menu(void)
 	    while (entry < cm->nentries && is_disabled(cm->menu_entries[entry]))
 		entry++;
 	}
-	if (entry >= cm->nentries) {
+	if (entry >= cm->nentries - 1) {
 	    entry = cm->nentries - 1;
 	    while (entry > 0 && is_disabled(cm->menu_entries[entry]))
 		entry--;
@@ -958,7 +958,8 @@ static const char *run_menu(void)
 
 	case KEY_DOWN:
 	case KEY_CTRL('N'):
-	    while (++entry < cm->nentries) {
+	    while (entry < cm->nentries - 1) {
+		entry++;
 		if (entry >= top + MENU_ROWS)
 		    top += MENU_ROWS;
 		if (!is_disabled(cm->menu_entries[entry]))
