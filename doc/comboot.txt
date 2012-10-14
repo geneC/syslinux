@@ -560,29 +560,7 @@ AX=000Ch [2.00]	Perform final cleanup
 	meanings in future versions of Syslinux.
 
 
-AX=000Dh [2.08]	Cleanup and replace bootstrap code
-	Input:	AX	000Dh
-		DX	derivative-specific flags (see previous function)
-		EDI	bootstrap code (linear address, can be in high memory)
-		ECX	bootstrap code length in bytes (must fit in low mem)
-		EBX(!)	initial value of EDX after bootstrap
-		ESI	initial value of ESI after bootstrap
-		DS	initial value of DS after bootstrap
-	Output:	Does not return
-
-	This routine performs final cleanup, then takes a piece of
-	code, copies it over the primary bootstrap at address 7C00h,
-	and jumps to it.  This can be used to chainload boot sectors,
-	MBRs, bootstraps, etc.
-
-	Normal boot sectors expect DL to contain the drive number,
-	and, for hard drives (DL >= 80h) DS:SI to contain a pointer to
-	the 16-byte partition table entry.  The memory between
-	600h-7FFh is available to put the partition table entry in.
-
-	For PXELINUX, if the PXE stack is not unloaded, all registers
-	(except DS, ESI and EDX) and the stack will be set up as they
-	were set up by the PXE ROM.
+AX=000Dh [2.08]	Obsoleted in 3.80
 
 
 AX=000Eh [2.11]	Get configuration file name
