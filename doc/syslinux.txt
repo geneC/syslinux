@@ -100,7 +100,7 @@ directory on the disk.
 There are two versions of the Linux installer; one in the "mtools"
 directory which requires no special privilege (other than write
 permission to the device where you are installing) but requires the
-mtools program suite to be available, and one in the "unix" directory
+mtools program suite to be available, and one in the "linux" directory
 which requires root privilege.
 
 
