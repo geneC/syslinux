@@ -5,12 +5,12 @@ to all derivatives.
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.
 	* EXTLINUX: more robust device detection, allow user to override.
-	* kontron_wdt.c32: Adding a new module to enable the hardware 
-	  watchdog of some Kontron boards. It allow enabling the watchdog
+	* kontron_wdt.c32: Add a new module to enable the hardware
+	  watchdog of some Kontron boards. It allows enabling the watchdog
 	  and then booting a given image.
 	* HDT updated, and now can display images regarding some detection
-	  steps. Adding postexec command to run a particular entry after
-	  HDT's execution, adding silent option and various fixes.
+	  steps. Add postexec command to run a particular entry after
+	  HDT's execution, add silent option and various fixes.
 	* ifcpu.c32: Detect hypervisor presence.
 	* lua.c32: Add dhcp support and support for native Syslinux
 	  functions syslinux_config(), syslinux_ipappend_strings() and
