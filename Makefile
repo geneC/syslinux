@@ -247,14 +247,7 @@ all-local: $(BTARGET) $(ITARGET)
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 subdirs: $(BSUBDIRS) $(ISUBDIRS)
 
-# Note the double-colon which avoids the make warning about redefining
-# a rule for libinstaller.
-$(BSUBDIRS):
-	@mkdir -p $@
-	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
-		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
-
-$(ISUBDIRS):
+$(sort $(ISUBDIRS) $(BSUBDIRS)):
 	@mkdir -p $@
 	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
 		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
