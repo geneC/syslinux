@@ -141,6 +141,8 @@ void load_env32(com32sys_t * regs __unused)
 
 	if (!search_dirs(&fp->i.fd, search_directories, filenames, realname))
 		start_ldlinux(argv);
+
+	writestr("\nFailed to load ldlinux.c32");
 }
 
 int create_args_and_load(char *cmdline)
