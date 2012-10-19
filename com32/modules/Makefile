@@ -15,9 +15,6 @@
 ## COM32 standard modules
 ##
 
-LIBS = $(com32)/gpllib/libcom32gpl.c32 $(com32)/lib/libcom32.c32 \
-	$(com32)/libutil/libutil_com.c32
-
 topdir = ../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
@@ -37,7 +34,7 @@ all: $(MODULES) $(TESTFILES)
 dmitest.o: dmitest.c
 	$(CC) $(CFLAGS) $(GPLINCLUDE) -c -o $@ $<
 
-dmitest.c32 :  dmi_utils.o dmitest.o $(GPLLIB) $(LIBS) $(C_LIBS)
+dmitest.c32 :  dmi_utils.o dmitest.o $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
