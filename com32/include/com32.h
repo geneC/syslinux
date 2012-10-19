@@ -176,7 +176,7 @@ static inline bool _OFFS_VALID(const volatile void *__p, size_t __s,
 
 static inline void *MK_PTR(uint16_t __seg, uint16_t __offs)
 {
-    return (void *)((__seg << 4) + __offs);
+    return (void *)(unsigned long)((__seg << 4) + __offs);
 }
 
 /* Some tools to handle 16:16 far pointers in memory */
