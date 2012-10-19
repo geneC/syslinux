@@ -443,7 +443,7 @@ static vbios_map * open_vbios(void)
     }
     else {
         debug("Unable to determine bios type.\r\n");
-        debug("Mode Table Offset: $C0000 + $%x\r\n", ((unsigned int)map->mode_table) - ((unsigned int)map->bios_ptr));
+        debug("Mode Table Offset: $C0000 + $%x\r\n", ((unsigned long)map->mode_table) - ((unsigned long)map->bios_ptr));
         debug("Mode Table Entries: %u\r\n", map->mode_table_size);
 	bad_marker(0x15);
 	return NULL;
