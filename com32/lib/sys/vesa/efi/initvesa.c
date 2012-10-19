@@ -508,7 +508,8 @@ static int vesacon_set_mode(int *x, int *y)
      * file support should be exposed via firmware structure)
      */
     __vesacon_font_height = cp865_8x16_font_height;
-    unpack_font((uint8_t *) __vesacon_graphics_font, cp865_8x16_font_data,
+    unpack_font((uint8_t *) __vesacon_graphics_font,
+		(uint8_t *)cp865_8x16_font_data,
 		__vesacon_font_height);
    
     /* Free any existing data structures */
