@@ -21,8 +21,8 @@
 OSTYPE   = $(shell uname -msr)
 # Don't know how to do a native compile here...
 WINPREFIX  := $(shell ./find-mingw64.sh gcc)
-WINCFLAGS  := -mno-ms-bitfields $(GCCWARN) -Wno-sign-compare -Os \
-	      -fomit-frame-pointer -D_FILE_OFFSET_BITS=64
+WINCFLAGS  := $(GCCWARN) -Wno-sign-compare -Os -fomit-frame-pointer \
+	      -D_FILE_OFFSET_BITS=64
 WINLDFLAGS := -Os -s
 
 WINCFLAGS += -I. -I../win -I.. -I../libfat -I../libinstaller \
