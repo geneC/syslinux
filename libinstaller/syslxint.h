@@ -23,6 +23,17 @@
 # define X86_MEM 0
 #endif
 
+#ifdef __GNUC__
+# ifdef __MINGW32__
+   /* gcc 4.7 miscompiles packed structures in MS-bitfield mode */
+#  define PACKED __attribute__((packed,gcc_struct))
+# else
+#  define PACKED __attribute__((packed))
+# endif
+#else
+# error "Need to define PACKED for this compiler"
+#endif
+
 /*
  * Access functions for littleendian numbers, possibly misaligned.
  */
@@ -190,7 +201,7 @@ struct ext_patch_area {
 struct syslinux_extent {
     uint64_t lba;
     uint16_t len;
-} __attribute__((packed));
+} PACKED;
 
 /* FAT bootsector format, also used by other disk-based derivatives */
 struct fat_boot_sector {
@@ -218,7 +229,7 @@ struct fat_boot_sector {
 	    char VolumeLabel[11];
 	    char FileSysType[8];
 	    uint8_t Code[442];
-	} __attribute__ ((packed)) bs16;
+	} PACKED bs16;
 	struct {
 	    uint32_t FATSz32;
 	    uint16_t ExtFlags;
@@ -234,13 +245,13 @@ struct fat_boot_sector {
 	    char VolumeLabel[11];
 	    char FileSysType[8];
 	    uint8_t Code[414];
-	} __attribute__ ((packed)) bs32;
-    } __attribute__ ((packed));
+	} PACKED bs32;
+    } PACKED;
 
     uint32_t bsMagic;
     uint16_t bsForwardPtr;
     uint16_t bsSignature;
-} __attribute__ ((packed));
+} PACKED;
 
 /* NTFS bootsector format */
 struct ntfs_boot_sector {
@@ -273,7 +284,7 @@ struct ntfs_boot_sector {
     uint32_t bsMagic;
     uint16_t bsForwardPtr;
     uint16_t bsSignature;
-} __attribute__((packed));
+} PACKED;
 
 #define FAT_bsHead      bsJump
 #define FAT_bsHeadLen   offsetof(struct fat_boot_sector, bsBytesPerSec)
