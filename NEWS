@@ -21,6 +21,8 @@ Changes in 4.06:
 	  Microsoft Windows Server 2008R2 (Gene Cumm).
 	* btrfs: Fix booting off of a subvolume.
 	* com32: Add device tree support.
+	* SYSLINUX: Fix relative paths for VFAT. The CONFIG and APPEND
+	  directives now support entirely relative paths.
 
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP
