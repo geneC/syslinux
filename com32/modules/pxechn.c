@@ -43,7 +43,11 @@
 #include <limits.h>
 
 
-#define PXECHN_DEBUG 1
+#ifdef DEBUG
+#  define PXECHN_DEBUG 1
+#else
+#  define PXECHN_DEBUG 0
+#endif
 
 typedef union {
     uint64_t q;
@@ -54,15 +58,21 @@ typedef union {
 
 #define dprintf0(f, ...)		((void)0)
 
+#ifndef dprintf
+#  if (PXECHN_DEBUG > 0)
+#    define dprintf			printf
+#  else
+#    define dprintf(f, ...)		((void)0)
+#  endif
+#endif
+
 #if (PXECHN_DEBUG > 0)
 #  define dpressanykey			pressanykey
-#  define dprintf			printf
 #  define dprint_pxe_bootp_t		print_pxe_bootp_t
 #  define dprint_pxe_vendor_blk		print_pxe_vendor_blk
 #  define dprint_pxe_vendor_raw		print_pxe_vendor_raw
 #else
 #  define dpressanykey(tm)		((void)0)
-#  define dprintf(f, ...)		((void)0)
 #  define dprint_pxe_bootp_t(p, l)	((void)0)
 #  define dprint_pxe_vendor_blk(p, l)	((void)0)
 #  define dprint_pxe_vendor_raw(p, l)	((void)0)
@@ -107,6 +117,7 @@ struct pxelinux_opt {
     uint32_t force;
     uint32_t wait;	/* Additional decision to wait before boot */
     int32_t wds;	/* WDS option/level */
+    in_addr_t sip;	/* siaddr: Next Server IP Address */
     struct dhcp_option p[PXECHN_NUM_PKT_AVAIL];
 	/* original _DHCP_DISCOVER, _DHCP_ACK, _CACHED_REPLY then modified packets */
     char host[PXECHN_HOST_LEN];
@@ -453,6 +464,7 @@ void pxechn_init(struct pxelinux_opt *pxe)
     pxe->wait = 0;
     pxe->gip = 0;
     pxe->wds = 0;
+    pxe->sip = 0;
     pxe->host[0] = 0;
     pxe->host[((NUM_DHCP_OPTS) - 1)] = 0;
     for (int j = 0; j < PXECHN_NUM_PKT_TYPE; j++){
@@ -731,7 +743,7 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 {
     int arg, optnum, rv = 0;
     char *p = NULL;
-    const char optstr[] = "c:f:g:o:p:t:uwW";
+    const char optstr[] = "c:f:g:o:p:St:uwW";
     struct dhcp_option iopt;
 
     if (pxe->p[5].data)
@@ -764,6 +776,9 @@ int pxechn_parse_args(int argc, char *argv[], struct pxelinux_opt *pxe,
 	    break;
 	case 'p':	/* prefix */
 	    pxechn_setopt_str(&(opts[210]), optarg);
+	    break;
+	case 'S':	/* sip from sName */
+	    pxe->sip = 1;
 	    break;
 	case 't':	/* timeout */
 	    optnum = strtoul(optarg, &p, 0);
@@ -809,6 +824,7 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     pxe_bootp_t *bootp0, *bootp1;
     int ret = 0;
     struct dhcp_option *opts;
+    char *str;
 
     opts = pxe->opts[2];
     /* Start filling packet #1 */
@@ -826,7 +842,30 @@ int pxechn_args(int argc, char *argv[], struct pxelinux_opt *pxe)
     ret = pxechn_parse_args(argc, argv, pxe, opts);
     if (ret)
 	return ret;
-    bootp1->sip = pxe->fip;
+    if (pxe->sip > 0xFFFFFF) {	/* a real IPv4 address */
+	bootp1->sip = pxe->sip;
+    } else if ((pxe->sip == 1)
+		&& (opts[66].len > 0)){
+	/* unterminated? */
+	if (strnlen(opts[66].data, opts[66].len) == (size_t)opts[66].len) {
+	    str = malloc(opts[66].len + 1);
+	    if (str) {
+		memcpy(str, opts[66].data, opts[66].len);
+		str[opts[66].len] = 0;
+	    }	
+	} else {
+	    str = opts[66].data;
+	}
+	if (str) {
+	    bootp1->sip = pxe_dns(str);
+	    if (str != opts[66].data)
+		free(str);
+	} else {
+	    bootp1->sip = pxe->fip;
+	}
+    } else {
+	bootp1->sip = pxe->fip;
+    }
     bootp1->gip = pxe->gip;
 
     ret = dhcp_pack_packet(bootp1, (size_t *)&(pxe->p[5].len), opts);

@@ -9,13 +9,13 @@
 #include"lualib.h"
 #include"cpuid.h"
 
-static void add_string_item(lua_State *L, const char *item, const char *value_str) {
+void add_string_item(lua_State *L, const char *item, const char *value_str) {
  lua_pushstring(L,item);
  lua_pushstring(L,value_str);
  lua_settable(L,-3);
 }
 
-static void add_int_item(lua_State *L, const char *item, int value_int) {
+void add_int_item(lua_State *L, const char *item, int value_int) {
  lua_pushstring(L,item);
  lua_pushnumber(L,value_int);
  lua_settable(L,-3);

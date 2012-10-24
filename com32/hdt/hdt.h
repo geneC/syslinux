@@ -33,7 +33,7 @@
 #define AUTHOR "Erwan Velu"
 #define CORE_DEVELOPER "Pierre-Alexandre Meyer"
 #define CONTACT "hdt@zytor.com"
-#define VERSION "0.5.2-pre2"
+#define VERSION "0.5.2"
 #define CODENAME "Manon"
 #define NB_CONTRIBUTORS 3
 #define CONTRIBUTORS {"Sebastien Gonzalve (Patches)", "Gert Hulselmans (Tests)", "Alexander Andino (Design)"}

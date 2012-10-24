@@ -392,7 +392,9 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	    break;
 	}
 
-	if (ld->menudefault && me->action == MA_CMD)
+	if (ld->menudefault && (me->action == MA_CMD ||
+				me->action == MA_GOTO ||
+				me->action == MA_GOTO_UNRES))
 	    m->defentry = m->nentries - 1;
     }
 

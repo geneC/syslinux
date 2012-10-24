@@ -5,6 +5,24 @@ to all derivatives.
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.
 	* EXTLINUX: more robust device detection, allow user to override.
+	* kontron_wdt.c32: Add a new module to enable the hardware
+	  watchdog of some Kontron boards. It allows enabling the watchdog
+	  and then booting a given image.
+	* HDT updated, and now can display images regarding some detection
+	  steps. Add postexec command to run a particular entry after
+	  HDT's execution, add silent option and various fixes.
+	* ifcpu.c32: Detect hypervisor presence.
+	* lua.c32: Add dhcp support and support for native Syslinux
+	  functions syslinux_config(), syslinux_ipappend_strings() and
+	  syslinux_reboot().
+	* isohybrid: Workaround for various EFI systems.
+	* pxechn.c32, a PXE NBP chainloader.  More versatile alternative
+	  to pxechain.com and resolves the PXELINUX -> WDS issue with
+	  Microsoft Windows Server 2008R2 (Gene Cumm).
+	* btrfs: Fix booting off of a subvolume.
+	* com32: Add device tree support.
+	* SYSLINUX: Fix relative paths for VFAT. The CONFIG and APPEND
+	  directives now support entirely relative paths.
 
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP

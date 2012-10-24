@@ -121,9 +121,9 @@ typedef union {
 	uint8_t specify1;	/* "First specify byte" */
 	uint8_t specify2;	/* "Second specify byte" */
 	uint8_t delay;		/* Delay until motor turn off */
-	uint8_t sectors;	/* Sectors/track */
-
 	uint8_t bps;		/* Bytes/sector (02h = 512) */
+
+	uint8_t sectors;	/* Sectors/track */
 	uint8_t isgap;		/* Length of intersector gap */
 	uint8_t dlen;		/* Data length (0FFh) */
 	uint8_t fgap;		/* Formatting gap */

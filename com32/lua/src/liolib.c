@@ -18,11 +18,17 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
-
+#ifdef SYSLINUX
+  #define NO_TMP_FILE    1
+  #define NO_READ_NUMBER 1
+  #define NO_TEST_EOF    1
+  #define NO_CLEAR_ERR   1
+  #define NO_F_SEEK      1
+  #define NO_F_SETVBUF   1
+#endif
 
 #define IO_INPUT	1
 #define IO_OUTPUT	2
-
 
 static const char *const fnames[] = {"input", "output"};
 
@@ -180,7 +186,7 @@ static int io_popen (lua_State *L) {
 }
 
 
-#ifndef SYSLINUX
+#ifndef NO_TMP_FILE
 static int io_tmpfile (lua_State *L) {
   FILE **pf = newfile(L);
   *pf = tmpfile();
@@ -271,7 +277,7 @@ static int io_lines (lua_State *L) {
 ** =======================================================
 */
 
-#ifndef SYSLINUX
+#ifndef NO_READ_NUMBER /* No fscanf() and thus no read_number() */
 static int read_number (lua_State *L, FILE *f) {
   lua_Number d;
   if (fscanf(f, LUA_NUMBER_SCAN, &d) == 1) {
@@ -283,8 +289,9 @@ static int read_number (lua_State *L, FILE *f) {
     return 0;  /* read fails */
   }
 }
+#endif
 
-
+#ifndef NO_TEST_EOF  /* no buffering -> no ungetc() -> no EOF test */
 static int test_eof (lua_State *L, FILE *f) {
   int c = getc(f);
   ungetc(c, f);
@@ -315,7 +322,6 @@ static int read_line (lua_State *L, FILE *f) {
   }
 }
 
-#ifndef SYSLINUX			/* Not used */
 static int read_chars (lua_State *L, FILE *f, size_t n) {
   size_t rlen;  /* how much to read */
   size_t nr;  /* number of chars actually read */
@@ -337,7 +343,9 @@ static int g_read (lua_State *L, FILE *f, int first) {
   int nargs = lua_gettop(L) - 1;
   int success;
   int n;
+#ifndef NO_CLEAR_ERR
   clearerr(f);
+#endif
   if (nargs == 0) {  /* no arguments? */
     success = read_line(L, f);
     n = first+1;  /* to return 1 result */
@@ -348,14 +356,22 @@ static int g_read (lua_State *L, FILE *f, int first) {
     for (n = first; nargs-- && success; n++) {
       if (lua_type(L, n) == LUA_TNUMBER) {
         size_t l = (size_t)lua_tointeger(L, n);
+#ifndef NO_TEST_EOF
         success = (l == 0) ? test_eof(L, f) : read_chars(L, f, l);
+#else  /* we don't have test_eof defined */
+        success = (l == 0) ? 1 : read_chars(L, f, l);
+#endif
       }
       else {
         const char *p = lua_tostring(L, n);
         luaL_argcheck(L, p && p[0] == '*', n, "invalid option");
         switch (p[1]) {
           case 'n':  /* number */
+#ifndef NO_READ_NUMBER
             success = read_number(L, f);
+#else
+            return luaL_argerror(L, n, "\"*number\" not supported");
+#endif
             break;
           case 'l':  /* line */
             success = read_line(L, f);
@@ -388,7 +404,6 @@ static int io_read (lua_State *L) {
 static int f_read (lua_State *L) {
   return g_read(L, tofile(L), 2);
 }
-#endif
 
 
 static int io_readline (lua_State *L) {
@@ -441,7 +456,7 @@ static int f_write (lua_State *L) {
   return g_write(L, tofile(L), 2);
 }
 
-#ifndef SYSLINUX
+#ifndef NO_F_SEEK
 static int f_seek (lua_State *L) {
   static const int mode[] = {SEEK_SET, SEEK_CUR, SEEK_END};
   static const char *const modenames[] = {"set", "cur", "end", NULL};
@@ -456,8 +471,9 @@ static int f_seek (lua_State *L) {
     return 1;
   }
 }
+#endif
 
-
+#ifndef NO_F_SETVBUF
 static int f_setvbuf (lua_State *L) {
   static const int mode[] = {_IONBF, _IOFBF, _IOLBF};
   static const char *const modenames[] = {"no", "full", "line", NULL};
@@ -488,8 +504,8 @@ static const luaL_Reg iolib[] = {
   {"open", io_open},
   {"output", io_output},
   {"popen", io_popen},
-#ifndef SYSLINUX
   {"read", io_read},
+#ifndef NO_TMP_FILE
   {"tmpfile", io_tmpfile},
 #endif
   {"type", io_type},
@@ -502,9 +518,11 @@ static const luaL_Reg flib[] = {
   {"close", io_close},
   {"flush", f_flush},
   {"lines", f_lines},
-#ifndef SYSLINUX
   {"read", f_read},
+#ifndef NO_F_SEEK
   {"seek", f_seek},
+#endif
+#ifndef NO_F_SETVBUF
   {"setvbuf", f_setvbuf},
 #endif
   {"write", f_write},

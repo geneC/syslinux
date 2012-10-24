@@ -434,10 +434,10 @@ lendian_64(const uint64_t s)
 	if (*(uint8_t *)&r)
 		return s;
 
-	r = (s & 0x00000000000000FF) << 56 | (s & 0xFF00000000000000) >> 56
-	     | (s & 0x000000000000FF00) << 40 | (s & 0x00FF000000000000) >> 40
-	     | (s & 0x0000000000FF0000) << 24 | (s & 0x0000FF0000000000) >> 24
-	     | (s & 0x00000000FF000000) << 8 | (s & 0x000000FF00000000) >> 8;
+       r = (s & 0x00000000000000FFull) << 56 | (s & 0xFF00000000000000ull) >> 56
+            | (s & 0x000000000000FF00ull) << 40 | (s & 0x00FF000000000000ull) >> 40
+            | (s & 0x0000000000FF0000ull) << 24 | (s & 0x0000FF0000000000ull) >> 24
+            | (s & 0x00000000FF000000ull) << 8 | (s & 0x000000FF00000000ull) >> 8;
 
 	return r;
 }
@@ -759,7 +759,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
 	reverse_uuid(disk_uuid);
     }
 
-    header->signature = lendian_64(0x5452415020494645);
+    header->signature = lendian_64(0x5452415020494645ull);
     header->revision = lendian_int(0x010000);
     header->headerSize = lendian_int(0x5c);
     header->currentLBA = lendian_64(current);

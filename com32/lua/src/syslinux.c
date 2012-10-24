@@ -39,6 +39,7 @@
 #include "syslinux/loadfile.h"
 #include "syslinux/linux.h"
 #include "syslinux/config.h"
+#include "syslinux/reboot.h"
 
 int __parse_argv(char ***argv, const char *str);
 
@@ -408,6 +409,35 @@ static int sl_boot_it(lua_State * L)
 			       initramfs, NULL, (char *)cmdline);
 }
 
+static int sl_config_file(lua_State * L)
+{
+    const char *config_file = syslinux_config_file();
+    lua_pushstring(L, config_file);
+    return 1;
+}
+
+static int sl_reboot(lua_State * L)
+{
+    int warm_boot = luaL_optint(L, 1, 0);
+    /* explicitly convert it to 1 or 0 */
+    warm_boot = warm_boot? 1 : 0;
+    syslinux_reboot(warm_boot);
+    return 0;
+}
+
+static int sl_ipappend_strs(lua_State * L)
+{
+    int i;
+    const struct syslinux_ipappend_strings *ip_strs = syslinux_ipappend_strings();
+    lua_newtable(L);
+    for (i = 0; i < ip_strs->count; i++) {
+        lua_pushinteger(L, i + 1);
+        lua_pushstring(L, ip_strs->ptr[i]);
+        lua_settable(L,-3);
+    }
+    return 1;
+}
+
 static int sl_derivative(lua_State * L)
 {
     const struct syslinux_version *sv;
@@ -459,6 +489,9 @@ static const luaL_reg syslinuxlib[] = {
     {"initramfs_load_archive", sl_initramfs_load_archive},
     {"initramfs_add_file", sl_initramfs_add_file},
     {"boot_it", sl_boot_it},
+    {"config_file", sl_config_file},
+    {"ipappend_strs", sl_ipappend_strs},
+    {"reboot", sl_reboot},
     {"derivative", sl_derivative},
     {"version", sl_version},
     {NULL, NULL}
