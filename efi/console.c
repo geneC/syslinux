@@ -42,7 +42,7 @@ static inline void bit_mask(uint32_t mask, uint8_t *pos, uint8_t *size)
 	}
 }
 
-void setup_screen(struct screen_info *si)
+static int setup_gop(struct screen_info *si)
 {
 	EFI_HANDLE *handles = NULL;
 	EFI_STATUS status;
@@ -54,7 +54,7 @@ void setup_screen(struct screen_info *si)
 	UINTN size;
 	uint16_t lfb_width, lfb_height;
 	uint32_t lfb_base, lfb_size;
-	int i;
+	int i, err = 0;
 	void **gop_handle = NULL;
 
 	size = 0;
@@ -69,7 +69,7 @@ void setup_screen(struct screen_info *si)
 
 		handles = AllocatePool(nr_handles);
 		if (!handles)
-			return;
+			return 0;
 
 		status = LibLocateHandle(ByProtocol, &GraphicsOutputProtocol,
 					 NULL, &nr_handles, &handles);
@@ -104,6 +104,8 @@ void setup_screen(struct screen_info *si)
 
 	if (!found)
 		goto out;
+
+	err = 1;
 
 	dprintf("setup_screen: set up screen parameters for EFI GOP\n");
 	si->orig_video_isVGA = 0x70; /* EFI framebuffer */
@@ -176,4 +178,102 @@ void setup_screen(struct screen_info *si)
 	
 out:
 	if (handles) FreePool(handles);
+
+	return err;
+}
+
+#define EFI_UGA_PROTOCOL_GUID \
+  { \
+    0x982c298b, 0xf4fa, 0x41cb, {0xb8, 0x38, 0x77, 0xaa, 0x68, 0x8f, 0xb8, 0x39 } \
+  }
+
+typedef struct _EFI_UGA_DRAW_PROTOCOL EFI_UGA_DRAW_PROTOCOL;
+
+typedef
+EFI_STATUS
+(EFIAPI *EFI_UGA_DRAW_PROTOCOL_GET_MODE) (
+  IN  EFI_UGA_DRAW_PROTOCOL *This,
+  OUT UINT32 *Width,
+  OUT UINT32 *Height,
+  OUT UINT32 *Depth,
+  OUT UINT32 *Refresh
+  )
+;
+
+struct _EFI_UGA_DRAW_PROTOCOL {
+	EFI_UGA_DRAW_PROTOCOL_GET_MODE	GetMode;
+	void	*SetMode;
+	void	*Blt;
+};
+
+static int setup_uga(struct screen_info *si)
+{
+	EFI_UGA_DRAW_PROTOCOL *uga, *first;
+	EFI_GUID UgaProtocol = EFI_UGA_PROTOCOL_GUID;
+	UINT32 width, height;
+	EFI_STATUS status;
+	EFI_HANDLE *handles;
+	UINTN nr_handles;
+	int i, rv = 0;
+
+	status = LibLocateHandle(ByProtocol, &UgaProtocol,
+				 NULL, &nr_handles, &handles);
+	if (status != EFI_SUCCESS)
+		return rv;
+
+	for (i = 0; i < nr_handles; i++) {
+		EFI_PCI_IO *pciio = NULL;
+		EFI_HANDLE *handle = handles[i];
+		UINT32 w, h, depth, refresh;
+
+		status = uefi_call_wrapper(BS->HandleProtocol, 3, handle,
+					   &UgaProtocol, &uga);
+		if (status != EFI_SUCCESS)
+			continue;
+
+		uefi_call_wrapper(BS->HandleProtocol, 3, handle,
+				  &PciIoProtocol, &pciio);
+
+		status = uefi_call_wrapper(uga->GetMode, 5, uga, &w, &h,
+					   &depth, &refresh);
+
+		if (status == EFI_SUCCESS && (!first || pciio)) {
+			width = w;
+			height = h;
+
+			if (pciio)
+				break;
+
+			first = uga;
+		}
+	}
+
+	if (!first)
+		goto out;
+	rv = 1;
+
+	si->orig_video_isVGA = 0x70; /* EFI framebuffer */
+
+	si->lfb_depth = 32;
+	si->lfb_width = width;
+	si->lfb_height = height;
+
+	si->red_size = 8;
+	si->red_pos = 16;
+	si->green_size = 8;
+	si->green_pos = 8;
+	si->blue_size = 8;
+	si->blue_pos = 0;
+	si->rsvd_size = 8;
+	si->rsvd_pos = 24;
+
+out:
+	FreePool(handles);
+	return rv;
+}
+
+void setup_screen(struct screen_info *si)
+{
+	if (!setup_gop(si))
+		setup_uga(si);
 }
