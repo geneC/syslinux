@@ -48,6 +48,13 @@
 #include <syslinux/linux.h>
 #include <syslinux/pxe.h>
 
+enum ldmode {
+    ldmode_raw,
+    ldmodes
+};
+
+typedef int f_ldinitramfs(struct initramfs *, char *);
+
 const char *progname = "linux.c32";
 
 /* Find the last instance of a particular command line argument
@@ -130,6 +137,55 @@ static char *make_cmdline(char **argv)
     return cmdline;
 }
 
+static f_ldinitramfs ldinitramfs_raw;
+static int ldinitramfs_raw(struct initramfs *initramfs, char *fname)
+{
+    return initramfs_load_archive(initramfs, fname);
+}
+
+/* It only makes sense to call this function from main */
+static int process_initramfs_args(char *arg, struct initramfs *initramfs,
+				  const char *kernel_name, enum ldmode mode,
+				  bool opt_quiet)
+{
+    const char *mode_msg;
+    f_ldinitramfs *ldinitramfs;
+    char *p;
+
+    switch (mode) {
+    case ldmode_raw:
+	mode_msg = "Loading";
+	ldinitramfs = ldinitramfs_raw;
+	break;
+    case ldmodes:
+    default:
+	return 1;
+    }
+
+    do {
+	p = strchr(arg, ',');
+	if (p)
+	    *p = '\0';
+
+	if (!opt_quiet)
+	    printf("%s %s... ", mode_msg, arg);
+	errno = 0;
+	if (ldinitramfs(initramfs, arg)) {
+	    if (opt_quiet)
+		printf("Loading %s ", kernel_name);
+	    printf("failed: ");
+	    return 1;
+	}
+	if (!opt_quiet)
+	    printf("ok\n");
+
+	if (p)
+	    *p++ = ',';
+    } while ((arg = p));
+
+    return 0;
+}
+
 static int setup_data_file(struct setup_data *setup_data,
 			   uint32_t type, const char *filename,
 			   bool opt_quiet)
@@ -163,7 +219,7 @@ int main(int argc, char *argv[])
     bool opt_quiet = false;
     void *dhcpdata;
     size_t dhcplen;
-    char **argp, **argl, *arg, *p;
+    char **argp, **argl, *arg;
 
     (void)argc;
     argp = argv + 1;
@@ -228,27 +284,11 @@ int main(int argc, char *argv[])
 	goto bail;
     }
 
+    /* Process initramfs arguments */
     if ((arg = find_argument(argp, "initrd="))) {
-	do {
-	    p = strchr(arg, ',');
-	    if (p)
-		*p = '\0';
-
-	    if (!opt_quiet)
-		printf("Loading %s... ", arg);
-	    errno = 0;
-	    if (initramfs_load_archive(initramfs, arg)) {
-		if (opt_quiet)
-		    printf("Loading %s ", kernel_name);
-		printf("failed: ");
-		goto bail;
-	    }
-	    if (!opt_quiet)
-		printf("ok\n");
-
-	    if (p)
-		*p++ = ',';
-	} while ((arg = p));
+	if (process_initramfs_args(arg, initramfs, kernel_name, ldmode_raw,
+				   opt_quiet))
+	    goto bail;
     }
 
     /* Append the DHCP info */
