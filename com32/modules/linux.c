@@ -291,6 +291,14 @@ int main(int argc, char *argv[])
 	    goto bail;
     }
 
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "initrd+="))) {
+	argl++;
+	if (process_initramfs_args(arg, initramfs, kernel_name, ldmode_raw,
+				   opt_quiet))
+	    goto bail;
+    }
+
     /* Append the DHCP info */
     if (opt_dhcpinfo &&
 	!pxe_get_cached_info(PXENV_PACKET_TYPE_DHCP_ACK, &dhcpdata, &dhcplen)) {
