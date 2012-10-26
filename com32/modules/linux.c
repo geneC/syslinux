@@ -50,6 +50,7 @@
 
 enum ldmode {
     ldmode_raw,
+    ldmode_cpio,
     ldmodes
 };
 
@@ -143,6 +144,46 @@ static int ldinitramfs_raw(struct initramfs *initramfs, char *fname)
     return initramfs_load_archive(initramfs, fname);
 }
 
+static f_ldinitramfs ldinitramfs_cpio;
+static int ldinitramfs_cpio(struct initramfs *initramfs, char *fname)
+{
+    char *target_fname, *p;
+    int do_mkdir, unmangle, rc;
+
+    /* Choose target_fname based on presence of "@" syntax */
+    target_fname = strchr(fname, '@');
+    if (target_fname) {
+	/* Temporarily mangle */
+	unmangle = 1;
+	*target_fname++ = '\0';
+
+	/* Make parent directories? */
+	do_mkdir = !!strchr(target_fname, '/');
+    } else {
+	unmangle = 0;
+
+	/* Forget the source path */
+	target_fname = fname;
+	while ((p = strchr(target_fname, '/')))
+	    target_fname = p + 1;
+
+	/* The user didn't specify a desired path */
+	do_mkdir = 0;
+    }
+
+    /*
+     * Load the file, encapsulate it with the desired path, make the
+     * parent directories if the desired path contains them, add to initramfs
+     */
+    rc = initramfs_load_file(initramfs, fname, target_fname, do_mkdir, 0755);
+
+    /* Unmangle, if needed*/
+    if (unmangle)
+	*--target_fname = '@';
+
+    return rc;
+}
+
 /* It only makes sense to call this function from main */
 static int process_initramfs_args(char *arg, struct initramfs *initramfs,
 				  const char *kernel_name, enum ldmode mode,
@@ -156,6 +197,10 @@ static int process_initramfs_args(char *arg, struct initramfs *initramfs,
     case ldmode_raw:
 	mode_msg = "Loading";
 	ldinitramfs = ldinitramfs_raw;
+	break;
+    case ldmode_cpio:
+	mode_msg = "Encapsulating";
+	ldinitramfs = ldinitramfs_cpio;
 	break;
     case ldmodes:
     default:
@@ -295,6 +340,14 @@ int main(int argc, char *argv[])
     while ((argl = find_arguments(argl, &arg, "initrd+="))) {
 	argl++;
 	if (process_initramfs_args(arg, initramfs, kernel_name, ldmode_raw,
+				   opt_quiet))
+	    goto bail;
+    }
+
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "initrdfile="))) {
+	argl++;
+	if (process_initramfs_args(arg, initramfs, kernel_name, ldmode_cpio,
 				   opt_quiet))
 	    goto bail;
     }
