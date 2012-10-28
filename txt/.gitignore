@@ -1,6 +1,7 @@
-*.html
 *.1
 *.5
-*.xml
+*.html
+*.pdf
 *.text
+*.xml
 docbook-xsl.css
