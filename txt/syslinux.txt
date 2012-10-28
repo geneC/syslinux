@@ -1,11 +1,11 @@
 = syslinux(1) =
 :doctype: manpage
-:revdate: 2012-09-21
+:revdate: 2012-10-28
 :author: H. Peter Anvin
 :author-email: hpa@zytor.com
 :editor1: Gene Cumm
 :editor1-email: gene.cumm@gmail.com
-:editor1-revlast: 2012-09-21
+:editor1-revlast: 2012-10-28
 
 
 == NAME ==
@@ -129,6 +129,64 @@ at an offset from the base of the device or file.
 *-z*, *--zipdrive*
 Assume zipdrive geometry ('--heads 64 --sectors 32').  See also *--head*
 and *--sector*.
+
+
+== EXAMPLES ==
+=== Booting DOS ===
+For booting DOS and other similar operating systems, there is an easy and generally reliable solution to substitute in SYSLINUX as the primary boot loader.
+
+- Make a DOS-bootable disk;  The following are possible commands:
+
+	format a: /s
+	sys a:
+
+- Copy the DOS boot sector off using Linux or copybs.com:
+
+	dd if=/dev/fd0 of=dos.bss bs=512 count=1
+	copybs a: a:dos.bss
+
+- Install SYSLINUX using one of:
+
+	syslinux a:
+	syslinux /dev/fd0		(before 4.00)
+	syslinux -i /dev/fd0		(4.00+)
+
+- For Linux, mount the disk and copy the dos.bss to the disk:
+
+	mount -t msdos /dev/fd0 /mnt
+	cp dos.bss /mnt
+
+- Copy a Linux kernel image and initrd payload files:
+*Linux:*::
+	cp vmlinux /mnt
+	cp initrd.gz /mnt
+*DOS/Windows:*::
+	copy vmlinux a:
+	copy initrd.gz a:
+
+- For Linux, umount the disk (if applicable):
+
+	umount /mnt
+
+=== MBR ===
+In order to boot from a hard disk (or hard disk-like device) in BIOS mode, an appropriate MBR boot block must also be installed in the MBR (first sector or 512 bytes of the disk), occupying at most 440 bytes.
+
+*DOS/Windows:*::
+If using FDISK, FDISK or a similar application must also be used to mark the partition as active.
++
+	fdisk /mbr
+    OR
+	syslinux -ma c:
+
+*Linux:*::
++
+	dd bs=440 count=1 conv=notrunc if=mbr/mbr.bin of=/dev/sda
++
+For altmbr.bin, an easy way to overwrite the MBR boot block and specify the partion number is:
++
+	printf '\1' | cat altmbr.bin - | dd bs=440 count=1 iflag=fullblock conv=notrunc of=/dev/sda
+
+//[FIXME]: any clean way to handle the above long command?
 
 
 == SEE ALSO ==
