@@ -1,20 +1,33 @@
 = syslinux.cfg(5) =
 :doctype: manpage
-:revdate: 2012-09-21
+:revdate: 2012-10-28
+:author: H. Peter Anvin
+:author-email: hpa@zytor.com
 :editor1: Gene Cumm
 :editor1-email: gene.cumm@gmail.com
-:editor1-revlast: 2012-10-05
+:editor1-revlast: 2012-10-28
+:nbsp8: &#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
+:nbsp32: {nbsp8}{nbsp8}{nbsp8}{nbsp8}
+:data-uri:
 
 
 == NAME ==
 syslinux.cfg - Syslinux configuration file
 
+
 == DESCRIPTION ==
-Configuration for the boot behavior and user experience of Syslinux boot loaders.
+Configuration for the boot behavior and user experience of Syslinux boot loaders, the format of display files and the boot prompt behavior.
 
 Blank lines are ignored.
 
 Note that the configuration file is not completely decoded.  Syntax different from the one described above may still work correctly in this version of Syslinux, but may break in a future one.
+
+
+== LOCATION/NAME ==
+SYSLINUX defaulted to the name syslinux.cfg.  EXTLINUX (merged into SYSLINUX as of 4.00) defaulted to the name of extlinux.conf.  Both default to searching for the config file in the installed directory (containing ldlinux.sys/extlinux.sys).
+
+As of 3.35, SYSLINUX also searched /boot/syslinux, /syslinux and /.
+
 
 == GLOBAL DIRECTIVES - MAIN ==
 *#* comment::
@@ -36,7 +49,8 @@ Begin a new *LABEL* clause.  If 'mylabel' is entered as the kernel to boot, Sysl
 +
 'mylabel' should be restricted to non-white-space characters.  Prior to version 3.32, this would transformed to a DOS compatible format of 8.3 with a restricted character set.  A *LABEL* clause must contain exactly 1 of the *KERNEL-LIKE DIRECTIVES* and may contain 1 each of the *LABEL-ONLY DIRECTIVES* or *DUAL-PURPOSE DIRECTIVES*.
 +
-Within a *LABEL*, using multiple *KERNEL-LIKE DIRECTIVES* will result in an override.  Otherwise, multiple instances of the same directive will result in the last being effective.
+Within a *LABEL*, using multiple *KERNEL-LIKE DIRECTIVES* or reuse of *LABEL-ONLY DIRECTIVES* or *DUAL-PURPOSE DIRECTIVES* will result in an override.  Otherwise, multiple instances of the same directive will result in the last being effective.
+
 
 == DUAL-PURPOSE DIRECTIVES ==
 Use of any of the *DUAL-PURPOSE DIRECTIVES* as *GLOBAL DIRECTIVES* is discouraged if there will be any non-Linux images loaded as *ALL* images will get these, including those manually entered at the 'boot:' prompt.
@@ -57,26 +71,27 @@ Append nothing.  APPEND with a single hyphen as argument in a LABEL section can 
 *IPAPPEND* 'flag_val'::
 (PXELINUX only) The IPAPPEND option is available only on PXELINUX.  The flag_val is an OR (sum) of the following integer options:
 
-1::: An option of the following format should be generated, based on the input from the DHCP/BOOTP or PXE boot server and added to the kernel command line (see note below):
+ifndef::doctype-manpage[[horizontal]]
+*1*::: An option of the following format should be generated, based on the input from the DHCP/BOOTP or PXE boot server and added to the kernel command line(see note below):
 +
 ----
 ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
 ----
 +
-NOTE: The use of option 1 is no substitute for running a DHCP client in the booted system and should instead only be used to seed the client.  Without regular renewals, the lease acquired by the PXE BIOS will expire, making the IP address available for reuse by the DHCP server.
-
-
-2::: An option of the following format should be generated, in dash-separated hexadecimal with leading hardware type (same as for the configuration file; see pxelinux.txt.) and added to the kernel command line, allowing an initrd program to determine from which interface the system booted:
+NOTE:  The use of option 1 is no substitute for running a DHCP client in the booted system and should instead only be used to seed the client.  Without regular renewals, the lease acquired by the PXE BIOS will expire, making the IP address available for reuse by the DHCP server.
++
+*2*::: An option of the following format should be generated, in dash-separated hexadecimal with leading hardware type (same as for the configuration file; see pxelinux.txt.) and added to the kernel command line, allowing an initrd program to determine from which interface the system booted:
 +
 ----
 BOOTIF=<hardware-address-of-boot-interface>
 ----
 +
-4::: An option of the following format should be generated, in lower case hexadecimal in the format normally used for UUIDs (same as for the configuration file; see pxelinux.txt.) and added to the kernel command line:
+*4*::: An option of the following format should be generated, in lower case hexadecimal in the format normally used for UUIDs (same as for the configuration file; see pxelinux.txt.) and added to the kernel command line:
 +
 ----
 SYSUUID=<system uuid>
 ----
+
 
 == KERNEL-LIKE DIRECTIVES ==
 // Alpha sort after KERNEL and LINUX
@@ -94,16 +109,16 @@ Load 'image' as a Linux-like kernel. MEMDISK is an example of a non-Linux kernel
 (SYSLINUX only: .bss) Load a BSS image, a .bs image with the DOS superblock patched in.
 
 *COMBOOT* 'image'::
-(.com, .cbt) Load a Syslinux COMBOOT image.  .com images may also be runnable from DOS while .cbt images are not.
+(.com, .cbt) Load a Syslinux COMBOOT image.  .com images may also be runnable from DOS while .cbt images are not.  See also *comboot.txt*
 
 *COM32* 'image'::
-(.c32) Load a Syslinux COM32 (32-bit *COMBOOT*) image.
+(.c32) Load a Syslinux COM32 (32-bit *COMBOOT*) image.  See also *comboot.txt*
 
 *CONFIG* 'image'::
 Load a new configuration file.  The configuration file is read, the working directory is changed (if specified via an APPEND), then the configuration file is parsed.
 
 *FDIMAGE* 'image'::
-(ISOLINUX only: .img) Load a disk image.
+(Removed as of 4.05; ISOLINUX only: .img) Load a disk image.
 
 *LOCALBOOT* 'type'::
 Attempt a different local boot method.  The special value -1 causes the boot loader to report failure to the BIOS, which, on recent BIOSes, should mean that the next boot device in the boot sequence should be activated.  Values other than those documented may produce undesired results.
@@ -239,9 +254,15 @@ If 'flag_val' is set to 1, ignore the Shift/Alt/Caps Lock/Scroll Lock escapes.  
 *NOCOMPLETE* 'flag_val'::
 If flag_val is set to 1, the Tab key does not display labels at the boot: prompt.
 
+//   ...etc...
 *F1* 'filename'::
 *F2* 'filename'::
-   ...etc...
+*F3* 'filename'::
+*F4* 'filename'::
+*F5* 'filename'::
+*F6* 'filename'::
+*F7* 'filename'::
+*F8* 'filename'::
 *F9* 'filename'::
 *F10* 'filename'::
 *F11* 'filename'::
@@ -250,10 +271,150 @@ Displays the indicated file on the screen when a function key is pressed at the 
 +
 When using the serial console, press <Ctrl-F><digit> to get to the help screens, e.g. <Ctrl-F><2> to get to the F2 screen. For F10-F12, hit <Ctrl-F><A>, <Ctrl-F>B, <Ctrl-F>C.  For compatibility with earlier versions, F10 can also be entered as <Ctrl-F>0.
 
-== DISPLAY FILE FORMAT ==
-//[FIXME: details]
-Details
 
+== DISPLAY FILE FORMAT ==
+DISPLAY and function-key help files are text files in either DOS or UNIX
+format (with or without <CR>).  In addition, the following special codes
+are interpreted:
+
+//[FIXME]: #1 doesn't break; #2 as-is; #3 broken but not on right; #4 identical to #3
+// horizontal extends the line's label, reducing the definition
+// tab or space to shift explanation ?  align beginning or end?
+
+// ifndef::doctype-manpage[[horizontal]]
+*<FF>*:: {nbsp32} 				= <Ctrl-L> = ASCII 12 +
+Clear the screen, home the cursor.  Note that the screen is filled with the current display color.
+
+*<FF>*::
+= <Ctrl-L> = ASCII 12; Clear the screen, home the cursor.  Note that the screen is filled with the current display color.
+
+*<FF>*::                                      <FF> = <Ctrl-L> = ASCII 12 +
+Clear the screen, home the cursor.  Note that the screen is filled with the current display color.
+
+*<FF>*::
+<FF> = <Ctrl-L> = ASCII 12 +
+Clear the screen, home the cursor.  Note that the screen is filled with the current display color.
+
+*<SI>*'<bg><fg>'::                            <SI> = <Ctrl-O> = ASCII 15 +
+Set the display colors to the specified background and foreground colors, where <bg> and <fg> are the 2 hex digits representing 1 byte, corresponding to the standard PC display attributes:
++
+        0 = black               8 = dark grey
+        1 = dark blue           9 = bright blue
+        2 = dark green          a = bright green
+        3 = dark cyan           b = bright cyan
+        4 = dark red            c = bright red
+        5 = dark purple         d = bright purple
+        6 = brown               e = yellow
+        7 = light grey          f = white
++
+Picking a bright color (8-f) for the background results in the corresponding dark color (0-7), with the foreground flashing.
++
+Colors are not visible over the serial console.
+
+*<CAN>*'filename<newline>'::                 <CAN> = <Ctrl-X> = ASCII 24 +
+If a VGA display is present, enter graphics mode and display the graphic included in the specified file.  The file format is an ad hoc format called LSS16; the included Perl program "ppmtolss16" can be used to produce these images.  This Perl program also includes the file format specification.
++
+The image is displayed in 640x480 16-color mode.  Once in graphics mode, the display attributes (set by <SI> code sequences) work slightly differently: the background color is ignored, and the foreground colors are the 16 colors specified in the image file.  For that reason, ppmtolss16 allows you to specify that certain colors should be assigned to specific color indicies.
++
+Color indicies 0 and 7, in particular, should be chosen with care: 0 is the background color, and 7 is the color used for the text printed by Syslinux itself.
+
+*<EM>*::				<EM> = <Ctrl-Y> = ASCII 25 +
+If we are currently in graphics mode, return to text mode.
+
+*<DLE>*..*<ETB>*::			<Ctrl-P>..<Ctrl-W> = ASCII 16-23 +
+These codes can be used to select which modes to print a certain part of the message file in.  Each of these control characters select a specific set of modes (text screen, graphics screen, serial port) for which the output is actually displayed:
++
+	Character			Text	Graph	Serial
+	------------------------------------------------------
+	<DLE> = <Ctrl-P> = ASCII 16	No	No	No
+	<DC1> = <Ctrl-Q> = ASCII 17	Yes	No	No
+	<DC2> = <Ctrl-R> = ASCII 18	No	Yes	No
+	<DC3> = <Ctrl-S> = ASCII 19	Yes	Yes	No
+	<DC4> = <Ctrl-T> = ASCII 20	No	No	Yes
+	<NAK> = <Ctrl-U> = ASCII 21	Yes	No	Yes
+	<SYN> = <Ctrl-V> = ASCII 22	No	Yes	Yes
+	<ETB> = <Ctrl-W> = ASCII 23	Yes	Yes	Yes
++
+For example, the following will actually print out which mode the console is in:
++
+	<DC1>Text mode<DC2>Graphics mode<DC4>Serial port<ETB>
+
+*<SUB>*::                                   <SUB> = <Ctrl-Z> = ASCII 26 +
+End of file (DOS convention).
+
+*<BEL>*::				<BEL> = <Ctrl-G> = ASCII 7 +
+Beep the speaker.
+
+
+== BOOT PROMPT ==
+=== COMMAND LINE KEYSTROKES ===
+
+The command line prompt supports the following keystrokes:
+
+  <Enter>		boot specified command line
+  <BackSpace>		erase one character
+  <Ctrl-U>		erase the whole line
+  <Ctrl-V>		display the current Syslinux version
+  <Ctrl-W>		erase one word
+  <Ctrl-X>		force text mode
+  <Tab>			list matching labels
+  <F1>..<F12>		help screens (if configured)
+  <Ctrl-F><digit>	equivalent to F1..F10
+  <Ctrl-C>		interrupt boot in progress
+  <Esc>			interrupt boot in progress
+  <Ctrl-N>		display network information (PXELINUX only)
+
+
+== BOOT LOADER IDS USED ==
+
+The Linux boot protocol supports a "boot loader ID", a single byte
+where the upper nybble specifies a boot loader family (3 = Syslinux)
+and the lower nybble is version or, in the case of Syslinux, media:
+
+	0x31 (49) = SYSLINUX
+	0x32 (50) = PXELINUX
+	0x33 (51) = ISOLINUX
+	0x34 (52) = EXTLINUX
+
+In recent versions of Linux, this ID is available as
+/proc/sys/kernel/bootloader_type.
+
+
+== NOVICE PROTECTION ==
+Syslinux will attempt to detect booting on a machine with too little
+memory, which means the Linux boot sequence cannot complete.  If so, a
+message is displayed and the boot sequence aborted.  Holding down the
+Ctrl key while booting disables this feature.
+
+Any file that SYSLINUX uses can be marked hidden, system or readonly
+if so is convenient; SYSLINUX ignores all file attributes.  The
+SYSLINUX installed automatically sets the readonly/hidden/system
+attributes on LDLINUX.SYS.
+
+
+== KNOWN BUGS ==
+Several known bugs/common problems are listed at http://www.syslinux.org/wiki/index.php/Common_Problems and known hardware compatibility issues are listed at http://www.syslinux.org/wiki/index.php/Hardware_Compatibility with filename translation difficulty and early PXE stacks being some of the most common.  Reporting of other encountered issues is welcome and appreciated.
+
+
+== BUG REPORTS ==
+I would appreciate hearing of any problems you have with Syslinux.  I
+would also like to hear from you if you have successfully used Syslinux,
+*especially* if you are using it for a distribution.
+
+If you are reporting problems, please include all possible information
+about your system and your BIOS; the vast majority of all problems
+reported turn out to be BIOS or hardware bugs, and I need as much
+information as possible in order to diagnose the problems.
+
+There is a mailing list for discussion among Syslinux users and for
+announcements of new and test versions.  To join, or to browse the
+archive, go to:
+
+   http://www.zytor.com/mailman/listinfo/syslinux
+
+Please DO NOT send HTML messages or attachments to the mailing list
+(including multipart/alternative or similar.)  All such messages will
+be bounced.
 
 == AUTHOR ==
-This AsciiDoc derived document is a modified version of the original *SYSLINUX* documentation by H. Peter Anvin <hpa@zytor.com>.  The conversion to an AsciiDoc was made by {editor1} <{editor1-email}>
+This AsciiDoc derived document is a modified version of the original *SYSLINUX* documentation by {author} <{author-email}>.  The conversion to an AsciiDoc was made by {editor1} <{editor1-email}>
