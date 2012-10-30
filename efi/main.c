@@ -195,7 +195,7 @@ get_memory_map(UINTN *nr_entries, UINTN *key, UINTN *desc_sz,
 int efi_scan_memory(scan_memory_callback_t callback, void *data)
 {
 	UINTN nr_entries, key, desc_sz;
-	UINTN buf;
+	UINTN buf, bufpos;
 	UINT32 desc_ver;
 	int rv = 0;
 	int i;
@@ -203,13 +203,14 @@ int efi_scan_memory(scan_memory_callback_t callback, void *data)
 	buf = (UINTN)get_memory_map(&nr_entries, &key, &desc_sz, &desc_ver);
 	if (!buf)
 		return -1;
+	bufpos = buf;
 
-	for (i = 0; i < nr_entries; buf += desc_sz, i++) {
+	for (i = 0; i < nr_entries; bufpos += desc_sz, i++) {
 		EFI_MEMORY_DESCRIPTOR *m;
 		UINT64 region_sz;
 		int valid;
 
-		m = (EFI_MEMORY_DESCRIPTOR *)buf;
+		m = (EFI_MEMORY_DESCRIPTOR *)bufpos;
 		region_sz = m->NumberOfPages * EFI_PAGE_SIZE;
 
 		switch (m->Type) {
