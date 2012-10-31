@@ -41,6 +41,7 @@
 #include <sys/times.h>
 #include <getkey.h>
 #include <libutil.h>
+#include <sys/file.h>
 
 struct keycode {
     int code;
@@ -146,6 +147,25 @@ int get_key_decode(char *buffer, int nc, int *code)
     return rv;
 }
 
+#ifdef __COM32__
+extern ssize_t __rawcon_read(struct file_info *fp, void *buf, size_t count);
+
+int raw_read(int fd, void *buf, size_t count)
+{
+	(void)fd;
+
+	/*
+	 * Instead of using the read(2) stdlib function use
+	 * __rawcon_read() directly since we want a single key and
+	 * don't want any processing/batching of the user input to
+	 * occur - we want the raw data.
+	 */
+	return __rawcon_read(NULL, buf, count);
+}
+#else
+extern int raw_read(int fd, void *buf, size_t count);
+#endif
+
 int get_key(FILE * f, clock_t timeout)
 {
     char buffer[KEY_MAXLEN];
@@ -162,7 +182,7 @@ int get_key(FILE * f, clock_t timeout)
     nc = 0;
     start = times(NULL);
     do {
-	rv = read(fileno(f), &ch, 1);
+	rv = raw_read(fileno(f), &ch, 1);
 	if (rv == 0 || (rv == -1 && errno == EAGAIN)) {
 	    clock_t lateness = times(NULL) - start;
 	    if (nc && lateness > 1 + KEY_TIMEOUT) {

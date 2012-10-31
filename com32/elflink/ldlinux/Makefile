@@ -14,7 +14,7 @@ topdir = ../../..
 MAKEDIR = $(topdir)/mk
 include $(MAKEDIR)/elf.mk
 
-CFLAGS += -I$(topdir)/core/elflink -I$(topdir)/core/include
+CFLAGS += -I$(topdir)/core/elflink -I$(topdir)/core/include -I$(topdir)/com32/lib
 LIBS = --whole-archive $(com32)/lib/libcom32min.a
 
 all: ldlinux.c32 ldlinux_lnx.a
