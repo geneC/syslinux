@@ -102,7 +102,7 @@ void execute(const char *cmdline, uint32_t type)
 		 * e.g. from vesamenu.c32.
 		 */
 		unload_modules_since("ldlinux.c32");
-		ldlinux_enter_command(!noescape);
+		ldlinux_enter_command();
 	} else if (type == IMAGE_TYPE_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };
 
