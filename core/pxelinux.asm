@@ -192,8 +192,7 @@ ROOT_FS_OPS:
 		call reset_idle
 
 ;
-; Now we're all set to start with our *real* business.	First load the
-; configuration file (if any) and parse it.
+; Now we're all set to start with our *real* business.
 ;
 ; In previous versions I avoided using 32-bit registers because of a
 ; rumour some BIOSes clobbered the upper half of 32-bit registers at
@@ -215,16 +214,6 @@ ROOT_FS_OPS:
 %macro	UNLOAD_PREP 0
 		pm_call unload_pxe
 %endmacro
-
-;
-; Open configuration file. ldlinux.c32 needs ConfigName to be set - so we need
-; to call open_config() before loading it.
-;
-; Note: We don't need to check return value of open_config() function. It will
-; call kaboom() on failure.
-;
-		extern open_config
-		pm_call open_config
 
 ;
 ; Jump to 32-bit ELF space
