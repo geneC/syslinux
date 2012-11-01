@@ -340,9 +340,16 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	case KEY_UP:
 	    {
 		if (!list_empty(&cli_history_head)) {
+		    struct list_head *next;
+
+		    if (!comm_counter)
+			next = cli_history_head.next;
+		    else
+			next = comm_counter->list.next;
+
 		    comm_counter =
-			list_entry(comm_counter->list.next,
-				   typeof(*comm_counter), list);
+			list_entry(next, typeof(*comm_counter), list);
+
 		    if (&comm_counter->list == &cli_history_head) {
 			strcpy(cmdline, temp_cmdline);
 		    } else {
@@ -357,9 +364,16 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	case KEY_DOWN:
 	    {
 		if (!list_empty(&cli_history_head)) {
+		    struct list_head *prev;
+
+		    if (!comm_counter)
+			prev = cli_history_head.prev;
+		    else
+			prev = comm_counter->list.prev;
+
 		    comm_counter =
-			list_entry(comm_counter->list.prev,
-				   typeof(*comm_counter), list);
+			list_entry(prev, typeof(*comm_counter), list);
+
 		    if (&comm_counter->list == &cli_history_head) {
 			strcpy(cmdline, temp_cmdline);
 		    } else {
