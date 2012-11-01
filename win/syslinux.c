@@ -270,8 +270,8 @@ static void move_file(char *pathname, char *filename)
 	memcpy(cp, filename, 12);
 
 	/* Delete any previous file */
-	SetFileAttributes(pathname, FILE_ATTRIBUTE_NORMAL);
-	DeleteFile(pathname);
+	SetFileAttributes(new_name, FILE_ATTRIBUTE_NORMAL);
+	DeleteFile(new_name);
 	if (!MoveFile(pathname, new_name))
 	    SetFileAttributes(pathname, FILE_ATTRIBUTE_READONLY |
 			      FILE_ATTRIBUTE_SYSTEM |
