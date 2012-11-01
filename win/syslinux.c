@@ -272,11 +272,15 @@ static void move_file(char *pathname, char *filename)
 	/* Delete any previous file */
 	SetFileAttributes(new_name, FILE_ATTRIBUTE_NORMAL);
 	DeleteFile(new_name);
-	if (!MoveFile(pathname, new_name))
+	if (!MoveFile(pathname, new_name)) {
+	    fprintf(stderr,
+		    "Failed to move %s to destination directory: %s\n",
+		    filename, opt.directory);
+
 	    SetFileAttributes(pathname, FILE_ATTRIBUTE_READONLY |
 			      FILE_ATTRIBUTE_SYSTEM |
 			      FILE_ATTRIBUTE_HIDDEN);
-	else
+	} else
 	    SetFileAttributes(new_name, FILE_ATTRIBUTE_READONLY |
 			      FILE_ATTRIBUTE_SYSTEM |
 			      FILE_ATTRIBUTE_HIDDEN);
