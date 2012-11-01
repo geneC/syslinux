@@ -13,6 +13,7 @@
 #include <sys/exec.h>
 #include <sys/module.h>
 #include <dprintf.h>
+#include <core.h>
 
 #include "getkey.h"
 #include "menu.h"
@@ -421,6 +422,15 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		redraw = 1;
 		break;
 	    }
+	case KEY_CTRL('V'):
+	    if (BIOSName)
+		eprintf("%s%s%s", syslinux_banner,
+			MK_PTR(0, BIOSName), copyright_str);
+	    else
+		eprintf("%s%s", syslinux_banner, copyright_str);
+
+	    redraw = 1;
+	    break;
 
 	default:
 	    if (key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN - 1) {

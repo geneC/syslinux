@@ -24,6 +24,7 @@ extern char cmd_line[];
 extern char ConfigFile[];
 extern char syslinux_banner[];
 extern char copyright_str[];
+extern uint16_t BIOSName;
 extern char StackBuf[];
 extern unsigned int __bcopyxx_len;
 

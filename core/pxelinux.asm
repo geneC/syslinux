@@ -81,12 +81,13 @@ InitStack	resd 1
 PXEStack	resd 1			; Saved stack during PXE call
 
 		alignb 4
-                global DHCPMagic, RebootTime, APIVer
+                global DHCPMagic, RebootTime, APIVer, BIOSName
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resw 2			; Pointer to PXENV+ or !PXE structure
 APIVer		resw 1			; PXE API version found
 LocalBootType	resw 1			; Local boot return code
 DHCPMagic	resb 1			; PXELINUX magic flags
+BIOSName	resw 1			; Dummy variable - always 0
 
 		section .text16
 		global StackBuf
