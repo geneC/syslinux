@@ -1236,9 +1236,7 @@ int modify_existing_adv(const char *path)
     if (devfd < 0)
 	return 1;
 
-    if (opt.reset_adv)
-	syslinux_reset_adv(syslinux_adv);
-    else if (ext_read_adv(path, devfd, &filename) < 0) {
+    if (ext_read_adv(path, devfd, &filename) < 0) {
 	close(devfd);
 	return 1;
     }
