@@ -180,7 +180,17 @@ if ( length($mbr) > 440 ) {
 
 $mbr .= "\0" x (440 - length($mbr));
 if (defined($id)) {
+    my($oid) = $id;
     $id = to_int($id);
+    if (!(defined($id))) {
+	$id = ord($oid) + ord(substr($oid,1,1)) * 2**8;
+	$id += ord(substr($oid,2,1)) * 2**16 + ord(substr($oid,3,1)) * 2**24;
+    }
+    if (!(defined($id)) || ($id > (2**32 - 1)) || ($id < -2**31)) {
+	print STDERR "ID ($oid) is invalid; please specify a 32 bit integer\n";
+	print STDERR " in decimal (little endian) or 4 character ASCII string\n";
+	exit 1;
+    }
 } else {
     $id = get_random();
 }
