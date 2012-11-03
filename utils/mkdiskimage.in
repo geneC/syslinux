@@ -22,6 +22,7 @@ use Fcntl;
 use Errno;
 use Cwd;
 use IO::Handle;			# For flush()
+use Data::Types qw(:all);
 
 sub absolute_path($) {
     my($f) = @_;
