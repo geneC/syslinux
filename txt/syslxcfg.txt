@@ -33,6 +33,9 @@ As of 3.35, SYSLINUX also searched /boot/syslinux, /syslinux and /.
 *#* comment::
 A line comment.  As of version 3.10, the space between the *#* and the comment is no longer required.
 
+*MENU* any string::
+A directive for the simple menu system, treated as a comment outside the menu.  See menu.txt.
+
 *INCLUDE* 'filename'::
 Inserts the contents of another file at this point in the configuration file. Files can currently be nested up to 16 levels deep, but it is not guaranteed that more than 8 levels will be supported in the future.
 
@@ -363,6 +366,12 @@ The command line prompt supports the following keystrokes:
   <Ctrl-C>		interrupt boot in progress
   <Esc>			interrupt boot in progress
   <Ctrl-N>		display network information (PXELINUX only)
+
+
+=== WORKING DIRECTORY ===
+At start, the initial working directory for SYSLINUX/ISOLINUX will be the directory containing the initial configuration file.  If no configuration file is found, SYSLINUX should default to the install-time working directory, however this is a known issue with some versions including 4.06.
+
+At start, the initial working directory for PXELINUX will be the parent directory of pxelinux.0 unless overridden with DHCP option 210.  If no configuration file is found, PXELINUX will start a time to reboot the system in an attempt to restart the boot process and resolve a possible transient issue.
 
 
 == BOOT LOADER IDS USED ==
