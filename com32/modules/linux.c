@@ -59,11 +59,32 @@ static char *find_argument(char **argv, const char *argument)
     char *ptr = NULL;
 
     for (arg = argv; *arg; arg++) {
-	if (!memcmp(*arg, argument, la))
+	if (!strncmp(*arg, argument, la))
 	    ptr = *arg + la;
     }
 
     return ptr;
+}
+
+/* Find the next instance of a particular command line argument */
+static char **find_arguments(char **argv, char **ptr,
+			     const char *argument)
+{
+    int la = strlen(argument);
+    char **arg;
+
+    for (arg = argv; *arg; arg++) {
+	if (!strncmp(*arg, argument, la)) {
+	    *ptr = *arg + la;
+	    break;
+	}
+    }
+
+    /* Exhausted all arguments */
+    if (!*arg)
+	return NULL;
+
+    return arg;
 }
 
 /* Search for a boolean argument; return its position, or 0 if not present */
@@ -246,24 +267,28 @@ int main(int argc, char *argv[])
     if (!setup_data)
 	goto bail;
 
-    for (argl = argv; (arg = *argl); argl++) {
-	if (!memcmp(arg, "dtb=", 4)) {
-	    if (setup_data_file(setup_data, SETUP_DTB, arg+4, opt_quiet))
-		goto bail;
-	} else if (!memcmp(arg, "blob.", 5)) {
-	    uint32_t type;
-	    char *ep;
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "dtb="))) {
+	argl++;
+	if (setup_data_file(setup_data, SETUP_DTB, arg, opt_quiet))
+	    goto bail;
+    }
 
-	    type = strtoul(arg + 5, &ep, 10);
-	    if (ep[0] != '=' || !ep[1])
-		continue;
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "blob."))) {
+	uint32_t type;
+	char *ep;
 
-	    if (!type)
-		continue;
+	argl++;
+	type = strtoul(arg, &ep, 10);
+	if (ep[0] != '=' || !ep[1])
+	    continue;
 
-	    if (setup_data_file(setup_data, type, ep+1, opt_quiet))
-		goto bail;
-	}
+	if (!type)
+	    continue;
+
+	if (setup_data_file(setup_data, type, ep+1, opt_quiet))
+	    goto bail;
     }
 
     /* This should not return... */
