@@ -1,6 +1,6 @@
 # _bin.c files required by both BTARGET and ITARGET installers
 BINFILES = bootsect_bin.c ldlinux_bin.c \
-	   mbr_bin.c gptmbr_bin.c
+	   mbr_bin.c gptmbr_bin.c ldlinuxc32_bin.c
 
 PERL	 = perl
 
@@ -21,6 +21,9 @@ gptmbr_bin.c: $(OBJ)/../mbr/gptmbr.bin bin2c.pl
 	$(PERL) $(SRC)/bin2c.pl syslinux_gptmbr < $< > $@
 
 installer: $(BINFILES)
+
+ldlinuxc32_bin.c: ../com32/elflink/ldlinux/ldlinux.c32 bin2c.pl
+	$(PERL) bin2c.pl syslinux_ldlinuxc32 < $< > $@
 
 tidy:
 	rm -f $(BINFILES)

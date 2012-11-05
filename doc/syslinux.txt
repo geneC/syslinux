@@ -100,7 +100,7 @@ directory on the disk.
 There are two versions of the Linux installer; one in the "mtools"
 directory which requires no special privilege (other than write
 permission to the device where you are installing) but requires the
-mtools program suite to be available, and one in the "unix" directory
+mtools program suite to be available, and one in the "linux" directory
 which requires root privilege.
 
 
@@ -449,6 +449,13 @@ F12 filename
 	For F10-F12, hit <Ctrl-F><A>, <Ctrl-F>B, <Ctrl-F>C.  For
 	compatibility with earlier versions, F10 can also be entered as
 	<Ctrl-F>0.
+
+PATH path
+	Specify a colon-separated (':') list of directories to search
+	when attempting to load modules. This directive is useful for
+	specifying the directories containing the lib*.c32 library
+	files as other modules may be dependent on these files, but
+	may not reside in the same directory.
 
 Blank lines are ignored.
 

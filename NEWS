@@ -2,9 +2,51 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 5.00:
+	* com32: Switched from the COM32 object format to ELF as it is
+	  a much more powerful format that allows undefined symbols to
+	  be resolved at runtime and dynamic loading of module
+	  dependencies, which means modules now become shared object
+	  files instead of statically linked binaries - reducing both
+	  disk space and runtime memory consumption.
+	* core: Split non-core functionality into ldlinux.c32, which
+	  is an ELF module loaded by the core that contains everything
+	  the core doesn't require to boot the system, e.g. config
+	  parser, command-line interface, etc.
+	* Replaced __intcall() calls with direct function calls now
+	  that we can resolve undefined symbols at runtime, thanks to
+	  the ELF object support. Now that we no longer need to go
+	  through the 16-bit interrupt mechanism we can make full use
+	  of the 32-bit execution environment. This change required
+	  reimplementing lots of the 16-bit assembly code from core/
+	  in C.
+	* com32: __com32.cs_bounce is gone now we always run in a
+	  32-bit environment once we execute ldlinux.c32.
+	* ldlinux: A new "PATH" directive was added to the ldlinux.c32
+	  config parser that specifies a colon-separated list of
+	  directories to search when attempting to load modules.
+
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.
 	* EXTLINUX: more robust device detection, allow user to override.
+	* kontron_wdt.c32: Add a new module to enable the hardware
+	  watchdog of some Kontron boards. It allows enabling the watchdog
+	  and then booting a given image.
+	* HDT updated, and now can display images regarding some detection
+	  steps. Add postexec command to run a particular entry after
+	  HDT's execution, add silent option and various fixes.
+	* ifcpu.c32: Detect hypervisor presence.
+	* lua.c32: Add dhcp support and support for native Syslinux
+	  functions syslinux_config(), syslinux_ipappend_strings() and
+	  syslinux_reboot().
+	* isohybrid: Workaround for various EFI systems.
+	* pxechn.c32, a PXE NBP chainloader.  More versatile alternative
+	  to pxechain.com and resolves the PXELINUX -> WDS issue with
+	  Microsoft Windows Server 2008R2 (Gene Cumm).
+	* btrfs: Fix booting off of a subvolume.
+	* com32: Add device tree support.
+	* SYSLINUX: Fix relative paths for VFAT. The CONFIG and APPEND
+	  directives now support entirely relative paths.
 
 Changes in 4.05:
 	* HDT updated, and now supports uploading data to a TFTP

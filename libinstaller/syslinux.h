@@ -26,6 +26,9 @@ extern unsigned char syslinux_ldlinux[];
 extern const unsigned int syslinux_ldlinux_len;
 extern const int syslinux_ldlinux_mtime;
 
+extern unsigned char syslinux_ldlinuxc32[];
+extern const unsigned int syslinux_ldlinuxc32_len;
+
 #define boot_sector	syslinux_bootsect
 #define boot_sector_len syslinux_bootsect_len
 #define boot_image	syslinux_ldlinux

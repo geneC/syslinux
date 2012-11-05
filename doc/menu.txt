@@ -18,7 +18,7 @@ See menu/README for more information.
 +++ THE SIMPLE MENU SYSTEM +++
 
 The simple menu system is a single module located at
-com32/modules/vesamenu.c32 (graphical) or com32/modules/menu.c32 (text
+com32/menu/vesamenu.c32 (graphical) or com32/menu/menu.c32 (text
 mode only).  It uses the same configuration file as the regular
 Syslinux command line, and displays all the LABEL statements.
 

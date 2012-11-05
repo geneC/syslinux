@@ -560,29 +560,7 @@ AX=000Ch [2.00]	Perform final cleanup
 	meanings in future versions of Syslinux.
 
 
-AX=000Dh [2.08]	Cleanup and replace bootstrap code
-	Input:	AX	000Dh
-		DX	derivative-specific flags (see previous function)
-		EDI	bootstrap code (linear address, can be in high memory)
-		ECX	bootstrap code length in bytes (must fit in low mem)
-		EBX(!)	initial value of EDX after bootstrap
-		ESI	initial value of ESI after bootstrap
-		DS	initial value of DS after bootstrap
-	Output:	Does not return
-
-	This routine performs final cleanup, then takes a piece of
-	code, copies it over the primary bootstrap at address 7C00h,
-	and jumps to it.  This can be used to chainload boot sectors,
-	MBRs, bootstraps, etc.
-
-	Normal boot sectors expect DL to contain the drive number,
-	and, for hard drives (DL >= 80h) DS:SI to contain a pointer to
-	the 16-byte partition table entry.  The memory between
-	600h-7FFh is available to put the partition table entry in.
-
-	For PXELINUX, if the PXE stack is not unloaded, all registers
-	(except DS, ESI and EDX) and the stack will be set up as they
-	were set up by the PXE ROM.
+AX=000Dh [2.08]	Obsoleted in 3.80
 
 
 AX=000Eh [2.11]	Get configuration file name
@@ -627,57 +605,7 @@ AX=0010h [3.00] Resolve hostname [PXELINUX]
 AX=0011h [3.05] Obsoleted in 3.80
 
 
-AX=0012h [3.50] Cleanup, shuffle and boot
-	Input:	AX	0012h
-		DX	derivative-specific flags (see function 000Ch)
-		ES:DI	shuffle descriptor list (must be in low memory)
-		CX	number of shuffle descriptors
-		EBX(!)	initial value of EDX after bootstrap
-		ESI	initial value of ESI after bootstrap
-		DS	initial value of DS after bootstrap
-		EBP	CS:IP of routine to jump to
-	Output:	Does not return
-		(if CX is too large the routine returns with CF=1)
-
-	This routine performs final cleanup, then performs a sequence
-	of copies, and jumps to a specified real mode entry point.
-	This is a more general version of function 000Dh, which can
-	also be used to load other types of programs.
-
-	The copies must not touch memory below address 7C00h.
-
-	ES:DI points to a list of CX descriptors each of the form:
-
-		Offset	Size	Meaning
-		 0	dword	destination address
-		 4	dword	source address
-		 8	dword	length in bytes
-
-	The copies are overlap-safe, like memmove().
-
-	Starting in version 3.50, if the source address is -1
-	(FFFFFFFFh) then the block specified by the destination
-	address	and the length is set to all zero.
-
-	Starting in version 3.50, if the destination address is -1
-	(FFFFFFFFh) then the data block is loaded as a new set of
-	descriptors, and processing is continued (and unprocessed
-	descriptors are lost, this is thus typically only used as the
-	last descriptor in a block.)  The block must still fit in the
-	internal descriptor buffer (see function 0011h), but can, of
-	course, itself chain another block.
-
-
-	Normal boot sectors expect DL to contain the drive number,
-	and, for hard drives (DL >= 80h) DS:SI to contain a pointer to
-	the 16-byte partition table entry.  The memory between
-	600h-7FFh is available to put the partition table entry in.
-
-	For PXELINUX, if the PXE stack is not unloaded, all registers
-	(except DS, ESI and EDX) and the stack will be set up as they
-	were set up by the PXE ROM.
-
-	This interface was probably broken before version 3.50.
+AX=0012h [3.50] Obsoleted in 3.80
 
 
 AX=0013h [3.08] Idle loop call

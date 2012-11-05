@@ -271,7 +271,7 @@ int main(int argc __unused, char **argv __unused)
 	size_t count = 0;
 	char *config_argv[2] = { NULL, NULL };
 
-	openconsole(&dev_rawcon_r, &dev_ansiserial_w);
+	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
 
 	if (ConfigName[0])
 		config_argv[0] = ConfigName;

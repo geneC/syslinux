@@ -47,6 +47,7 @@ LIBSRC   = ../libinstaller/fs.c \
 	   ../libinstaller/getopt/getopt_long.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \
+	   ../libinstaller/ldlinuxc32_bin.c \
 	   ../libinstaller/mbr_bin.c \
 	   $(wildcard $(SRC)/../libfat/*.c)
 LIBOBJS  = $(patsubst %.c,%.obj,$(notdir $(LIBSRC)))

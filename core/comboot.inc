@@ -517,10 +517,8 @@ comapi_cleanup:
 		ret
 
 ;
-; INT 22h AX=000Dh	Clean up then replace bootstrap
+; INT 22h AX=000Dh	Obsolete
 ;
-comapi_chainboot:
-		ret
 
 ;
 ; INT 22h AX=000Eh	Get configuration file name

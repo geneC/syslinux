@@ -121,15 +121,15 @@ int rename(const char *oldname, const char *newname)
     return 0;
 }
 
-ssize_t write_ldlinux(int fd)
+ssize_t write_file_seg(int fd, unsigned char *buf, const unsigned int len)
 {
-    uint16_t ldlinux_seg = ((size_t)syslinux_ldlinux >> 4) + ds();
+    uint16_t seg = ((size_t)buf >> 4) + ds();
     uint32_t offset = 0;
     uint16_t rv;
     uint8_t err;
 
-    while (offset < syslinux_ldlinux_len) {
-	uint32_t chunk = syslinux_ldlinux_len - offset;
+    while (offset < len) {
+	uint32_t chunk = len - offset;
 	if (chunk > 32768)
 	    chunk = 32768;
 	asm volatile ("pushw %%ds ; "
@@ -137,7 +137,7 @@ ssize_t write_ldlinux(int fd)
 		      "int $0x21 ; "
 		      "popw %%ds ; " "setc %0":"=bcdm" (err), "=a"(rv)
 		      :"a"(0x4000), "b"(fd), "c"(chunk), "d" (offset & 15),
-		      "SD" ((uint16_t)(ldlinux_seg + (offset >> 4))));
+		      "SD" ((uint16_t)(seg + (offset >> 4))));
 	if (err || rv == 0)
 	    die("file write error");
 	offset += rv;
@@ -583,11 +583,53 @@ static void adjust_mbr(int device, int writembr, int set_active)
     write_mbr(device, sectbuf);
 }
 
+static void move_file(int dev_fd, char *pathname, char *filename)
+{
+    char new_name[160];
+    char *cp = new_name + 3;
+    const char *sd;
+    int slash = 1;
+
+    new_name[0] = dev_fd | 0x40;
+    new_name[1] = ':';
+    new_name[2] = '\\';
+
+    for (sd = opt.directory; *sd; sd++) {
+	char c = *sd;
+
+	if (c == '/' || c == '\\') {
+	    if (slash)
+		continue;
+	    c = '\\';
+	    slash = 1;
+	} else {
+	    slash = 0;
+	}
+
+	*cp++ = c;
+    }
+
+    /* Skip if subdirectory == root */
+    if (cp > new_name + 3) {
+	if (!slash)
+	    *cp++ = '\\';
+
+	memcpy(cp, filename, 12);
+
+	set_attributes(pathname, 0);
+	if (rename(pathname, new_name))
+	    set_attributes(pathname, 0x07);
+	else
+	    set_attributes(new_name, 0x07);
+    }
+}
+
 int main(int argc, char *argv[])
 {
     static unsigned char sectbuf[SECTOR_SIZE];
     int dev_fd, fd;
     static char ldlinux_name[] = "@:\\ldlinux.sys";
+    static char ldlinuxc32_name[] = "@:\\ldlinux.c32";
     struct libfat_filesystem *fs;
     libfat_sector_t s, *secp;
     libfat_sector_t *sectors;
@@ -647,13 +689,20 @@ int main(int argc, char *argv[])
     }
 
     ldlinux_name[0] = dev_fd | 0x40;
+    ldlinuxc32_name[0] = dev_fd | 0x40;
 
     set_attributes(ldlinux_name, 0);
     fd = creat(ldlinux_name, 0);	/* SYSTEM HIDDEN READONLY */
-    write_ldlinux(fd);
+    write_file_seg(fd, syslinux_ldlinux, syslinux_ldlinux_len);
     write_file(fd, syslinux_adv, 2 * ADV_SIZE);
     close(fd);
     set_attributes(ldlinux_name, 0x07);	/* SYSTEM HIDDEN READONLY */
+
+    set_attributes(ldlinuxc32_name, 0);
+    fd = creat(ldlinuxc32_name, 0);		/* SYSTEM HIDDEN READONLY */
+    write_file_seg(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len);
+    close(fd);
+    set_attributes(ldlinuxc32_name, 0x07);	/* SYSTEM HIDDEN READONLY */
 
     /*
      * Now, use libfat to create a block map.  This probably
@@ -681,43 +730,8 @@ int main(int argc, char *argv[])
      * If requested, move ldlinux.sys
      */
     if (opt.directory) {
-	char new_ldlinux_name[160];
-	char *cp = new_ldlinux_name + 3;
-	const char *sd;
-	int slash = 1;
-
-	new_ldlinux_name[0] = dev_fd | 0x40;
-	new_ldlinux_name[1] = ':';
-	new_ldlinux_name[2] = '\\';
-
-	for (sd = opt.directory; *sd; sd++) {
-	    char c = *sd;
-
-	    if (c == '/' || c == '\\') {
-		if (slash)
-		    continue;
-		c = '\\';
-		slash = 1;
-	    } else {
-		slash = 0;
-	    }
-
-	    *cp++ = c;
-	}
-
-	/* Skip if subdirectory == root */
-	if (cp > new_ldlinux_name + 3) {
-	    if (!slash)
-		*cp++ = '\\';
-
-	    memcpy(cp, "ldlinux.sys", 12);
-
-	    set_attributes(ldlinux_name, 0);
-	    if (rename(ldlinux_name, new_ldlinux_name))
-		set_attributes(ldlinux_name, 0x07);
-	    else
-		set_attributes(new_ldlinux_name, 0x07);
-	}
+	move_file(dev_fd, ldlinux_name, "ldlinux.sys");
+	move_file(dev_fd, ldlinuxc32_name, "ldlinux.c32");
     }
 
     /*

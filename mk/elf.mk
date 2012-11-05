@@ -95,5 +95,5 @@ C_LNXLIBS  = $(objdir)/com32/libutil/libutil_lnx.a \
 %.lnx: %.lo $(LNXLIBS) $(C_LNXLIBS)
 	$(CC) $(LNXCFLAGS) -o $@ $^
 
-%.c32: %.o $(LIBS)
+%.c32: %.o $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^

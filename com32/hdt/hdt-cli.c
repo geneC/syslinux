@@ -132,7 +132,7 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
 	break;
     case PXE_MODE:
 	if (hardware->sv->filesystem != SYSLINUX_FS_PXELINUX) {
-	    printf("You are not currently using PXELINUX\n");
+	    more_printf("You are not currently using PXELINUX\n");
 	    break;
 	}
 	hdt_cli.mode = mode;
@@ -160,7 +160,7 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
 	break;
     case DMI_MODE:
 	if (!hardware->is_dmi_valid) {
-	    printf("No valid DMI table found, exiting.\n");
+	    more_printf("No valid DMI table found, exiting.\n");
 	    break;
 	}
 	hdt_cli.mode = mode;
@@ -172,7 +172,7 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
 	break;
     case VPD_MODE:
 	if (!hardware->is_vpd_valid) {
-	    printf("No valid VPD table found, exiting.\n");
+	    more_printf("No valid VPD table found, exiting.\n");
 	    break;
 	}
 	hdt_cli.mode = mode;
@@ -188,9 +188,9 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
 	break;
     default:
 	/* Invalid mode */
-	printf("Unknown mode, please choose among:\n");
+	more_printf("Unknown mode, please choose among:\n");
 	while (list_modes[i]) {
-	    printf("\t%s\n", list_modes[i]->name);
+	    more_printf("\t%s\n", list_modes[i]->name);
 	    i++;
 	}
     }
@@ -199,7 +199,7 @@ void set_mode(cli_mode_t mode, struct s_hardware *hardware)
     /* There is not cli_mode_descr struct for the exit mode */
     if (current_mode == NULL && hdt_cli.mode != EXIT_MODE) {
 	/* Shouldn't get here... */
-	printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
+	more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
     }
 }
 
@@ -679,7 +679,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
 	    if (current_module != NULL)
 		current_module->exec(argc, argv, hardware);
 	    else
-		printf("unknown command: '%s'\n", command);
+		more_printf("unknown command: '%s'\n", command);
 	}
     } else {
 	/*
@@ -833,7 +833,7 @@ void start_cli_mode(struct s_hardware *hardware)
     find_cli_mode_descr(hdt_cli.mode, &current_mode);
     if (current_mode == NULL) {
 	/* Shouldn't get here... */
-	printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
+	more_printf("!!! BUG: Mode '%d' unknown.\n", hdt_cli.mode);
 	return;
     }
 
@@ -842,7 +842,7 @@ void start_cli_mode(struct s_hardware *hardware)
 	start_auto_mode(hardware);
     }
 
-    printf("Entering CLI mode\n");
+    more_printf("Entering CLI mode\n");
 
     reset_prompt();
 

@@ -54,12 +54,12 @@ static void main_show_modes(int argc __unused, char **argv __unused,
     int i = 0;
 
     reset_more_printf();
-    printf("Available modes:\n");
+    more_printf("Available modes:\n");
     while (list_modes[i]) {
 	printf("%s ", list_modes[i]->name);
 	i++;
     }
-    printf("\n");
+    more_printf("\n");
 }
 
 /**
@@ -119,7 +119,7 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 
     find_cli_mode_descr(hdt_cli.mode, &current_mode);
 
-    printf("Available commands are:\n");
+    more_printf("Available commands are:\n");
 
     /* List first default modules of the mode */
     if (current_mode->default_modules && current_mode->default_modules->modules) {
@@ -154,7 +154,7 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 
     /* List secondly the show modules of the mode */
     if (current_mode->show_modules && current_mode->show_modules->modules) {
-	printf("\nshow commands:\n");
+	more_printf("\nshow commands:\n");
 	j = 0;
 	while (current_mode->show_modules->modules[j].name) {
 	    printf("%s ", current_mode->show_modules->modules[j].name);
@@ -165,7 +165,7 @@ static void show_cli_help(int argc __unused, char **argv __unused,
 
     /* List thirdly the set modules of the mode */
     if (current_mode->set_modules && current_mode->set_modules->modules) {
-	printf("\nset commands:\n");
+	more_printf("\nset commands:\n");
 	j = 0;
 	while (current_mode->set_modules->modules[j].name) {
 	    printf("%s ", current_mode->set_modules->modules[j].name);
@@ -260,6 +260,30 @@ static void do_dump(int argc __unused, char **argv __unused,
 }
 
 /**
+ * do_sleep - sleep a number of milliseconds
+ **/ 
+static void do_sleep(int argc , char **argv ,
+		      struct s_hardware *hardware)
+{
+   (void) hardware;
+   if (argc != 1) return;
+   more_printf("Sleep %d milliseconds\n",atoi(argv[0]));
+   msleep(atoi(argv[0]));
+}
+
+/**
+ * do_display - display an image to user
+ **/
+static void do_display(int argc , char **argv ,
+		      struct s_hardware *hardware)
+{
+   (void) hardware;
+   if ((argc != 1) || (vesamode == false)) return;
+   more_printf("Display %s file\n",argv[0]);
+   vesacon_load_background(argv[0]);
+}
+
+/**
  * do_say - say message to user
  **/
 static void do_say(int argc , char **argv ,
@@ -270,7 +294,6 @@ static void do_say(int argc , char **argv ,
 
    char text_to_say[255]={0};
    int arg=0;
-   int sleep_time=0;
 #if DEBUG
    for (int i=0; i<argc;i++) dprintf("SAY: arg[%d]={%s}\n",i,argv[i]);
 #endif
@@ -293,24 +316,7 @@ static void do_say(int argc , char **argv ,
 	dprintf("SAY CMD = [%s]\n",text_to_say);	   
     	}
 
-	/* The % char can be in the same argument, let's consider it again */
-    	arg--;
-
-	/* Searching for a % argument to determine the time to show the message */
-    	char *time_to_display = NULL;
-    	/* Search for a requested time to display */
-    	while ( ((time_to_display=strchr(argument, '%')) == NULL) && (arg+1<argc)) {
-		arg++;
-		argument = (char *)argv[arg];
-    	}
-
-    	if (time_to_display != NULL) {
-		sleep_time=atoi(time_to_display+1);
-		dprintf("SAY CMD :Time to display = %d\n",sleep_time);	   
-    	}
-
-  	printf("%s\n",text_to_say);
-  	sleep(sleep_time);
+  	more_printf("%s\n",text_to_say);
   }
 }
 
@@ -354,6 +360,16 @@ struct cli_callback_descr list_hdt_default_modules[] = {
     {
      .name = CLI_SAY,
      .exec = do_say,
+     .nomodule = true,
+     },
+    {
+     .name = CLI_DISPLAY,
+     .exec = do_display,
+     .nomodule = true,
+     },
+    {
+     .name = CLI_SLEEP,
+     .exec = do_sleep,
      .nomodule = true,
      },
     {
