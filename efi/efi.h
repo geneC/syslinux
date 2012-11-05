@@ -9,6 +9,8 @@
 #include <efistdarg.h>
 
 extern EFI_HANDLE image_handle;
-void setup_screen(struct screen_info *); /* fix build error */
+
+struct screen_info;
+extern void setup_screen(struct screen_info *);
 
 #endif /* _SYSLINUX_EFI_H */

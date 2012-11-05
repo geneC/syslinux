@@ -329,7 +329,7 @@ static int init_text_display(void)
     return 0;
 }
 
-int __vesacon_init(int x, int y)
+int __vesacon_init(int *x, int *y)
 {
     int rv;
 
@@ -337,12 +337,12 @@ int __vesacon_init(int x, int y)
     if (x86_init_fpu())
 	return 10;
 
-    rv = vesacon_set_mode(x, y);
+    rv = vesacon_set_mode(*x, *y);
     if (rv) {
 	/* Try to see if we can just patch the BIOS... */
-	if (__vesacon_i915resolution(x, y))
+	if (__vesacon_i915resolution(*x, *y))
 	    return rv;
-	if (vesacon_set_mode(x, y))
+	if (vesacon_set_mode(*x, *y))
 	    return rv;
     }
 

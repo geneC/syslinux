@@ -81,7 +81,7 @@ extern const uint8_t __vesacon_linear_to_srgb[4080];
 
 int __vesacon_init_background(void);
 int vesacon_load_background(const char *);
-int __vesacon_init(int, int);
+int __vesacon_init(int *, int *);
 void __vesacon_init_cursor(int);
 void __vesacon_erase(int, int, int, int, attr_t);
 void __vesacon_scroll_up(int, attr_t);

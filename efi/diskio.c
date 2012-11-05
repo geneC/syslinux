@@ -21,7 +21,6 @@ static int efi_rdwr_sectors(struct disk *disk, void *buf,
 {
 	struct disk_private *priv = disk->private;
 	EFI_BLOCK_IO *bio = priv->bio;
-	EFI_DISK_IO *dio = priv->dio;
 	EFI_STATUS status;
 	UINTN bytes = count * disk->sector_size;
 
@@ -43,11 +42,9 @@ struct disk *efi_disk_init(struct disk_private *priv)
 {
     static struct disk disk;
     EFI_HANDLE handle = priv->dev_handle;
-    unsigned int hard_max_transfer;
     EFI_BLOCK_IO *bio;
     EFI_DISK_IO *dio;
     EFI_STATUS status;
-    int sector_size;
 
     status = uefi_call_wrapper(BS->HandleProtocol, 3, handle,
 			       &DiskIoProtocol, (void **)&dio);
