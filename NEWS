@@ -2,6 +2,9 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 6.00:
+	* Add support for booting from EFI.
+
 Changes in 5.00:
 	* com32: Switched from the COM32 object format to ELF as it is
 	  a much more powerful format that allows undefined symbols to
