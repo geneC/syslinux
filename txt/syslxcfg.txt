@@ -375,30 +375,20 @@ At start, the initial working directory for PXELINUX will be the parent director
 
 
 == BOOT LOADER IDS USED ==
-
-The Linux boot protocol supports a "boot loader ID", a single byte
-where the upper nybble specifies a boot loader family (3 = Syslinux)
-and the lower nybble is version or, in the case of Syslinux, media:
+The Linux boot protocol supports a "boot loader ID", a single byte where the upper nybble specifies a boot loader family (3 = Syslinux) and the lower nybble is version or, in the case of Syslinux, media:
 
 	0x31 (49) = SYSLINUX
 	0x32 (50) = PXELINUX
 	0x33 (51) = ISOLINUX
 	0x34 (52) = EXTLINUX
 
-In recent versions of Linux, this ID is available as
-/proc/sys/kernel/bootloader_type.
+In recent versions of Linux, this ID is available as /proc/sys/kernel/bootloader_type.
 
 
 == NOVICE PROTECTION ==
-Syslinux will attempt to detect booting on a machine with too little
-memory, which means the Linux boot sequence cannot complete.  If so, a
-message is displayed and the boot sequence aborted.  Holding down the
-Ctrl key while booting disables this feature.
+Syslinux will attempt to detect booting on a machine with too little memory, which means the Linux boot sequence cannot complete.  If so, a message is displayed and the boot sequence aborted.  Holding down the Ctrl key while booting disables this feature.
 
-Any file that SYSLINUX uses can be marked hidden, system or readonly
-if so is convenient; SYSLINUX ignores all file attributes.  The
-SYSLINUX installed automatically sets the readonly/hidden/system
-attributes on LDLINUX.SYS.
+Any file that SYSLINUX uses can be marked hidden, system or readonly if so is convenient; SYSLINUX ignores all file attributes.  The SYSLINUX installed automatically sets the readonly/hidden/system attributes on LDLINUX.SYS.
 
 
 == KNOWN BUGS ==
@@ -406,24 +396,15 @@ Several known bugs/common problems are listed at http://www.syslinux.org/wiki/in
 
 
 == BUG REPORTS ==
-I would appreciate hearing of any problems you have with Syslinux.  I
-would also like to hear from you if you have successfully used Syslinux,
-*especially* if you are using it for a distribution.
+I would appreciate hearing of any problems you have with Syslinux.  I would also like to hear from you if you have successfully used Syslinux, *especially* if you are using it for a distribution.
 
-If you are reporting problems, please include all possible information
-about your system and your BIOS; the vast majority of all problems
-reported turn out to be BIOS or hardware bugs, and I need as much
-information as possible in order to diagnose the problems.
+If you are reporting problems, please include all possible information about your system and your BIOS; the vast majority of all problems reported turn out to be BIOS or hardware bugs, and I need as much information as possible in order to diagnose the problems.
 
-There is a mailing list for discussion among Syslinux users and for
-announcements of new and test versions.  To join, or to browse the
-archive, go to:
+There is a mailing list for discussion among Syslinux users and for announcements of new and test versions.  To join, or to browse the archive, go to:
 
    http://www.zytor.com/mailman/listinfo/syslinux
 
-Please DO NOT send HTML messages or attachments to the mailing list
-(including multipart/alternative or similar.)  All such messages will
-be bounced.
+Please DO NOT send HTML messages or attachments to the mailing list (including multipart/alternative or similar.)  All such messages will be bounced.
 
 == AUTHOR ==
 This AsciiDoc derived document is a modified version of the original *SYSLINUX* documentation by {author} <{author-email}>.  The conversion to an AsciiDoc was made by {editor1} <{editor1-email}>
