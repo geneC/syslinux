@@ -50,8 +50,9 @@ $(if $(cd-output),, \
 # make,
 #
 # 'topdir' - the top-level directory containing the Syslinux source
-# 'objdir' - the top-level directory of output files
+# 'objdir' - the top-level directory of output files for this firmware
 # 'MAKEDIR' - contains Makefile fragments
+# 'OBJDIR' - the top-level directory of output files
 #
 # There are also a handful of variables that are passed to each
 # sub-make,
@@ -66,7 +67,9 @@ $(if $(cd-output),, \
 #
 
 MAKEDIR = $(topdir)/mk
-export MAKEDIR topdir
+export MAKEDIR topdir OBJDIR
+
+-include $(OBJDIR)/version.mk
 
 ifeq ($(MAKECMDGOALS),)
 	MAKECMDGOALS += all
@@ -98,7 +101,6 @@ $(MAKECMDGOALS):
 else # ifeq ($(topdir),)
 
 include $(MAKEDIR)/syslinux.mk
--include $(topdir)/version.mk
 
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
@@ -133,7 +135,7 @@ INSTALLABLE_MODULES = $(filter-out com32/gpllib%,$(MODULES))
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
-BTARGET  = version.gen version.h version.mk
+BTARGET  = version.gen version.h $(OBJDIR)/version.mk
 BOBJECTS = $(BTARGET) \
 	mbr/*.bin \
 	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
@@ -292,8 +294,6 @@ version.gen: $(topdir)/version $(topdir)/version.pl
 	$(PERL) $(topdir)/version.pl $< $@ '%define < @'
 version.h: $(topdir)/version $(topdir)/version.pl
 	$(PERL) $(topdir)/version.pl $< $@ '#define < @'
-version.mk: $(topdir)/version $(topdir)/version.pl
-	$(PERL) $(topdir)/version.pl $< $@ '< := @'
 
 local-install: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(BINDIR)
@@ -365,7 +365,10 @@ klibc:
 	$(MAKE) CC=klcc ITARGET= ISUBDIRS='linux extlinux' BSUBDIRS=
 endif # ifeq ($(HAVE_FIRMWARE),)
 
-# Hook to add private Makefile targets for the maintainer.
--include $(topdir)/Makefile.private
-
 endif # ifeq ($(topdir),)
+
+#
+# Common rules that are needed by every invocation of make.
+#
+$(OBJDIR)/version.mk: $(topdir)/version $(topdir)/version.pl
+	$(PERL) $(topdir)/version.pl $< $@ '< := @'
