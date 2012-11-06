@@ -366,6 +366,6 @@ klibc:
 endif # ifeq ($(HAVE_FIRMWARE),)
 
 # Hook to add private Makefile targets for the maintainer.
--include Makefile.private
+-include $(topdir)/Makefile.private
 
 endif # ifeq ($(topdir),)
