@@ -121,7 +121,7 @@ LIBOTHER_OBJS = \
 	mempcpy.o memmem.o memmove.o memswap.o	\
 	perror.o qsort.o seed48.o \
 	srand48.o sscanf.o strcasecmp.o strcat.o	\
-	strerror.o		\
+	strerror.o errlist.o		\
 	strnlen.o							\
 	strncat.o strndup.o		\
 	stpncpy.o						\
@@ -229,7 +229,7 @@ libcom32core.a : $(CORELIBOBJS)
 	$(RANLIB) $@
 
 tidy dist clean:
-	rm -f sys/vesa/alphatbl.c
+	rm -f sys/vesa/alphatbl.c errlist.c
 	find . \( -name \*.o -o -name \*.a -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
 
@@ -242,6 +242,9 @@ install: all
 	install -m 644 com32.ld $(INSTALLROOT)$(COM32DIR)
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
 	cp -r ../include $(INSTALLROOT)$(COM32DIR)
+
+errlist.c: makeerrlist.pl ../include/errno.h
+	$(PERL) $<  $(CFLAGS) -errlist > $@ || rm -f $@
 
 # These files are performance critical, and doesn't compile well with -Os
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
