@@ -10,6 +10,7 @@
 :nbsp32: {nbsp8}{nbsp8}{nbsp8}{nbsp8}
 :data-uri:
 
+//[FIXME:Inspect for '' ** use]
 
 == NAME ==
 syslinux.cfg - Syslinux configuration file
@@ -24,9 +25,11 @@ Note that the configuration file is not completely decoded.  Syntax different fr
 
 
 == LOCATION/NAME ==
-SYSLINUX defaulted to the name syslinux.cfg.  EXTLINUX (merged into SYSLINUX as of 4.00) defaulted to the name of extlinux.conf.  Both default to searching for the config file in the installed directory (containing ldlinux.sys/extlinux.sys).
+SYSLINUX (before 4.00) used the configuration filename of syslinux.cfg.  EXTLINUX (merged into SYSLINUX as of 4.00) used the filename extlinux.conf.  Both default to searching for the config file in the installed directory (containing ldlinux.sys/extlinux.sys).  As of 4.00, SYSLINUX will search for extlinux.conf then syslinux.cfg in each directory before falling back to the next directory.
 
-As of 3.35, SYSLINUX also searched /boot/syslinux, /syslinux and /.
+As of 3.35, SYSLINUX also searches /boot/syslinux, /syslinux and /.
+
+ISOLINUX (before 4.02) used the configuration filename of isolinux.cfg, searching  /boot/isolinux (starting 2.00), then /isolinux and /.  As of 4.02, ISOLINUX will search for isolinux.cfg then syslinux.cfg in /boot/isolinux before searching for the same files in /isolinux, /boot/syslinux, /syslinux, and /.
 
 
 == GLOBAL DIRECTIVES - MAIN ==
@@ -121,7 +124,7 @@ Load 'image' as a Linux-like kernel. MEMDISK is an example of a non-Linux kernel
 Load a new configuration file.  The configuration file is read, the working directory is changed (if specified via an APPEND), then the configuration file is parsed.
 
 *FDIMAGE* 'image'::
-(Removed as of 4.05; ISOLINUX only: .img) Load a disk image.
+(Removed as of 4.05, added 1.65; ISOLINUX only: .img) Load a disk image.
 
 *LOCALBOOT* 'type'::
 Attempt a different local boot method.  The special value -1 causes the boot loader to report failure to the BIOS, which, on recent BIOSes, should mean that the next boot device in the boot sequence should be activated.  Values other than those documented may produce undesired results.
