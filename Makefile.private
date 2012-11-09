@@ -36,10 +36,10 @@ burn: isolinux.iso
 	cdrecord -v blank=fast isolinux.iso
 
 official:
-	$(MAKE) spotless CC='$(CC) -m32'
-	$(MAKE) all CC='$(CC) -m32'
-	$(MAKE) strip CC='$(CC) -m32'
-	$(MAKE) dist CC='$(CC) -m32'
+	$(MAKE) spotless CC='$(CC) -m32' SRC=$(topdir) OBJ=$(CURDIR)
+	$(MAKE) all CC='$(CC) -m32' SRC=$(topdir) OBJ=$(CURDIR)
+	$(MAKE) strip CC='$(CC) -m32' SRC=$(topdir) OBJ=$(CURDIR)
+	$(MAKE) dist CC='$(CC) -m32' SRC=$(topdir) OBJ=$(CURDIR)
 
 release:
 	test -d release

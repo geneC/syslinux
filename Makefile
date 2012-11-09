@@ -68,7 +68,12 @@ $(if $(cd-output),, \
 MAKEDIR = $(topdir)/mk
 export MAKEDIR topdir OBJDIR
 
+include $(MAKEDIR)/syslinux.mk
 -include $(OBJDIR)/version.mk
+
+# Hook to add private Makefile targets for the maintainer.
+-include $(topdir)/Makefile.private
+private-targets = prerel unprerel official release burn isolinux.iso
 
 ifeq ($(MAKECMDGOALS),)
 	MAKECMDGOALS += all
@@ -92,14 +97,15 @@ ifeq ($(real-firmware),)
 	real-firmware = $(firmware)
 endif
 
-.PHONY: $(MAKECMDGOALS)
-$(MAKECMDGOALS):
+.PHONY: $(filter-out $(private-targets), $(MAKECMDGOALS))
+$(filter-out $(private-targets), $(MAKECMDGOALS)):
 	$(MAKE) -C $(OBJDIR) -f $(CURDIR)/Makefile SRC="$(topdir)" \
 		OBJ=$(OBJDIR) objdir=$(OBJDIR) $(MAKECMDGOALS)
 
 else # ifeq ($(topdir),)
 
-include $(MAKEDIR)/syslinux.mk
+# Hook to add private Makefile targets for the maintainer.
+-include $(topdir)/Makefile.private
 
 #
 # The BTARGET refers to objects that are derived from ldlinux.asm; we
