@@ -104,6 +104,8 @@ $(filter-out $(private-targets), $(MAKECMDGOALS)):
 
 else # ifeq ($(topdir),)
 
+include $(MAKEDIR)/syslinux.mk
+
 # Hook to add private Makefile targets for the maintainer.
 -include $(topdir)/Makefile.private
 
