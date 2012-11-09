@@ -60,12 +60,14 @@ install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 	install -m 755 $(BTARGET) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 
+strip:
+
 tidy dist:
-	rm -f *.so *.o
+	rm -f *.so *.o wrapper
 	find . \( -name \*.o -o -name \*.a -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
 
 clean: tidy
 
 spotless: clean
-	rm -f $(BTARGET) wrapper
+	rm -f $(BTARGET)
