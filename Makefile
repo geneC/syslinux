@@ -30,13 +30,12 @@ topdir = $(CURDIR)
 #
 # The output directory can be customised by setting the O=/obj/path/
 # variable when invoking make. If no value is specified the default
-# directory is 'obj'.
+# directory is the top-level of the Syslinux source.
 #
 ifeq ("$(origin O)", "command line")
 	OBJDIR := $(O)
 else
-	OBJDIR = $(CURDIR)/obj
-	foo := $(shell mkdir -p $(OBJDIR) && /bin/true)
+	OBJDIR = $(topdir)
 endif
 
 # If the output directory does not exist we bail because that is the
