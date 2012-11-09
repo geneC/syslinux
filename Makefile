@@ -73,7 +73,8 @@ include $(MAKEDIR)/syslinux.mk
 
 # Hook to add private Makefile targets for the maintainer.
 -include $(topdir)/Makefile.private
-private-targets = prerel unprerel official release burn isolinux.iso
+private-targets = prerel unprerel official release burn isolinux.iso \
+		  preupload upload
 
 ifeq ($(MAKECMDGOALS),)
 	MAKECMDGOALS += all
