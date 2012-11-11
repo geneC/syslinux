@@ -22,14 +22,13 @@ A2X_OPTS	 = -k
 # A2X_OPTS	+= -v
 A2X_MAN_OPTS	 = -D man
 
-DOCS1 		 = syslinux.txt cli.txt
-DOCS5		 = config.txt
-HTML_DOCS	:= $(patsubst %.txt,html/%.html,$(DOCS1) $(DOCS5)) 
-XHTML_DOCS	:= $(patsubst %.txt,%.html,$(DOCS1) $(DOCS5))
-# MAN_DOCS	:= $(patsubst %.txt,man/%.1,$(DOCS1)) $(patsubst %.txt,man/%.5,$(DOCS5))
+DOCS 		 = syslinux.txt cli.txt config.txt
 MAN_DOCS	 = man/syslinux.1 man/syslinux-cli.1 man/syslinux.cfg.5
-TEXT_DOCS	:= $(patsubst %.txt,%.text,$(DOCS1) $(DOCS5))
-PDF_DOCS	:= $(patsubst %.txt,%.pdf,$(DOCS1) $(DOCS5))
+HTML_DOCS	:= $(patsubst %.txt,html/%.html,$(DOCS)) 
+XHTML_DOCS	:= $(patsubst %.txt,%.html,$(DOCS))
+# MAN_DOCS	:= $(patsubst %.txt,man/%.1,$(DOCS1)) $(patsubst %.txt,man/%.5,$(DOCS5))
+TEXT_DOCS	:= $(patsubst %.txt,%.text,$(DOCS))
+PDF_DOCS	:= $(patsubst %.txt,%.pdf,$(DOCS))
 
 
 all:	$(HTML_DOCS) $(MAN_DOCS) $(XHTML_DOCS) $(TEXT_DOCS)
