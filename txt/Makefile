@@ -22,11 +22,12 @@ A2X_OPTS	 = -k
 # A2X_OPTS	+= -v
 A2X_MAN_OPTS	 = -D man
 
-DOCS1 		 = syslinux.txt
-DOCS5		 = syslxcfg.txt
+DOCS1 		 = syslinux.txt cli.txt
+DOCS5		 = config.txt
 HTML_DOCS	:= $(patsubst %.txt,html/%.html,$(DOCS1) $(DOCS5)) 
 XHTML_DOCS	:= $(patsubst %.txt,%.html,$(DOCS1) $(DOCS5))
-MAN_DOCS	:= $(patsubst %.txt,man/%.1,$(DOCS1)) $(patsubst %.txt,man/%.5,$(DOCS5))
+# MAN_DOCS	:= $(patsubst %.txt,man/%.1,$(DOCS1)) $(patsubst %.txt,man/%.5,$(DOCS5))
+MAN_DOCS	 = man/syslinux.1 man/syslinux-cli.1 man/syslinux.cfg.5
 TEXT_DOCS	:= $(patsubst %.txt,%.text,$(DOCS1) $(DOCS5))
 PDF_DOCS	:= $(patsubst %.txt,%.pdf,$(DOCS1) $(DOCS5))
 
@@ -52,19 +53,18 @@ html/%.html:	%.txt
 %.xml:	%.txt
 	a2x $(A2X_OPTS) -f docbook $<
 
+# when %.xml is missing, an update to %.txt must force regeneration
 %.html:	%.xml %.txt
 	a2x $(A2X_OPTS) -f xhtml $<
 
-man/%.1:	%.txt
+man/syslinux.1:	syslinux.txt
 	a2x $(A2X_MAN_OPTS) -f manpage $<
 
-# %.5:	%.xml %.txt
-# 	a2x $(A2X_OPTS) -f manpage $<
-
-man/syslinux.cfg.5:	syslxcfg.txt
+man/syslinux-cli.1:	cli.txt
 	a2x $(A2X_MAN_OPTS) -f manpage $<
 
-man/syslxcfg.5:	man/syslinux.cfg.5
+man/syslinux.cfg.5:	config.txt
+	a2x $(A2X_MAN_OPTS) -f manpage $<
 
 %.text:	%.xml %.txt
 	a2x $(A2X_OPTS) -f text $<
@@ -78,6 +78,6 @@ tidy dist:
 clean: tidy
 
 spotless: clean
-	rm -f *.1 *.5 *.css *.html *.text html/*.html text/*.text xhtml/*.html xhtml/*.css
+	rm -f *.1 *.5 *.css *.html *.text html/*.html man/*.1 man/*.5 text/*.text xhtml/*.html xhtml/*.css
 
 -include .*.d
