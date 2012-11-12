@@ -100,7 +100,7 @@ uint8_t KeepPXE;
 volatile uint32_t __ms_timer = 0;
 volatile uint32_t __jiffies = 0;
 
-static void efi_write_char(uint8_t ch, uint8_t attribute)
+void efi_write_char(uint8_t ch, uint8_t attribute)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	uint16_t c[2];

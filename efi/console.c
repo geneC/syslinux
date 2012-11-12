@@ -5,7 +5,7 @@ extern EFI_GUID GraphicsOutputProtocol;
 
 void writechr(char data)
 {
-	Print(L"Wanted to print something\n");
+	efi_write_char(data, 0);
 }
 
 static inline EFI_STATUS open_protocol(EFI_HANDLE handle, EFI_GUID *protocol,

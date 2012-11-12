@@ -13,4 +13,6 @@ extern EFI_HANDLE image_handle;
 struct screen_info;
 extern void setup_screen(struct screen_info *);
 
+extern void efi_write_char(uint8_t, uint8_t);
+
 #endif /* _SYSLINUX_EFI_H */
