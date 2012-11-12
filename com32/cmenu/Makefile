@@ -40,7 +40,7 @@ MENUS = $(LIBS) $(CMENUS) $(IMENUS)
 
 .PRECIOUS: %.c
 %.c: %.menu adv_menu.tpl
-	python menugen.py --input=$< --output=$@ --template=adv_menu.tpl
+	$(PYTHON) menugen.py --input=$< --output=$@ --template=adv_menu.tpl
 
 all:	menus
 

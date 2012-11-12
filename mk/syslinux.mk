@@ -36,6 +36,7 @@ NASM	 = nasm
 NASMOPT  = -Ox
 
 PERL	 = perl
+PYTHON	 = python
 UPX	 = upx
 
 CHMOD	 = chmod
