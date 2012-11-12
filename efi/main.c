@@ -614,9 +614,9 @@ static void free_addr(EFI_PHYSICAL_ADDRESS addr, size_t size)
 }
 
 /* cancel the established timer */
-static void cancel_timer(EFI_EVENT ev)
+static EFI_STATUS cancel_timer(EFI_EVENT ev)
 {
-	uefi_call_wrapper(BS->SetTimer, 3, ev, TimerCancel, 0);
+	return uefi_call_wrapper(BS->SetTimer, 3, ev, TimerCancel, 0);
 }
 
 /* Check if timer went off and update default timer counter */
@@ -1111,9 +1111,16 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	priv.dev_handle = info->DeviceHandle;
 	fs_init(ops, &priv);
 	load_env32();
-	/* load_env32() failed.. cancel timer and bailout */
-	cancel_timer(timer_ev);
 
+	/* load_env32() failed.. cancel timer and bailout */
+	status = cancel_timer(timer_ev);
+	if (status != EFI_SUCCESS)
+		Print(L"Failed to cancel EFI timer: %x\n", status);
+
+	/*
+	 * Tell the firmware that Syslinux failed to load.
+	 */
+	status = EFI_LOAD_ERROR;
 out:
 	return status;
 }
