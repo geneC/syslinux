@@ -627,14 +627,14 @@ void timer_handler(EFI_EVENT ev, VOID *ctx)
 }
 
 /* Setup a default periodic timer */
-static EFI_STATUS setup_default_timer(EFI_EVENT ev)
+static EFI_STATUS setup_default_timer(EFI_EVENT *ev)
 {
 	EFI_STATUS efi_status;
 
-	ev = NULL;
-    	efi_status = uefi_call_wrapper( BS->CreateEvent, 5, EVT_TIMER|EVT_NOTIFY_SIGNAL, TPL_NOTIFY, (EFI_EVENT_NOTIFY)timer_handler, NULL, &ev);
+	*ev = NULL;
+	efi_status = uefi_call_wrapper( BS->CreateEvent, 5, EVT_TIMER|EVT_NOTIFY_SIGNAL, TPL_NOTIFY, (EFI_EVENT_NOTIFY)timer_handler, NULL, ev);
 	if (efi_status == EFI_SUCCESS) {
-		efi_status = uefi_call_wrapper(BS->SetTimer, 3, ev, TimerPeriodic, DEFAULT_TIMER_TICK_DURATION); 
+		efi_status = uefi_call_wrapper(BS->SetTimer, 3, *ev, TimerPeriodic, DEFAULT_TIMER_TICK_DURATION);
 	}
 	return efi_status;
 }
@@ -1099,7 +1099,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 		goto out;
 	}
 	/* setup timer for boot menu system support */
-	status = setup_default_timer(timer_ev);
+	status = setup_default_timer(&timer_ev);
 	if (status != EFI_SUCCESS) {
 		printf("Failed to set up EFI timer support, bailing out\n");
 		goto out;
