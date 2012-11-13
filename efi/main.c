@@ -15,7 +15,7 @@ uint16_t PXERetry;
 char copyright_str[] = "Copyright (C) 2011\n";
 uint8_t SerialNotice = 1;
 char syslinux_banner[] = "Syslinux 5.x (EFI)\n";
-char CurrentDirName[FILENAME_MAX];
+char CurrentDirName[CURRENTDIR_MAX];
 struct com32_sys_args __com32;
 
 uint32_t _IdleTimer = 0;
@@ -1070,6 +1070,37 @@ char free_high_memory[4096];
 extern char __bss_start[];
 extern char __bss_end[];
 
+static void efi_setcwd(CHAR16 *dp)
+{
+	CHAR16 *c16;
+	char *c8;
+	int i, j;
+
+	/* Search for the start of the last path component */
+	for (i = StrLen(dp) - 1; i >= 0; i--) {
+		if (dp[i] == '\\' || dp[i] == '/')
+			break;
+	}
+
+	if (i < 0 || i > CURRENTDIR_MAX) {
+		dp = L"\\";
+		i = 1;
+	}
+
+	c8 = CurrentDirName;
+	c16 = dp;
+
+	for (j = 0; j < i; j++) {
+		if (*c16 == '\\') {
+			*c8++ = '/';
+			c16++;
+		} else
+			*c8++ = *c16++;
+	}
+
+	*c8 = '\0';
+}
+
 EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 {
 	EFI_LOADED_IMAGE *info;
@@ -1109,7 +1140,15 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 
 	/* XXX figure out what file system we're on */
 	priv.dev_handle = info->DeviceHandle;
+
+	/*
+	 * Set the current working directory, which should be the
+	 * directory that syslinux.efi resides in.
+	 */
+	efi_setcwd(DevicePathToStr(info->FilePath));
+
 	fs_init(ops, &priv);
+
 	load_env32();
 
 	/* load_env32() failed.. cancel timer and bailout */
