@@ -90,7 +90,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	if (loadfile(kernel_name, &kernel_data, &kernel_len)) {
 		if (opt_quiet)
 			printf("Loading %s ", kernel_name);
-		printf("failed!\n");
+		printf("failed: ");
 		goto bail;
 	}
 
@@ -121,7 +121,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 		    if (initramfs_load_archive(initramfs, initrd_name)) {
 			if (opt_quiet)
 			    printf("Loading %s ", initrd_name);
-			printf("failed!\n");
+			printf("failed: ");
 			goto bail;
 		    }
 
@@ -132,8 +132,9 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 
 	/* This should not return... */
 	syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, cmdline);
+	printf("Booting kernel failed: ");
 
 bail:
-	printf("Kernel load failure (insufficient memory?)\n");
+	printf("%s\n", strerror(errno));
 	return 1;
 }
