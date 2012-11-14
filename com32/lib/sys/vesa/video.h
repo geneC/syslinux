@@ -51,6 +51,14 @@ struct vesa_char {
     attr_t attr;		/* Color table index */
 };
 
+struct win_info {
+    char *win_base;
+    size_t win_pos;
+    size_t win_size;
+    int win_gshift;
+    int win_num;
+};
+
 /* Pixel formats in order of decreasing preference; PXF_NONE should be last */
 /* BGR24 is preferred over BGRA32 since the I/O overhead is smaller. */
 enum vesa_pixel_format {

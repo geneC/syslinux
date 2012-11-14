@@ -22,19 +22,11 @@ LIBJPG_OBJS = \
 	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
 	jpeg/rgba32.o jpeg/bgra32.o					
 
-ifndef EFI_BUILD
 LIBVESA_OBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
-	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
+	sys/vesa/alphatbl.o sys/vesa/fmtpixel.o				\
 	sys/vesa/i915resolution.o
-else
-LIBVESA_OBJS = \
-	sys/vesacon_write.o sys/vesaserial_write.o			\
-	sys/vesa/efi/initvesa.o sys/vesa/efi/drawtxt.o	sys/vesa/efi/background.o	\
-	sys/vesa/alphatbl.o sys/vesa/efi/screencpy.o sys/vesa/efi/fmtpixel.o	\
-	sys/vesa/efi/i915resolution.o
-endif
 
 LIBMISC_OBJS = \
 	sys/libansi.o sys/gpxe.o
@@ -124,12 +116,7 @@ errlist.c: makeerrlist.pl $(SRC)/../include/errno.h
 	$(PERL) $<  $(CFLAGS) -errlist > $@ || rm -f $@
 
 # These files are performance critical, and doesn't compile well with -Os
-#FIXME: determine if drawtxt.c is really EFI-dependent
-#ifndef EFI_BUILD
 sys/vesa/drawtxt.o: sys/vesa/drawtxt.c
-#else
-sys/vesa/efi/drawtxt.o: sys/vesa/efi/drawtxt.c
-#endif
 	$(CC) $(MAKEDEPS) $(CFLAGS) -O3 -c -o $@ $<
 
 sys/vesa/alphatbl.c: sys/vesa/alphatbl.pl

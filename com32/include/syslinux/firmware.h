@@ -27,6 +27,16 @@ struct adv_ops {
 	int (*write)(void);
 };
 
+struct vesa_info;
+enum vesa_pixel_format;
+struct win_info;
+
+struct vesa_ops {
+	int (*set_mode)(struct vesa_info *, int *, int *, enum vesa_pixel_format *);
+	void (*screencpy)(size_t, const uint32_t *, size_t, struct win_info *);
+	int (*font_query)(uint8_t **);
+};
+
 struct disk_private;
 struct initramfs;
 struct setup_data;
@@ -44,6 +54,7 @@ struct firmware {
 	struct adv_ops *adv_ops;
 	int (*boot_linux)(void *, size_t, struct initramfs *,
 			  struct setup_data *, char *);
+	struct vesa_ops *vesa;
 };
 
 extern struct firmware *firmware;

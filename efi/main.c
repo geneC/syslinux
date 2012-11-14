@@ -1044,7 +1044,7 @@ bail:
 extern struct disk *efi_disk_init(EFI_HANDLE);
 extern void serialcfg(uint16_t *, uint16_t *, uint16_t *);
 
-
+extern struct vesa_ops efi_vesa_ops;
 
 struct firmware efi_fw = {
 	.init = efi_init,
@@ -1056,6 +1056,7 @@ struct firmware efi_fw = {
 	.ipappend_strings = efi_ipappend_strings,
 	.adv_ops = &efi_adv_ops,
 	.boot_linux = efi_boot_linux,
+	.vesa = &efi_vesa_ops,
 };
 
 static inline void syslinux_register_efi(void)

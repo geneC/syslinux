@@ -363,7 +363,7 @@ void using_vga(uint8_t vga, uint16_t pix_cols, uint16_t pix_rows)
     GXPixRows = pix_rows;
 
     if (!(UsingVGA & 0x08))
-        bios_adjust_screen();
+        adjust_screen();
 }
 
 void pm_using_vga(com32sys_t *regs)

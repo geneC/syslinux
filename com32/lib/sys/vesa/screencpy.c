@@ -34,13 +34,8 @@
 #include "vesa.h"
 #include "video.h"
 
-static struct win_info {
-    char *win_base;
-    size_t win_pos;
-    size_t win_size;
-    int win_gshift;
-    int win_num;
-} wi;
+
+static struct win_info wi;
 
 void __vesacon_init_copy_to_screen(void)
 {
@@ -71,47 +66,12 @@ void __vesacon_init_copy_to_screen(void)
     }
 }
 
-static void set_window_pos(size_t win_pos)
-{
-    static com32sys_t ireg;
-
-    wi.win_pos = win_pos;
-
-    if (wi.win_num < 0)
-	return;			/* This should never happen... */
-
-    ireg.eax.w[0] = 0x4F05;
-    ireg.ebx.b[0] = wi.win_num;
-    ireg.edx.w[0] = win_pos >> wi.win_gshift;
-
-    __intcall(0x10, &ireg, NULL);
-}
-
 void __vesacon_copy_to_screen(size_t dst, const uint32_t * src, size_t npixels)
 {
-    size_t win_pos, win_off;
-    size_t win_size = wi.win_size;
-    size_t omask = win_size - 1;
-    char *win_base = wi.win_base;
-    size_t l;
     size_t bytes = npixels * __vesacon_bytes_per_pixel;
     char rowbuf[bytes + 4] __aligned(4);
     const char *s;
 
     s = (const char *)__vesacon_format_pixels(rowbuf, src, npixels);
-
-    while (bytes) {
-	win_off = dst & omask;
-	win_pos = dst & ~omask;
-
-	if (__unlikely(win_pos != wi.win_pos))
-	    set_window_pos(win_pos);
-
-	l = min(bytes, win_size - win_off);
-	memcpy(win_base + win_off, s, l);
-
-	bytes -= l;
-	s += l;
-	dst += l;
-    }
+    firmware->vesa->screencpy(dst, s, bytes, &wi);
 }

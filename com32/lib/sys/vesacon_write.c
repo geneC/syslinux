@@ -43,11 +43,7 @@
 #include <syslinux/config.h>
 #include "ansi.h"
 #include "file.h"
-#ifndef SYSLINUX_EFI
 #include "vesa/video.h"
-#else
-#include "vesa/efi/video.h"	/* FIXME: move to video.h */
-#endif
 
 static void vesacon_erase(const struct term_state *, int, int, int, int);
 static void vesacon_write_char(int, int, uint8_t, const struct term_state *);

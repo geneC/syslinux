@@ -7,6 +7,11 @@
 #include <syslinux/memscan.h>
 #include <syslinux/firmware.h>
 
+#include <sys/vesa/vesa.h>
+#include <sys/vesa/video.h>
+#include <sys/vesa/debug.h>
+#include <minmax.h>
+
 struct firmware *firmware = NULL;
 
 extern struct ansi_ops bios_ansi_ops;
@@ -202,6 +207,258 @@ struct adv_ops bios_adv_ops = {
 	.write = bios_adv_write,
 };
 
+
+static int __constfunc is_power_of_2(unsigned int x)
+{
+    return x && !(x & (x - 1));
+}
+
+static int vesacon_paged_mode_ok(const struct vesa_mode_info *mi)
+{
+    int i;
+
+    if (!is_power_of_2(mi->win_size) ||
+	!is_power_of_2(mi->win_grain) || mi->win_grain > mi->win_size)
+	return 0;		/* Impossible... */
+
+    for (i = 0; i < 2; i++) {
+	if ((mi->win_attr[i] & 0x05) == 0x05 && mi->win_seg[i])
+	    return 1;		/* Usable window */
+    }
+
+    return 0;			/* Nope... */
+}
+
+static int bios_vesacon_set_mode(struct vesa_info *vesa_info, int *px, int *py,
+				 enum vesa_pixel_format *bestpxf)
+{
+    com32sys_t rm;
+    uint16_t mode, bestmode, *mode_ptr;
+    struct vesa_info *vi;
+    struct vesa_general_info *gi;
+    struct vesa_mode_info *mi;
+    enum vesa_pixel_format pxf;
+    int x = *px, y = *py;
+    int err = 0;
+
+    /* Allocate space in the bounce buffer for these structures */
+    vi = lzalloc(sizeof *vi);
+    if (!vi) {
+	err = 10;		/* Out of memory */
+	goto exit;
+    }
+    gi = &vi->gi;
+    mi = &vi->mi;
+
+    memset(&rm, 0, sizeof rm);
+
+    gi->signature = VBE2_MAGIC;	/* Get VBE2 extended data */
+    rm.eax.w[0] = 0x4F00;	/* Get SVGA general information */
+    rm.edi.w[0] = OFFS(gi);
+    rm.es = SEG(gi);
+    __intcall(0x10, &rm, &rm);
+
+    if (rm.eax.w[0] != 0x004F) {
+	err = 1;		/* Function call failed */
+	goto exit;
+    }
+    if (gi->signature != VESA_MAGIC) {
+	err = 2;		/* No magic */
+	goto exit;
+    }
+    if (gi->version < 0x0102) {
+	err = 3;		/* VESA 1.2+ required */
+	goto exit;
+    }
+
+    /* Copy general info */
+    memcpy(&vesa_info->gi, gi, sizeof *gi);
+
+    /* Search for the proper mode with a suitable color and memory model... */
+
+    mode_ptr = GET_PTR(gi->video_mode_ptr);
+    bestmode = 0;
+    *bestpxf = PXF_NONE;
+
+    while ((mode = *mode_ptr++) != 0xFFFF) {
+	mode &= 0x1FF;		/* The rest are attributes of sorts */
+
+	debug("Found mode: 0x%04x\r\n", mode);
+
+	memset(mi, 0, sizeof *mi);
+	rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
+	rm.ecx.w[0] = mode;
+	rm.edi.w[0] = OFFS(mi);
+	rm.es = SEG(mi);
+	__intcall(0x10, &rm, &rm);
+
+	/* Must be a supported mode */
+	if (rm.eax.w[0] != 0x004f)
+	    continue;
+
+	debug
+	    ("mode_attr 0x%04x, h_res = %4d, v_res = %4d, bpp = %2d, layout = %d (%d,%d,%d)\r\n",
+	     mi->mode_attr, mi->h_res, mi->v_res, mi->bpp, mi->memory_layout,
+	     mi->rpos, mi->gpos, mi->bpos);
+
+	/* Must be an LFB color graphics mode supported by the hardware.
+
+	   The bits tested are:
+	   4 - graphics mode
+	   3 - color mode
+	   1 - mode information available (mandatory in VBE 1.2+)
+	   0 - mode supported by hardware
+	 */
+	if ((mi->mode_attr & 0x001b) != 0x001b)
+	    continue;
+
+	/* Must be the chosen size */
+	if (mi->h_res != x || mi->v_res != y)
+	    continue;
+
+	/* We don't support multibank (interlaced memory) modes */
+	/*
+	 *  Note: The Bochs VESA BIOS (vbe.c 1.58 2006/08/19) violates the
+	 * specification which states that banks == 1 for unbanked modes;
+	 * fortunately it does report bank_size == 0 for those.
+	 */
+	if (mi->banks > 1 && mi->bank_size) {
+	    debug("bad: banks = %d, banksize = %d, pages = %d\r\n",
+		  mi->banks, mi->bank_size, mi->image_pages);
+	    continue;
+	}
+
+	/* Must be either a flat-framebuffer mode, or be an acceptable
+	   paged mode */
+	if (!(mi->mode_attr & 0x0080) && !vesacon_paged_mode_ok(mi)) {
+	    debug("bad: invalid paged mode\r\n");
+	    continue;
+	}
+
+	/* Must either be a packed-pixel mode or a direct color mode
+	   (depending on VESA version ); must be a supported pixel format */
+	pxf = PXF_NONE;		/* Not usable */
+
+	if (mi->bpp == 32 &&
+	    (mi->memory_layout == 4 ||
+	     (mi->memory_layout == 6 && mi->rpos == 16 && mi->gpos == 8 &&
+	      mi->bpos == 0)))
+	    pxf = PXF_BGRA32;
+	else if (mi->bpp == 24 &&
+		 (mi->memory_layout == 4 ||
+		  (mi->memory_layout == 6 && mi->rpos == 16 && mi->gpos == 8 &&
+		   mi->bpos == 0)))
+	    pxf = PXF_BGR24;
+	else if (mi->bpp == 16 &&
+		 (mi->memory_layout == 4 ||
+		  (mi->memory_layout == 6 && mi->rpos == 11 && mi->gpos == 5 &&
+		   mi->bpos == 0)))
+	    pxf = PXF_LE_RGB16_565;
+	else if (mi->bpp == 15 &&
+		 (mi->memory_layout == 4 ||
+		  (mi->memory_layout == 6 && mi->rpos == 10 && mi->gpos == 5 &&
+		   mi->bpos == 0)))
+	    pxf = PXF_LE_RGB15_555;
+
+	if (pxf < *bestpxf) {
+	    debug("Best mode so far, pxf = %d\r\n", pxf);
+
+	    /* Best mode so far... */
+	    bestmode = mode;
+	    *bestpxf = pxf;
+
+	    /* Copy mode info */
+	    memcpy(&vesa_info->mi, mi, sizeof *mi);
+	}
+    }
+
+    if (*bestpxf == PXF_NONE) {
+	err = 4;		/* No mode found */
+	goto exit;
+    }
+
+    mi = &vesa_info->mi;
+    mode = bestmode;
+
+    /* Now set video mode */
+    rm.eax.w[0] = 0x4F02;	/* Set SVGA video mode */
+    if (mi->mode_attr & 0x0080)
+	mode |= 0x4000;		/* Request linear framebuffer if supported */
+    rm.ebx.w[0] = mode;
+    __intcall(0x10, &rm, &rm);
+    if (rm.eax.w[0] != 0x004F) {
+	err = 9;		/* Failed to set mode */
+	goto exit;
+    }
+
+exit:
+    if (vi)
+	lfree(vi);
+
+    return err;
+}
+
+static void set_window_pos(struct win_info *wi, size_t win_pos)
+{
+    static com32sys_t ireg;
+
+    wi->win_pos = win_pos;
+
+    if (wi->win_num < 0)
+	return;			/* This should never happen... */
+
+    ireg.eax.w[0] = 0x4F05;
+    ireg.ebx.b[0] = wi->win_num;
+    ireg.edx.w[0] = win_pos >> wi->win_gshift;
+
+    __intcall(0x10, &ireg, NULL);
+}
+
+static void bios_vesacon_screencpy(size_t dst, const uint32_t * src,
+				   size_t bytes, struct win_info *wi)
+{
+    size_t win_pos, win_off;
+    size_t win_size = wi->win_size;
+    size_t omask = win_size - 1;
+    char *win_base = wi->win_base;
+    size_t l;
+
+    while (bytes) {
+	win_off = dst & omask;
+	win_pos = dst & ~omask;
+
+	if (__unlikely(win_pos != wi->win_pos))
+	    set_window_pos(wi, win_pos);
+
+	l = min(bytes, win_size - win_off);
+	memcpy(win_base + win_off, src, l);
+
+	bytes -= l;
+	src += l;
+	dst += l;
+    }
+}
+
+static int bios_font_query(uint8_t **font)
+{
+    com32sys_t rm;
+
+    /* Get BIOS 8x16 font */
+
+    rm.eax.w[0] = 0x1130;	/* Get Font Information */
+    rm.ebx.w[0] = 0x0600;	/* Get 8x16 ROM font */
+    __intcall(0x10, &rm, &rm);
+    *font = MK_PTR(rm.es, rm.ebp.w[0]);
+
+    return 16;
+
+}
+struct vesa_ops bios_vesa_ops = {
+	.set_mode  = bios_vesacon_set_mode,
+	.screencpy = bios_vesacon_screencpy,
+	.font_query = bios_font_query,
+};
+
 static uint32_t min_lowmem_heap = 65536;
 extern char __lowmem_heap[];
 uint8_t KbdFlags;		/* Check for keyboard escapes */
@@ -293,6 +550,7 @@ struct firmware bios_fw = {
 	.ipappend_strings = bios_ipappend_strings,
 	.get_serial_console_info = bios_get_serial_console_info,
 	.adv_ops = &bios_adv_ops,
+	.vesa = &bios_vesa_ops,
 };
 
 void syslinux_register_bios(void)

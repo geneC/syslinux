@@ -18,6 +18,7 @@
  *
  */
 
+#include <syslinux/firmware.h>
 #include <sys/io.h>
 #include <stdio.h>
 #include <fs.h>
@@ -174,9 +175,15 @@ void bios_adjust_screen(void)
 	VidCols = --cols;	/* Store count-1 (same as rows) */
 }
 
+void adjust_screen(void)
+{
+	if (firmware->adjust_screen)
+		firmware->adjust_screen();
+}
+
 void pm_adjust_screen(com32sys_t *regs __unused)
 {
-	bios_adjust_screen();
+	adjust_screen();
 }
 
 void pm_userfont(com32sys_t *regs)

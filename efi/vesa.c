@@ -26,13 +26,6 @@
  *
  * ----------------------------------------------------------------------- */
 
-/*
- * initvesa.c
- *
- * Query the VESA BIOS and select a 640x480x32 mode with local mapping
- * support, if one exists.
- */
-
 #include <inttypes.h>
 #include <com32.h>
 #include <stdlib.h>
@@ -40,7 +33,6 @@
 #include <sys/fpu.h>
 #include <syslinux/video.h>
 #include <dprintf.h>
-#ifdef SYSLINUX_EFI
 #include <efi.h>
 #include <efilib.h>
 #include <efistdarg.h>
@@ -48,37 +40,10 @@
  * the header file below contains raw data parsed from cp865_8x16.psf
  */
 #include "cp865_8x16.h"
-#endif
-#include "vesa.h"
-#include "video.h"
-#include "fill.h"
-#include "debug.h"
-
-struct vesa_info __vesa_info;
-
-struct vesa_char *__vesacon_text_display;
-
-int __vesacon_font_height;
-int __vesacon_text_rows;
-int __vesacon_text_cols;
-enum vesa_pixel_format __vesacon_pixel_format = PXF_NONE;
-unsigned int __vesacon_bytes_per_pixel;
-uint8_t __vesacon_graphics_font[FONT_MAX_CHARS][FONT_MAX_HEIGHT];
-
-uint32_t *__vesacon_background, *__vesacon_shadowfb;
-
-static void unpack_font(uint8_t * dst, uint8_t * src, int height)
-{
-    int i;
-
-    for (i = 0; i < FONT_MAX_CHARS; i++) {
-	memcpy(dst, src, height);
-	memset(dst + height, 0, FONT_MAX_HEIGHT - height);
-
-	dst += FONT_MAX_HEIGHT;
-	src += height;
-    }
-}
+#include "sys/vesa/vesa.h"
+#include "sys/vesa/video.h"
+#include "sys/vesa/fill.h"
+#include "sys/vesa/debug.h"
 
 /* EFI GOP support
  * Note GOP support uses the VESA info structure as much as possible and
@@ -104,7 +69,16 @@ static void find_pixmask_bits(uint32_t mask, uint8_t *first_bit, uint8_t *len) {
     *first_bit = bit_pos;
     *len = bit_len;
 }
-static int vesacon_set_mode(int *x, int *y)
+
+unsigned long lfb_size;
+uint16_t lfb_line_size;
+uint8_t lfb_rsize;
+uint8_t lfb_gsize;
+uint8_t lfb_bsize;
+uint8_t lfb_resv_size;
+
+static int efi_vesacon_set_mode(struct vesa_info *vesa_info, int *x, int *y,
+				enum vesa_pixel_format *bestpxf)
 {
     EFI_GUID GraphicsOutputProtocolGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     EFI_GRAPHICS_OUTPUT_PROTOCOL *GraphicsOutput = NULL;
@@ -116,7 +90,6 @@ static int vesacon_set_mode(int *x, int *y)
     UINTN sz_info;
     struct vesa_info *vi;
     struct vesa_mode_info *mi;
-    enum vesa_pixel_format bestpxf = PXF_NONE;
     int err = 0;
 
     //debug("Hello, World!\r\n");
@@ -177,7 +150,7 @@ static int vesacon_set_mode(int *x, int *y)
     mi->h_res = *x;
     mi->v_res = *y;
     mi->lfb_ptr = (uint8_t *)(VOID *)(UINTN)gop_mode->FrameBufferBase;
-    mi->lfb_size = gop_mode->FrameBufferSize;
+    lfb_size = gop_mode->FrameBufferSize;
 
     /* FIXME: 
      * The code below treats bpp == lfb_depth ; verify
@@ -192,9 +165,9 @@ static int vesacon_set_mode(int *x, int *y)
 	mi->gpos = 8;
 	mi->bpos = 16;
 	mi->resv_pos = 24;
-	mi->resv_size = 8;
-	mi->logical_scan = mi->lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
-	bestpxf = PXF_BGRA32;
+	lfb_resv_size = 8;
+	mi->logical_scan = lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
+	*bestpxf = PXF_BGRA32;
 	dprintf("bpp %d pixperScanLine %d logical_scan %d bytesperPix %d\n", mi->bpp, mode_info->PixelsPerScanLine, 
 		mi->logical_scan, (mi->bpp + 7)>>3);
 	break;
@@ -206,9 +179,9 @@ static int vesacon_set_mode(int *x, int *y)
 	mi->gpos = 8;
 	mi->rpos = 16;
 	mi->resv_pos = 24;
-	mi->resv_size = 8;
-	mi->logical_scan = mi->lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
-	bestpxf = PXF_BGRA32;
+	lfb_resv_size = 8;
+	mi->logical_scan = lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
+	*bestpxf = PXF_BGRA32;
 	dprintf("bpp %d pixperScanLine %d logical_scan %d bytesperPix %d\n", mi->bpp, mode_info->PixelsPerScanLine, 
 		mi->logical_scan, (mi->bpp + 7)>>3);
 	break;
@@ -220,28 +193,28 @@ static int vesacon_set_mode(int *x, int *y)
 		mode_info->PixelInformation.BlueMask,
 		mode_info->PixelInformation.ReservedMask);
 	find_pixmask_bits(mode_info->PixelInformation.RedMask,
-                          &mi->rpos, &mi->lfb_rsize);
+                          &mi->rpos, &lfb_rsize);
 	find_pixmask_bits(mode_info->PixelInformation.GreenMask,
-                          &mi->gpos, &mi->lfb_gsize);
+                          &mi->gpos, &lfb_gsize);
 	find_pixmask_bits(mode_info->PixelInformation.BlueMask,
-                          &mi->bpos, &mi->lfb_bsize);
+                          &mi->bpos, &lfb_bsize);
 	find_pixmask_bits(mode_info->PixelInformation.ReservedMask,
-                          &mi->resv_pos, &mi->lfb_resv_size);
-	mi->bpp = mi->lfb_rsize + mi->lfb_gsize +
-                                  mi->lfb_bsize + mi->lfb_resv_size;
-	mi->logical_scan = mi->lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
-	dprintf("RPos %d Rsize %d GPos %d Gsize %d\n", mi->rpos, mi->lfb_rsize, mi->gpos, mi->lfb_gsize);
-	dprintf("BPos %d Bsize %d RsvP %d RsvSz %d\n", mi->bpos, mi->lfb_bsize, mi->resv_pos, mi->lfb_resv_size);
+                          &mi->resv_pos, &lfb_resv_size);
+	mi->bpp = lfb_rsize + lfb_gsize +
+                                  lfb_bsize + lfb_resv_size;
+	mi->logical_scan = lfb_line_size = (mode_info->PixelsPerScanLine * mi->bpp) / 8;
+	dprintf("RPos %d Rsize %d GPos %d Gsize %d\n", mi->rpos, lfb_rsize, mi->gpos, lfb_gsize);
+	dprintf("BPos %d Bsize %d RsvP %d RsvSz %d\n", mi->bpos, lfb_bsize, mi->resv_pos, lfb_resv_size);
 	dprintf("bpp %d logical_scan %d bytesperPix %d\n", mi->bpp, mi->logical_scan, (mi->bpp + 7)>>3);
 	switch (mi->bpp) {
 	case 32:
-		bestpxf = PXF_BGRA32;
+		*bestpxf = PXF_BGRA32;
 		break;
 	case 24:
-		bestpxf = PXF_BGR24;
+		*bestpxf = PXF_BGR24;
 		break;
 	case 16:
-		bestpxf = PXF_LE_RGB16_565;
+		*bestpxf = PXF_LE_RGB16_565;
 		break;
 	default:
 		dprintf("Unable to handle bits per pixel %d, bailing out\n", mi->bpp);
@@ -262,31 +235,7 @@ static int vesacon_set_mode(int *x, int *y)
 	break;
     }		   
     
-    memcpy(&__vesa_info.mi, mi, sizeof *mi);
-    mi = &__vesa_info.mi;
-    /* set up font info
-     * For now, font info is stored as raw data and used
-     * as such. Altenatively, the font data stored in a file 
-     * could be read and parsed. (note: for this, EFI
-     * file support should be exposed via firmware structure)
-     */
-    __vesacon_font_height = cp865_8x16_font_height;
-    unpack_font((uint8_t *) __vesacon_graphics_font,
-		(uint8_t *)cp865_8x16_font_data,
-		__vesacon_font_height);
-   
-    /* Free any existing data structures */
-    if (__vesacon_background) {
-	free(__vesacon_background);
-	__vesacon_background = NULL;
-    }
-    if (__vesacon_shadowfb) {
-	free(__vesacon_shadowfb);
-	__vesacon_shadowfb = NULL;
-    }
-
-    __vesacon_bytes_per_pixel = (mi->bpp + 7) >> 3;
-    __vesacon_format_pixels = __vesacon_format_pixels_list[bestpxf];
+    memcpy(&vesa_info->mi, mi, sizeof *mi);
 
     /* Now set video mode */
     st = uefi_call_wrapper(GraphicsOutput->SetMode, 2, GraphicsOutput, bestmode);
@@ -318,18 +267,6 @@ static int vesacon_set_mode(int *x, int *y)
       * those values can coincide.
       */
 
-    __vesacon_background = calloc(mi->lfb_line_size*mi->v_res, 4);
-    __vesacon_shadowfb = calloc(mi->lfb_line_size*mi->v_res, 4);
-
-    __vesacon_init_copy_to_screen();
-
-    /* Tell syslinux we changed video mode
-     * FIXME: The following call is BIOS-centric. I don't see an EFI-equivalent
-     * syslinux_report_video_mode(0x000f, mi->h_res, mi->v_res);
-     */
-
-    __vesacon_pixel_format = bestpxf;
-
 exit:
     if (vi)
 	free(vi);
@@ -337,62 +274,33 @@ exit:
     return err;
 }
 
-/* FIXME: 
- * Does init_text_display need an EFI counterpart?
- * e.g. vesa_char may need to setup UNICODE char for EFI
- * and the number of screen chars may need to be sized up
- * accordingly. This may also require turning byte strings
- * into unicode strings in the framebuffer
- * Possibly, revisit vesacon_fill() for EFI.
- */
-
-static int init_text_display(void)
+static void efi_vesacon_screencpy(size_t dst, const char *s,
+				  size_t bytes, struct win_info *wi)
 {
-    size_t nchars;
-    struct vesa_char *ptr;
-    struct vesa_char def_char = {
-	.ch = ' ',
-	.attr = 0,
-    };
-
-    if (__vesacon_text_display)
-	free(__vesacon_text_display);
-
-    __vesacon_text_cols = TEXT_PIXEL_COLS / FONT_WIDTH;
-    __vesacon_text_rows = TEXT_PIXEL_ROWS / __vesacon_font_height;
-    nchars = (__vesacon_text_cols+2) * (__vesacon_text_rows+2);
-
-    __vesacon_text_display = ptr = malloc(nchars * sizeof(struct vesa_char));
-
-    if (!ptr)
-	return -1;
-
-    vesacon_fill(ptr, def_char, nchars);
-    __vesacon_init_cursor(__vesacon_font_height);
-
-    return 0;
+    size_t win_off;
+    char *win_base = wi->win_base;
+ 
+    /* For EFI, we simply take the offset from the framebuffer and write to it
+     * FIXME: any gotchas?
+     */
+    win_off = dst;
+    memcpy(win_base + win_off, s, bytes);
 }
 
-/* On input, VESA initialization is passed a desirable resolution
- * On return, either the requested resolution is set or the system
- * supported default resolution is set and returned to the caller
- * This change is added for EFI enabled platforms.
- */
-int __vesacon_init(int *x, int *y)
+static int efi_vesacon_font_query(uint8_t **font)
 {
-    /* We need the FPU for graphics, at least libpng et al will need it... */
-    if (x86_init_fpu())
-	return 10;
-
-    vesacon_set_mode(x, y);
-    /* FIXME: Accessing Video BIOS from EFI will probably not work, skip it for now */
-
-    init_text_display();
-
-    debug("Mode set, now drawing at %#p\r\n", __vesa_info.mi.lfb_ptr);
-
-    __vesacon_init_background();
-
-    debug("Ready!\r\n");
-    return 0;
+    /* set up font info
+     * For now, font info is stored as raw data and used
+     * as such. Altenatively, the font data stored in a file 
+     * could be read and parsed. (note: for this, EFI
+     * file support should be exposed via firmware structure)
+     */
+    *font = (uint8_t *)cp865_8x16_font_data;
+    return cp865_8x16_font_height;
 }
+
+struct vesa_ops efi_vesa_ops = {
+	.set_mode = efi_vesacon_set_mode,
+	.screencpy = efi_vesacon_screencpy,
+	.font_query = efi_vesacon_font_query,
+};
