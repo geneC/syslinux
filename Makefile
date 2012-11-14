@@ -71,8 +71,6 @@ export MAKEDIR topdir OBJDIR
 include $(MAKEDIR)/syslinux.mk
 -include $(OBJDIR)/version.mk
 
-# Hook to add private Makefile targets for the maintainer.
--include $(topdir)/Makefile.private
 private-targets = prerel unprerel official release burn isolinux.iso \
 		  preupload upload
 
@@ -102,6 +100,9 @@ endif
 $(filter-out $(private-targets), $(MAKECMDGOALS)):
 	$(MAKE) -C $(OBJDIR) -f $(CURDIR)/Makefile SRC="$(topdir)" \
 		OBJ=$(OBJDIR) objdir=$(OBJDIR) $(MAKECMDGOALS)
+
+# Hook to add private Makefile targets for the maintainer.
+-include $(topdir)/Makefile.private
 
 else # ifeq ($(topdir),)
 
