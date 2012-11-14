@@ -16,16 +16,21 @@ ifeq ($(ARCH),i386)
 	SARCHOPT = -march=i386
 	CARCHOPT = -m32 -march=i386
 	EFI_SUBARCH = ia32
-	LIBDIR = /usr/local/lib
-	EFIINC = /usr/local/include/efi
 endif
 ifeq ($(ARCH),x86_64)
 	SARCHOPT = -march=x86-64
 	CARCHOPT = -m64 -march=x86-64
 	EFI_SUBARCH = $(ARCH)
-	EFIINC = /usr/include/efi
-	LIBDIR=/usr/lib64
 endif
+
+EFIINC = $(shell $(topdir)/efi//find-gnu-efi.sh include $(EFI_SUBARCH))
+$(if $(EFIINC),, \
+	$(error Missing $(EFI_SUBARCH) gnu-efi header files))
+
+LIBDIR = $(shell $(topdir)/efi/find-gnu-efi.sh lib $(EFI_SUBARCH))
+$(if $(LIBDIR),, \
+	$(error Missing $(EFI_SUBARCH) gnu-efi libraries))
+
 #LIBDIR=/usr/lib
 FORMAT=efi-app-$(EFI_SUBARCH)
 
