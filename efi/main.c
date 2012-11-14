@@ -27,6 +27,7 @@ uint8_t KbdMap[256];
 uint16_t VGAFontSize = 16;
 char aux_seg[256];
 uint8_t UserFont = 0;
+uint16_t BIOSName;
 
 #undef kaboom
 void kaboom(void)

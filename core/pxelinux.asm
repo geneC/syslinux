@@ -81,11 +81,12 @@ InitStack	resd 1
 PXEStack	resd 1			; Saved stack during PXE call
 
 		alignb 4
-                global DHCPMagic, RebootTime, StrucPtr
+                global DHCPMagic, RebootTime, StrucPtr, BIOSName
 RebootTime	resd 1			; Reboot timeout, if set by option
 StrucPtr	resw 2			; Pointer to PXENV+ or !PXE structure
 LocalBootType	resw 1			; Local boot return code
 DHCPMagic	resb 1			; PXELINUX magic flags
+BIOSName	resw 1			; Dummy variable - always 0
 
 		section .text16
 		global StackBuf
@@ -191,8 +192,7 @@ ROOT_FS_OPS:
 		call reset_idle
 
 ;
-; Now we're all set to start with our *real* business.	First load the
-; configuration file (if any) and parse it.
+; Now we're all set to start with our *real* business.
 ;
 ; In previous versions I avoided using 32-bit registers because of a
 ; rumour some BIOSes clobbered the upper half of 32-bit registers at
@@ -214,16 +214,6 @@ ROOT_FS_OPS:
 %macro	UNLOAD_PREP 0
 		pm_call unload_pxe
 %endmacro
-
-;
-; Open configuration file. ldlinux.c32 needs ConfigName to be set - so we need
-; to call open_config() before loading it.
-;
-; Note: We don't need to check return value of open_config() function. It will
-; call kaboom() on failure.
-;
-		extern open_config
-		pm_call open_config
 
 ;
 ; Jump to 32-bit ELF space

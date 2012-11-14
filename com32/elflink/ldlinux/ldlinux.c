@@ -216,41 +216,36 @@ static void enter_cmdline(void)
 		printf("\n");
 
 		/* return if user only press enter or we timed out */
-		if (!cmdline || cmdline[0] == '\0')
+		if (!cmdline || cmdline[0] == '\0') {
+			if (ontimeoutlen)
+				load_kernel(ontimeout);
 			return;
+		}
 
 		load_kernel(cmdline);
 	}
 }
 
-void ldlinux_enter_command(bool prompt)
+/*
+ * If this function returns you must call ldinux_enter_command() to
+ * preserve the 4.0x behaviour.
+ */
+void ldlinux_auto_boot(void)
 {
-	const char *cmdline = default_cmd;
-
-	if (prompt)
-		goto cmdline;
-auto_boot:
-	/*
-	 * Auto boot
-	 */
-	if (defaultlevel || noescape) {
-		if (defaultlevel) {
-			load_kernel(cmdline); /* Shouldn't return */
-		} else {
+	if (!defaultlevel) {
+		if (strlen(ConfigName))
 			printf("No DEFAULT or UI configuration directive found!\n");
+		if (noescape)
+			kaboom();
+	} else
+		load_kernel(default_cmd);
+}
 
-			if (noescape)
-				kaboom();
-		}
-	}
-
-cmdline:
-	/* Only returns if the user pressed enter or input timed out */
+void ldlinux_enter_command(void)
+{
+	if (noescape)
+		ldlinux_auto_boot();
 	enter_cmdline();
-
-	cmdline = ontimeoutlen ? ontimeout : default_cmd;
-
-	goto auto_boot;
 }
 
 /*
@@ -291,7 +286,7 @@ int main(int argc __unused, char **argv __unused)
 		cmdline = dst = malloc(count + 1);
 		if (!dst) {
 			printf("Failed to allocate memory for ADV\n");
-			ldlinux_enter_command(true);
+			ldlinux_enter_command();
 		}
 
 		for (i = 0; i < count; i++)
@@ -303,11 +298,16 @@ int main(int argc __unused, char **argv __unused)
 			syslinux_adv_write();
 
 		load_kernel(cmdline); /* Shouldn't return */
-		ldlinux_enter_command(true);
+		ldlinux_enter_command();
 	}
 
 	/* TODO: Check KbdFlags? */
+	if (!forceprompt)
+		ldlinux_auto_boot();
 
-	ldlinux_enter_command(forceprompt);
+	if (defaultlevel > 1)
+		ldlinux_auto_boot();
+
+	ldlinux_enter_command();
 	return 0;
 }

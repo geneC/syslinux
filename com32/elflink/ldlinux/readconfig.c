@@ -1420,7 +1420,10 @@ void parse_configs(char **argv)
     current_menu = root_menu;
 
     if (!argv || !*argv) {
-	parse_one_config(NULL);
+	if (parse_one_config(NULL) < 0) {
+	    printf("WARNING: No configuration file found\n");
+	    return;
+	}
     } else {
 	while ((filename = *argv++)) {
 		dprintf("Parsing config: %s", filename);

@@ -29,10 +29,6 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	cmdline = cmdline_buf;
 
 	temp = cmdline;
-	/*
-	strcpy(temp, "BOOT_IMAGE=");
-	temp += 11;
-	*/
 
 	if (okernel)
 		kernel_name = okernel;
@@ -42,36 +38,12 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	strcpy(temp, kernel_name);
 	temp += strlen(kernel_name);
 
-	/* in elflink branch, KernelCName no more exist */	
-	/*
-	else {
-		strcpy(temp, KernelCName);
-		temp += strlen(KernelCName);
-		kernel_name = KernelCName;
-	}
-	*/
-
 	*temp = ' ';
 	temp++;
 	if (ocmdline)
 		strcpy(temp, ocmdline);
 	else if (append)
 		strcpy(temp, append);
-	/*	
-	else if (*(char *)CmdOptPtr)
-		strcpy(temp, (char *)CmdOptPtr);
-	else if (AppendLen) {
-		for (i = 0; i < AppendLen; i++)
-			*temp++ = AppendBuf[i];
-		*temp = '\0';
-	}
-	*/
-
-	printf("cmdline = %s\n", cmdline);
-	/*
-	printf("VkernelEnd = %x\n", VKernelEnd);
-	printf("HighMemSize = %x\n", __com32.cs_memsize);
-	*/
 
 	/* "keeppxe" handling */
 #if IS_PXELINUX
@@ -90,7 +62,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	if (loadfile(kernel_name, &kernel_data, &kernel_len)) {
 		if (opt_quiet)
 			printf("Loading %s ", kernel_name);
-		printf("failed!\n");
+		printf("failed: ");
 		goto bail;
 	}
 
@@ -121,7 +93,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 		    if (initramfs_load_archive(initramfs, initrd_name)) {
 			if (opt_quiet)
 			    printf("Loading %s ", initrd_name);
-			printf("failed!\n");
+			printf("failed: ");
 			goto bail;
 		    }
 
@@ -132,8 +104,9 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 
 	/* This should not return... */
 	syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, cmdline);
+	printf("Booting kernel failed: ");
 
 bail:
-	printf("Kernel load failure (insufficient memory?)\n");
+	printf("%s\n", strerror(errno));
 	return 1;
 }

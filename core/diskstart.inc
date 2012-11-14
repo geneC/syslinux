@@ -142,6 +142,7 @@ print_bios:
 		call writestr_early
 
 		section .earlybss
+		global BIOSName
 		alignb 2
 %define	HAVE_BIOSNAME 1
 BIOSName	resw 1

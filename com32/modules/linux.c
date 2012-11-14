@@ -48,6 +48,14 @@
 #include <syslinux/linux.h>
 #include <syslinux/pxe.h>
 
+enum ldmode {
+    ldmode_raw,
+    ldmode_cpio,
+    ldmodes
+};
+
+typedef int f_ldinitramfs(struct initramfs *, char *);
+
 const char *progname = "linux.c32";
 
 /* Find the last instance of a particular command line argument
@@ -59,11 +67,32 @@ static char *find_argument(char **argv, const char *argument)
     char *ptr = NULL;
 
     for (arg = argv; *arg; arg++) {
-	if (!memcmp(*arg, argument, la))
+	if (!strncmp(*arg, argument, la))
 	    ptr = *arg + la;
     }
 
     return ptr;
+}
+
+/* Find the next instance of a particular command line argument */
+static char **find_arguments(char **argv, char **ptr,
+			     const char *argument)
+{
+    int la = strlen(argument);
+    char **arg;
+
+    for (arg = argv; *arg; arg++) {
+	if (!strncmp(*arg, argument, la)) {
+	    *ptr = *arg + la;
+	    break;
+	}
+    }
+
+    /* Exhausted all arguments */
+    if (!*arg)
+	return NULL;
+
+    return arg;
 }
 
 /* Search for a boolean argument; return its position, or 0 if not present */
@@ -109,6 +138,99 @@ static char *make_cmdline(char **argv)
     return cmdline;
 }
 
+static f_ldinitramfs ldinitramfs_raw;
+static int ldinitramfs_raw(struct initramfs *initramfs, char *fname)
+{
+    return initramfs_load_archive(initramfs, fname);
+}
+
+static f_ldinitramfs ldinitramfs_cpio;
+static int ldinitramfs_cpio(struct initramfs *initramfs, char *fname)
+{
+    char *target_fname, *p;
+    int do_mkdir, unmangle, rc;
+
+    /* Choose target_fname based on presence of "@" syntax */
+    target_fname = strchr(fname, '@');
+    if (target_fname) {
+	/* Temporarily mangle */
+	unmangle = 1;
+	*target_fname++ = '\0';
+
+	/* Make parent directories? */
+	do_mkdir = !!strchr(target_fname, '/');
+    } else {
+	unmangle = 0;
+
+	/* Forget the source path */
+	target_fname = fname;
+	while ((p = strchr(target_fname, '/')))
+	    target_fname = p + 1;
+
+	/* The user didn't specify a desired path */
+	do_mkdir = 0;
+    }
+
+    /*
+     * Load the file, encapsulate it with the desired path, make the
+     * parent directories if the desired path contains them, add to initramfs
+     */
+    rc = initramfs_load_file(initramfs, fname, target_fname, do_mkdir, 0755);
+
+    /* Unmangle, if needed*/
+    if (unmangle)
+	*--target_fname = '@';
+
+    return rc;
+}
+
+/* It only makes sense to call this function from main */
+static int process_initramfs_args(char *arg, struct initramfs *initramfs,
+				  const char *kernel_name, enum ldmode mode,
+				  bool opt_quiet)
+{
+    const char *mode_msg;
+    f_ldinitramfs *ldinitramfs;
+    char *p;
+
+    switch (mode) {
+    case ldmode_raw:
+	mode_msg = "Loading";
+	ldinitramfs = ldinitramfs_raw;
+	break;
+    case ldmode_cpio:
+	mode_msg = "Encapsulating";
+	ldinitramfs = ldinitramfs_cpio;
+	break;
+    case ldmodes:
+    default:
+	return 1;
+    }
+
+    do {
+	p = strchr(arg, ',');
+	if (p)
+	    *p = '\0';
+
+	if (!opt_quiet)
+	    printf("%s %s... ", mode_msg, arg);
+	errno = 0;
+	if (ldinitramfs(initramfs, arg)) {
+	    if (opt_quiet)
+		printf("Loading %s ", kernel_name);
+	    printf("failed: ");
+	    return 1;
+	}
+	if (!opt_quiet)
+	    printf("ok\n");
+
+	if (p)
+	    *p++ = ',';
+    } while ((arg = p));
+
+    return 0;
+}
+
 static int setup_data_file(struct setup_data *setup_data,
 			   uint32_t type, const char *filename,
 			   bool opt_quiet)
@@ -142,7 +264,7 @@ int main(int argc, char *argv[])
     bool opt_quiet = false;
     void *dhcpdata;
     size_t dhcplen;
-    char **argp, **argl, *arg, *p;
+    char **argp, **argl, *arg;
 
     (void)argc;
     argp = argv + 1;
@@ -207,27 +329,27 @@ int main(int argc, char *argv[])
 	goto bail;
     }
 
+    /* Process initramfs arguments */
     if ((arg = find_argument(argp, "initrd="))) {
-	do {
-	    p = strchr(arg, ',');
-	    if (p)
-		*p = '\0';
+	if (process_initramfs_args(arg, initramfs, kernel_name, ldmode_raw,
+				   opt_quiet))
+	    goto bail;
+    }
 
-	    if (!opt_quiet)
-		printf("Loading %s... ", arg);
-	    errno = 0;
-	    if (initramfs_load_archive(initramfs, arg)) {
-		if (opt_quiet)
-		    printf("Loading %s ", kernel_name);
-		printf("failed: ");
-		goto bail;
-	    }
-	    if (!opt_quiet)
-		printf("ok\n");
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "initrd+="))) {
+	argl++;
+	if (process_initramfs_args(arg, initramfs, kernel_name, ldmode_raw,
+				   opt_quiet))
+	    goto bail;
+    }
 
-	    if (p)
-		*p++ = ',';
-	} while ((arg = p));
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "initrdfile="))) {
+	argl++;
+	if (process_initramfs_args(arg, initramfs, kernel_name, ldmode_cpio,
+				   opt_quiet))
+	    goto bail;
     }
 
     /* Append the DHCP info */
@@ -246,24 +368,28 @@ int main(int argc, char *argv[])
     if (!setup_data)
 	goto bail;
 
-    for (argl = argv; (arg = *argl); argl++) {
-	if (!memcmp(arg, "dtb=", 4)) {
-	    if (setup_data_file(setup_data, SETUP_DTB, arg+4, opt_quiet))
-		goto bail;
-	} else if (!memcmp(arg, "blob.", 5)) {
-	    uint32_t type;
-	    char *ep;
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "dtb="))) {
+	argl++;
+	if (setup_data_file(setup_data, SETUP_DTB, arg, opt_quiet))
+	    goto bail;
+    }
 
-	    type = strtoul(arg + 5, &ep, 10);
-	    if (ep[0] != '=' || !ep[1])
-		continue;
+    argl = argv;
+    while ((argl = find_arguments(argl, &arg, "blob."))) {
+	uint32_t type;
+	char *ep;
 
-	    if (!type)
-		continue;
+	argl++;
+	type = strtoul(arg, &ep, 10);
+	if (ep[0] != '=' || !ep[1])
+	    continue;
 
-	    if (setup_data_file(setup_data, type, ep+1, opt_quiet))
-		goto bail;
-	}
+	if (!type)
+	    continue;
+
+	if (setup_data_file(setup_data, type, ep+1, opt_quiet))
+	    goto bail;
     }
 
     /* This should not return... */

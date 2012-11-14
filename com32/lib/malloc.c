@@ -8,7 +8,6 @@
 #include <string.h>
 #include <com32.h>
 #include <syslinux/memscan.h>
-#include "init.h"
 #include "malloc.h"
 
 struct free_arena_header __malloc_head = {

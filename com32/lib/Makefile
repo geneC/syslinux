@@ -106,7 +106,7 @@ libcom32core.a : $(CORELIBOBJS)
 	$(RANLIB) $@
 
 tidy dist clean:
-	rm -f sys/vesa/alphatbl.c
+	rm -f sys/vesa/alphatbl.c errlist.c
 	find . \( -name \*.o -o -name \*.a -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
 
@@ -119,6 +119,9 @@ install: all
 	install -m 644 $(SRC)/com32.ld $(INSTALLROOT)$(COM32DIR)
 	-rm -rf $(INSTALLROOT)$(COM32DIR)/include
 	cp -r $(SRC)/../include $(INSTALLROOT)$(COM32DIR)
+
+errlist.c: makeerrlist.pl $(SRC)/../include/errno.h
+	$(PERL) $<  $(CFLAGS) -errlist > $@ || rm -f $@
 
 # These files are performance critical, and doesn't compile well with -Os
 #FIXME: determine if drawtxt.c is really EFI-dependent

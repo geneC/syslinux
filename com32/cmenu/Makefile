@@ -40,7 +40,7 @@ MENUS = $(LIBS) $(subst $(SRC)/,,$(CMENUS) $(IMENUS))
 
 .PRECIOUS: %.c
 %.c: %.menu adv_menu.tpl
-	python $(SRC)/menugen.py --input=$< --output=$@ --template=$(SRC)/adv_menu.tpl
+	$(PYTHON) $(SRC)/menugen.py --input=$< --output=$@ --template=$(SRC)/adv_menu.tpl
 
 all:	makeoutputdirs menus
 

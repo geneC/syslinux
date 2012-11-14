@@ -13,7 +13,7 @@
 VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
-CFLAGS += -I$(topdir)/core/elflink -I$(topdir)/core/include
+CFLAGS += -I$(topdir)/core/elflink -I$(topdir)/core/include -I$(topdir)/com32/lib
 LIBS = --whole-archive $(objdir)/com32/lib/libcom32min.a
 
 OBJS = ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o adv.o \

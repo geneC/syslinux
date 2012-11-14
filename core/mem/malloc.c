@@ -162,9 +162,9 @@ void *realloc(void *ptr, size_t size)
 	    ah->a.next->a.prev = ah;
 	    nah->next_free->prev_free = nah->prev_free;
 	    nah->prev_free->next_free = nah->next_free;
-	    ARENA_SIZE_SET(ah->a.attrs, ARENA_SIZE_GET(nah->a.attrs));
+	    ARENA_SIZE_SET(ah->a.attrs, ARENA_SIZE_GET(ah->a.attrs) +
+			   ARENA_SIZE_GET(nah->a.attrs));
 	    xsize = ARENA_SIZE_GET(ah->a.attrs);
-	    //xsize = (ah->a.size += nah->a.size);
 	}
 
 	if (xsize >= newsize) {

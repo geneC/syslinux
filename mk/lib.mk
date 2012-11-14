@@ -75,7 +75,7 @@ LIBOTHER_OBJS = \
 	mempcpy.o memmem.o memmove.o memswap.o	\
 	perror.o qsort.o seed48.o \
 	srand48.o sscanf.o strcasecmp.o strcat.o	\
-	strerror.o		\
+	strerror.o errlist.o		\
 	strnlen.o							\
 	strncat.o strndup.o		\
 	stpncpy.o						\
