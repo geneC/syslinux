@@ -215,12 +215,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    done = true;
 	    break;
 
-	case KEY_ESC:
-	case KEY_CTRL('C'):
-	    ret = NULL;
-	    done = true;
-	    break;
-
 	case KEY_BACKSPACE:
 	case KEY_DEL:
 	    if (cursor) {
