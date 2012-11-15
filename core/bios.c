@@ -539,9 +539,19 @@ void bios_init(void)
 	check_escapes();
 }
 
+extern void *bios_malloc(size_t, enum heap, size_t);
+extern void *bios_realloc(void *, size_t);
+extern void bios_free(void *);
+
+struct mem_ops bios_mem_ops = {
+	.malloc = bios_malloc,
+	.realloc = bios_realloc,
+	.free = bios_free,
+	.scan_memory = bios_scan_memory,
+};
+
 struct firmware bios_fw = {
 	.init = bios_init,
-	.scan_memory = bios_scan_memory,
 	.adjust_screen = bios_adjust_screen,
 	.cleanup = bios_cleanup_hardware,
 	.disk_init = bios_disk_init,
@@ -551,6 +561,7 @@ struct firmware bios_fw = {
 	.get_serial_console_info = bios_get_serial_console_info,
 	.adv_ops = &bios_adv_ops,
 	.vesa = &bios_vesa_ops,
+	.mem = &bios_mem_ops,
 };
 
 void syslinux_register_bios(void)

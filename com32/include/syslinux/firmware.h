@@ -37,13 +37,20 @@ struct vesa_ops {
 	int (*font_query)(uint8_t **);
 };
 
+enum heap;
+struct mem_ops {
+	void *(*malloc)(size_t, enum heap, size_t);
+	void *(*realloc)(void *, size_t);
+	void (*free)(void *);
+	int (*scan_memory)(scan_memory_callback_t, void *);
+};
+
 struct disk_private;
 struct initramfs;
 struct setup_data;
 
 struct firmware {
 	void (*init)(void);
-	int (*scan_memory)(scan_memory_callback_t, void *);
 	void (*adjust_screen)(void);
 	void (*cleanup)(void);
 	struct disk *(*disk_init)(void *);
@@ -55,6 +62,7 @@ struct firmware {
 	int (*boot_linux)(void *, size_t, struct initramfs *,
 			  struct setup_data *, char *);
 	struct vesa_ops *vesa;
+	struct mem_ops *mem;
 };
 
 extern struct firmware *firmware;

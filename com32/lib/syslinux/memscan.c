@@ -160,5 +160,5 @@ int bios_scan_memory(scan_memory_callback_t callback, void *data)
 
 int syslinux_scan_memory(scan_memory_callback_t callback, void *data)
 {
-	return firmware->scan_memory(callback, data);
+	return firmware->mem->scan_memory(callback, data);
 }

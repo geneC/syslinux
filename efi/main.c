@@ -1046,9 +1046,15 @@ extern void serialcfg(uint16_t *, uint16_t *, uint16_t *);
 
 extern struct vesa_ops efi_vesa_ops;
 
+struct mem_ops efi_mem_ops = {
+	.malloc = efi_malloc,
+	.realloc = efi_realloc,
+	.free = efi_free,
+	.scan_memory = efi_scan_memory,
+};
+
 struct firmware efi_fw = {
 	.init = efi_init,
-	.scan_memory = efi_scan_memory,
 	.disk_init = efi_disk_init,
 	.o_ops = &efi_ops,
 	.i_ops = &efi_iops,
@@ -1057,6 +1063,7 @@ struct firmware efi_fw = {
 	.adv_ops = &efi_adv_ops,
 	.boot_linux = efi_boot_linux,
 	.vesa = &efi_vesa_ops,
+	.mem = &efi_mem_ops,
 };
 
 static inline void syslinux_register_efi(void)

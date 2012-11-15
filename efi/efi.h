@@ -15,4 +15,9 @@ extern void setup_screen(struct screen_info *);
 
 extern void efi_write_char(uint8_t, uint8_t);
 
+enum heap;
+extern void *efi_malloc(size_t, enum heap, size_t);
+extern void *efi_realloc(void *, size_t);
+extern void efi_free(void *);
+
 #endif /* _SYSLINUX_EFI_H */
