@@ -19,11 +19,10 @@ static inline EFI_STATUS write_blocks(EFI_BLOCK_IO *bio, uint32_t id,
 static int efi_rdwr_sectors(struct disk *disk, void *buf,
 			    sector_t lba, size_t count, bool is_write)
 {
-	struct disk_private *priv = disk->private;
+	struct efi_disk_private *priv = (struct efi_disk_private *)disk->private;
 	EFI_BLOCK_IO *bio = priv->bio;
 	EFI_STATUS status;
 	UINTN bytes = count * disk->sector_size;
-
 
 	if (is_write)
 		status = write_blocks(bio, disk->disk_number, lba, bytes, buf);
@@ -38,9 +37,10 @@ static int efi_rdwr_sectors(struct disk *disk, void *buf,
 	return count << disk->sector_shift;
 }
 
-struct disk *efi_disk_init(struct disk_private *priv)
+struct disk *efi_disk_init(void *private)
 {
     static struct disk disk;
+    struct efi_disk_private *priv = (struct efi_disk_private *)private;
     EFI_HANDLE handle = priv->dev_handle;
     EFI_BLOCK_IO *bio;
     EFI_DISK_IO *dio;
@@ -70,7 +70,7 @@ struct disk *efi_disk_init(struct disk_private *priv)
 
     priv->bio = bio;
     priv->dio = dio;
-    disk.private = priv;
+    disk.private = private;
 #if 0
 
     disk.part_start    = part_start;

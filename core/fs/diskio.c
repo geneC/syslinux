@@ -22,7 +22,7 @@ void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
  *
  * NOTE: the disk cache needs to be revamped to support multiple devices...
  */
-struct device * device_init(struct disk_private *args)
+struct device * device_init(void *args)
 {
     static struct device dev;
     static __hugebss char diskcache[128*1024];

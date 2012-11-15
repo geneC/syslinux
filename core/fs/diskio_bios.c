@@ -285,9 +285,10 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
     return done;
 }
 
-struct disk *bios_disk_init(struct disk_private *priv)
+struct disk *bios_disk_init(void *private)
 {
     static struct disk disk;
+    struct bios_disk_private *priv = (struct bios_disk_private *)private;
     com32sys_t *regs = priv->regs;
     static __lowmem struct edd_disk_params edd_params;
     com32sys_t ireg, oreg;
@@ -385,14 +386,14 @@ struct disk *bios_disk_init(struct disk_private *priv)
 	    devno, cdrom, ebios, sector_size, disk.sector_shift,
 	    part_start, disk.maxtransfer);
 
-    disk.private = priv;
+    disk.private = private;
     return &disk;
 }
 
 void pm_fs_init(com32sys_t *regs)
 {
-	static struct disk_private priv;
+	static struct bios_disk_private priv;
 
 	priv.regs = regs;
-	fs_init((const struct fs_ops **)regs->eax.l, &priv);
+	fs_init((const struct fs_ops **)regs->eax.l, (void *)&priv);
 }

@@ -11,12 +11,6 @@
 #include <com32.h>
 #include <errno.h>
 #include <syslinux/pmapi.h>
-#ifdef SYSLINUX_EFI
-#include <efi.h>
-#include <efilib.h>
-#undef DEBUG
-#include <efistdarg.h>
-#endif
 
 extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];

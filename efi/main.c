@@ -1116,7 +1116,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	EFI_STATUS status = EFI_SUCCESS;
 	const struct fs_ops *ops[] = { &vfat_fs_ops, NULL };
 	unsigned long len = (unsigned long)__bss_end - (unsigned long)__bss_start;
-	static struct disk_private priv;
+	static struct efi_disk_private priv;
 	SIMPLE_INPUT_INTERFACE *in;
 	EFI_INPUT_KEY key;
 	EFI_EVENT timer_ev;
@@ -1158,7 +1158,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	 */
 	efi_setcwd(DevicePathToStr(info->FilePath));
 
-	fs_init(ops, &priv);
+	fs_init(ops, (void *)&priv);
 
 	/*
 	 * There may be pending user input that wasn't processed by

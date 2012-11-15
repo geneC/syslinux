@@ -447,7 +447,7 @@ void pm_close_file(com32sys_t *regs)
  */
 __bss16 uint16_t SectorSize, SectorShift;
 
-void fs_init(const struct fs_ops **ops, struct disk_private *priv)
+void fs_init(const struct fs_ops **ops, void *priv)
 {
     static struct fs_info fs;	/* The actual filesystem buffer */
     int blk_shift = -1;

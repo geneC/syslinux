@@ -52,17 +52,6 @@ OPTFLAGS  = -Os -march=$(MARCH) -falign-functions=0 -falign-jumps=0 \
 	    -falign-labels=0 -ffast-math -fomit-frame-pointer
 WARNFLAGS = $(GCCWARN) -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winline
 
-ifdef EFI_BUILD
-#Add console read fixes to rawcon_read.c
-LIBFLAGS += -DSYSLINUX_EFI -DEFI_FUNCTION_WRAPPER
-ifeq ($(ARCH),i386)
-	EFIINC = -I/usr/local/include/efi -I/usr/local/include/efi/ia32
-endif
-ifeq ($(ARCH),x86_64)
-	EFIINC = -I/usr/include/efi -I/usr/include/efi/x86_64
-endif
-REQFLAGS += $(EFIINC)
-endif
 CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
 
 VPATH = $(SRC)

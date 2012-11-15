@@ -45,7 +45,6 @@ struct mem_ops {
 	int (*scan_memory)(scan_memory_callback_t, void *);
 };
 
-struct disk_private;
 struct initramfs;
 struct setup_data;
 

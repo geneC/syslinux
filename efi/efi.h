@@ -8,6 +8,12 @@
 #include <efilib.h>
 #include <efistdarg.h>
 
+struct efi_disk_private {
+	EFI_HANDLE dev_handle;
+	EFI_BLOCK_IO *bio;
+	EFI_DISK_IO *dio;
+};
+
 extern EFI_HANDLE image_handle;
 
 struct screen_info;
