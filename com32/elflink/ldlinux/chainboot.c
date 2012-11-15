@@ -54,10 +54,8 @@ void chainboot_file(const char *file, uint32_t type)
 	goto bail;
     
     rv = open_file(file, &fd);
-    if (rv == -1) {
-	free(buf);
+    if (rv == -1)
 	goto bail;
-    }
     
     reg.eax.l = max;
     reg.ebx.l = 0;
