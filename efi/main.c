@@ -1109,6 +1109,8 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	const struct fs_ops *ops[] = { &vfat_fs_ops, NULL };
 	unsigned long len = (unsigned long)__bss_end - (unsigned long)__bss_start;
 	static struct disk_private priv;
+	SIMPLE_INPUT_INTERFACE *in;
+	EFI_INPUT_KEY key;
 	EFI_EVENT timer_ev;
 
 	memset(__bss_start, 0, len);
@@ -1149,6 +1151,16 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	efi_setcwd(DevicePathToStr(info->FilePath));
 
 	fs_init(ops, &priv);
+
+	/*
+	 * There may be pending user input that wasn't processed by
+	 * whatever application invoked us. Consume and discard that
+	 * data now.
+	 */
+	in = ST->ConIn;
+	do {
+		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
+	} while (status != EFI_NOT_READY);
 
 	load_env32();
 
