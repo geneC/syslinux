@@ -21,13 +21,8 @@ VPATH = $(SRC)
 MAKEFLAGS += -r
 MAKE      += -r
 
-ifdef EFI_BUILD
-include $(MAKEDIR)/lib.mk
-include $(MAKEDIR)/efi.mk
-else
 include $(MAKEDIR)/embedded.mk
 -include $(objdir)/version.mk
-endif
 
 OPTFLAGS =
 INCLUDES = -I$(SRC)/include -I$(com32)/include -I$(com32)/include/sys -I$(com32)/lib
