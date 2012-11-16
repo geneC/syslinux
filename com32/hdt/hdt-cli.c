@@ -649,7 +649,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
 	if ((current_module->nomodule == true) && ( module != NULL)) {
 		dprintf("CLI_DEBUG exec: Reworking arguments with argc=%d\n",argc);
 		char **new_argv=NULL;
-    		new_argv=malloc((argc + 2)*sizeof(char));
+    		new_argv=malloc((argc + 2)*sizeof(char *));
 		for (int argc_iter=0; argc_iter<argc; argc_iter++) {
 			dprintf("CLI_DEBUG exec rework : copy %d to %d (%s)\n",argc_iter,argc_iter+1,argv[argc_iter]);
 			new_argv[argc_iter+1] = malloc(strlen(argv[argc_iter]));
