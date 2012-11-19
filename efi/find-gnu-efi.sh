@@ -4,7 +4,7 @@
 # differs across distributions.
 
 include_dirs="/usr/include /usr/local/include"
-lib_dirs="/usr/lib /usr/lib64 /usr/local/lib"
+lib_dirs="/usr/lib /usr/lib64 /usr/local/lib /usr/lib32"
 
 function find_include()
 {
