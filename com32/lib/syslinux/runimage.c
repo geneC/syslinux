@@ -42,26 +42,22 @@ extern unsigned int ipappend;
 void syslinux_run_kernel_image(const char *filename, const char *cmdline,
 			       uint32_t ipappend_flags, uint32_t type)
 {
-    char *bbfilename = NULL;
     char *bbcmdline  = NULL;
+    size_t len;
+    int rv;
 
-
-    bbfilename = lstrdup(filename);
-    if (!bbfilename)
-	goto fail;
-
-    bbcmdline = lstrdup(cmdline);
+    /* +2 for NULL and space */
+    len = strlen(filename) + strlen(cmdline) + 2;
+    bbcmdline = malloc(len);
     if (!bbcmdline)
-	goto fail;
+	return;
+
+    rv = snprintf(bbcmdline, len, "%s %s", filename, cmdline);
+    if (rv == -1 || (size_t)rv >= len)
+	return;
 
     if (syslinux_filesystem() == SYSLINUX_FS_PXELINUX)
 	ipappend = ipappend_flags;
 
-    execute(bbfilename, type);
-
-fail:
-    if (bbcmdline)
-	lfree(bbcmdline);
-    if (bbfilename)
-	lfree(bbfilename);
+    execute(bbcmdline, type);
 }
