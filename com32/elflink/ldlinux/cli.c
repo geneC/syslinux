@@ -119,7 +119,7 @@ static const char * cmd_reverse_search(int *cursor, clock_t *kbd_to,
 
 const char *edit_cmdline(const char *input, int top /*, int width */ ,
 			 int (*pDraw_Menu) (int, int, int),
-			 void (*show_fkey) (int))
+			 void (*show_fkey) (int), bool *timedout)
 {
     static char cmdline[MAX_CMDLINE_LEN];
     char temp_cmdline[MAX_CMDLINE_LEN] = { };
@@ -202,6 +202,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	switch (key) {
 	case KEY_NONE:
 	    /* We timed out. */
+	    *timedout = true;
 	    return NULL;
 
 	case KEY_CTRL('L'):

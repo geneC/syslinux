@@ -206,26 +206,6 @@ bad_kernel:
 	}
 }
 
-static void enter_cmdline(void)
-{
-	const char *cmdline;
-
-	/* Enter endless command line prompt, should support "exit" */
-	while (1) {
-		cmdline = edit_cmdline("boot:", 1, NULL, cat_help_file);
-		printf("\n");
-
-		/* return if user only press enter or we timed out */
-		if (!cmdline || cmdline[0] == '\0') {
-			if (ontimeoutlen)
-				load_kernel(ontimeout);
-			return;
-		}
-
-		load_kernel(cmdline);
-	}
-}
-
 /*
  * If this function returns you must call ldinux_enter_command() to
  * preserve the 4.0x behaviour.
@@ -241,10 +221,35 @@ void ldlinux_auto_boot(void)
 		load_kernel(default_cmd);
 }
 
+static void enter_cmdline(void)
+{
+	const char *cmdline;
+
+	/* Enter endless command line prompt, should support "exit" */
+	while (1) {
+		bool to = false;
+
+		if (noescape) {
+			ldlinux_auto_boot();
+			continue;
+		}
+
+		cmdline = edit_cmdline("boot:", 1, NULL, cat_help_file, &to);
+		printf("\n");
+
+		/* return if user only press enter or we timed out */
+		if (!cmdline || cmdline[0] == '\0') {
+			if (to && ontimeoutlen)
+				load_kernel(ontimeout);
+			else
+				ldlinux_auto_boot();
+		} else
+			load_kernel(cmdline);
+	}
+}
+
 void ldlinux_enter_command(void)
 {
-	if (noescape)
-		ldlinux_auto_boot();
 	enter_cmdline();
 }
 
