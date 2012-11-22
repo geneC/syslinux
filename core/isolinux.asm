@@ -68,6 +68,7 @@ trackbuf	resb trackbufsize	; Track buffer goes here
 		; Some of these are touched before the whole image
 		; is loaded.  DO NOT move this to .bss16/.uibss.
 		section .earlybss
+		global BIOSName
 		alignb 4
 FirstSecSum	resd 1			; Checksum of bytes 64-2048
 ImageDwords	resd 1			; isolinux.bin size, dwords
