@@ -201,8 +201,14 @@ bad_kernel:
 	 * line.
 	 */
 	if (onerrorlen) {
-		rsprintf(&cmdline, "%s %s", onerror, default_cmd);
-		execute(cmdline, IMAGE_TYPE_COM32);
+		me = find_label(onerror);
+		if (me)
+			rsprintf(&cmdline, "%s %s", me->cmdline, default_cmd);
+		else
+			rsprintf(&cmdline, "%s %s", onerror, default_cmd);
+
+		type = parse_image_type(cmdline);
+		execute(cmdline, type);
 	}
 }
 
