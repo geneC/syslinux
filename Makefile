@@ -38,7 +38,7 @@ MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
 	com32/elflink/ldlinux/*.c32 com32/cmenu/libmenu/*.c32
 
 # List of module objects that should be installed for all derivatives
-INSTALLABLE_MODULES = $(filter-out com32/gpllib%,$(MODULES))
+INSTALLABLE_MODULES = $(MODULES)
 
 # syslinux.exe is BTARGET so as to not require everyone to have the
 # mingw suite installed
