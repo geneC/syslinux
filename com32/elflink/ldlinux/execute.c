@@ -84,7 +84,17 @@ void execute(const char *cmdline, uint32_t type)
 		const struct image_types *t;
 		for (t = image_boot_types; t->name; t++) {
 			if (!strcmp(kernel + 1, t->name)) {
-				/* Strip the type specifier and retry */
+				/*
+				 * Strip the type specifier, apply the
+				 * filename extension if COM32 and
+				 * retry.
+				 */
+				if (t->type == IMAGE_TYPE_COM32) {
+					p = apply_extension(p, ".c32");
+					if (!p)
+						return;
+				}
+
 				execute(p, t->type);
 				return;
 			}

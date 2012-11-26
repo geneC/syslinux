@@ -102,7 +102,7 @@ static const char *get_extension(const char *kernel)
 	return NULL;
 }
 
-static const char *apply_extension(const char *kernel, const char *ext)
+const char *apply_extension(const char *kernel, const char *ext)
 {
 	const char *p;
 	char *k;

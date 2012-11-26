@@ -48,5 +48,6 @@ extern int new_linux_kernel(char *okernel, char *ocmdline);
 extern void pm_load_high(com32sys_t *regs);
 
 extern void ldlinux_enter_command(void);
+extern const char *apply_extension(const char *kernel, const char *ext);
 
 #endif /* __CONFIG_H__ */
