@@ -185,8 +185,10 @@ If using FDISK, FDISK or a similar application must also be used to mark the par
 For altmbr.bin, an easy way to overwrite the MBR boot block and specify the partion number is:
 +
 	printf '\1' | cat altmbr.bin - | dd bs=440 count=1 iflag=fullblock conv=notrunc of=/dev/sda
++
+Note: using 'cat' for writing the MBR can under some circumstances cause data loss or overwritting.  For this reason, using 'dd' is recommended for all situations.
 
-//[FIXME]: any clean way to handle the above long command?
+//[FIXME]: any clean way to handle the above long command for manpage?
 
 
 == SEE ALSO ==

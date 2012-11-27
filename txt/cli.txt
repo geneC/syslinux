@@ -41,5 +41,11 @@ At start, the initial working directory for SYSLINUX/ISOLINUX will be the direct
 At start, the initial working directory for PXELINUX will be the parent directory of pxelinux.0 unless overridden with DHCP option 210.  If no configuration file is found, PXELINUX will start a time to reboot the system in an attempt to restart the boot process and resolve a possible transient issue.
 
 
+=== ALTERNATE FILENAMES ===
+For kernel-like file names given on the command line, Syslinux will attempt to append file name extensions to the specified file naem when the file is not found in the following order: .0[PXELINUX only], .bin[ISOLINUX only], .bs[SYSLINUX only], .bss[SYSLINUX only], .c32, .cbt, .com and .img[ISOLINUX 1.65-4.04 only].
+
+// Is this true of file names specified in a config?  As of when?
+
+
 == AUTHOR ==
 This AsciiDoc derived document is a modified version of the original *SYSLINUX* documentation by {author} <{author-email}>.  The conversion to an AsciiDoc was made by {editor1} <{editor1-email}>
