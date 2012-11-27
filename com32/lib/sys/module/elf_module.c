@@ -51,7 +51,9 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 	int i;
 	int res = 0;
 	char *pht = NULL;
+	char *sht = NULL;
 	Elf32_Phdr *cr_pht;
+	Elf32_Shdr *cr_sht;
 
 	Elf32_Addr min_addr  = 0x00000000; // Min. ELF vaddr
 	Elf32_Addr max_addr  = 0x00000000; // Max. ELF vaddr
@@ -163,6 +165,25 @@ static int load_segments(struct elf_module *module, Elf32_Ehdr *elf_hdr) {
 		}
 	}
 
+	// Get to the SHT
+	image_seek(elf_hdr->e_shoff, module);
+
+	// Load the SHT
+	sht = malloc(elf_hdr->e_shnum * elf_hdr->e_shentsize);
+	image_read(sht, elf_hdr->e_shnum * elf_hdr->e_shentsize, module);
+
+	// Setup the symtable size
+	for (i = 0; i < elf_hdr->e_shnum; i++) {
+		cr_sht = (Elf32_Shdr*)(sht + i * elf_hdr->e_shentsize);
+
+		if (cr_sht->sh_type == SHT_DYNSYM) {
+			module->symtable_size = cr_sht->sh_size;
+			break;
+		}
+	}
+
+	free(sht);
+
 	// Setup dynamic segment location
 	module->dyn_table = module_get_absolute(dyn_addr, module);
 
@@ -227,13 +248,6 @@ static int prepare_dynlinking(struct elf_module *module) {
 		}
 
 		dyn_entry++;
-	}
-
-	// Now compute the number of symbols in the symbol table
-	if (module->ghash_table != NULL) {
-		module->symtable_size = module->ghash_table[1];
-	} else {
-		module->symtable_size = module->hash_table[1];
 	}
 
 	return 0;
