@@ -11,26 +11,26 @@
 :data-uri:
 
 == NAME ==
-syslinux.cfg - Syslinux configuration file
+syslinux.cfg - *Syslinux* configuration file
 
 
 //[FIXME:Inspect for '' ** use]
 
 
 == DESCRIPTION ==
-Configuration for the boot behavior and user experience of Syslinux boot loaders, the format of display files and the boot prompt behavior.
+Configuration for the boot behavior and user experience of *Syslinux* boot loaders, the format of display files and the boot prompt behavior.
 
 Blank lines are ignored.
 
-Note that the configuration file is not completely decoded.  Syntax different from the one described above may still work correctly in this version of Syslinux, but may break in a future one.
+Note that the configuration file is not completely decoded.  Syntax different from the one described above may still work correctly in this version of *Syslinux*, but may break in a future one.
 
 
 == LOCATION/NAME ==
-SYSLINUX (before 4.00) used the configuration filename of syslinux.cfg.  EXTLINUX (merged into SYSLINUX as of 4.00) used the filename extlinux.conf.  Both default to searching for the config file in the installed directory (containing ldlinux.sys/extlinux.sys).  As of 4.00, SYSLINUX will search for extlinux.conf then syslinux.cfg in each directory before falling back to the next directory.
+*SYSLINUX* (before 4.00) used the configuration filename of syslinux.cfg.  *EXTLINUX* (merged into *SYSLINUX* as of 4.00) used the filename extlinux.conf.  Both default to searching for the config file in the installed directory (containing ldlinux.sys/extlinux.sys).  As of 4.00, *SYSLINUX* will search for extlinux.conf then syslinux.cfg in each directory before falling back to the next directory.
 
-As of 3.35, SYSLINUX also searches /boot/syslinux, /syslinux and /.
+As of 3.35, *SYSLINUX* also searches /boot/syslinux, /syslinux and /.
 
-ISOLINUX (before 4.02) used the configuration filename of isolinux.cfg, searching  /boot/isolinux (starting 2.00), then /isolinux and /.  As of 4.02, ISOLINUX will search for isolinux.cfg then syslinux.cfg in /boot/isolinux before searching for the same files in /isolinux, /boot/syslinux, /syslinux, and /.
+*ISOLINUX* (before 4.02) used the configuration filename of isolinux.cfg, searching  /boot/isolinux (starting 2.00), then /isolinux and /.  As of 4.02, *ISOLINUX* will search for isolinux.cfg then syslinux.cfg in /boot/isolinux before searching for the same files in /isolinux, /boot/syslinux, /syslinux, and /.
 
 
 == GLOBAL DIRECTIVES - MAIN ==
@@ -38,23 +38,23 @@ ISOLINUX (before 4.02) used the configuration filename of isolinux.cfg, searchin
 A line comment.  As of version 3.10, the space between the *#* and the comment is no longer required.
 
 *MENU* any string::
-A directive for the simple menu system, treated as a comment outside the menu.  See menu.txt.
+(3.00+) A directive for the simple menu system, treated as a comment outside the menu.  See menu.txt.
 
 *INCLUDE* 'filename'::
 Inserts the contents of another file at this point in the configuration file. Files can currently be nested up to 16 levels deep, but it is not guaranteed that more than 8 levels will be supported in the future.
 
 *DEFAULT* 'kernel' 'options...'::
-Sets the default command line.  If Syslinux boots automatically, it will act just as if the entries after DEFAULT had been typed in at the 'boot:' prompt.  Multiple uses will result in an override.
+Sets the default command line.  If *Syslinux* boots automatically, it will act just as if the entries after *DEFAULT* had been typed in at the 'boot:' prompt.  Multiple uses will result in an override.
 +
-If no configuration file is present, or no DEFAULT or *UI* entry is present in the config file, an error message is displayed and the 'boot:' prompt is shown.
+If no configuration file is present, or no *DEFAULT* or *UI* entry is present in the config file, an error message is displayed and the 'boot:' prompt is shown (3.85+).
 
 *UI* 'module' 'options...'::
-Selects a specific user interface module (typically menu.c32 or vesamenu.c32).  The command-line interface treats this as a directive that overrides the DEFAULT and PROMPT directives.  Multiple uses will result in an override.
+Selects a specific user interface 'module' (typically menu.c32 or vesamenu.c32).  The command-line interface treats this as a directive that overrides the *DEFAULT* directive to load this module instead at startup and for an empty command line and *PROMPT* directive to not prompt.  Multiple uses will result in an override.
 
 *LABEL* 'mylabel'::
-Begin a new *LABEL* clause.  If 'mylabel' is entered as the kernel to boot, Syslinux should instead boot "image" (specified by a directive from *KERNEL-LIKE DIRECTIVES*) with any specified *DUAL-PURPOSE DIRECTIVES* being used instead of the global instance.
+Begin a new *LABEL* clause.  If 'mylabel' is entered as the kernel to boot, *Syslinux* should instead boot "image" (specified by a directive from *KERNEL-LIKE DIRECTIVES*) with any specified *DUAL-PURPOSE DIRECTIVES* being used instead of the global instance.
 +
-'mylabel' should be restricted to non-white-space characters.  Prior to version 3.32, this would transformed to a DOS compatible format of 8.3 with a restricted character set.  A *LABEL* clause must contain exactly 1 of the *KERNEL-LIKE DIRECTIVES* and may contain 1 each of the *LABEL-ONLY DIRECTIVES* or *DUAL-PURPOSE DIRECTIVES*.
+'mylabel' must be unique.  Currently the first instance is used but may result in an error or undesired behavior.  'mylabel' ends at the first character that is not a non-white-space printable character and should be restricted to non-white-space typeable characters.  Prior to version 3.32, this would transformed to a DOS compatible format of 8.3 with a restricted character set.  A *LABEL* clause must contain exactly 1 of the *KERNEL-LIKE DIRECTIVES* and may contain 1 each of the *LABEL-ONLY DIRECTIVES* or *DUAL-PURPOSE DIRECTIVES*.
 +
 Within a *LABEL*, using multiple *KERNEL-LIKE DIRECTIVES* or reuse of *LABEL-ONLY DIRECTIVES* or *DUAL-PURPOSE DIRECTIVES* will result in an override.  Otherwise, multiple instances of the same directive will result in the last being effective.
 
@@ -72,11 +72,11 @@ Note: all initrd files except the last one are zero-padded to a 4K page boundary
 Note: Only the last effective 'initrd=' parameter is used for loading initrd files.
 
 *APPEND* -::
-Append nothing.  APPEND with a single hyphen as argument in a LABEL section can be used to override a global APPEND.
+Append nothing.  *APPEND* with a single hyphen as argument in a *LABEL* section can be used to override a global *APPEND*.
 
 //[FIXME: Shorten subdefinitions]
 *IPAPPEND* 'flag_val'::
-(PXELINUX only) The IPAPPEND option is available only on PXELINUX.  The flag_val is an OR (sum) of the following integer options:
+(*PXELINUX* only) The *IPAPPEND* option is available only on *PXELINUX*.  The flag_val is an OR (sum) of the following integer options:
 
 ifndef::doctype-manpage[[horizontal]]
 *1*::: An option of the following format should be generated, based on the input from the DHCP/BOOTP or PXE boot server and added to the kernel command line(see note below):
@@ -85,7 +85,7 @@ ifndef::doctype-manpage[[horizontal]]
 ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
 ----
 +
-NOTE:  The use of option 1 is no substitute for running a DHCP client in the booted system and should instead only be used to seed the client.  Without regular renewals, the lease acquired by the PXE BIOS will expire, making the IP address available for reuse by the DHCP server.
+NOTE:  The use of option 1 is no substitute for running a DHCP client in the booted system and should instead only be used to seed the client for a request.  Without regular renewals, the lease acquired by the PXE BIOS will expire, making the IP address available for reuse by the DHCP server.
 +
 *2*::: An option of the following format should be generated, in dash-separated hexadecimal with leading hardware type (same as for the configuration file; see pxelinux.txt.) and added to the kernel command line, allowing an initrd program to determine from which interface the system booted:
 +
@@ -110,45 +110,44 @@ Load a kernel-like file 'image' with automatic filetype detection based on file 
 Load 'image' as a Linux-like kernel. MEMDISK is an example of a non-Linux kernel loaded in a Linux-like fashion.
 
 *BOOT* 'image'::
-(ISOLINUX only: .bin; SYSLINUX only: .bs) Load a boot sector.  .bin is a "CD boot sector" [ISOLINUX only] and .bs is a regular disk boot sector [SYSLINUX only].
+(*ISOLINUX* only: .bin; *SYSLINUX* only: .bs) Load a boot sector.  .bin is a "CD boot sector" and .bs is a regular disk boot sector.
 
 *BSS* 'image'::
-(SYSLINUX only: .bss) Load a BSS image, a .bs image with the DOS superblock patched in.
+(*SYSLINUX* only: .bss) Load a BSS image, a .bs image with the DOS superblock patched in.
 
 *COMBOOT* 'image'::
-(.com, .cbt) Load a Syslinux COMBOOT image.  .com images may also be runnable from DOS while .cbt images are not.  See also *comboot.txt*
+(.com, .cbt) Load a *Syslinux* COMBOOT image.  .com images may also be runnable from DOS while .cbt images are not.  See also *comboot.txt*
 
 *COM32* 'image'::
-(.c32) Load a Syslinux COM32 (32-bit *COMBOOT*) image.  See also *comboot.txt*
+(.c32) Load a *Syslinux* COM32 (32-bit *COMBOOT*) image.  See also *comboot.txt*
 
 *CONFIG* 'image'::
-Load a new configuration file.  The configuration file is read, the working directory is changed (if specified via an APPEND), then the configuration file is parsed.
+Load a new configuration file.  The configuration file is read, the working directory is changed (if specified via an *APPEND*), then the configuration file is parsed.
 
 *FDIMAGE* 'image'::
-(Removed as of 4.05, added 1.65; ISOLINUX only: .img) Load a disk image.
+(Removed as of 4.05, added 1.65; *ISOLINUX* only: .img) Load a disk image.
 
 *LOCALBOOT* 'type'::
-Attempt a different local boot method.  The special value -1 causes the boot loader to report failure to the BIOS, which, on recent BIOSes, should mean that the next boot device in the boot sequence should be activated.  Values other than those documented may produce undesired results.
+(*PXELINUX* 1.53+; *ISOLINUX* ??3.10+; *SYSLINUX* 3.70+)Attempt a different local boot method.  The special value -1 causes the boot loader to report failure to the BIOS, which, on recent BIOSes, should mean that the next boot device in the boot sequence should be activated.  Values other than those documented may produce undesired results.
 +
-On PXELINUX, "type" 0 means perform a normal boot.  "type" 4 will perform a local boot with the Universal Network Driver Interface (UNDI) driver still resident in memory.  Finally, "type" 5 will perform a local boot with the entire PXE stack, including the UNDI driver, still resident in memory. All other values are undefined.  If you don't know what the UNDI or PXE stacks are, don't worry -- you don't want them, just specify 0.
+On *PXELINUX*, "type" 0 means perform a normal boot.  "type" 4 will perform a local boot with the Universal Network Driver Interface (UNDI) driver still resident in memory.  Finally, "type" 5 will perform a local boot with the entire PXE stack, including the UNDI driver, still resident in memory. All other values are undefined.  If you don't know what the UNDI or PXE stacks are, don't worry -- you don't want them, just specify 0.
 +
-On ISOLINUX, the "type" specifies the local drive number to boot from; 0x00 is the primary floppy drive and 0x80 is the primary hard drive.
-//[FIXME: Can SYSLINUX do type as drive number?]
+On *ISOLINUX*/*SYSLINUX*, the "type" specifies the local drive number to boot from; 0x00 is the primary floppy drive and 0x80 is the primary hard drive.
 
 *PXE* 'image'::
-(PXELINUX only: .0) Load a PXE NBP (Network Boot Program) image.  The PXE protocol does not provide any means for specifiying or using a command line or initrd.
+(*PXELINUX* only: .0) Load a PXE NBP (Network Boot Program) image.  The PXE protocol does not provide any means for specifiying or using a command line or initrd.
 
 
 == LABEL-ONLY DIRECTIVES ==
 *INITRD* 'initrd_file'::
-Starting with version 3.71, an initrd can be specified in a separate statement (INITRD) instead of as part of the APPEND statement; this functionally appends "initrd=initrd_file" to the kernel command line.  Like 'initrd=', this also supports multiple comma separated file names (see *APPEND*).
+(3.71+) An initrd can be specified in a separate statement (INITRD) instead of as part of the *APPEND* statement; this functionally appends "initrd=initrd_file" to the kernel command line.  Like 'initrd=', this also supports multiple comma separated file names (see *APPEND*).
 
 
 == GLOBAL DIRECTIVES - SECONDARY ==
 These are global directives that are of lesser importance, often affecting the user experience and not the boot process.
 
 *ALLOWOPTIONS* 'flag_val'::
-If 'flag_val' is 0, the user is not allowed to specify any arguments on the kernel command line.  The only options recognized are those specified in an APPEND statement.  The default is 1.
+If 'flag_val' is 0, the user is not allowed to specify any arguments on the kernel command line.  The only options recognized are those specified in an *APPEND*) statement.  The default is 1.
 
 *IMPLICIT* 'flag_val'::
 If 'flag_val' is 0, do not load a kernel image unless it has been explicitly named in a *LABEL* statement.  The default is 1.
@@ -159,7 +158,7 @@ Indicates how long to wait at the 'boot:' prompt until booting automatically, in
 *TOTALTIMEOUT* 'timeout'::
 Indicates how long to wait until booting automatically, in units of 1/10 s.  This timeout is *not* cancelled by user input, and can thus be used to deal with serial port glitches or "the user walked away" type situations.  A timeout of zero will disable the timeout completely, this is also the default.
 +
-Both TIMEOUT and TOTALTIMEOUT can be used together, for example:
+Both *TIMEOUT* and *TOTALTIMEOUT* can be used together, for example:
 +
 ----
 # Wait 5 seconds unless the user types something, but
@@ -172,7 +171,7 @@ TOTALTIMEOUT 9000
 Sets the command line invoked on a timeout.  Normally this is the same thing as invoked by "DEFAULT".  If this is specified, then "DEFAULT" is used only if the user presses <Enter> to boot.
 
 *ONERROR* 'kernel options...'::
-If a kernel image is not found (either due to it not existing, or because IMPLICIT is set), run the specified command.  The faulty command line is appended to the specified options, so if the ONERROR directive reads as:
+If a kernel image is not found (either due to it not existing, or because *IMPLICIT* is set), run the specified command.  The faulty command line is appended to the specified options, so if the *ONERROR* directive reads as:
 +
 ----
 ONERROR xyzzy plugh
@@ -184,7 +183,7 @@ and the command line as entered by the user is:
 foo bar baz
 ----
 +
-Syslinux will execute the following as if entered by the user:
+*Syslinux* will execute the following as if entered by the user:
 +
 ----
 xyzzy plugh foo bar baz
@@ -222,11 +221,11 @@ Typical values are:
 0x083 - DTR/DCD flow control
 ....
 +
-For the SERIAL directive to be guaranteed to work properly, it should be the first directive in the configuration file.
+For the *SERIAL* directive to be guaranteed to work properly, it should be the first directive in the configuration file.
 +
 NOTE: "port" values from 0 to 3 means the first four serial ports detected by the BIOS.  They may or may not correspond to the legacy port values 0x3F8, 0x2F8, 0x3E8, 0x2E8.
 +
-Enabling interrupts (setting the 0x008 bit) may give better responsiveness without setting the NOHALT option, but could potentially cause problems with buggy BIOSes.
+Enabling interrupts (setting the 0x008 bit) may give better responsiveness without setting the *NOHALT* option, but could potentially cause problems with buggy BIOSes.
 
 *NOHALT* 'flag_val'::
 If 'flag_val' is 1, don't halt the processor while idle. Halting the processor while idle significantly reduces the power consumption, but can cause poor responsiveness to the serial console, especially when using scripts to drive the serial console, as opposed to human interaction.
@@ -237,7 +236,7 @@ If 'flag_val' is 0, disable output to the normal video console. If 'flag_val' is
 Some BIOSes try to forward this to the serial console and sometimes make a total mess thereof, so this option lets you disable the video console on these systems.
 
 *FONT* 'filename'::
-Load a font in .psf format before displaying any output (except the copyright line, which is output as ldlinux.sys itself is loaded.)  Syslinux only loads the font onto the video card; if the .psf file contains a Unicode table it is ignored.  This only works on EGA and VGA cards; hopefully it should do nothing on others.
+Load a font in .psf format before displaying any output (except the copyright line, which is output as ldlinux.sys itself is loaded.)  *Syslinux* only loads the font onto the video card; if the .psf file contains a Unicode table it is ignored.  This only works on EGA and VGA cards; hopefully it should do nothing on others.
 
 *KBDMAP* 'keymap'::
 Install a simple keyboard map.  The keyboard remapper used is *very* simplistic (it simply remaps the keycodes received from the BIOS, which means that only the key combinations relevant in the default layout -- usually U.S. English -- can be mapped) but should at least help people with AZERTY keyboard layout and the locations of = and , (two special characters used heavily on the Linux kernel command line.)
@@ -245,7 +244,7 @@ Install a simple keyboard map.  The keyboard remapper used is *very* simplistic 
 The included program keytab-lilo.pl from the LILO distribution can be used to create such keymaps.  The file keytab-lilo.txt contains the documentation for this program.
 
 *DISPLAY* 'filename'::
-Displays the indicated file on the screen at boot time (before the boot: prompt, if displayed).  Please see the section below on DISPLAY files.
+Displays the indicated file on the screen at boot time (before the boot: prompt, if displayed).  Please see the section below on *DISPLAY* files.
 +
 NOTE: If the file is missing, this option is simply ignored.
 
@@ -323,7 +322,7 @@ If a VGA display is present, enter graphics mode and display the graphic include
 +
 The image is displayed in 640x480 16-color mode.  Once in graphics mode, the display attributes (set by <SI> code sequences) work slightly differently: the background color is ignored, and the foreground colors are the 16 colors specified in the image file.  For that reason, ppmtolss16 allows you to specify that certain colors should be assigned to specific color indicies.
 +
-Color indicies 0 and 7, in particular, should be chosen with care: 0 is the background color, and 7 is the color used for the text printed by Syslinux itself.
+Color indicies 0 and 7, in particular, should be chosen with care: 0 is the background color, and 7 is the color used for the text printed by *Syslinux* itself.
 
 *<EM>*::				<EM> = <Ctrl-Y> = ASCII 25 +
 If we are currently in graphics mode, return to text mode.
@@ -354,7 +353,7 @@ Beep the speaker.
 
 
 == BOOT LOADER IDS USED ==
-The Linux boot protocol supports a "boot loader ID", a single byte where the upper nybble specifies a boot loader family (3 = Syslinux) and the lower nybble is version or, in the case of Syslinux, media:
+The Linux boot protocol supports a "boot loader ID", a single byte where the upper nybble specifies a boot loader family (3 = *Syslinux*) and the lower nybble is version or, in the case of *Syslinux*, media:
 
 	0x31 (49) = SYSLINUX
 	0x32 (50) = PXELINUX
@@ -365,25 +364,18 @@ In recent versions of Linux, this ID is available as /proc/sys/kernel/bootloader
 
 
 == NOVICE PROTECTION ==
-Syslinux will attempt to detect booting on a machine with too little memory, which means the Linux boot sequence cannot complete.  If so, a message is displayed and the boot sequence aborted.  Holding down the Ctrl key while booting disables this feature.
+*Syslinux* will attempt to detect booting on a machine with too little memory, which means the Linux boot sequence cannot complete.  If so, a message is displayed and the boot sequence aborted.  Holding down the Ctrl key while booting disables this feature.
 
-Any file that SYSLINUX uses can be marked hidden, system or readonly if so is convenient; SYSLINUX ignores all file attributes.  The SYSLINUX installed automatically sets the readonly/hidden/system attributes on LDLINUX.SYS.
+Any file that *Syslinux* uses can be marked hidden, system or readonly if so is convenient; *Syslinux* ignores all file attributes.  The *SYSLINUX* installer automatically sets the readonly/hidden/system attributes on LDLINUX.SYS.
 
 
 == KNOWN BUGS ==
-Several known bugs/common problems are listed at http://www.syslinux.org/wiki/index.php/Common_Problems and known hardware compatibility issues are listed at http://www.syslinux.org/wiki/index.php/Hardware_Compatibility with filename translation difficulty and early PXE stacks being some of the most common.  Reporting of other encountered issues is welcome and appreciated.
+include::com-bug.txt[]
 
 
 == BUG REPORTS ==
-I would appreciate hearing of any problems you have with Syslinux.  I would also like to hear from you if you have successfully used Syslinux, *especially* if you are using it for a distribution.
+include::com-rpt.txt[]
 
-If you are reporting problems, please include all possible information about your system and your BIOS; the vast majority of all problems reported turn out to be BIOS or hardware bugs, and I need as much information as possible in order to diagnose the problems.
-
-There is a mailing list for discussion among Syslinux users and for announcements of new and test versions.  To join, or to browse the archive, go to:
-
-   http://www.zytor.com/mailman/listinfo/syslinux
-
-Please DO NOT send HTML messages or attachments to the mailing list (including multipart/alternative or similar.)  All such messages will be bounced.
 
 == AUTHOR ==
 This AsciiDoc derived document is a modified version of the original *SYSLINUX* documentation by {author} <{author-email}>.  The conversion to an AsciiDoc was made by {editor1} <{editor1-email}>
