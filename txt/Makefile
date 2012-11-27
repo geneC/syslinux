@@ -20,7 +20,7 @@ MAKEDIR = $(topdir)/mk
 
 A2X_OPTS	 = -k
 # A2X_OPTS	+= -v
-A2X_MAN_OPTS	 = -D man
+A2X_MAN_OPTS	 = -D man -f manpage
 
 DOCS 		 = syslinux.txt cli.txt config.txt
 MAN_DOCS	 = man/syslinux.1 man/syslinux-cli.1 man/syslinux.cfg.5
@@ -33,15 +33,17 @@ PDF_DOCS	:= $(patsubst %.txt,%.pdf,$(DOCS))
 
 all:	$(HTML_DOCS) $(MAN_DOCS) $(XHTML_DOCS) $(TEXT_DOCS)
 
+config.txt:	com-bug.txt com-rpt.txt
+
 # During 'make all', *.xml is kept but deleted at the end; do we _really_
 #	need the XML longer?
 .PRECIOUS:	%.xml
 
 # %.html:	%.txt
-# 	asciidoc -D html $< 
+# 	asciidoc -D html $<
 
-html/%.html:	%.txt
-	asciidoc -o $@ $< 
+html/%.html:	%.txt com-bug.txt com-rpt.txt
+	asciidoc -o $@ $<
 
 # As of AsciiDoc-8.5.2, altering the output filename for a2x does not appear possible
 # xhtml/%.html:	%.txt
@@ -57,13 +59,13 @@ html/%.html:	%.txt
 	a2x $(A2X_OPTS) -f xhtml $<
 
 man/syslinux.1:	syslinux.txt
-	a2x $(A2X_MAN_OPTS) -f manpage $<
+	a2x $(A2X_MAN_OPTS) $<
 
 man/syslinux-cli.1:	cli.txt
-	a2x $(A2X_MAN_OPTS) -f manpage $<
+	a2x $(A2X_MAN_OPTS) $<
 
 man/syslinux.cfg.5:	config.txt
-	a2x $(A2X_MAN_OPTS) -f manpage $<
+	a2x $(A2X_MAN_OPTS) $<
 
 %.text:	%.xml %.txt
 	a2x $(A2X_OPTS) -f text $<
