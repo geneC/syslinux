@@ -796,8 +796,10 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     
 sendreq:
     timeout = *timeout_ptr++;
-    if (!timeout)
+    if (!timeout) {
+	free_socket(inode);
 	return;			/* No file available... */
+    }
     oldtime = jiffies();
 
     socket->tftp_remoteip = ip;
