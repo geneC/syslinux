@@ -14,7 +14,7 @@ int getscreensize(int fd, int *rows, int *cols)
     *rows = fp->o.rows;
     *cols = fp->o.cols;
 
-    if (!rows || !cols) {
+    if (!*rows || !*cols) {
 	errno = ENOTTY;
 	return -1;
     }
