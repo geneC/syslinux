@@ -1110,7 +1110,7 @@ int main(int argc, char *argv[])
 {
     const char *cmdline;
     struct menu *m;
-    int rows, cols, cursorrow;
+    int rows, cols;
     int i;
 
     (void)argc;
@@ -1152,15 +1152,11 @@ int main(int argc, char *argv[])
 	local_cursor_enable(true);
 	cmdline = run_menu();
 
-	if (clearmenu) {
+	if (clearmenu)
 	    clear_screen();
-	    cursorrow = 1;
-	} else {
-	    cursorrow = END_ROW;
-	}
 
 	local_cursor_enable(false);
-	printf("\033[?25h\033[%d;1H\033[0m", cursorrow);
+	printf("\033[?25h\033[%d;1H\033[0m", END_ROW);
 
 	if (cmdline) {
 	    uint32_t type = parse_image_type(cmdline);
