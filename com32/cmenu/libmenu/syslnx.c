@@ -19,16 +19,6 @@
 
 com32sys_t inreg, outreg;	// Global registers for this module
 
-char issyslinux(void)
-{
-    REG_EAX(inreg) = 0x00003000;
-    REG_EBX(inreg) = REG_ECX(inreg) = REG_EDX(inreg) = 0xFFFFFFFF;
-    __intcall(0x21, &inreg, &outreg);
-    return (REG_EAX(outreg) == 0x59530000) &&
-	(REG_EBX(outreg) == 0x4c530000) &&
-	(REG_ECX(outreg) == 0x4e490000) && (REG_EDX(outreg) == 0x58550000);
-}
-
 void runsyslinuxcmd(const char *cmd)
 {
     char *bounce;
@@ -60,43 +50,15 @@ unsigned int getversion(char *deriv, unsigned int *numfun)
     return __syslinux_version.version;
 }
 
+char issyslinux(void)
+{
+    return !!getversion(NULL, NULL);
+}
+
 void runsyslinuximage(const char *cmd, long ipappend)
 {
-    unsigned int numfun = 0;
-    char *ptr, *cmdline;
-    char *bounce;
-
     (void)ipappend;		// XXX: Unused?!
 
-    getversion(NULL, &numfun);
-    // Function 16h not supported Fall back to runcommand
-    if (numfun < 0x16)
-	runsyslinuxcmd(cmd);
-    // Try the Run Kernel Image function
-    // Split command line into
-    bounce = lmalloc(strlen(cmd) + 1);
-    if (!bounce)
-	return;
-
-    strcpy(bounce, cmd);
-    ptr = bounce;
-    // serach for first space or end of string
-    while ((*ptr) && (*ptr != ' '))
-	ptr++;
-    if (!*ptr)
-	cmdline = ptr;		// no command line
-    else {
-	*ptr++ = '\0';		// terminate kernal name
-	cmdline = ptr + 1;
-	while (*cmdline != ' ')
-	    cmdline++;		// find first non-space
-    }
-    // Now call the interrupt
-    REG_BX(inreg) = OFFS(cmdline);
-    REG_ES(inreg) = SEG(cmdline);
-    REG_SI(inreg) = OFFS(bounce);
-    REG_DS(inreg) = SEG(bounce);
-    REG_EDX(inreg) = 0;
-
-    __intcall(0x22, &inreg, &outreg);	// If successful does not return
+    getversion(NULL, NULL);
+    runsyslinuxcmd(cmd);
 }
