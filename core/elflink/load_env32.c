@@ -170,9 +170,10 @@ int create_args_and_load(char *cmdline)
 	 * Generate a copy of argv on the stack as this is
 	 * traditionally where process arguments go.
 	 *
-	 * argv[0] must be the command name.
+	 * argv[0] must be the command name. Remember to allocate
+	 * space for the sentinel NULL.
 	 */
-	argv = alloca(argc * sizeof(char *));
+	argv = alloca((argc + 1) * sizeof(char *));
 
 	for (i = 0, p = cmdline; i < argc; i++) {
 		char *start;

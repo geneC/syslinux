@@ -194,8 +194,10 @@ int spawn_load(const char *name, int argc, char **argv)
 		return -1;
 
 	if (get_module_type(module) == EXEC_MODULE) {
-		if (!argc || !argv || strcmp(argv[0], name))
-			return -1;
+		if (!argc || !argv || strcmp(argv[0], name)) {
+			res = -1;
+			goto out;
+		}
 	}
 
 	if (!strcmp(cur_module->name, module->name)) {
@@ -218,10 +220,8 @@ int spawn_load(const char *name, int argc, char **argv)
 	}
 
 	res = module_load(module);
-	if (res != 0) {
-		_module_unload(module);
-		return res;
-	}
+	if (res != 0)
+		goto out;
 
 	type = get_module_type(module);
 	prev_module = cur_module;
@@ -259,14 +259,16 @@ int spawn_load(const char *name, int argc, char **argv)
 		cur_module = prev_module;
 		res = module_unload(module);
 
-		if (res != 0) {
-			return res;
-		}
+		if (res != 0)
+			goto out;
 
 		return ((unsigned int)ret_val & 0xFF);
 	}
 
-	return 0;
+out:
+	if (res)
+		_module_unload(module);
+	return res;
 }
 
 void exec_term(void)
