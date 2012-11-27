@@ -102,6 +102,12 @@ void execute(const char *cmdline, uint32_t type)
 	}
 
 	if (type == IMAGE_TYPE_COM32) {
+		/*
+		 * We may be called with the console in an unknown
+		 * state, so initialise it.
+		 */
+		ldlinux_console_init();
+
 		/* new entry for elf format c32 */
 		create_args_and_load((char *)cmdline);
 
@@ -112,6 +118,10 @@ void execute(const char *cmdline, uint32_t type)
 		 * e.g. from vesamenu.c32.
 		 */
 		unload_modules_since("ldlinux.c32");
+
+		/* Restore the console */
+		ldlinux_console_init();
+
 		ldlinux_enter_command();
 	} else if (type == IMAGE_TYPE_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };

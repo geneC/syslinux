@@ -270,6 +270,11 @@ static void __destructor close_console(void)
 		close(i);
 }
 
+void ldlinux_console_init(void)
+{
+	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
+}
+
 int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;
@@ -277,7 +282,7 @@ int main(int argc __unused, char **argv __unused)
 	size_t count = 0;
 	char *config_argv[2] = { NULL, NULL };
 
-	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
+	ldlinux_console_init();
 
 	if (ConfigName[0])
 		config_argv[0] = ConfigName;
