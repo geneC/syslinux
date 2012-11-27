@@ -22,7 +22,7 @@ A2X_OPTS	 = -k
 # A2X_OPTS	+= -v
 A2X_MAN_OPTS	 = -D man -f manpage
 
-DOCS 		 = syslinux.txt cli.txt config.txt
+DOCS 		 = syslinux.txt syslinux-cli.txt syslinux.cfg.txt
 MAN_DOCS	 = man/syslinux.1 man/syslinux-cli.1 man/syslinux.cfg.5
 HTML_DOCS	:= $(patsubst %.txt,html/%.html,$(DOCS)) 
 XHTML_DOCS	:= $(patsubst %.txt,%.html,$(DOCS))
@@ -33,7 +33,7 @@ PDF_DOCS	:= $(patsubst %.txt,%.pdf,$(DOCS))
 
 all:	$(HTML_DOCS) $(MAN_DOCS) $(XHTML_DOCS) $(TEXT_DOCS)
 
-config.txt:	com-bug.txt com-rpt.txt
+syslinux.cfg.txt:	com-bug.txt com-rpt.txt
 
 # During 'make all', *.xml is kept but deleted at the end; do we _really_
 #	need the XML longer?
@@ -61,10 +61,10 @@ html/%.html:	%.txt com-bug.txt com-rpt.txt
 man/syslinux.1:	syslinux.txt
 	a2x $(A2X_MAN_OPTS) $<
 
-man/syslinux-cli.1:	cli.txt
+man/syslinux-cli.1:	syslinux-cli.txt
 	a2x $(A2X_MAN_OPTS) $<
 
-man/syslinux.cfg.5:	config.txt
+man/syslinux.cfg.5:	syslinux.cfg.txt
 	a2x $(A2X_MAN_OPTS) $<
 
 %.text:	%.xml %.txt
