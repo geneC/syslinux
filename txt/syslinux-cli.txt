@@ -9,11 +9,11 @@
 :data-uri:
 
 == NAME ==
-syslinux-cli - Syslinux boot prompt/command line interface
+syslinux-cli - *Syslinux* boot prompt/command line interface
 
 
 == DESCRIPTION ==
-Syslinux's boot prompt provides a very simplistic command line interface for loading modules and booting kernels.
+*Syslinux*'s boot prompt provides a very simplistic command line interface for loading modules and booting kernels.
 
 
 == BOOT PROMPT ==
@@ -36,13 +36,13 @@ The command line prompt supports the following keystrokes:
 
 
 === WORKING DIRECTORY ===
-At start, the initial working directory for SYSLINUX/ISOLINUX will be the directory containing the initial configuration file.  If no configuration file is found, SYSLINUX should default to the install-time working directory, however this is a known issue with some versions including 4.06.
+At start, the initial working directory for *SYSLINUX*/*ISOLINUX* will be the directory containing the initial configuration file.  If no configuration file is found, *SYSLINUX* should default to the install-time working directory, however this is a known issue with some versions including 4.06.
 
-At start, the initial working directory for PXELINUX will be the parent directory of pxelinux.0 unless overridden with DHCP option 210.  If no configuration file is found, PXELINUX will start a time to reboot the system in an attempt to restart the boot process and resolve a possible transient issue.
+At start, the initial working directory for *PXELINUX* will be the parent directory of pxelinux.0 unless overridden with DHCP option 210.  If no configuration file is found, *PXELINUX* will start a timer to reboot the system in an attempt to restart the boot process and resolve a possible transient issue.
 
 
 === ALTERNATE FILENAMES ===
-For kernel-like file names given on the command line, Syslinux will attempt to append file name extensions to the specified file naem when the file is not found in the following order: .0[PXELINUX only], .bin[ISOLINUX only], .bs[SYSLINUX only], .bss[SYSLINUX only], .c32, .cbt, .com and .img[ISOLINUX 1.65-4.04 only].
+For kernel-like file names given on the command line, *Syslinux* will attempt to append file name extensions to the specified file naem when the file is not found in the following order: .0[*PXELINUX* only], .bin[*ISOLINUX* only], .bs[*SYSLINUX* only], .bss[*SYSLINUX* only], .c32, .cbt, .com and .img[*ISOLINUX* 1.65-4.04 only].
 
 // Is this true of file names specified in a config?  As of when?
 
