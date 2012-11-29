@@ -261,8 +261,6 @@ int spawn_load(const char *name, int argc, char **argv)
 
 		if (res != 0)
 			goto out;
-
-		return ((unsigned int)ret_val & 0xFF);
 	}
 
 out:

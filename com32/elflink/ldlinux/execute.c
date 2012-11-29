@@ -109,7 +109,8 @@ void execute(const char *cmdline, uint32_t type)
 		ldlinux_console_init();
 
 		/* new entry for elf format c32 */
-		create_args_and_load((char *)cmdline);
+		if (create_args_and_load((char *)cmdline))
+			printf("Failed to load COM32 file %s\n", kernel);
 
 		/*
 		 * The old COM32 module code would run the module then

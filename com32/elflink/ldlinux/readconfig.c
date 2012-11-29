@@ -1368,7 +1368,8 @@ static int parse_one_config(const char *filename)
 	parse_config_file(f);
 
 	if (config_cwd[0]) {
-		chdir(config_cwd);
+		if (chdir(config_cwd) < 0)
+			printf("Failed to chdir to %s\n", config_cwd);
 		config_cwd[0] = '\0';
 	}
 
