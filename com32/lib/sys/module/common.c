@@ -78,6 +78,10 @@ again:
 	if (*p == ':')
 		p++;
 
+	/* Ensure we have a '/' separator */
+	if (path[i] != '/' && i < FILENAME_MAX - 1)
+		path[i++] = '/';
+
 	n = name;
 	while (*n && i < FILENAME_MAX - 1)
 		path[i++] = *n++;
