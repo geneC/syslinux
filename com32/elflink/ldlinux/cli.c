@@ -121,8 +121,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 			 int (*pDraw_Menu) (int, int, int),
 			 void (*show_fkey) (int), bool *timedout)
 {
-    static char cmdline[MAX_CMDLINE_LEN];
-    char temp_cmdline[MAX_CMDLINE_LEN] = { };
+    char cmdline[MAX_CMDLINE_LEN] = { };
     int key, len, prev_len, cursor;
     int redraw = 1;		/* We enter with the menu already drawn */
     int x, y;
@@ -138,8 +137,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	if (getscreensize(1, &height, &width))
 	    width = 80;
     }
-
-    cmdline[MAX_CMDLINE_LEN - 1] = '\0';
 
     len = cursor = 0;
     prev_len = 0;
@@ -346,11 +343,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    comm_counter =
 			list_entry(next, typeof(*comm_counter), list);
 
-		    if (&comm_counter->list == &cli_history_head) {
-			strcpy(cmdline, temp_cmdline);
-		    } else {
+		    if (&comm_counter->list != &cli_history_head)
 			strcpy(cmdline, comm_counter->command);
-		    }
+
 		    cursor = len = strlen(cmdline);
 		    redraw = 1;
 		}
@@ -370,11 +365,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    comm_counter =
 			list_entry(prev, typeof(*comm_counter), list);
 
-		    if (&comm_counter->list == &cli_history_head) {
-			strcpy(cmdline, temp_cmdline);
-		    } else {
+		    if (&comm_counter->list != &cli_history_head)
 			strcpy(cmdline, comm_counter->command);
-		    }
+
 		    cursor = len = strlen(cmdline);
 		    redraw = 1;
 		}
@@ -430,9 +423,8 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	default:
 	    if (key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN - 1) {
 		if (cursor == len) {
-		    temp_cmdline[len] = key;
 		    cmdline[len++] = key;
-		    temp_cmdline[len] = cmdline[len] = '\0';
+		    cmdline[len] = '\0';
 		    putchar(key);
 		    cursor++;
 		    x++;
@@ -445,9 +437,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		} else {
 		    memmove(cmdline + cursor + 1, cmdline + cursor,
 			    len - cursor + 1);
-		    memmove(temp_cmdline + cursor + 1, temp_cmdline + cursor,
-			    len - cursor + 1);
-		    temp_cmdline[cursor] = key;
 		    cmdline[cursor++] = key;
 		    len++;
 		    redraw = 1;
