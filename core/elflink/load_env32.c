@@ -71,9 +71,19 @@ again:
 		 * unload all the modules loaded since ldlinux.c32,
 		 * and restart initialisation. This is especially
 		 * important for config files.
+		 *
+		 * But before we do that, try our best to make sure
+		 * that spawn_load() is gonna succeed, e.g. that we
+		 * can find LDLINUX it in PATH.
 		 */
 		struct elf_module *ldlinux;
+		FILE *f;
 
+		f = findpath(LDLINUX);
+		if (!f)
+			return ENOENT;
+
+		fclose(f);
 		ldlinux = unload_modules_since(LDLINUX);
 
 		/*
