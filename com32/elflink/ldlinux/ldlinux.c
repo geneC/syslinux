@@ -121,12 +121,15 @@ const char *apply_extension(const char *kernel, const char *ext)
 	memcpy(k, kernel, len);
 
 	/* Append the extension */
-	memcpy(k + len, ext, elen);
+	if (strncmp(p - elen, ext, elen)) {
+		memcpy(k + len, ext, elen);
+		len += elen;
+	}
 
 	/* Copy the rest of the command line */
-	strcpy(k + len + elen, p);
+	strcpy(k + len, p);
 
-	k[len + elen + strlen(p)] = '\0';
+	k[len + strlen(p)] = '\0';
 
 	return k;
 }
