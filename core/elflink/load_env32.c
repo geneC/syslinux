@@ -124,14 +124,13 @@ void load_env32(com32sys_t * regs __unused)
 
 	dprintf("Starting 32 bit elf module subsystem...\n");
 
-	PATH = malloc(strlen(PATH_DEFAULT) + 1);
+	PATH = malloc(strlen(CurrentDirName) + 1);
 	if (!PATH) {
 		printf("Couldn't allocate memory for PATH\n");
 		return;
 	}
 
-	strcpy(PATH, PATH_DEFAULT);
-	PATH[strlen(PATH_DEFAULT)] = '\0';
+	strcpy(PATH, CurrentDirName);
 
 	init_module_subsystem(&core_module);
 
