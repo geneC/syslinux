@@ -25,6 +25,8 @@ Changes in 5.00:
 	* ldlinux: A new "PATH" directive was added to the ldlinux.c32
 	  config parser that specifies a colon-separated list of
 	  directories to search when attempting to load modules.
+	* txt/: A new AsciiDoc documentation set (work-in-progress)
+	  (Gene Cumm).
 
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.
