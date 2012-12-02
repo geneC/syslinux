@@ -18,7 +18,6 @@ syslinux-cli - *Syslinux* boot prompt/command line interface
 
 == BOOT PROMPT ==
 === COMMAND LINE KEYSTROKES ===
-
 The command line prompt supports the following keystrokes:
 
   <Enter>		boot specified command line
