@@ -14,9 +14,6 @@
 syslinux.cfg - *Syslinux* configuration file
 
 
-//[FIXME:Inspect for '' ** use]
-
-
 == DESCRIPTION ==
 Configuration for the boot behavior and user experience of *Syslinux* boot loaders, the format of display files and the boot prompt behavior.
 
