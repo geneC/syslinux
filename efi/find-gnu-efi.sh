@@ -6,7 +6,7 @@
 include_dirs="/usr/include /usr/local/include"
 lib_dirs="/usr/lib /usr/lib64 /usr/local/lib /usr/lib32"
 
-function find_include()
+find_include()
 {
     for d in $include_dirs; do
 	found=`find $d -name efi -type d 2> /dev/null`
@@ -17,7 +17,7 @@ function find_include()
     done
 }
 
-function find_lib()
+find_lib()
 {
     for d in $lib_dirs; do
 	found=`find $d -name libgnuefi.a 2> /dev/null`
