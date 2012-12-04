@@ -189,9 +189,6 @@ static struct menu *new_menu(struct menu *parent,
 	m->menu_master_passwd = refstr_get(parent->menu_master_passwd);
 	m->menu_background = refstr_get(parent->menu_background);
 
-	refstr_put(m->title);
-	m->title = refstr_get(parent->title);
-
 	m->color_table = copy_color_table(parent->color_table);
 
 	for (i = 0; i < 12; i++) {
