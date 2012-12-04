@@ -123,7 +123,7 @@ static inline void install_irq_vectors(uint32_t *dst, int first)
 	}
 }
 
-void sirq_install(void)
+__export void sirq_install(void)
 {
 	char val, val2;
 
@@ -164,7 +164,7 @@ void sirq_install(void)
 	outb(0xA1, 0);
 }
 
-void sirq_cleanup_nowipe(void)
+__export void sirq_cleanup_nowipe(void)
 {
 	uint32_t *dst;
 	int i;

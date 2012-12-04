@@ -166,7 +166,7 @@ int raw_read(int fd, void *buf, size_t count)
 extern int raw_read(int fd, void *buf, size_t count);
 #endif
 
-int get_key(FILE * f, clock_t timeout)
+__export int get_key(FILE * f, clock_t timeout)
 {
     char buffer[KEY_MAXLEN];
     int nc, rv;

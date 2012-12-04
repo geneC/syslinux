@@ -66,7 +66,7 @@ __free_block(struct free_arena_header *ah)
     return ah;
 }
 
-void free(void *ptr)
+__export void free(void *ptr)
 {
     struct free_arena_header *ah;
 

@@ -60,7 +60,7 @@ vk_end:		equ $			; Should be <= vk_size
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
 		section .earlybss
-		global trackbuf
+		global trackbuf:data hidden
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h

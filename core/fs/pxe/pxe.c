@@ -645,7 +645,7 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
  *
  */
 static void __pxe_searchdir(const char *filename, struct file *file);
-uint16_t PXERetry;
+extern uint16_t PXERetry;
 
 static void pxe_searchdir(const char *filename, struct file *file)
 {

@@ -134,7 +134,7 @@ serial_buf_size	equ 4096		; Should be a power of 2
 ;
 		extern	xfer_buf_seg
 		section .xfer_buf	write nobits align=65536
-		global	core_xfer_buf
+		global	core_xfer_buf:data hidden
 core_xfer_buf	resb 65536
 
 ;
@@ -144,7 +144,7 @@ core_xfer_buf	resb 65536
 ;
 		extern	real_mode_seg
 		section .real_mode	write nobits align=65536
-		global	core_real_mode
+		global	core_real_mode:data hidden
 core_real_mode	resb 65536
 comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
 

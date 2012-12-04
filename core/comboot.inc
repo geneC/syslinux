@@ -95,7 +95,7 @@ comboot_setup_api:
 ; Restore the original state of the COMBOOT API vectors, and free
 ; any low memory allocated by the comboot module.
 ;
-		global comboot_cleanup_api
+		global comboot_cleanup_api:function hidden
 comboot_cleanup_api:
 		pusha
 		mov si,DOSSaveVectors
@@ -530,6 +530,6 @@ err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
 DOSErrTramp	resd	33		; Error trampolines
 
 %ifndef HAVE_CURRENTDIRNAME
-		global CurrentDirName
+		global CurrentDirName:data hidden
 CurrentDirName	resb	FILENAME_MAX
 %endif

@@ -59,7 +59,7 @@ void init_module_subsystem(struct elf_module *module)
     list_add(&module->list, &modules_head);
 }
 
-int start_ldlinux(char **argv)
+__export int start_ldlinux(char **argv)
 {
 	int rv;
 
@@ -154,7 +154,7 @@ void load_env32(com32sys_t * regs __unused)
 	writestr("\nFailed to load ldlinux.c32");
 }
 
-int create_args_and_load(char *cmdline)
+__export int create_args_and_load(char *cmdline)
 {
 	char *p, **argv;
 	int argc;

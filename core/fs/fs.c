@@ -9,13 +9,13 @@
 #include "fs.h"
 #include "cache.h"
 
-char *PATH;
+__export char *PATH;
 
 /* The currently mounted filesystem */
-struct fs_info *this_fs = NULL;		/* Root filesystem */
+__export struct fs_info *this_fs = NULL;		/* Root filesystem */
 
 /* Actual file structures (we don't have malloc yet...) */
-struct file files[MAX_OPEN];
+__export struct file files[MAX_OPEN];
 
 /* Symlink hard limits */
 #define MAX_SYMLINK_CNT	20
@@ -74,7 +74,7 @@ static inline void free_file(struct file *file)
     memset(file, 0, sizeof *file);
 }
 
-void _close_file(struct file *file)
+__export void _close_file(struct file *file)
 {
     if (file->fs)
 	file->fs->fs_ops->close_file(file);
@@ -84,7 +84,7 @@ void _close_file(struct file *file)
 /*
  * Find and open the configuration file
  */
-int open_config(void)
+__export int open_config(void)
 {
     int fd, handle;
     struct file_info *fp;
@@ -116,7 +116,7 @@ void pm_mangle_name(com32sys_t *regs)
     mangle_name(dst, src);
 }
 
-void mangle_name(char *dst, const char *src)
+__export void mangle_name(char *dst, const char *src)
 {
     this_fs->fs_ops->mangle_name(dst, src);
 }
@@ -415,7 +415,7 @@ err_no_close:
     return -1;
 }
 
-int open_file(const char *name, struct com32_filedata *filedata)
+__export int open_file(const char *name, struct com32_filedata *filedata)
 {
     int rv;
     struct file *file;
@@ -465,7 +465,7 @@ void pm_open_file(com32sys_t *regs)
     }
 }
 
-void close_file(uint16_t handle)
+__export void close_file(uint16_t handle)
 {
     struct file *file;
 

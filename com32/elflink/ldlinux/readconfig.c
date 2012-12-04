@@ -82,9 +82,10 @@ short vkernel = 0;		//have we seen any "label" statements?
 short displaycon = 1;		//conio.inc
 extern short NoHalt;		//idle.c
 
-const char *default_cmd = NULL;	//"default" command line
 const char *onerror = NULL;	//"onerror" command line
 const char *ontimeout = NULL;	//"ontimeout" command line
+
+__export const char *default_cmd = NULL;	//"default" command line
 
 /* Empty refstring */
 const char *empty_string;
@@ -599,7 +600,7 @@ uint32_t parse_argb(char **p)
 //static const char *append = NULL;
 extern const char *append;
 //static unsigned int ipappend = 0;
-unsigned int ipappend = 0;
+__export unsigned int ipappend = 0;
 extern uint16_t PXERetry;
 static struct labeldata ld;
 

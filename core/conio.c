@@ -37,21 +37,21 @@ union screen _screensize;
 /*
  * Serial console stuff.
  */
-uint16_t SerialPort = 0;	    /* Serial port base (or 0 for no serial port) */
-uint16_t BaudDivisor = 115200/9600; /* Baud rate divisor */
-uint8_t FlowOutput = 0;		    /* Output to assert for serial flow */
-uint8_t FlowInput = 0;		    /* Input bits for serial flow */
-uint8_t FlowIgnore = 0;		    /* Ignore input unless these bits set */
+__export uint16_t SerialPort = 0;   /* Serial port base (or 0 for no serial port) */
+__export uint8_t FlowInput = 0;	    /* Input bits for serial flow */
+__export uint16_t BaudDivisor = 115200/9600; /* Baud rate divisor */
+__export uint8_t FlowIgnore = 0;    /* Ignore input unless these bits set */
+__export uint16_t DisplayCon = 0x01;	/* Display console enabled */
+__export uint8_t FlowOutput = 0;	/* Output to assert for serial flow */
 
 uint8_t ScrollAttribute = 0x07; /* Grey on white (normal text color) */
-uint16_t DisplayCon = 0x01;	/* Display console enabled */
 
 /*
  * loadkeys:	Load a LILO-style keymap
  *
  * Returns 0 on success, or -1 on error.
  */
-int loadkeys(char *filename)
+__export int loadkeys(char *filename)
 {
 	FILE *f;
 
@@ -69,7 +69,7 @@ int loadkeys(char *filename)
  * write_serial: If serial output is enabled, write character on
  * serial port.
  */
-void write_serial(char data)
+__export void write_serial(char data)
 {
 	if (!SerialPort)
 		return;
@@ -124,7 +124,7 @@ void pm_serialcfg(com32sys_t *regs)
 /*
  * write_serial_str: write_serial for strings
  */
-void write_serial_str(char *data)
+__export void write_serial_str(char *data)
 {
 	char ch;
 
@@ -137,7 +137,7 @@ void write_serial_str(char *data)
  *
  * Returns 1 if character pending.
  */
-int pollchar(void)
+__export int pollchar(void)
 {
 	com32sys_t ireg, oreg;
 	uint8_t data = 0;
@@ -190,7 +190,7 @@ extern void do_idle(void);
 /*
  * getchar: Read a character from keyboard or serial port
  */
-char getchar(char *hi)
+__export char getchar(char *hi)
 {
 	com32sys_t ireg, oreg;
 	unsigned char data;

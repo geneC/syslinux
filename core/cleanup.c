@@ -27,7 +27,7 @@ extern void comboot_cleanup_api(void);
  *
  *	Shut down anything transient.
  */
-void cleanup_hardware(void)
+__export void cleanup_hardware(void)
 {
 	/*
 	 * TODO

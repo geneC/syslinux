@@ -36,8 +36,8 @@
 #include <inttypes.h>
 #include <com32.h>
 
-void *__syslinux_adv_ptr;
-size_t __syslinux_adv_size;
+__export void *__syslinux_adv_ptr;
+__export size_t __syslinux_adv_size;
 
 extern void adv_init(void);
 void __constructor __syslinux_init(void)

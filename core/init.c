@@ -7,7 +7,9 @@
 static uint32_t min_lowmem_heap = 65536;
 extern char __lowmem_heap[];
 uint8_t KbdFlags;		/* Check for keyboard escapes */
-uint8_t KbdMap[256];		/* Keyboard map */
+__export uint8_t KbdMap[256];	/* Keyboard map */
+
+__export uint16_t PXERetry;
 
 static inline void check_escapes(void)
 {

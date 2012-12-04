@@ -46,7 +46,7 @@ static inline const char *find_command(const char *str)
 	return p;
 }
 
-uint32_t parse_image_type(const char *kernel)
+__export uint32_t parse_image_type(const char *kernel)
 {
 	const struct file_ext *ext;
 	const char *p;
@@ -141,7 +141,7 @@ const char *apply_extension(const char *kernel, const char *ext)
  * the the kernel. If we return the caller should call enter_cmdline()
  * so that the user can help us out.
  */
-void load_kernel(const char *command_line)
+__export void load_kernel(const char *command_line)
 {
 	struct menu_entry *me;
 	const char *cmdline;
@@ -278,7 +278,7 @@ void ldlinux_console_init(void)
 	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
 }
 
-int main(int argc __unused, char **argv __unused)
+__export int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;
 	const char *cmdline;

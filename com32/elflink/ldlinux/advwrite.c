@@ -35,7 +35,7 @@
 #include <klibc/compiler.h>
 #include <com32.h>
 
-int syslinux_adv_write(void)
+__export int syslinux_adv_write(void)
 {
     static com32sys_t reg;
 

@@ -22,7 +22,7 @@ reset_idle:
 		sti		; Guard against BIOS/PXE brokenness...
 		ret
 
-		global do_idle
+		global do_idle:function hidden
 do_idle:
 		push eax
 		push ds
@@ -72,7 +72,7 @@ do_idle:
 
 		section .data16
 		alignz 4
-		global _IdleTimer
+		global _IdleTimer:data hidden
 _IdleTimer	dd 0
 
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 

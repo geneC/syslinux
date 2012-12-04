@@ -45,7 +45,7 @@
 #include <errno.h>
 #include <alloca.h>
 
-int syslinux_setadv(int tag, size_t size, const void *data)
+__export int syslinux_setadv(int tag, size_t size, const void *data)
 {
     uint8_t *p, *advtmp;
     size_t rleft, left;

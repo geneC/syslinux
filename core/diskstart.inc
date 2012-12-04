@@ -92,7 +92,7 @@ BannerPtr	dw syslinux_banner - LDLINUX_SYS
 ; Base directory name and subvolume, if applicable.
 ;
 %define HAVE_CURRENTDIRNAME
-		global CurrentDirName, SubvolName
+		global CurrentDirName:data hidden, SubvolName:data hidden
 CurrentDirName	times CURRENTDIR_MAX db 0
 SubvolName	times SUBVOL_MAX db 0
 
@@ -232,7 +232,7 @@ verify_checksum:
 ;
 ;            This routine assumes CS == DS.
 ;
-		global getlinsec
+		global getlinsec:function hidden
 getlinsec:
 		pushad
 		add eax,[Hidden]		; Add partition offset

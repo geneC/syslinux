@@ -26,7 +26,7 @@ coredir = $(topdir)/core
 BTARGET = geodsp1s.bin geodspms.bin \
 	geodsp1s.img.xz geodspms.img.xz
 
-NASMOPT = -i $(coredir)/ -Ox -f bin
+NASMOPT = -i $(coredir)/ -Ox -f bin -dBINFMT
 NASMOPT += -w+orphan-labels
 CFLAGS = -g -O
 

@@ -47,7 +47,7 @@ const struct image_types image_boot_types[] = {
 
 extern int create_args_and_load(char *);
 
-void execute(const char *cmdline, uint32_t type)
+__export void execute(const char *cmdline, uint32_t type)
 {
 	const char *kernel, *args;
 	const char *p;

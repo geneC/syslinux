@@ -103,7 +103,6 @@ superblock_len_fat32	equ $-superblock+54
 		zb 54			; Maximum needed size
 superblock_max	equ $-superblock
 
-		global SecPerClust
 SecPerClust	equ bxSecPerClust
 
 ;
@@ -385,7 +384,11 @@ getonesec_cbios:
 ;
 ; kaboom: write a message and bail out.
 ;
+%ifdef BINFMT
 		global kaboom
+%else
+		global kaboom:function hidden
+%endif
 disk_error:
 kaboom:
 		xor si,si

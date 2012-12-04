@@ -38,7 +38,7 @@
 
 		section .data16
 		alignz 4
-		global BaseStack
+		global BaseStack:data hidden
 BaseStack	dd StackHome		; ESP of the "home" stack pointer
 		dw 0			; SS of the "home" stack pointer
 
