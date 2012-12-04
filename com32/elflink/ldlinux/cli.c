@@ -123,7 +123,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 {
     char cmdline[MAX_CMDLINE_LEN] = { };
     int key, len, prev_len, cursor;
-    int redraw = 1;		/* We enter with the menu already drawn */
+    int redraw = 0;
     int x, y;
     bool done = false;
     const char *ret;
@@ -142,6 +142,13 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
     prev_len = 0;
     x = y = 0;
 
+    /*
+     * Before we start messing with the x,y coordinates print 'input'
+     * so that it follows whatever text has been written to the screen
+     * previously.
+     */
+    eprintf("%s ", input);
+
     while (!done) {
 	if (redraw > 1) {
 	    /* Clear and redraw whole screen */
@@ -151,6 +158,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    if (pDraw_Menu)
 		    (*pDraw_Menu) (-1, top, 1);
 	    prev_len = 0;
+	    eprintf("\033[2J\033[H");
 	    // printf("\033[0m\033[2J\033[H");
 	}
 
@@ -161,8 +169,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 
 	    /* Redraw the command line */
 	    eprintf("\033[?7l\033[?25l");
-	    if (y)
-		eprintf("\033[%dA", y);
 	    eprintf("\033[1G%s ", input);
 
 	    x = strlen(input);
