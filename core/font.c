@@ -26,6 +26,8 @@
 #include "graphics.h"
 #include "core.h"
 
+uint8_t UserFont = 0;		/* Using a user-specified font */
+
 __lowmem char fontbuf[8192];
 
 uint16_t GXPixCols = 1;		/* Graphics mode pixel columns */

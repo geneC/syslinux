@@ -522,31 +522,13 @@ APIKeyFlag	db 0
 
 zero_string	db 0			; Empty, null-terminated string
 
-;
-; This is the feature flag array for INT 22h AX=0015h
-;
-; Note: PXELINUX clears the idle is noop flag if appropriate
-; in pxe_detect_nic_type
-;
-		global feature_flags, feature_flags_len
-feature_flags:
-		db 1			; Have local boot, idle is not noop
-feature_flags_len equ ($-feature_flags)
-
 err_notdos	db ': attempted DOS system call INT ',0
 err_comlarge	db 'COMBOOT image too large.', CR, LF, 0
-
-		global VGAFontSize, UserFont
-		alignz 2
-VGAFontSize	dw 16			; Defaults to 16 byte font
-UserFont	db 0			; Using a user-specified font
 
 		section .bss16
 		alignb 4
 DOSErrTramp	resd	33		; Error trampolines
 
-		global ConfigName
-ConfigName	resb	FILENAME_MAX
 %ifndef HAVE_CURRENTDIRNAME
 		global CurrentDirName
 CurrentDirName	resb	FILENAME_MAX

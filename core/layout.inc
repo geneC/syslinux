@@ -52,7 +52,6 @@ LATEBSS_START	equ 0B800h
 ;
 ; 32-bit stack layout
 ;
-		global STACK32_LEN
 STACK32_LEN	equ 64*1024
 
 		section	.stack		nobits write align=4096

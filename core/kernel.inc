@@ -62,9 +62,6 @@ linux_fdctab	resb 12
 cmd_line_here	equ $			; F800 Should be out of the way
 		endstruc
 
-		global cmd_line
-cmd_line	equ core_real_mode + cmd_line_here
-
 ;
 ; Old kernel command line signature
 ;

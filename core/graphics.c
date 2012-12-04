@@ -28,6 +28,7 @@
 uint8_t UsingVGA = 0;
 uint16_t VGAPos;		/* Pointer into VGA memory */
 uint16_t *VGAFilePtr;		/* Pointer into VGAFileBuf */
+uint16_t VGAFontSize = 16;	/* Defaults to 16 byte font */
 
 char VGAFileBuf[VGA_FILE_BUF_SIZE]; /* Unmangled VGA image name */
 char VGAFileMBuf[FILENAME_MAX];	/* Mangled VGA image name */

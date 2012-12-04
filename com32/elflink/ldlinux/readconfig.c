@@ -718,7 +718,7 @@ extern uint8_t FlowInput;
 extern uint8_t FlowOutput;
 extern uint16_t SerialPort;
 extern uint16_t BaudDivisor;
-extern uint8_t SerialNotice;
+static uint8_t SerialNotice = 1;
 
 #define DEFAULT_BAUD	9600
 #define BAUD_DIVISOR	115200
