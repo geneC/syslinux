@@ -636,21 +636,7 @@ static char *is_message_name(char *cmdstr, enum message_number *msgnr)
     return NULL;
 }
 
-static int cat_file(const char *filename)
-{
-	FILE *f;
-	char line[2048];
-
-	f = fopen(filename, "r");
-	if (!f)
-		return -1;
-
-	while (fgets(line, sizeof(line), f) != NULL)
-		eprintf("%s", line);
-
-	fclose(f);
-	return 0;
-}
+extern void get_msg_file(char *);
 
 void cat_help_file(int key)
 {
@@ -704,7 +690,7 @@ void cat_help_file(int key)
 
 	if (cm->fkeyhelp[fkey].textname) {
 		eprintf("\n");
-		cat_file(cm->fkeyhelp[fkey].textname);
+		get_msg_file((char *)cm->fkeyhelp[fkey].textname);
 	}
 }
 
@@ -748,7 +734,6 @@ static inline void io_delay(void)
 	outb(0, 0x80);
 }
 
-extern void get_msg_file(char *);
 extern void loadfont(char *);
 extern void loadkeys(char *);
 
