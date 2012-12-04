@@ -162,7 +162,7 @@ static void msg_normal(uint8_t data)
 	if (TextAttribute & 0x40)
 		printf("1;"); /* Foreground bright */
 
-	printf("1;3%dm\033[", fg);
+	printf("3%dm\033[", fg);
 
 	if (TextAttribute & 0x80)
 		printf("5;"); /* Foreground blink */
