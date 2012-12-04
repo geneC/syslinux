@@ -252,9 +252,9 @@ user will complete the command line already begun.  A timeout of zero
 (the default) will disable the timeout completely.
 
 *TOTALTIMEOUT* 'timeout'::
-Indicates how long to wait until booting automatically, in units of 1/10
-s.  This timeout is *not* cancelled by user input, and can thus be used
-to deal with serial port glitches or "the user walked away" type
+Indicates how long to wait until booting automatically, in units of
+1/10 s.  This timeout is *not* cancelled by user input, and can thus be
+used to deal with serial port glitches or "the user walked away" type
 situations.  A timeout of zero will disable the timeout completely, this
 is also the default.
 +

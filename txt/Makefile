@@ -2,6 +2,10 @@
 ##
 ##   Copyright 2012 Gene Cumm
 ##
+##   Some logic from win32/Makefile:
+##     Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
+##     Copyright 2010 Intel Corporation; author: H. Peter Anvin
+##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
 ##   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
@@ -29,9 +33,32 @@ XHTML_DOCS	:= $(patsubst %.txt,%.html,$(DOCS))
 # MAN_DOCS	:= $(patsubst %.txt,man/%.1,$(DOCS1)) $(patsubst %.txt,man/%.5,$(DOCS5))
 TEXT_DOCS	:= $(patsubst %.txt,%.text,$(DOCS))
 PDF_DOCS	:= $(patsubst %.txt,%.pdf,$(DOCS))
+TARGETS		 =
 
+# ASCIIDOC_OK := $(shell which asciidoc 2>&1 ; echo $$?)
+ASCIIDOC_OK	:= $(shell which asciidoc > /dev/null ; echo $$?)
+A2X_XML_OK	:= $(shell a2x $(A2X_OPTS) -f docbook hello.txt 2>&1 ; echo $$?)
+ifeq ($(A2X_XML_OK),0)
+A2X_MAN_OK	:= $(shell a2x $(A2X_MAN_OPTS) hello.txt 2>&1 ; echo $$?)
+A2X_XHTML_OK	:= $(shell a2x $(A2X_OPTS) -f xhtml hello.xml 2>&1 ; echo $$?)
+A2X_TEXT_OK	:= $(shell a2x $(A2X_OPTS) -f text hello.xml 2>&1 ; echo $$?)
+endif
 
-all:	$(HTML_DOCS) $(MAN_DOCS) $(XHTML_DOCS) $(TEXT_DOCS)
+ifeq ($(ASCIIDOC_OK),0)
+TARGETS		+= $(HTML_DOCS)
+endif
+ifeq ($(A2X_MAN_OK),0)
+TARGETS		+= $(MAN_DOCS)
+endif
+ifeq ($(A2X_XHTML_OK),0)
+TARGETS		+= $(XHTML_DOCS)
+endif
+ifeq ($(A2X_TEXT_OK),0)
+TARGETS		+= $(TEXT_DOCS)
+endif
+
+# $(HTML_DOCS) $(MAN_DOCS) $(XHTML_DOCS) $(TEXT_DOCS)
+all:	$(TARGETS)
 
 syslinux.cfg.txt:	com-bug.txt com-rpt.txt
 

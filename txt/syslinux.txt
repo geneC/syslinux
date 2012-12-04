@@ -200,8 +200,8 @@ for all situations.
 
 
 == SEE ALSO ==
-*syslxcfg*(5), *lilo*(8), *keytab-lilo.pl*(8), *fdisk*(8), *mkfs*(8),
-*superformat*(1).
+*syslinux.cfg*(5), *syslinux-cli*(1), *lilo*(8), *keytab-lilo.pl*(8),
+*fdisk*(8), *mkfs*(8), *superformat*(1).
 
 
 == AUTHOR ==
