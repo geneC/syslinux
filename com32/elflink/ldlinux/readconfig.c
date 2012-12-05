@@ -80,7 +80,7 @@ short includelevel = 1;		//nesting level
 short defaultlevel = 0;		//the current level of default
 short vkernel = 0;		//have we seen any "label" statements?
 short displaycon = 1;		//conio.inc
-short nohalt = 1;		//idle.inc
+extern short NoHalt;		//idle.c
 
 const char *default_cmd = NULL;	//"default" command line
 const char *onerror = NULL;	//"onerror" command line
@@ -1181,7 +1181,7 @@ do_include:
 	} else if (looking_at(p, "nocomplete")) {
 		nocomplete = atoi(skipspace(p + 10));
 	} else if (looking_at(p, "nohalt")) {
-		nohalt = atoi(skipspace(p + 8));
+		NoHalt = atoi(skipspace(p + 8));
 	} else if (looking_at(p, "onerror")) {
 		refstr_put(m->onerror);
 		m->onerror = refstrdup(skipspace(p + 7));

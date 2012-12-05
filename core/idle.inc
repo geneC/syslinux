@@ -74,8 +74,6 @@ do_idle:
 		alignz 4
 		global _IdleTimer
 _IdleTimer	dd 0
-		global NoHalt
-NoHalt		dw 0
 
 hlt_err		db 'ERROR: idle with IF=0', CR, LF, 0 
 
