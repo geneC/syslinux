@@ -39,7 +39,6 @@ const struct image_types image_boot_types[] = {
     { "bss", IMAGE_TYPE_BSS },
     { "pxe", IMAGE_TYPE_PXE },
     { "fdimage", IMAGE_TYPE_FDIMAGE },
-    { "comboot", IMAGE_TYPE_COMBOOT },
     { "com32", IMAGE_TYPE_COM32 },
     { "config", IMAGE_TYPE_CONFIG },
     { NULL, 0 },

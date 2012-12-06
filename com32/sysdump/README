@@ -1,4 +1,4 @@
-This is a very simple COMBOOT program which can be used to dump memory
+This is a very simple COM32 program which can be used to dump memory
 regions over a serial port.  To use it, type on the SYSLINUX command
 line:
 

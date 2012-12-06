@@ -114,7 +114,7 @@ DOSSaveVectors	resd 32
 
 comboot_vectors:
 		dw comboot_return	; INT 20 = exit
-		dw comboot_int21	; INT 21 = DOS-compatible system calls
+		dw comboot_err(21h)	; INT 21 = DOS-compatible system calls
 		dw comboot_int22	; INT 22 = native system calls
 		dw comboot_err(23h)	; INT 23 = DOS Ctrl-C handler
 		dw comboot_err(24h)	; INT 24 = DOS critical error handler
@@ -148,31 +148,6 @@ comboot_vectors:
 
 		section .text16
 
-; INT 21h: generic DOS system call
-comboot_int21:	sti
-		push ds
-		push es
-		push fs
-		push gs
-		pushad
-		cld
-		mov bp,cs
-		mov ds,bp
-		mov es,bp
-		mov bp,sp			; Set up stack frame
-
-		pm_call pm_adjust_screen	; The COMBOOT program might hav changed the screen
-
-		mov cx,int21_count
-		mov si,int21_table
-.again:		lodsb
-		cmp al,P_AH
-		lodsw
-		loopne .again
-		; The last function in the list is the
-		; "no such function" function
-		clc
-		call ax			; Call the invoked function
 comboot_resume:
 		mov bp,sp		; In case the function clobbers BP
 		setc P_FLAGSL		; Propagate CF->error
@@ -212,7 +187,7 @@ comboot_bogus_tail:
 		jmp kaboom
 
 ; Proper return vector
-; Note: this gets invoked both via INT 21h and directly via INT 20h.
+; Note: this gets invoked directly via INT 20h.
 ; We don't need to cld explicitly here, because comboot_exit does that
 ; when invoking RESET_STACK_AND_SEGS.
 comboot_return:
@@ -456,24 +431,6 @@ comapi_initadv:
 		ret
 
 		section .data16
-
-%macro		int21 2
-		db %1
-		dw %2
-%endmacro
-
-int21_table:
-		int21	00h, comboot_return
-		int21	01h, comboot_getkey
-		int21	02h, comboot_writechr
-		int21	04h, comboot_writeserial
-		int21	08h, comboot_getkeynoecho
-		int21	09h, comboot_writestr
-		int21	0Bh, comboot_checkkey
-		int21	30h, comboot_checkver
-		int21	4Ch, comboot_return
-		int21	 -1, comboot_bad_int21
-int21_count	equ ($-int21_table)/3
 
 		alignz 2
 int22_table:

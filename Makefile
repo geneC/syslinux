@@ -30,7 +30,7 @@ include $(MAKEDIR)/syslinux.mk
 # directories.
 #
 
-MODULES = memdisk/memdisk memdump/memdump.com modules/*.com \
+MODULES = memdisk/memdisk memdump/memdump.com \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
 	com32/sysdump/*.c32 com32/lua/src/*.c32 com32/chain/*.c32 \
@@ -57,7 +57,7 @@ BOBJECTS = $(BTARGET) \
 # Note: libinstaller is both a BSUBDIR and an ISUBDIR.  It contains
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
-BSUBDIRS = codepage com32 lzo core memdisk modules mbr memdump gpxe sample \
+BSUBDIRS = codepage com32 lzo core memdisk mbr memdump gpxe sample \
 	   diag libinstaller dos win32 win64 dosutil
 ITARGET  =
 IOBJECTS = $(ITARGET) \

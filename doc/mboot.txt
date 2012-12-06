@@ -2,7 +2,7 @@
 mboot.c32
 ---------
 
-mboot.c32 is a 32-bit comboot module that allows Syslinux and its
+mboot.c32 is a 32-bit ELF module that allows Syslinux and its
 variants to load and boot kernels that use the Multiboot standard
 (e.g. the Xen virtual machine monitor, and the Fiasco and GNU Mach
 microkernels).

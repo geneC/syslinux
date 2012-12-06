@@ -61,7 +61,6 @@ extern const struct image_types image_boot_types[];
 #define IMAGE_TYPE_BSS		3
 #define IMAGE_TYPE_PXE		4
 #define IMAGE_TYPE_FDIMAGE	5
-#define IMAGE_TYPE_COMBOOT	6
 #define IMAGE_TYPE_COM32	7
 #define IMAGE_TYPE_CONFIG	8
 #define IMAGE_TYPE_LOCALBOOT	9

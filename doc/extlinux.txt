@@ -49,8 +49,8 @@ slight modifications.
 5. EXTLINUX now has "boot-once" support.  The boot-once information is
    stored in an on-disk datastructure, part of extlinux.sys, called
    the "Auxillary Data Vector".  The Auxilliary Data Vector is also
-   available to COMBOOT/COM32 modules that want to store small amounts
-   of information.
+   available to COM32 modules that want to store small amounts of
+   information.
 
    To set the boot-once information, do:
 

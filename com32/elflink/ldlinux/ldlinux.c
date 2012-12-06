@@ -21,8 +21,6 @@ struct file_ext {
 };
 
 static const struct file_ext file_extensions[] = {
-	{ ".com", IMAGE_TYPE_COMBOOT },
-	{ ".cbt", IMAGE_TYPE_COMBOOT },
 	{ ".c32", IMAGE_TYPE_COM32 },
 	{ ".img", IMAGE_TYPE_FDIMAGE },
 	{ ".bss", IMAGE_TYPE_BSS },
