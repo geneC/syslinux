@@ -139,4 +139,6 @@
 /* Weak symbols */
 #define __weak			__attribute__((weak))
 
+#define __export		__attribute__((visibility("default")))
+
 #endif

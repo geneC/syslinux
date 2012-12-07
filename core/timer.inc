@@ -32,7 +32,7 @@ timer_init:
 		mov dword [BIOS_timer_hook],timer_irq
 		ret
 
-		global bios_timer_cleanup
+		global bios_timer_cleanup:function hidden
 bios_timer_cleanup:
 		; Unhook INT 1Ch
 		mov eax,[BIOS_timer_next]
@@ -43,18 +43,18 @@ bios_timer_cleanup:
 ; The specified frequency is 14.31818 MHz/12/65536; this turns out
 ; to be a period of 54.92542 ms, or 0x36.ece8(187c) hexadecimal.
 ;
-		global timer_irq
+		global timer_irq:function hidden
 timer_irq:
 		inc dword [cs:__jiffies]
 		add word  [cs:__ms_timer_adj],0xece8
 		adc dword [cs:__ms_timer],0x36
 		jmp 0:0
-		global BIOS_timer_next
+		global BIOS_timer_next:data hidden
 BIOS_timer_next	equ $-4
 
 		section .data16
 		alignz 4
-		global __jiffies, __ms_timer
+		global __jiffies:data hidden, __ms_timer
 __jiffies	dd 0			; Clock tick timer
 __ms_timer	dd 0			; Millisecond timer
 __ms_timer_adj	dw 0			; Millisecond timer correction factor

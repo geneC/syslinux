@@ -7,7 +7,6 @@ See the files in the doc directory for documentation about SYSLINUX:
 	extlinux.txt	    - Documentation specific to EXTLINUX.
 	menu.txt	    - About the menu systems.
 	usbkey.txt	    - About using SYSLINUX on USB keys.
-	comboot.txt	    - About the extension API.
 	memdisk.txt         - Documentation about MEMDISK.
 
 Also see the files:

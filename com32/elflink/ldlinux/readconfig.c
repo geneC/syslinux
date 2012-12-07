@@ -80,11 +80,12 @@ short includelevel = 1;		//nesting level
 short defaultlevel = 0;		//the current level of default
 short vkernel = 0;		//have we seen any "label" statements?
 short displaycon = 1;		//conio.inc
-short nohalt = 1;		//idle.inc
+extern short NoHalt;		//idle.c
 
-const char *default_cmd = NULL;	//"default" command line
 const char *onerror = NULL;	//"onerror" command line
 const char *ontimeout = NULL;	//"ontimeout" command line
+
+__export const char *default_cmd = NULL;	//"default" command line
 
 /* Empty refstring */
 const char *empty_string;
@@ -599,7 +600,7 @@ uint32_t parse_argb(char **p)
 //static const char *append = NULL;
 extern const char *append;
 //static unsigned int ipappend = 0;
-unsigned int ipappend = 0;
+__export unsigned int ipappend = 0;
 extern uint16_t PXERetry;
 static struct labeldata ld;
 
@@ -636,21 +637,7 @@ static char *is_message_name(char *cmdstr, enum message_number *msgnr)
     return NULL;
 }
 
-static int cat_file(const char *filename)
-{
-	FILE *f;
-	char line[2048];
-
-	f = fopen(filename, "r");
-	if (!f)
-		return -1;
-
-	while (fgets(line, sizeof(line), f) != NULL)
-		eprintf("%s", line);
-
-	fclose(f);
-	return 0;
-}
+extern void get_msg_file(char *);
 
 void cat_help_file(int key)
 {
@@ -704,7 +691,7 @@ void cat_help_file(int key)
 
 	if (cm->fkeyhelp[fkey].textname) {
 		eprintf("\n");
-		cat_file(cm->fkeyhelp[fkey].textname);
+		get_msg_file((char *)cm->fkeyhelp[fkey].textname);
 	}
 }
 
@@ -732,7 +719,7 @@ extern uint8_t FlowInput;
 extern uint8_t FlowOutput;
 extern uint16_t SerialPort;
 extern uint16_t BaudDivisor;
-extern uint8_t SerialNotice;
+static uint8_t SerialNotice = 1;
 
 #define DEFAULT_BAUD	9600
 #define BAUD_DIVISOR	115200
@@ -748,7 +735,6 @@ static inline void io_delay(void)
 	outb(0, 0x80);
 }
 
-extern void get_msg_file(char *);
 extern void loadfont(char *);
 extern void loadkeys(char *);
 
@@ -1196,7 +1182,7 @@ do_include:
 	} else if (looking_at(p, "nocomplete")) {
 		nocomplete = atoi(skipspace(p + 10));
 	} else if (looking_at(p, "nohalt")) {
-		nohalt = atoi(skipspace(p + 8));
+		NoHalt = atoi(skipspace(p + 8));
 	} else if (looking_at(p, "onerror")) {
 		refstr_put(m->onerror);
 		m->onerror = refstrdup(skipspace(p + 7));
@@ -1368,7 +1354,8 @@ static int parse_one_config(const char *filename)
 	parse_config_file(f);
 
 	if (config_cwd[0]) {
-		chdir(config_cwd);
+		if (chdir(config_cwd) < 0)
+			printf("Failed to chdir to %s\n", config_cwd);
 		config_cwd[0] = '\0';
 	}
 

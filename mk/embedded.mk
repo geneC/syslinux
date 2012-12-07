@@ -48,7 +48,7 @@ GCCOPT	  += $(call gcc_ok,-falign-functions=0,-malign-functions=0)
 GCCOPT    += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
 GCCOPT    += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT    += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
-
+GCCOPT    += $(call gcc_ok,-fvisibility=hidden)
 
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 

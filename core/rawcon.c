@@ -10,7 +10,7 @@
 #include "bios.h"
 #include "graphics.h"
 
-void writechr(char data)
+__export void writechr(char data)
 {
 	if (UsingVGA & 0x08)
 		syslinux_force_text_mode();

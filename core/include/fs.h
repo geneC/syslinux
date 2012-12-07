@@ -101,9 +101,9 @@ struct inode {
     const char *name;		/* Name, valid for generic path search only */
     int		 refcnt;
     int          mode;   /* FILE , DIR or SYMLINK */
-    uint32_t     size;
-    uint32_t	 blocks; /* How many blocks the file take */
-    uint32_t     ino;    /* Inode number */
+    uint64_t     size;
+    uint64_t	 blocks; /* How many blocks the file take */
+    uint64_t     ino;    /* Inode number */
     uint32_t     atime;  /* Access time */
     uint32_t     mtime;  /* Modify time */
     uint32_t     ctime;  /* Create time */
@@ -182,7 +182,6 @@ static inline struct file *handle_to_file(uint16_t handle)
     return handle ? &files[handle-1] : NULL;
 }
 
-#define PATH_DEFAULT	"/boot/syslinux/:/boot/"
 extern char *PATH;
 
 /* fs.c */

@@ -28,6 +28,9 @@ Changes in 5.00:
 	* ldlinux: A new "PATH" directive was added to the ldlinux.c32
 	  config parser that specifies a colon-separated list of
 	  directories to search when attempting to load modules.
+	* ALL: Delete all references to/code for 16-bit COMBOOT files.
+	  COMBOOT files (.cbt and .com) are no longer supported under
+	  Syslinux.
 
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.

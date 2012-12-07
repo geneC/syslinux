@@ -280,24 +280,15 @@ Kernel_EAX	resd 1
 Kernel_SI	resw 1
 
 		section .bss16
-		global CmdOptPtr, KbdMap
 		alignb 4
 ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
 ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
 KernelExtPtr	resw 1			; During search, final null pointer
-CmdOptPtrj	resw 1			; Pointer to first option on cmd line
-KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
-KbdMap		resb 256		; Keyboard map
 		global KernelName
 KernelName	resb FILENAME_MAX	; Mangled name for kernel
-		section .config
-		global PXERetry
-PXERetry	dw 0			; Extra PXE retries
 		section .data16
-		global SerialNotice
-SerialNotice	db 1			; Only print this once
 		extern IPOption
 		global IPAppends, numIPAppends
 		alignz 2

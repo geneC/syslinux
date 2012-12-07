@@ -19,14 +19,11 @@ char CurrentDirName[CURRENTDIR_MAX];
 struct com32_sys_args __com32;
 
 uint32_t _IdleTimer = 0;
-uint16_t NoHalt = 0;
 char __lowmem_heap[32];
 uint32_t BIOS_timer_next;
 uint32_t timer_irq;
 uint8_t KbdMap[256];
-uint16_t VGAFontSize = 16;
 char aux_seg[256];
-uint8_t UserFont = 0;
 uint16_t BIOSName;
 
 #undef kaboom

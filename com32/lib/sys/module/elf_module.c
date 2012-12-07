@@ -98,13 +98,6 @@ static int prepare_dynlinking(struct elf_module *module) {
 		dyn_entry++;
 	}
 
-	// Now compute the number of symbols in the symbol table
-	if (module->ghash_table != NULL) {
-		module->symtable_size = module->ghash_table[1];
-	} else {
-		module->symtable_size = module->hash_table[1];
-	}
-
 	return 0;
 }
 
@@ -191,6 +184,7 @@ int module_load(struct elf_module *module) {
 	Elf_Sym *main_sym;
 	Elf_Ehdr elf_hdr;
 	module_ctor_t *ctor;
+	struct elf_module *head = NULL;
 
 	// Do not allow duplicate modules
 	if (module_find(module->name) != NULL) {
@@ -224,6 +218,8 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, prepare_dynlinking(module), error);
 	//printf("check... 4\n");
 
+	head =  list_entry((&modules_head)->next, typeof(*head), list);
+
 	/* Find modules we need to load as dependencies */
 	if (module->str_table) {
 		int i;
@@ -249,7 +245,11 @@ int module_load(struct elf_module *module) {
 				p = dep;
 
 			argv[0] = p;
-			spawn_load(p, 1, argv);
+			res = spawn_load(p, 1, argv);
+			if (res < 0) {
+				printf("Failed to load %s\n", p);
+				goto error;
+			}
 		}
 	}
 
@@ -294,6 +294,9 @@ int module_load(struct elf_module *module) {
 	return 0;
 
 error:
+	if (head)
+		unload_modules_since(head->name);
+
 	// Remove the module from the module list (if applicable)
 	list_del_init(&module->list);
 

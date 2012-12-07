@@ -47,7 +47,7 @@ void bios_cleanup_hardware(void)
  *
  *	Shut down anything transient.
  */
-void cleanup_hardware(void)
+__export void cleanup_hardware(void)
 {
 	firmware->cleanup();
 }

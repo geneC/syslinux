@@ -119,12 +119,11 @@ static const char * cmd_reverse_search(int *cursor, clock_t *kbd_to,
 
 const char *edit_cmdline(const char *input, int top /*, int width */ ,
 			 int (*pDraw_Menu) (int, int, int),
-			 void (*show_fkey) (int))
+			 void (*show_fkey) (int), bool *timedout)
 {
-    static char cmdline[MAX_CMDLINE_LEN];
-    char temp_cmdline[MAX_CMDLINE_LEN] = { };
+    char cmdline[MAX_CMDLINE_LEN] = { };
     int key, len, prev_len, cursor;
-    int redraw = 1;		/* We enter with the menu already drawn */
+    int redraw = 0;
     int x, y;
     bool done = false;
     const char *ret;
@@ -139,11 +138,16 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    width = 80;
     }
 
-    cmdline[MAX_CMDLINE_LEN - 1] = '\0';
-
     len = cursor = 0;
     prev_len = 0;
     x = y = 0;
+
+    /*
+     * Before we start messing with the x,y coordinates print 'input'
+     * so that it follows whatever text has been written to the screen
+     * previously.
+     */
+    eprintf("%s ", input);
 
     while (!done) {
 	if (redraw > 1) {
@@ -154,6 +158,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    if (pDraw_Menu)
 		    (*pDraw_Menu) (-1, top, 1);
 	    prev_len = 0;
+	    eprintf("\033[2J\033[H");
 	    // printf("\033[0m\033[2J\033[H");
 	}
 
@@ -164,8 +169,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 
 	    /* Redraw the command line */
 	    eprintf("\033[?7l\033[?25l");
-	    if (y)
-		eprintf("\033[%dA", y);
 	    eprintf("\033[1G%s ", input);
 
 	    x = strlen(input);
@@ -202,6 +205,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	switch (key) {
 	case KEY_NONE:
 	    /* We timed out. */
+	    *timedout = true;
 	    return NULL;
 
 	case KEY_CTRL('L'):
@@ -211,12 +215,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	case KEY_ENTER:
 	case KEY_CTRL('J'):
 	    ret = cmdline;
-	    done = true;
-	    break;
-
-	case KEY_ESC:
-	case KEY_CTRL('C'):
-	    ret = NULL;
 	    done = true;
 	    break;
 
@@ -351,11 +349,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    comm_counter =
 			list_entry(next, typeof(*comm_counter), list);
 
-		    if (&comm_counter->list == &cli_history_head) {
-			strcpy(cmdline, temp_cmdline);
-		    } else {
+		    if (&comm_counter->list != &cli_history_head)
 			strcpy(cmdline, comm_counter->command);
-		    }
+
 		    cursor = len = strlen(cmdline);
 		    redraw = 1;
 		}
@@ -375,11 +371,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    comm_counter =
 			list_entry(prev, typeof(*comm_counter), list);
 
-		    if (&comm_counter->list == &cli_history_head) {
-			strcpy(cmdline, temp_cmdline);
-		    } else {
+		    if (&comm_counter->list != &cli_history_head)
 			strcpy(cmdline, comm_counter->command);
-		    }
+
 		    cursor = len = strlen(cmdline);
 		    redraw = 1;
 		}
@@ -435,9 +429,8 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	default:
 	    if (key >= ' ' && key <= 0xFF && len < MAX_CMDLINE_LEN - 1) {
 		if (cursor == len) {
-		    temp_cmdline[len] = key;
 		    cmdline[len++] = key;
-		    temp_cmdline[len] = cmdline[len] = '\0';
+		    cmdline[len] = '\0';
 		    putchar(key);
 		    cursor++;
 		    x++;
@@ -450,9 +443,6 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		} else {
 		    memmove(cmdline + cursor + 1, cmdline + cursor,
 			    len - cursor + 1);
-		    memmove(temp_cmdline + cursor + 1, temp_cmdline + cursor,
-			    len - cursor + 1);
-		    temp_cmdline[cursor] = key;
 		    cmdline[cursor++] = key;
 		    len++;
 		    redraw = 1;

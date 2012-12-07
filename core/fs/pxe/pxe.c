@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <core.h>
+#include <bios.h>
 #include <fs.h>
 #include <minmax.h>
 #include <sys/cpu.h>
@@ -796,8 +797,10 @@ static void __pxe_searchdir(const char *filename, struct file *file)
     
 sendreq:
     timeout = *timeout_ptr++;
-    if (!timeout)
+    if (!timeout) {
+	free_socket(inode);
 	return;			/* No file available... */
+    }
     oldtime = jiffies();
 
     socket->tftp_remoteip = ip;
@@ -1268,9 +1271,9 @@ static const void *memory_scan(uintptr_t start, int (*func)(const void *))
 
 static const struct pxe_t *memory_scan_for_pxe_struct(void)
 {
-    extern uint16_t BIOS_fbm;  /* Starting segment */
+    uint16_t start = bios_fbm(); /* Starting segment */
 
-    return memory_scan(BIOS_fbm << 10, is_pxe);
+    return memory_scan(start << 10, is_pxe);
 }
 
 static const struct pxenv_t *memory_scan_for_pxenv_struct(void)
@@ -1675,11 +1678,11 @@ void unload_pxe(uint16_t flags)
 	uint16_t Status;	/* All calls have this as the first member */
     } unload_call;
 
-    dprintf("FBM before unload = %d\n", BIOS_fbm);
+    dprintf("FBM before unload = %d\n", bios_fbm());
 
     err = reset_pxe();
 
-    dprintf("FBM after reset_pxe = %d, err = %d\n", BIOS_fbm, err);
+    dprintf("FBM after reset_pxe = %d, err = %d\n", bios_fbm(), err);
 
     /* If we want to keep PXE around, we still need to reset it */
     if (flags || err)
@@ -1699,8 +1702,8 @@ void unload_pxe(uint16_t flags)
     }
 
     api = 0xff00;
-    if (real_base_mem <= BIOS_fbm) {  /* Sanity check */ 
-	dprintf("FBM %d < real_base_mem %d\n", BIOS_fbm, real_base_mem);
+    if (real_base_mem <= bios_fbm()) {  /* Sanity check */
+	dprintf("FBM %d < real_base_mem %d\n", bios_fbm(), real_base_mem);
 	goto cant_free;
     }
     api++;
@@ -1708,20 +1711,20 @@ void unload_pxe(uint16_t flags)
     /* Check that PXE actually unhooked the INT 0x1A chain */
     int_addr = (size_t)GET_PTR(*(far_ptr_t *)(4 * 0x1a));
     int_addr >>= 10;
-    if (int_addr >= real_base_mem || int_addr < BIOS_fbm) {
-	BIOS_fbm = real_base_mem;
-	dprintf("FBM after unload_pxe = %d\n", BIOS_fbm);
+    if (int_addr >= real_base_mem || int_addr < bios_fbm()) {
+	set_bios_fbm(real_base_mem);
+	dprintf("FBM after unload_pxe = %d\n", bios_fbm());
 	return;
     }
 
     dprintf("Can't free FBM, real_base_mem = %d, "
 	    "FBM = %d, INT 1A = %08x (%d)\n",
-	    real_base_mem, BIOS_fbm,
+	    real_base_mem, bios_fbm(),
 	    *(uint32_t *)(4 * 0x1a), int_addr);
 
 cant_free:
     printf("Failed to free base memory error %04x-%08x (%d/%dK)\n",
-	   api, *(uint32_t *)(4 * 0x1a), BIOS_fbm, real_base_mem);
+	   api, *(uint32_t *)(4 * 0x1a), bios_fbm(), real_base_mem);
     return;
 }
 

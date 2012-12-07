@@ -96,12 +96,12 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     return p;
 }
 
-void *malloc(size_t size)
+__export void *malloc(size_t size)
 {
     return _malloc(size, HEAP_MAIN, MALLOC_CORE);
 }
 
-void *lmalloc(size_t size)
+__export void *lmalloc(size_t size)
 {
     void *p;
 
@@ -217,12 +217,12 @@ void *bios_realloc(void *ptr, size_t size)
     }
 }
 
-void *realloc(void *ptr, size_t size)
+__export void *realloc(void *ptr, size_t size)
 {
     return firmware->mem->realloc(ptr, size);
 }
 
-void *zalloc(size_t size)
+__export void *zalloc(size_t size)
 {
     void *ptr;
 

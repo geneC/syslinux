@@ -18,7 +18,6 @@
 
 %ifndef _BIOS_INC
 %define _BIOS_INC
-                global BIOS_fbm, BIOS_timer
 
 		; Interrupt vectors
 		absolute 4*1Ch

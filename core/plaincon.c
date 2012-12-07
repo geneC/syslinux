@@ -9,7 +9,7 @@
  * Write a single character in AL to the console without
  * mangling any registers; handle video pages correctly.
  */
-void writechr(char data)
+__export void writechr(char data)
 {
 	com32sys_t ireg, oreg;
 

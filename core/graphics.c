@@ -25,12 +25,13 @@
 #include "bios.h"
 #include "graphics.h"
 
-uint8_t UsingVGA = 0;
+__export uint8_t UsingVGA = 0;
 uint16_t VGAPos;		/* Pointer into VGA memory */
-uint16_t *VGAFilePtr;		/* Pointer into VGAFileBuf */
+__export uint16_t *VGAFilePtr;	/* Pointer into VGAFileBuf */
+__export uint16_t VGAFontSize = 16;	/* Defaults to 16 byte font */
 
-char VGAFileBuf[VGA_FILE_BUF_SIZE]; /* Unmangled VGA image name */
-char VGAFileMBuf[FILENAME_MAX];	/* Mangled VGA image name */
+__export char VGAFileBuf[VGA_FILE_BUF_SIZE];	/* Unmangled VGA image name */
+__export char VGAFileMBuf[FILENAME_MAX];	/* Mangled VGA image name */
 
 static uint8_t VGARowBuffer[640 + 80];	/* Decompression buffer */
 static uint8_t VGAPlaneBuffer[(640/8) * 4]; /* Plane buffers */
@@ -229,7 +230,7 @@ static void outputvga(const void *in, void *out)
 /*
  * Display a graphical splash screen.
  */
-void vgadisplayfile(FILE *_fd)
+__export void vgadisplayfile(FILE *_fd)
 {
 	char *p;
 	int size;
@@ -304,7 +305,7 @@ void vgadisplayfile(FILE *_fd)
 /*
  * Disable VGA graphics.
  */
-void syslinux_force_text_mode(void)
+__export void syslinux_force_text_mode(void)
 {
 	com32sys_t ireg, oreg;
 
@@ -356,7 +357,7 @@ void vgashowcursor(void)
 	vgacursorcommon('_');
 }
 
-void using_vga(uint8_t vga, uint16_t pix_cols, uint16_t pix_rows)
+__export void using_vga(uint8_t vga, uint16_t pix_cols, uint16_t pix_rows)
 {
     UsingVGA = vga;
     GXPixCols = pix_cols;

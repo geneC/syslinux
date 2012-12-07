@@ -81,7 +81,7 @@ void bios_free(void *ptr)
     __free_block(ah);
 }
 
-void free(void *ptr)
+__export void free(void *ptr)
 {
     dprintf("free(%p) @ %p\n", ptr, __builtin_return_address(0));
 

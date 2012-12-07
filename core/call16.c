@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include "core.h"
 
-const com32sys_t zero_regs;	/* Common all-zero register set */
+__export const com32sys_t zero_regs;	/* Common all-zero register set */
 
 static inline uint32_t eflags(void)
 {
@@ -38,7 +38,8 @@ static inline uint32_t eflags(void)
     return v;
 }
 
-void call16(void (*func)(void), const com32sys_t *ireg, com32sys_t *oreg)
+__export void call16(void (*func)(void), const com32sys_t *ireg,
+		     com32sys_t *oreg)
 {
     com32sys_t xreg = *ireg;
 

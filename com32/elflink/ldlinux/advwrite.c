@@ -31,10 +31,11 @@
  * Write back the ADV
  */
 
+#include <klibc/compiler.h>
 #include <syslinux/adv.h>
 #include <syslinux/firmware.h>
 
-int syslinux_adv_write(void)
+__export int syslinux_adv_write(void)
 {
     return firmware->adv_ops->write();
 }

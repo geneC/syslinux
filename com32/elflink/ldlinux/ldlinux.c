@@ -21,8 +21,6 @@ struct file_ext {
 };
 
 static const struct file_ext file_extensions[] = {
-	{ ".com", IMAGE_TYPE_COMBOOT },
-	{ ".cbt", IMAGE_TYPE_COMBOOT },
 	{ ".c32", IMAGE_TYPE_COM32 },
 	{ ".img", IMAGE_TYPE_FDIMAGE },
 	{ ".bss", IMAGE_TYPE_BSS },
@@ -46,7 +44,7 @@ static inline const char *find_command(const char *str)
 	return p;
 }
 
-uint32_t parse_image_type(const char *kernel)
+__export uint32_t parse_image_type(const char *kernel)
 {
 	const struct file_ext *ext;
 	const char *p;
@@ -102,7 +100,7 @@ static const char *get_extension(const char *kernel)
 	return NULL;
 }
 
-static const char *apply_extension(const char *kernel, const char *ext)
+const char *apply_extension(const char *kernel, const char *ext)
 {
 	const char *p;
 	char *k;
@@ -121,12 +119,15 @@ static const char *apply_extension(const char *kernel, const char *ext)
 	memcpy(k, kernel, len);
 
 	/* Append the extension */
-	memcpy(k + len, ext, elen);
+	if (strncmp(p - elen, ext, elen)) {
+		memcpy(k + len, ext, elen);
+		len += elen;
+	}
 
 	/* Copy the rest of the command line */
-	strcpy(k + len + elen, p);
+	strcpy(k + len, p);
 
-	k[len + elen + strlen(p)] = '\0';
+	k[len + strlen(p)] = '\0';
 
 	return k;
 }
@@ -138,7 +139,7 @@ static const char *apply_extension(const char *kernel, const char *ext)
  * the the kernel. If we return the caller should call enter_cmdline()
  * so that the user can help us out.
  */
-void load_kernel(const char *command_line)
+__export void load_kernel(const char *command_line)
 {
 	struct menu_entry *me;
 	const char *cmdline;
@@ -201,28 +202,14 @@ bad_kernel:
 	 * line.
 	 */
 	if (onerrorlen) {
-		rsprintf(&cmdline, "%s %s", onerror, default_cmd);
-		execute(cmdline, IMAGE_TYPE_COM32);
-	}
-}
+		me = find_label(onerror);
+		if (me)
+			rsprintf(&cmdline, "%s %s", me->cmdline, default_cmd);
+		else
+			rsprintf(&cmdline, "%s %s", onerror, default_cmd);
 
-static void enter_cmdline(void)
-{
-	const char *cmdline;
-
-	/* Enter endless command line prompt, should support "exit" */
-	while (1) {
-		cmdline = edit_cmdline("boot:", 1, NULL, cat_help_file);
-		printf("\n");
-
-		/* return if user only press enter or we timed out */
-		if (!cmdline || cmdline[0] == '\0') {
-			if (ontimeoutlen)
-				load_kernel(ontimeout);
-			return;
-		}
-
-		load_kernel(cmdline);
+		type = parse_image_type(cmdline);
+		execute(cmdline, type);
 	}
 }
 
@@ -241,10 +228,35 @@ void ldlinux_auto_boot(void)
 		load_kernel(default_cmd);
 }
 
+static void enter_cmdline(void)
+{
+	const char *cmdline;
+
+	/* Enter endless command line prompt, should support "exit" */
+	while (1) {
+		bool to = false;
+
+		if (noescape) {
+			ldlinux_auto_boot();
+			continue;
+		}
+
+		cmdline = edit_cmdline("boot:", 1, NULL, cat_help_file, &to);
+		printf("\n");
+
+		/* return if user only press enter or we timed out */
+		if (!cmdline || cmdline[0] == '\0') {
+			if (to && ontimeoutlen)
+				load_kernel(ontimeout);
+			else
+				ldlinux_auto_boot();
+		} else
+			load_kernel(cmdline);
+	}
+}
+
 void ldlinux_enter_command(void)
 {
-	if (noescape)
-		ldlinux_auto_boot();
 	enter_cmdline();
 }
 
@@ -259,14 +271,19 @@ static void __destructor close_console(void)
 		close(i);
 }
 
-int main(int argc __unused, char **argv __unused)
+void ldlinux_console_init(void)
+{
+	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
+}
+
+__export int main(int argc __unused, char **argv __unused)
 {
 	const void *adv;
 	const char *cmdline;
 	size_t count = 0;
 	char *config_argv[2] = { NULL, NULL };
 
-	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
+	ldlinux_console_init();
 
 	if (ConfigName[0])
 		config_argv[0] = ConfigName;

@@ -30,7 +30,9 @@ int load_segments(struct elf_module *module, Elf_Ehdr *elf_hdr) {
 	int i;
 	int res = 0;
 	char *pht = NULL;
+	char *sht = NULL;
 	Elf64_Phdr *cr_pht;
+	Elf64_Shdr *cr_sht;
 
 	Elf64_Addr min_addr  = 0x0000000000000000; // Min. ELF vaddr
 	Elf64_Addr max_addr  = 0x0000000000000000; // Max. ELF vaddr
@@ -141,6 +143,25 @@ int load_segments(struct elf_module *module, Elf_Ehdr *elf_hdr) {
 			*/
 		}
 	}
+
+	// Get to the SHT
+	image_seek(elf_hdr->e_shoff, module);
+
+	// Load the SHT
+	sht = malloc(elf_hdr->e_shnum * elf_hdr->e_shentsize);
+	image_read(sht, elf_hdr->e_shnum * elf_hdr->e_shentsize, module);
+
+	// Setup the symtable size
+	for (i = 0; i < elf_hdr->e_shnum; i++) {
+		cr_sht = (Elf64_Shdr*)(sht + i * elf_hdr->e_shentsize);
+
+		if (cr_sht->sh_type == SHT_DYNSYM) {
+			module->symtable_size = cr_sht->sh_size;
+			break;
+		}
+	}
+
+	free(sht);
 
 	// Setup dynamic segment location
 	module->dyn_table = module_get_absolute(dyn_addr, module);

@@ -25,7 +25,7 @@
 #define TICKS_TO_IDLE	4	/* Also in idle.inc */
 
 extern uint32_t _IdleTimer;
-extern uint16_t NoHalt;
+__export uint16_t NoHalt = 0;
 
 int (*idle_hook_func)(void);
 
@@ -34,7 +34,7 @@ void reset_idle(void)
     _IdleTimer = jiffies();
 }
 
-void __idle(void)
+__export void __idle(void)
 {
     if (jiffies() - _IdleTimer < TICKS_TO_IDLE)
 	return;

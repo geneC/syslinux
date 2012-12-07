@@ -205,7 +205,6 @@ static int read_jpeg_file(FILE * fp, uint8_t * header, int len)
     unsigned int bytes_per_row[1];
 
     rv = floadfile(fp, &jpeg_file, &length_of_file, header, len);
-    fclose(fp);
     if (rv)
 	goto err;
 

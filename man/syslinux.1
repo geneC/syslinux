@@ -141,8 +141,7 @@ and if no "append" is given the default is to use the global entry (if any).
 Use "append -" to use no options at all.  Up to 128 "label" entries are
 permitted.
 .IP
-The "image" doesn't have to be a Linux kernel; it can be a boot sector or a
-COMBOOT file (see below.)
+The "image" doesn't have to be a Linux kernel; it can be a boot sector (see below.)
 .RE
 .TP
 .BI implicit\  flag_val
@@ -297,25 +296,21 @@ For example:
 .TP
 \fI<SUB>\fP = \fI<Ctrl-Z>\fP = ASCII 26
 End of file (DOS convention).
-.SS Comboot Images and other operating systems
+.SS Other operating systems
 This version of \fBsyslinux\fP supports chain loading of other operating
-systems (such as MS-DOS and its derivatives, including Windows 95/98),
-as well as COMBOOT-style standalone executables (a subset of DOS .COM
-files; see separate section below.)
+systems (such as MS-DOS and its derivatives, including Windows 95/98).
 .PP
 Chain loading requires the boot sector of the foreign operating system
 to be stored in a file in the root directory of the filesystem.
-Because neither Linux kernels, boot sector images, nor COMBOOT files
-have reliable magic numbers, \fBsyslinux\fP will look at the file
+Because neither Linux kernels, nor boot sector images have reliable magic
+numbers, \fBsyslinux\fP will look at the file
 extension. The following extensions are recognised:
 .PP
 .nf
 .ta \w'none or other    'u
 none or other	Linux kernel image
-CBT	COMBOOT image (not runnable from DOS)
 BSS	Boot sector (DOS superblock will be patched in)
 BS	Boot sector
-COM	COMBOOT image (runnable from DOS)
 .fi
 .PP
 For filenames given on the command line, \fBsyslinux\fP will search for the
@@ -323,29 +318,6 @@ file by adding extensions in the order listed above if the plain
 filename is not found. Filenames in KERNEL statements must be fully
 qualified.
 .PP
-A COMBOOT file is a standalone executable in DOS .COM format. They
-can, among other things, be produced by the Etherboot package by
-Markus Gutschke and Ken Yap. The following requirements apply for
-these files to be sufficiently "standalone" for \fBsyslinux\fP to be able to
-load and run them:
-.IP \(bu
-The program must not execute any DOS calls (since there is no
-DOS), although it may call the BIOS. The only exception is that
-the program may execute INT 20h (Terminate Program) to return to
-the \fBsyslinux\fP prompt. Note especially that INT 21h AH=4Ch, INT 21h
-AH=31h or INT 27h are not supported.
-.IP \(bu
-Only the fields pspInt20 at offset 00h, pspNextParagraph at offset 02h and
-pspCommandTail at offset 80h (contains the arguments from the \fBsyslinux\fP command
-line) in the PSP are supported. All other fields will contain zero.
-.IP \(bu
-The program must not modify any main memory outside its 64K segment if it
-returns to \fBsyslinux\fP via INT 20h.
-.PP
-\fBSyslinux\fP currently doesn't provide any form of API for the use of
-COMBOOT files.  If there is need, a future version may contain an INT
-interface to some \fBsyslinux\fP functions; please contact me if you have a
-need or ideas for such an API.
 .SS Novice protection
 \fBSyslinux\fP will attempt to detect if the user is trying to boot on a 286
 or lower class machine, or a machine with less than 608K of low ("DOS")

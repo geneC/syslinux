@@ -57,7 +57,7 @@ void init_module_subsystem(struct elf_module *module)
     list_add(&module->list, &modules_head);
 }
 
-int start_ldlinux(char **argv)
+__export int start_ldlinux(char **argv)
 {
 	int rv;
 
@@ -69,9 +69,19 @@ again:
 		 * unload all the modules loaded since ldlinux.c32,
 		 * and restart initialisation. This is especially
 		 * important for config files.
+		 *
+		 * But before we do that, try our best to make sure
+		 * that spawn_load() is gonna succeed, e.g. that we
+		 * can find LDLINUX it in PATH.
 		 */
 		struct elf_module *ldlinux;
+		FILE *f;
 
+		f = findpath(LDLINUX);
+		if (!f)
+			return ENOENT;
+
+		fclose(f);
 		ldlinux = unload_modules_since(LDLINUX);
 
 		/*
@@ -113,14 +123,13 @@ void load_env32(com32sys_t * regs __unused)
 
 	dprintf("Starting %s elf module subsystem...\n", ELF_MOD_SYS);
 
-	PATH = malloc(strlen(PATH_DEFAULT) + 1);
+	PATH = malloc(strlen(CurrentDirName) + 1);
 	if (!PATH) {
 		printf("Couldn't allocate memory for PATH\n");
 		return;
 	}
 
-	strcpy(PATH, PATH_DEFAULT);
-	PATH[strlen(PATH_DEFAULT)] = '\0';
+	strcpy(PATH, CurrentDirName);
 
 	size = (size_t)__dynstr_end - (size_t)__dynstr_start;
 	core_module.strtable_size = size;
@@ -150,7 +159,7 @@ void load_env32(com32sys_t * regs __unused)
 	writestr("\nFailed to load ldlinux.c32");
 }
 
-int create_args_and_load(char *cmdline)
+__export int create_args_and_load(char *cmdline)
 {
 	char *p, **argv;
 	int argc;
@@ -175,9 +184,10 @@ int create_args_and_load(char *cmdline)
 	 * Generate a copy of argv on the stack as this is
 	 * traditionally where process arguments go.
 	 *
-	 * argv[0] must be the command name.
+	 * argv[0] must be the command name. Remember to allocate
+	 * space for the sentinel NULL.
 	 */
-	argv = alloca(argc * sizeof(char *));
+	argv = alloca((argc + 1) * sizeof(char *));
 
 	for (i = 0, p = cmdline; i < argc; i++) {
 		char *start;

@@ -39,7 +39,6 @@ const struct image_types image_boot_types[] = {
     { "bss", IMAGE_TYPE_BSS },
     { "pxe", IMAGE_TYPE_PXE },
     { "fdimage", IMAGE_TYPE_FDIMAGE },
-    { "comboot", IMAGE_TYPE_COMBOOT },
     { "com32", IMAGE_TYPE_COM32 },
     { "config", IMAGE_TYPE_CONFIG },
     { NULL, 0 },
@@ -47,7 +46,7 @@ const struct image_types image_boot_types[] = {
 
 extern int create_args_and_load(char *);
 
-void execute(const char *cmdline, uint32_t type)
+__export void execute(const char *cmdline, uint32_t type)
 {
 	const char *kernel, *args;
 	const char *p;
@@ -84,7 +83,17 @@ void execute(const char *cmdline, uint32_t type)
 		const struct image_types *t;
 		for (t = image_boot_types; t->name; t++) {
 			if (!strcmp(kernel + 1, t->name)) {
-				/* Strip the type specifier and retry */
+				/*
+				 * Strip the type specifier, apply the
+				 * filename extension if COM32 and
+				 * retry.
+				 */
+				if (t->type == IMAGE_TYPE_COM32) {
+					p = apply_extension(p, ".c32");
+					if (!p)
+						return;
+				}
+
 				execute(p, t->type);
 				return;
 			}
@@ -92,8 +101,15 @@ void execute(const char *cmdline, uint32_t type)
 	}
 
 	if (type == IMAGE_TYPE_COM32) {
+		/*
+		 * We may be called with the console in an unknown
+		 * state, so initialise it.
+		 */
+		ldlinux_console_init();
+
 		/* new entry for elf format c32 */
-		create_args_and_load((char *)cmdline);
+		if (create_args_and_load((char *)cmdline))
+			printf("Failed to load COM32 file %s\n", kernel);
 
 		/*
 		 * The old COM32 module code would run the module then
@@ -102,9 +118,14 @@ void execute(const char *cmdline, uint32_t type)
 		 * e.g. from vesamenu.c32.
 		 */
 		unload_modules_since("ldlinux.c32");
+
+		/* Restore the console */
+		ldlinux_console_init();
+
 		ldlinux_enter_command();
 	} else if (type == IMAGE_TYPE_CONFIG) {
 		char *argv[] = { "ldlinux.c32", NULL };
+		int rv;
 
 		/* kernel contains the config file name */
 		realpath(ConfigName, kernel, FILENAME_MAX);
@@ -113,7 +134,8 @@ void execute(const char *cmdline, uint32_t type)
 		if (*args)
 			mangle_name(config_cwd, args);
 
-		start_ldlinux(argv);
+		rv = start_ldlinux(argv);
+		printf("Failed to exec ldlinux.c32: %s\n", strerror(rv));
 	} else if (type == IMAGE_TYPE_LOCALBOOT) {
 		local_boot(strtoul(kernel, NULL, 0));
 	} else if (type == IMAGE_TYPE_PXE || type == IMAGE_TYPE_BSS ||

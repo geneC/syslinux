@@ -87,7 +87,6 @@ enum kernel_type {
     KT_BSS,			/* Boot sector with patch */
     KT_PXE,			/* PXE NBP */
     KT_FDIMAGE,			/* Floppy disk image */
-    KT_COMBOOT,			/* COMBOOT image */
     KT_COM32,			/* COM32 image */
     KT_CONFIG,			/* Configuration file */
 };

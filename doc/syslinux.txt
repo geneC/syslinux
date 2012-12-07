@@ -214,7 +214,7 @@ LABEL label
           append myoptions
 
 	Note: The "kernel" doesn't have to be a Linux kernel; it can
-	      be a boot sector or a COMBOOT file (see below.)
+	      be a boot sector (see below.)
 
 	Since version 3.32 label names are no longer mangled into DOS
 	format (for SYSLINUX.)
@@ -226,7 +226,6 @@ LABEL label
     BSS image			- BSS image (.bss)
     PXE image			- PXE Network Bootstrap Program (.0)
     FDIMAGE image		- Floppy disk image (.img)
-    COMBOOT image		- COMBOOT program (.com, .cbt)
     COM32 image			- COM32 program (.c32)
     CONFIG image		- New configuration file
 	Using one of these keywords instead of KERNEL forces the
@@ -455,7 +454,9 @@ PATH path
 	when attempting to load modules. This directive is useful for
 	specifying the directories containing the lib*.c32 library
 	files as other modules may be dependent on these files, but
-	may not reside in the same directory.
+	may not reside in the same directory. The list of directories
+	is searched in order. Please see the section below on PATH
+	RULES.
 
 Blank lines are ignored.
 
@@ -564,17 +565,15 @@ The command line prompt supports the following keystrokes:
 <Ctrl-N>	display network information (PXELINUX only)
 
 
-   ++++ COMBOOT IMAGES AND OTHER OPERATING SYSTEMS ++++
+   ++++ OTHER OPERATING SYSTEMS ++++
 
 This version of Syslinux supports chain loading of other operating
-systems (such as MS-DOS and its derivatives, including Windows 95/98),
-as well as COMBOOT-style standalone executables (a subset of DOS .COM
-files; see separate section below.)
+systems (such as MS-DOS and its derivatives, including Windows 95/98).
 
 Chain loading requires the boot sector of the foreign operating system
 to be stored in a file in the root directory of the filesystem.
-Because neither Linux kernels, boot sector images, nor COMBOOT files
-have reliable magic numbers, Syslinux will look at the file extension.
+Because neither Linux kernels, nor boot sector images have reliable
+magic numbers, Syslinux will look at the file extension.
 The following extensions are recognized (case insensitive):
 
   none or other	Linux kernel image
@@ -582,9 +581,7 @@ The following extensions are recognized (case insensitive):
   .bin		"CD boot sector" [ISOLINUX only]
   .bs		Boot sector [SYSLINUX only]
   .bss		Boot sector, DOS superblock will be patched in [SYSLINUX only]
-  .c32		COM32 image (32-bit COMBOOT)
-  .cbt		COMBOOT image (not runnable from DOS)
-  .com		COMBOOT image (runnable from DOS)
+  .c32		COM32 image (32-bit ELF)
   .img		Disk image [ISOLINUX only]
 
 For filenames given on the command line, Syslinux will search for the
@@ -593,7 +590,7 @@ filename is not found.  Filenames in KERNEL statements must be fully
 qualified.
 
 If this is specified with one of the keywords LINUX, BOOT, BSS,
-FDIMAGE, COMBOOT, COM32, or CONFIG instead of KERNEL, the filetype is
+FDIMAGE, COM32, or CONFIG instead of KERNEL, the filetype is
 considered to be the one specified regardless of the filename.
 
 
@@ -671,17 +668,6 @@ syslinux.exe instead.
 
 	copy vmlinux a:
 	copy initrd.gz a:
-
-
-   ++++ COMBOOT EXECUTABLES ++++
-
-Syslinux supports simple standalone programs, using a file format
-similar to DOS ".com" files.  A 32-bit version, called COM32, is also
-provided.  A simple API provides access to a limited set of filesystem
-and console functions.
-
-See the file comboot.txt for more information on COMBOOT and COM32
-programs.
 
 
    ++++ NOVICE PROTECTION ++++
@@ -773,6 +759,32 @@ and the lower nybble is version or, in the case of Syslinux, media:
 
 In recent versions of Linux, this ID is available as
 /proc/sys/kernel/bootloader_type.
+
+
+   ++++ PATH RULES ++++
+
+The current working directory is *always* searched first, before PATH,
+when attempting to open a filename. The current working directory is
+not affected when specifying a file with an absolute path. For
+example, given the following file system layout,
+
+	 /boot/
+		/bin/
+			ls.c32
+			libls.c32
+		/foo/
+			libls.c32
+
+assuming that the current working directory is /boot/foo, and assuming
+that libls.c32 is a dependency of ls.c32, executing /boot/bin/ls.c32
+will cause /boot/foo/libls.c32 to be loaded, not /boot/bin/libls.c32,
+even if /boot/bin is specified in the PATH directive of a config file.
+
+The reason that things work this way is that typically a user will
+install all library files in the Syslinux installation directory, as
+specified with the --directory installer option. This method allows
+the user to omit the PATH directive from their config file and still
+have things work correctly.
 
 
    ++++ BUG REPORTS ++++

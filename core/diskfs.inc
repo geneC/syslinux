@@ -60,7 +60,7 @@ vk_end:		equ $			; Should be <= vk_size
 ; Memory below this point is reserved for the BIOS and the MBR
 ;
 		section .earlybss
-		global trackbuf
+		global trackbuf:data hidden
 trackbufsize	equ 8192
 trackbuf	resb trackbufsize	; Track buffer goes here
 		; ends at 2800h
@@ -91,24 +91,15 @@ auto_boot:
 		jmp kaboom
 
 		section .bss16
-		global CmdOptPtr, KbdMap
 		alignb 4
 ThisKbdTo	resd 1			; Temporary holder for KbdTimeout
 ThisTotalTo	resd 1			; Temporary holder for TotalTimeout
 KernelExtPtr	resw 1			; During search, final null pointer
-CmdOptPtr	resw 1			; Pointer to first option on cmd line
-KbdFlags	resb 1			; Check for keyboard escapes
 FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
-KbdMap		resb 256		; Keyboard map
 		global KernelName
 KernelName	resb FILENAME_MAX	; Mangled name for kernel
-		section .config
-		global PXERetry
-PXERetry	dw 0			; Extra PXE retries
 		section .data16
-		global SerialNotice
-SerialNotice	db 1			; Only print this once
 		global IPAppends, numIPAppends
 %if IS_PXELINUX
 		extern IPOption

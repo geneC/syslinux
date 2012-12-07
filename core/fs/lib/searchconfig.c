@@ -4,8 +4,8 @@
 #include <core.h>
 #include <fs.h>
 
-char ConfigName[FILENAME_MAX];
-char config_cwd[FILENAME_MAX];
+__export char ConfigName[FILENAME_MAX];
+__export char config_cwd[FILENAME_MAX];
 
 /*
  * This searches for a specified set of filenames in a specified set

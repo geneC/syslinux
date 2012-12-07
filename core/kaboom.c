@@ -18,7 +18,7 @@ __noreturn __bad_SEG(const volatile void *p)
 
 #undef kaboom
 
-__noreturn _kaboom(void)
+__export __noreturn _kaboom(void)
 {
     extern void kaboom(void);
     call16(kaboom, &zero_regs, NULL);

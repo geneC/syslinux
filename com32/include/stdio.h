@@ -124,9 +124,9 @@ __extern int rename(const char *, const char *);
  *
  * Returns 0 if 'data' was converted succesfully, -1 otherwise.
  */
-static inline int unhexchar(char *data)
+static inline int unhexchar(unsigned char *data)
 {
-	char num = *data;
+	unsigned char num = *data;
 
 	if (num >= '0' && num <= '9') {
 		*data = num - '0';
@@ -134,7 +134,7 @@ static inline int unhexchar(char *data)
 	} else {
 		num |= 0x20;	/* upper case -> lower case */
 		if (num >= 'a' && num <= 'f') {
-			*data = num - 'a' - 10;
+			*data = num - 'a' + 10;
 			return 0;
 		}
 	}

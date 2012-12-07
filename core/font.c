@@ -27,7 +27,9 @@
 #include "graphics.h"
 #include "core.h"
 
-__lowmem char fontbuf[8192];
+__export uint8_t UserFont = 0;		/* Using a user-specified font */
+
+__export __lowmem char fontbuf[8192];
 
 uint16_t GXPixCols = 1;		/* Graphics mode pixel columns */
 uint16_t GXPixRows = 1;		/* Graphics mode pixel rows */
@@ -36,7 +38,7 @@ uint16_t GXPixRows = 1;		/* Graphics mode pixel rows */
  * loadfont:	Load a .psf font file and install it onto the VGA console
  *		(if we're not on a VGA screen then ignore.)
  */
-void loadfont(const char *filename)
+__export void loadfont(const char *filename)
 {
 	struct psfheader {
 		uint16_t magic;

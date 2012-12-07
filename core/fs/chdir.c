@@ -54,7 +54,7 @@ static size_t generic_inode_to_path(struct inode *inode, char *dst, size_t bufsi
     return s;
 }
 
-size_t realpath(char *dst, const char *src, size_t bufsize)
+__export size_t realpath(char *dst, const char *src, size_t bufsize)
 {
     int rv;
     struct file *file;
@@ -83,7 +83,7 @@ size_t realpath(char *dst, const char *src, size_t bufsize)
     return s;
 }
 
-int chdir(const char *src)
+__export int chdir(const char *src)
 {
     int rv;
     struct file *file;

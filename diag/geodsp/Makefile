@@ -25,7 +25,7 @@ VPATH = $(SRC)
 BTARGET = geodsp1s.bin geodspms.bin \
 	geodsp1s.img.xz geodspms.img.xz
 
-NASMOPT = -i $(coredir)/ -i $(SRC)/ -Ox -f bin
+NASMOPT = -i $(coredir)/ -i $(SRC)/ -Ox -f bin -dBINFMT
 NASMOPT += -w+orphan-labels
 CFLAGS = -g -O
 

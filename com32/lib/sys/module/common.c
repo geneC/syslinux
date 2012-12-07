@@ -71,15 +71,19 @@ FILE *findpath(char *name)
 	p = PATH;
 again:
 	i = 0;
-	while (*p && *p != ':' && i < FILENAME_MAX) {
+	while (*p && *p != ':' && i < FILENAME_MAX - 1) {
 		path[i++] = *p++;
 	}
 
 	if (*p == ':')
 		p++;
 
+	/* Ensure we have a '/' separator */
+	if (path[i] != '/' && i < FILENAME_MAX - 1)
+		path[i++] = '/';
+
 	n = name;
-	while (*n && i < FILENAME_MAX)
+	while (*n && i < FILENAME_MAX - 1)
 		path[i++] = *n++;
 	path[i] = '\0';
 

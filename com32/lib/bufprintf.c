@@ -17,8 +17,10 @@ int vbufprintf(struct print_buf *buf, const char *format, va_list ap)
 	char *newbuf;
 
 	newbuf = realloc(buf->buf, newsize);
-	if (!newbuf)
-	    return -1;
+	if (!newbuf) {
+	    rv = -1;
+	    goto bail;
+	}
 
 	buf->buf = newbuf;
 	buf->size = newsize;
@@ -26,6 +28,8 @@ int vbufprintf(struct print_buf *buf, const char *format, va_list ap)
 
     rv = vsnprintf(buf->buf + buf->len, buf->size - buf->len, format, ap2);
     buf->len += rv;
+bail:
+    va_end(ap2);
     return rv;
 }
 

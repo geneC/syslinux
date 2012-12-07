@@ -36,7 +36,7 @@
 #include <klibc/compiler.h>
 #include <inttypes.h>
 
-const void *syslinux_getadv(int tag, size_t * size)
+__export const void *syslinux_getadv(int tag, size_t * size)
 {
     const uint8_t *p;
     size_t left;

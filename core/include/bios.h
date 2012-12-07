@@ -35,6 +35,16 @@
 #define BIOS_magic	0x0472	/* BIOS reset magic */
 #define BIOS_vidrows	0x0484	/* Number of screen rows */
 
+static inline uint16_t bios_fbm(void)
+{
+	return *(volatile uint16_t *)BIOS_fbm;
+}
+
+static inline void set_bios_fbm(uint16_t mem)
+{
+	*(volatile uint16_t *)BIOS_fbm = mem;
+}
+
 #define serial_buf_size		4096
 #define IO_DELAY_PORT		0x80 /* Invalid port (we hope!) */
 

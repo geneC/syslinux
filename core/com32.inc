@@ -40,7 +40,7 @@ com32_entry	equ	free_high_memory
 		;
 		; Danger, Will Robinson: it's not clear the use of
 		; core_xfer_buf is safe here.
-		global __entry_esp, __com32
+		global __com32:data hidden
 		alignz 4
 __entry_esp:
 		dd 0				; Dummy to avoid _exit issues
