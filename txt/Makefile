@@ -69,7 +69,7 @@ syslinux.cfg.txt:	com-bug.txt com-rpt.txt
 # %.html:	%.txt
 # 	asciidoc -D html $<
 
-html/%.html:	%.txt com-bug.txt com-rpt.txt
+html/%.html:	%.txt
 	asciidoc -o $@ $<
 
 # As of AsciiDoc-8.5.2, altering the output filename for a2x does not appear possible
@@ -85,13 +85,10 @@ html/%.html:	%.txt com-bug.txt com-rpt.txt
 %.html:	%.xml %.txt
 	a2x $(A2X_OPTS) -f xhtml $<
 
-man/syslinux.1:	syslinux.txt
+man/%.1:	%.txt
 	a2x $(A2X_MAN_OPTS) $<
 
-man/syslinux-cli.1:	syslinux-cli.txt
-	a2x $(A2X_MAN_OPTS) $<
-
-man/syslinux.cfg.5:	syslinux.cfg.txt
+man/%.5:	%.txt
 	a2x $(A2X_MAN_OPTS) $<
 
 %.text:	%.xml %.txt
