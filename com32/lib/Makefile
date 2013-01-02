@@ -25,7 +25,7 @@ LIBJPG_OBJS = \
 LIBVESA_OBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
-	sys/vesa/alphatbl.o sys/vesa/fmtpixel.o				\
+	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
 	sys/vesa/i915resolution.o
 
 LIBMISC_OBJS = \
