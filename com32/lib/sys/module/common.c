@@ -368,6 +368,7 @@ int check_symbols(struct elf_module *module)
 			if (strong_count == 0 && weak_count == 0)
 			{
 				DBG_PRINT("Symbol %s is undefined\n", crt_name);
+				printf("Undef symbol FAIL: %s\n",crt_name);
 				return -1;
 			}
 		}
