@@ -42,7 +42,7 @@ LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 all: libutil_com.c32 libutil_lnx.a
 
 libutil_com.c32: $(LIBOBJS)
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -soname $(@F) -o $@ $^
 
 libutil_lnx.a: $(LNXLIBOBJS)
 	rm -f $@
