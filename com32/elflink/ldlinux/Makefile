@@ -17,7 +17,9 @@ include $(MAKEDIR)/elf.mk
 CFLAGS += -I$(topdir)/core/elflink -I$(topdir)/core/include -I$(topdir)/com32/lib -fvisibility=hidden
 LIBS = --whole-archive $(com32)/lib/libcom32min.a
 
-all: ldlinux.c32 ldlinux_lnx.a
+BTARGET = ldlinux.c32
+
+all: $(BTARGET) ldlinux_lnx.a
 
 ldlinux.c32 : ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o \
 		adv.o execute.o chainboot.o kernel.o get_key.o \
@@ -35,14 +37,14 @@ tidy dist:
 	rm -f *.o *.lo *.a *.lst .*.d 
 
 clean: tidy
-	rm -f *.lss *.lnx *.com *.c32
+	rm -f *.lss *.lnx *.com
 
 spotless: clean
-	rm -f *~ \#*
+	rm -f *~ \#* $(BTARGET)
 
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
-	install -m 644 ldlinux.c32 $(INSTALLROOT)$(AUXDIR)
+	install -m 644 $(BTARGET) $(INSTALLROOT)$(AUXDIR)
 
 
 -include .*.d
