@@ -72,9 +72,9 @@ class Menusystem:
        self.init_entry()
        self.init_menu()
        self.init_system()
-       self.vtypes = " OR ".join(self.types.keys())
-       self.vattrs = " OR ".join(filter(lambda x: x[0] != "_", self.entry.keys()))
-       self.mattrs = " OR ".join(filter(lambda x: x[0] != "_", self.menu.keys()))
+       self.vtypes = " OR ".join(list(self.types.keys()))
+       self.vattrs = " OR ".join([x for x in list(self.entry.keys()) if x[0] != "_"])
+       self.mattrs = " OR ".join([x for x in list(self.menu.keys()) if x[0] != "_"])
 
    def init_entry(self):
        self.entry = self.entry_init.copy()
@@ -100,27 +100,27 @@ class Menusystem:
           if not self.entry["info"]:
              self.entry["info"] = self.entry["data"]
           if not self.menus:
-             print "Error before line %d" % self.lineno
-             print "REASON: menu must be declared before a menu item is declared"
+             print("Error before line %d" % self.lineno)
+             print("REASON: menu must be declared before a menu item is declared")
              sys.exit(1)
           self.menus[-1][1].append(self.entry)
        self.init_entry()
 
    def set_item(self,name,value):
-       if not self.entry.has_key(name):
+       if name not in self.entry:
           msg = ["Unknown attribute %s in line %d" % (name,self.lineno)]
           msg.append("REASON: Attribute must be one of %s" % self.vattrs)
           return "\n".join(msg)
-       if name=="type" and not self.types.has_key(value):
+       if name=="type" and value not in self.types:
           msg = [ "Unrecognized type %s in line %d" % (value,self.lineno)]
           msg.append("REASON: Valid types are %s" % self.vtypes)
           return "\n".join(msg)
        if name=="shortcut":
-          if (value <> "-1") and not re.match("^[A-Za-z0-9]$",value):
+          if (value != "-1") and not re.match("^[A-Za-z0-9]$",value):
              msg = [ "Invalid shortcut char '%s' in line %d" % (value,self.lineno) ]
              msg.append("REASON: Valid values are [A-Za-z0-9]")
              return "\n".join(msg)
-          elif value <> "-1": value = "'%s'" % value
+          elif value != "-1": value = "'%s'" % value
        elif name in ["state","helpid","ipappend"]:
           try:
               value = int(value)
@@ -131,14 +131,14 @@ class Menusystem:
        return ""
 
    def set_menu(self,name,value):
-       if not self.menu.has_key(name):
+       if name not in self.menu:
           return "Error: Unknown keyword %s" % name
        self.menu[name] = value
        self.menu["_updated"] = 1
        return ""
 
    def set_system(self,name,value):
-       if not self.system.has_key(name):
+       if name not in self.system:
           return "Error: Unknown keyword %s" % name
        if name == "skipcondn":
           try: # is skipcondn a number?
@@ -146,7 +146,7 @@ class Menusystem:
           except: # it is a "-" delimited sequence
              value = value.lower()
              parts = [ self.shift_flags.get(x.strip(),None) for x in value.split("-") ]
-             self.system["skipcondn"] = " | ".join(filter(None, parts))
+             self.system["skipcondn"] = " | ".join([_f for _f in parts if _f])
        else:
           self.system[name] = value
 
@@ -169,7 +169,7 @@ class Menusystem:
        if not err: return
 
        # all errors so return item's error message
-       print err
+       print(err)
        sys.exit(1)
 
    def print_entry(self,entry,fd):
@@ -211,9 +211,9 @@ class Menusystem:
 
        missing = None
        for x in self.reqd_templates:
-           if not self.templates.has_key(x): missing = x
+           if x not in self.templates: missing = x
        if missing:
-           print "Template %s required but not defined in %s" % (missing,self.code_template_filename)
+           print("Template %s required but not defined in %s" % (missing,self.code_template_filename))
 
        if filename == "-":
           fd = sys.stdout
@@ -227,8 +227,8 @@ class Menusystem:
        fd.write(self.templates["footer"])
        fd.close()
        if not self.foundmain:
-          print "main menu not found"
-          print self.menus
+          print("main menu not found")
+          print(self.menus)
           sys.exit(1)
 
    def input(self,filename):
@@ -259,26 +259,26 @@ class Menusystem:
            # add property of current entry
            pos = line.find("=") # find the first = in string
            if pos < 0:
-              print "Syntax error in line %d" % self.lineno
-              print "REASON: non-section lines must be of the form ATTRIBUTE=VALUE"
+              print("Syntax error in line %d" % self.lineno)
+              print("REASON: non-section lines must be of the form ATTRIBUTE=VALUE")
               sys.exit(1)
            attr = line[:pos].strip().lower()
            value = line[pos+1:].strip()
            self.set(attr,value)
          except:
-            print "Error while parsing line %d: %s" % (self.lineno,line)
+            print("Error while parsing line %d: %s" % (self.lineno,line))
             raise
        fd.close()
        self.add_item()
 
 def usage():
-    print sys.argv[0]," [options]"
-    print "--input=<file>    is the name of the .menu file declaring the menu structure"
-    print "--output=<file>   is the name of generated C source"
-    print "--template=<file> is the name of template to be used"
-    print
-    print "input and output default to - (stdin and stdout respectively)"
-    print "template defaults to adv_menu.tpl"
+    print(sys.argv[0]," [options]")
+    print("--input=<file>    is the name of the .menu file declaring the menu structure")
+    print("--output=<file>   is the name of generated C source")
+    print("--template=<file> is the name of template to be used")
+    print()
+    print("input and output default to - (stdin and stdout respectively)")
+    print("template defaults to adv_menu.tpl")
     sys.exit(1)
 
 def main():
@@ -287,7 +287,7 @@ def main():
     ofile = "-"
     opts,args = getopt.getopt(sys.argv[1:], "hi:o:t:",["input=","output=","template=","help"])
     if args:
-       print "Unknown options %s" % args
+       print("Unknown options %s" % args)
        usage()
     for o,a in opts:
         if o in ["-i","--input"]:
