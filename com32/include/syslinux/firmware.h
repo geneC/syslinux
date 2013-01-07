@@ -33,7 +33,7 @@ struct win_info;
 
 struct vesa_ops {
 	int (*set_mode)(struct vesa_info *, int *, int *, enum vesa_pixel_format *);
-	void (*screencpy)(size_t, const uint32_t *, size_t, struct win_info *);
+	void (*screencpy)(size_t, const char *, size_t, struct win_info *);
 	int (*font_query)(uint8_t **);
 };
 

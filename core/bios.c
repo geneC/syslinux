@@ -414,7 +414,7 @@ static void set_window_pos(struct win_info *wi, size_t win_pos)
     __intcall(0x10, &ireg, NULL);
 }
 
-static void bios_vesacon_screencpy(size_t dst, const uint32_t * src,
+static void bios_vesacon_screencpy(size_t dst, const char * src,
 				   size_t bytes, struct win_info *wi)
 {
     size_t win_pos, win_off;
