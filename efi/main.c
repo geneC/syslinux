@@ -759,10 +759,6 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 		printf("bzImage version 0x%x unsupported\n", hdr->version);
 		goto bail;
 	}
-	if (hdr->version >= 0x20b) {
-		printf("bzImage version 0x%x handover protocol unimplemented \n", hdr->version);
-		goto bail;
-	}
 
 	/* FIXME: check boot sector signature */
 	if (hdr->boot_flag != BOOT_SIGNATURE) {
