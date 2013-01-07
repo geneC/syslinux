@@ -687,6 +687,8 @@ static int xfs_install_file(const char *path, int devfd, struct stat *rst)
     }
 
     close(dirfd);
+
+    sync();
     close(fd);
 
     return 0;
