@@ -17,6 +17,8 @@
 VPATH = $(SRC)
 include $(MAKEDIR)/embedded.mk
 
+CFLAGS += -mregparm=3 -DREGPARM=3
+
 OPTFLAGS = 
 INCLUDES = -include $(SRC)/code16.h -I$(SRC)
 LDFLAGS	 = -T $(SRC)/com16.ld

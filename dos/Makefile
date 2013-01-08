@@ -16,7 +16,7 @@
 
 include $(MAKEDIR)/embedded.mk
 
-CFLAGS	+= -D__MSDOS__
+CFLAGS	+= -D__MSDOS__ -mregparm=3 -DREGPARM=3
 # CFLAGS  += -DDEBUG
 
 LDFLAGS	 = -T $(SRC)/dosexe.ld

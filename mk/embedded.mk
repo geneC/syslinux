@@ -38,9 +38,7 @@ GCCOPT    += $(call gcc_ok,-ffreestanding,)
 GCCOPT	  += $(call gcc_ok,-fno-stack-protector,)
 GCCOPT	  += $(call gcc_ok,-fwrapv,)
 GCCOPT	  += $(call gcc_ok,-freg-struct-return,)
-# FIXME: regparam for i386 and x86_64 could be different
-GCCOPT    += -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3 \
-	     -msoft-float
+GCCOPT    += -Os -fomit-frame-pointer -msoft-float
 GCCOPT    += $(call gcc_ok,-fno-exceptions,)
 GCCOPT	  += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
 GCCOPT	  += $(call gcc_ok,-fno-strict-aliasing,)

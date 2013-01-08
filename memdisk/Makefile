@@ -15,7 +15,7 @@ include $(MAKEDIR)/embedded.mk
 -include $(topdir)/version.mk
 
 INCLUDES = -I$(topdir)/com32/include -I$(objdir)
-CFLAGS  += -D__MEMDISK__ -DDATE='"$(DATE)"'
+CFLAGS  += -D__MEMDISK__ -DDATE='"$(DATE)"' -mregparm=3 -DREGPARM=3
 LDFLAGS  = $(GCCOPT) -g
 NASM     = nasm
 NASMOPT  = -Ox
