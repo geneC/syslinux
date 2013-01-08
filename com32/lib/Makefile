@@ -22,11 +22,17 @@ LIBJPG_OBJS = \
 	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
 	jpeg/rgba32.o jpeg/bgra32.o					
 
+ifdef EFI_BUILD
+I915VESA_OBJ =
+else
+I915VESA_OBJ = sys/vesa/i915resolution.o
+endif
+
 LIBVESA_OBJS = \
 	sys/vesacon_write.o sys/vesaserial_write.o			\
 	sys/vesa/initvesa.o sys/vesa/drawtxt.o	sys/vesa/background.o	\
 	sys/vesa/alphatbl.o sys/vesa/screencpy.o sys/vesa/fmtpixel.o	\
-	sys/vesa/i915resolution.o
+	$(I915VESA_OBJ)
 
 LIBMISC_OBJS = \
 	sys/libansi.o sys/gpxe.o

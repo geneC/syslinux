@@ -299,6 +299,12 @@ static int efi_vesacon_font_query(uint8_t **font)
     return cp865_8x16_font_height;
 }
 
+int __vesacon_i915resolution(int x, int y)
+{
+	/* We don't support this function */
+	return 1;
+}
+
 struct vesa_ops efi_vesa_ops = {
 	.set_mode = efi_vesacon_set_mode,
 	.screencpy = efi_vesacon_screencpy,
