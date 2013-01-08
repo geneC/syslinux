@@ -8,7 +8,7 @@
 
 #include <dprintf.h>
 
-__noreturn __bad_SEG(const volatile void *p)
+__export __noreturn __bad_SEG(const volatile void *p)
 {
     dprintf("SEG() passed an invalid pointer: %p\n", p);
     kaboom();

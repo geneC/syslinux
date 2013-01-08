@@ -15,35 +15,45 @@ const char *append = NULL;
 /* Will be called from readconfig.c */
 int new_linux_kernel(char *okernel, char *ocmdline)
 {
-	const char *kernel_name = NULL;
+	const char *kernel_name = NULL, *args = NULL;
 	struct initramfs *initramfs = NULL;
 	char *temp;
 	void *kernel_data;
-	size_t kernel_len;
+	size_t kernel_len, cmdline_len;
 	bool opt_quiet = false;
-	char initrd_name[256];
-	char cmdline_buf[256], *cmdline;
+	char *initrd_name, *cmdline;
 
 	dprintf("okernel = %s, ocmdline = %s", okernel, ocmdline);
-
-	cmdline = cmdline_buf;
-
-	temp = cmdline;
 
 	if (okernel)
 		kernel_name = okernel;
 	else if (globaldefault)
 		kernel_name = globaldefault;
 
-	strcpy(temp, kernel_name);
-	temp += strlen(kernel_name);
-
-	*temp = ' ';
-	temp++;
 	if (ocmdline)
-		strcpy(temp, ocmdline);
+		args = ocmdline;
 	else if (append)
-		strcpy(temp, append);
+		args = append;
+
+	cmdline_len = strlen(kernel_name);
+	if (args) {
+		/* +1 for the space (' ') between kernel and args */
+		cmdline_len += strlen(args) + 1;
+	}
+
+	/* +1 for NUL termination */
+	cmdline_len++;
+
+	cmdline = malloc(cmdline_len);
+	if (!cmdline) {
+	    printf("Failed to alloc memory for cmdline\n");
+	    return 1;
+	}
+
+	if (args)
+		snprintf(cmdline, cmdline_len, "%s %s", kernel_name, args);
+	else
+		snprintf(cmdline, cmdline_len, "%s", kernel_name);
 
 	/* "keeppxe" handling */
 #if IS_PXELINUX
@@ -79,13 +89,25 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 
 		temp += 6; /* strlen("initrd") */
 		do {
-		    char *p = initrd_name;
+		    size_t n = 0;
+		    char *p;
 
 		    temp++;	/* Skip = or , */
 
-		    while (*temp != ' ' && *temp != ',' && *temp)
-			*p++ = *temp++;
-		    *p = '\0';
+		    p = temp;
+		    while (*p != ' ' && *p != ',' && *p) {
+			p++;
+			n++;
+		    }
+
+		    initrd_name = malloc(n + 1);
+		    if (!initrd_name) {
+			printf("Failed to allocate space for initrd\n");
+			goto bail;
+		    }
+
+		    snprintf(initrd_name, n + 1, "%s", temp);
+		    temp += n;
 
 		    if (!opt_quiet)
 			printf("Loading %s...", initrd_name);
@@ -93,9 +115,12 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 		    if (initramfs_load_archive(initramfs, initrd_name)) {
 			if (opt_quiet)
 			    printf("Loading %s ", initrd_name);
+			free(initrd_name);
 			printf("failed: ");
 			goto bail;
 		    }
+
+		    free(initrd_name);
 
 		    if (!opt_quiet)
 			printf("ok\n");
@@ -107,6 +132,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	printf("Booting kernel failed: ");
 
 bail:
+	free(cmdline);
 	printf("%s\n", strerror(errno));
 	return 1;
 }

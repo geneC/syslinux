@@ -24,7 +24,7 @@ makeoutputdirs:
 		$(addprefix $(OBJ),$(sort $(dir $(LIBOBJS)))),$(b))
 
 libcom32gpl.c32 : $(LIBOBJS)
-	$(LD) -shared $(LDFLAGS) -o $@ $^
+	$(LD) -shared $(LDFLAGS) -soname $(@F) -o $@ $^
 
 tidy dist clean:
 	find . \( -name \*.o -o -name .\*.d -o -name \*.tmp \) -print0 | \

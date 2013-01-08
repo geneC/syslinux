@@ -91,7 +91,7 @@ makeoutputdirs:
 
 libcom32.c32 : $(LIBOBJS)
 	rm -f $@
-	$(LD) -shared $(LDFLAGS) -o $@ $^
+	$(LD) -shared $(LDFLAGS) -soname $(@F) -o $@ $^
 
 libcom32min.a : $(MINLIBOBJS)
 	rm -f $@

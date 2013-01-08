@@ -20,10 +20,12 @@ OBJS = ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o adv.o \
 	execute.o chainboot.o kernel.o get_key.o advwrite.o setadv.o \
 	eprintf.o loadhigh.o msg.o
 
-all: ldlinux.c32 ldlinux_lnx.a
+BTARGET = ldlinux.c32
+
+all: $(BTARGET) ldlinux_lnx.a
 
 ldlinux.c32 : $(OBJS)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+	$(LD) $(LDFLAGS) -soname $(@F) -o $@ $^ $(LIBS)
 
 LNXCFLAGS += -D__export='__attribute__((visibility("default")))'
 LNXLIBOBJS = get_key.lo
@@ -36,14 +38,14 @@ tidy dist:
 	rm -f *.o *.lo *.a *.lst .*.d 
 
 clean: tidy
-	rm -f *.lss *.lnx *.com *.c32
+	rm -f *.lss *.lnx *.com
 
 spotless: clean
-	rm -f *~ \#*
+	rm -f *~ \#* $(BTARGET)
 
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)
-	install -m 644 ldlinux.c32 $(INSTALLROOT)$(AUXDIR)
+	install -m 644 $(BTARGET) $(INSTALLROOT)$(AUXDIR)
 
 
 -include .*.d
