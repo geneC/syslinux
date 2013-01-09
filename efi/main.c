@@ -103,6 +103,8 @@ void efi_write_char(uint8_t ch, uint8_t attribute)
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	uint16_t c[2];
 
+	uefi_call_wrapper(out->SetAttribute, 2, out, attribute);
+
 	c[0] = ch;
 	c[1] = '\0';
 	uefi_call_wrapper(out->OutputString, 2, out, c);
