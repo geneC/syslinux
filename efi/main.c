@@ -111,8 +111,9 @@ void efi_write_char(uint8_t ch, uint8_t attribute)
 static void efi_showcursor(const struct term_state *st)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
+	bool cursor = st->cursor ? true : false;
 
-	uefi_call_wrapper(out->EnableCursor, 2, out, true);
+	uefi_call_wrapper(out->EnableCursor, 2, out, cursor);
 }
 
 static void efi_set_cursor(int x, int y, bool visible)
