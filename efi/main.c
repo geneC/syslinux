@@ -152,11 +152,12 @@ static void efi_erase(const struct term_state *st,
 	 * support this so we just set the cursor position unless
 	 * we're clearing the whole screen.
 	 */
-	if (!x0 && !y0 && x1 == (rows - 1) && y1 == (cols - 1)) {
+	if (!x0 && y0 == (cols - 1)) {
 		/* Really clear the screen */
 		uefi_call_wrapper(out->ClearScreen, 1, out);
-	} else
-		uefi_call_wrapper(out->SetCursorPosition, 3, out, y0, x0);
+	} else {
+		uefi_call_wrapper(out->SetCursorPosition, 3, out, y1, x1);
+	}
 }
 
 static void efi_set_mode(uint16_t mode)
