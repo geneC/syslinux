@@ -7,7 +7,6 @@
 #include <syslinux/linux.h>
 #include <sys/ansi.h>
 
-#include "keymap.h"
 #include "efi.h"
 #include "fio.h"
 
@@ -244,28 +243,12 @@ void efi_init(void)
 	mem_init();
 }
 
-static int seq_len = 0;
-static char *key_seq = NULL;
-
 char efi_getchar(char *hi)
 {
 	SIMPLE_INPUT_INTERFACE *in = ST->ConIn;
 	EFI_INPUT_KEY key;
 	EFI_STATUS status;
-	char c;
 
-	if (seq_len) {
-		/* We are in the middle of key sequence for the scan code */
-		*hi = *key_seq++;
-		seq_len--;
-		if (!seq_len) {
-			/* end of key sequene, reset state */
-			seq_len = 0;
-			key_seq = NULL;
-		}
-		return 0;
-	}
-	/* Fresh key processing */
 	do {
 		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
 	} while (status == EFI_NOT_READY);
@@ -273,16 +256,11 @@ char efi_getchar(char *hi)
 	if (!key.ScanCode)
 		return (char)key.UnicodeChar;
 
-	/* We need to generate a key sequence for the scan code */
-	if (key.ScanCode <= NCODES) {
-		key_seq = (char *)keycodes[key.ScanCode-1].seq;
-		seq_len = keycodes[key.ScanCode-1].seqlen;
-		seq_len--;
-		*hi = *key_seq++;
-		c = 0;
-	} else c = '\0';
-
-	return c;
+	/*
+	 * We currently only handle scan codes that fit in 8 bits.
+	 */
+	*hi = (char)key.ScanCode;
+	return 0;
 }
 
 int efi_pollchar(void)
@@ -290,10 +268,6 @@ int efi_pollchar(void)
 	SIMPLE_INPUT_INTERFACE *in = ST->ConIn;
 	EFI_STATUS status;
 
-	if (seq_len) {
-		/* we are in the middle of a key sequence .. say so */
-		return 1;
-	}
 	status = WaitForSingleEvent(in->WaitForKey, 1);
 	return status != EFI_TIMEOUT;
 }

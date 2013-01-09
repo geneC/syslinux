@@ -112,6 +112,31 @@ static const struct keycode keycodes[] = {
     CODE(KEY_INSERT, "\033[2~"),
     CODE(KEY_INSERT, "\033[@"),
     CODE(KEY_DELETE, "\033[3~"),
+
+    /* EFI scan codes */
+    CODE(KEY_UP, "\0\x01"),
+    CODE(KEY_DOWN, "\0\x02"),
+    CODE(KEY_RIGHT, "\0\x03"),
+    CODE(KEY_LEFT, "\0\x04"),
+    CODE(KEY_HOME, "\0\x05"),
+    CODE(KEY_END, "\0\x06"),
+    CODE(KEY_INSERT, "\0\x07"),
+    CODE(KEY_DELETE, "\0\x08"),
+    CODE(KEY_PGUP, "\0\x09"),
+    CODE(KEY_PGDN, "\0\x0a"),
+    CODE(KEY_F1, "\0\x0b"),
+    CODE(KEY_F2, "\0\x0c"),
+    CODE(KEY_F3, "\0\x0d"),
+    CODE(KEY_F4, "\0\x0e"),
+    CODE(KEY_F5, "\0\x0f"),
+    CODE(KEY_F6, "\0\x10"),
+    CODE(KEY_F7, "\0\x11"),
+    CODE(KEY_F8, "\0\x12"),
+    CODE(KEY_F9, "\0\x13"),
+    CODE(KEY_F10, "\0\x14"),
+    CODE(KEY_F11, "\0\x15"),
+    CODE(KEY_F12, "\0\x16"),
+    CODE(KEY_ESC, "\0\x17"),
 };
 
 #define NCODES ((int)(sizeof keycodes/sizeof(struct keycode)))
