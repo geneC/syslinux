@@ -1,3 +1,4 @@
+#include <codepage.h>
 #include <core.h>
 #include <fs.h>
 #include <com32.h>
@@ -105,8 +106,10 @@ void efi_write_char(uint8_t ch, uint8_t attribute)
 
 	uefi_call_wrapper(out->SetAttribute, 2, out, attribute);
 
-	c[0] = ch;
+	/* Lookup primary Unicode encoding in the system codepage */
+	c[0] = codepage.uni[0][ch];
 	c[1] = '\0';
+
 	uefi_call_wrapper(out->OutputString, 2, out, c);
 }
 
