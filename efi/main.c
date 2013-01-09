@@ -250,14 +250,14 @@ char efi_getchar(char *hi)
 
 	if (seq_len) {
 		/* We are in the middle of key sequence for the scan code */
-		c = *key_seq++;
+		*hi = *key_seq++;
 		seq_len--;
 		if (!seq_len) {
 			/* end of key sequene, reset state */
 			seq_len = 0;
 			key_seq = NULL;
 		}
-		return c;
+		return 0;
 	}
 	/* Fresh key processing */
 	do {
@@ -272,7 +272,8 @@ char efi_getchar(char *hi)
 		key_seq = (char *)keycodes[key.ScanCode-1].seq;
 		seq_len = keycodes[key.ScanCode-1].seqlen;
 		seq_len--;
-		c = *key_seq++;
+		*hi = *key_seq++;
+		c = 0;
 	} else c = '\0';
 
 	return c;
