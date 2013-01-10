@@ -414,13 +414,14 @@ static void set_window_pos(struct win_info *wi, size_t win_pos)
     __intcall(0x10, &ireg, NULL);
 }
 
-static void bios_vesacon_screencpy(size_t dst, const char * src,
+static void bios_vesacon_screencpy(size_t dst, const uint32_t * src,
 				   size_t bytes, struct win_info *wi)
 {
     size_t win_pos, win_off;
     size_t win_size = wi->win_size;
     size_t omask = win_size - 1;
     char *win_base = wi->win_base;
+    const char *s = (const char *)src;
     size_t l;
 
     while (bytes) {
@@ -431,10 +432,10 @@ static void bios_vesacon_screencpy(size_t dst, const char * src,
 	    set_window_pos(wi, win_pos);
 
 	l = min(bytes, win_size - win_off);
-	memcpy(win_base + win_off, src, l);
+	memcpy(win_base + win_off, s, l);
 
 	bytes -= l;
-	src += l;
+	s += l;
 	dst += l;
     }
 }

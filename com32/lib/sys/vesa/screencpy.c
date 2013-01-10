@@ -70,8 +70,8 @@ void __vesacon_copy_to_screen(size_t dst, const uint32_t * src, size_t npixels)
 {
     size_t bytes = npixels * __vesacon_bytes_per_pixel;
     char rowbuf[bytes + 4] __aligned(4);
-    const char *s;
+    const uint32_t *s;
 
-    s = (const char *)__vesacon_format_pixels(rowbuf, src, npixels);
+    s = (const uint32_t *)__vesacon_format_pixels(rowbuf, src, npixels);
     firmware->vesa->screencpy(dst, s, bytes, &wi);
 }

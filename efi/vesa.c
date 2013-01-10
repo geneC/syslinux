@@ -274,7 +274,7 @@ exit:
     return err;
 }
 
-static void efi_vesacon_screencpy(size_t dst, const char *s,
+static void efi_vesacon_screencpy(size_t dst, const uint32_t *s,
 				  size_t bytes, struct win_info *wi)
 {
     size_t win_off;
