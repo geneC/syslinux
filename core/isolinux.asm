@@ -426,7 +426,9 @@ MaxLMA		equ 384*1024		; Reasonable limit (384K)
 .ok:
 		xor bx,bx
 		push bp
+		push eax
 		call getlinsec
+		pop eax
 		pop cx
 		mov dx,cx
 		pop bp
@@ -434,6 +436,7 @@ MaxLMA		equ 384*1024		; Reasonable limit (384K)
 
 		shl cx,SECTOR_SHIFT - 4
 		add bx,cx
+		add eax,edx
 		sub bp,dx
 		jnz .more
 
