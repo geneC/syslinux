@@ -440,13 +440,11 @@ int install_bootblock(int fd, const char *device)
     return 0;
 }
 
-static int rewrite_boot_image(int devfd, const char *filename)
+static int rewrite_boot_image(int devfd, const char *path, const char *filename)
 {
     int fd;
     int ret;
     int modbytes;
-    char path[PATH_MAX];
-    char slash;
 
     /* Let's create LDLINUX.SYS file again (if it already exists, of course) */
     fd = open(filename,  O_WRONLY | O_TRUNC | O_CREAT | O_SYNC,
@@ -469,8 +467,6 @@ static int rewrite_boot_image(int devfd, const char *filename)
 	fprintf(stderr, "%s: write failure on %s\n", program, filename);
 	goto error;
     }
-
-    sscanf(filename, "%s%cldlinux.sys", path, &slash);
 
     /* Map the file, and patch the initial sector accordingly */
     modbytes = patch_file_and_bootblock(fd, path, devfd);
@@ -525,7 +521,7 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
     }
     close(fd);
 
-    fd = rewrite_boot_image(devfd, file);
+    fd = rewrite_boot_image(devfd, path, file);
     if (fd < 0)
 	goto bail;
 
@@ -673,7 +669,7 @@ static int xfs_install_file(const char *path, int devfd, struct stat *rst)
 
     close(fd);
 
-    fd = rewrite_boot_image(devfd, file);
+    fd = rewrite_boot_image(devfd, path, file);
     if (fd < 0)
 	goto bail;
 
