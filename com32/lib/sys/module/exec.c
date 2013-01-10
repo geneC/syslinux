@@ -203,20 +203,8 @@ int spawn_load(const char *name, int argc, char **argv)
 	if (!strcmp(cur_module->name, module->name)) {
 		dprintf("We is running this module %s already!", module->name);
 
-		/*
-		 * If we're already running the module and it's of
-		 * type EXEC_MODULE, then just return. We don't reload
-		 * the module because that might cause us to re-run
-		 * the init functions, which will cause us to run the
-		 * main function, which will take control of this
-		 * process.
-		 *
-		 * This can happen if some other EXEC_MODULE is
-		 * resolving a symbol that is exported by the current
-		 * EXEC_MODULE.
-		 */
-		if (get_module_type(module) == EXEC_MODULE)
-			return 0;
+		module_unload(cur_module);
+		cur_module = NULL;
 	}
 
 	res = module_load(module);
