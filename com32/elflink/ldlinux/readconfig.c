@@ -498,16 +498,22 @@ static const char *unlabel(const char *str)
     return str;
 }
 
-static const char *refdup_word(char **p)
+static const char *__refdup_word(char *p, char **ref)
 {
-    char *sp = *p;
+    char *sp = p;
     char *ep = sp;
 
     while (*ep && !my_isspace(*ep))
 	ep++;
 
-    *p = ep;
+    if (ref)
+	*ref = ep;
     return refstrndup(sp, ep - sp);
+}
+
+static const char *refdup_word(char **p)
+{
+    return __refdup_word(*p, p);
 }
 
 int my_isxdigit(char c)
@@ -1065,8 +1071,8 @@ do_include:
 	    p = skipspace(p + 5);
 	    /* when first time see "label", it will not really record anything */
 	    record(m, &ld, append);
-	    ld.label = refstrdup(p);
-	    ld.kernel = refstrdup(p);
+	    ld.label = __refdup_word(p, NULL);
+	    ld.kernel = __refdup_word(p, NULL);
 	    /* feng: this is the default type for all */
 	    ld.type = KT_KERNEL;
 	    ld.passwd = NULL;
