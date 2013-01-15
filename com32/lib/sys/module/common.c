@@ -185,6 +185,11 @@ void modules_term(void) {
 struct elf_module *module_alloc(const char *name) {
 	struct elf_module *result = malloc(sizeof(struct elf_module));
 
+	if (!result) {
+	    dprintf("module: Failed to alloc elf_module\n");
+	    return NULL;
+	}
+
 	memset(result, 0, sizeof(struct elf_module));
 
 	INIT_LIST_HEAD(&result->list);
