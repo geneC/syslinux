@@ -182,8 +182,9 @@ is a "CD boot sector" and .bs is a regular disk boot sector.
 superblock patched in.
 
 *COMBOOT* 'image'::
-(.com, .cbt) Load a *Syslinux* COMBOOT image.  .com images may also be
-runnable from DOS while .cbt images are not.  See also *comboot.txt*
+(.com, .cbt; Removed as of 5.00) Load a *Syslinux* COMBOOT image.  .com
+images may also be runnable from DOS while .cbt images are not.  See
+also *comboot.txt*
 
 *COM32* 'image'::
 (.c32) Load a *Syslinux* COM32 (32-bit *COMBOOT*) image.  See also
@@ -205,15 +206,15 @@ loader to report failure to the BIOS, which, on recent BIOSes, should
 mean that the next boot device in the boot sequence should be activated.
  Values other than those documented may produce undesired results.
 +
-On *PXELINUX*, "type" 0 means perform a normal boot.  "type" 4 will
+On *PXELINUX*, 'type' 0 means perform a normal boot.  'type' 4 will
 perform a local boot with the Universal Network Driver Interface (UNDI)
-driver still resident in memory.  Finally, "type" 5 will perform a local
+driver still resident in memory.  Finally, 'type' 5 will perform a local
 boot with the entire PXE stack, including the UNDI driver, still
 resident in memory. All other values are undefined.  If you don't know
 what the UNDI or PXE stacks are, don't worry -- you don't want them,
 just specify 0.
 +
-On *ISOLINUX*/*SYSLINUX*, the "type" specifies the local drive number to
+On *ISOLINUX*/*SYSLINUX*, the 'type' specifies the local drive number to
 boot from; 0x00 is the primary floppy drive and 0x80 is the primary hard
 drive.
 
@@ -267,9 +268,10 @@ TIMEOUT 50
 TOTALTIMEOUT 9000
 ----
 
+// FIXME: be consistent
 *ONTIMEOUT* 'kernel options...'::
 Sets the command line invoked on a timeout.  Normally this is the same
-thing as invoked by "DEFAULT".  If this is specified, then "DEFAULT" is
+thing as invoked by 'DEFAULT'.  If this is specified, then 'DEFAULT' is
 used only if the user presses <Enter> to boot.
 
 *ONERROR* 'kernel options...'::
@@ -295,12 +297,12 @@ xyzzy plugh foo bar baz
 ----
 
 *SERIAL* 'port [[baudrate] flowcontrol]'::
-Enables a serial port to act as the console.  "port" is a number (0 =
+Enables a serial port to act as the console.  'port' is a number (0 =
 /dev/ttyS0 = COM1, etc.) or an I/O port address (e.g. 0x3F8); if
-"baudrate" is omitted, the baud rate defaults to 9600 bps.  The serial
+'baudrate' is omitted, the baud rate defaults to 9600 bps.  The serial
 parameters are hardcoded to be 8 bits, no parity, 1 stop bit.
 +
-"flowcontrol" is a combination of the following bits:
+'flowcontrol' is a combination of the following bits:
 +
 ....
 0x001 - Assert DTR
@@ -332,7 +334,7 @@ Typical values are:
 For the *SERIAL* directive to be guaranteed to work properly, it should
 be the first directive in the configuration file.
 +
-NOTE: "port" values from 0 to 3 means the first four serial ports
+NOTE: 'port' values from 0 to 3 means the first four serial ports
 detected by the BIOS.  They may or may not correspond to the legacy port
 values 0x3F8, 0x2F8, 0x3E8, 0x2E8.
 +
@@ -395,7 +397,7 @@ escapes.  Use this (together with PROMPT 0) to force the default boot
 alternative.
 
 *NOCOMPLETE* 'flag_val'::
-If flag_val is set to 1, the Tab key does not display labels at the
+If 'flag_val' is set to 1, the Tab key does not display labels at the
 boot: prompt.
 
 //   ...etc...
@@ -420,6 +422,12 @@ When using the serial console, press <Ctrl-F><digit> to get to the help
 screens, e.g. <Ctrl-F><2> to get to the F2 screen. For F10-F12, hit
 <Ctrl-F><A>, <Ctrl-F>B, <Ctrl-F>C.  For compatibility with earlier
 versions, F10 can also be entered as <Ctrl-F>0.
+
+*PATH* 'path'::
+(5.00+) Specify a colon-separated (':') list of directories to search when
+attempting to load modules. This directive is useful for specifying the
+directories containing the lib*.c32 library files as other modules may
+be dependent on these files, but may not reside in the same directory.
 
 
 == DISPLAY FILE FORMAT ==

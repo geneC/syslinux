@@ -98,7 +98,7 @@ Override the detected number of heads for the geometry.  See also
 *-o*, *--once* 'command'::
 (ADV) Declare a boot command to be tried on the first boot only.  The
 use of *-o* for the Linux installers syslinux or syslinux-mtools has
-been deprecated as of ~4.00 and is no longer valid as of ~4.02.
+been deprecated as of \~4.00 and is no longer valid as of ~4.02.
 
 *-O*, *--clear-once*::
 Clear the boot-once command.  See also *--once*.

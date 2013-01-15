@@ -51,10 +51,10 @@ a possible transient issue.
 
 === ALTERNATE FILENAMES ===
 For kernel-like file names given on the command line, *Syslinux* will
-attempt to append file name extensions to the specified file naem when
+attempt to append file name extensions to the specified file name when
 the file is not found in the following order: .0[*PXELINUX* only],
 .bin[*ISOLINUX* only], .bs[*SYSLINUX* only], .bss[*SYSLINUX* only],
-.c32, .cbt, .com and .img[*ISOLINUX* 1.65-4.04 only].
+.c32, .cbt[Up to 4.06], .com[Up to 4.06] and .img[*ISOLINUX* 1.65-4.04 only].
 
 // Is this true of file names specified in a config?  As of when?
 
