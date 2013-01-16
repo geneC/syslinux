@@ -1356,14 +1356,14 @@ static int parse_one_config(const char *filename)
 	if (fd < 0)
 		return fd;
 
-	f = fdopen(fd, mode);
-	parse_config_file(f);
-
 	if (config_cwd[0]) {
 		if (chdir(config_cwd) < 0)
 			printf("Failed to chdir to %s\n", config_cwd);
 		config_cwd[0] = '\0';
 	}
+
+	f = fdopen(fd, mode);
+	parse_config_file(f);
 
 	return 0;
 }
