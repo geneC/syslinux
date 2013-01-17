@@ -20,6 +20,8 @@
 #ifndef _BIOS_H
 #define _BIOS_H
 
+#include <sys/io.h>
+
 /*
  * Interrupt vectors
  */
