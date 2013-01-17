@@ -79,7 +79,11 @@ __export void free(void *ptr)
         ((struct arena_header *)ptr - 1);
 
 #ifdef DEBUG_MALLOC
-    assert( ARENA_TYPE_GET(ah->a.attrs) == ARENA_TYPE_USED );
+    if (ah->a.magic != ARENA_MAGIC)
+	dprintf("failed free() magic check: %p\n", ptr);
+
+    if (ARENA_TYPE_GET(ah->a.attrs) != ARENA_TYPE_USED)
+	dprintf("invalid arena type: %d\n", ARENA_TYPE_GET(ah->a.attrs));
 #endif
 
     __free_block(ah);

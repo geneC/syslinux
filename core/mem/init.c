@@ -34,6 +34,9 @@ int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
 	if (len >= 2 * sizeof(struct arena_header)) {
 		fp = (struct free_arena_header *)start;
 		fp->a.attrs = ARENA_TYPE_USED | (HEAP_MAIN << ARENA_HEAP_POS);
+#ifdef DEBUG_MALLOC
+		fp->a.magic = ARENA_MAGIC;
+#endif
 		ARENA_SIZE_SET(fp->a.attrs, len);
 		dprintf("will inject a block start:0x%x size 0x%x", start, len);
 		__inject_free_block(fp);
@@ -88,6 +91,9 @@ void mem_init(void)
 	fp = (struct free_arena_header *)__lowmem_heap;
 	fp->a.attrs = ARENA_TYPE_USED | (HEAP_LOWMEM << ARENA_HEAP_POS);
 	ARENA_SIZE_SET(fp->a.attrs, (*bios_free_mem << 10) - (uintptr_t)fp);
+#ifdef DEBUG_MALLOC
+	fp->a.magic = ARENA_MAGIC;
+#endif
 	__inject_free_block(fp);
 
 	/* Initialize the main heap */

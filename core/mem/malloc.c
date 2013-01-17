@@ -32,6 +32,9 @@ static void *__malloc_from_block(struct free_arena_header *fp,
 	ARENA_HEAP_SET(nfp->a.attrs, heap);
         ARENA_SIZE_SET(nfp->a.attrs, fsize-size);
         nfp->a.tag = MALLOC_FREE;
+#ifdef DEBUG_MALLOC
+	nfp->a.magic = ARENA_MAGIC;
+#endif
         ARENA_TYPE_SET(fp->a.attrs, ARENA_TYPE_USED);
         ARENA_SIZE_SET(fp->a.attrs, size);
         fp->a.tag = tag;
@@ -127,6 +130,11 @@ __export void *realloc(void *ptr, size_t size)
 
 	head = &__core_malloc_head[ARENA_HEAP_GET(ah->a.attrs)];
 
+#ifdef DEBUG_MALLOC
+    if (ah->a.magic != ARENA_MAGIC)
+	dprintf("failed realloc() magic check: %p\n", ptr);
+#endif
+
     /* Actual size of the old block */
     //oldsize = ah->a.size;
     oldsize = ARENA_SIZE_GET(ah->a.attrs);
@@ -166,6 +174,10 @@ __export void *realloc(void *ptr, size_t size)
 		ARENA_SIZE_SET(nah->a.attrs, xsize - newsize);
 		ARENA_SIZE_SET(ah->a.attrs, newsize);
 		ARENA_HEAP_SET(nah->a.attrs, ARENA_HEAP_GET(ah->a.attrs));
+
+#ifdef DEBUG_MALLOC
+		nah->a.magic = ARENA_MAGIC;
+#endif
 
 		//nah->a.type = ARENA_TYPE_FREE;
 		//nah->a.size = xsize - newsize;

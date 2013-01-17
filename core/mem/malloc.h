@@ -32,6 +32,8 @@ enum heap {
     NHEAP
 };
 
+#define ARENA_MAGIC 0x20130117
+
 struct free_arena_header;
 
 /*
@@ -44,7 +46,18 @@ struct arena_header {
 					        2..3:  Heap,
 						4..31: MSB of the size  */
     struct free_arena_header *next, *prev;
+
+#ifdef DEBUG_MALLOC
+    unsigned long _pad[3];
+    unsigned int magic;
+#endif
 };
+
+/* Pad to 2*sizeof(struct arena_header) */
+#define ARENA_PADDING ((2 * sizeof(struct arena_header)) - \
+		       (sizeof(struct arena_header) + \
+			sizeof(struct free_arena_header *) +	\
+			sizeof(struct free_arena_header *)))
 
 /*
  * This structure should be no more than twice the size of the
@@ -53,7 +66,7 @@ struct arena_header {
 struct free_arena_header {
     struct arena_header a;
     struct free_arena_header *next_free, *prev_free;
-    size_t _pad[2];		/* Pad to 2*sizeof(struct arena_header) */
+    size_t _pad[ARENA_PADDING];
 };
 
 #define ARENA_SIZE_MASK (~(uintptr_t)(sizeof(struct arena_header)-1))
