@@ -39,10 +39,9 @@ LIBOBJS	   = ansiline.o ansiraw.o keyname.o \
 	     quicksort.o
 LNXLIBOBJS = $(patsubst %.o,%.lo,$(LIBOBJS))
 
-all: libutil_com.c32 libutil_lnx.a
+all: libutil.c32 libutil_lnx.a
 
-.PRECIOUS: libutil_com.elf
-libutil_com.elf: $(LIBOBJS)
+libutil.elf: $(LIBOBJS)
 	$(LD) $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) -o $@ $^
 
 libutil_lnx.a: $(LNXLIBOBJS)

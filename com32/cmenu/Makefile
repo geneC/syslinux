@@ -18,7 +18,7 @@
 NOGPL := 1
 
 LIBS  = libmenu/libmenu.c32 \
-        $(com32)/libutil/libutil_com.c32 \
+        $(com32)/libutil/libutil.c32 \
         $(com32)/lib/libcom32.c32
 
 topdir = ../..
@@ -29,7 +29,7 @@ CFLAGS	  += -I./libmenu
 
 LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o \
-	$(com32)/libutil/libutil_com.c32 $(com32)/lib/libcom32.c32
+	$(com32)/libutil/libutil.c32 $(com32)/lib/libcom32.c32
 
 CMENUS = $(patsubst %.c,%.c32,$(wildcard *.c))
 IMENUS = $(patsubst %.menu,%.c32,$(wildcard *.menu))
