@@ -9,7 +9,7 @@
 	.type _start,@function
 _start:
 	# Align the stack and make sure the high half is zero
-	andl $0xfff8,%esp
+	andl $0xfffc,%esp
 
 	# DS, ES points to the PSP at this point
 	pushw %es		# Save PSP pointer
@@ -26,16 +26,27 @@ _start:
 	shrw $2,%cx
 	rep ; stosl
 
-	# Copy the command line into our own segment
+	# Copy the PSP into our own segment
 	popw %fs		# FS -> PSP
-	movw $_cmdline,%di
-	movzbw %fs:0x80,%cx
-	movw $0x81,%si
-	fs ; rep ; movsb
-	# Already zero-terminated since we're writing into clean bss
+	movw $_PSP,%di
+	xorw %si,%si
+	movw $0x40,%cx
+	fs ; rep ; movsl
 
+	# Verify that this is a supportable DOS version
+	movw $0x3001,%ax
+	int $0x21
+	xchgb %ah,%al
+	movw %ax,dos_version
+	cmpw $0x0314,%ax	# DOS >= 3.20?
+	jae 1f			# If so, okay
+	movw $bad_dos,%dx	# Print error message
+	movb $0x09,%ah
+	int $0x21
+	int $0x20		# Die
+
+1:
 	# Compute argc and argv (assumes REGPARM)
-	movl $_cmdline,%edx
 	pushl %eax		# Make space for argv
 	movl %esp,%eax
 	calll __parse_argv
@@ -44,7 +55,7 @@ _start:
 	# Initialize malloc
 	calll __init_memory_arena
 
-	# Now call main... (NOTE: gcc forces main to be regparm 0)
+	# Now call main
 	popl %eax		# argc
 	popl %edx		# argv
 	calll main
@@ -63,8 +74,18 @@ exit:
 	jmp 1b
 	.size exit,.-exit
 
+	.section ".rodata","a"
+bad_dos:
+	.ascii "Unsupported DOS version\r\n$"
+	.size bad_dos,.-bad_dos
+
 	.section ".bss","aw"
-	.balign 4
-_cmdline:
-	.space 128
-	.size _cmdline,.-_cmdline
+	.balign 16
+	.globl _PSP
+_PSP:
+	.space 256
+	.size _PSP, .-_PSP
+
+	/* Purely for sanity */
+	.section ".null","a"
+	.long 0,0,0,0
