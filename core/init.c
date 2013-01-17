@@ -77,9 +77,6 @@ void init(com32sys_t *regs __unused)
 
 	adjust_screen();
 
-	/* Init the memory subsystem */
-	mem_init();
-
 	/* CPU-dependent initialization and related checks. */
 	check_escapes();
 }
