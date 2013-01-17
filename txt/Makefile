@@ -39,7 +39,7 @@ TARGETS		 =
 ASCIIDOC_OK	:= $(shell which asciidoc > /dev/null ; echo $$?)
 A2X_XML_OK	:= $(shell a2x $(A2X_OPTS) -f docbook hello.txt 2>&1 ; echo $$?)
 ifeq ($(A2X_XML_OK),0)
-A2X_MAN_OK	:= $(shell a2x $(A2X_MAN_OPTS) hello.txt 2>&1 ; echo $$?)
+A2X_MAN_OK	:= $(shell [ ! -d man ] && mkdir man ; a2x $(A2X_MAN_OPTS) hello.txt 2>&1 ; echo $$?)
 A2X_XHTML_OK	:= $(shell a2x $(A2X_OPTS) -f xhtml hello.xml 2>&1 ; echo $$?)
 A2X_TEXT_OK	:= $(shell a2x $(A2X_OPTS) -f text hello.xml 2>&1 ; echo $$?)
 endif
@@ -69,7 +69,10 @@ syslinux.cfg.txt:	com-bug.txt com-rpt.txt
 # %.html:	%.txt
 # 	asciidoc -D html $<
 
-html/%.html:	%.txt
+html/ man/ text/ xhtml/:
+	mkdir $@
+
+html/%.html:	%.txt html/
 	asciidoc -o $@ $<
 
 # As of AsciiDoc-8.5.2, altering the output filename for a2x does not appear possible
@@ -85,10 +88,10 @@ html/%.html:	%.txt
 %.html:	%.xml %.txt
 	a2x $(A2X_OPTS) -f xhtml $<
 
-man/%.1:	%.txt
+man/%.1:	%.txt man/
 	a2x $(A2X_MAN_OPTS) $<
 
-man/%.5:	%.txt
+man/%.5:	%.txt man/
 	a2x $(A2X_MAN_OPTS) $<
 
 %.text:	%.xml %.txt
