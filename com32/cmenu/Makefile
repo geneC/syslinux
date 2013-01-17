@@ -44,14 +44,15 @@ MENUS = $(LIBS) $(CMENUS) $(IMENUS)
 
 all:	menus
 
-libmenu/libmenu.c32: $(LIBMENU)
-	$(LD) -shared $(LDFLAGS) -o $@ $^
+libmenu/libmenu.elf: $(LIBMENU)
+	$(LD) -shared $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) \
+		-o $@ $^
 
 tidy dist:
-	rm -f *.o *.lo *.c32 *.lst *.elf .*.d */.*.d
+	rm -f *.o *.lo *.lst *.elf */*.o */*.elf .*.d */.*.d
 
 libclean:
-	rm -f libmenu/*.o libmenu/*.c32
+	rm -f libmenu/*.c32
 
 clean: tidy menuclean libclean
 	rm -f *.lss *.c32 *.com

@@ -50,10 +50,11 @@ CFLAGS += -DLUA_ANSI
 
 all: $(MODULES) $(TESTFILES)
 
-$(LIBLUA) : $(LIBLUA_OBJS)
-	$(LD) -shared $(LDFLAGS) -o $@ $^
+liblua.elf : $(LIBLUA_OBJS)
+	$(LD) $(LDFLAGS) -shared -soname $(patsubst %.elf,%.c32,$(@F)) \
+		-o $@ $^
 
-lua.c32 : $(OBJS) $(LIBLUA) $(C_LIBS)
+lua.elf : $(OBJS) $(LIBLUA) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

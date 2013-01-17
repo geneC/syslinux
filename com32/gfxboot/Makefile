@@ -19,7 +19,7 @@ MODULES	  = gfxboot.c32
 
 all: $(MODULES)
 
-gfxboot.c32 : gfxboot.o realmode_callback.o $(LIBS) $(C_LIBS)
+gfxboot.elf : gfxboot.o realmode_callback.o $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 realmode_callback.o: realmode_callback.asm

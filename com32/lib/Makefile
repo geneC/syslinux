@@ -214,9 +214,9 @@ COM32DIR = $(AUXDIR)/com32
 
 all: libcom32.c32 libcom32min.a libcom32core.a
 
-libcom32.c32 : $(LIBOBJS)
+libcom32.elf : $(LIBOBJS)
 	rm -f $@
-	$(LD) -shared $(LDFLAGS) -soname $(@F) -o $@ $^
+	$(LD) -shared $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) -o $@ $^
 
 libcom32min.a : $(MINLIBOBJS)
 	rm -f $@

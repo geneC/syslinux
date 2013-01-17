@@ -52,7 +52,7 @@ QEMU			?= qemu-kvm
 
 all: $(MODULES) $(TESTFILES)
 
-hdt.c32 : $(OBJS) $(LIBS) $(C_LIBS)
+hdt.elf : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 memtest:

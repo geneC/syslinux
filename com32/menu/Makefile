@@ -28,10 +28,10 @@ COMMONOBJS = menumain.o readconfig.o passwd.o drain.o printmsg.o colors.o \
 
 all: $(MODULES) $(TESTFILES)
 
-menu.c32 : menu.o $(COMMONOBJS) $(C_LIBS)
+menu.elf : menu.o $(COMMONOBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-vesamenu.c32 : vesamenu.o $(COMMONOBJS) $(C_LIBS)
+vesamenu.elf : vesamenu.o $(COMMONOBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

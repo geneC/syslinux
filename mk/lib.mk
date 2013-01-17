@@ -79,3 +79,6 @@ LDFLAGS	= -m elf_i386 --hash-style=gnu -T $(com32)/lib/elf32.ld
 
 .c.ls:
 	$(CC) $(MAKEDEPS) $(CFLAGS) $(SOFLAGS) -S -o $@ $<
+
+%.c32: %.elf
+	$(OBJCOPY) --strip-debug --strip-unneeded $< $@

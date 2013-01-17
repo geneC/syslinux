@@ -81,5 +81,9 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a \
 %.lnx: %.lo $(LNXLIBS) $(C_LNXLIBS)
 	$(CC) $(LNXCFLAGS) -o $@ $^
 
-%.c32: %.o $(C_LIBS)
+.PRECIOUS: %.elf
+%.elf: %.o $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
+
+%.c32: %.elf
+	$(OBJCOPY) --strip-debug --strip-unneeded $< $@

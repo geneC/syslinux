@@ -21,8 +21,8 @@ COM32DIR = $(AUXDIR)/com32
 
 all: libcom32gpl.c32
 
-libcom32gpl.c32 : $(LIBOBJS)
-	$(LD) -shared $(LDFLAGS) -soname $(@F) -o $@ $^
+libcom32gpl.elf : $(LIBOBJS)
+	$(LD) -shared $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) -o $@ $^
 
 tidy dist clean:
 	find . \( -name \*.o -o -name .\*.d -o -name \*.tmp \) -print0 | \
