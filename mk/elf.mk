@@ -35,7 +35,7 @@ com32 = $(topdir)/com32
 core = $(topdir)/core
 
 ifneq ($(NOGPL),1)
-GPLLIB     = $(com32)/gpllib/libcom32gpl.c32
+GPLLIB     = $(com32)/gpllib/libgpl.c32
 GPLINCLUDE = -I$(com32)/gplinclude
 else
 GPLLIB     =
