@@ -40,9 +40,13 @@ struct inode *alloc_inode(struct fs_info *fs, uint32_t ino, size_t data)
  */
 void put_inode(struct inode *inode)
 {
-    while (inode && --inode->refcnt == 0) {
+    while (inode) {
 	struct inode *dead = inode;
-	inode = inode->parent;
+	int refcnt = --(dead->refcnt);
+	dprintf("put_inode %p name %s refcnt %u\n", dead, dead->name, refcnt);
+	if (refcnt)
+	    break;		/* We still have references */
+	inode = dead->parent;
 	if (dead->name)
 	    free((char *)dead->name);
 	free(dead);
@@ -108,75 +112,9 @@ __export int open_config(void)
     return fd;
 }
 
-void pm_mangle_name(com32sys_t *regs)
-{
-    const char *src = MK_PTR(regs->ds, regs->esi.w[0]);
-    char       *dst = MK_PTR(regs->es, regs->edi.w[0]);
-
-    mangle_name(dst, src);
-}
-
 __export void mangle_name(char *dst, const char *src)
 {
     this_fs->fs_ops->mangle_name(dst, src);
-}
-
-void getfssec(com32sys_t *regs)
-{
-    int sectors;
-    bool have_more;
-    uint32_t bytes_read;
-    char *buf;
-    struct file *file;
-    uint16_t handle;
-
-    sectors = regs->ecx.w[0];
-
-    handle = regs->esi.w[0];
-    file = handle_to_file(handle);
-
-    buf = MK_PTR(regs->es, regs->ebx.w[0]);
-    bytes_read = file->fs->fs_ops->getfssec(file, buf, sectors, &have_more);
-
-    /*
-     * If we reach EOF, the filesystem driver will have already closed
-     * the underlying file... this really should be cleaner.
-     */
-    if (!have_more) {
-	_close_file(file);
-        regs->esi.w[0] = 0;
-    }
-
-    regs->ecx.l = bytes_read;
-}
-
-void getfsbytes(com32sys_t *regs)
-{
-    int sectors;
-    bool have_more;
-    uint32_t bytes_read;
-    char *buf;
-    struct file *file;
-    uint16_t handle;
-
-    handle = regs->esi.w[0];
-    file = handle_to_file(handle);
-
-    sectors = regs->ecx.w[0] >> SECTOR_SHIFT(file->fs);
-
-    buf = MK_PTR(regs->es, regs->ebx.w[0]);
-    bytes_read = file->fs->fs_ops->getfssec(file, buf, sectors, &have_more);
-
-    /*
-     * If we reach EOF, the filesystem driver will have already closed
-     * the underlying file... this really should be cleaner.
-     */
-    if (!have_more) {
-	_close_file(file);
-        regs->esi.w[0] = 0;
-    }
-
-    regs->ecx.l = bytes_read;
 }
 
 size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors)
@@ -198,23 +136,6 @@ size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors)
     }
 
     return bytes_read;
-}
-
-void pm_searchdir(com32sys_t *regs)
-{
-    char *name = MK_PTR(regs->ds, regs->edi.w[0]);
-    int rv;
-
-    rv = searchdir(name);
-    if (rv < 0) {
-	regs->esi.w[0]  = 0;
-	regs->eax.l     = 0;
-	regs->eflags.l |= EFLAGS_ZF;
-    } else {
-	regs->esi.w[0]  = rv;
-	regs->eax.l     = handle_to_file(rv)->inode->size;
-	regs->eflags.l &= ~EFLAGS_ZF;
-    }
 }
 
 int searchdir(const char *name)
@@ -443,28 +364,6 @@ __export int open_file(const char *name, struct com32_filedata *filedata)
     return rv;
 }
 
-void pm_open_file(com32sys_t *regs)
-{
-    int rv;
-    struct file *file;
-    const char *name = MK_PTR(regs->es, regs->esi.w[0]);
-    char mangled_name[FILENAME_MAX];
-
-    dprintf("pm_open_file %s\n", name);
-
-    mangle_name(mangled_name, name);
-    rv = searchdir(mangled_name);
-    if (rv < 0) {
-	regs->eflags.l |= EFLAGS_CF;
-    } else {
-	file = handle_to_file(rv);
-	regs->eflags.l &= ~EFLAGS_CF;
-	regs->eax.l = file->inode->size;
-	regs->ecx.w[0] = SECTOR_SIZE(file->fs);
-	regs->esi.w[0] = rv;
-    }
-}
-
 __export void close_file(uint16_t handle)
 {
     struct file *file;
@@ -473,11 +372,6 @@ __export void close_file(uint16_t handle)
 	file = handle_to_file(handle);
 	_close_file(file);
     }
-}
-
-void pm_close_file(com32sys_t *regs)
-{
-    close_file(regs->esi.w[0]);
 }
 
 /*
