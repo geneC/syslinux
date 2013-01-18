@@ -50,10 +50,10 @@ struct elf_module core_module = {
 };
 
 /*
-	Initializes the module subsystem by taking the core module ( shallow module ) and placing
-	it on top of the modules_head_list. Since the core module is initialized when declared
-	we technically don't need the exec_init() and module_load_shallow() procedures
-*/
+ * Initializes the module subsystem by taking the core module
+ * (preinitialized shallow module) and placing it on top of the
+ * modules_head_list.
+ */
 void init_module_subsystem(struct elf_module *module)
 {
     list_add(&module->list, &modules_head);

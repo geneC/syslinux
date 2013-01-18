@@ -246,18 +246,6 @@ extern int module_load(struct elf_module *module);
 
 
 /**
- * module_load_shallow - loads a shallow ELF module into memory.
- * @module:	the module descriptor returned by module_alloc.
- *
- * The function reads the module file, checks whether the file has a valid
- * structure, then loads into memory the module metadata. The metadata currently
- * contains a symbol table that describes code & data allocated by other means.
- * Its current use is to describe the root COM32 module to the rest of the
- * module subsystem.
- */
-extern int module_load_shallow(struct elf_module *module, Elf32_Addr base_addr);
-
-/**
  * module_unload - unloads the module from the system.
  * @module: the module descriptor structure.
  *

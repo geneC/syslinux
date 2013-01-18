@@ -34,27 +34,6 @@
 extern int spawn_load(const char *name, int argc, char **argv);
 
 /**
- * exec_init - Initialize the dynamic execution environment.
- *
- * Among others, it initializes the module subsystem and loads the root
- * module into memory. You should note the difference between the module
- * management API, and the execution API:
- *  - the module system is a static one - it only manages the data structures
- *  and their relationship. It does not describe the way modules are executed,
- *  when and how they are loaded/unloaded, etc. It acts as a service layer for
- *  the execution API.
- *  - the execution environment is the dynamic part of the SYSLINUX dynamic
- *  module API - it implements the behavior of the modules: it
- *  triggers the execution of initialization and termination functions for
- *  libraries, executes the modules marked as executable, handles dynamic
- *  memory cleanup, etc. In other words, at this layer the code and data
- *  loaded by the lower module layer gets to be executed by the CPU,
- *  thus becoming part of the SYSLINUX environment.
- */
-extern int exec_init(void);
-
-
-/**
  * spawnv - Executes a program in the current environment.
  * @name:	the name of the program to spawn, including the extension
  * 			(e.g. 'hello.c32')

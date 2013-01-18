@@ -86,7 +86,7 @@ LIBENTRY_OBJS = \
 
 LIBMODULE_OBJS = \
 	sys/module/common.o sys/module/elf_module.o		\
-	sys/module/shallow_module.o	sys/module/elfutils.o	\
+	sys/module/elfutils.o					\
 	sys/module/exec.o
 
 LIBGCC_OBJS = \

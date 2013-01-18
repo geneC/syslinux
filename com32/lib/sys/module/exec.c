@@ -18,31 +18,7 @@
 
 #define DBG_PRINT(fmt, args...) dprintf("[EXEC] " fmt, ##args)
 
-static struct elf_module    *mod_root = NULL;
 struct elf_module *__syslinux_current = NULL;
-
-int exec_init(void)
-{
-	int res;
-
-	res = modules_init();
-	if (res != 0)
-		return res;
-
-	// Load the root module
-	mod_root = module_alloc(EXEC_ROOT_NAME);
-
-	if (mod_root == NULL)
-		return -1;
-
-	res = module_load_shallow(mod_root, 0);
-	if (res != 0) {
-		mod_root = NULL;
-		return res;
-	}
-
-	return 0;
-}
 
 int get_module_type(struct elf_module *module)
 {
