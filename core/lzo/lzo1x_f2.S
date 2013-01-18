@@ -1,7 +1,10 @@
-/* lzo1x_f1.S -- fast LZO1X decompression in assembler (i386 + gcc)
+/* lzo1x_f2.S -- fast LZO1X decompression in assembler (i386 + gcc)
 
    This file is part of the LZO real-time data compression library.
 
+   Copyright (C) 2011 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 2010 Markus Franz Xaver Johannes Oberhumer
+   Copyright (C) 2009 Markus Franz Xaver Johannes Oberhumer
    Copyright (C) 2008 Markus Franz Xaver Johannes Oberhumer
    Copyright (C) 2007 Markus Franz Xaver Johannes Oberhumer
    Copyright (C) 2006 Markus Franz Xaver Johannes Oberhumer
@@ -44,17 +47,21 @@
 
 #define LZO_FAST
 
+#define LZO_TEST_DECOMPRESS_OVERRUN_INPUT
+#define LZO_TEST_DECOMPRESS_OVERRUN_OUTPUT
+#define LZO_TEST_DECOMPRESS_OVERRUN_LOOKBEHIND
+
 #include "lzo_asm.h"
 
-    .section ".textnr","ax"
+    .text
 
-    LZO_PUBLIC(lzo1x_decompress_asm_fast)
+    LZO_PUBLIC(lzo1x_decompress_asm_fast_safe)
 
 #include "enter.ash"
 #include "lzo1x_d.ash"
 #include "leave.ash"
 
-    LZO_PUBLIC_END(lzo1x_decompress_asm_fast)
+    LZO_PUBLIC_END(lzo1x_decompress_asm_fast_safe)
 
 
 /*
