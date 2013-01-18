@@ -53,7 +53,7 @@
 
 #include "lzo_asm.h"
 
-    .text
+    .section ".textnr","ax"
 
     LZO_PUBLIC(lzo1x_decompress_asm_fast_safe)
 
