@@ -234,7 +234,7 @@ tidy dist clean:
 		xargs -0r rm -f
 
 spotless: clean
-	rm -f *.a
+	rm -f *.a *.c32
 	rm -f *~ \#* */*~ */\#*
 
 install: all
