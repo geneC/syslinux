@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -34,6 +34,9 @@ static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
 		       size_t namelen)
 {
     xfs_dinode_t *core;
+
+    xfs_debug("fs %p, dirent %p offset %lu ino %llu name %s namelen %llu", fs,
+	      dirent, offset, ino, name, namelen);
 
     dirent->d_ino = ino;
     dirent->d_off = offset;
@@ -71,6 +74,7 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
     struct fs_info *fs = file->fs;
     int retval = 0;
 
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
     xfs_debug("count %hhu i8count %hhu", sf->hdr.count, sf->hdr.i8count);
 
     if (file->offset + 1 > count)
@@ -132,6 +136,8 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
     char *name;
     xfs_ino_t ino;
     int retval = 0;
+
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
     bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
@@ -208,6 +214,8 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
     xfs_intino_t ino;
     uint8_t *buf = NULL;
     int retval = 0;
+
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
     bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
 					be32_to_cpu(core->di_nextents) - 1);
@@ -297,6 +305,8 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
     uint32_t db;
     uint8_t *buf = NULL;
     int retval = 0;
+
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
     do {
         bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +

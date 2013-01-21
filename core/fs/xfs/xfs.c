@@ -67,6 +67,8 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
     xfs_dinode_t *core;
     struct inode *inode = file->inode;
 
+    xfs_debug("file %p dirent %p");
+
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
 	xfs_error("Failed to get dinode from disk (ino %llx)", inode->ino);
@@ -102,6 +104,8 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
     uint32_t index;
 
     (void)lstart;
+
+    xfs_debug("inode %p lstart %lu", inode, lstart);
 
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
@@ -262,6 +266,8 @@ static int xfs_readlink(struct inode *inode, char *buf)
     xfs_bmbt_irec_t rec;
     block_t db;
     char *dir_buf;
+
+    xfs_debug("inode %p buf %p", inode, buf);
 
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {

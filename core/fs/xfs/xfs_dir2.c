@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -107,6 +107,7 @@ struct inode *xfs_dir2_local_find_entry(const char *dname, struct inode *parent,
     xfs_intino_t ino;
     xfs_dinode_t *ncore = NULL;
 
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
     xfs_debug("count %hhu i8count %hhu", sf->hdr.count, sf->hdr.i8count);
 
     sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)&sf->list[0] -
@@ -193,6 +194,8 @@ struct inode *xfs_dir2_block_find_entry(const char *dname, struct inode *parent,
     xfs_dir2_data_entry_t *dep;
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
+
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
 
     bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
@@ -306,6 +309,8 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
     uint8_t *buf = NULL;
+
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
 
     bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
 					be32_to_cpu(core->di_nextents) - 1);
@@ -568,6 +573,8 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
     uint8_t *buf = NULL;
+
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
 
     hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
 

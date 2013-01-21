@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * Some parts borrowed from Linux kernel tree (linux/fs/xfs):
  *
@@ -30,14 +30,15 @@
 #include "xfs_types.h"
 #include "xfs_ag.h"
 
-#define xfs_error(fmt, args...) \
-    ({ \
-       printf("%s%s: xfs: [ERROR] " fmt "\n", __func__, __LINE__, ## args); \
+#define xfs_error(fmt, args...)                                               \
+    ({                                                                        \
+       printf("%s:%u: xfs - [ERROR] " fmt "\n", __func__, __LINE__, ## args); \
     })
 
-#define xfs_debug(fmt, args...) \
-    ({ \
-       dprintf("%s%s: xfs: [DEBUG] " fmt "\n", __func__, __LINE__, ## args); \
+#define xfs_debug(fmt, args...)                                       \
+    ({                                                                \
+	dprintf("%s:%u: xfs - [DEBUG] " fmt "\n", __func__, __LINE__, \
+		## args);					      \
     })
 
 struct xfs_fs_info;
