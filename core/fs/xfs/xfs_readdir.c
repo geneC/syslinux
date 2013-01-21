@@ -55,7 +55,8 @@ static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
     else if (be16_to_cpu(core->di_mode) & S_IFLNK)
         dirent->d_type = DT_LNK;
 
-    memcpy(dirent->d_name, name, namelen + 1);
+    memcpy(dirent->d_name, name, namelen);
+    dirent->d_name[namelen] = '\0';
 
     return 0;
 }
@@ -69,7 +70,6 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
     uint32_t offset = file->offset;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_ino_t ino;
     struct fs_info *fs = file->fs;
     int retval = 0;
@@ -100,20 +100,16 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
     start_name = &sf_entry->name[0];
     end_name = start_name + sf_entry->namelen;
 
-    name = xfs_dir2_get_entry_name(start_name, end_name);
-
     ino = xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
 				      (uint8_t *)sf_entry +
 				      offsetof(struct xfs_dir2_sf_entry,
 					       name[0]) +
 				      sf_entry->namelen));
 
-    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)name,
+    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)start_name,
 			 end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
-
-    free(name);
 
     return retval;
 }
@@ -133,7 +129,6 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
     xfs_dir2_data_entry_t *dep;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_ino_t ino;
     int retval = 0;
 
@@ -181,17 +176,15 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = xfs_dir2_get_entry_name(start_name, end_name);
 
     ino = be64_to_cpu(dep->inumber);
 
-    retval = fill_dirent(fs, dirent, file->offset, ino, name,
+    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)start_name,
 			 end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
     free(dirblk_buf);
-    free(name);
 
     return retval;
 }
@@ -210,7 +203,6 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
     xfs_dir2_data_hdr_t *data_hdr;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_intino_t ino;
     uint8_t *buf = NULL;
     int retval = 0;
@@ -260,16 +252,14 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = xfs_dir2_get_entry_name(start_name, end_name);
 
     ino = be64_to_cpu(dep->inumber);
 
-    retval = fill_dirent(fs, dirent, file->offset, ino, name,
+    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)start_name,
 			 end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(name);
     free(buf);
     free(leaf);
 
@@ -301,7 +291,6 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
     xfs_dir2_data_entry_t *dep;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     uint32_t db;
     uint8_t *buf = NULL;
     int retval = 0;
@@ -384,14 +373,12 @@ try_next_btree:
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = xfs_dir2_get_entry_name(start_name, end_name);
 
-    retval = fill_dirent(fs, dirent, 0, be64_to_cpu(dep->inumber), name,
-			 end_name - start_name);
+    retval = fill_dirent(fs, dirent, 0, be64_to_cpu(dep->inumber),
+			 (char *)start_name, end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(name);
     free(buf);
     free(leaf);
     free(node);

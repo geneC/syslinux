@@ -23,7 +23,7 @@
 
 #include "xfs.h"
 
-char *xfs_dir2_get_entry_name(uint8_t *start, uint8_t *end);
+int xfs_dir2_entry_name_cmp(uint8_t *start, uint8_t *end, const char *name);
 void *xfs_dir2_get_dirblks(struct fs_info *fs, block_t startblock,
 			   xfs_filblks_t c);
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen);

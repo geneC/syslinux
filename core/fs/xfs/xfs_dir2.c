@@ -28,22 +28,16 @@
 
 #include "xfs_dir2.h"
 
-char *xfs_dir2_get_entry_name(uint8_t *start, uint8_t *end)
+int xfs_dir2_entry_name_cmp(uint8_t *start, uint8_t *end, const char *name)
 {
-    char *s;
-    char *p;
+    if (!name || (strlen(name) != end - start))
+	return -1;
 
-    s = malloc(end - start + 1);
-    if (!s)
-	malloc_error("string");
-
-    p = s;
     while (start < end)
-	*p++ = *start++;
+	if (*start++ != *name++)
+	    return -1;
 
-    *p = '\0';
-
-    return s;
+    return 0;
 }
 
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen)
@@ -115,18 +109,11 @@ struct inode *xfs_dir2_local_find_entry(const char *dname, struct inode *parent,
     while (count--) {
 	uint8_t *start_name = &sf_entry->name[0];
 	uint8_t *end_name = start_name + sf_entry->namelen;
-	char *name;
 
-	name = xfs_dir2_get_entry_name(start_name, end_name);
-
-	xfs_debug("entry name: %s", name);
-
-	if (!strncmp(name, dname, strlen(dname))) {
-	    free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
 	    goto found;
 	}
-
-	free(name);
 
 	sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)sf_entry +
 					   offsetof(struct xfs_dir2_sf_entry,
@@ -216,7 +203,6 @@ struct inode *xfs_dir2_block_find_entry(const char *dname, struct inode *parent,
     while (p < endp) {
         uint8_t *start_name;
         uint8_t *end_name;
-        char *name;
 
         dup = (xfs_dir2_data_unused_t *)p;
         if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
@@ -228,14 +214,12 @@ struct inode *xfs_dir2_block_find_entry(const char *dname, struct inode *parent,
 
         start_name = &dep->name[0];
         end_name = start_name + dep->namelen;
-        name = xfs_dir2_get_entry_name(start_name, end_name);
 
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
             goto found;
         }
 
-        free(name);
 	p += xfs_dir2_data_entsize(dep->namelen);
     }
 
@@ -305,7 +289,6 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
     xfs_dir2_data_hdr_t *data_hdr;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
     uint8_t *buf = NULL;
@@ -325,7 +308,7 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
     }
 
     if (!leaf->hdr.count)
-        goto out;
+	goto out;
 
     hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
 
@@ -382,14 +365,11 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
 
         start_name = &dep->name[0];
         end_name = start_name + dep->namelen;
-        name = xfs_dir2_get_entry_name(start_name, end_name);
 
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
             goto found;
         }
-
-        free(name);
     }
 
 out1:
@@ -565,7 +545,6 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     struct inode *ip;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     int low;
     int high;
     int mid = 0;
@@ -706,13 +685,11 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
 
         start_name = &dep->name[0];
         end_name = start_name + dep->namelen;
-        name = xfs_dir2_get_entry_name(start_name, end_name);
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
-            goto found;
-        }
 
-        free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
+	    goto found;
+        }
     }
 
 out1:
