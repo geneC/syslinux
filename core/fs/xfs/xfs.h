@@ -31,10 +31,14 @@
 #include "xfs_ag.h"
 
 #define xfs_error(fmt, args...) \
-    printf("xfs: " fmt "\n", ## args);
+    ({ \
+       printf("%s%s: xfs: [ERROR] " fmt "\n", __func__, __LINE__, ## args); \
+    })
 
 #define xfs_debug(fmt, args...) \
-    dprintf("%s: " fmt "\n", __func__, ## args);
+    ({ \
+       dprintf("%s%s: xfs: [DEBUG] " fmt "\n", __func__, __LINE__, ## args); \
+    })
 
 struct xfs_fs_info;
 
