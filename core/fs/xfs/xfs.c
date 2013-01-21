@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -47,20 +47,18 @@ static inline int xfs_fmt_extents_readdir(struct file *file,
 					  struct dirent *dirent,
 					  xfs_dinode_t *core)
 {
-    int retval;
-
     if (be32_to_cpu(core->di_nextents) <= 1) {
 	/* Single-block Directories */
-	retval = xfs_readdir_dir2_block(file, dirent, core);
+	return xfs_readdir_dir2_block(file, dirent, core);
     } else if (xfs_dir2_isleaf(file->fs, core)) {
 	/* Leaf Directory */
-	retval = xfs_readdir_dir2_leaf(file, dirent, core);
+	return xfs_readdir_dir2_leaf(file, dirent, core);
     } else {
 	/* Node Directory */
-	retval = xfs_readdir_dir2_node(file, dirent, core);
+	return xfs_readdir_dir2_node(file, dirent, core);
     }
 
-    return retval;
+    return -1;
 }
 
 static int xfs_readdir(struct file *file, struct dirent *dirent)
@@ -68,7 +66,6 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
     struct fs_info *fs = file->fs;
     xfs_dinode_t *core;
     struct inode *inode = file->inode;
-    int retval = -1;
 
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
@@ -77,11 +74,11 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
     }
 
     if (core->di_format == XFS_DINODE_FMT_LOCAL)
-	retval = xfs_fmt_local_readdir(file, dirent, core);
+	return xfs_fmt_local_readdir(file, dirent, core);
     else if (core->di_format == XFS_DINODE_FMT_EXTENTS)
-	retval = xfs_fmt_extents_readdir(file, dirent, core);
+	return xfs_fmt_extents_readdir(file, dirent, core);
 
-    return retval;
+    return -1;
 }
 
 static uint32_t xfs_getfssec(struct file *file, char *buf, int sectors,
@@ -190,20 +187,18 @@ static inline struct inode *xfs_fmt_extents_find_entry(const char *dname,
 						       struct inode *parent,
 						       xfs_dinode_t *core)
 {
-    struct inode *inode;
-
     if (be32_to_cpu(core->di_nextents) <= 1) {
-        /* Single-block Directories */
-        inode = xfs_dir2_block_find_entry(dname, parent, core);
+	/* Single-block Directories */
+	return xfs_dir2_block_find_entry(dname, parent, core);
     } else if (xfs_dir2_isleaf(parent->fs, core)) {
-        /* Leaf Directory */
-	inode = xfs_dir2_leaf_find_entry(dname, parent, core);
+	/* Leaf Directory */
+	return xfs_dir2_leaf_find_entry(dname, parent, core);
     } else {
-        /* Node Directory */
-        inode = xfs_dir2_node_find_entry(dname, parent, core);
+	/* Node Directory */
+	return xfs_dir2_node_find_entry(dname, parent, core);
     }
 
-    return inode;
+    return NULL;
 }
 
 static inline struct inode *xfs_fmt_btree_find_entry(const char *dname,
