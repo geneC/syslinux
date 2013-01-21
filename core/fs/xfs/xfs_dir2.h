@@ -23,7 +23,6 @@
 
 #include "xfs.h"
 
-int xfs_dir2_entry_name_cmp(uint8_t *start, uint8_t *end, const char *name);
 void *xfs_dir2_get_dirblks(struct fs_info *fs, block_t startblock,
 			   xfs_filblks_t c);
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen);
@@ -49,6 +48,19 @@ static inline bool xfs_dir2_isleaf(struct fs_info *fs, xfs_dinode_t *dip)
     last = irec.br_startoff + irec.br_blockcount;
 
     return (last == XFS_INFO(fs)->dirleafblk + (1 << XFS_INFO(fs)->dirblklog));
+}
+
+static inline int xfs_dir2_entry_name_cmp(uint8_t *start, uint8_t *end,
+					  const char *name)
+{
+    if (!name || (strlen(name) != end - start))
+	return -1;
+
+    while (start < end)
+	if (*start++ != *name++)
+	    return -1;
+
+    return 0;
 }
 
 #endif /* XFS_DIR2_H_ */

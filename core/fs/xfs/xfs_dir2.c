@@ -28,18 +28,6 @@
 
 #include "xfs_dir2.h"
 
-int xfs_dir2_entry_name_cmp(uint8_t *start, uint8_t *end, const char *name)
-{
-    if (!name || (strlen(name) != end - start))
-	return -1;
-
-    while (start < end)
-	if (*start++ != *name++)
-	    return -1;
-
-    return 0;
-}
-
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen)
 {
     uint32_t hash;
