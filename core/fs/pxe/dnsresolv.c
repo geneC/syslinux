@@ -170,7 +170,7 @@ static char *dns_skiplabel(char *label)
  *
  * XXX: probably need some caching here.
  */
-uint32_t dns_resolv(const char *name)
+__export uint32_t dns_resolv(const char *name)
 {
     static char __lowmem DNSSendBuf[PKTBUF_SIZE];
     static char __lowmem DNSRecvBuf[PKTBUF_SIZE];
