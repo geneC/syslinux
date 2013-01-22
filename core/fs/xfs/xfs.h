@@ -30,15 +30,15 @@
 #include "xfs_types.h"
 #include "xfs_ag.h"
 
-#define xfs_error(fmt, args...)                                               \
-    ({                                                                        \
-       printf("%s:%u: xfs - [ERROR] " fmt "\n", __func__, __LINE__, ## args); \
+#define xfs_error(fmt, args...)						\
+    ({									\
+	printf("%s:%u: xfs - [ERROR] " fmt "\n", __func__, __LINE__, ## args); \
     })
 
-#define xfs_debug(fmt, args...)                                       \
-    ({                                                                \
-	dprintf("%s:%u: xfs - [DEBUG] " fmt "\n", __func__, __LINE__, \
-		## args);					      \
+#define xfs_debug(fmt, args...)						\
+    ({									\
+	dprintf("%s:%u: xfs - [DEBUG] " fmt "\n", __func__, __LINE__,	\
+		## args);						\
     })
 
 struct xfs_fs_info;

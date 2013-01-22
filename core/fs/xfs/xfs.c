@@ -265,7 +265,7 @@ static int xfs_readlink(struct inode *inode, char *buf)
     int pathlen = -1;
     xfs_bmbt_irec_t rec;
     block_t db;
-    char *dir_buf;
+    const char *dir_buf;
 
     xfs_debug("inode %p buf %p", inode, buf);
 
@@ -290,7 +290,7 @@ static int xfs_readlink(struct inode *inode, char *buf)
     } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
 	bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
 	db = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
-	dir_buf = xfs_dir2_get_dirblks(fs, db, rec.br_blockcount);
+	dir_buf = xfs_dir2_dirblks_get_cached(fs, db, rec.br_blockcount);
 
         /*
          * Syslinux only supports filesystem block size larger than or equal to
@@ -298,7 +298,6 @@ static int xfs_readlink(struct inode *inode, char *buf)
 	 * symbolic link file content, which is only 1024 bytes long.
          */
 	memcpy(buf, dir_buf, pathlen);
-	free(dir_buf);
     }
 
 out:
