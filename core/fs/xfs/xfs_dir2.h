@@ -25,7 +25,10 @@
 
 const void *xfs_dir2_dirblks_get_cached(struct fs_info *fs, block_t startblock,
 					xfs_filblks_t c);
+void xfs_dir2_dirblks_flush_cache(void);
+
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen);
+
 block_t xfs_dir2_get_right_blk(struct fs_info *fs, xfs_dinode_t *core,
 			       block_t fsblkno, int *error);
 

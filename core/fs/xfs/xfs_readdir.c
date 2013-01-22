@@ -78,7 +78,7 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
     xfs_debug("count %hhu i8count %hhu", sf->hdr.count, sf->hdr.i8count);
 
     if (file->offset + 1 > count)
-	return -1;
+	goto out;
 
     file->offset++;
 
@@ -112,6 +112,11 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
 	xfs_error("Failed to fill in dirent structure");
 
     return retval;
+
+out:
+    xfs_dir2_dirblks_flush_cache();
+
+    return -1;
 }
 
 int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
@@ -142,13 +147,13 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
     if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
         xfs_error("Block directory header's magic number does not match!");
         xfs_debug("hdr->magic: 0x%lx", be32_to_cpu(hdr->magic));
-	return -1;
+	goto out;
     }
 
     btp = xfs_dir2_block_tail_p(XFS_INFO(fs), hdr);
 
     if (file->offset + 1 > be32_to_cpu(btp->count))
-	return -1;
+	goto out;
 
     file->offset++;
 
@@ -182,6 +187,11 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
 	xfs_error("Failed to fill in dirent structure");
 
     return retval;
+
+out:
+    xfs_dir2_dirblks_flush_cache();
+
+    return -1;
 }
 
 int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
@@ -258,6 +268,8 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
     return retval;
 
 out:
+    xfs_dir2_dirblks_flush_cache();
+
     return -1;
 }
 
@@ -300,7 +312,7 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
 try_next_btree:
     if (!node->hdr.count ||
 	XFS_PVT(inode)->i_btree_offset >= be16_to_cpu(node->hdr.count))
-        goto out;
+	goto out;
 
     fsblkno = be32_to_cpu(node->btree[XFS_PVT(inode)->i_btree_offset].before);
     fsblkno = xfs_dir2_get_right_blk(fs, core, fsblkno, &error);
@@ -367,6 +379,8 @@ try_next_btree:
     return retval;
 
 out:
+    xfs_dir2_dirblks_flush_cache();
+
     XFS_PVT(inode)->i_btree_offset = 0;
     XFS_PVT(inode)->i_leaf_ent_offset = 0;
 

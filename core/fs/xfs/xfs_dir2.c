@@ -156,6 +156,18 @@ const void *xfs_dir2_dirblks_get_cached(struct fs_info *fs, block_t startblock,
     return NULL;
 }
 
+void xfs_dir2_dirblks_flush_cache(void)
+{
+    unsigned char i;
+
+    for (i = 0; i < dirblks_cached_count; i++) {
+	free(dirblks_cache[i].dc_area);
+	memset(&dirblks_cache[i], 0, sizeof(dirblks_cache[i]));
+    }
+
+    dirblks_cached_count = 0;
+}
+
 struct inode *xfs_dir2_local_find_entry(const char *dname, struct inode *parent,
 					xfs_dinode_t *core)
 {
