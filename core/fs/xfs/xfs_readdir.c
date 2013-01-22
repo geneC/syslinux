@@ -255,13 +255,9 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(leaf);
-
     return retval;
 
 out:
-    free(leaf);
-
     return -1;
 }
 
@@ -316,14 +312,13 @@ try_next_btree:
     leaf = (xfs_dir2_leaf_t*)xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
         xfs_error("Leaf's magic number does not match!");
-        goto out1;
+        goto out;
     }
 
     if (!leaf->hdr.count ||
 	XFS_PVT(inode)->i_leaf_ent_offset >= be16_to_cpu(leaf->hdr.count)) {
 	XFS_PVT(inode)->i_btree_offset++;
 	XFS_PVT(inode)->i_leaf_ent_offset = 0;
-	free(leaf);
 	goto try_next_btree;
     }
 
@@ -337,7 +332,6 @@ try_next_btree:
     if (XFS_PVT(inode)->i_leaf_ent_offset == be16_to_cpu(leaf->hdr.count)) {
 	XFS_PVT(inode)->i_btree_offset++;
 	XFS_PVT(inode)->i_leaf_ent_offset = 0;
-	free(leaf);
 	goto try_next_btree;
     } else {
 	XFS_PVT(inode)->i_leaf_ent_offset++;
@@ -348,14 +342,14 @@ try_next_btree:
     fsblkno = xfs_dir2_get_right_blk(fs, core, db, &error);
     if (error) {
 	xfs_error("Cannot find data block!");
-	goto out1;
+	goto out;
     }
 
     buf = xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
     data_hdr = (xfs_dir2_data_hdr_t *)buf;
     if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
 	xfs_error("Leaf directory's data magic No. does not match!");
-	goto out1;
+	goto out;
     }
 
     offset = xfs_dir2_dataptr_to_off(fs, be32_to_cpu(lep->address));
@@ -370,17 +364,9 @@ try_next_btree:
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(leaf);
-    free(node);
-
     return retval;
 
-out1:
-    free(leaf);
-
 out:
-    free(node);
-
     XFS_PVT(inode)->i_btree_offset = 0;
     XFS_PVT(inode)->i_leaf_ent_offset = 0;
 

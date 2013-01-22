@@ -58,8 +58,6 @@ static inline int xfs_fmt_extents_readdir(struct file *file,
 	/* Node Directory */
 	return xfs_readdir_dir2_node(file, dirent, core);
     }
-
-    return -1;
 }
 
 static int xfs_readdir(struct file *file, struct dirent *dirent)
@@ -202,8 +200,6 @@ static inline struct inode *xfs_fmt_extents_find_entry(const char *dname,
 	/* Node Directory */
 	return xfs_dir2_node_find_entry(dname, parent, core);
     }
-
-    return NULL;
 }
 
 static inline struct inode *xfs_fmt_btree_find_entry(const char *dname,
@@ -233,11 +229,6 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
         inode = xfs_fmt_extents_find_entry(dname, parent, core);
     } else if (core->di_format == XFS_DINODE_FMT_BTREE) {
         inode = xfs_fmt_btree_find_entry(dname, parent, core);
-    } else {
-	xfs_debug("format %hhu", core->di_format);
-	xfs_debug("TODO: format \"local\" and \"extents\" are the only "
-		  "supported ATM");
-	goto out;
     }
 
     if (!inode) {

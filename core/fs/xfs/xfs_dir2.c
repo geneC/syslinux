@@ -433,8 +433,6 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
     }
 
 out:
-    free(leaf);
-
     return NULL;
 
 found:
@@ -471,13 +469,10 @@ found:
 
     xfs_debug("entry inode's number %lu", ino);
 
-    free(leaf);
-
     return ip;
 
 failed:
     free(ip);
-    free(leaf);
 
     return ip;
 }
@@ -673,7 +668,6 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             goto out;
         }
 
-        free(node);
         node = (xfs_da_intnode_t *)xfs_dir2_dirblks_get_cached(parent->fs,
 							       fsblkno, 1);
     } while(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
@@ -747,8 +741,6 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     }
 
 out:
-    free(node);
-
     return NULL;
 
 found:
@@ -780,13 +772,10 @@ found:
 
     xfs_debug("entry inode's number %lu", ino);
 
-    free(node);
-
     return ip;
 
 failed:
     free(ip);
-    free(node);
 
     return NULL;
 }
