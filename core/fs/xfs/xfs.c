@@ -38,9 +38,10 @@
 #include "xfs_readdir.h"
 
 static inline int xfs_fmt_local_readdir(struct file *file,
-					struct dirent *dirent, xfs_dinode_t *core)
+					struct dirent *dirent,
+					xfs_dinode_t *core)
 {
-    return xfs_readdir_dir2_block(file, dirent, core);
+    return xfs_readdir_dir2_local(file, dirent, core);
 }
 
 static inline int xfs_fmt_extents_readdir(struct file *file,
