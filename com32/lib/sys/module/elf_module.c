@@ -534,7 +534,7 @@ int module_load(struct elf_module *module) {
 	CHECKED(res, prepare_dynlinking(module), error);
 	//printf("check... 4\n");
 
-	head =  list_entry((&modules_head)->next, typeof(*head), list);
+	head = module_current();
 
 	/* Find modules we need to load as dependencies */
 	if (module->str_table) {

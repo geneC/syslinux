@@ -203,6 +203,17 @@ extern struct list_head modules_head;
 	list_for_each_entry_safe(m, n, &modules_head, list)
 
 /**
+ * module_current - return the module at the head of the module list.
+ */
+static inline struct elf_module *module_current(void)
+{
+	struct elf_module *head;
+
+	head = list_entry((&modules_head)->next, typeof(*head), list);
+	return head;
+}
+
+/**
  * modules_init - initialize the module subsystem.
  *
  * This function must be called before any module operation is to be performed.

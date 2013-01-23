@@ -137,8 +137,6 @@ int spawnl(const char *name, const char *arg, ...)
 }
 #endif
 
-struct elf_module *cur_module;
-
 /*
  * Load a module and runs its start function.
  *
@@ -161,7 +159,7 @@ int spawn_load(const char *name, int argc, char **argv)
 	struct elf_module *previous;
 	//malloc_tag_t prev_mem_tag;
 	struct elf_module *module = module_alloc(name);
-	struct elf_module *prev_module;
+	struct elf_module *cur_module;
 	int type;
 
 	dprintf("enter: name = %s", name);
@@ -176,11 +174,11 @@ int spawn_load(const char *name, int argc, char **argv)
 		}
 	}
 
+	cur_module = module_current();
 	if (!strcmp(cur_module->name, module->name)) {
 		dprintf("We is running this module %s already!", module->name);
 
 		module_unload(cur_module);
-		cur_module = NULL;
 	}
 
 	res = module_load(module);
@@ -188,11 +186,9 @@ int spawn_load(const char *name, int argc, char **argv)
 		goto out;
 
 	type = get_module_type(module);
-	prev_module = cur_module;
-	cur_module = module;
 
 	dprintf("type = %d, prev = %s, cur = %s",
-		type, prev_module->name, cur_module->name);
+		type, cur_module->name, module->name);
 
 	if(type==EXEC_MODULE)
 	{
@@ -220,7 +216,6 @@ int spawn_load(const char *name, int argc, char **argv)
 		// Restore the process context
 		__syslinux_current = previous;
 
-		cur_module = prev_module;
 		res = module_unload(module);
 
 		if (res != 0)
