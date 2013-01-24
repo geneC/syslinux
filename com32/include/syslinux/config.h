@@ -156,6 +156,8 @@ struct syslinux_serial_console_info {
     uint16_t flowctl;
 };
 
+extern void __syslinux_set_serial_console_info(void);
+
 extern __nocommon struct syslinux_serial_console_info
     __syslinux_serial_console_info;
 static inline const struct syslinux_serial_console_info

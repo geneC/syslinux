@@ -26,6 +26,7 @@
 #include <syslinux/config.h>
 #include <dprintf.h>
 #include <ctype.h>
+#include <bios.h>
 #include <core.h>
 #include <fs.h>
 
@@ -79,7 +80,6 @@ short allowoptions = 1;		//user-specified options allowed
 short includelevel = 1;		//nesting level
 short defaultlevel = 0;		//the current level of default
 short vkernel = 0;		//have we seen any "label" statements?
-short displaycon = 1;		//conio.inc
 extern short NoHalt;		//idle.c
 
 const char *onerror = NULL;	//"onerror" command line
@@ -442,12 +442,12 @@ void print_labels(const char *prefix, size_t len)
 {
     struct menu_entry *me;
 
-    eprintf("\n");
+    printf("\n");
     for (me = all_entries; me; me = me->next ) {
 	if (!strncmp(prefix, me->label, len))
-	    eprintf(" %s", me->label);
+	    printf(" %s", me->label);
     }
-    eprintf("\n");
+    printf("\n");
 }
 
 struct menu_entry *find_label(const char *str)
@@ -696,7 +696,7 @@ void cat_help_file(int key)
 		return;
 
 	if (cm->fkeyhelp[fkey].textname) {
-		eprintf("\n");
+		printf("\n");
 		get_msg_file((char *)cm->fkeyhelp[fkey].textname);
 	}
 }
@@ -734,12 +734,6 @@ static uint8_t SerialNotice = 1;
 extern void sirq_cleanup_nowipe(void);
 extern void sirq_install(void);
 extern void write_serial_str(char *);
-
-static inline void io_delay(void)
-{
-	outb(0, 0x80);
-	outb(0, 0x80);
-}
 
 extern void loadfont(char *);
 extern void loadkeys(char *);
@@ -1180,7 +1174,7 @@ do_include:
 	} else if (looking_at(p, "prompt")) {
 		forceprompt = atoi(skipspace(p + 6));
 	} else if (looking_at(p, "console")) {
-		displaycon = atoi(skipspace(p + 7));
+		DisplayCon = atoi(skipspace(p + 7));
 	} else if (looking_at(p, "allowoptions")) {
 		allowoptions = atoi(skipspace(p + 12));
 	} else if (looking_at(p, "noescape")) {
@@ -1317,8 +1311,9 @@ do_include:
 			write_serial_str(syslinux_banner);
 			write_serial_str(copyright_str);
 		}
+
 	} else if (looking_at(p, "say")) {
-		eprintf("%s\n", p+4);
+		printf("%s\n", p+4);
 	} else if (looking_at(p, "path")) {
 		/* PATH-based lookup */
 		const char *new_path;
@@ -1337,7 +1332,7 @@ do_include:
 			free(PATH);
 			PATH = _p;
 		} else
-			eprintf("Failed to realloc PATH\n");
+			printf("Failed to realloc PATH\n");
 	}
     }
 }

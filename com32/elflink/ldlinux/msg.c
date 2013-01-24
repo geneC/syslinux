@@ -4,7 +4,7 @@
 #include <graphics.h>
 
 static uint8_t TextAttribute;	/* Text attribute for message file */
-static uint8_t DisplayMask;	/* Display modes mask */
+extern uint8_t DisplayMask;	/* Display modes mask */
 
 /* Routine to interpret next print char */
 static void (*NextCharJump)(uint8_t);
@@ -44,6 +44,8 @@ int get_msg_file(char *filename)
 
 		NextCharJump(ch);	/* Do what shall be done */
 	}
+
+	DisplayMask = 0x07;
 
 	fclose(f);
 	return 0;
@@ -144,16 +146,14 @@ static void msg_normal(uint8_t data)
 	uint8_t bg, fg;
 	uint8_t mask = UsingVGA & 0x1;
 
-	/* Write to serial port */
-	if (DisplayMask & 0x4)
-		write_serial(data);
-
 	/* 0x1 = text mode, 0x2 = graphics mode */
-	if (!(DisplayMask & ++mask))
-		return;		/* Not screen */
+	if (!(DisplayMask & ++mask) || !(DisplayCon & 0x01)) {
+		/* Write to serial port */
+		if (DisplayMask & 0x4)
+			write_serial(data);
 
-	if (!(DisplayCon & 0x01))
-		return;
+		return;		/* Not screen */
+	}
 
 	fg = convert_to_pcdisplay[(TextAttribute & 0x7)];
 	bg = convert_to_pcdisplay[((TextAttribute >> 4) & 0x7)];

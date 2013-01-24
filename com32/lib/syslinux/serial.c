@@ -39,7 +39,7 @@
 
 struct syslinux_serial_console_info __syslinux_serial_console_info;
 
-void __constructor __syslinux_get_serial_console_info(void)
+void __syslinux_set_serial_console_info(void)
 {
     uint16_t flowctl;
 
