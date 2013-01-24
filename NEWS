@@ -5,6 +5,18 @@ to all derivatives.
 Changes in 5.01:
 	* txt/: A new AsciiDoc documentation set (work-in-progress)
 	  (Gene Cumm).
+	* core: Fix a bug in the realloc() implementation that caused
+	  machines to appear to run out of free memory.
+	* ldlinux: Fix multiple buffer overflows in cmdline parsing
+	  code that resulted in files failing to run and cmdlines
+	  being truncated.
+	* core: Fix debug build by tagging __bad_SEG() with __export.
+	* com32: Restrict library filenames to 8.3 format.
+	* EXTLINUX: Fix installation and subdirectory patching.
+	* ISOLINUX: Fix booting isohybrid images that are over 32K.
+	* com32: Strip modules to reduce their size.
+	* XFS: Implement directory block cache and fix
+          shortform-directory lookup (Paulo Alcantara).
 
 Changes in 5.00:
 	* com32: Switched from the COM32 object format to ELF as it is
