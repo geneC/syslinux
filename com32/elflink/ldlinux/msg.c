@@ -89,6 +89,11 @@ static inline void msg_ctrl_o(void)
 	NextCharJump = msg_setbg;
 }
 
+static void msg_formfeed(void)
+{
+	printf("\033[2J\033[H");
+}
+
 static void msg_novga(void)
 {
 	syslinux_force_text_mode();
@@ -190,6 +195,9 @@ static void msg_putchar(uint8_t ch)
 		msg_ctrl_o();
 		break;
 	case 0x0D:		/* Ignore <CR> */
+		break;
+	case 0x0C:		/* <FF> = clear screen */
+		msg_formfeed();
 		break;
 	case 0x19:		/* <EM> = return to text mode */
 		msg_novga();
