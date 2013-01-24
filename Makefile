@@ -58,7 +58,7 @@ BOBJECTS = $(BTARGET) \
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
 BSUBDIRS = codepage com32 lzo core memdisk mbr memdump gpxe sample \
-	   diag libinstaller dos win32 win64 dosutil
+	   diag libinstaller dos win32 win64 dosutil txt
 ITARGET  =
 IOBJECTS = $(ITARGET) \
 	utils/gethostip utils/isohybrid utils/mkdiskimage \
