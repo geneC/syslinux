@@ -42,13 +42,6 @@ int get_msg_file(char *filename)
 		if (ch == 0x1A)
 			break;
 
-		/*
-		 * 01h = text mode
-		 * 02h = graphics mode
-		 */
-		UsingVGA &= 0x1;
-		UsingVGA += 1;
-
 		NextCharJump(ch);	/* Do what shall be done */
 	}
 
@@ -149,12 +142,14 @@ static int convert_to_pcdisplay[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 static void msg_normal(uint8_t data)
 {
 	uint8_t bg, fg;
+	uint8_t mask = UsingVGA & 0x1;
 
 	/* Write to serial port */
 	if (DisplayMask & 0x4)
 		write_serial(data);
 
-	if (!(DisplayMask & UsingVGA))
+	/* 0x1 = text mode, 0x2 = graphics mode */
+	if (!(DisplayMask & ++mask))
 		return;		/* Not screen */
 
 	if (!(DisplayCon & 0x01))
