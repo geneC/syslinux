@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -38,29 +38,26 @@
 #include "xfs_readdir.h"
 
 static inline int xfs_fmt_local_readdir(struct file *file,
-					struct dirent *dirent, xfs_dinode_t *core)
+					struct dirent *dirent,
+					xfs_dinode_t *core)
 {
-    return xfs_readdir_dir2_block(file, dirent, core);
+    return xfs_readdir_dir2_local(file, dirent, core);
 }
 
 static inline int xfs_fmt_extents_readdir(struct file *file,
 					  struct dirent *dirent,
 					  xfs_dinode_t *core)
 {
-    int retval;
-
     if (be32_to_cpu(core->di_nextents) <= 1) {
 	/* Single-block Directories */
-	retval = xfs_readdir_dir2_block(file, dirent, core);
+	return xfs_readdir_dir2_block(file, dirent, core);
     } else if (xfs_dir2_isleaf(file->fs, core)) {
 	/* Leaf Directory */
-	retval = xfs_readdir_dir2_leaf(file, dirent, core);
+	return xfs_readdir_dir2_leaf(file, dirent, core);
     } else {
 	/* Node Directory */
-	retval = xfs_readdir_dir2_node(file, dirent, core);
+	return xfs_readdir_dir2_node(file, dirent, core);
     }
-
-    return retval;
 }
 
 static int xfs_readdir(struct file *file, struct dirent *dirent)
@@ -68,7 +65,8 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
     struct fs_info *fs = file->fs;
     xfs_dinode_t *core;
     struct inode *inode = file->inode;
-    int retval = -1;
+
+    xfs_debug("file %p dirent %p");
 
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
@@ -77,11 +75,11 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
     }
 
     if (core->di_format == XFS_DINODE_FMT_LOCAL)
-	retval = xfs_fmt_local_readdir(file, dirent, core);
+	return xfs_fmt_local_readdir(file, dirent, core);
     else if (core->di_format == XFS_DINODE_FMT_EXTENTS)
-	retval = xfs_fmt_extents_readdir(file, dirent, core);
+	return xfs_fmt_extents_readdir(file, dirent, core);
 
-    return retval;
+    return -1;
 }
 
 static uint32_t xfs_getfssec(struct file *file, char *buf, int sectors,
@@ -105,6 +103,8 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
     uint32_t index;
 
     (void)lstart;
+
+    xfs_debug("inode %p lstart %lu", inode, lstart);
 
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
@@ -190,20 +190,16 @@ static inline struct inode *xfs_fmt_extents_find_entry(const char *dname,
 						       struct inode *parent,
 						       xfs_dinode_t *core)
 {
-    struct inode *inode;
-
     if (be32_to_cpu(core->di_nextents) <= 1) {
-        /* Single-block Directories */
-        inode = xfs_dir2_block_find_entry(dname, parent, core);
+	/* Single-block Directories */
+	return xfs_dir2_block_find_entry(dname, parent, core);
     } else if (xfs_dir2_isleaf(parent->fs, core)) {
-        /* Leaf Directory */
-	inode = xfs_dir2_leaf_find_entry(dname, parent, core);
+	/* Leaf Directory */
+	return xfs_dir2_leaf_find_entry(dname, parent, core);
     } else {
-        /* Node Directory */
-        inode = xfs_dir2_node_find_entry(dname, parent, core);
+	/* Node Directory */
+	return xfs_dir2_node_find_entry(dname, parent, core);
     }
-
-    return inode;
 }
 
 static inline struct inode *xfs_fmt_btree_find_entry(const char *dname,
@@ -233,11 +229,6 @@ static struct inode *xfs_iget(const char *dname, struct inode *parent)
         inode = xfs_fmt_extents_find_entry(dname, parent, core);
     } else if (core->di_format == XFS_DINODE_FMT_BTREE) {
         inode = xfs_fmt_btree_find_entry(dname, parent, core);
-    } else {
-	xfs_debug("format %hhu", core->di_format);
-	xfs_debug("TODO: format \"local\" and \"extents\" are the only "
-		  "supported ATM");
-	goto out;
     }
 
     if (!inode) {
@@ -266,7 +257,9 @@ static int xfs_readlink(struct inode *inode, char *buf)
     int pathlen = -1;
     xfs_bmbt_irec_t rec;
     block_t db;
-    char *dir_buf;
+    const char *dir_buf;
+
+    xfs_debug("inode %p buf %p", inode, buf);
 
     core = xfs_dinode_get_core(fs, inode->ino);
     if (!core) {
@@ -289,7 +282,7 @@ static int xfs_readlink(struct inode *inode, char *buf)
     } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
 	bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
 	db = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
-	dir_buf = xfs_dir2_get_dirblks(fs, db, rec.br_blockcount);
+	dir_buf = xfs_dir2_dirblks_get_cached(fs, db, rec.br_blockcount);
 
         /*
          * Syslinux only supports filesystem block size larger than or equal to
@@ -297,7 +290,6 @@ static int xfs_readlink(struct inode *inode, char *buf)
 	 * symbolic link file content, which is only 1024 bytes long.
          */
 	memcpy(buf, dir_buf, pathlen);
-	free(dir_buf);
     }
 
 out:

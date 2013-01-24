@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -28,23 +28,16 @@
 
 #include "xfs_dir2.h"
 
-char *xfs_dir2_get_entry_name(uint8_t *start, uint8_t *end)
-{
-    char *s;
-    char *p;
+#define XFS_DIR2_DIRBLKS_CACHE_SIZE 128
 
-    s = malloc(end - start + 1);
-    if (!s)
-	malloc_error("string");
+struct xfs_dir2_dirblks_cache {
+    block_t        dc_startblock;
+    xfs_filblks_t  dc_blkscount;
+    void          *dc_area;
+};
 
-    p = s;
-    while (start < end)
-	*p++ = *start++;
-
-    *p = '\0';
-
-    return s;
-}
+static struct xfs_dir2_dirblks_cache dirblks_cache[XFS_DIR2_DIRBLKS_CACHE_SIZE];
+static unsigned char                 dirblks_cached_count = 0;
 
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen)
 {
@@ -73,8 +66,8 @@ uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen)
     }
 }
 
-void *xfs_dir2_get_dirblks(struct fs_info *fs, block_t startblock,
-			   xfs_filblks_t c)
+static void *get_dirblks(struct fs_info *fs, block_t startblock,
+			 xfs_filblks_t c)
 {
     int count = c << XFS_INFO(fs)->dirblklog;
     uint8_t *p;
@@ -96,6 +89,85 @@ void *xfs_dir2_get_dirblks(struct fs_info *fs, block_t startblock,
     return buf;
 }
 
+const void *xfs_dir2_dirblks_get_cached(struct fs_info *fs, block_t startblock,
+					xfs_filblks_t c)
+{
+    unsigned char i;
+    void *buf;
+
+    xfs_debug("fs %p startblock %llu (0x%llx) blkscount %lu", fs, startblock,
+	      startblock, c);
+
+    if (!dirblks_cached_count) {
+	buf = get_dirblks(fs, startblock, c);
+
+	dirblks_cache[dirblks_cached_count].dc_startblock = startblock;
+	dirblks_cache[dirblks_cached_count].dc_blkscount = c;
+	dirblks_cache[dirblks_cached_count].dc_area = buf;
+
+	return dirblks_cache[dirblks_cached_count++].dc_area;
+    } else if (dirblks_cached_count == XFS_DIR2_DIRBLKS_CACHE_SIZE) {
+	for (i = 0; i < XFS_DIR2_DIRBLKS_CACHE_SIZE / 2; i++) {
+	    unsigned char k = XFS_DIR2_DIRBLKS_CACHE_SIZE - (i + 1);
+
+	    free(dirblks_cache[i].dc_area);
+	    dirblks_cache[i] = dirblks_cache[k];
+	    memset(&dirblks_cache[k], 0, sizeof(dirblks_cache[k]));
+	}
+
+	buf = get_dirblks(fs, startblock, c);
+
+	dirblks_cache[XFS_DIR2_DIRBLKS_CACHE_SIZE / 2].dc_startblock =
+	    startblock;
+	dirblks_cache[XFS_DIR2_DIRBLKS_CACHE_SIZE / 2].dc_blkscount = c;
+	dirblks_cache[XFS_DIR2_DIRBLKS_CACHE_SIZE / 2].dc_area = buf;
+
+	dirblks_cached_count = XFS_DIR2_DIRBLKS_CACHE_SIZE / 2;
+
+	return dirblks_cache[dirblks_cached_count++].dc_area;
+    } else {
+	block_t block;
+	xfs_filblks_t count;
+
+	block = dirblks_cache[dirblks_cached_count - 1].dc_startblock;
+	count = dirblks_cache[dirblks_cached_count - 1].dc_blkscount;
+
+	if (block == startblock && count == c) {
+	    return dirblks_cache[dirblks_cached_count - 1].dc_area;
+	} else {
+	    for (i = 0; i < dirblks_cached_count; i++) {
+		block = dirblks_cache[i].dc_startblock;
+		count = dirblks_cache[i].dc_blkscount;
+
+		if (block == startblock && count == c)
+		    return dirblks_cache[i].dc_area;
+	    }
+
+	    buf = get_dirblks(fs, startblock, c);
+
+	    dirblks_cache[dirblks_cached_count].dc_startblock = startblock;
+	    dirblks_cache[dirblks_cached_count].dc_blkscount = c;
+	    dirblks_cache[dirblks_cached_count].dc_area = buf;
+
+	    return dirblks_cache[dirblks_cached_count++].dc_area;
+	}
+    }
+
+    return NULL;
+}
+
+void xfs_dir2_dirblks_flush_cache(void)
+{
+    unsigned char i;
+
+    for (i = 0; i < dirblks_cached_count; i++) {
+	free(dirblks_cache[i].dc_area);
+	memset(&dirblks_cache[i], 0, sizeof(dirblks_cache[i]));
+    }
+
+    dirblks_cached_count = 0;
+}
+
 struct inode *xfs_dir2_local_find_entry(const char *dname, struct inode *parent,
 					xfs_dinode_t *core)
 {
@@ -107,6 +179,7 @@ struct inode *xfs_dir2_local_find_entry(const char *dname, struct inode *parent,
     xfs_intino_t ino;
     xfs_dinode_t *ncore = NULL;
 
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
     xfs_debug("count %hhu i8count %hhu", sf->hdr.count, sf->hdr.i8count);
 
     sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)&sf->list[0] -
@@ -114,18 +187,11 @@ struct inode *xfs_dir2_local_find_entry(const char *dname, struct inode *parent,
     while (count--) {
 	uint8_t *start_name = &sf_entry->name[0];
 	uint8_t *end_name = start_name + sf_entry->namelen;
-	char *name;
 
-	name = xfs_dir2_get_entry_name(start_name, end_name);
-
-	xfs_debug("entry name: %s", name);
-
-	if (!strncmp(name, dname, strlen(dname))) {
-	    free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
 	    goto found;
 	}
-
-	free(name);
 
 	sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)sf_entry +
 					   offsetof(struct xfs_dir2_sf_entry,
@@ -184,7 +250,7 @@ struct inode *xfs_dir2_block_find_entry(const char *dname, struct inode *parent,
     xfs_bmbt_irec_t r;
     block_t dir_blk;
     struct fs_info *fs = parent->fs;
-    uint8_t *dirblk_buf;
+    const uint8_t *dirblk_buf;
     uint8_t *p, *endp;
     xfs_dir2_data_hdr_t *hdr;
     struct inode *inode = NULL;
@@ -194,10 +260,12 @@ struct inode *xfs_dir2_block_find_entry(const char *dname, struct inode *parent,
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
 
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
+
     bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
 
-    dirblk_buf = xfs_dir2_get_dirblks(fs, dir_blk, r.br_blockcount);
+    dirblk_buf = xfs_dir2_dirblks_get_cached(fs, dir_blk, r.br_blockcount);
     hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
     if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
         xfs_error("Block directory header's magic number does not match!");
@@ -213,7 +281,6 @@ struct inode *xfs_dir2_block_find_entry(const char *dname, struct inode *parent,
     while (p < endp) {
         uint8_t *start_name;
         uint8_t *end_name;
-        char *name;
 
         dup = (xfs_dir2_data_unused_t *)p;
         if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
@@ -225,20 +292,16 @@ struct inode *xfs_dir2_block_find_entry(const char *dname, struct inode *parent,
 
         start_name = &dep->name[0];
         end_name = start_name + dep->namelen;
-        name = xfs_dir2_get_entry_name(start_name, end_name);
 
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
             goto found;
         }
 
-        free(name);
 	p += xfs_dir2_data_entsize(dep->namelen);
     }
 
 out:
-    free(dirblk_buf);
-
     return NULL;
 
 found:
@@ -274,12 +337,10 @@ found:
 
     xfs_debug("entry inode's number %lu", ino);
 
-    free(dirblk_buf);
     return inode;
 
 failed:
     free(inode);
-    free(dirblk_buf);
 
     return NULL;
 }
@@ -302,25 +363,26 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
     xfs_dir2_data_hdr_t *data_hdr;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
-    uint8_t *buf = NULL;
+    const uint8_t *buf = NULL;
+
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
 
     bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
 					be32_to_cpu(core->di_nextents) - 1);
     leaf_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
 	    BLOCK_SHIFT(parent->fs);
 
-    leaf = (xfs_dir2_leaf_t *)xfs_dir2_get_dirblks(parent->fs, leaf_blk,
-						   irec.br_blockcount);
+    leaf = (xfs_dir2_leaf_t *)xfs_dir2_dirblks_get_cached(parent->fs, leaf_blk,
+							  irec.br_blockcount);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
         xfs_error("Single leaf block header's magic number does not match!");
         goto out;
     }
 
     if (!leaf->hdr.count)
-        goto out;
+	goto out;
 
     hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
 
@@ -355,18 +417,16 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
 
         newdb = xfs_dir2_dataptr_to_db(parent->fs, be32_to_cpu(lep->address));
         if (newdb != curdb) {
-            if (buf)
-                free(buf);
-
             bmbt_irec_get(&irec,
 		  ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) + newdb);
             dir_blk = fsblock_to_bytes(parent->fs, irec.br_startblock) >>
+
 		      BLOCK_SHIFT(parent->fs);
-            buf = xfs_dir2_get_dirblks(parent->fs, dir_blk, irec.br_blockcount);
+            buf = xfs_dir2_dirblks_get_cached(parent->fs, dir_blk, irec.br_blockcount);
             data_hdr = (xfs_dir2_data_hdr_t *)buf;
             if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
                 xfs_error("Leaf directory's data magic No. does not match!");
-                goto out1;
+                goto out;
             }
 
             curdb = newdb;
@@ -377,21 +437,14 @@ struct inode *xfs_dir2_leaf_find_entry(const char *dname, struct inode *parent,
 
         start_name = &dep->name[0];
         end_name = start_name + dep->namelen;
-        name = xfs_dir2_get_entry_name(start_name, end_name);
 
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
             goto found;
         }
-
-        free(name);
     }
 
-out1:
-    free(buf);
 out:
-    free(leaf);
-
     return NULL;
 
 found:
@@ -428,15 +481,10 @@ found:
 
     xfs_debug("entry inode's number %lu", ino);
 
-    free(buf);
-    free(leaf);
-
     return ip;
 
 failed:
     free(ip);
-    free(buf);
-    free(leaf);
 
     return ip;
 }
@@ -560,14 +608,15 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     struct inode *ip;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     int low;
     int high;
     int mid = 0;
     uint32_t newdb, curdb = -1;
     xfs_intino_t ino;
     xfs_dinode_t *ncore;
-    uint8_t *buf = NULL;
+    const uint8_t *buf = NULL;
+
+    xfs_debug("dname %s parent %p core %p", dname, parent, core);
 
     hashwant = xfs_dir2_da_hashname((uint8_t *)dname, strlen(dname));
 
@@ -579,7 +628,8 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
         return NULL;
     }
 
-    node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(parent->fs, fsblkno, 1);
+    node = (xfs_da_intnode_t *)xfs_dir2_dirblks_get_cached(parent->fs, fsblkno,
+							   1);
     if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
         xfs_error("Node's magic number does not match!");
         goto out;
@@ -630,9 +680,8 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
             goto out;
         }
 
-        free(node);
-        node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(parent->fs,
-                                                        fsblkno, 1);
+        node = (xfs_da_intnode_t *)xfs_dir2_dirblks_get_cached(parent->fs,
+							       fsblkno, 1);
     } while(be16_to_cpu(node->hdr.info.magic) == XFS_DA_NODE_MAGIC);
 
     leaf = (xfs_dir2_leaf_t*)node;
@@ -675,20 +724,17 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
 
         newdb = xfs_dir2_dataptr_to_db(parent->fs, be32_to_cpu(lep->address));
         if (newdb != curdb) {
-            if (buf)
-                free(buf);
-
             fsblkno = xfs_dir2_get_right_blk(parent->fs, core, newdb, &error);
             if (error) {
                 xfs_error("Cannot find data block!");
                 goto out;
             }
 
-            buf = xfs_dir2_get_dirblks(parent->fs, fsblkno, 1);
+            buf = xfs_dir2_dirblks_get_cached(parent->fs, fsblkno, 1);
             data_hdr = (xfs_dir2_data_hdr_t *)buf;
             if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
                 xfs_error("Leaf directory's data magic No. does not match!");
-                goto out1;
+                goto out;
             }
 
             curdb = newdb;
@@ -699,21 +745,14 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
 
         start_name = &dep->name[0];
         end_name = start_name + dep->namelen;
-        name = xfs_dir2_get_entry_name(start_name, end_name);
-        if (!strncmp(name, dname, strlen(dname))) {
-            free(name);
-            goto found;
-        }
 
-        free(name);
+	if (!xfs_dir2_entry_name_cmp(start_name, end_name, dname)) {
+	    xfs_debug("Found entry %s", dname);
+	    goto found;
+        }
     }
 
-out1:
-    free(buf);
-
 out:
-    free(node);
-
     return NULL;
 
 found:
@@ -745,15 +784,10 @@ found:
 
     xfs_debug("entry inode's number %lu", ino);
 
-    free(buf);
-    free(node);
-
     return ip;
 
 failed:
     free(ip);
-    free(buf);
-    free(node);
 
     return NULL;
 }

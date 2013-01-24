@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -33,7 +33,7 @@ xfs_dinode_t *xfs_dinode_get_core(struct fs_info *fs, xfs_ino_t ino)
     xfs_dinode_t *core;
     uint64_t offset;
 
-    xfs_debug("ino %lu", ino);
+    xfs_debug("fs %p ino %lu", fs, ino);
 
     blk = ino_to_bytes(fs, ino) >> BLOCK_SHIFT(fs);
     offset = XFS_INO_TO_OFFSET(XFS_INFO(fs), ino) << XFS_INFO(fs)->inode_shift;
