@@ -100,7 +100,7 @@ static void set_fgbg(void)
 	bg = convert_to_pcdisplay[((TextAttribute >> 4) & 0x7)];
 
 	printf("\033[");
-	if (TextAttribute & 0x40)
+	if (TextAttribute & 0x8)
 		printf("1;"); /* Foreground bright */
 
 	printf("3%dm\033[", fg);
