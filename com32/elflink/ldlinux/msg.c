@@ -4,7 +4,7 @@
 #include <graphics.h>
 
 static uint8_t TextAttribute;	/* Text attribute for message file */
-static uint8_t DisplayMask;	/* Display modes mask */
+extern uint8_t DisplayMask;	/* Display modes mask */
 
 /* Routine to interpret next print char */
 static void (*NextCharJump)(uint8_t);
@@ -42,27 +42,27 @@ int get_msg_file(char *filename)
 		if (ch == 0x1A)
 			break;
 
-		/*
-		 * 01h = text mode
-		 * 02h = graphics mode
-		 */
-		UsingVGA &= 0x1;
-		UsingVGA += 1;
-
 		NextCharJump(ch);	/* Do what shall be done */
 	}
 
+	DisplayMask = 0x07;
+
 	fclose(f);
 	return 0;
+}
+
+static inline int display_mask_vga(void)
+{
+	uint8_t mask = UsingVGA & 0x1;
+	return (DisplayMask & ++mask);
 }
 
 static void msg_setbg(uint8_t data)
 {
 	if (unhexchar(&data) == 0) {
 		data <<= 4;
-		if (DisplayMask & UsingVGA) {
+		if (display_mask_vga())
 			TextAttribute = data;
-		}
 
 		NextCharJump = msg_setfg;
 	} else {
@@ -74,7 +74,7 @@ static void msg_setbg(uint8_t data)
 static void msg_setfg(uint8_t data)
 {
 	if (unhexchar(&data) == 0) {
-		if (DisplayMask & UsingVGA) {
+		if (display_mask_vga()) {
 			/* setbg set foreground to 0 */
 			TextAttribute |= data;
 		}
@@ -87,6 +87,34 @@ static void msg_setfg(uint8_t data)
 static inline void msg_ctrl_o(void)
 {
 	NextCharJump = msg_setbg;
+}
+
+/* Convert ANSI colors to PC display attributes */
+static int convert_to_pcdisplay[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+
+static void set_fgbg(void)
+{
+	uint8_t bg, fg;
+
+	fg = convert_to_pcdisplay[(TextAttribute & 0x7)];
+	bg = convert_to_pcdisplay[((TextAttribute >> 4) & 0x7)];
+
+	printf("\033[");
+	if (TextAttribute & 0x8)
+		printf("1;"); /* Foreground bright */
+
+	printf("3%dm\033[", fg);
+
+	if (TextAttribute & 0x80)
+		printf("5;"); /* Foreground blink */
+
+	printf("4%dm", bg);
+}
+
+static void msg_formfeed(void)
+{
+	set_fgbg();
+	printf("\033[2J\033[H\033[0m");
 }
 
 static void msg_novga(void)
@@ -138,36 +166,19 @@ static void msg_vga(void)
 	VGAFilePtr = (uint16_t *)VGAFileBuf;
 }
 
-/* Convert ANSI colors to PC display attributes */
-static int convert_to_pcdisplay[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
-
 static void msg_normal(uint8_t data)
 {
-	uint8_t bg, fg;
+	/* 0x1 = text mode, 0x2 = graphics mode */
+	if (!display_mask_vga() || !(DisplayCon & 0x01)) {
+		/* Write to serial port */
+		if (DisplayMask & 0x4)
+			write_serial(data);
 
-	/* Write to serial port */
-	if (DisplayMask & 0x4)
-		write_serial(data);
-
-	if (!(DisplayMask & UsingVGA))
 		return;		/* Not screen */
+	}
 
-	if (!(DisplayCon & 0x01))
-		return;
-
-	fg = convert_to_pcdisplay[(TextAttribute & 0x7)];
-	bg = convert_to_pcdisplay[((TextAttribute >> 4) & 0x7)];
-
-	printf("\033[");
-	if (TextAttribute & 0x40)
-		printf("1;"); /* Foreground bright */
-
-	printf("3%dm\033[", fg);
-
-	if (TextAttribute & 0x80)
-		printf("5;"); /* Foreground blink */
-
-	printf("4%dm%c\033[0m", bg, data);
+	set_fgbg();
+	printf("%c\033[0m", data);
 }
 
 static void msg_modectl(uint8_t data)
@@ -190,6 +201,9 @@ static void msg_putchar(uint8_t ch)
 		msg_ctrl_o();
 		break;
 	case 0x0D:		/* Ignore <CR> */
+		break;
+	case 0x0C:		/* <FF> = clear screen */
+		msg_formfeed();
 		break;
 	case 0x19:		/* <EM> = return to text mode */
 		msg_novga();

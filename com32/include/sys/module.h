@@ -199,6 +199,17 @@ extern struct list_head modules_head;
 	list_for_each_entry_safe(m, n, &modules_head, list)
 
 /**
+ * module_current - return the module at the head of the module list.
+ */
+static inline struct elf_module *module_current(void)
+{
+	struct elf_module *head;
+
+	head = list_entry((&modules_head)->next, typeof(*head), list);
+	return head;
+}
+
+/**
  * modules_init - initialize the module subsystem.
  *
  * This function must be called before any module operation is to be performed.
@@ -240,18 +251,6 @@ extern struct elf_module *module_alloc(const char *name);
  */
 extern int module_load(struct elf_module *module);
 
-
-/**
- * module_load_shallow - loads a shallow ELF module into memory.
- * @module:	the module descriptor returned by module_alloc.
- *
- * The function reads the module file, checks whether the file has a valid
- * structure, then loads into memory the module metadata. The metadata currently
- * contains a symbol table that describes code & data allocated by other means.
- * Its current use is to describe the root COM32 module to the rest of the
- * module subsystem.
- */
-extern int module_load_shallow(struct elf_module *module, Elf_Addr base_addr);
 
 /**
  * module_unload - unloads the module from the system.

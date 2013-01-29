@@ -537,7 +537,6 @@ void bios_init(void)
 
 	/* Init the memory subsystem */
 	bios_free_mem = (uint16_t *)0x413;
-	mem_init();
 
 	/* CPU-dependent initialization and related checks. */
 	check_escapes();

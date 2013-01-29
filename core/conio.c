@@ -45,6 +45,8 @@ __export uint8_t FlowIgnore = 0;    /* Ignore input unless these bits set */
 __export uint16_t DisplayCon = 0x01;	/* Display console enabled */
 __export uint8_t FlowOutput = 0;	/* Output to assert for serial flow */
 
+__export uint8_t DisplayMask = 0x07;	/* Display modes mask */
+
 uint8_t ScrollAttribute = 0x07; /* Grey on white (normal text color) */
 
 /*
@@ -73,6 +75,9 @@ __export int loadkeys(char *filename)
 __export void write_serial(char data)
 {
 	if (!SerialPort)
+		return;
+
+	if (!(DisplayMask & 0x04))
 		return;
 
 	while (1) {
@@ -162,21 +167,22 @@ int bios_pollchar(void)
 		/* Already-queued input? */
 		if (SerialTail == SerialHead) {
 			/* LSR */
-			data = inb(SerialPort + 5) & 1;
-			if (data) {
+			data = !(inb(SerialPort + 5) & 1);
+			if (!data) {
 				/* MSR */
 				data = inb(SerialPort + 6);
 
 				/* Required status bits */
-				if (data) {
-					data &= FlowIgnore;
-					if (data != FlowIgnore)
-						data = 0;
-					else
-						data = 1;
-				}
-			}
-		}
+				data &= FlowIgnore;
+
+				if (data == FlowIgnore)
+					data = 1;
+				else
+					data = 0;
+			} else
+				data = 1;
+		} else
+			data = 1;
 		sti();
 	}
 
@@ -221,7 +227,8 @@ char bios_getchar(char *hi)
 				sti(); /* We already know we'll consume data */
 				data = *SerialTail++;
 
-				SerialTail = (char *)((unsigned long)SerialTail & (serial_buf_size - 1));
+				if (SerialTail > SerialHead + serial_buf_size)
+					SerialTail = SerialHead;
 			} else {
 				/* LSR */
 				data = inb(SerialPort + 5) & 1;

@@ -289,10 +289,12 @@ KernelType	resb 1			; Kernel type, from vkernel, if known
 		global KernelName
 KernelName	resb FILENAME_MAX	; Mangled name for kernel
 		section .data16
-		extern IPOption
+		extern IPOption, BOOTIFStr, SYSUUIDStr
 		global IPAppends, numIPAppends
 		alignz 2
 IPAppends	dw IPOption
+		dw BOOTIFStr
+		dw SYSUUIDStr
 numIPAppends	equ ($-IPAppends)/2
 
 		section .text16

@@ -41,7 +41,7 @@ uint16_t dos_version;
 void pause(void)
 {
     uint16_t ax;
-    
+
     asm volatile("int $0x16" : "=a" (ax) : "a" (0));
 }
 #else
@@ -187,7 +187,7 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
-    
+
     if (dos_version >= 0x070a) {
 	/* Try FAT32-aware system call first */
 	asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
@@ -220,7 +220,7 @@ void read_device(int drive, void *buf, size_t nsecs, unsigned int sector)
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
     dio.bufseg = data_segment();
-    
+
     if (dos_version >= 0x070a) {
 	/* Try FAT32-aware system call first */
 	asm volatile("int $0x21 ; jc 1f ; xorw %0,%0\n"
@@ -402,14 +402,6 @@ int libfat_xpread(intptr_t pp, void *buf, size_t secsize,
 
 static inline void get_dos_version(void)
 {
-    uint16_t ver;
-
-    asm("int $0x21 ; xchgb %%ah,%%al"
-	: "=a" (ver) 
-	: "a" (0x3001)
-	: "ebx", "ecx");
-    dos_version = ver;
-
     dprintf("DOS version %d.%d\n", (dos_version >> 8), dos_version & 0xff);
 }
 
@@ -475,7 +467,7 @@ soft_fail:
     if (hard_lock) {
 	/* Hard locking, only level 4 supported */
 	/* This is needed for Win9x in DOS mode */
-	
+
 	err = do_lock(4);
 	if (err) {
 	    if (err == 0x0001) {

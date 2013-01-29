@@ -162,15 +162,15 @@ BOBJECTS = $(BTARGET) \
 
 ifdef EFI_BUILD
 
-BSUBDIRS = codepage com32 lzo core mbr sample efi
+BSUBDIRS = codepage com32 lzo core mbr sample efi txt
 ISUBDIRS = efi utils
 
 INSTALLSUBDIRS = efi
 
 else
 
-BSUBDIRS = codepage com32 lzo core memdisk sample diag mbr memdump dos \
-	   gpxe libinstaller win32 win64 dosutil
+BSUBDIRS = codepage com32 lzo core memdisk mbr memdump gpxe sample \
+	   diag libinstaller dos win32 win64 dosutil txt
 
 ITARGET  =
 IOBJECTS = $(ITARGET) \

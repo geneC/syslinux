@@ -18,7 +18,7 @@
 NOGPL := 1
 
 LIBS  = libmenu/libmenu.c32 \
-        $(objdir)/com32/libutil/libutil_com.c32 \
+        $(objdir)/com32/libutil/libutil.c32 \
         $(objdir)/com32/lib/libcom32.c32
 
 VPATH = $(SRC)
@@ -26,7 +26,7 @@ include $(MAKEDIR)/elf.mk
 
 CFLAGS	  += -I$(SRC)/libmenu
 
-LIBMENU = $(objdir)/com32/libutil/libutil_com.c32 \
+LIBMENU = $(objdir)/com32/libutil/libutil.c32 \
 	$(objdir)/com32/lib/libcom32.c32 \
 	libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o
@@ -47,14 +47,15 @@ all:	makeoutputdirs menus
 makeoutputdirs:
 	@mkdir -p $(OBJ)/libmenu
 
-libmenu/libmenu.c32: $(LIBMENU)
-	$(LD) -shared $(LDFLAGS) -o $@ $^
+libmenu/libmenu.elf: $(LIBMENU)
+	$(LD) -shared $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) \
+		-o $@ $^
 
 tidy dist:
-	rm -f *.o *.lo *.c32 *.lst *.elf .*.d */.*.d
+	rm -f *.o *.lo *.lst *.elf */*.o */*.elf .*.d */.*.d
 
 libclean:
-	rm -f libmenu/*.o libmenu/*.c32
+	rm -f libmenu/*.c32
 
 clean: tidy menuclean libclean
 	rm -f *.lss *.c32 *.com

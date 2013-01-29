@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -35,6 +35,9 @@ static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
 {
     xfs_dinode_t *core;
 
+    xfs_debug("fs %p, dirent %p offset %lu ino %llu name %s namelen %llu", fs,
+	      dirent, offset, ino, name, namelen);
+
     dirent->d_ino = ino;
     dirent->d_off = offset;
     dirent->d_reclen = offsetof(struct dirent, d_name) + namelen + 1;
@@ -52,7 +55,8 @@ static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
     else if (be16_to_cpu(core->di_mode) & S_IFLNK)
         dirent->d_type = DT_LNK;
 
-    memcpy(dirent->d_name, name, namelen + 1);
+    memcpy(dirent->d_name, name, namelen);
+    dirent->d_name[namelen] = '\0';
 
     return 0;
 }
@@ -66,15 +70,15 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
     uint32_t offset = file->offset;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_ino_t ino;
     struct fs_info *fs = file->fs;
     int retval = 0;
 
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
     xfs_debug("count %hhu i8count %hhu", sf->hdr.count, sf->hdr.i8count);
 
     if (file->offset + 1 > count)
-	return -1;
+	goto out;
 
     file->offset++;
 
@@ -96,22 +100,23 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
     start_name = &sf_entry->name[0];
     end_name = start_name + sf_entry->namelen;
 
-    name = xfs_dir2_get_entry_name(start_name, end_name);
-
     ino = xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
 				      (uint8_t *)sf_entry +
 				      offsetof(struct xfs_dir2_sf_entry,
 					       name[0]) +
 				      sf_entry->namelen));
 
-    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)name,
+    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)start_name,
 			 end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(name);
-
     return retval;
+
+out:
+    xfs_dir2_dirblks_flush_cache();
+
+    return -1;
 }
 
 int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
@@ -120,7 +125,7 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
     xfs_bmbt_irec_t r;
     block_t dir_blk;
     struct fs_info *fs = file->fs;
-    uint8_t *dirblk_buf;
+    const uint8_t *dirblk_buf;
     uint8_t *p;
     uint32_t offset;
     xfs_dir2_data_hdr_t *hdr;
@@ -129,28 +134,26 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
     xfs_dir2_data_entry_t *dep;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_ino_t ino;
     int retval = 0;
+
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
     bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
 
-    dirblk_buf = xfs_dir2_get_dirblks(fs, dir_blk, r.br_blockcount);
+    dirblk_buf = xfs_dir2_dirblks_get_cached(fs, dir_blk, r.br_blockcount);
     hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
     if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
         xfs_error("Block directory header's magic number does not match!");
         xfs_debug("hdr->magic: 0x%lx", be32_to_cpu(hdr->magic));
-
-	free(dirblk_buf);
-
-	return -1;
+	goto out;
     }
 
     btp = xfs_dir2_block_tail_p(XFS_INFO(fs), hdr);
 
     if (file->offset + 1 > be32_to_cpu(btp->count))
-	return -1;
+	goto out;
 
     file->offset++;
 
@@ -175,19 +178,20 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = xfs_dir2_get_entry_name(start_name, end_name);
 
     ino = be64_to_cpu(dep->inumber);
 
-    retval = fill_dirent(fs, dirent, file->offset, ino, name,
+    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)start_name,
 			 end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(dirblk_buf);
-    free(name);
-
     return retval;
+
+out:
+    xfs_dir2_dirblks_flush_cache();
+
+    return -1;
 }
 
 int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
@@ -204,18 +208,19 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
     xfs_dir2_data_hdr_t *data_hdr;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     xfs_intino_t ino;
-    uint8_t *buf = NULL;
+    const uint8_t *buf = NULL;
     int retval = 0;
+
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
     bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
 					be32_to_cpu(core->di_nextents) - 1);
     leaf_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
 					BLOCK_SHIFT(file->fs);
 
-    leaf = (xfs_dir2_leaf_t *)xfs_dir2_get_dirblks(fs, leaf_blk,
-						   irec.br_blockcount);
+    leaf = (xfs_dir2_leaf_t *)xfs_dir2_dirblks_get_cached(fs, leaf_blk,
+							  irec.br_blockcount);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
         xfs_error("Single leaf block header's magic number does not match!");
         goto out;
@@ -239,11 +244,11 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
 
     dir_blk = fsblock_to_bytes(fs, irec.br_startblock) >> BLOCK_SHIFT(fs);
 
-    buf = xfs_dir2_get_dirblks(fs, dir_blk, irec.br_blockcount);
+    buf = xfs_dir2_dirblks_get_cached(fs, dir_blk, irec.br_blockcount);
     data_hdr = (xfs_dir2_data_hdr_t *)buf;
     if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
 	xfs_error("Leaf directory's data magic number does not match!");
-	goto out1;
+	goto out;
     }
 
     offset = xfs_dir2_dataptr_to_off(fs, be32_to_cpu(lep->address));
@@ -252,26 +257,18 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = xfs_dir2_get_entry_name(start_name, end_name);
 
     ino = be64_to_cpu(dep->inumber);
 
-    retval = fill_dirent(fs, dirent, file->offset, ino, name,
+    retval = fill_dirent(fs, dirent, file->offset, ino, (char *)start_name,
 			 end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(name);
-    free(buf);
-    free(leaf);
-
     return retval;
 
-out1:
-    free(buf);
-
 out:
-    free(leaf);
+    xfs_dir2_dirblks_flush_cache();
 
     return -1;
 }
@@ -293,10 +290,11 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
     xfs_dir2_data_entry_t *dep;
     uint8_t *start_name;
     uint8_t *end_name;
-    char *name;
     uint32_t db;
-    uint8_t *buf = NULL;
+    const uint8_t *buf = NULL;
     int retval = 0;
+
+    xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
     do {
         bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
@@ -305,7 +303,7 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
 
     fsblkno = fsblock_to_bytes(fs, irec.br_startblock) >> BLOCK_SHIFT(fs);
 
-    node = (xfs_da_intnode_t *)xfs_dir2_get_dirblks(fs, fsblkno, 1);
+    node = (xfs_da_intnode_t *)xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
     if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
         xfs_error("Node's magic number does not match!");
         goto out;
@@ -314,7 +312,7 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
 try_next_btree:
     if (!node->hdr.count ||
 	XFS_PVT(inode)->i_btree_offset >= be16_to_cpu(node->hdr.count))
-        goto out;
+	goto out;
 
     fsblkno = be32_to_cpu(node->btree[XFS_PVT(inode)->i_btree_offset].before);
     fsblkno = xfs_dir2_get_right_blk(fs, core, fsblkno, &error);
@@ -323,17 +321,16 @@ try_next_btree:
         goto out;
     }
 
-    leaf = (xfs_dir2_leaf_t*)xfs_dir2_get_dirblks(fs, fsblkno, 1);
+    leaf = (xfs_dir2_leaf_t*)xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
     if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
         xfs_error("Leaf's magic number does not match!");
-        goto out1;
+        goto out;
     }
 
     if (!leaf->hdr.count ||
 	XFS_PVT(inode)->i_leaf_ent_offset >= be16_to_cpu(leaf->hdr.count)) {
 	XFS_PVT(inode)->i_btree_offset++;
 	XFS_PVT(inode)->i_leaf_ent_offset = 0;
-	free(leaf);
 	goto try_next_btree;
     }
 
@@ -347,7 +344,6 @@ try_next_btree:
     if (XFS_PVT(inode)->i_leaf_ent_offset == be16_to_cpu(leaf->hdr.count)) {
 	XFS_PVT(inode)->i_btree_offset++;
 	XFS_PVT(inode)->i_leaf_ent_offset = 0;
-	free(leaf);
 	goto try_next_btree;
     } else {
 	XFS_PVT(inode)->i_leaf_ent_offset++;
@@ -358,14 +354,14 @@ try_next_btree:
     fsblkno = xfs_dir2_get_right_blk(fs, core, db, &error);
     if (error) {
 	xfs_error("Cannot find data block!");
-	goto out1;
+	goto out;
     }
 
-    buf = xfs_dir2_get_dirblks(fs, fsblkno, 1);
+    buf = xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
     data_hdr = (xfs_dir2_data_hdr_t *)buf;
     if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
 	xfs_error("Leaf directory's data magic No. does not match!");
-	goto out2;
+	goto out;
     }
 
     offset = xfs_dir2_dataptr_to_off(fs, be32_to_cpu(lep->address));
@@ -374,28 +370,16 @@ try_next_btree:
 
     start_name = &dep->name[0];
     end_name = start_name + dep->namelen;
-    name = xfs_dir2_get_entry_name(start_name, end_name);
 
-    retval = fill_dirent(fs, dirent, 0, be64_to_cpu(dep->inumber), name,
-			 end_name - start_name);
+    retval = fill_dirent(fs, dirent, 0, be64_to_cpu(dep->inumber),
+			 (char *)start_name, end_name - start_name);
     if (retval)
 	xfs_error("Failed to fill in dirent structure");
 
-    free(name);
-    free(buf);
-    free(leaf);
-    free(node);
-
     return retval;
 
-out2:
-    free(buf);
-
-out1:
-    free(leaf);
-
 out:
-    free(node);
+    xfs_dir2_dirblks_flush_cache();
 
     XFS_PVT(inode)->i_btree_offset = 0;
     XFS_PVT(inode)->i_leaf_ent_offset = 0;

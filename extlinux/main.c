@@ -440,13 +440,11 @@ int install_bootblock(int fd, const char *device)
     return 0;
 }
 
-static int rewrite_boot_image(int devfd, const char *filename)
+static int rewrite_boot_image(int devfd, const char *path, const char *filename)
 {
     int fd;
     int ret;
     int modbytes;
-    char path[PATH_MAX];
-    char slash;
 
     /* Let's create LDLINUX.SYS file again (if it already exists, of course) */
     fd = open(filename,  O_WRONLY | O_TRUNC | O_CREAT | O_SYNC,
@@ -469,8 +467,6 @@ static int rewrite_boot_image(int devfd, const char *filename)
 	fprintf(stderr, "%s: write failure on %s\n", program, filename);
 	goto error;
     }
-
-    sscanf(filename, "%s%cldlinux.sys", path, &slash);
 
     /* Map the file, and patch the initial sector accordingly */
     modbytes = patch_file_and_bootblock(fd, path, devfd);
@@ -525,7 +521,7 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
     }
     close(fd);
 
-    fd = rewrite_boot_image(devfd, file);
+    fd = rewrite_boot_image(devfd, path, file);
     if (fd < 0)
 	goto bail;
 
@@ -648,12 +644,16 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
  */
 static int xfs_install_file(const char *path, int devfd, struct stat *rst)
 {
-    static char file[PATH_MAX];
+    static char file[PATH_MAX + 1];
+    static char c32file[PATH_MAX + 1];
     int dirfd = -1;
     int fd = -1;
+    int retval;
 
-    snprintf(file, PATH_MAX, "%s%sldlinux.sys",
-	     path, path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
+    snprintf(file, PATH_MAX + 1, "%s%sldlinux.sys", path,
+	     path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
+    snprintf(c32file, PATH_MAX + 1, "%s%sldlinux.c32", path,
+	     path[0] && path[strlen(path) - 1] == '/' ? "" : "/");
 
     dirfd = open(path, O_RDONLY | O_DIRECTORY);
     if (dirfd < 0) {
@@ -673,7 +673,7 @@ static int xfs_install_file(const char *path, int devfd, struct stat *rst)
 
     close(fd);
 
-    fd = rewrite_boot_image(devfd, file);
+    fd = rewrite_boot_image(devfd, path, file);
     if (fd < 0)
 	goto bail;
 
@@ -688,6 +688,26 @@ static int xfs_install_file(const char *path, int devfd, struct stat *rst)
 
     close(dirfd);
     close(fd);
+
+    dirfd = -1;
+    fd = -1;
+
+    fd = open(c32file, O_WRONLY | O_TRUNC | O_CREAT | O_SYNC,
+	      S_IRUSR | S_IRGRP | S_IROTH);
+    if (fd < 0) {
+	perror(c32file);
+	goto bail;
+    }
+
+    retval = xpwrite(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len, 0);
+    if (retval != (int)syslinux_ldlinuxc32_len) {
+	fprintf(stderr, "%s: write failure on %s\n", program, file);
+	goto bail;
+    }
+
+    close(fd);
+
+    sync();
 
     return 0;
 

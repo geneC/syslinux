@@ -35,16 +35,23 @@ SECTIONS
 	__payload_len = ABSOLUTE(__payload_end) - ABSOLUTE(__payload_start);
 	__payload_dwords = __payload_len >> 2;
 
-	__text_lma = __payload_lma + syslinux_size;
-	__payload_sseg = (__payload_lma - __text_lma) >> 4;
-	_exe_text_seg  = (__text_lma - __header_size) >> 4;
+	__dgroup_lma = __payload_lma + syslinux_size;
+	__payload_sseg = (__payload_lma - __dgroup_lma) >> 4;
+	_exe_text_seg  = (__dgroup_lma - __header_size) >> 4;
 
 /*
  *	__assert1 = ASSERT((__payload_len == syslinux_ldlinux_size),
  *	"syslinux_size must equal the size of .payload");
  */
 	. = 0;
-	.text : AT (__text_lma) {
+	__null = .;
+	.null : AT(__dgroup_lma) {
+		*(.null)
+	}
+
+	. = ALIGN(16);
+	__text_vma = .;
+	.text : AT (__text_vma + __dgroup_lma) {
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 		*(.gnu.warning)
 	} =0x90909090
@@ -52,7 +59,7 @@ SECTIONS
 
 	. = ALIGN(16);
 	__rodata_vma = .;
-	.rodata : AT (__rodata_vma + __text_lma) {
+	.rodata : AT (__rodata_vma + __dgroup_lma) {
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 	}
 
@@ -60,15 +67,15 @@ SECTIONS
 	   data within same 128-byte chunk. */
 	. = ALIGN(128);
 	__data_vma = .;
-	.data : AT (__data_vma + __text_lma) {
+	.data : AT (__data_vma + __dgroup_lma) {
 		*(.data .data.* .gnu.linkonce.d.*)
 		SORT(CONSTRUCTORS)
 	}
 	.data1 : { *(.data1) }
 	_edata = .;
 
-	_exe_edata_low    = ((_edata + __text_lma) & 511);
-	_exe_edata_blocks = ((_edata + __text_lma) + 511) >> 9;
+	_exe_edata_low    = ((_edata + __dgroup_lma) & 511);
+	_exe_edata_blocks = ((_edata + __dgroup_lma) + 511) >> 9;
 
 	.bss (NOLOAD) : {
 		__bss_start = .;

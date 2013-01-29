@@ -175,6 +175,8 @@ void *bios_realloc(void *ptr, size_t size)
 		ARENA_TYPE_SET(nah->a.attrs, ARENA_TYPE_FREE);
 		ARENA_SIZE_SET(nah->a.attrs, xsize - newsize);
 		ARENA_SIZE_SET(ah->a.attrs, newsize);
+		ARENA_HEAP_SET(nah->a.attrs, ARENA_HEAP_GET(ah->a.attrs));
+
 		//nah->a.type = ARENA_TYPE_FREE;
 		//nah->a.size = xsize - newsize;
 		//ah->a.size = newsize;

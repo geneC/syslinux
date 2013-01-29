@@ -14,7 +14,7 @@
 ## samples for syslinux users
 ##
 
-LIBS = $(objdir)/com32/libutil/libutil_com.c32
+LIBS = $(objdir)/com32/libutil/libutil.c32
 
 VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk

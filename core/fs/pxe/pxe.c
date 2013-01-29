@@ -254,7 +254,7 @@ static const char *parse_dotquad(const char *ip_str, uint32_t *res)
  * the ASM pxenv function wrapper, return 1 if error, or 0
  *
  */
-int pxe_call(int opcode, void *data)
+__export int pxe_call(int opcode, void *data)
 {
     extern void pxenv(void);
     com32sys_t regs;
@@ -1656,7 +1656,7 @@ int reset_pxe(void)
  * This function unloads the PXE and UNDI stacks and
  * unclaims the memory.
  */
-void unload_pxe(uint16_t flags)
+__export void unload_pxe(uint16_t flags)
 {
     /* PXE unload sequences */
     static const uint8_t new_api_unload[] = {

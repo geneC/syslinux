@@ -7,6 +7,7 @@
 #include <com32.h>
 #include <stdio.h>
 #include <sys/dirent.h>
+#include <dprintf.h>
 #include "core.h"
 #include "disk.h"
 
@@ -158,6 +159,8 @@ static inline void free_inode(struct inode * inode)
 static inline struct inode *get_inode(struct inode *inode)
 {
     inode->refcnt++;
+    dprintf("get_inode %p name %s refcnt %d\n",
+	    inode, inode->name, inode->refcnt);
     return inode;
 }
 

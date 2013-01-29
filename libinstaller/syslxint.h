@@ -124,23 +124,6 @@ static inline void set_64(uint64_t *p, uint64_t v)
  */
 #ifdef __MSDOS__
 
-static inline __attribute__ ((const))
-uint16_t ds(void)
-{
-    uint16_t v;
-    asm("movw %%ds,%0":"=rm"(v));
-    return v;
-}
-
-static inline void *set_fs(const void *p)
-{
-    uint16_t seg;
-
-    seg = ds() + ((size_t) p >> 4);
-    asm volatile ("movw %0,%%fs"::"rm" (seg));
-    return (void *)((size_t) p & 0xf);
-}
-
 uint8_t get_8_sl(const uint8_t * p);
 uint16_t get_16_sl(const uint16_t * p);
 uint32_t get_32_sl(const uint32_t * p);

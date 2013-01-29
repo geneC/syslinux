@@ -48,7 +48,7 @@ int max_console_lines = MAX_CLI_LINES;
 int main(const int argc, const char *argv[])
 {
     char version_string[256];
-    struct s_hardware hardware;
+    static struct s_hardware hardware;
 
     snprintf(version_string, sizeof version_string, "%s %s (%s)",
 	     PRODUCT_NAME, VERSION, CODENAME);

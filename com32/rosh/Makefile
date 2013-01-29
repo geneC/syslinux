@@ -16,7 +16,7 @@
 ## ROSH Read Only Shell
 ##
 
-LIBS = $(objdir)/com32/libutil/libutil_com.c32 \
+LIBS = $(objdir)/com32/libutil/libutil.c32 \
 	$(objdir)/com32/lib/libcom32.c32
 
 VPATH = $(SRC)

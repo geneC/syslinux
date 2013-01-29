@@ -71,7 +71,7 @@ static const char * cmd_reverse_search(int *cursor, clock_t *kbd_to,
 
     memset(buf, 0, MAX_CMDLINE_LEN);
 
-    eprintf("\033[1G\033[1;36m(reverse-i-search)`': \033[0m");
+    printf("\033[1G\033[1;36m(reverse-i-search)`': \033[0m");
     while (1) {
 	key = mygetkey_timeout(kbd_to, tto);
 
@@ -105,11 +105,11 @@ static const char * cmd_reverse_search(int *cursor, clock_t *kbd_to,
             *cursor = p - last_good->command;
 	}
 
-	eprintf("\033[?7l\033[?25l");
+	printf("\033[?7l\033[?25l");
 	/* Didn't handle the line wrap case here */
-	eprintf("\033[1G\033[1;36m(reverse-i-search)\033[0m`%s': %s",
+	printf("\033[1G\033[1;36m(reverse-i-search)\033[0m`%s': %s",
 		buf, last_good->command ? : "");
-	eprintf("\033[K\r");
+	printf("\033[K\r");
     }
 
     return last_good ? last_good->command : NULL;
@@ -147,7 +147,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
      * so that it follows whatever text has been written to the screen
      * previously.
      */
-    eprintf("%s ", input);
+    printf("%s ", input);
 
     while (!done) {
 	if (redraw > 1) {
@@ -158,7 +158,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    if (pDraw_Menu)
 		    (*pDraw_Menu) (-1, top, 1);
 	    prev_len = 0;
-	    eprintf("\033[2J\033[H");
+	    printf("\033[2J\033[H");
 	    // printf("\033[0m\033[2J\033[H");
 	}
 
@@ -168,8 +168,8 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    prev_len = max(len, prev_len);
 
 	    /* Redraw the command line */
-	    eprintf("\033[?7l\033[?25l");
-	    eprintf("\033[1G%s ", input);
+	    printf("\033[?7l\033[?25l");
+	    printf("\033[1G%s ", input);
 
 	    x = strlen(input);
 	    y = 0;
@@ -179,23 +179,23 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		at++;
 		x++;
 		if (x >= width) {
-		    eprintf("\r\n");
+		    printf("\r\n");
 		    x = 0;
 		    y++;
 		}
 	    }
-	    eprintf("\033[K\r");
+	    printf("\033[K\r");
 
 	    dy = y - (cursor + strlen(input) + 1) / width;
 	    x = (cursor + strlen(input) + 1) % width;
 
 	    if (dy) {
-		eprintf("\033[%dA", dy);
+		printf("\033[%dA", dy);
 		y -= dy;
 	    }
 	    if (x)
-		eprintf("\033[%dC", x);
-	    eprintf("\033[?25h");
+		printf("\033[%dC", x);
+	    printf("\033[?25h");
 	    prev_len = len;
 	    redraw = 0;
 	}
@@ -288,7 +288,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		cursor++;
 		x++;
 		if (x >= width) {
-		    eprintf("\r\n");
+		    printf("\r\n");
 		    y++;
 		    x = 0;
 		}
@@ -418,10 +418,10 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    }
 	case KEY_CTRL('V'):
 	    if (BIOSName)
-		eprintf("%s%s%s", syslinux_banner,
-			MK_PTR(0, BIOSName), copyright_str);
+		printf("%s%s%s", syslinux_banner,
+		       (char *)MK_PTR(0, BIOSName), copyright_str);
 	    else
-		eprintf("%s%s", syslinux_banner, copyright_str);
+		printf("%s%s", syslinux_banner, copyright_str);
 
 	    redraw = 1;
 	    break;
@@ -435,7 +435,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    cursor++;
 		    x++;
 		    if (x >= width) {
-			eprintf("\r\n\033[K");
+			printf("\r\n\033[K");
 			y++;
 			x = 0;
 		    }
@@ -452,7 +452,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	}
     }
 
-    eprintf("\033[?7h");
+    printf("\033[?7h");
 
     /* Add the command to the history */
     comm_counter = malloc(sizeof(struct cli_command));

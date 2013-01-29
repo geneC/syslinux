@@ -55,11 +55,9 @@ __export void execute(const char *cmdline, uint32_t type)
 
 	memset(&ireg, 0, sizeof ireg);
 
-	/* for parameter will be passed to __intcall, we need use
-	 * lmalloc a block of low memory */
-	q = lmalloc(128);
+	q = malloc(strlen(cmdline) + 2);
 	if (!q) {
-		printf("%s(): Fail to lmalloc a buffer to exec %s\n",
+		printf("%s(): Fail to malloc a buffer to exec %s\n",
 			__func__, cmdline);
 		return;
 	}
@@ -147,7 +145,7 @@ __export void execute(const char *cmdline, uint32_t type)
 		new_linux_kernel((char *)kernel, (char *)cmdline);
 	}
 
-	lfree((void *)kernel);
+	free((void *)kernel);
 
 	/* If this returns, something went bad; return to menu */
 }

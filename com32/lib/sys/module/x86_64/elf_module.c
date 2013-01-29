@@ -46,6 +46,9 @@ int load_segments(struct elf_module *module, Elf_Ehdr *elf_hdr) {
 
 	// Load the PHT
 	pht = malloc(elf_hdr->e_phnum * elf_hdr->e_phentsize);
+	if (!pht)
+		return -1;
+
 	image_read(pht, elf_hdr->e_phnum * elf_hdr->e_phentsize, module);
 
 	// Compute the memory needings of the module
@@ -149,6 +152,11 @@ int load_segments(struct elf_module *module, Elf_Ehdr *elf_hdr) {
 
 	// Load the SHT
 	sht = malloc(elf_hdr->e_shnum * elf_hdr->e_shentsize);
+	if (!sht) {
+		res = -1;
+		goto out;
+	}
+
 	image_read(sht, elf_hdr->e_shnum * elf_hdr->e_shentsize, module);
 
 	// Setup the symtable size

@@ -47,17 +47,17 @@ common_init:
 ;
 ; The code to decompress the PM code and initialize other segments.
 ;
-		extern _lzo1x_decompress_asm_fast
+		extern _lzo1x_decompress_asm_fast_safe
 
 		section .textnr
 		bits 32
 pm_decompress:
-		push 0				; Space for decompressed size
+		push __pm_code_len + 16		; Space for decompressed size
 		push esp			; Pointer to previous word
 		push __pm_code_start		; Target address
 		push dword [lzo_data_size]	; Compressed size
 		push dword __pm_code_lma
-		call _lzo1x_decompress_asm_fast
+		call _lzo1x_decompress_asm_fast_safe
 		add esp,16
 		pop RM_EAX			; Decompressed size
 

@@ -89,9 +89,9 @@ makeoutputdirs:
 	@mkdir -p $(foreach b, \
 		$(addprefix $(OBJ)/,$(sort $(dir $(LIBOBJS) $(MINLIBOBJS) $(CORELIBOBJS)))),$(b))
 
-libcom32.c32 : $(LIBOBJS)
+libcom32.elf : $(LIBOBJS)
 	rm -f $@
-	$(LD) -shared $(LDFLAGS) -soname $(@F) -o $@ $^
+	$(LD) -shared $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) -o $@ $^
 
 libcom32min.a : $(MINLIBOBJS)
 	rm -f $@
@@ -109,7 +109,7 @@ tidy dist clean:
 		xargs -0r rm -f
 
 spotless: clean
-	rm -f *.a
+	rm -f *.a *.c32
 	rm -f *~ \#* */*~ */\#*
 
 install: all

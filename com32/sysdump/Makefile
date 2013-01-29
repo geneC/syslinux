@@ -44,7 +44,7 @@ CFLAGS    += -DDATE='"$(DATE)"'
 
 all: $(MODULES) $(TESTFILES)
 
-sysdump.c32 : $(OBJS) $(LIBS) $(C_LIBS)
+sysdump.elf : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

@@ -48,10 +48,10 @@ struct elf_module core_module = {
 };
 
 /*
-	Initializes the module subsystem by taking the core module ( shallow module ) and placing
-	it on top of the modules_head_list. Since the core module is initialized when declared
-	we technically don't need the exec_init() and module_load_shallow() procedures
-*/
+ * Initializes the module subsystem by taking the core module
+ * (preinitialized shallow module) and placing it on top of the
+ * modules_head_list.
+ */
 void init_module_subsystem(struct elf_module *module)
 {
     list_add(&module->list, &modules_head);
@@ -126,7 +126,7 @@ void load_env32(com32sys_t * regs __unused)
 	PATH = malloc(strlen(CurrentDirName) + 1);
 	if (!PATH) {
 		printf("Couldn't allocate memory for PATH\n");
-		return;
+		goto out;
 	}
 
 	strcpy(PATH, CurrentDirName);
@@ -147,15 +147,36 @@ void load_env32(com32sys_t * regs __unused)
 	 * a bit harder to find LDLINUX. If search_dirs() succeeds
 	 * in finding LDLINUX it will set the cwd.
 	 */
+	free(PATH);
 	fd = opendev(&__file_dev, NULL, O_RDONLY);
 	if (fd < 0)
 		return;
 
 	fp = &__file_info[fd];
 
-	if (!search_dirs(&fp->i.fd, search_directories, filenames, realname))
-		start_ldlinux(argv);
+	if (!search_dirs(&fp->i.fd, search_directories, filenames, realname)) {
+		char path[FILENAME_MAX];
 
+		/*
+		 * search_dirs() sets the current working directory if
+		 * it successfully opens the file. Set PATH to the
+		 * directory in which we found ldlinux.c32.
+		 */
+		if (!core_getcwd(path, sizeof(path)))
+			goto out;
+
+		PATH = malloc(strlen(path) + 1);
+		if (!PATH) {
+			printf("Couldn't allocate memory for PATH\n");
+			goto out;
+		}
+
+		strcpy(PATH, path);
+
+		start_ldlinux(argv);
+	}
+
+out:
 	writestr("\nFailed to load ldlinux.c32");
 }
 

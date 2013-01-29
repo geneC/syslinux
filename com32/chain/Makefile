@@ -18,7 +18,7 @@ OBJS = chain.o partiter.o utility.o options.o mangle.o
 
 all: chain.c32
 
-chain.c32: $(OBJS) $(C_LIBS)
+chain.elf: $(OBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 %.o: %.c

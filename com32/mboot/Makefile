@@ -27,7 +27,7 @@ OBJS = mboot.o map.o mem.o initvesa.o apm.o solaris.o syslinux.o
 
 all: $(MODULES) $(TESTFILES)
 
-mboot.c32 : $(OBJS) $(C_LIBS)
+mboot.elf : $(OBJS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

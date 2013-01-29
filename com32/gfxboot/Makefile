@@ -20,7 +20,7 @@ all: $(MODULES)
 
 OBJS = gfxboot.o realmode_callback.o
 
-gfxboot.c32 : $(OBJS) $(LIBS) $(C_LIBS)
+gfxboot.elf : $(OBJS) $(LIBS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 realmode_callback.o: realmode_callback.asm

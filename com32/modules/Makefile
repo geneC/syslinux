@@ -34,7 +34,7 @@ all: $(MODULES) $(TESTFILES)
 dmitest.o: dmitest.c
 	$(CC) $(CFLAGS) $(GPLINCLUDE) -c -o $@ $<
 
-dmitest.c32 :  dmi_utils.o dmitest.o $(C_LIBS)
+dmitest.elf : dmi_utils.o dmitest.o $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 tidy dist:

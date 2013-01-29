@@ -17,14 +17,14 @@ AUXDIR   = $(DATADIR)/syslinux
 INCDIR   = /usr/include
 COM32DIR = $(AUXDIR)/com32
 
-all: makeoutputdirs libcom32gpl.c32
+all: makeoutputdirs libgpl.c32
 
 makeoutputdirs:
 	@mkdir -p $(foreach b, \
 		$(addprefix $(OBJ),$(sort $(dir $(LIBOBJS)))),$(b))
 
-libcom32gpl.c32 : $(LIBOBJS)
-	$(LD) -shared $(LDFLAGS) -soname $(@F) -o $@ $^
+libgpl.elf : $(LIBOBJS)
+	$(LD) -shared $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) -o $@ $^
 
 tidy dist clean:
 	find . \( -name \*.o -o -name .\*.d -o -name \*.tmp \) -print0 | \
@@ -38,7 +38,7 @@ spotless: clean
 # there is a better way to do it.
 install: all
 	mkdir -m 755 -p $(INSTALLROOT)$(COM32DIR)
-	install -m 644 libcom32gpl.c32 $(INSTALLROOT)$(COM32DIR)
+	install -m 644 libgpl.c32 $(INSTALLROOT)$(COM32DIR)
 	mkdir -p $(INSTALLROOT)$(COM32DIR)/include/
 	cp -r $(SRC)/../gplinclude $(INSTALLROOT)$(COM32DIR)/include/
 

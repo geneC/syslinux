@@ -18,31 +18,7 @@
 
 #define DBG_PRINT(fmt, args...) dprintf("[EXEC] " fmt, ##args)
 
-static struct elf_module    *mod_root = NULL;
 struct elf_module *__syslinux_current = NULL;
-
-int exec_init(void)
-{
-	int res;
-
-	res = modules_init();
-	if (res != 0)
-		return res;
-
-	// Load the root module
-	mod_root = module_alloc(EXEC_ROOT_NAME);
-
-	if (mod_root == NULL)
-		return -1;
-
-	res = module_load_shallow(mod_root, 0);
-	if (res != 0) {
-		mod_root = NULL;
-		return res;
-	}
-
-	return 0;
-}
 
 int get_module_type(struct elf_module *module)
 {
@@ -161,8 +137,6 @@ int spawnl(const char *name, const char *arg, ...)
 }
 #endif
 
-struct elf_module *cur_module;
-
 /*
  * Load a module and runs its start function.
  *
@@ -185,7 +159,7 @@ int spawn_load(const char *name, int argc, char **argv)
 	struct elf_module *previous;
 	//malloc_tag_t prev_mem_tag;
 	struct elf_module *module = module_alloc(name);
-	struct elf_module *prev_module;
+	struct elf_module *cur_module;
 	int type;
 
 	dprintf("enter: name = %s", name);
@@ -200,23 +174,11 @@ int spawn_load(const char *name, int argc, char **argv)
 		}
 	}
 
+	cur_module = module_current();
 	if (!strcmp(cur_module->name, module->name)) {
 		dprintf("We is running this module %s already!", module->name);
 
-		/*
-		 * If we're already running the module and it's of
-		 * type EXEC_MODULE, then just return. We don't reload
-		 * the module because that might cause us to re-run
-		 * the init functions, which will cause us to run the
-		 * main function, which will take control of this
-		 * process.
-		 *
-		 * This can happen if some other EXEC_MODULE is
-		 * resolving a symbol that is exported by the current
-		 * EXEC_MODULE.
-		 */
-		if (get_module_type(module) == EXEC_MODULE)
-			return 0;
+		module_unload(cur_module);
 	}
 
 	res = module_load(module);
@@ -224,11 +186,9 @@ int spawn_load(const char *name, int argc, char **argv)
 		goto out;
 
 	type = get_module_type(module);
-	prev_module = cur_module;
-	cur_module = module;
 
 	dprintf("type = %d, prev = %s, cur = %s",
-		type, prev_module->name, cur_module->name);
+		type, cur_module->name, module->name);
 
 	if(type==EXEC_MODULE)
 	{
@@ -256,7 +216,6 @@ int spawn_load(const char *name, int argc, char **argv)
 		// Restore the process context
 		__syslinux_current = previous;
 
-		cur_module = prev_module;
 		res = module_unload(module);
 
 		if (res != 0)

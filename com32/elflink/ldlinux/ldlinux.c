@@ -12,6 +12,7 @@
 #include "config.h"
 #include "syslinux/adv.h"
 #include "syslinux/boot.h"
+#include "syslinux/config.h"
 
 #include <sys/module.h>
 
@@ -289,6 +290,8 @@ __export int main(int argc __unused, char **argv __unused)
 		config_argv[0] = ConfigName;
 
 	parse_configs(config_argv);
+
+	__syslinux_set_serial_console_info();
 
 	adv = syslinux_getadv(ADV_BOOTONCE, &count);
 	if (adv && count) {
