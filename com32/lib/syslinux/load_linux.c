@@ -390,6 +390,9 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 		break;
 	    }
 	}
+
+	if (!ok)
+	    goto bail;
     }
 
     if (syslinux_add_movelist(&fraglist, real_mode_base, (addr_t) kernel_buf,
