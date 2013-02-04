@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2013 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -299,11 +299,15 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    whdr->heap_end_ptr = cmdline_offset - 0x0200;
 	    whdr->loadflags |= CAN_USE_HEAP;
 	}
-	if (hdr.version >= 0x0202) {
-	    whdr->cmd_line_ptr = real_mode_base + cmdline_offset;
-	} else {
-	    whdr->old_cmd_line_magic = OLD_CMDLINE_MAGIC;
-	    whdr->old_cmd_line_offset = cmdline_offset;
+    }
+
+    /* Set up the command line */
+    if (hdr.version >= 0x0202) {
+	whdr->cmd_line_ptr = real_mode_base + cmdline_offset;
+    } else {
+	whdr->old_cmd_line_magic = OLD_CMDLINE_MAGIC;
+	whdr->old_cmd_line_offset = cmdline_offset;
+	if (hdr.version >= 0x0200) {
 	    /* Be paranoid and round up to a multiple of 16 */
 	    whdr->setup_move_size = (cmdline_offset + cmdline_size + 15) & ~15;
 	}
