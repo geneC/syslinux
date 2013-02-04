@@ -301,18 +301,6 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	}
     }
 
-    /* Set up the command line */
-    if (hdr.version >= 0x0202) {
-	whdr->cmd_line_ptr = real_mode_base + cmdline_offset;
-    } else {
-	whdr->old_cmd_line_magic = OLD_CMDLINE_MAGIC;
-	whdr->old_cmd_line_offset = cmdline_offset;
-	if (hdr.version >= 0x0200) {
-	    /* Be paranoid and round up to a multiple of 16 */
-	    whdr->setup_move_size = (cmdline_offset + cmdline_size + 15) & ~15;
-	}
-    }
-
     /* Get the memory map */
     mmap = syslinux_memory_map();	/* Memory map for shuffle_boot */
     amap = syslinux_dup_memmap(mmap);	/* Keep track of available memory */
@@ -398,6 +386,18 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 		ok = true;
 		break;
 	    }
+	}
+    }
+
+    /* Set up the command line information in the header */
+    if (hdr.version >= 0x0202) {
+	whdr->cmd_line_ptr = real_mode_base + cmdline_offset;
+    } else {
+	whdr->old_cmd_line_magic = OLD_CMDLINE_MAGIC;
+	whdr->old_cmd_line_offset = cmdline_offset;
+	if (hdr.version >= 0x0200) {
+	    /* Be paranoid and round up to a multiple of 16 */
+	    whdr->setup_move_size = (cmdline_offset + cmdline_size + 15) & ~15;
 	}
     }
 
