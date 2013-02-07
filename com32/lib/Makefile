@@ -120,7 +120,7 @@ LIBOTHER_OBJS = \
 	lrand48.o stack.o memccpy.o memchr.o 		\
 	mempcpy.o memmem.o memmove.o memswap.o	\
 	perror.o qsort.o seed48.o \
-	srand48.o sscanf.o strcasecmp.o strcat.o	\
+	srand48.o sscanf.o strcasecmp.o 				\
 	strerror.o errlist.o		\
 	strnlen.o							\
 	strncat.o strndup.o		\
@@ -171,7 +171,7 @@ CORELIBOBJS = \
 	fputs.o fwrite2.o fwrite.o fgetc.o fclose.o errno.o lmalloc.o 	\
 	sys/err_read.o sys/err_write.o sys/null_read.o 			\
 	sys/stdcon_write.o						\
-	syslinux/memscan.o strrchr.o					\
+	syslinux/memscan.o strrchr.o strcat.o				\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o				\
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
