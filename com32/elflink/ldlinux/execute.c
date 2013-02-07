@@ -142,7 +142,7 @@ __export void execute(const char *cmdline, uint32_t type)
 	} else {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */
-		new_linux_kernel((char *)kernel, (char *)cmdline);
+		new_linux_kernel((char *)kernel, (char *)args);
 	}
 
 	free((void *)kernel);
