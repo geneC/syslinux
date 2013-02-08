@@ -142,7 +142,6 @@ next:
 	pushw	%bx
 get_ptab:
 	call	read_sector
-	call	inc64
 	loopw	get_ptab
 
 	/* Find the boot partition */
@@ -240,16 +239,9 @@ saturate_stosl:
 	ret
 
 /*
- * Increment %edx:%eax
- */
-inc64:
-	addl	$1,%eax
-	adcl	$0,%edx
-	ret
-
-/*
  * read_sector: read a single sector pointed to by %edx:%eax to
  * %es:%bx.  CF is set on error.  All registers saved.
+ * %edx:%eax and %es:%bx are incremented to read next sector
  */
 read_sector:
 	pushal
@@ -282,6 +274,15 @@ read_common:
 	popal
 	jc	disk_error
 	addb	$2, %bh		/* bx += 512: point to the next buffer */
+
+	/* fall through and increment sector number */
+
+/*
+ * Increment %edx:%eax
+ */
+inc64:
+	addl	$1,%eax
+	adcl	$0,%edx
 	ret
 
 disk_error:
