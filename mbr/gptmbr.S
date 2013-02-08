@@ -118,14 +118,11 @@ next:
 	xorl	%eax,%eax
 	cltd
 	incw	%ax		/* %edx:%eax = 1 */
-	movw	$phdr, %bx
-	pushw	%bx		/* -8(%bp) phdr == bootsect */
-	call	read_sector
+	call	read_sector_phdr
 
 	/* Number of partition sectors */
 	/* We assume the partition table is 32K or less, and that
 	   the sector size is 512. */
-	/* Note: phdr == 6(%bp) */
 	movw	(80+6)(%bp),%cx		/* NumberOfPartitionEntries */
 	movw	(84+6)(%bp),%ax		/* SizeOfPartitionEntry */
 	pushw	%ax
@@ -215,8 +212,7 @@ found_part:
 boot:
 	movl	(32+20)(%si),%eax
 	movl	(36+20)(%si),%edx
-	popw	%bx
-	call	read_sector
+	call	read_sector_phdr
 	cmpw	$0xaa55, -2(%bx)
 	jne	missing_os	/* Not a valid boot sector */
 	movw	%bp, %sp	/* driveno == bootsec-6 */
@@ -237,6 +233,11 @@ saturate_stosl:
 	orl	$-1,%eax
 1:	stosl
 	ret
+
+read_sector_phdr:
+	movw	$phdr, %bx
+
+	/* fall through and read sector */
 
 /*
  * read_sector: read a single sector pointed to by %edx:%eax to
