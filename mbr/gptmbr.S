@@ -288,7 +288,7 @@ inc64:
 
 disk_error:
 	call	error
-	.ascii	"Disk error on boot\r\n"
+	.ascii	"Disk error\r\n"
 
 /*
  * Print error messages.  This is invoked with "call", with the
