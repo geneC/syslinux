@@ -1065,6 +1065,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
     char *last;
     int tries = 8;
 
+    chdir(path_prefix);
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
 	if (open_file(ConfigName, filedata) >= 0)
