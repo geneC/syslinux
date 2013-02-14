@@ -450,6 +450,68 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
     return -1;
 }
 
+static void gpt_conv_label(struct part_iter *iter)
+{
+    const struct disk_gpt_part_entry *gp;
+    const int16_t *orig_lab;
+
+    gp = (const struct disk_gpt_part_entry *)
+	(iter->data + iter->index0 * iter->gpt.pe_size);
+    orig_lab = (const int16_t *)gp->name;
+
+    /* caveat: this is very crude conversion */
+    for (int i = 0; i < PI_GPTLABSIZE/2; i++) {
+	iter->gpt.part_label[i] = (char)orig_lab[i];
+    }
+    iter->gpt.part_label[PI_GPTLABSIZE/2] = 0;
+}
+
+static int check_crc(uint32_t crc_match, const uint8_t *buf, unsigned int siz)
+{
+    uint32_t crc;
+
+    crc = crc32(0, NULL, 0);
+    crc = crc32(crc, buf, siz);
+
+    return crc_match != crc;
+}
+
+static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct disk_gpt_header **_gh)
+{
+    struct disk_gpt_header *gh = *_gh;
+    uint64_t lba_alt;
+    uint32_t hold_crc32;
+
+    hold_crc32 = gh->chksum;
+    gh->chksum = 0;
+    if (check_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
+	error("WARNING: Primary GPT header checksum invalid.\n");
+	/* retry with backup */
+	lba_alt = gh->lba_alt;
+	free(gh);
+	if (!(gh = *_gh = disk_read_sectors(diskinfo, lba_alt, 1))) {
+	    error("Couldn't read backup GPT header.\n");
+	    return -1;
+	}
+	hold_crc32 = gh->chksum;
+	gh->chksum = 0;
+	if (check_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
+	    error("Secondary GPT header checksum invalid.\n");
+	    return -1;
+	}
+    }
+    /* restore old checksum */
+    gh->chksum = hold_crc32;
+
+    return 0;
+}
+
+static struct part_iter *pi_raw_next(struct part_iter *iter)
+{
+    iter->status = PI_DONE;
+    return NULL;
+}
+
 static struct part_iter *pi_dos_next(struct part_iter *iter)
 {
     uint32_t start_lba = 0;
@@ -492,22 +554,6 @@ bail:
     return NULL;
 }
 
-static void gpt_conv_label(struct part_iter *iter)
-{
-    const struct disk_gpt_part_entry *gp;
-    const int16_t *orig_lab;
-
-    gp = (const struct disk_gpt_part_entry *)
-	(iter->data + iter->index0 * iter->gpt.pe_size);
-    orig_lab = (const int16_t *)gp->name;
-
-    /* caveat: this is very crude conversion */
-    for (int i = 0; i < PI_GPTLABSIZE/2; i++) {
-	iter->gpt.part_label[i] = (char)orig_lab[i];
-    }
-    iter->gpt.part_label[PI_GPTLABSIZE/2] = 0;
-}
-
 static struct part_iter *pi_gpt_next(struct part_iter *iter)
 {
     const struct disk_gpt_part_entry *gpt_part = NULL;
@@ -548,52 +594,6 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
     return iter;
 bail:
     return NULL;
-}
-
-static struct part_iter *pi_raw_next(struct part_iter *iter)
-{
-    iter->status = PI_DONE;
-    return NULL;
-}
-
-static int check_crc(uint32_t crc_match, const uint8_t *buf, unsigned int siz)
-{
-    uint32_t crc;
-
-    crc = crc32(0, NULL, 0);
-    crc = crc32(crc, buf, siz);
-
-    return crc_match != crc;
-}
-
-static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct disk_gpt_header **_gh)
-{
-    struct disk_gpt_header *gh = *_gh;
-    uint64_t lba_alt;
-    uint32_t hold_crc32;
-
-    hold_crc32 = gh->chksum;
-    gh->chksum = 0;
-    if (check_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
-	error("WARNING: Primary GPT header checksum invalid.\n");
-	/* retry with backup */
-	lba_alt = gh->lba_alt;
-	free(gh);
-	if (!(gh = *_gh = disk_read_sectors(diskinfo, lba_alt, 1))) {
-	    error("Couldn't read backup GPT header.\n");
-	    return -1;
-	}
-	hold_crc32 = gh->chksum;
-	gh->chksum = 0;
-	if (check_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
-	    error("Secondary GPT header checksum invalid.\n");
-	    return -1;
-	}
-    }
-    /* restore old checksum */
-    gh->chksum = hold_crc32;
-
-    return 0;
 }
 
 /*
