@@ -374,7 +374,7 @@ static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	    iter->dos.logskipcnt++;
 
 	if (dp[0].ostype || (iter->flags & PIF_STEPALL)) {
-	    *lba = iter->dos.cebr_lba + dp[0].start_lba;
+	    *lba = dp[0].start_lba ? iter->dos.cebr_lba + dp[0].start_lba : 0;
 	    *_dp = dp;
 	    return 0;
 	}
