@@ -50,16 +50,6 @@ static const char *bpbtypes[] = {
     [7] =  "7.0",
 };
 
-void error(const char *msg)
-{
-    fputs(msg, stderr);
-}
-
-int guid_is0(const struct guid *guid)
-{
-    return !*(const uint64_t *)guid && !*((const uint64_t *)guid + 1);
-}
-
 void wait_key(void)
 {
     int cnt;
@@ -78,7 +68,29 @@ void wait_key(void)
     } while (!cnt || (cnt < 0 && errno == EAGAIN));
 }
 
-void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, uint32_t mode)
+int guid_is0(const struct guid *guid)
+{
+    return
+	!(guid->data1 ||
+	  guid->data2 ||
+	  guid->data3 ||
+	  guid->data4);
+}
+
+/*
+ * mode explanation:
+ *
+ * cnul - "strict" mode, never returning higher value than obtained from cbios
+ * cadd - if the disk is larger than reported geometry /and/ if the geometry has
+ *        less cylinders than 1024 - it means that the total size is somewhere
+ *        between cs and cs+1; in this particular case, we bump the cs to be able
+ *        to return matching chs triplet
+ * cmax - assume we can use any cylinder value
+ *
+ * by default cadd seems most reasonable, giving consistent results with e.g.
+ * sfdisk's behavior
+ */
+void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, int mode)
 {
     uint32_t c, h, s, t;
     uint32_t cs, hs, ss;
@@ -91,9 +103,10 @@ void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, uint32_t m
 	cs = di->cyl;
 	hs = di->head;
 	ss = di->spt;
-	if (mode == l2c_cadd && cs < 1024 && di->lbacnt > cs*hs*ss)
-	    cs++;
-	else if (mode == l2c_cmax)
+	if (mode == L2C_CADD) {
+	    if (cs < 1024 && di->lbacnt > cs*hs*ss)
+		cs++;
+	} else if (mode == L2C_CMAX)
 	    cs = 1024;
     } else {
 	if (di->disk & 0x80) {
@@ -112,8 +125,8 @@ void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, uint32_t m
 	h = hs - 1;
 	c = cs - 1;
     } else {
-	s = ((uint32_t)lba % ss) + 1;
-	t = (uint32_t)lba / ss;
+	s = (lba % ss) + 1;
+	t = lba / ss;
 	h = t % hs;
 	c = t / hs;
     }

@@ -166,7 +166,7 @@ void opt_set_defs(void)
 int opt_parse_args(int argc, char *argv[])
 {
     int i;
-    unsigned int v;
+    size_t v;
     char *p;
 
     for (i = 1; i < argc; i++) {
@@ -182,7 +182,6 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.bss = true;
 	    opt.maps = false;
 	    opt.setbpb = true;
-	    /* opt.save = true; */
 	} else if (!strncmp(argv[i], "bs=", 3)) {
 	    opt.file = argv[i] + 3;
 	    opt.sect = false;
@@ -198,7 +197,6 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.fip = 0;
 	    opt.file = argv[i] + 6;
 	    opt.setbpb = true;
-	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "reactos=", 8)) {
 	    /*
@@ -212,7 +210,6 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.fip = 0x8100;
 	    opt.file = argv[i] + 8;
 	    opt.setbpb = true;
-	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "cmldr=", 6)) {
 	    opt.fseg = 0x2000;  /* CMLDR wants this address */
@@ -221,7 +218,6 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.file = argv[i] + 6;
 	    opt.cmldr = true;
 	    opt.setbpb = true;
-	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "freedos=", 8)) {
 	    opt.fseg = 0x60;    /* FREEDOS wants this address */
@@ -230,7 +226,6 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.sseg = 0x1FE0;
 	    opt.file = argv[i] + 8;
 	    opt.setbpb = true;
-	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if ( (v = 6, !strncmp(argv[i], "msdos=", v) ||
 		     !strncmp(argv[i], "pcdos=", v)) ||
@@ -241,7 +236,6 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.sseg = 0x8000;
 	    opt.file = argv[i] + v;
 	    opt.setbpb = true;
-	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "drmk=", 5)) {
 	    opt.fseg = 0x70;    /* DRMK wants this address */
@@ -253,7 +247,6 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.file = argv[i] + 5;
 	    /* opt.drmk = true; */
 	    opt.setbpb = true;
-	    /* opt.save = true; */
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "grub=", 5)) {
 	    opt.fseg = 0x800;	/* stage2 wants this address */
@@ -370,13 +363,6 @@ int opt_parse_args(int argc, char *argv[])
 	error("grubcfg=<filename> must be used together with grub=<loader>.\n");
 	goto bail;
     }
-
-#if 0
-    if ((!opt.maps || !opt.sect) && !opt.file) {
-	error("You have to load something.\n");
-	goto bail;
-    }
-#endif
 
     if (opt.filebpb && !opt.file) {
 	error("Option 'filebpb' requires a file.\n");

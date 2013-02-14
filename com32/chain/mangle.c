@@ -204,7 +204,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
      *   0-3:  primary partitions
      *   4-*:  logical partitions
      */
-    stage2->install_partition.part1 = (uint8_t)(iter->index - 1);
+    stage2->install_partition.part1 = iter->index - 1;
 
     /*
      * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
@@ -264,9 +264,9 @@ int manglef_drmk(struct data_area *data)
     data->size = tsize;
     /* ds:bp is assumed by DRMK to be the boot sector */
     /* offset 28 is the FAT HiddenSectors value */
-    opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.fseg - 2));
+    opt.regs.ds = (tsize >> 4) + (opt.fseg - 2);
     /* "Patch" into tail of the new space */
-    *(uint32_t *)((char*)data->data + tsize - 4) = (uint32_t)fs_lba;
+    *(uint32_t *)((char*)data->data + tsize - 4) = fs_lba;
 
     return 0;
 bail:
@@ -282,7 +282,7 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
     /* BPB: hidden sectors 32bit*/
     if (type >= bpbV34) {
 	if (iter->start_lba < ~0u)
-	    *(uint32_t *) ((char *)data->data + 0x1c) = (uint32_t)iter->start_lba;
+	    *(uint32_t *) ((char *)data->data + 0x1c) = iter->start_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
@@ -290,7 +290,7 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
     /* BPB: hidden sectors 16bit*/
     if (bpbV30 <= type && type <= bpbV32) {
 	if (iter->start_lba < 0xFFFF)
-	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)iter->start_lba;
+	    *(uint16_t *) ((char *)data->data + 0x1c) = iter->start_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)~0u;
@@ -298,7 +298,7 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
     /* BPB: legacy geometry */
     if (type >= bpbV30) {
 	if (iter->di.cbios)
-	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.spt);
+	    *(uint32_t *)((char *)data->data + 0x18) = (iter->di.head << 16) | iter->di.spt;
 	else {
 	    if (iter->di.disk & 0x80)
 		*(uint32_t *)((char *)data->data + 0x18) = 0x00FF003F;
@@ -308,8 +308,7 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
     }
     /* BPB: drive */
     if (drvoff_detect(type, &off)) {
-	*(uint8_t *)((char *)data->data + off) = (uint8_t)
-	    (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
+	*(uint8_t *)((char *)data->data + off) = (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
     }
 
     return 0;
@@ -427,18 +426,18 @@ int mangler_init(const struct part_iter *iter)
 {
     /* Set initial registry values */
     if (opt.file) {
-	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.fseg;
-	opt.regs.ip = (uint16_t)opt.fip;
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = opt.fseg;
+	opt.regs.ip = opt.fip;
     } else {
-	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.sseg;
-	opt.regs.ip = (uint16_t)opt.sip;
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = opt.sseg;
+	opt.regs.ip = opt.sip;
     }
 
     if (opt.regs.ip == 0x7C00 && !opt.regs.cs)
 	opt.regs.esp.l = 0x7C00;
 
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
+    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = iter->di.disk;
 
     return 0;
 }
@@ -448,7 +447,7 @@ int mangler_handover(const struct part_iter *iter, const struct data_area *data)
 {
     if (opt.file && opt.maps && !opt.hptr) {
 	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
-	opt.regs.ds = (uint16_t)opt.sseg;
+	opt.regs.ds = opt.sseg;
 	opt.regs.eax.l = 0;
     } else if (opt.hand) {
 	/* base is really 0x7be */
@@ -472,7 +471,7 @@ int mangler_handover(const struct part_iter *iter, const struct data_area *data)
 int mangler_grldr(const struct part_iter *iter)
 {
     if (opt.grldr)
-	opt.regs.edx.b[1] = (uint8_t)(iter->index - 1);
+	opt.regs.edx.b[1] = iter->index - 1;
 
     return 0;
 }
@@ -502,7 +501,7 @@ static int mpe_sethide(struct part_iter *iter, struct part_iter *miter)
     if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
 	/* It's a hideable partition type */
 	if (miter->index == iter->index || opt.hide & 4)
-	    t &= (uint8_t)(~0x10u);	/* unhide */
+	    t &= ~0x10u;	/* unhide */
 	else
 	    t |= 0x10u;	/* hide */
     }
@@ -585,8 +584,8 @@ static int mpe_setchs(const struct disk_info *di,
     ochs1 = *(uint32_t *)dp->start;
     ochs2 = *(uint32_t *)dp->end;
 
-    lba2chs(&dp->start, di, lba1, l2c_cadd);
-    lba2chs(&dp->end, di, lba1 + dp->length - 1, l2c_cadd);
+    lba2chs(&dp->start, di, lba1, L2C_CADD);
+    lba2chs(&dp->end, di, lba1 + dp->length - 1, L2C_CADD);
 
     return
 	*(uint32_t *)dp->start != ochs1 ||
@@ -618,7 +617,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	ridx = iter->rawindex;
 	dp = (struct disk_dos_part_entry *)iter->record;
 
-	wb |= mpe_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
+	wb |= mpe_setchs(&iter->di, dp, iter->start_lba);
 	if (ridx > 4)
 		wb |= mpe_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
 

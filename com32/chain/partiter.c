@@ -765,7 +765,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int stepall)
 	    error("Invalid GPT header's values.\n");
 	    goto bail;
 	}
-	if (!(gptl = disk_read_sectors(di, gpt_loff, (uint8_t)gpt_lcnt))) {
+	if (!(gptl = disk_read_sectors(di, gpt_loff, gpt_lcnt))) {
 	    error("Couldn't read GPT partition list.\n");
 	    goto bail;
 	}
@@ -774,11 +774,11 @@ struct part_iter *pi_begin(const struct disk_info *di, int stepall)
 	    error("WARNING: GPT partition list checksum invalid, trying backup.\n");
 	    free(gptl);
 	    /* secondary array directly precedes secondary header */
-	    if (!(gptl = disk_read_sectors(di, gpth->lba_alt - gpt_lcnt, (uint8_t)gpt_lcnt))) {
+	    if (!(gptl = disk_read_sectors(di, gpth->lba_alt - gpt_lcnt, gpt_lcnt))) {
 		error("Couldn't read backup GPT partition list.\n");
 		goto bail;
 	    }
-	    if (check_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
+	    if (check_crc(gpth->table_chksum, (const uint8_t *)gptl, gpt_lsiz)) {
 		error("Backup GPT partition list checksum invalid.\n");
 		goto bail;
 	    }

@@ -247,14 +247,14 @@ static void do_boot(struct data_area *data, int ndata)
 
 	/* Mapping table; start out with identity mapping everything */
 	for (i = 0; i < 256; i++)
-	    p[i] = (uint8_t)i;
+	    p[i] = i;
 
 	/* And the actual swap */
 	p[driveno] = swapdrive;
 	p[swapdrive] = driveno;
 
 	/* Adjust registers */
-	opt.regs.ds = opt.regs.cs = (uint16_t)(endimage >> 4);
+	opt.regs.ds = opt.regs.cs = endimage >> 4;
 	opt.regs.esi.l = opt.regs.es = 0;
 	opt.regs.ecx.l = sizeof swapstub >> 2;
 	opt.regs.ip = 0x10;	/* Installer offset */
@@ -401,13 +401,15 @@ static int setup_handover(const struct part_iter *iter,
 		   struct data_area *data)
 {
     struct disk_dos_part_entry *ha;
-    uint32_t synth_size;
-    uint32_t *plen;
+    uint32_t synth_size = sizeof *ha;
 
-    if (!iter->index) { /* implies typeraw or non-iterated */
+    /*
+     * we have to cover both non-iterated but otherwise properly detected
+     * gpt/dos schemes as well as raw disks; checking index for 0 covers both
+     */
+    if (iter->index == 0) {
 	uint32_t len;
 	/* RAW handover protocol */
-	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build RAW hand-over record!\n");
@@ -415,24 +417,24 @@ static int setup_handover(const struct part_iter *iter,
 	}
 	len = ~0u;
 	if (iter->length < len)
-	    len = (uint32_t)iter->length;
-	lba2chs(&ha->start, &iter->di, 0, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, len - 1, l2c_cadd);
+	    len = iter->length;
+	lba2chs(&ha->start, &iter->di, 0, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, len - 1, L2C_CADD);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xDA;	/* "Non-FS Data", anything is good here though ... */
 	ha->start_lba = 0;
 	ha->length = len;
     } else if (iter->type == typegpt) {
+	uint32_t *plen;
 	/* GPT handover protocol */
-	synth_size = sizeof(struct disk_dos_part_entry) +
-	    sizeof(uint32_t) + (uint32_t)iter->sub.gpt.pe_size;
+	synth_size += sizeof *plen + iter->sub.gpt.pe_size;
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build GPT hand-over record!\n");
 	    goto bail;
 	}
-	lba2chs(&ha->start, &iter->di, iter->start_lba, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, l2c_cadd);
+	lba2chs(&ha->start, &iter->di, iter->start_lba, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, L2C_CADD);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xED;
 	/* All bits set by default */
@@ -440,12 +442,12 @@ static int setup_handover(const struct part_iter *iter,
 	ha->length = ~0u;
 	/* If these fit the precision, pass them on */
 	if (iter->start_lba < ha->start_lba)
-	    ha->start_lba = (uint32_t)iter->start_lba;
+	    ha->start_lba = iter->start_lba;
 	if (iter->length < ha->length)
-	    ha->length = (uint32_t)iter->length;
+	    ha->length = iter->length;
 	/* Next comes the GPT partition record length */
-	plen = (uint32_t *) (ha + 1);
-	plen[0] = (uint32_t)iter->sub.gpt.pe_size;
+	plen = (uint32_t *)(ha + 1);
+	plen[0] = iter->sub.gpt.pe_size;
 	/* Next comes the GPT partition record copy */
 	memcpy(plen + 1, iter->record, plen[0]);
 #ifdef DEBUG
@@ -453,9 +455,9 @@ static int setup_handover(const struct part_iter *iter,
 	disk_dos_part_dump(ha);
 	disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
+    /* the only possible case left is dos scheme */
     } else if (iter->type == typedos) {
 	/* MBR handover protocol */
-	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build MBR hand-over record!\n");
@@ -463,10 +465,10 @@ static int setup_handover(const struct part_iter *iter,
 	}
 	memcpy(ha, iter->record, synth_size);
 	/* make sure these match bios imaginations and are ebr agnostic */
-	lba2chs(&ha->start, &iter->di, iter->start_lba, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, l2c_cadd);
-	ha->start_lba = (uint32_t)iter->start_lba;
-	ha->length = (uint32_t)iter->length;
+	lba2chs(&ha->start, &iter->di, iter->start_lba, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, L2C_CADD);
+	ha->start_lba = iter->start_lba;
+	ha->length = iter->length;
 
 #ifdef DEBUG
 	dprintf("MBR handover:\n");
