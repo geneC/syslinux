@@ -1,8 +1,9 @@
 /* ----------------------------------------------------------------------- *
  *
- *   Copyright 2003-2010 H. Peter Anvin - All Rights Reserved
- *   Copyright 2010 Michal Soltys
+ *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *   Copyright 2010 Shao Miller
+ *   Copyright 2010-2012 Michal Soltys
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -33,8 +34,8 @@
  * Provides disk / partition iteration.
  */
 
-#ifndef _COM32_CHAIN_PARTITER_H
-#define _COM32_CHAIN_PARTITER_H
+#ifndef COM32_CHAIN_PARTITER_H
+#define COM32_CHAIN_PARTITER_H
 
 #include <stdint.h>
 #include <syslinux/disk.h>
