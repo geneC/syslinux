@@ -161,7 +161,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
     if (!(opt.file && opt.grub))
 	return 0;
 
-    if (data->size < sizeof(struct grub_stage2_patch_area)) {
+    if (data->size < sizeof *stage2) {
 	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.");
 	goto bail;
     }
@@ -211,7 +211,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
      * the default config filename "/boot/grub/menu.lst".
      */
     if (opt.grubcfg) {
-	if (strlen(opt.grubcfg) > sizeof(stage2->config_file) - 1) {
+	if (strlen(opt.grubcfg) >= sizeof stage2->config_file) {
 	    error("The config filename length can't exceed 88 characters.");
 	    goto bail;
 	}
@@ -421,7 +421,7 @@ int mangles_cmldr(struct data_area *data)
     if (!(opt.sect && opt.cmldr))
 	return 0;
 
-    memcpy((char *)data->data + 3, cmldr_signature, sizeof(cmldr_signature));
+    memcpy((char *)data->data + 3, cmldr_signature, sizeof cmldr_signature);
     return 0;
 }
 

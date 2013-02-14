@@ -167,7 +167,7 @@ static void usage(void)
 
 void opt_set_defs(void)
 {
-    memset(&opt, 0, sizeof(opt));
+    memset(&opt, 0, sizeof opt);
     opt.sect = true;	    /* by def. load sector */
     opt.maps = true;	    /* by def. map sector */
     opt.hand = true;	    /* by def. prepare handover */

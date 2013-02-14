@@ -111,7 +111,7 @@ static int find_by_guid(const struct guid *gpt_guid,
 	}
 	/* Check for a matching GPT disk/partition guid */
 	do {
-	    if (!memcmp(&boot_part->gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
+	    if (!memcmp(&boot_part->gpt.part_guid, gpt_guid, sizeof *gpt_guid))
 		goto ok;
 	} while (!pi_next(boot_part));
     }
@@ -490,9 +490,9 @@ int main(int argc, char *argv[])
 
     console_ansi_raw();
 
-    memset(&fdat, 0, sizeof(fdat));
-    memset(&hdat, 0, sizeof(hdat));
-    memset(&sdat, 0, sizeof(sdat));
+    memset(&fdat, 0, sizeof fdat);
+    memset(&hdat, 0, sizeof hdat);
+    memset(&sdat, 0, sizeof sdat);
 
     opt_set_defs();
     if (opt_parse_args(argc, argv))
@@ -612,11 +612,11 @@ int main(int argc, char *argv[])
      */
 
     if (opt.file)
-	memcpy(data + ndata++, &fdat, sizeof(fdat));
+	memcpy(data + ndata++, &fdat, sizeof fdat);
     if (opt.maps)
-	memcpy(data + ndata++, &sdat, sizeof(sdat));
+	memcpy(data + ndata++, &sdat, sizeof sdat);
     if (opt.hand)
-	memcpy(data + ndata++, &hdat, sizeof(hdat));
+	memcpy(data + ndata++, &hdat, sizeof hdat);
 
 #ifdef DEBUG
     dprintf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %"PRIu64", %u\n"

@@ -84,7 +84,7 @@ static int pi_ctor(struct part_iter *iter,
 	const struct disk_info *di, int flags
 )
 {
-    memcpy(&iter->di, di, sizeof(struct disk_info));
+    memcpy(&iter->di, di, sizeof *di);
     iter->flags = flags;
     iter->index0 = -1;
     iter->length = di->lbacnt;
@@ -102,12 +102,12 @@ static int pi_dos_ctor(struct part_iter *iter,
     if (pi_ctor(iter, di, flags))
 	return -1;
 
-    if (!(iter->data = malloc(sizeof(struct disk_dos_mbr)))) {
+    if (!(iter->data = malloc(sizeof *mbr))) {
 	critm();
 	goto bail;
     }
 
-    memcpy(iter->data, mbr, sizeof(struct disk_dos_mbr));
+    memcpy(iter->data, mbr, sizeof *mbr);
 
     iter->dos.bebr_index0 = -1;
     iter->dos.disk_sig = mbr->disk_sig;
@@ -144,8 +144,8 @@ static int pi_gpt_ctor(struct part_iter *iter,
     iter->gpt.ufirst = gpth->lba_first_usable;
     iter->gpt.ulast = gpth->lba_last_usable;
 
-    memcpy(&iter->gpt.disk_guid, &gpth->disk_guid, sizeof(struct guid));
-    memcpy(&iter->gpt.part_guid, &gpth->disk_guid, sizeof(struct guid));
+    memcpy(&iter->gpt.disk_guid, &gpth->disk_guid, sizeof gpth->disk_guid);
+    memcpy(&iter->gpt.part_guid, &gpth->disk_guid, sizeof gpth->disk_guid);
 
     iter->type = typegpt;
     return 0;
@@ -529,10 +529,10 @@ static int pi_gpt_next(struct part_iter *iter)
 static struct part_iter *pi_alloc(void)
 {
     struct part_iter *iter;
-    if (!(iter = malloc(sizeof(struct part_iter))))
+    if (!(iter = malloc(sizeof *iter)))
 	critm();
     else
-	memset(iter, 0, sizeof(struct part_iter));
+	memset(iter, 0, sizeof *iter);
     return iter;
 }
 
@@ -585,7 +585,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
     }
 
     if (gpth && gpth->rev.uint32 == 0x00010000 &&
-	    !memcmp(gpth->sig, disk_gpt_sig_magic, sizeof(disk_gpt_sig_magic))) {
+	    !memcmp(gpth->sig, disk_gpt_sig_magic, sizeof gpth->sig)) {
 	/* looks like GPT v1.0 */
 	uint64_t gpt_loff;	    /* offset to GPT partition list in sectors */
 	uint64_t gpt_lsiz;	    /* size of GPT partition list in bytes */
@@ -615,7 +615,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 		!sane(gpth->lba_last_usable, gpt_lcnt) ||
 		gpth->lba_last_usable + gpt_lcnt >= gpth->lba_alt ||
 		gpth->lba_alt >= di->lbacnt ||
-		gpth->part_size < sizeof(struct disk_gpt_part_entry))) {
+		gpth->part_size < sizeof *gptl)) {
 	    error("Invalid GPT header's values.");
 	    goto bail;
 	}
