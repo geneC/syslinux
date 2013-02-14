@@ -47,6 +47,7 @@ enum {PI_OK, PI_DONE, PI_INSANE, PI_ERRLOAD};
 /* flags */
 
 #define PIF_STEPALL 0x01
+#define PIF_RELAX   0x02
 
 struct itertype;
 struct part_iter;

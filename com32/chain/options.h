@@ -64,6 +64,7 @@ struct options {
     bool filebpb;
     bool fixchs;
     bool warn;
+    int relax;
     bool brkchain;
     uint16_t keeppxe;
     struct syslinux_rm_regs regs;

@@ -33,6 +33,7 @@
 #include <string.h>
 #include "common.h"
 #include "chain.h"
+#include "partiter.h"
 #include "utility.h"
 #include "options.h"
 
@@ -123,6 +124,7 @@ static void usage(void)
 "  keeppxe              Keep the PXE and UNDI stacks in memory (PXELINUX)",
 "  warn                 Wait for a keypress to continue chainloading",
 "  break                Don't chainload",
+"  relax                Relax sanity checks",
 "",
 "  file=<file>          Load and execute <file>",
 "  seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>",
@@ -324,6 +326,10 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.fixchs = true;
 	} else if (!strcmp(argv[i], "nofixchs")) {
 	    opt.fixchs = false;
+	} else if (!strcmp(argv[i], "relax")) {
+	    opt.relax = PIF_RELAX;
+	} else if (!strcmp(argv[i], "norelax")) {
+	    opt.relax = 0;
 	} else if (!strcmp(argv[i], "warn")) {
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {

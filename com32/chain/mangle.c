@@ -537,7 +537,7 @@ int manglepe_hide(struct part_iter *miter)
     if (miter->index > 4 && !(opt.hide & HIDE_EXT))
 	warn("Specified partition is logical, so it can't be unhidden without 'unhideall'.");
 
-    if (!(iter = pi_begin(&miter->di, PIF_STEPALL)))
+    if (!(iter = pi_begin(&miter->di, PIF_STEPALL | opt.relax)))
 	return -1;
 
     while (!pi_next(iter) && !werr) {
@@ -611,7 +611,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	return -1;
     }
 
-    if (!(iter = pi_begin(&miter->di, PIF_STEPALL)))
+    if (!(iter = pi_begin(&miter->di, PIF_STEPALL | opt.relax)))
 	return -1;
 
     while (!pi_next(iter) && !werr) {

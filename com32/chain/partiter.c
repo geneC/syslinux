@@ -177,6 +177,9 @@ static int notsane_logical(const struct part_iter *iter)
 	return -1;
     }
 
+    if (iter->flags & PIF_RELAX)
+	return 0;
+
     end_log = dp[0].start_lba + dp[0].length;
 
     if (!dp[0].start_lba ||
@@ -213,6 +216,9 @@ static int notsane_extended(const struct part_iter *iter)
 	return -1;
     }
 
+    if (iter->flags & PIF_RELAX)
+	return 0;
+
     end_ebr = dp[1].start_lba + dp[1].length;
 
     if (!dp[1].start_lba ||
@@ -240,6 +246,9 @@ static int notsane_primary(const struct part_iter *iter)
     if (!dp->ostype)
 	return 0;
 
+    if (iter->flags & PIF_RELAX)
+	return 0;
+
     if (!dp->start_lba ||
 	!dp->length ||
 	!sane(dp->start_lba, dp->length) ||
@@ -258,6 +267,9 @@ static int notsane_gpt(const struct part_iter *iter)
 	(iter->data + iter->index0 * iter->gpt.pe_size);
 
     if (guid_is0(&gp->type))
+	return 0;
+
+    if (iter->flags & PIF_RELAX)
 	return 0;
 
     if (gp->lba_first < iter->gpt.ufirst ||
@@ -592,14 +604,15 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	 * it as a sanity check base. EFI doesn't specify max (AFAIK).
 	 * Apart from that, some extensive sanity checks.
 	 */
-	if (!gpt_loff || !gpt_lsiz || gpt_lcnt > 255u ||
+	if (!(flags & PIF_RELAX) && (
+		!gpt_loff || !gpt_lsiz || gpt_lcnt > 255u ||
 		gpth->lba_first_usable > gpth->lba_last_usable ||
 		!sane(gpt_loff, gpt_lcnt) ||
 		gpt_loff + gpt_lcnt > gpth->lba_first_usable ||
 		!sane(gpth->lba_last_usable, gpt_lcnt) ||
 		gpth->lba_last_usable + gpt_lcnt >= gpth->lba_alt ||
 		gpth->lba_alt >= di->lbacnt ||
-		gpth->part_size < sizeof(struct disk_gpt_part_entry)) {
+		gpth->part_size < sizeof(struct disk_gpt_part_entry))) {
 	    error("Invalid GPT header's values.");
 	    goto bail;
 	}
