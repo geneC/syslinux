@@ -527,7 +527,6 @@ int manglepe_hide(struct part_iter *miter)
 {
     int wb = 0, werr = 0;
     struct part_iter *iter = NULL;
-    struct disk_dos_part_entry *dp;
     int ridx;
 
     if (!(opt.hide & HIDE_ON))
@@ -549,8 +548,7 @@ int manglepe_hide(struct part_iter *miter)
 	if (!(opt.hide & HIDE_EXT) && ridx > 3)
 	    break;  /* skip when we're constrained to pri only */
 
-	dp = (struct disk_dos_part_entry *)iter->record;
-	if (dp->ostype)
+	if (iter->index != -1)
 	    wb |= fliphide(iter, miter);
 
 	/*

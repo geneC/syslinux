@@ -371,7 +371,7 @@ static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	}
 
 	if (!dp[0].ostype)
-	    iter->dos.skipcnt++;
+	    iter->dos.logskipcnt++;
 
 	if (dp[0].ostype || (iter->flags & PIF_STEPALL)) {
 	    *lba = iter->dos.cebr_lba + dp[0].start_lba;
@@ -471,10 +471,10 @@ static int pi_dos_next(struct part_iter *iter)
      * non-PIF_STEPALL iterators
      */
 
-    if (iter->index0 >= 4 && !dos_part->ostype)
+    if (!dos_part->ostype)
 	iter->index = -1;
     else
-	iter->index = iter->index0 - iter->dos.skipcnt + 1;
+	iter->index = iter->index0 + 1 - iter->dos.logskipcnt;
     iter->start_lba = start_lba;
     iter->length = dos_part->length;
     iter->record = (char *)dos_part;

@@ -73,17 +73,17 @@ struct part_iter {
     struct disk_info di;
     union {
 	struct {
-	    uint32_t disk_sig;    /* 32bit disk signature as stored in MBR */
+	    uint32_t disk_sig;	  /* 32bit disk signature as stored in MBR */
 
-	    uint32_t bebr_lba;    /* absolute lba of base extended partition */
-	    uint32_t bebr_siz;    /* size of base extended partition */
+	    uint32_t bebr_lba;	  /* absolute lba of base extended partition */
+	    uint32_t bebr_siz;	  /* size of base extended partition */
 
-	    uint32_t cebr_lba;    /* absolute lba of curr ext. partition */
-	    uint32_t nebr_lba;    /* absolute lba of next ext. partition */
-	    uint32_t nebr_siz;    /* size of next ext. partition */
+	    uint32_t cebr_lba;	  /* absolute lba of curr ext. partition */
+	    uint32_t nebr_lba;	  /* absolute lba of next ext. partition */
+	    uint32_t nebr_siz;	  /* size of next ext. partition */
 
-	    int bebr_index0;      /* index of (0-3) of base ext. part., -1 if not present in MBR */
-	    int skipcnt;          /* how many logical holes were skipped */
+	    int bebr_index0;	  /* index of (0-3) of base ext. part., -1 if not present in MBR */
+	    int logskipcnt;	  /* how many logical holes were skipped */
 	} dos;
 	struct {
 	    struct guid disk_guid;
