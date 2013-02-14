@@ -45,6 +45,10 @@
 #define PI_DONE 1
 #define PI_OK 0
 
+/* behaviour flags */
+
+#define PIF_STEPALL 0x01
+
 struct itertype;
 struct part_iter;
 
@@ -65,7 +69,7 @@ struct part_iter {
     int index;
     int rawindex;
     struct disk_info di;
-    int stepall;
+    int flags;
     int status;
     /* internal */
     int index0;
@@ -98,7 +102,7 @@ extern const struct itertype * const typedos;
 extern const struct itertype * const typegpt;
 extern const struct itertype * const typeraw;
 
-struct part_iter *pi_begin(const struct disk_info *, int stepall);
+struct part_iter *pi_begin(const struct disk_info *, int flags);
 struct part_iter *pi_new(const struct itertype *, ...);
 void pi_del(struct part_iter **);
 int pi_next(struct part_iter **);

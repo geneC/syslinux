@@ -93,14 +93,14 @@ static int inv_type(const void *type)
  * iter_ctor() - common iterator initialization
  * @iter:	iterator pointer
  * @args(0):	disk_info structure used for disk functions
- * @args(1):	stepall modifier
+ * @args(1):	flags modifier
  *
  * Second and further arguments are passed as a pointer to va_list
  **/
 static int iter_ctor(struct part_iter *iter, va_list *args)
 {
     const struct disk_info *di = va_arg(*args, const struct disk_info *);
-    int stepall = va_arg(*args, int);
+    int flags = va_arg(*args, int);
 
 #ifdef DEBUG
     if (!di)
@@ -108,7 +108,7 @@ static int iter_ctor(struct part_iter *iter, va_list *args)
 #endif
 
     memcpy(&iter->di, di, sizeof(struct disk_info));
-    iter->stepall = stepall;
+    iter->flags = flags;
     iter->index0 = -1;
     iter->length = di->lbacnt;
 
@@ -356,7 +356,7 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 	    /* record base EBR index */
 	    iter->dos.bebr_index0 = iter->index0;
 	}
-	if (!ost_is_nondata(dp->ostype) || iter->stepall) {
+	if (!ost_is_nondata(dp->ostype) || (iter->flags & PIF_STEPALL)) {
 	    *lba = dp->start_lba;
 	    *_dp = dp;
 	    break;
@@ -433,7 +433,7 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	if (!dp[0].ostype)
 	    iter->dos.skipcnt++;
 
-	if (dp[0].ostype || iter->stepall) {
+	if (dp[0].ostype || (iter->flags & PIF_STEPALL)) {
 	    *lba = iter->dos.cebr_lba + dp[0].start_lba;
 	    *_dp = dp;
 	    return 0;
@@ -524,7 +524,7 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 	    goto bail;
 	}
 
-	if (!guid_is0(&gpt_part->type) || iter->stepall)
+	if (!guid_is0(&gpt_part->type) || (iter->flags & PIF_STEPALL))
 	    break;
     }
     /* no more partitions ? */
@@ -701,7 +701,7 @@ void pi_del(struct part_iter **_iter)
  * This function checks the disk for GPT or legacy partition table and allocates
  * an appropriate iterator.
  **/
-struct part_iter *pi_begin(const struct disk_info *di, int stepall)
+struct part_iter *pi_begin(const struct disk_info *di, int flags)
 {
     int setraw = 0;
     struct part_iter *iter = NULL;
@@ -784,17 +784,17 @@ struct part_iter *pi_begin(const struct disk_info *di, int stepall)
 	    }
 	}
 	/* allocate iterator and exit */
-	iter = pi_new(typegpt, di, stepall, gpth, gptl);
+	iter = pi_new(typegpt, di, flags, gpth, gptl);
     } else {
 	/* looks like MBR */
-	iter = pi_new(typedos, di, stepall, mbr);
+	iter = pi_new(typedos, di, flags, mbr);
     }
 
     setraw = 0;
 bail:
     if (setraw) {
 	error("WARNING: treating disk as raw.\n");
-	iter = pi_new(typeraw, di, stepall);
+	iter = pi_new(typeraw, di, flags);
     }
     free(mbr);
     free(gpth);

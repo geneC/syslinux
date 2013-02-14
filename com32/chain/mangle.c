@@ -540,7 +540,7 @@ int manglepe_hide(struct part_iter *miter)
     if (miter->index > 4 && !(opt.hide & 2))
 	error("WARNING: your partition is beyond mbr, so it can't be unhidden without '*hideall'.\n");
 
-    if (!(iter = pi_begin(&miter->di, 1)))  /* turn stepall on */
+    if (!(iter = pi_begin(&miter->di, PIF_STEPALL)))
 	return -1;
 
     while (!pi_next(&iter) && !werr) {
@@ -610,7 +610,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	return -1;
     }
 
-    if (!(iter = pi_begin(&miter->di, 1)))  /* turn stepall on */
+    if (!(iter = pi_begin(&miter->di, PIF_STEPALL)))
 	return -1;
 
     while (!pi_next(&iter) && !werr) {
