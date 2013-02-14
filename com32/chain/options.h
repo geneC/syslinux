@@ -49,8 +49,7 @@ struct options {
     addr_t soff;
     addr_t sip;
     int hide;
-    int relax;
-    int prefmbr;
+    int piflags;
     uint16_t keeppxe;
     bool isolinux;
     bool cmldr;

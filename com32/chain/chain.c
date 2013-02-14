@@ -71,7 +71,7 @@ static int find_by_sig(uint32_t mbr_sig,
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, opt.relax | opt.prefmbr)))
+	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
 	/* Check for a MBR disk */
 	if (boot_part->type != typedos) {
@@ -102,7 +102,7 @@ static int find_by_guid(const struct guid *gpt_guid,
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, opt.relax | opt.prefmbr)))
+	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
 	/* Check for a GPT disk */
 	if (boot_part->type != typegpt) {
@@ -134,7 +134,7 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, opt.relax | opt.prefmbr)))
+	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
 	/* Check for a GPT disk */
 	if (!(boot_part->type == typegpt)) {
@@ -321,7 +321,7 @@ int find_dp(struct part_iter **_iter)
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	/* this will start iteration over FDD, possibly raw */
-	if (!(iter = pi_begin(&diskinfo, opt.relax | opt.prefmbr)))
+	if (!(iter = pi_begin(&diskinfo, opt.piflags)))
 	    goto bail;
 
     } else if (!strcmp(opt.drivename, "boot") || !strcmp(opt.drivename, "fs")) {
@@ -341,7 +341,7 @@ int find_dp(struct part_iter **_iter)
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	/* this will start iteration over disk emulation, possibly raw */
-	if (!(iter = pi_begin(&diskinfo, opt.relax | opt.prefmbr)))
+	if (!(iter = pi_begin(&diskinfo, opt.piflags)))
 	    goto bail;
 
 	/* 'fs' => we should lookup the syslinux partition number and use it */

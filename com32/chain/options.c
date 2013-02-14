@@ -336,17 +336,17 @@ int opt_parse_args(int argc, char *argv[])
 	} else if (!strcmp(argv[i], "nofixchs")) {
 	    opt.fixchs = false;
 	} else if (!strcmp(argv[i], "relax")) {
-	    opt.relax = PIF_RELAX;
+	    opt.piflags |= PIF_RELAX;
 	} else if (!strcmp(argv[i], "norelax")) {
-	    opt.relax = 0;
+	    opt.piflags &= ~PIF_RELAX;
 	} else if (!strcmp(argv[i], "warn")) {
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {
 	    opt.warn = false;
 	} else if (!strcmp(argv[i], "prefmbr")) {
-	    opt.prefmbr = PIF_PREFMBR;
+	    opt.piflags |= PIF_PREFMBR;
 	} else if (!strcmp(argv[i], "noprefmbr")) {
-	    opt.prefmbr = 0;
+	    opt.piflags &= ~PIF_PREFMBR;
 	} else if (!strcmp(argv[i], "nobreak")) {
 	    opt.brkchain = false;
 	} else if (!strcmp(argv[i], "break")) {
