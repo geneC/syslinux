@@ -48,6 +48,7 @@ static const char *bpbtypes[] = {
     [5] =  "4.0",
     [6] =  "8.0 (NT+)",
     [7] =  "7.0",
+    [8] =  "exFAT",
 };
 
 void wait_key(void)
@@ -172,6 +173,8 @@ int drvoff_detect(int type)
 	return 0x24;
     } else if (type == bpbV70) {
 	return 0x40;
+    } else if (type == bpbEXF) {
+	return 0x6F;
     }
 
     return -1;
@@ -183,6 +186,12 @@ int drvoff_detect(int type)
 int bpb_detect(const uint8_t *sec, const char *tag)
 {
     int a, b, c, jmp = -1, rev = 0;
+
+    /* exFAT mess first (media descriptor is 0 here) */
+    if (!memcmp(sec + 0x03, "EXFAT   ", 8)) {
+	rev = bpbEXF;
+	goto out;
+    }
 
     /* media descriptor check */
     if ((sec[0x15] & 0xF0) != 0xF0)

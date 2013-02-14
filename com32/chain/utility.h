@@ -43,6 +43,7 @@
 #define bpbV40	5
 #define bpbVNT	6
 #define bpbV70	7
+#define bpbEXF	8
 
 /* see utility.c for details */
 enum {L2C_CNUL, L2C_CADD, L2C_CMAX};

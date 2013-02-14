@@ -279,24 +279,27 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
     int type = bpb_detect(data->data, tag);
     int off = drvoff_detect(type);
 
+    /* BPB: hidden sectors 64bit - exFAT only for now */
+    if (type == bpbEXF)
+	    *(uint64_t *) ((char *)data->data + 0x40) = iter->start_lba;
     /* BPB: hidden sectors 32bit*/
-    if (type >= bpbV34) {
+    else if (bpbV34 <= type && type <= bpbV70) {
 	if (iter->start_lba < ~0u)
 	    *(uint32_t *) ((char *)data->data + 0x1c) = iter->start_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
-    }
     /* BPB: hidden sectors 16bit*/
-    if (bpbV30 <= type && type <= bpbV32) {
+    } else if (bpbV30 <= type && type <= bpbV32) {
 	if (iter->start_lba < 0xFFFF)
 	    *(uint16_t *) ((char *)data->data + 0x1c) = iter->start_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)~0u;
     }
+
     /* BPB: legacy geometry */
-    if (type >= bpbV30) {
+    if (bpbV30 <= type && type <= bpbV70) {
 	if (iter->di.cbios)
 	    *(uint32_t *)((char *)data->data + 0x18) = (iter->di.head << 16) | iter->di.spt;
 	else {
@@ -377,6 +380,8 @@ int manglesf_bss(struct data_area *sec, struct data_area *fil)
 	cnt = 0x3C;
     } else if (type1 <= bpbV70) {
 	cnt = 0x42;
+    } else if (type1 <= bpbEXF) {
+	cnt = 0x60;
     }
     memcpy((char *)fil->data + 0x18, (char *)sec->data + 0x18, cnt);
 
