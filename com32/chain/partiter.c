@@ -179,7 +179,7 @@ static int notsane_logical(const struct part_iter *iter)
 	!sane(dp[0].start_lba, dp[0].length) ||
 	end_log > iter->dos.ebr_size) {
 
-	error("Insane logical partition.\n");
+	error("Logical partition (in EBR) with invalid offset and/or length.\n");
 	return -1;
     }
 
@@ -204,7 +204,7 @@ static int notsane_extended(const struct part_iter *iter)
 	return 0;
 
     if (!ost_is_nondata(dp[1].ostype)) {
-	error("2nd EBR entry must be extended or empty.\n");
+	error("The 2nd EBR entry must be extended or empty.\n");
 	return -1;
     }
 
@@ -215,7 +215,7 @@ static int notsane_extended(const struct part_iter *iter)
 	!sane(dp[1].start_lba, dp[1].length) ||
 	end_ebr > iter->dos.bebr_size) {
 
-	error("Insane extended partition.\n");
+	error("Extended partition (EBR) with invalid offset and/or length.\n");
 	return -1;
     }
 
@@ -239,7 +239,7 @@ static int notsane_primary(const struct part_iter *iter)
 	!dp->length ||
 	!sane(dp->start_lba, dp->length) ||
 	dp->start_lba + dp->length > iter->di.lbacnt) {
-	error("Primary (MBR) with invalid offset and/or length.\n");
+	error("Primary partition (in MBR) with invalid offset and/or length.\n");
 	return -1;
     }
 
@@ -279,7 +279,7 @@ static int dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 
 	if (ost_is_ext(dp->ostype)) {
 	    if (iter->dos.bebr_index0 >= 0) {
-		error("You have more than 1 extended partition.\n");
+		error("More than 1 extended partition.\n");
 		iter->status = PI_INSANE;
 		return -1;
 	    }
@@ -454,8 +454,9 @@ static int pi_dos_next(struct part_iter *iter)
 	return iter->status;
 
     /*
-     * note special index handling, if we have PIF_STEPALL set - this is made
-     * to keep index consistent with non-PIF_STEPALL iterators
+     * note special index handling:
+     * in case PIF_STEPALL is set - this makes the index consistent with
+     * non-PIF_STEPALL iterators
      */
 
     if (iter->index0 >= 4 && !dos_part->ostype)
@@ -607,7 +608,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	}
 	/* Check array checksum(s). */
 	if (!valid_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
-	    error("Main GPT partition list's checksum invalid, trying backup.\n");
+	    error("Checksum of the main GPT partition list is invalid, trying backup.\n");
 	    free(gptl);
 	    /* secondary array directly precedes secondary header */
 	    if (!(gptl = disk_read_sectors(di, gpth->lba_alt - gpt_lcnt, gpt_lcnt))) {
@@ -615,7 +616,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 		goto bail;
 	    }
 	    if (!valid_crc(gpth->table_chksum, (const uint8_t *)gptl, gpt_lsiz)) {
-		error("Backup GPT partition list's checksum invalid.\n");
+		error("Checksum of the backup GPT partition list is invalid, giving up.\n");
 		goto bail;
 	    }
 	}
