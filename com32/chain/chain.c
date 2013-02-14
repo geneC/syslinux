@@ -155,8 +155,6 @@ ok:
 
 static void do_boot(struct data_area *data, int ndata)
 {
-    uint16_t *const bios_fbm = (uint16_t *) 0x413;
-    addr_t dosmem = (addr_t)(*bios_fbm << 10);	/* Technically a low bound */
     struct syslinux_memmap *mmap;
     struct syslinux_movelist *mlist = NULL;
     addr_t endimage;
@@ -176,7 +174,7 @@ static void do_boot(struct data_area *data, int ndata)
 	if (data[i].base + data[i].size > endimage)
 	    endimage = data[i].base + data[i].size;
     }
-    if (endimage > dosmem)
+    if (endimage > dosmax)
 	goto too_big;
 
     for (i = 0; i < ndata; i++) {
@@ -222,7 +220,7 @@ static void do_boot(struct data_area *data, int ndata)
 	static uint8_t swapstub[1024];
 	uint8_t *p;
 
-	/* Note: we can't rely on either INT 13h nor the dosmem
+	/* Note: we can't rely on either INT 13h nor the dosmax
 	   vector to be correct at this stage, so we have to use an
 	   installer stub to put things in the right place.
 	   Round the installer location to a 1K boundary so the only
@@ -530,7 +528,7 @@ int main(int argc, char *argv[])
 	    error("Couldn't read the boot file.");
 	    goto bail;
 	}
-	if (fdat.base + fdat.size - 1 > ADDRMAX) {
+	if (fdat.base + fdat.size > dosmax) {
 	    error("The boot file is too big to load at this address.");
 	    goto bail;
 	}
@@ -541,7 +539,7 @@ int main(int argc, char *argv[])
 	sdat.base = (opt.sseg << 4) + opt.soff;
 	sdat.size = iter->di.bps;
 
-	if (sdat.base + sdat.size - 1 > ADDRMAX) {
+	if (sdat.base + sdat.size > dosmax) {
 	    error("The sector cannot be loaded at such high address.");
 	    goto bail;
 	}

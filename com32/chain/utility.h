@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <syslinux/disk.h>
+#include <syslinux/movebits.h>
 
 #define bpbUNK	0
 #define bpbV20	1
@@ -47,6 +48,10 @@
 
 /* see utility.c for details */
 enum {L2C_CNUL, L2C_CADD, L2C_CMAX};
+
+/* first usable and first unusable offsets */
+#define dosmin ((addr_t)0x500u)
+#define dosmax ((addr_t)(*(uint16_t *) 0x413 << 10))
 
 void wait_key(void);
 void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, int mode);

@@ -28,6 +28,7 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include <syslinux/movebits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,14 +39,17 @@
 
 struct options opt;
 
-static int soi_s2n(char *ptr, unsigned int *seg,
-		       unsigned int *off,
-		       unsigned int *ip,
-		       unsigned int def)
+static int soi_s2n(char *ptr,
+			addr_t *seg,
+			addr_t *off,
+			addr_t *ip,
+			addr_t def)
 {
-    unsigned int segval = 0, offval, ipval, val;
+    addr_t segval, offval, ipval, val;
     char *p;
 
+    /* defaults */
+    segval = 0;
     offval = def;
     ipval = def;
 
@@ -55,16 +59,21 @@ static int soi_s2n(char *ptr, unsigned int *seg,
     if (p[0] == ':' && p[1] && p[1] != ':')
 	ipval = strtoul(p+1, NULL, 0);
 
+    /* verify if load address is within [dosmin, dosmax) */
     val = (segval << 4) + offval;
 
-    if (val < ADDRMIN || val > ADDRMAX) {
+    if (val < dosmin || val >= dosmax) {
 	error("Invalid seg:off:* address specified.");
 	goto bail;
     }
 
+    /*
+     * verify if jump address is within [dosmin, dosmax) and offset is 16bit
+     * sane
+     */
     val = (segval << 4) + ipval;
 
-    if (ipval > 0xFFFE || val < ADDRMIN || val > ADDRMAX) {
+    if (ipval > 0xFFFE || val < dosmin || val >= dosmax) {
 	error("Invalid seg:*:ip address specified.");
 	goto bail;
     }
