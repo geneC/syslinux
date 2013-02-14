@@ -360,6 +360,7 @@ static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	dp = ((struct disk_dos_mbr *)iter->data)->table;
 
 	iter->dos.cebr_lba = iter->dos.nebr_lba;
+	iter->dos.cebr_siz = iter->dos.nebr_siz;
 
 	/* setup next frame values */
 	if (dp[1].ostype) {

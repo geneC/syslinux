@@ -77,6 +77,7 @@ struct part_iter {
 	    uint32_t bebr_siz;	  /* size of base extended partition */
 
 	    uint32_t cebr_lba;	  /* absolute lba of curr ext. partition */
+	    uint32_t cebr_siz;	  /* size of curr ext. partition */
 	    uint32_t nebr_lba;	  /* absolute lba of next ext. partition */
 	    uint32_t nebr_siz;	  /* size of next ext. partition */
 
