@@ -544,7 +544,7 @@ int manglepe_hide(struct part_iter *miter)
 	return -1;
 
     while (!pi_next(iter) && !werr) {
-	ridx = iter->rawindex;
+	ridx = iter->index0 + 1;
 	if (!(opt.hide & 2) && ridx > 4)
 	    break;  /* skip when we're constrained to pri only */
 
@@ -614,7 +614,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	return -1;
 
     while (!pi_next(iter) && !werr) {
-	ridx = iter->rawindex;
+	ridx = iter->index0 + 1;
 	dp = (struct disk_dos_part_entry *)iter->record;
 
 	wb |= mpe_setchs(&iter->di, dp, iter->start_lba);

@@ -462,7 +462,6 @@ static int pi_dos_next(struct part_iter *iter)
 	iter->index = -1;
     else
 	iter->index = iter->index0 - iter->dos.skipcnt + 1;
-    iter->rawindex = iter->index0 + 1;
     iter->start_lba = start_lba;
     iter->length = dos_part->length;
     iter->record = (char *)dos_part;
@@ -500,7 +499,6 @@ static int pi_gpt_next(struct part_iter *iter)
     }
     /* gpt_part is guaranteed to be valid here */
     iter->index = iter->index0 + 1;
-    iter->rawindex = iter->index0 + 1;
     iter->start_lba = gpt_part->lba_first;
     iter->length = gpt_part->lba_last - gpt_part->lba_first + 1;
     iter->record = (char *)gpt_part;

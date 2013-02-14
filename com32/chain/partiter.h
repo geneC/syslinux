@@ -65,9 +65,8 @@ struct part_iter {
     uint64_t start_lba;
     uint64_t length;
     int index0;	    /* including holes, from -1 (disk, then parts from 0) */
-    int rawindex;   /* including holes, from  0 (disk, then parts from 1) */
-    int index;	    /* excluding holes, from  0 (disk) (-1) means hole, if PIF_STEPALL is set */
-    int flags;      /* flags, see #defines above */
+    int index;	    /* excluding holes, from  0 (disk, then parts from 1), -1 means hole, if PIF_STEPALL is set */
+    int flags;	    /* flags, see #defines above */
     int status;	    /* current status, see enums above */
     struct disk_info di;
     union {
