@@ -48,107 +48,60 @@
 #define ost_is_nondata(type) (ost_is_ext(type) || (type) == 0x00)
 #define sane(s,l) ((s)+(l) > (s))
 
-/* forwards */
+/* virtual forwards */
 
-static int iter_ctor(struct part_iter *, va_list *);
-static int iter_dos_ctor(struct part_iter *, va_list *);
-static int iter_gpt_ctor(struct part_iter *, va_list *);
-static void iter_dtor(struct part_iter *);
-static struct part_iter *pi_dos_next(struct part_iter *);
-static struct part_iter *pi_gpt_next(struct part_iter *);
-static struct part_iter *pi_raw_next(struct part_iter *);
+static void pi_dtor_(struct part_iter *);
+static int  pi_next_(struct part_iter *);
+static int  pi_dos_next(struct part_iter *);
+static int  pi_gpt_next(struct part_iter *);
+
+/* vtab and types */
 
 static struct itertype types[] = {
    [0] = {
-	.ctor = &iter_dos_ctor,
-	.dtor = &iter_dtor,
+	.dtor = &pi_dtor_,
 	.next = &pi_dos_next,
 }, [1] = {
-	.ctor = &iter_gpt_ctor,
-	.dtor = &iter_dtor,
+	.dtor = &pi_dtor_,
 	.next = &pi_gpt_next,
 }, [2] = {
-	.ctor = &iter_ctor,
-	.dtor = &iter_dtor,
-	.next = &pi_raw_next,
+	.dtor = &pi_dtor_,
+	.next = &pi_next_,
 }};
 
 const struct itertype * const typedos = types;
 const struct itertype * const typegpt = types+1;
 const struct itertype * const typeraw = types+2;
 
-#ifdef DEBUG
-static int inv_type(const void *type)
+/* pi_dtor_() - common/raw iterator cleanup */
+static void pi_dtor_(struct part_iter *iter)
 {
-    int i, cnt = sizeof(types)/sizeof(types[0]);
-    for (i = 0; i < cnt; i++) {
-	if (type == types + i)
-	    return 0;
-    }
-    return -1;
+    /* syslinux's free is null resilient */
+    free(iter->data);
 }
-#endif
 
-/**
- * iter_ctor() - common iterator initialization
- * @iter:	iterator pointer
- * @args(0):	disk_info structure used for disk functions
- * @args(1):	flags modifier
- *
- * Second and further arguments are passed as a pointer to va_list
- **/
-static int iter_ctor(struct part_iter *iter, va_list *args)
+/* pi_ctor() - common/raw iterator initialization */
+static int pi_ctor(struct part_iter *iter,
+	const struct disk_info *di, int flags
+)
 {
-    const struct disk_info *di = va_arg(*args, const struct disk_info *);
-    int flags = va_arg(*args, int);
-
-#ifdef DEBUG
-    if (!di)
-	return -1;
-#endif
-
     memcpy(&iter->di, di, sizeof(struct disk_info));
     iter->flags = flags;
     iter->index0 = -1;
     iter->length = di->lbacnt;
 
+    iter->type = typeraw;
     return 0;
 }
 
-/**
- * iter_dtor() - common iterator cleanup
- * @iter:	iterator pointer
- *
- **/
-static void iter_dtor(struct part_iter *iter)
+/* pi_dos_ctor() - MBR/EBR iterator specific initialization */
+static int pi_dos_ctor(struct part_iter *iter,
+	const struct disk_info *di, int flags,
+	const struct disk_dos_mbr *mbr
+)
 {
-    free(iter->data);
-}
-
-/**
- * iter_dos_ctor() - MBR/EBR iterator specific initialization
- * @iter:	iterator pointer
- * @args(0):	disk_info structure used for disk functions
- * @args(1):	pointer to buffer with loaded valid MBR
- *
- * Second and further arguments are passed as a pointer to va_list.
- * This function only makes rudimentary checks. If user uses
- * pi_new(), he/she is responsible for doing proper sanity checks.
- **/
-static int iter_dos_ctor(struct part_iter *iter, va_list *args)
-{
-    const struct disk_dos_mbr *mbr;
-
-    /* uses args(0) */
-    if (iter_ctor(iter, args))
+    if (pi_ctor(iter, di, flags))
 	return -1;
-
-    mbr = va_arg(*args, const struct disk_dos_mbr *);
-
-#ifdef DEBUG
-    if (!mbr)
-	goto bail;
-#endif
 
     if (!(iter->data = malloc(sizeof(struct disk_dos_mbr))))
 	goto bail;
@@ -158,49 +111,25 @@ static int iter_dos_ctor(struct part_iter *iter, va_list *args)
     iter->dos.bebr_index0 = -1;
     iter->dos.disk_sig = mbr->disk_sig;
 
+    iter->type = typedos;
     return 0;
 bail:
-    iter->type->dtor(iter);
+    pi_dtor_(iter);
     return -1;
 }
 
-/**
- * iter_gpt_ctor() - GPT iterator specific initialization
- * @iter:	iterator pointer
- * @args(0):	ptr to disk_info structure
- * @args(1):	ptr to buffer with GPT header
- * @args(2):	ptr to buffer with GPT partition list
- *
- * Second and further arguments are passed as a pointer to va_list.
- * This function only makes rudimentary checks. If user uses
- * pi_new(), he/she is responsible for doing proper sanity checks.
- **/
-static int iter_gpt_ctor(struct part_iter *iter, va_list *args)
+/* pi_gpt_ctor() - GPT iterator specific initialization */
+static int pi_gpt_ctor(struct part_iter *iter,
+	const struct disk_info *di, int flags,
+	const struct disk_gpt_header *gpth, const struct disk_gpt_part_entry *gptl
+)
 {
     uint64_t siz;
-    const struct disk_gpt_header *gpth;
-    const struct disk_gpt_part_entry *gptl;
 
-    /* uses args(0) */
-    if (iter_ctor(iter, args))
+    if (pi_ctor(iter, di, flags))
 	return -1;
 
-    gpth = va_arg(*args, const struct disk_gpt_header *);
-    gptl = va_arg(*args, const struct disk_gpt_part_entry *);
-
-#ifdef DEBUG
-    if (!gpth || !gptl)
-	goto bail;
-#endif
-
     siz = (uint64_t)gpth->part_count * gpth->part_size;
-
-#ifdef DEBUG
-    if (!siz || (siz + iter->di.bps - 1) / iter->di.bps > 255u ||
-	    gpth->part_size < sizeof(struct disk_gpt_part_entry)) {
-	goto bail;
-    }
-#endif
 
     if (!(iter->data = malloc((size_t)siz)))
 	goto bail;
@@ -214,9 +143,10 @@ static int iter_gpt_ctor(struct part_iter *iter, va_list *args)
 
     memcpy(&iter->gpt.disk_guid, &gpth->disk_guid, sizeof(struct guid));
 
+    iter->type = typegpt;
     return 0;
 bail:
-    iter->type->dtor(iter);
+    pi_dtor_(iter);
     return -1;
 }
 
@@ -309,7 +239,7 @@ static int notsane_primary(const struct part_iter *iter)
 	!dp->length ||
 	!sane(dp->start_lba, dp->length) ||
 	dp->start_lba + dp->length > iter->di.lbacnt) {
-	error("Insane primary (MBR) partition.\n");
+	error("Primary (MBR) with invalid offset and/or length.\n");
 	return -1;
     }
 
@@ -327,14 +257,14 @@ static int notsane_gpt(const struct part_iter *iter)
 
     if (gp->lba_first < iter->gpt.ufirst ||
 	gp->lba_last > iter->gpt.ulast) {
-	error("Insane GPT partition.\n");
+	error("LBA sectors of GPT partition are beyond the range allowed in GPT header.\n");
 	return -1;
     }
 
     return 0;
 }
 
-static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
+static int dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 			    struct disk_dos_part_entry **_dp)
 {
     struct disk_dos_part_entry *dp;
@@ -344,14 +274,14 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 
 	if (notsane_primary(iter)) {
 	    iter->status = PI_INSANE;
-	    goto bail;
+	    return -1;
 	}
 
 	if (ost_is_ext(dp->ostype)) {
 	    if (iter->dos.bebr_index0 >= 0) {
 		error("You have more than 1 extended partition.\n");
 		iter->status = PI_INSANE;
-		goto bail;
+		return -1;
 	    }
 	    /* record base EBR index */
 	    iter->dos.bebr_index0 = iter->index0;
@@ -364,8 +294,6 @@ static int pi_dos_next_mbr(struct part_iter *iter, uint32_t *lba,
     }
 
     return 0;
-bail:
-    return -1;
 }
 
 static int prep_base_ebr(struct part_iter *iter)
@@ -391,12 +319,12 @@ static int prep_base_ebr(struct part_iter *iter)
     return 0;
 }
 
-static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
+static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 			    struct disk_dos_part_entry **_dp)
 {
     struct disk_dos_part_entry *dp;
 
-    if (prep_base_ebr(iter)) {
+    if (prep_base_ebr(iter) < 0) {
 	iter->status = PI_DONE;
 	return -1;
     }
@@ -442,8 +370,8 @@ static int pi_dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	 * This way it's possible to continue, if some crazy soft left a "hole"
 	 * - EBR with a valid extended partition without a logical one. In
 	 * such case, linux will not reserve a number for such hole - so we
-	 * don't increase index0. If stepall flag is set, we will never reach
-	 * this place.
+	 * don't increase index0. If PIF_STEPALL flag is set, we will never
+	 * reach this place.
 	 */
     }
     iter->status = PI_DONE;
@@ -466,14 +394,9 @@ static void gpt_conv_label(struct part_iter *iter)
     iter->gpt.part_label[PI_GPTLABSIZE/2] = 0;
 }
 
-static int check_crc(uint32_t crc_match, const uint8_t *buf, unsigned int siz)
+static inline int valid_crc(uint32_t crc, const uint8_t *buf, unsigned int siz)
 {
-    uint32_t crc;
-
-    crc = crc32(0, NULL, 0);
-    crc = crc32(crc, buf, siz);
-
-    return crc_match != crc;
+    return crc == crc32(crc32(0, NULL, 0), buf, siz);
 }
 
 static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct disk_gpt_header **_gh)
@@ -484,7 +407,7 @@ static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct dis
 
     hold_crc32 = gh->chksum;
     gh->chksum = 0;
-    if (check_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
+    if (!valid_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
 	error("WARNING: Primary GPT header checksum invalid.\n");
 	/* retry with backup */
 	lba_alt = gh->lba_alt;
@@ -495,7 +418,7 @@ static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct dis
 	}
 	hold_crc32 = gh->chksum;
 	gh->chksum = 0;
-	if (check_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
+	if (!valid_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
 	    error("Secondary GPT header checksum invalid.\n");
 	    return -1;
 	}
@@ -506,34 +429,33 @@ static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct dis
     return 0;
 }
 
-static struct part_iter *pi_raw_next(struct part_iter *iter)
+static int pi_next_(struct part_iter *iter)
 {
     iter->status = PI_DONE;
-    return NULL;
+    return iter->status;
 }
 
-static struct part_iter *pi_dos_next(struct part_iter *iter)
+static int pi_dos_next(struct part_iter *iter)
 {
     uint32_t start_lba = 0;
     struct disk_dos_part_entry *dos_part = NULL;
 
     if (iter->status)
-	goto bail;
+	return iter->status;
 
     /* look for primary partitions */
     if (iter->index0 < 4 &&
-	    pi_dos_next_mbr(iter, &start_lba, &dos_part))
-	goto bail;
+	    dos_next_mbr(iter, &start_lba, &dos_part) < 0)
+	return iter->status;
 
     /* look for logical partitions */
     if (iter->index0 >= 4 &&
-	    pi_dos_next_ebr(iter, &start_lba, &dos_part))
-	goto bail;
+	    dos_next_ebr(iter, &start_lba, &dos_part) < 0)
+	return iter->status;
 
     /*
-     * note special index handling, if we have stepall set -
-     * this is made to keep index consistent with non-stepall
-     * iterators
+     * note special index handling, if we have PIF_STEPALL set - this is made
+     * to keep index consistent with non-PIF_STEPALL iterators
      */
 
     if (iter->index0 >= 4 && !dos_part->ostype)
@@ -549,17 +471,15 @@ static struct part_iter *pi_dos_next(struct part_iter *iter)
     disk_dos_part_dump(dos_part);
 #endif
 
-    return iter;
-bail:
-    return NULL;
+    return iter->status;
 }
 
-static struct part_iter *pi_gpt_next(struct part_iter *iter)
+static int pi_gpt_next(struct part_iter *iter)
 {
     const struct disk_gpt_part_entry *gpt_part = NULL;
 
     if (iter->status)
-	goto bail;
+	return iter->status;
 
     while (++iter->index0 < iter->gpt.pe_count) {
 	gpt_part = (const struct disk_gpt_part_entry *)
@@ -567,7 +487,7 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
 
 	if (notsane_gpt(iter)) {
 	    iter->status = PI_INSANE;
-	    goto bail;
+	    return iter->status;
 	}
 
 	if (!guid_is0(&gpt_part->type) || (iter->flags & PIF_STEPALL))
@@ -576,7 +496,7 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
     /* no more partitions ? */
     if (iter->index0 == iter->gpt.pe_count) {
 	iter->status = PI_DONE;
-	goto bail;
+	return iter->status;
     }
     /* gpt_part is guaranteed to be valid here */
     iter->index = iter->index0 + 1;
@@ -591,123 +511,41 @@ static struct part_iter *pi_gpt_next(struct part_iter *iter)
     disk_gpt_part_dump(gpt_part);
 #endif
 
-    return iter;
-bail:
-    return NULL;
+    return iter->status;
 }
 
-/*
- * ----------------------------------------------------------------------------
- * Following functions are for users to call.
- * ----------------------------------------------------------------------------
- */
-
-
-int pi_next(struct part_iter **_iter)
+static struct part_iter *pi_alloc(void)
 {
     struct part_iter *iter;
-
-    if(!_iter || !*_iter)
-	return 0;
-    iter = *_iter;
-#ifdef DEBUG
-    if (inv_type(iter->type)) {
-	error("This is not a valid iterator.\n");
-	return 0;
-    }
-#endif
-    if ((iter = iter->type->next(iter))) {
-	*_iter = iter;
-    }
-    return (*_iter)->status;
-}
-
-/**
- * pi_new() - get new iterator
- * @itertype:	iterator type
- * @...:	variable arguments passed to ctors
- *
- * Variable arguments depend on the type. Please see functions:
- * iter_gpt_ctor() and iter_dos_ctor() for details.
- **/
-struct part_iter *pi_new(const struct itertype *type, ...)
-{
-    int badctor = 0;
-    struct part_iter *iter = NULL;
-    va_list ap;
-
-    va_start(ap, type);
-
-#ifdef DEBUG
-    if (inv_type(type)) {
-	error("Unknown iterator requested.\n");
-	goto bail;
-    }
-#endif
-
-    if (!(iter = malloc(sizeof(struct part_iter)))) {
+    if (!(iter = malloc(sizeof(struct part_iter))))
 	error("Couldn't allocate memory for the iterator.\n");
-	goto bail;
-    }
-
-    memset(iter, 0, sizeof(struct part_iter));
-    iter->type = type;
-
-    if (type->ctor(iter, &ap)) {
-	badctor = -1;
-	error("Cannot initialize the iterator.\n");
-	goto bail;
-    }
-
-bail:
-    va_end(ap);
-    if (badctor) {
-	free(iter);
-	iter = NULL;
-    }
+    else
+	memset(iter, 0, sizeof(struct part_iter));
     return iter;
 }
 
-/**
- * pi_del() - delete iterator
- * @iter:       iterator double pointer
- *
- **/
-
+/* pi_del() - delete iterator */
 void pi_del(struct part_iter **_iter)
 {
-    struct part_iter *iter;
-
     if(!_iter || !*_iter)
 	return;
-    iter = *_iter;
-
-#ifdef DEBUG
-    if (inv_type(iter->type)) {
-	error("This is not a valid iterator.\n");
-	return;
-    }
-#endif
-
-    iter->type->dtor(iter);
-    free(iter);
+    pi_dtor(*_iter);
+    free(*_iter);
     *_iter = NULL;
 }
 
-/**
- * pi_begin() - check disk, validate, and get proper iterator
- * @di:	    diskinfo struct pointer
- *
- * This function checks the disk for GPT or legacy partition table and allocates
- * an appropriate iterator.
- **/
+/* pi_begin() - validate and and get proper iterator for a disk described by di */
 struct part_iter *pi_begin(const struct disk_info *di, int flags)
 {
-    int setraw = 0;
-    struct part_iter *iter = NULL;
+    int ret = -1;
+    struct part_iter *iter;
     struct disk_dos_mbr *mbr = NULL;
     struct disk_gpt_header *gpth = NULL;
     struct disk_gpt_part_entry *gptl = NULL;
+
+    /* Preallocate iterator */
+    if (!(iter = pi_alloc()))
+	goto bail;
 
     /* Read MBR */
     if (!(mbr = disk_read_sectors(di, 0, 1))) {
@@ -715,11 +553,11 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	goto bail;
     }
 
-    setraw = -1;
-
-    /* Check for MBR magic*/
+    /* Check for MBR magic */
     if (mbr->sig != disk_mbr_sig_magic) {
-	error("No MBR magic.\n");
+	error("WARNING: no MBR magic, treating disk as raw.\n");
+	/* looks like RAW */
+	ret = pi_ctor(iter, di, flags);
 	goto bail;
     }
 
@@ -770,32 +608,28 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	    goto bail;
 	}
 	/* Check array checksum(s). */
-	if (check_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
-	    error("WARNING: GPT partition list checksum invalid, trying backup.\n");
+	if (!valid_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
+	    error("Main GPT partition list's checksum invalid, trying backup.\n");
 	    free(gptl);
 	    /* secondary array directly precedes secondary header */
 	    if (!(gptl = disk_read_sectors(di, gpth->lba_alt - gpt_lcnt, gpt_lcnt))) {
 		error("Couldn't read backup GPT partition list.\n");
 		goto bail;
 	    }
-	    if (check_crc(gpth->table_chksum, (const uint8_t *)gptl, gpt_lsiz)) {
-		error("Backup GPT partition list checksum invalid.\n");
+	    if (!valid_crc(gpth->table_chksum, (const uint8_t *)gptl, gpt_lsiz)) {
+		error("Backup GPT partition list's checksum invalid.\n");
 		goto bail;
 	    }
 	}
-	/* allocate iterator and exit */
-	iter = pi_new(typegpt, di, flags, gpth, gptl);
+	/* looks like GPT */
+	ret = pi_gpt_ctor(iter, di, flags, gpth, gptl);
     } else {
 	/* looks like MBR */
-	iter = pi_new(typedos, di, flags, mbr);
+	ret = pi_dos_ctor(iter, di, flags, mbr);
     }
-
-    setraw = 0;
 bail:
-    if (setraw) {
-	error("WARNING: treating disk as raw.\n");
-	iter = pi_new(typeraw, di, flags);
-    }
+    if (ret < 0)
+	free(iter);
     free(mbr);
     free(gpth);
     free(gptl);

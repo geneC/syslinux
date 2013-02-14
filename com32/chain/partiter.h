@@ -40,12 +40,11 @@
 #include <stdint.h>
 #include <syslinux/disk.h>
 
-#define PI_ERRLOAD 3
-#define PI_INSANE 2
-#define PI_DONE 1
-#define PI_OK 0
+/* status */
 
-/* behaviour flags */
+enum {PI_OK, PI_DONE, PI_INSANE, PI_ERRLOAD};
+
+/* flags */
 
 #define PIF_STEPALL 0x01
 
@@ -53,9 +52,8 @@ struct itertype;
 struct part_iter;
 
 struct itertype {
-	int (*ctor)(struct part_iter *, va_list *);
 	void (*dtor)(struct part_iter *);
-	struct part_iter *(*next) (struct part_iter *);
+	int  (*next)(struct part_iter *);
 };
 
 #define PI_GPTLABSIZE ((int)sizeof(((struct disk_gpt_part_entry *)0)->name))
@@ -66,13 +64,12 @@ struct part_iter {
     char *record;
     uint64_t start_lba;
     uint64_t length;
-    int index;
-    int rawindex;
+    int index0;	    /* including holes, from -1 (disk, then parts from 0) */
+    int rawindex;   /* including holes, from  0 (disk, then parts from 1) */
+    int index;	    /* excluding holes, from  0 (disk) (-1) means hole, if PIF_STEPALL is set */
+    int flags;      /* flags, see #defines above */
+    int status;	    /* current status, see enums above */
     struct disk_info di;
-    int flags;
-    int status;
-    /* internal */
-    int index0;
     union {
 	struct {
 	    uint32_t disk_sig;
@@ -103,9 +100,18 @@ extern const struct itertype * const typegpt;
 extern const struct itertype * const typeraw;
 
 struct part_iter *pi_begin(const struct disk_info *, int flags);
-struct part_iter *pi_new(const struct itertype *, ...);
 void pi_del(struct part_iter **);
-int pi_next(struct part_iter **);
+
+/* inline virtuals */
+static inline int pi_next(struct part_iter *iter)
+{
+    return iter->type->next(iter);
+}
+
+static inline void pi_dtor(struct part_iter *iter)
+{
+    iter->type->dtor(iter);
+}
 
 #endif
 

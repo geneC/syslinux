@@ -115,7 +115,7 @@ static int find_by_guid(const struct guid *gpt_guid,
 	    goto ok;
 	}
 	/* disk guid doesn't match, maybe partition guid will */
-	while (!pi_next(&boot_part)) {
+	while (!pi_next(boot_part)) {
 	    if (!memcmp(&boot_part->gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
 		goto ok;
 	}
@@ -147,7 +147,7 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
 	    continue;
 	}
 	/* Check for a matching partition */
-	while (!pi_next(&boot_part)) {
+	while (!pi_next(boot_part)) {
 	    if (!strcmp(label, boot_part->gpt.part_label))
 		goto ok;
 	}
@@ -353,7 +353,7 @@ int find_dp(struct part_iter **_iter)
 
 	/* 'fs' => we should lookup the syslinux partition number and use it */
 	if (!strcmp(opt.drivename, "fs")) {
-	    while (!pi_next(&iter)) {
+	    while (!pi_next(iter)) {
 		if (iter->start_lba == fs_lba)
 		    break;
 	    }
@@ -377,7 +377,7 @@ int find_dp(struct part_iter **_iter)
 	do {
 	    if (iter->index == partition)
 		break;
-	} while (!pi_next(&iter));
+	} while (!pi_next(iter));
 	if (iter->status) {
 	    error("Requested disk / partition combination not found.\n");
 	    goto bail;
