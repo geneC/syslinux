@@ -449,7 +449,7 @@ static int pi_next_(struct part_iter *iter)
 
 static int pi_dos_next(struct part_iter *iter)
 {
-    uint32_t start_lba = 0;
+    uint32_t abs_lba = 0;
     struct disk_dos_part_entry *dos_part = NULL;
 
     if (iter->status)
@@ -457,12 +457,12 @@ static int pi_dos_next(struct part_iter *iter)
 
     /* look for primary partitions */
     if (iter->index0 < 4 &&
-	    dos_next_mbr(iter, &start_lba, &dos_part) < 0)
+	    dos_next_mbr(iter, &abs_lba, &dos_part) < 0)
 	return iter->status;
 
     /* look for logical partitions */
     if (iter->index0 >= 4 &&
-	    dos_next_ebr(iter, &start_lba, &dos_part) < 0)
+	    dos_next_ebr(iter, &abs_lba, &dos_part) < 0)
 	return iter->status;
 
     /*
@@ -475,7 +475,7 @@ static int pi_dos_next(struct part_iter *iter)
 	iter->index = -1;
     else
 	iter->index = iter->index0 + 1 - iter->dos.logskipcnt;
-    iter->start_lba = start_lba;
+    iter->abs_lba = abs_lba;
     iter->length = dos_part->length;
     iter->record = (char *)dos_part;
 
@@ -512,7 +512,7 @@ static int pi_gpt_next(struct part_iter *iter)
     }
     /* gpt_part is guaranteed to be valid here */
     iter->index = iter->index0 + 1;
-    iter->start_lba = gpt_part->lba_first;
+    iter->abs_lba = gpt_part->lba_first;
     iter->length = gpt_part->lba_last - gpt_part->lba_first + 1;
     iter->record = (char *)gpt_part;
     memcpy(&iter->gpt.part_guid, &gpt_part->uid, sizeof(struct guid));

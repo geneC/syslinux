@@ -64,7 +64,7 @@ struct part_iter {
     const struct itertype *type;
     char *data;
     char *record;
-    uint64_t start_lba;
+    uint64_t abs_lba;
     uint64_t length;
     int index0;	    /* including holes, from -1 (disk, then parts from 0) */
     int index;	    /* excluding holes, from  0 (disk, then parts from 1), -1 means hole, if PIF_STEPALL is set */

@@ -347,7 +347,7 @@ int find_dp(struct part_iter **_iter)
 	/* 'fs' => we should lookup the syslinux partition number and use it */
 	if (!strcmp(opt.drivename, "fs")) {
 	    while (!pi_next(iter)) {
-		if (iter->start_lba == fs_lba)
+		if (iter->abs_lba == fs_lba)
 		    break;
 	    }
 	    /* broken part structure or other problems */
@@ -426,16 +426,16 @@ static int setup_handover(const struct part_iter *iter,
 	    critm();
 	    goto bail;
 	}
-	lba2chs(&ha->start, &iter->di, iter->start_lba, L2C_CADD);
-	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, L2C_CADD);
+	lba2chs(&ha->start, &iter->di, iter->abs_lba, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, iter->abs_lba + iter->length - 1, L2C_CADD);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xED;
 	/* All bits set by default */
 	ha->start_lba = ~0u;
 	ha->length = ~0u;
 	/* If these fit the precision, pass them on */
-	if (iter->start_lba < ha->start_lba)
-	    ha->start_lba = iter->start_lba;
+	if (iter->abs_lba < ha->start_lba)
+	    ha->start_lba = iter->abs_lba;
 	if (iter->length < ha->length)
 	    ha->length = iter->length;
 	/* Next comes the GPT partition record length */
@@ -458,9 +458,9 @@ static int setup_handover(const struct part_iter *iter,
 	}
 	memcpy(ha, iter->record, synth_size);
 	/* make sure these match bios imaginations and are ebr agnostic */
-	lba2chs(&ha->start, &iter->di, iter->start_lba, L2C_CADD);
-	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, L2C_CADD);
-	ha->start_lba = iter->start_lba;
+	lba2chs(&ha->start, &iter->di, iter->abs_lba, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, iter->abs_lba + iter->length - 1, L2C_CADD);
+	ha->start_lba = iter->abs_lba;
 	ha->length = iter->length;
 
 #ifdef DEBUG
@@ -543,7 +543,7 @@ int main(int argc, char *argv[])
 	    error("The sector cannot be loaded at such high address.");
 	    goto bail;
 	}
-	if (!(sdat.data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
+	if (!(sdat.data = disk_read_sectors(&iter->di, iter->abs_lba, 1))) {
 	    error("Couldn't read the sector.");
 	    goto bail;
 	}
@@ -625,7 +625,7 @@ int main(int argc, char *argv[])
 	iter->di.lbacnt, iter->di.cyl * iter->di.head * iter->di.spt,
 	iter->di.cyl, iter->di.head, iter->di.spt);
     dprintf("iter idx: %d\n", iter->index);
-    dprintf("iter lba: %"PRIu64"\n", iter->start_lba);
+    dprintf("iter lba: %"PRIu64"\n", iter->abs_lba);
     if (opt.hand)
 	dprintf("hand lba: %u\n",
 		((struct disk_dos_part_entry *)hdat.data)->start_lba);

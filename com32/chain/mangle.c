@@ -280,18 +280,18 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
 
     /* BPB: hidden sectors 64bit - exFAT only for now */
     if (type == bpbEXF)
-	    *(uint64_t *) ((char *)data->data + 0x40) = iter->start_lba;
+	    *(uint64_t *) ((char *)data->data + 0x40) = iter->abs_lba;
     /* BPB: hidden sectors 32bit*/
     else if (bpbV34 <= type && type <= bpbV70) {
-	if (iter->start_lba < ~0u)
-	    *(uint32_t *) ((char *)data->data + 0x1c) = iter->start_lba;
+	if (iter->abs_lba < ~0u)
+	    *(uint32_t *) ((char *)data->data + 0x1c) = iter->abs_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
     /* BPB: hidden sectors 16bit*/
     } else if (bpbV30 <= type && type <= bpbV32) {
-	if (iter->start_lba < 0xFFFF)
-	    *(uint16_t *) ((char *)data->data + 0x1c) = iter->start_lba;
+	if (iter->abs_lba < 0xFFFF)
+	    *(uint16_t *) ((char *)data->data + 0x1c) = iter->abs_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)~0u;
@@ -398,7 +398,7 @@ int mangles_save(const struct part_iter *iter, const struct data_area *data, voi
 	return 0;
 
     if (memcmp(org, data->data, data->size)) {
-	if (disk_write_sectors(&iter->di, iter->start_lba, data->data, 1)) {
+	if (disk_write_sectors(&iter->di, iter->abs_lba, data->data, 1)) {
 	    error("Cannot write the updated sector.");
 	    goto bail;
 	}
@@ -586,7 +586,7 @@ static int updchs(struct part_iter *iter, int ext)
     dp = (struct disk_dos_part_entry *)iter->record;
     if (!ext) {
 	/* primary or logical */
-	lba = (uint32_t)iter->start_lba;
+	lba = (uint32_t)iter->abs_lba;
     } else {
 	/* extended */
 	dp += 1;
