@@ -578,17 +578,47 @@ bail:
     return 0;
 }
 
-static int updchs(const struct disk_info *di,
-		     struct disk_dos_part_entry *dp,
-		     uint32_t lba1)
+static int updchs(struct part_iter *iter, int ext)
 {
-    uint32_t ochs1, ochs2;
+    struct disk_dos_part_entry *dp;
+    uint32_t ochs1, ochs2, lba;
 
+    dp = (struct disk_dos_part_entry *)iter->record;
+    if (!ext) {
+	/* primary or logical */
+	lba = (uint32_t)iter->start_lba;
+    } else {
+	/* extended */
+	dp += 1;
+	lba = iter->dos.nebr_lba;
+    }
     ochs1 = *(uint32_t *)dp->start;
     ochs2 = *(uint32_t *)dp->end;
 
-    lba2chs(&dp->start, di, lba1, L2C_CADD);
-    lba2chs(&dp->end, di, lba1 + dp->length - 1, L2C_CADD);
+    /*
+     * We have to be a bit more careful here in case of 0 start and/or length;
+     * start = 0 would be converted to the beginning of the disk (C/H/S =
+     * 0/0/1) or the [B]EBR, length = 0 would actually set the end CHS to be
+     * lower than the start CHS.
+     *
+     * Both are harmless in case of a hole (and in non-hole case will make
+     * partiter complain about corrupt layout unless PIF_RELAX is set), but it
+     * makes everything look silly and not really correct.
+     *
+     * Thus the approach as seen below.
+     */
+
+    if (dp->start_lba || iter->index != -1) {
+	lba2chs(&dp->start, &iter->di, lba, L2C_CADD);
+    } else {
+	memset(&dp->start, 0, sizeof dp->start);
+    }
+
+    if ((dp->start_lba || iter->index != -1) && dp->length) {
+	lba2chs(&dp->end, &iter->di, lba + dp->length - 1, L2C_CADD);
+    } else {
+	memset(&dp->end, 0, sizeof dp->end);
+    }
 
     return
 	*(uint32_t *)dp->start != ochs1 ||
@@ -602,7 +632,6 @@ int manglepe_fixchs(struct part_iter *miter)
 {
     int wb = 0, werr = 0;
     struct part_iter *iter = NULL;
-    struct disk_dos_part_entry *dp;
     int ridx;
 
     if (!opt.fixchs)
@@ -618,11 +647,10 @@ int manglepe_fixchs(struct part_iter *miter)
 
     while (!pi_next(iter) && !werr) {
 	ridx = iter->index0;
-	dp = (struct disk_dos_part_entry *)iter->record;
 
-	wb |= updchs(&iter->di, dp, iter->start_lba);
+	wb |= updchs(iter, 0);
 	if (ridx > 3)
-		wb |= updchs(&iter->di, dp + 1, iter->dos.nebr_lba);
+	    wb |= updchs(iter, 1);
 
 	/*
 	 * we have to update mbr and each extended partition, but only if
