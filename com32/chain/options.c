@@ -31,7 +31,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "common.h"
 #include "chain.h"
 #include "partiter.h"
 #include "utility.h"

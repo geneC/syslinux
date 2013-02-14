@@ -34,6 +34,9 @@
 #include <stdint.h>
 #include <syslinux/bootrm.h>
 
+#define ADDRMAX 0x9EFFFu
+#define ADDRMIN 0x500u
+
 enum {HIDE_OFF = 0, HIDE_ON = 1, HIDE_EXT = 2, HIDE_REV = 4};
 
 struct options {

@@ -40,7 +40,6 @@
 #include <stdarg.h>
 #include <zlib.h>
 #include <syslinux/disk.h>
-#include "common.h"
 #include "partiter.h"
 #include "utility.h"
 

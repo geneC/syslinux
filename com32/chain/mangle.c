@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include <dprintf.h>
 #include <syslinux/config.h>
-#include "common.h"
 #include "chain.h"
 #include "options.h"
 #include "utility.h"

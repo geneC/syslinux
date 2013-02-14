@@ -34,7 +34,6 @@
 #include <syslinux/config.h>
 #include <syslinux/disk.h>
 #include <syslinux/video.h>
-#include "common.h"
 #include "chain.h"
 #include "utility.h"
 #include "options.h"
