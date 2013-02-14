@@ -142,6 +142,7 @@ static int pi_gpt_ctor(struct part_iter *iter,
     iter->gpt.ulast = gpth->lba_last_usable;
 
     memcpy(&iter->gpt.disk_guid, &gpth->disk_guid, sizeof(struct guid));
+    memcpy(&iter->gpt.part_guid, &gpth->disk_guid, sizeof(struct guid));
 
     iter->type = typegpt;
     return 0;

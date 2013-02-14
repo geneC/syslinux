@@ -110,15 +110,11 @@ static int find_by_guid(const struct guid *gpt_guid,
 	    pi_del(&boot_part);
 	    continue;
 	}
-	/* Check for a matching GPT disk guid */
-	if (!memcmp(&boot_part->gpt.disk_guid, gpt_guid, sizeof(*gpt_guid))) {
-	    goto ok;
-	}
-	/* disk guid doesn't match, maybe partition guid will */
-	while (!pi_next(boot_part)) {
+	/* Check for a matching GPT disk/partition guid */
+	do {
 	    if (!memcmp(&boot_part->gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
 		goto ok;
-	}
+	} while (!pi_next(boot_part));
     }
     drive = -1;
 ok:
