@@ -79,7 +79,6 @@ struct part_iter {
 	    uint32_t cebr_lba;    /* absolute lba of curr ext. partition */
 	    uint32_t nebr_lba;    /* absolute lba of next ext. partition */
 
-	    uint32_t ebr_start;   /* relative (to bebr) lba of next extended partition */
 	    uint32_t ebr_size;    /* size of next extended partition */
 
 	    int bebr_index0;      /* index of (0-3) of base ext. part., -1 if not present in MBR */

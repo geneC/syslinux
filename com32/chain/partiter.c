@@ -308,7 +308,6 @@ static int prep_base_ebr(struct part_iter *iter)
 	iter->dos.bebr_start = dp->start_lba;
 	iter->dos.bebr_size = dp->length;
 
-	iter->dos.ebr_start = 0;
 	iter->dos.ebr_size = iter->dos.bebr_size;
 
 	iter->dos.cebr_lba = 0;
@@ -349,11 +348,9 @@ static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 
 	/* setup next frame values */
 	if (dp[1].ostype) {
-	    iter->dos.ebr_start = dp[1].start_lba;
 	    iter->dos.ebr_size = dp[1].length;
 	    iter->dos.nebr_lba = iter->dos.bebr_start + dp[1].start_lba;
 	} else {
-	    iter->dos.ebr_start = 0;
 	    iter->dos.ebr_size = 0;
 	    iter->dos.nebr_lba = 0;
 	}
