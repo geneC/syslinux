@@ -226,6 +226,12 @@ stacks in memory (pxelinux only).
 This option will wait for a keypress right before continuing the chainloading.
 Useful to see warnings emited by the chain module.
 
+	prefmbr
+	*noprefmbr
+
+In the case of presence of non-standard hybrid MBR/GPT layout, this flag makes
+chain module prefer MBR layout over GPT.
+
 	relax
 	*norelax
 

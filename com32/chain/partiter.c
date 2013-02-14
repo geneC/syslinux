@@ -549,7 +549,7 @@ void pi_del(struct part_iter **_iter)
 /* pi_begin() - validate and and get proper iterator for a disk described by di */
 struct part_iter *pi_begin(const struct disk_info *di, int flags)
 {
-    int ret = -1;
+    int gptprot, ret = -1;
     struct part_iter *iter;
     struct disk_dos_mbr *mbr = NULL;
     struct disk_gpt_header *gpth = NULL;
@@ -574,7 +574,10 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
     }
 
     /* Check for GPT protective MBR */
-    if (mbr->table[0].ostype == 0xEE) {
+    gptprot = 0;
+    for (size_t i = 0; i < 4; i++)
+	gptprot |= (mbr->table[i].ostype == 0xEE);
+    if (gptprot && !(flags & PIF_PREFMBR)) {
 	if (!(gpth = disk_read_sectors(di, 1, 1))) {
 	    error("Couldn't read potential GPT header.");
 	    goto bail;

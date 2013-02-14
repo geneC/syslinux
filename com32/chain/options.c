@@ -125,6 +125,7 @@ static void usage(void)
 "  warn                 Wait for a keypress to continue chainloading",
 "  break                Don't chainload",
 "  relax                Relax sanity checks",
+"  prefmbr              On hybrid MBR/GPT disks, prefer legacy layout",
 "",
 "  file=<file>          Load and execute <file>",
 "  seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>",
@@ -334,6 +335,10 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {
 	    opt.warn = false;
+	} else if (!strcmp(argv[i], "prefmbr")) {
+	    opt.prefmbr = PIF_PREFMBR;
+	} else if (!strcmp(argv[i], "noprefmbr")) {
+	    opt.prefmbr = 0;
 	} else if (!strcmp(argv[i], "nobreak")) {
 	    opt.brkchain = false;
 	} else if (!strcmp(argv[i], "break")) {

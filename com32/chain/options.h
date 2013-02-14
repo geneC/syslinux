@@ -37,16 +37,20 @@
 enum {HIDE_OFF = 0, HIDE_ON = 1, HIDE_EXT = 2, HIDE_REV = 4};
 
 struct options {
+    const char *drivename;
+    const char *partition;
+    const char *file;
+    const char *grubcfg;
     unsigned int fseg;
     unsigned int foff;
     unsigned int fip;
     unsigned int sseg;
     unsigned int soff;
     unsigned int sip;
-    const char *drivename;
-    const char *partition;
-    const char *file;
-    const char *grubcfg;
+    int hide;
+    int relax;
+    int prefmbr;
+    uint16_t keeppxe;
     bool isolinux;
     bool cmldr;
     bool drmk;
@@ -56,7 +60,6 @@ struct options {
     bool hand;
     bool hptr;
     bool swap;
-    int hide;
     bool sect;
     bool save;
     bool bss;
@@ -64,9 +67,7 @@ struct options {
     bool filebpb;
     bool fixchs;
     bool warn;
-    int relax;
     bool brkchain;
-    uint16_t keeppxe;
     struct syslinux_rm_regs regs;
 };
 
