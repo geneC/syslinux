@@ -36,15 +36,8 @@
 #include <syslinux/disk.h>
 #include <syslinux/movebits.h>
 
-#define bpbUNK	0
-#define bpbV20	1
-#define bpbV30	2
-#define bpbV32	3
-#define bpbV34	4
-#define bpbV40	5
-#define bpbVNT	6
-#define bpbV70	7
-#define bpbEXF	8
+/* most (all ?) bpb "types" known to humankind as of 2012 */
+enum {bpbUNK, bpbV20, bpbV30, bpbV32, bpbV34, bpbV40, bpbVNT, bpbV70, bpbEXF};
 
 /* see utility.c for details */
 enum {L2C_CNUL, L2C_CADD, L2C_CMAX};
