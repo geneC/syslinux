@@ -177,7 +177,7 @@ static int notsane_logical(const struct part_iter *iter)
     if (!dp[0].start_lba ||
 	!dp[0].length ||
 	!sane(dp[0].start_lba, dp[0].length) ||
-	end_log > iter->dos.ebr_size) {
+	end_log > iter->dos.nebr_siz) {
 
 	error("Logical partition (in EBR) with invalid offset and/or length.\n");
 	return -1;
@@ -213,7 +213,7 @@ static int notsane_extended(const struct part_iter *iter)
     if (!dp[1].start_lba ||
 	!dp[1].length ||
 	!sane(dp[1].start_lba, dp[1].length) ||
-	end_ebr > iter->dos.bebr_size) {
+	end_ebr > iter->dos.bebr_siz) {
 
 	error("Extended partition (EBR) with invalid offset and/or length.\n");
 	return -1;
@@ -302,16 +302,14 @@ static int prep_base_ebr(struct part_iter *iter)
 
     if (iter->dos.bebr_index0 < 0)	/* if we don't have base extended partition at all */
 	return -1;
-    else if (!iter->dos.bebr_start) { /* if not initialized yet */
+    else if (!iter->dos.bebr_lba) { /* if not initialized yet */
 	dp = ((struct disk_dos_mbr *)iter->data)->table + iter->dos.bebr_index0;
 
-	iter->dos.bebr_start = dp->start_lba;
-	iter->dos.bebr_size = dp->length;
+	iter->dos.bebr_lba = dp->start_lba;
+	iter->dos.bebr_siz = dp->length;
 
-	iter->dos.ebr_size = iter->dos.bebr_size;
-
-	iter->dos.cebr_lba = 0;
-	iter->dos.nebr_lba = iter->dos.bebr_start;
+	iter->dos.nebr_lba = dp->start_lba;
+	iter->dos.nebr_siz = dp->length;
 
 	iter->index0--;
     }
@@ -337,6 +335,7 @@ static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	    return -1;
 	}
 
+	/* check sanity of loaded data */
 	if (notsane_logical(iter) || notsane_extended(iter)) {
 	    iter->status = PI_INSANE;
 	    return -1;
@@ -348,11 +347,11 @@ static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 
 	/* setup next frame values */
 	if (dp[1].ostype) {
-	    iter->dos.ebr_size = dp[1].length;
-	    iter->dos.nebr_lba = iter->dos.bebr_start + dp[1].start_lba;
+	    iter->dos.nebr_lba = iter->dos.bebr_lba + dp[1].start_lba;
+	    iter->dos.nebr_siz = dp[1].length;
 	} else {
-	    iter->dos.ebr_size = 0;
 	    iter->dos.nebr_lba = 0;
+	    iter->dos.nebr_siz = 0;
 	}
 
 	if (!dp[0].ostype)
