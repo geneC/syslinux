@@ -1,5 +1,20 @@
-#ifndef _COM32_CHAIN_CHAIN_H
-#define _COM32_CHAIN_CHAIN_H
+/* ----------------------------------------------------------------------- *
+ *
+ *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2010 Shao Miller
+ *   Copyright 2010+ Michal Soltys
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+ *   Boston MA 02111-1307, USA; either version 2 of the License, or
+ *   (at your option) any later version; incorporated herein by reference.
+ *
+ * ----------------------------------------------------------------------- */
+
+#ifndef COM32_CHAIN_CHAIN_H
+#define COM32_CHAIN_CHAIN_H
 
 #include <syslinux/movebits.h>
 
