@@ -103,6 +103,11 @@ extern const struct itertype * const typeraw;
 struct part_iter *pi_begin(const struct disk_info *, int flags);
 void pi_del(struct part_iter **);
 
+static inline int pi_errored(struct part_iter *iter)
+{
+    return iter->status > PI_DONE;
+}
+
 /* inline virtuals */
 static inline int pi_next(struct part_iter *iter)
 {

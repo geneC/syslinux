@@ -559,7 +559,7 @@ int manglepe_hide(struct part_iter *miter)
 	}
     }
 
-    if (iter->status > PI_DONE)
+    if (pi_errored(iter))
 	goto bail;
 
     /* last write */
@@ -628,7 +628,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	}
     }
 
-    if (iter->status > PI_DONE)
+    if (pi_errored(iter))
 	goto bail;
 
     /* last write */
