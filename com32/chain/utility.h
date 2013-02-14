@@ -54,11 +54,22 @@ int drvoff_detect(int type);
 int bpb_detect(const uint8_t *bpb, const char *tag);
 int guid_is0(const struct guid *guid);
 
-static inline
-void error(const char *msg)
+static inline int warn(const char *x)
 {
-    fputs(msg, stderr);
+    return fprintf(stderr, "WARN: %s\n", x);
 }
+
+static inline int error(const char *x)
+{
+    return fprintf(stderr, "ERR: %s\n", x);
+}
+
+static inline int crit(const char *x)
+{
+    return fprintf(stderr, "CRIT: %s @%s:%d\n", x, __FILE__, __LINE__);
+}
+
+#define critm()  crit("Malloc failure.")
 
 #endif
 

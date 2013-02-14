@@ -103,8 +103,10 @@ static int pi_dos_ctor(struct part_iter *iter,
     if (pi_ctor(iter, di, flags))
 	return -1;
 
-    if (!(iter->data = malloc(sizeof(struct disk_dos_mbr))))
+    if (!(iter->data = malloc(sizeof(struct disk_dos_mbr)))) {
+	critm();
 	goto bail;
+    }
 
     memcpy(iter->data, mbr, sizeof(struct disk_dos_mbr));
 
@@ -131,8 +133,10 @@ static int pi_gpt_ctor(struct part_iter *iter,
 
     siz = (uint64_t)gpth->part_count * gpth->part_size;
 
-    if (!(iter->data = malloc((size_t)siz)))
+    if (!(iter->data = malloc((size_t)siz))) {
+	critm();
 	goto bail;
+    }
 
     memcpy(iter->data, gptl, (size_t)siz);
 
@@ -169,7 +173,7 @@ static int notsane_logical(const struct part_iter *iter)
 	return 0;
 
     if (ost_is_ext(dp[0].ostype)) {
-	error("1st EBR entry must be data or empty.\n");
+	error("The 1st EBR entry must be data or empty.");
 	return -1;
     }
 
@@ -180,7 +184,7 @@ static int notsane_logical(const struct part_iter *iter)
 	!sane(dp[0].start_lba, dp[0].length) ||
 	end_log > iter->dos.nebr_siz) {
 
-	error("Logical partition (in EBR) with invalid offset and/or length.\n");
+	error("Logical partition (in EBR) with invalid offset and/or length.");
 	return -1;
     }
 
@@ -205,7 +209,7 @@ static int notsane_extended(const struct part_iter *iter)
 	return 0;
 
     if (!ost_is_nondata(dp[1].ostype)) {
-	error("The 2nd EBR entry must be extended or empty.\n");
+	error("The 2nd EBR entry must be extended or empty.");
 	return -1;
     }
 
@@ -216,7 +220,7 @@ static int notsane_extended(const struct part_iter *iter)
 	!sane(dp[1].start_lba, dp[1].length) ||
 	end_ebr > iter->dos.bebr_siz) {
 
-	error("Extended partition (EBR) with invalid offset and/or length.\n");
+	error("Extended partition (EBR) with invalid offset and/or length.");
 	return -1;
     }
 
@@ -240,7 +244,7 @@ static int notsane_primary(const struct part_iter *iter)
 	!dp->length ||
 	!sane(dp->start_lba, dp->length) ||
 	dp->start_lba + dp->length > iter->di.lbacnt) {
-	error("Primary partition (in MBR) with invalid offset and/or length.\n");
+	error("Primary partition (in MBR) with invalid offset and/or length.");
 	return -1;
     }
 
@@ -258,7 +262,7 @@ static int notsane_gpt(const struct part_iter *iter)
 
     if (gp->lba_first < iter->gpt.ufirst ||
 	gp->lba_last > iter->gpt.ulast) {
-	error("LBA sectors of GPT partition are beyond the range allowed in GPT header.\n");
+	error("LBA sectors of GPT partition are beyond the range allowed in GPT header.");
 	return -1;
     }
 
@@ -280,7 +284,7 @@ static int dos_next_mbr(struct part_iter *iter, uint32_t *lba,
 
 	if (ost_is_ext(dp->ostype)) {
 	    if (iter->dos.bebr_index0 >= 0) {
-		error("More than 1 extended partition.\n");
+		error("More than 1 extended partition.");
 		iter->status = PI_INSANE;
 		return -1;
 	    }
@@ -331,7 +335,7 @@ static int dos_next_ebr(struct part_iter *iter, uint32_t *lba,
 	free(iter->data);
 	if (!(iter->data =
 		    disk_read_sectors(&iter->di, iter->dos.nebr_lba, 1))) {
-	    error("Couldn't load EBR.\n");
+	    error("Couldn't load EBR.");
 	    iter->status = PI_ERRLOAD;
 	    return -1;
 	}
@@ -405,18 +409,18 @@ static int gpt_check_hdr_crc(const struct disk_info * const diskinfo, struct dis
     hold_crc32 = gh->chksum;
     gh->chksum = 0;
     if (!valid_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
-	error("WARNING: Primary GPT header checksum invalid.\n");
+	warn("Primary GPT header checksum invalid.");
 	/* retry with backup */
 	lba_alt = gh->lba_alt;
 	free(gh);
 	if (!(gh = *_gh = disk_read_sectors(diskinfo, lba_alt, 1))) {
-	    error("Couldn't read backup GPT header.\n");
+	    error("Couldn't read backup GPT header.");
 	    return -1;
 	}
 	hold_crc32 = gh->chksum;
 	gh->chksum = 0;
 	if (!valid_crc(hold_crc32, (const uint8_t *)gh, gh->hdr_size)) {
-	    error("Secondary GPT header checksum invalid.\n");
+	    error("Secondary GPT header checksum invalid.");
 	    return -1;
 	}
     }
@@ -514,7 +518,7 @@ static struct part_iter *pi_alloc(void)
 {
     struct part_iter *iter;
     if (!(iter = malloc(sizeof(struct part_iter))))
-	error("Couldn't allocate memory for the iterator.\n");
+	critm();
     else
 	memset(iter, 0, sizeof(struct part_iter));
     return iter;
@@ -545,13 +549,13 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 
     /* Read MBR */
     if (!(mbr = disk_read_sectors(di, 0, 1))) {
-	error("Couldn't read first disk sector.\n");
+	error("Couldn't read the first disk sector.");
 	goto bail;
     }
 
     /* Check for MBR magic */
     if (mbr->sig != disk_mbr_sig_magic) {
-	error("WARNING: no MBR magic, treating disk as raw.\n");
+	warn("No MBR magic, treating disk as raw.");
 	/* looks like RAW */
 	ret = pi_ctor(iter, di, flags);
 	goto bail;
@@ -560,7 +564,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
     /* Check for GPT protective MBR */
     if (mbr->table[0].ostype == 0xEE) {
 	if (!(gpth = disk_read_sectors(di, 1, 1))) {
-	    error("Couldn't read potential GPT header.\n");
+	    error("Couldn't read potential GPT header.");
 	    goto bail;
 	}
     }
@@ -572,7 +576,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	uint64_t gpt_lsiz;	    /* size of GPT partition list in bytes */
 	uint64_t gpt_lcnt;	    /* size of GPT partition in sectors */
 #ifdef DEBUG
-	puts("Looks like a GPT v1.0 disk.");
+	dprintf("Looks like a GPT v1.0 disk.\n");
 	disk_gpt_header_dump(gpth);
 #endif
 	/* Verify checksum, fallback to backup, then bail if invalid */
@@ -596,24 +600,24 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 		gpth->lba_last_usable + gpt_lcnt >= gpth->lba_alt ||
 		gpth->lba_alt >= di->lbacnt ||
 		gpth->part_size < sizeof(struct disk_gpt_part_entry)) {
-	    error("Invalid GPT header's values.\n");
+	    error("Invalid GPT header's values.");
 	    goto bail;
 	}
 	if (!(gptl = disk_read_sectors(di, gpt_loff, gpt_lcnt))) {
-	    error("Couldn't read GPT partition list.\n");
+	    error("Couldn't read GPT partition list.");
 	    goto bail;
 	}
 	/* Check array checksum(s). */
 	if (!valid_crc(gpth->table_chksum, (const uint8_t *)gptl, (unsigned int)gpt_lsiz)) {
-	    error("Checksum of the main GPT partition list is invalid, trying backup.\n");
+	    warn("Checksum of the main GPT partition list is invalid, trying backup.");
 	    free(gptl);
 	    /* secondary array directly precedes secondary header */
 	    if (!(gptl = disk_read_sectors(di, gpth->lba_alt - gpt_lcnt, gpt_lcnt))) {
-		error("Couldn't read backup GPT partition list.\n");
+		error("Couldn't read backup GPT partition list.");
 		goto bail;
 	    }
 	    if (!valid_crc(gpth->table_chksum, (const uint8_t *)gptl, gpt_lsiz)) {
-		error("Checksum of the backup GPT partition list is invalid, giving up.\n");
+		error("Checksum of the backup GPT partition list is invalid, giving up.");
 		goto bail;
 	    }
 	}

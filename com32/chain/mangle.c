@@ -62,7 +62,7 @@ int manglef_isolinux(struct data_area *data)
     sdi = syslinux_derivative_info();
 
     if (sdi->c.filesystem != SYSLINUX_FS_ISOLINUX) {
-	error ("The isolinux= option is only valid when run from ISOLINUX.\n");
+	error("The isolinux= option is only valid when run from ISOLINUX.");
 	goto bail;
     }
 
@@ -88,7 +88,7 @@ int manglef_isolinux(struct data_area *data)
     file_lba = get_file_lba(opt.file);
 
     if (file_lba == 0) {
-	error("Failed to find LBA offset of the boot file\n");
+	error("Failed to find LBA offset of the boot file.");
 	goto bail;
     }
     /* Set it */
@@ -163,7 +163,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
 	return 0;
 
     if (data->size < sizeof(struct grub_stage2_patch_area)) {
-	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.\n");
+	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.");
 	goto bail;
     }
     stage2 = data->data;
@@ -174,7 +174,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
      */
     if (stage2->compat_version_major != 3
 	    || stage2->compat_version_minor != 2) {
-	error("The file specified by grub=<loader> is not a supported stage2 GRUB Legacy binary.\n");
+	error("The file specified by grub=<loader> is not a supported stage2 GRUB Legacy binary.");
 	goto bail;
     }
 
@@ -213,7 +213,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
      */
     if (opt.grubcfg) {
 	if (strlen(opt.grubcfg) > sizeof(stage2->config_file) - 1) {
-	    error ("The config filename length can't exceed 88 characters.\n");
+	    error("The config filename length can't exceed 88 characters.");
 	    goto bail;
 	}
 
@@ -254,11 +254,11 @@ int manglef_drmk(struct data_area *data)
     dprintf("  fs_lba offset is %d\n", fs_lba);
     /* DRMK only uses a DWORD */
     if (fs_lba > 0xffffffff) {
-	error("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
+	error("LBA very large; Only using lower 32 bits; DRMK will probably fail.");
     }
     opt.regs.ss = opt.regs.fs = opt.regs.gs = 0;	/* Used before initialized */
     if (!realloc(data->data, tsize)) {
-	error("Failed to realloc for DRMK.\n");
+	error("Failed to realloc for DRMK.");
 	goto bail;
     }
     data->size = tsize;
@@ -352,12 +352,12 @@ int manglesf_bss(struct data_area *sec, struct data_area *fil)
     type2 = bpb_detect(sec->data, "bss/sect");
 
     if (!type1 || !type2) {
-	error("Couldn't determine the BPB type for option 'bss'.\n");
+	error("Couldn't determine the BPB type for option 'bss'.");
 	goto bail;
     }
     if (type1 != type2) {
 	error("Option 'bss' can't be used,\n"
-		"when a sector and a file have incompatible BPBs.\n");
+		"when a sector and a file have incompatible BPBs.");
 	goto bail;
     }
 
@@ -395,7 +395,7 @@ int mangles_save(const struct part_iter *iter, const struct data_area *data, voi
 
     if (memcmp(org, data->data, data->size)) {
 	if (disk_write_sectors(&iter->di, iter->start_lba, data->data, 1)) {
-	    error("Cannot write the updated sector.\n");
+	    error("Cannot write the updated sector.");
 	    goto bail;
 	}
 	/* function can be called again */
@@ -530,12 +530,12 @@ int manglepe_hide(struct part_iter *miter)
 	return 0;
 
     if (miter->type != typedos) {
-	error("Option '[un]hide[all]' is meaningful only for legacy (DOS) partition scheme.\n");
+	error("Option '[un]hide[all]' works only for legacy (DOS) partition scheme.");
 	return -1;
     }
 
     if (miter->index > 4 && !(opt.hide & HIDE_EXT))
-	error("WARNING: your partition is logical, so it can't be unhidden without 'unhideall'.\n");
+	warn("Specified partition is logical, so it can't be unhidden without 'unhideall'.");
 
     if (!(iter = pi_begin(&miter->di, PIF_STEPALL)))
 	return -1;
@@ -569,7 +569,7 @@ int manglepe_hide(struct part_iter *miter)
 	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)
-	error("WARNING: failed to write E/MBR during '[un]hide[all]'\n");
+	warn("Failed to write E/MBR during '[un]hide[all]'.");
 
 bail:
     pi_del(&iter);
@@ -607,7 +607,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	return 0;
 
     if (miter->type != typedos) {
-	error("Option 'fixchs' is meaningful only for legacy (DOS) partition scheme.\n");
+	error("Option 'fixchs' works only for legacy (DOS) partition scheme.");
 	return -1;
     }
 
@@ -642,7 +642,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)
-	error("WARNING: failed to write E/MBR during 'fixchs'\n");
+	warn("Failed to write E/MBR during 'fixchs'.");
 
 bail:
     pi_del(&iter);

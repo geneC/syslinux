@@ -58,14 +58,14 @@ static int soi_s2n(char *ptr, unsigned int *seg,
     val = (segval << 4) + offval;
 
     if (val < ADDRMIN || val > ADDRMAX) {
-	error("Invalid seg:off:* address specified..\n");
+	error("Invalid seg:off:* address specified.");
 	goto bail;
     }
 
     val = (segval << 4) + ipval;
 
     if (ipval > 0xFFFE || val < ADDRMIN || val > ADDRMAX) {
-	error("Invalid seg:*:ip address specified.\n");
+	error("Invalid seg:*:ip address specified.");
 	goto bail;
     }
 
@@ -83,69 +83,74 @@ bail:
 
 static void usage(void)
 {
-    unsigned int i;
-    static const char key[] = "Press any key...\n";
+    size_t i;
     static const char *const usage[] = {
-"\
-Usage:\n\
-    chain.c32 [options]\n\
-    chain.c32 {fd|hd}<disk#>{,| }[<part#>] [options]\n\
-    chain.c32 mbr{:|=}<id>{,| }[<part#>] [options]\n\
-    chain.c32 guid{:|=}<guid>{,| }[<part#>] [options]\n\
-    chain.c32 label{:|=}<label> [<part#>] [options]\n\
-    chain.c32 boot{,| }[<part#>] [options]\n\
-    chain.c32 fs [options]\n\
-", "\
-\nOptions ('no' prefix specifies default value):\n\
-    sect[=<s[:o[:i]]>]   Load sector at <s:o>, jump to <s:i>\n\
-                         - defaults to 0:0x7C00:0x7C00\n\
-                         - ommited o/i values default to 0\n\
-    maps                 Map loaded sector into real memory\n\
-    nosetbpb             Fix BPB fields in loaded sector\n\
-    nofilebpb            Apply 'setbpb' to loaded file\n\
-    nosave               Write adjusted sector back to disk\n\
-    hand                 Prepare handover area\n\
-    nohptr               Force ds:si and ds:bp to point to handover area\n\
-    noswap               Swap drive numbers, if bootdisk is not fd0/hd0\n\
-    nohide               Disable all hide variations (also the default)\n\
-    hide                 Hide primary partitions, unhide selected partition\n\
-    hideall              Hide *all* partitions, unhide selected partition\n\
-    unhide               Unhide primary partitions\n\
-    unhideall            Unhide *all* partitions\n\
-    nofixchs             Walk *all* partitions and fix E/MBRs' chs values\n\
-    nokeeppxe            Keep the PXE and UNDI stacks in memory (PXELINUX)\n\
-    nowarn               Wait for a keypress to continue chainloading\n\
-                         - useful to see emited warnings\n\
-    nobreak              Actually perform the chainloading\n\
-", "\
-\nOptions continued ...\n\
-    file=<file>          Load and execute <file>\n\
-    seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>\n\
-                         - defaults to 0:0x7C00:0x7C00\n\
-                         - ommited o/i values default to 0\n\
-    isolinux=<loader>    Load another version of ISOLINUX\n\
-    ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR\n\
-    reactos=<loader>     Load ReactOS's loader\n\
-    cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003\n\
-    freedos=<loader>     Load FreeDOS KERNEL.SYS\n\
-    msdos=<loader>       Load MS-DOS 2.xx - 6.xx IO.SYS\n\
-    msdos7=<loader>      Load MS-DOS 7+ IO.SYS\n\
-    pcdos=<loader>       Load PC-DOS IBMBIO.COM\n\
-    drmk=<loader>        Load DRMK DELLBIO.BIN\n\
-    grub=<loader>        Load GRUB Legacy stage2\n\
-    grubcfg=<filename>   Set alternative config filename for GRUB Legacy\n\
-    grldr=<loader>       Load GRUB4DOS grldr\n\
-    bss=<filename>       Emulate syslinux's BSS\n\
-    bs=<filename>        Emulate syslinux's BS\n\
-\nPlease see doc/chain.txt for the detailed documentation.\n\
-"
-    };
+"Usage:",
+"",
+"  disk + partition selection:",
+"        chain.c32 [options]",
+"        chain.c32 hd#[,#] [options]",
+"        chain.c32 fd#[,#] [options]",
+"        chain.c32 mbr=<id>[,#] [options]",
+"        chain.c32 guid=<guid>[,#] [options]",
+"        chain.c32 boot[,#] [options]",
+"",
+"  direct partition selection:",
+"        chain.c32 guid=<guid> [options]",
+"        chain.c32 label=<label> [options]",
+"        chain.c32 fs [options]",
+"",
+"You can use ':' instead of '=' and ' ' instead of ','.",
+"The default is 'boot,0'.",
+"",
+"Options:",
+"  sect[=<s[:o[:i]]>]   Load sector at <s:o>, jump to <s:i>",
+"                       - defaults to 0:0x7C00:0x7C00",
+"                       - omitted o/i values default to 0",
+"  maps                 Map loaded sector into real memory",
+"  setbpb               Fix BPB fields in loaded sector",
+"  filebpb              Apply 'setbpb' to loaded file",
+"  save                 Write adjusted sector back to disk",
+"  hand                 Prepare handover area",
+"  hptr                 Force ds:si and ds:bp to point to handover area",
+"  swap                 Swap drive numbers, if bootdisk is not fd0/hd0",
+"  nohide               Disable all hide variations (default)",
+"  hide                 Hide primary partitions, unhide selected partition",
+"  hideall              Hide *all* partitions, unhide selected partition",
+"  unhide               Unhide primary partitions",
+"  unhideall            Unhide *all* partitions",
+"  fixchs               Walk *all* partitions and fix E/MBRs' CHS values",
+"  keeppxe              Keep the PXE and UNDI stacks in memory (PXELINUX)",
+"  warn                 Wait for a keypress to continue chainloading",
+"  break                Don't chainload",
+"",
+"  file=<file>          Load and execute <file>",
+"  seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>",
+"                       - defaults to 0:0x7C00:0x7C00",
+"                       - omitted o/i values default to 0",
+"  isolinux=<loader>    Load another version of ISOLINUX",
+"  ntldr=<loader>       Load Windows NTLDR, SETUPLDR.BIN or BOOTMGR",
+"  reactos=<loader>     Load ReactOS's loader",
+"  cmldr=<loader>       Load Recovery Console of Windows NT/2K/XP/2003",
+"  freedos=<loader>     Load FreeDOS KERNEL.SYS",
+"  msdos=<loader>       Load MS-DOS 2.xx - 6.xx IO.SYS",
+"  msdos7=<loader>      Load MS-DOS 7+ IO.SYS",
+"  pcdos=<loader>       Load PC-DOS IBMBIO.COM",
+"  drmk=<loader>        Load DRMK DELLBIO.BIN",
+"  grub=<loader>        Load GRUB Legacy stage2",
+"  grubcfg=<config>     Set alternative config filename for GRUB Legacy",
+"  grldr=<loader>       Load GRUB4DOS grldr",
+"  bss=<sectimage>      Emulate syslinux's BSS",
+"  bs=<sectimage>       Emulate syslinux's BS",
+"",
+"Please see doc/chain.txt for the detailed documentation."
+};
     for (i = 0; i < sizeof(usage)/sizeof(usage[0]); i++) {
-	if (i) {
-	    error(key);
+	if (i % 20 == 19) {
+	    puts("Press any key...");
 	    wait_key();
 	}
-	error(usage[i]);
+	puts(usage[i]);
     }
 }
 
@@ -360,27 +365,27 @@ int opt_parse_args(int argc, char *argv[])
     }
 
     if (opt.grubcfg && !opt.grub) {
-	error("grubcfg=<filename> must be used together with grub=<loader>.\n");
+	error("grubcfg=<filename> must be used together with grub=<loader>.");
 	goto bail;
     }
 
     if (opt.filebpb && !opt.file) {
-	error("Option 'filebpb' requires a file.\n");
+	error("Option 'filebpb' requires a file.");
 	goto bail;
     }
 
     if (opt.save && !opt.sect) {
-	error("Option 'save' requires a sector.\n");
+	error("Option 'save' requires a sector.");
 	goto bail;
     }
 
     if (opt.setbpb && !opt.sect) {
-	error("Option 'setbpb' requires a sector.\n");
+	error("Option 'setbpb' requires a sector.");
 	goto bail;
     }
 
     if (opt.maps && !opt.sect) {
-	error("Option 'maps' requires a sector.\n");
+	error("Option 'maps' requires a sector.");
 	goto bail;
     }
 

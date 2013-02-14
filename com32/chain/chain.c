@@ -168,7 +168,7 @@ static void do_boot(struct data_area *data, int ndata)
     mmap = syslinux_memory_map();
 
     if (!mmap) {
-	error("Cannot read system memory map\n");
+	error("Cannot read system memory map.");
 	return;
     }
 
@@ -269,17 +269,17 @@ static void do_boot(struct data_area *data, int ndata)
     /* Force text mode */
     syslinux_force_text_mode();
 
-    fputs("Booting...\n", stdout);
+    puts("Booting...");
     syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, &opt.regs);
-    error("Chainboot failed!\n");
+    error("Chainboot failed !");
     return;
 
 too_big:
-    error("Loader file too large\n");
+    error("Loader file too large.");
     return;
 
 enomem:
-    error("Out of memory\n");
+    error("Out of memory.");
     return;
 }
 
@@ -296,23 +296,23 @@ int find_dp(struct part_iter **_iter)
 
     if (!strncmp(opt.drivename, "mbr", 3)) {
 	if (find_by_sig(strtoul(opt.drivename + 4, NULL, 0), &iter) < 0) {
-	    error("Unable to find requested MBR signature.\n");
+	    error("Unable to find requested MBR signature.");
 	    goto bail;
 	}
     } else if (!strncmp(opt.drivename, "guid", 4)) {
 	if (str_to_guid(opt.drivename + 5, &gpt_guid))
 	    goto bail;
 	if (find_by_guid(&gpt_guid, &iter) < 0) {
-	    error("Unable to find requested GPT disk or partition by guid.\n");
+	    error("Unable to find requested GPT disk or partition by guid.");
 	    goto bail;
 	}
     } else if (!strncmp(opt.drivename, "label", 5)) {
 	if (!opt.drivename[6]) {
-	    error("No label specified.\n");
+	    error("No label specified.");
 	    goto bail;
 	}
 	if (find_by_label(opt.drivename + 6, &iter) < 0) {
-	    error("Unable to find requested GPT partition by label.\n");
+	    error("Unable to find requested GPT partition by label.");
 	    goto bail;
 	}
     } else if ((opt.drivename[0] == 'h' || opt.drivename[0] == 'f') &&
@@ -330,7 +330,7 @@ int find_dp(struct part_iter **_iter)
     } else if (!strcmp(opt.drivename, "boot") || !strcmp(opt.drivename, "fs")) {
 	if (!is_phys(sdi->c.filesystem)) {
 	    error("When syslinux is not booted from physical disk (or its emulation),\n"
-		   "'boot' and 'fs' are meaningless.\n");
+		   "'boot' and 'fs' are meaningless.");
 	    goto bail;
 	}
 	/* offsets match, but in case it changes in the future */
@@ -355,12 +355,12 @@ int find_dp(struct part_iter **_iter)
 	    }
 	    /* broken part structure or other problems */
 	    if (iter->status) {
-		error("Can't find myself on the drive I booted from.\n");
+		error("Can't find myself on the drive I booted from.");
 		goto bail;
 	    }
 	}
     } else {
-	error("Unparsable drive specification.\n");
+	error("Unparsable drive specification.");
 	goto bail;
     }
     /* main options done - only thing left is explicit partition specification,
@@ -375,13 +375,13 @@ int find_dp(struct part_iter **_iter)
 		break;
 	} while (!pi_next(iter));
 	if (iter->status) {
-	    error("Requested disk / partition combination not found.\n");
+	    error("Requested disk / partition combination not found.");
 	    goto bail;
 	}
     }
 
     if (!(iter->di.disk & 0x80) && iter->index) {
-	error("WARNING: Partitions on floppy devices may not work.\n");
+	warn("Partitions on floppy devices may not work.");
     }
 
     *_iter = iter;
@@ -408,7 +408,7 @@ static int setup_handover(const struct part_iter *iter,
 	/* RAW handover protocol */
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build RAW hand-over record!\n");
+	    critm();
 	    goto bail;
 	}
 	len = ~0u;
@@ -426,7 +426,7 @@ static int setup_handover(const struct part_iter *iter,
 	synth_size += sizeof *plen + iter->gpt.pe_size;
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build GPT hand-over record!\n");
+	    critm();
 	    goto bail;
 	}
 	lba2chs(&ha->start, &iter->di, iter->start_lba, L2C_CADD);
@@ -456,7 +456,7 @@ static int setup_handover(const struct part_iter *iter,
 	/* MBR handover protocol */
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build MBR hand-over record!\n");
+	    critm();
 	    goto bail;
 	}
 	memcpy(ha, iter->record, synth_size);
@@ -528,11 +528,11 @@ int main(int argc, char *argv[])
 	fdat.base = (opt.fseg << 4) + opt.foff;
 
 	if (loadfile(opt.file, &fdat.data, &fdat.size)) {
-	    error("Couldn't read the boot file.\n");
+	    error("Couldn't read the boot file.");
 	    goto bail;
 	}
 	if (fdat.base + fdat.size - 1 > ADDRMAX) {
-	    error("The boot file is too big to load at this address.\n");
+	    error("The boot file is too big to load at this address.");
 	    goto bail;
 	}
     }
@@ -543,22 +543,22 @@ int main(int argc, char *argv[])
 	sdat.size = iter->di.bps;
 
 	if (sdat.base + sdat.size - 1 > ADDRMAX) {
-	    error("The sector cannot be loaded at such high address.\n");
+	    error("The sector cannot be loaded at such high address.");
 	    goto bail;
 	}
 	if (!(sdat.data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
-	    error("Couldn't read the sector.\n");
+	    error("Couldn't read the sector.");
 	    goto bail;
 	}
 	if (opt.save) {
 	    if (!(sbck = malloc(sdat.size))) {
-		error("Couldn't allocate cmp-buf for option 'save'.\n");
+		critm();
 		goto bail;
 	    }
 	    memcpy(sbck, sdat.data, sdat.size);
 	}
 	if (opt.file && opt.maps && overlap(&fdat, &sdat)) {
-	    error("WARNING: The sector won't be mmapped, as it would conflict with the boot file.\n");
+	    warn("The sector won't be mmapped, as it would conflict with the boot file.");
 	    opt.maps = false;
 	}
     }
@@ -570,8 +570,8 @@ int main(int argc, char *argv[])
 	/* Verify possible conflicts */
 	if ( ( opt.file && overlap(&fdat, &hdat)) ||
 	     ( opt.maps && overlap(&sdat, &hdat)) ) {
-	    error("WARNING: Handover area won't be prepared,\n"
-		  "as it would conflict with the boot file and/or the sector.\n");
+	    warn("Handover area won't be prepared,\n"
+		  "as it would conflict with the boot file and/or the sector.");
 	    opt.hand = false;
 	}
     }
@@ -622,15 +622,15 @@ int main(int argc, char *argv[])
 	memcpy(data + ndata++, &hdat, sizeof(hdat));
 
 #ifdef DEBUG
-    printf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %"PRIu64", %u\n"
+    dprintf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %"PRIu64", %u\n"
 	   "iter->di C, H, S: %u, %u, %u\n",
 	iter->di.disk, iter->di.bps,
 	iter->di.lbacnt, iter->di.cyl * iter->di.head * iter->di.spt,
 	iter->di.cyl, iter->di.head, iter->di.spt);
-    printf("iter idx: %d\n", iter->index);
-    printf("iter lba: %"PRIu64"\n", iter->start_lba);
+    dprintf("iter idx: %d\n", iter->index);
+    dprintf("iter lba: %"PRIu64"\n", iter->start_lba);
     if (opt.hand)
-	printf("hand lba: %u\n",
+	dprintf("hand lba: %u\n",
 		((struct disk_dos_part_entry *)hdat.data)->start_lba);
 #endif
 
@@ -642,7 +642,7 @@ int main(int argc, char *argv[])
     if (ndata && !opt.brkchain) /* boot only if we actually chainload */
 	do_boot(data, ndata);
     else
-	error("Service-only run completed, exiting.\n");
+	puts("Service-only run completed, exiting.");
 bail:
     pi_del(&iter);
     /* Free allocated areas */
