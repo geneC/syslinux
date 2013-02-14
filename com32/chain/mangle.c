@@ -481,7 +481,7 @@ int mangler_grldr(const struct part_iter *iter)
  */
 static void push_embr(struct part_iter *diter, struct part_iter *siter)
 {
-    if (diter->sub.dos.cebr_lba == siter->sub.dos.cebr_lba &&
+    if (diter->dos.cebr_lba == siter->dos.cebr_lba &&
 	    diter->di.disk == siter->di.disk) {
 	memcpy(diter->data, siter->data, sizeof(struct disk_dos_mbr));
     }
@@ -554,7 +554,7 @@ int manglepe_hide(struct part_iter *miter)
 
 	if (ridx >= 4 && wb && !werr) {
 	    push_embr(miter, iter);
-	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	    werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
 	    wb = 0;
 	}
     }
@@ -565,7 +565,7 @@ int manglepe_hide(struct part_iter *miter)
     /* last write */
     if (wb && !werr) {
 	push_embr(miter, iter);
-	werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)
 	error("WARNING: failed to write E/MBR during '*hide*'\n");
@@ -619,11 +619,11 @@ int manglepe_fixchs(struct part_iter *miter)
 
 	wb |= mpe_setchs(&iter->di, dp, iter->start_lba);
 	if (ridx > 4)
-		wb |= mpe_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
+		wb |= mpe_setchs(&iter->di, dp + 1, iter->dos.nebr_lba);
 
 	if (ridx >= 4 && wb && !werr) {
 	    push_embr(miter, iter);
-	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	    werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
 	    wb = 0;
 	}
     }
@@ -634,7 +634,7 @@ int manglepe_fixchs(struct part_iter *miter)
     /* last write */
     if (wb && !werr) {
 	push_embr(miter, iter);
-	werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)
 	error("WARNING: failed to write E/MBR during 'fixchs'\n");

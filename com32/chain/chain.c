@@ -79,7 +79,7 @@ static int find_by_sig(uint32_t mbr_sig,
 	    pi_del(&boot_part);
 	    continue;
 	}
-	if (boot_part->sub.dos.disk_sig == mbr_sig) {
+	if (boot_part->dos.disk_sig == mbr_sig) {
 	    goto ok;
 	}
     }
@@ -111,12 +111,12 @@ static int find_by_guid(const struct guid *gpt_guid,
 	    continue;
 	}
 	/* Check for a matching GPT disk guid */
-	if (!memcmp(&boot_part->sub.gpt.disk_guid, gpt_guid, sizeof(*gpt_guid))) {
+	if (!memcmp(&boot_part->gpt.disk_guid, gpt_guid, sizeof(*gpt_guid))) {
 	    goto ok;
 	}
 	/* disk guid doesn't match, maybe partition guid will */
 	while (!pi_next(&boot_part)) {
-	    if (!memcmp(&boot_part->sub.gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
+	    if (!memcmp(&boot_part->gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
 		goto ok;
 	}
     }
@@ -148,7 +148,7 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
 	}
 	/* Check for a matching partition */
 	while (!pi_next(&boot_part)) {
-	    if (!strcmp(label, boot_part->sub.gpt.part_label))
+	    if (!strcmp(label, boot_part->gpt.part_label))
 		goto ok;
 	}
     }
@@ -427,7 +427,7 @@ static int setup_handover(const struct part_iter *iter,
     } else if (iter->type == typegpt) {
 	uint32_t *plen;
 	/* GPT handover protocol */
-	synth_size += sizeof *plen + iter->sub.gpt.pe_size;
+	synth_size += sizeof *plen + iter->gpt.pe_size;
 	ha = malloc(synth_size);
 	if (!ha) {
 	    error("Could not build GPT hand-over record!\n");
@@ -447,7 +447,7 @@ static int setup_handover(const struct part_iter *iter,
 	    ha->length = iter->length;
 	/* Next comes the GPT partition record length */
 	plen = (uint32_t *)(ha + 1);
-	plen[0] = iter->sub.gpt.pe_size;
+	plen[0] = iter->gpt.pe_size;
 	/* Next comes the GPT partition record copy */
 	memcpy(plen + 1, iter->record, plen[0]);
 #ifdef DEBUG

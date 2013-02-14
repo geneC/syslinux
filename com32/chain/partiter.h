@@ -69,8 +69,8 @@ struct part_iter {
     int status;
     /* internal */
     int index0;
-    union _sub {
-	struct _dos {
+    union {
+	struct {
 	    uint32_t disk_sig;
 	    uint32_t nebr_lba;
 	    uint32_t cebr_lba;
@@ -82,7 +82,7 @@ struct part_iter {
 	    int bebr_index0;
 	    int skipcnt;
 	} dos;
-	struct _gpt {
+	struct {
 	    struct guid disk_guid;
 	    struct guid part_guid;
 	    char part_label[PI_GPTLABSIZE/2+1];
@@ -91,7 +91,7 @@ struct part_iter {
 	    uint64_t ufirst;
 	    uint64_t ulast;
 	} gpt;
-    } sub;
+    };
 };
 
 extern const struct itertype * const typedos;
