@@ -346,10 +346,10 @@ int find_dp(struct part_iter **_iter)
 
 	/* 'fs' => we should lookup the syslinux partition number and use it */
 	if (!strcmp(opt.drivename, "fs")) {
-	    while (!pi_next(iter)) {
+	    do {
 		if (iter->abs_lba == fs_lba)
 		    break;
-	    }
+	    } while (!pi_next(iter));
 	    /* broken part structure or other problems */
 	    if (iter->status) {
 		error("Can't find myself on the drive I booted from.");
