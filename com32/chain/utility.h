@@ -50,7 +50,7 @@ enum {L2C_CNUL, L2C_CADD, L2C_CMAX};
 void wait_key(void);
 void lba2chs(disk_chs *dst, const struct disk_info *di, uint64_t lba, int mode);
 uint32_t get_file_lba(const char *filename);
-int drvoff_detect(int type, unsigned int *off);
+int drvoff_detect(int type);
 int bpb_detect(const uint8_t *bpb, const char *tag);
 int guid_is0(const struct guid *guid);
 

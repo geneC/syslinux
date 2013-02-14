@@ -276,8 +276,8 @@ bail:
 /* Adjust BPB common function */
 static int mangle_bpb(const struct part_iter *iter, struct data_area *data, const char *tag)
 {
-    unsigned int off;
     int type = bpb_detect(data->data, tag);
+    int off = drvoff_detect(type);
 
     /* BPB: hidden sectors 32bit*/
     if (type >= bpbV34) {
@@ -307,7 +307,7 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
 	}
     }
     /* BPB: drive */
-    if (drvoff_detect(type, &off)) {
+    if (off >= 0) {
 	*(uint8_t *)((char *)data->data + off) = (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
     }
 
@@ -343,7 +343,7 @@ int mangles_bpb(const struct part_iter *iter, struct data_area *data)
 int manglesf_bss(struct data_area *sec, struct data_area *fil)
 {
     int type1, type2;
-    unsigned int cnt = 0;
+    size_t cnt = 0;
 
     if (!(opt.sect && opt.file && opt.bss))
 	return 0;
@@ -479,7 +479,7 @@ int mangler_grldr(const struct part_iter *iter)
 /*
  * try to copy values from temporary iterator, if positions match
  */
-static void push_embr(struct part_iter *diter, struct part_iter *siter)
+static void mbrcpy(struct part_iter *diter, struct part_iter *siter)
 {
     if (diter->dos.cebr_lba == siter->dos.cebr_lba &&
 	    diter->di.disk == siter->di.disk) {
@@ -487,7 +487,7 @@ static void push_embr(struct part_iter *diter, struct part_iter *siter)
     }
 }
 
-static int mpe_sethide(struct part_iter *iter, struct part_iter *miter)
+static int fliphide(struct part_iter *iter, struct part_iter *miter)
 {
     struct disk_dos_part_entry *dp;
     static const uint16_t mask =
@@ -500,7 +500,7 @@ static int mpe_sethide(struct part_iter *iter, struct part_iter *miter)
 
     if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
 	/* It's a hideable partition type */
-	if (miter->index == iter->index || opt.hide & 4)
+	if (miter->index == iter->index || opt.hide & HIDE_REV)
 	    t &= ~0x10u;	/* unhide */
 	else
 	    t |= 0x10u;	/* hide */
@@ -526,34 +526,35 @@ int manglepe_hide(struct part_iter *miter)
     struct disk_dos_part_entry *dp;
     int ridx;
 
-    if (!opt.hide)
+    if (!(opt.hide & HIDE_ON))
 	return 0;
 
     if (miter->type != typedos) {
-	error("Options '*hide*' is meaningful only for legacy partition scheme.\n");
+	error("Option '[un]hide[all]' is meaningful only for legacy (DOS) partition scheme.\n");
 	return -1;
     }
 
-    if (miter->index < 1)
-	error("WARNING: It's impossible to unhide a disk.\n");
-
-    if (miter->index > 4 && !(opt.hide & 2))
-	error("WARNING: your partition is beyond mbr, so it can't be unhidden without '*hideall'.\n");
+    if (miter->index > 4 && !(opt.hide & HIDE_EXT))
+	error("WARNING: your partition is logical, so it can't be unhidden without 'unhideall'.\n");
 
     if (!(iter = pi_begin(&miter->di, PIF_STEPALL)))
 	return -1;
 
     while (!pi_next(iter) && !werr) {
-	ridx = iter->index0 + 1;
-	if (!(opt.hide & 2) && ridx > 4)
+	ridx = iter->index0;
+	if (!(opt.hide & HIDE_EXT) && ridx > 3)
 	    break;  /* skip when we're constrained to pri only */
 
 	dp = (struct disk_dos_part_entry *)iter->record;
 	if (dp->ostype)
-	    wb |= mpe_sethide(iter, miter);
+	    wb |= fliphide(iter, miter);
 
-	if (ridx >= 4 && wb && !werr) {
-	    push_embr(miter, iter);
+	/*
+	 * we have to update mbr and each extended partition, but only if
+	 * changes (wb) were detected and there was no prior write error (werr)
+	 */
+	if (ridx >= 3 && wb && !werr) {
+	    mbrcpy(miter, iter);
 	    werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
 	    wb = 0;
 	}
@@ -562,20 +563,20 @@ int manglepe_hide(struct part_iter *miter)
     if (pi_errored(iter))
 	goto bail;
 
-    /* last write */
+    /* last update */
     if (wb && !werr) {
-	push_embr(miter, iter);
+	mbrcpy(miter, iter);
 	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)
-	error("WARNING: failed to write E/MBR during '*hide*'\n");
+	error("WARNING: failed to write E/MBR during '[un]hide[all]'\n");
 
 bail:
     pi_del(&iter);
     return 0;
 }
 
-static int mpe_setchs(const struct disk_info *di,
+static int updchs(const struct disk_info *di,
 		     struct disk_dos_part_entry *dp,
 		     uint32_t lba1)
 {
@@ -606,7 +607,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	return 0;
 
     if (miter->type != typedos) {
-	error("Options 'fixchs' is meaningful only for legacy partition scheme.\n");
+	error("Option 'fixchs' is meaningful only for legacy (DOS) partition scheme.\n");
 	return -1;
     }
 
@@ -614,15 +615,19 @@ int manglepe_fixchs(struct part_iter *miter)
 	return -1;
 
     while (!pi_next(iter) && !werr) {
-	ridx = iter->index0 + 1;
+	ridx = iter->index0;
 	dp = (struct disk_dos_part_entry *)iter->record;
 
-	wb |= mpe_setchs(&iter->di, dp, iter->start_lba);
-	if (ridx > 4)
-		wb |= mpe_setchs(&iter->di, dp + 1, iter->dos.nebr_lba);
+	wb |= updchs(&iter->di, dp, iter->start_lba);
+	if (ridx > 3)
+		wb |= updchs(&iter->di, dp + 1, iter->dos.nebr_lba);
 
-	if (ridx >= 4 && wb && !werr) {
-	    push_embr(miter, iter);
+	/*
+	 * we have to update mbr and each extended partition, but only if
+	 * changes (wb) were detected and there was no prior write error (werr)
+	 */
+	if (ridx >= 3 && wb && !werr) {
+	    mbrcpy(miter, iter);
 	    werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
 	    wb = 0;
 	}
@@ -631,9 +636,9 @@ int manglepe_fixchs(struct part_iter *miter)
     if (pi_errored(iter))
 	goto bail;
 
-    /* last write */
+    /* last update */
     if (wb && !werr) {
-	push_embr(miter, iter);
+	mbrcpy(miter, iter);
 	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)

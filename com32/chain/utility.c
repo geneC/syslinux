@@ -166,14 +166,13 @@ fail:
 }
 
 /* drive offset detection */
-int drvoff_detect(int type, unsigned int *off)
+int drvoff_detect(int type)
 {
     if (bpbV40 <= type && type <= bpbVNT) {
-	*off = 0x24;
+	return 0x24;
     } else if (type == bpbV70) {
-	*off = 0x40;
-    } else
-	return 0;
+	return 0x40;
+    }
 
     return -1;
 }
