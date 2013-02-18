@@ -74,6 +74,9 @@ static void pxe_close_file(struct file *file)
     struct inode *inode = file->inode;
     struct pxe_pvt_inode *socket = PVT(inode);
 
+    if (!inode)
+	return;
+
     if (!socket->tftp_goteof) {
 	socket->ops->close(inode);
     }
