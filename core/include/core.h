@@ -111,7 +111,7 @@ static inline void set_flags(com32sys_t *regs, uint32_t flags)
     regs->eflags.l = eflags;
 }
 
-extern int start_ldlinux(char **argv);
+extern int start_ldlinux(int argc, char **argv);
 extern int create_args_and_load(char *);
 
 extern void write_serial(char data);

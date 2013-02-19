@@ -122,17 +122,23 @@ __export void execute(const char *cmdline, uint32_t type)
 
 		ldlinux_enter_command();
 	} else if (type == IMAGE_TYPE_CONFIG) {
-		char *argv[] = { "ldlinux.c32", NULL };
+		char *argv[] = { "ldlinux.c32", NULL, NULL };
+		char *config;
 		int rv;
 
 		/* kernel contains the config file name */
-		realpath(ConfigName, kernel, FILENAME_MAX);
+		config = malloc(FILENAME_MAX);
+		if (!config)
+			goto out;
+
+		realpath(config, kernel, FILENAME_MAX);
 
 		/* If we got anything on the command line, do a chdir */
 		if (*args)
 			mangle_name(config_cwd, args);
 
-		rv = start_ldlinux(argv);
+		argv[1] = config;
+		rv = start_ldlinux(2, argv);
 		printf("Failed to exec ldlinux.c32: %s\n", strerror(rv));
 	} else if (type == IMAGE_TYPE_LOCALBOOT) {
 		local_boot(strtoul(kernel, NULL, 0));
@@ -145,6 +151,7 @@ __export void execute(const char *cmdline, uint32_t type)
 		new_linux_kernel((char *)kernel, (char *)args);
 	}
 
+out:
 	free((void *)kernel);
 
 	/* If this returns, something went bad; return to menu */

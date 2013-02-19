@@ -277,19 +277,15 @@ void ldlinux_console_init(void)
 	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
 }
 
-__export int main(int argc __unused, char **argv __unused)
+__export int main(int argc __unused, char **argv)
 {
 	const void *adv;
 	const char *cmdline;
 	size_t count = 0;
-	char *config_argv[2] = { NULL, NULL };
 
 	ldlinux_console_init();
 
-	if (ConfigName[0])
-		config_argv[0] = ConfigName;
-
-	parse_configs(config_argv);
+	parse_configs(&argv[1]);
 
 	__syslinux_set_serial_console_info();
 

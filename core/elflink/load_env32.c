@@ -59,12 +59,12 @@ void init_module_subsystem(struct elf_module *module)
     list_add(&module->list, &modules_head);
 }
 
-__export int start_ldlinux(char **argv)
+__export int start_ldlinux(int argc, char **argv)
 {
 	int rv;
 
 again:
-	rv = spawn_load(LDLINUX, 1, argv);
+	rv = spawn_load(LDLINUX, argc, argv);
 	if (rv == EEXIST) {
 		/*
 		 * If a COM32 module calls execute() we may need to
@@ -134,7 +134,7 @@ void load_env32(com32sys_t * regs __unused)
 
 	init_module_subsystem(&core_module);
 
-	start_ldlinux(argv);
+	start_ldlinux(1, argv);
 
 	/*
 	 * If we failed to load LDLINUX it could be because our
@@ -178,7 +178,7 @@ void load_env32(com32sys_t * regs __unused)
 			strcat(PATH, path);
 		}
 
-		start_ldlinux(argv);
+		start_ldlinux(1, argv);
 	}
 
 out:
