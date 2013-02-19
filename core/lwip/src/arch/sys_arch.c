@@ -25,6 +25,7 @@ void sys_sem_free(sys_sem_t *sem)
     if (!!sem && !!*sem) {
 	sys_sem_set_invalid(sem);
 	free(*sem);
+	*sem = NULL;
     }
 }
 
