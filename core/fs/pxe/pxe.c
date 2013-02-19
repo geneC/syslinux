@@ -984,6 +984,19 @@ err_reply:
 }
 
 
+static int __pxe_chdir(struct fs_info *fs, const char *src,
+		       enum pxe_path_type path_type)
+{
+    if (path_type == PXE_RELATIVE)
+	strlcat(fs->cwd_name, src, sizeof fs->cwd_name);
+    else if (path_type == PXE_HOMESERVER)
+	snprintf(fs->cwd_name, sizeof fs->cwd_name, "::%s", src);
+    else
+	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);
+    return 0;
+
+}
+
 /*
  * Store standard filename prefix
  */
@@ -1018,7 +1031,7 @@ static void get_prefix(void)
     }
 
     printf("TFTP prefix: %s\n", path_prefix);
-    chdir(path_prefix);
+    __pxe_chdir(this_fs, path_prefix, PXE_HOMESERVER);
 }
 
 /*
@@ -1041,10 +1054,7 @@ static int pxe_chdir(struct fs_info *fs, const char *src)
     /* The cwd for PXE is just a text prefix */
     enum pxe_path_type path_type = pxe_path_type(src);
 
-    if (path_type == PXE_RELATIVE)
-	strlcat(fs->cwd_name, src, sizeof fs->cwd_name);
-    else
-	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);
+    __pxe_chdir(fs, src, path_type);
 
     dprintf("cwd = \"%s\"\n", fs->cwd_name);
     return 0;
@@ -1065,7 +1075,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
     char *last;
     int tries = 8;
 
-    chdir(path_prefix);
+    get_prefix();
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
 	if (open_file(ConfigName, filedata) >= 0)
