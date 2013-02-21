@@ -154,9 +154,29 @@ __export void load_kernel(const char *command_line)
 	/* Virtual kernel? */
 	me = find_label(kernel);
 	if (me) {
-		type = parse_image_type(me->cmdline);
+		const char *args;
+		char *cmd;
+		size_t len = strlen(me->cmdline) + 1;
 
-		execute(me->cmdline, type);
+		/* Find the end of the command */
+		args = find_command(kernel);
+		while(*args && my_isspace(*args))
+			args++;
+
+		if (strlen(args))
+			len += strlen(args) + 1; /* +1 for space (' ') */
+
+		cmd = malloc(len);
+		if (!cmd)
+			goto bad_kernel;
+
+		if (strlen(args))
+			snprintf(cmd, len, "%s %s", me->cmdline, args);
+		else
+			strncpy(cmd, me->cmdline, len);
+
+		type = parse_image_type(cmd);
+		execute(cmd, type);
 		/* We shouldn't return */
 		goto bad_kernel;
 	}
