@@ -186,6 +186,12 @@ out:
 	writestr("\nFailed to load ldlinux.c32");
 }
 
+static const char *__cmdline;
+__export const char *com32_cmdline(void)
+{
+	return __cmdline;
+}
+
 __export int create_args_and_load(char *cmdline)
 {
 	char *p, **argv;
@@ -237,6 +243,12 @@ __export int create_args_and_load(char *cmdline)
 		 */
 		while (*p && isspace(*p))
 			p++;
+
+		/*
+		 * Point __cmdline at "argv[1] ... argv[argc-1]"
+		 */
+		if (i == 0)
+			__cmdline = p;
 	}
 
 	/* NUL-terminate */

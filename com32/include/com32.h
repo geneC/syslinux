@@ -206,4 +206,6 @@ static inline far_ptr_t FAR_PTR(void *__ptr)
     return __fptr;
 }
 
+extern const char *com32_cmdline(void);
+
 #endif /* _COM32_H */
