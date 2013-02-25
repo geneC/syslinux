@@ -152,4 +152,12 @@
 %define PXENV_STATUS_LOADER_UNDI_START			 0xca
 %define PXENV_STATUS_LOADER_BC_START			 0xcb
 
+; UNDI ISR codes
+%define PXENV_UNDI_ISR_IN_START				 1
+%define PXENV_UNDI_ISR_IN_PROCESS			 2
+%define PXENV_UNDI_ISR_IN_GET_NEXT			 3
+
+%define PXENV_UNDI_ISR_OUT_OURS			         0
+%define PXENV_UNDI_ISR_OUT_NOT_OURS			 1
+
 %endif ; _PXE_INC

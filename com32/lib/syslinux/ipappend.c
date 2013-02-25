@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2011 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -31,20 +32,16 @@
  * Get ipappend strings
  */
 
+#include <syslinux/sysappend.h>
 #include <syslinux/config.h>
+#include <syslinux/pmapi.h>
 #include <klibc/compiler.h>
 #include <core.h>
 
 struct syslinux_ipappend_strings __syslinux_ipappend_strings;
-static const char *syslinux_ipappend_string_list[32];
 
 void __constructor __syslinux_get_ipappend_strings(void)
 {
-    unsigned int i;
-
-    __syslinux_ipappend_strings.count = (size_t)numIPAppends;
-    __syslinux_ipappend_strings.ptr = syslinux_ipappend_string_list;
-
-    for (i = 0; i < (size_t)numIPAppends; i++)
-	syslinux_ipappend_string_list[i] = (const char *)(size_t)IPAppends[i];
+    __syslinux_ipappend_strings.count = SYSAPPEND_MAX,
+    __syslinux_ipappend_strings.ptr   = sysappend_strings;
 }

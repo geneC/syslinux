@@ -125,8 +125,8 @@ LIBOTHER_OBJS = \
 	strnlen.o							\
 	strncat.o strndup.o		\
 	stpncpy.o						\
-	strntoimax.o strntoumax.o strsep.o strspn.o strstr.o	\
-	strtoimax.o strtok.o strtol.o strtoll.o strtoul.o strtoull.o	\
+	strntoimax.o strsep.o strspn.o strstr.o				\
+	strtoimax.o strtok.o strtol.o strtoll.o strtoull.o		\
 	strtoumax.o vprintf.o vsprintf.o		\
 	asprintf.o vasprintf.o			\
 	vsscanf.o							\
@@ -168,8 +168,8 @@ CORELIBOBJS = \
 	strlen.o vsnprintf.o snprintf.o stpcpy.o strcmp.o strdup.o 	\
 	strcpy.o strncpy.o setjmp.o fopen.o fread.o fread2.o puts.o 	\
 	sprintf.o strlcat.o strchr.o strlcpy.o strncasecmp.o ctypes.o 	\
-	fputs.o fwrite2.o fwrite.o fgetc.o fclose.o errno.o lmalloc.o 	\
-	sys/err_read.o sys/err_write.o sys/null_read.o 			\
+	fputs.o fwrite2.o fwrite.o fgetc.o fclose.o lmalloc.o strtoul.o	\
+	sys/err_read.o sys/err_write.o sys/null_read.o strntoumax.o	\
 	sys/stdcon_write.o						\
 	syslinux/memscan.o strrchr.o strcat.o				\
 	libgcc/__ashldi3.o libgcc/__udivdi3.o				\

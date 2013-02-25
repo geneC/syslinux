@@ -11,6 +11,9 @@
 #include <com32.h>
 #include <errno.h>
 #include <syslinux/pmapi.h>
+#include <syslinux/sysappend.h>
+#include <kaboom.h>
+#include <timer.h>
 
 extern char core_xfer_buf[65536];
 extern char core_cache_buf[65536];
@@ -42,6 +45,10 @@ extern uint8_t FlowIgnore;
 /* diskstart.inc isolinux.asm*/
 extern void getlinsec(void);
 
+/* pm.inc */
+void core_pm_null_hook(void);
+extern void (*core_pm_hook)(void);
+
 /* getc.inc */
 extern void core_open(void);
 
@@ -60,6 +67,12 @@ extern void *zalloc(size_t);
 extern void free(void *);
 extern void mem_init(void);
 
+/* sysappend.c */
+extern void print_sysappend(void);
+extern const char *sysappend_strings[SYSAPPEND_MAX];
+extern uint32_t SysAppends;
+extern void sysappend_set_uuid(const uint8_t *uuid);
+
 void __cdecl core_intcall(uint8_t, const com32sys_t *, com32sys_t *);
 void __cdecl core_farcall(uint32_t, const com32sys_t *, com32sys_t *);
 int __cdecl core_cfarcall(uint32_t, const void *, uint32_t);
@@ -72,31 +85,6 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
  */
 #define __lowmem __attribute__((nocommon,section(".lowmem")))
 #define __bss16  __attribute__((nocommon,section(".bss16")))
-
-/*
- * Section for very large aligned objects, not zeroed on startup
- */
-#define __hugebss __attribute__((nocommon,section(".hugebss"),aligned(4096)))
-
-/*
- * Death!  The macro trick is to avoid symbol conflict with
- * the real-mode symbol kaboom.
- */
-__noreturn _kaboom(void);
-#define kaboom() _kaboom()
-
-/*
- * Basic timer function...
- */
-extern volatile uint32_t __jiffies, __ms_timer;
-static inline uint32_t jiffies(void)
-{
-    return __jiffies;
-}
-static inline uint32_t ms_timer(void)
-{
-    return __ms_timer;
-}
 
 /*
  * Helper routine to return a specific set of flags
@@ -125,7 +113,11 @@ extern void cleanup_hardware(void);
 extern void sirq_cleanup(void);
 extern void adjust_screen(void);
 
-extern void execute(const char *cmdline, uint32_t type);
+extern void execute(const char *cmdline, uint32_t type, bool sysappend);
 extern void load_kernel(const char *cmdline);
+
+extern void dmi_init(void);
+
+extern void do_sysappend(char *buf);
 
 #endif /* CORE_H */

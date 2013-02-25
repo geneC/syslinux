@@ -176,7 +176,7 @@ __export void load_kernel(const char *command_line)
 			strncpy(cmd, me->cmdline, len);
 
 		type = parse_image_type(cmd);
-		execute(cmd, type);
+		execute(cmd, type, false);
 		/* We shouldn't return */
 		goto bad_kernel;
 	}
@@ -213,7 +213,7 @@ __export void load_kernel(const char *command_line)
 		}
 	}
 
-	execute(kernel, type);
+	execute(kernel, type, true);
 	free((void *)kernel);
 
 bad_implicit:
@@ -230,7 +230,7 @@ bad_kernel:
 			rsprintf(&cmdline, "%s %s", onerror, default_cmd);
 
 		type = parse_image_type(cmdline);
-		execute(cmdline, type);
+		execute(cmdline, type, true);
 	}
 }
 

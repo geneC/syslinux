@@ -57,7 +57,7 @@ struct com32_pmapi {
     void *(*lmalloc)(size_t);
     void (*lfree)(void *);
 
-    int (*open_file)(const char *, struct com32_filedata *);
+    int (*open_file)(const char *, int, struct com32_filedata *);
     size_t (*read_file)(uint16_t *, void *, size_t);
     void (*close_file)(uint16_t);
 
@@ -74,6 +74,9 @@ struct com32_pmapi {
     /* Should be "const volatile", but gcc miscompiles that sometimes */
     volatile uint32_t *jiffies;
     volatile uint32_t *ms_timer;
+
+    const int sysappend_count;
+    const char * const *sysappend_strings;
 };
 
 #endif /* _SYSLINUX_PMAPI_H */

@@ -121,22 +121,45 @@ static inline void wrmsr(uint64_t v, uint32_t msr)
 
 static inline void cpu_relax(void)
 {
-    asm volatile("rep ; nop");
+    asm volatile("rep ; nop" : : : "memory");
 }
 
 static inline void hlt(void)
 {
-    asm volatile("hlt");
+    asm volatile("hlt" : : : "memory");
 }
 
 static inline void cli(void)
 {
-    asm volatile("cli");
+    asm volatile("cli" : : : "memory");
 }
 
 static inline void sti(void)
 {
-    asm volatile("sti");
+    asm volatile("sti" : : : "memory");
 }
+
+typedef unsigned long irq_state_t;
+
+static inline irq_state_t irq_state(void)
+{
+    irq_state_t __st;
+
+    asm volatile("pushfl ; popl %0" : "=rm" (__st) : : "memory");
+    return __st;
+}
+
+static inline irq_state_t irq_save(void)
+{
+    irq_state_t __st = irq_state();
+    cli();
+    return __st;
+}
+
+static inline void irq_restore(irq_state_t __st)
+{
+    asm volatile("pushl %0 ; popfl" : : "rm" (__st) : "memory");
+}
+
 
 #endif

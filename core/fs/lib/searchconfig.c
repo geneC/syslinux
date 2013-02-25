@@ -1,4 +1,5 @@
 #include <dprintf.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <core.h>
@@ -30,7 +31,7 @@ int search_dirs(struct com32_filedata *filedata,
 	    if (realpath(realname, namebuf, FILENAME_MAX) == (size_t)-1)
 		continue;
 	    dprintf("Config search: %s\n", realname);
-	    if (open_file(realname, filedata) >= 0) {
+	    if (open_file(realname, O_RDONLY, filedata) >= 0) {
 		chdir(sd);
 		return 0;	/* Got it */
 	    }

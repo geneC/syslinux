@@ -29,6 +29,7 @@
  * ----------------------------------------------------------------------- */
 
 #include <com32.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
@@ -151,7 +152,7 @@ uint32_t get_file_lba(const char *filename)
     /* Put the filename in the bounce buffer */
     strlcpy(buf, filename, size);
 
-    if (open_file(buf, &fd) <= 0) {
+    if (open_file(buf, O_RDONLY, &fd) <= 0) {
 	goto fail;		/* Filename not found */
     }
 
