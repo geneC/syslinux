@@ -7,14 +7,11 @@
 #include <minmax.h>
 #include <fcntl.h>
 #include <sys/cpu.h>
-#include <lwip/api.h>
-#include <lwip/dns.h>
-#include <lwip/tcpip.h>
-#include <lwip/opt.h>
 #include "pxe.h"
 #include "thread.h"
 #include "url.h"
 #include "tftp.h"
+#include <net.h>
 
 __lowmem t_PXENV_UNDI_GET_INFORMATION pxe_undi_info;
 __lowmem t_PXENV_UNDI_GET_IFACE_INFO  pxe_undi_iface;
@@ -38,8 +35,10 @@ static struct url_scheme {
     int ok_flags;
 } url_schemes[] = {
     { "tftp", tftp_open, 0 },
+#ifdef IS_LPXELINUX
     { "http", http_open, O_DIRECTORY },
     { "ftp",  ftp_open,  O_DIRECTORY },
+#endif
     { NULL, NULL, 0 },
 };
 #define OK_FLAGS_MASK	(O_DIRECTORY|O_WRONLY)
@@ -772,14 +771,7 @@ static int pxe_init(bool quiet)
 
     real_base_mem = max(code_seg, data_seg) >> 6; /* Convert to kilobytes */
 
-    /* Probe UNDI information */
-    pxe_call(PXENV_UNDI_GET_INFORMATION, &pxe_undi_info);
-    pxe_call(PXENV_UNDI_GET_IFACE_INFO,  &pxe_undi_iface);
-    
-    printf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
-	   pxe_undi_info.BaseIo, pxe_undi_info.IntNumber,
-	   pxe_undi_info.MaxTranUnit, pxe_undi_info.HwType,
-	   pxe_undi_iface.IfaceType, pxe_undi_iface.ServiceFlags);
+    probe_undi();
 
     return 0;
 }
@@ -809,9 +801,7 @@ static void gpxe_init(void)
  */
 static void network_init(void)
 {
-    int err;
     int pkt_len;
-    int i;
     struct bootp_t *bp;
     const size_t dhcp_max_packet = 4096;
 
@@ -870,9 +860,8 @@ static void network_init(void)
     if (have_uuid)
 	sysappend_set_uuid(uuid);
     ip_init();
-    /* print_sysappend(); */
-    http_bake_cookies();
 
+    /* print_sysappend(); */
     /*
      * Check to see if we got any PXELINUX-specific DHCP options; in particular,
      * if we didn't get the magic enable, do not recognize any other options.
@@ -880,20 +869,7 @@ static void network_init(void)
     if ((DHCPMagic & 1) == 0)
         DHCPMagic = 0;
 
-    /* Initialize lwip */
-    tcpip_init(NULL, NULL);
-
-    /* Start up the undi driver for lwip */
-    err = undiif_start(IPInfo.myip, IPInfo.netmask, IPInfo.gateway);
-    if (err) {
-       printf("undiif driver failed to start: %d\n", err);
-       kaboom();
-    }
-
-    for (i = 0; i < DNS_MAX_SERVERS; i++) {
-	/* Transfer the DNS information to lwip */
-	dns_setserver(i, (struct ip_addr *)&dns_server[i]);
-    }
+    net_core_init();
 }
 
 /*

@@ -114,19 +114,29 @@ struct pxe_conn_ops {
     int (*readdir)(struct inode *inode, struct dirent *dirent);
 };    
 
-struct pxe_pvt_inode {
+struct net_private {
+#ifdef IS_LPXELINUX
     struct netconn *conn;      /* lwip network connection */
     struct netbuf *buf;	       /* lwip cached buffer */
-    uint16_t tftp_remoteport;  /* Remote port number */
-    uint32_t tftp_filepos;     /* bytes downloaded (including buffer) */
-    uint32_t tftp_blksize;     /* Block size for this connection(*) */
-    uint16_t tftp_bytesleft;   /* Unclaimed data bytes */
-    uint16_t tftp_lastpkt;     /* Sequence number of last packet (HBO) */
-    char    *tftp_dataptr;     /* Pointer to available data */
-    uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
-    uint8_t  tftp_unused[3];   /* Currently unused */
-    char    *tftp_pktbuf;      /* Packet buffer */
-    struct inode *ctl;	       /* Control connection (for FTP) */
+#else
+    uint16_t tftp_localport;   /* Local port number  (0=not in use) */
+    uint32_t tftp_remoteip;    /* Remote IP address (0 = disconnected) */
+#endif
+
+};
+
+struct pxe_pvt_inode {
+    struct net_private private;   /* Network stack private data */
+    uint16_t tftp_remoteport;     /* Remote port number */
+    uint32_t tftp_filepos;        /* bytes downloaded (including buffer) */
+    uint32_t tftp_blksize;        /* Block size for this connection(*) */
+    uint16_t tftp_bytesleft;      /* Unclaimed data bytes */
+    uint16_t tftp_lastpkt;        /* Sequence number of last packet (HBO) */
+    char    *tftp_dataptr;        /* Pointer to available data */
+    uint8_t  tftp_goteof;         /* 1 if the EOF packet received */
+    uint8_t  tftp_unused[3];      /* Currently unused */
+    char    *tftp_pktbuf;         /* Packet buffer */
+    struct inode *ctl;	          /* Control connection (for FTP) */
     const struct pxe_conn_ops *ops;
 };
 
@@ -174,6 +184,18 @@ extern far_ptr_t InitStack;
 extern bool have_uuid;
 extern uint8_t uuid_type;
 extern uint8_t uuid[];
+
+/*
+ * Compute the suitable gateway for a specific route -- too many
+ * vendor PXE stacks don't do this correctly...
+ */
+static inline uint32_t gateway(uint32_t ip)
+{
+    if ((ip ^ IPInfo.myip) & IPInfo.netmask)
+	return IPInfo.gateway;
+    else
+	return 0;
+}
 
 /*
  * functions

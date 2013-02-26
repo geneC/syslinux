@@ -1,10 +1,10 @@
 #include <minmax.h>
-#include <lwip/api.h>
+#include <net.h>
 #include "pxe.h"
 #include "url.h"
 #include "tftp.h"
 
-static const uint8_t TimeoutTable[] = {
+const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44,
     53, 64, 77, 92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
@@ -38,43 +38,7 @@ static void tftp_close_file(struct inode *inode)
     if (!socket->tftp_goteof) {
 	tftp_error(inode, 0, "No error, file close");
     }
-    if (socket->conn) {
-	netconn_delete(socket->conn);
-	socket->conn = NULL;
-    }
-}
-
-/*
- * Send a UDP packet.
- */
-static void udp_send(struct netconn *conn, const void *data, size_t len)
-{
-    struct netbuf *nbuf;
-    void *pbuf;
-    int err;
-
-    nbuf = netbuf_new();
-    if (!nbuf) {
-	printf("netbuf allocation error\n");
-	return;
-    }
-    
-    pbuf = netbuf_alloc(nbuf, len);
-    if (!pbuf) {
-	printf("pbuf allocation error\n");
-	goto out;
-    }
-
-    memcpy(pbuf, data, len);
-
-    err = netconn_send(conn, nbuf);
-    if (err) {
-	printf("netconn_send error %d\n", err);
-	goto out;
-    }
-
-out:
-    netbuf_delete(nbuf);
+    net_core_close(socket);
 }
 
 /**
@@ -100,7 +64,7 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
     memcpy(err_buf.err_msg, errstr, len);
     err_buf.err_msg[len] = '\0';
 
-    udp_send(socket->conn, &err_buf, 4 + len + 1);
+    net_core_send(socket, &err_buf, 4 + len + 1);
 }
 
 /**
@@ -119,7 +83,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
     ack_packet_buf[0]     = TFTP_ACK;
     ack_packet_buf[1]     = htons(ack_num);
 
-    udp_send(socket->conn, ack_packet_buf, 4);
+    net_core_send(socket, ack_packet_buf, 4);
 }
 
 /*
@@ -135,10 +99,11 @@ static void tftp_get_packet(struct inode *inode)
     uint16_t serial;
     jiffies_t oldtime;
     struct tftp_packet *pkt = NULL;
-    struct netbuf *nbuf;
-    u16_t nbuf_len;
+    uint16_t buf_len;
     struct pxe_pvt_inode *socket = PVT(inode);
-    err_t err;
+    uint16_t src_port;
+    uint32_t src_ip;
+    int err;
 
     /*
      * Start by ACKing the previous packet; this should cause
@@ -152,8 +117,10 @@ static void tftp_get_packet(struct inode *inode)
     ack_packet(inode, socket->tftp_lastpkt);
 
     while (timeout) {
-	err = netconn_recv(socket->conn, &nbuf);
-	if (!nbuf || err) {
+	buf_len = socket->tftp_blksize + 4;
+	err = net_core_recv(socket, socket->tftp_pktbuf, &buf_len,
+			    &src_ip, &src_port);
+	if (err) {
 	    jiffies_t now = jiffies();
 
 	    if (now-oldtime >= timeout) {
@@ -166,15 +133,7 @@ static void tftp_get_packet(struct inode *inode)
             continue;
 	}
 
-	netbuf_first(nbuf);
-	nbuf_len = 0;
-	nbuf_len = netbuf_len(nbuf);
-	if (nbuf_len <= socket->tftp_blksize + 4)
-	    netbuf_copy(nbuf, socket->tftp_pktbuf, nbuf_len);
-	else
-	    nbuf_len = 0;	/* invalid packet */
-	netbuf_delete(nbuf);
-	if (nbuf_len < 4)	/* Bad size for a DATA packet */
+	if (buf_len < 4)	/* Bad size for a DATA packet */
 	    continue;
 
         pkt = (struct tftp_packet *)(socket->tftp_pktbuf);
@@ -207,7 +166,7 @@ static void tftp_get_packet(struct inode *inode)
 
     /* It's the packet we want.  We're also EOF if the size < blocksize */
     socket->tftp_lastpkt = last_pkt;    /* Update last packet number */
-    buffersize = nbuf_len - 4;		/* Skip TFTP header */
+    buffersize = buf_len - 4;		/* Skip TFTP header */
     socket->tftp_dataptr = socket->tftp_pktbuf + 4;
     socket->tftp_filepos += buffersize;
     socket->tftp_bytesleft = buffersize;
@@ -243,8 +202,7 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     char *buf;
-    struct netbuf *nbuf;
-    u16_t nbuf_len;
+    uint16_t buf_len;
     char *p;
     char *options;
     char *data;
@@ -262,7 +220,8 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
     uint16_t opcode;
     uint16_t blk_num;
     uint32_t opdata, *opdata_ptr;
-    struct ip_addr addr;
+    uint16_t src_port;
+    uint32_t src_ip;
 
     (void)redir;		/* TFTP does not redirect */
     (void)flags;
@@ -279,16 +238,8 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
 	url->port = TFTP_PORT;
 
     socket->ops = &tftp_conn_ops;
-    socket->conn = netconn_new(NETCONN_UDP);
-    if (!socket->conn)
+    if (net_core_open(socket, NET_CORE_UDP))
 	return;
-
-    socket->conn->recv_timeout = 15; /* A 15 ms recv timeout... */
-    err = netconn_bind(socket->conn, NULL, 0);
-    if (err) {
-	printf("netconn_bind error %d\n", err);
-	return;
-    }
 
     buf = rrq_packet_buf;
     *(uint16_t *)buf = TFTP_RRQ;  /* TFTP opcode */
@@ -303,48 +254,42 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
     rrq_len = buf - rrq_packet_buf;
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
-    
 sendreq:
-    netconn_disconnect(socket->conn);
+    net_core_disconnect(socket);
     timeout = *timeout_ptr++;
     if (!timeout)
 	return;			/* No file available... */
     oldtime = jiffies();
 
-    addr.addr = url->ip;
-    netconn_connect(socket->conn, &addr, url->port);
-    udp_send(socket->conn, rrq_packet_buf, rrq_len);
+    net_core_connect(socket, url->ip, url->port);
+    net_core_send(socket, rrq_packet_buf, rrq_len);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
 wait_pkt:
-    netconn_disconnect(socket->conn);
+    net_core_disconnect(socket);
     for (;;) {
-	err = netconn_recv(socket->conn, &nbuf);
-	if (!nbuf || err) {
+	buf_len = sizeof(reply_packet_buf);
+
+	err = net_core_recv(socket, reply_packet_buf, &buf_len,
+			    &src_ip, &src_port);
+	if (err) {
 	    jiffies_t now = jiffies();
 	    if (now - oldtime >= timeout)
 		 goto sendreq;
 	} else {
 	    /* Make sure the packet actually came from the server */
-	    bool ok_source;
-	    ok_source = netbuf_fromaddr(nbuf)->addr == url->ip;
-	    nbuf_len = netbuf_len(nbuf);
-	    if (nbuf_len <= PKTBUF_SIZE)
-		netbuf_copy(nbuf, reply_packet_buf, nbuf_len);
-	    else
-		nbuf_len = 0; /* impossible mtu < PKTBUF_SIZE */
-	    netbuf_delete(nbuf);
-	    if (ok_source)
-	        break;
+	    if (src_ip == url->ip)
+		break;
 	}
     }
 
-    netconn_connect(socket->conn, netbuf_fromaddr(nbuf), netbuf_fromport(nbuf));
+    net_core_disconnect(socket);
+    net_core_connect(socket, src_ip, src_port);
 
     /* filesize <- -1 == unknown */
     inode->size = -1;
     socket->tftp_blksize = TFTP_BLOCKSIZE;
-    buffersize = nbuf_len - 2;	  /* bytes after opcode */
+    buffersize = buf_len - 2;	  /* bytes after opcode */
     if (buffersize < 0)
         goto wait_pkt;                     /* Garbled reply */
 
@@ -491,9 +436,8 @@ err_reply:
     inode->size = 0;
 
 done:
-    if (!inode->size) {
-	netconn_delete(socket->conn);
-	socket->conn = NULL;
-    }
+    if (!inode->size)
+	net_core_close(socket);
+
     return;
 }

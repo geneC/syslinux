@@ -191,8 +191,8 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     inode->size = content_length = -1;
 
     /* Start the http connection */
-    socket->conn = netconn_new(NETCONN_TCP);
-    if (!socket->conn) {
+    socket->private.conn = netconn_new(NETCONN_TCP);
+    if (!socket->private.conn) {
 	printf("netconn_new failed\n");
         return;
     }
@@ -201,7 +201,7 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     if (!url->port)
 	url->port = HTTP_PORT;
 
-    err = netconn_connect(socket->conn, &addr, url->port);
+    err = netconn_connect(socket->private.conn, &addr, url->port);
     if (err) {
 	printf("netconn_connect error %d\n", err);
 	goto fail;
@@ -225,7 +225,7 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     if (header_bytes >= header_len)
 	goto fail;		/* Buffer overflow */
 
-    err = netconn_write(socket->conn, header_buf,
+    err = netconn_write(socket->private.conn, header_buf,
 			header_bytes, NETCONN_NOCOPY);
     if (err) {
 	printf("netconn_write error %d\n", err);
