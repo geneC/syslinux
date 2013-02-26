@@ -132,7 +132,7 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
 	    goto bail;
 
 #if DEBUG > 1
-	syslinux_dump_movelist(stdout, fraglist);
+	syslinux_dump_movelist(fraglist);
 #endif
 
 	if (syslinux_compute_movelist(&moves, fraglist, rxmap))
@@ -152,7 +152,7 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
 
 #if DEBUG > 1
     dprintf("Final movelist:\n");
-    syslinux_dump_movelist(stdout, moves);
+    syslinux_dump_movelist(moves);
 #endif
 
     syslinux_free_memmap(rxmap);
