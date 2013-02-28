@@ -1399,6 +1399,15 @@ static int parse_one_config(const char *filename)
 	f = fdopen(fd, mode);
 	parse_config_file(f);
 
+	/*
+	 * Update ConfigName so that syslinux_config_file() returns
+	 * the filename we just opened. filesystem-specific
+	 * open_config() implementations are expected to update
+	 * ConfigName themselves.
+	 */
+	if (filename)
+	    strcpy(ConfigName, filename);
+
 	return 0;
 }
 
