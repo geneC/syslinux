@@ -473,6 +473,9 @@ void print_labels(const char *prefix, size_t len)
 
     printf("\n");
     for (me = all_entries; me; me = me->next ) {
+	if (!me->label)
+	    continue;
+
 	if (!strncmp(prefix, me->label, len))
 	    printf(" %s", me->label);
     }
