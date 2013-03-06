@@ -288,6 +288,31 @@ static void consider_for_hotkey(struct menu *m, struct menu_entry *me)
     }
 }
 
+/*
+ * Copy a string, converting whitespace characters to underscores
+ * and compacting them.  Return a pointer to the final null.
+ */
+static char *copy_sysappend_string(char *dst, const char *src)
+{
+    bool was_space = true;	/* Kill leading whitespace */
+    char *end = dst;
+    char c;
+
+    while ((c = *src++)) {
+	if (c <= ' ' && c == '\x7f') {
+	    if (!was_space)
+		*dst++ = '_';
+	    was_space = true;
+	} else {
+	    *dst++ = c;
+	    end = dst;
+	    was_space = false;
+	}
+    }
+    *end = '\0';
+    return end;
+}
+
 static void record(struct menu *m, struct labeldata *ld, const char *append)
 {
     int i;
@@ -353,9 +378,11 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	    if (ld->ipappend) {
 		ipappend = syslinux_ipappend_strings();
 		for (i = 0; i < ipappend->count; i++) {
-		    if ((ld->ipappend & (1U << i)) && ipappend->ptr[i] &&
-			ipappend->ptr[i][0])
-			ipp += sprintf(ipp, " %s", ipappend->ptr[i]);
+		    if ((ld->ipappend & (1U << i)) &&
+			ipappend->ptr[i] && ipappend->ptr[i][0]) {
+			*ipp++ = ' ';
+			ipp = copy_sysappend_string(ipp, ipappend->ptr[i]);
+		    }
 		}
 	    }
 
@@ -1017,7 +1044,7 @@ do_include:
 	    m->ontimeout = refstrdup(skipspace(p + 9));
 	} else if (looking_at(p, "allowoptions")) {
 	    m->allowedit = !!atoi(skipspace(p + 12));
-	} else if (looking_at(p, "ipappend")) {
+	} else if (looking_at(p, "ipappend") || looking_at(p, "sysappend")) {
 	    if (ld.label)
 		ld.ipappend = atoi(skipspace(p + 8));
 	    else

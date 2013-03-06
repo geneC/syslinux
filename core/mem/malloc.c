@@ -12,6 +12,9 @@
 #include <minmax.h>
 
 #include "malloc.h"
+#include "thread.h"
+
+DECLARE_INIT_SEMAPHORE(__malloc_semaphore, 1);
 
 static void *__malloc_from_block(struct free_arena_header *fp,
 				 size_t size, malloc_tag_t tag)
@@ -72,6 +75,8 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     dprintf("_malloc(%zu, %u, %u) @ %p = ",
 	size, heap, tag, __builtin_return_address(0));
 
+    sem_down(&__malloc_semaphore, 0);
+
     if (size) {
 	/* Add the obligatory arena header, and round up */
 	size = (size + 2 * sizeof(struct arena_header) - 1) & ARENA_SIZE_MASK;
@@ -84,6 +89,8 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
 	    }
         }
     }
+
+    sem_up(&__malloc_semaphore);
 
     dprintf("%p\n", p);
     return p;

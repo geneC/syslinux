@@ -86,7 +86,9 @@ __export void free(void *ptr)
 	dprintf("invalid arena type: %d\n", ARENA_TYPE_GET(ah->a.attrs));
 #endif
 
+    sem_down(&__malloc_semaphore, 0);
     __free_block(ah);
+    sem_up(&__malloc_semaphore);
 
   /* Here we could insert code to return memory to the system. */
 }
@@ -108,6 +110,8 @@ void __inject_free_block(struct free_arena_header *ah)
 	    ARENA_SIZE_GET(ah->a.attrs), ah,
 	    ARENA_HEAP_GET(ah->a.attrs), head);
 
+    sem_down(&__malloc_semaphore, 0);
+
     for (nah = head->a.next ; nah != head ; nah = nah->a.next) {
         n_end = (size_t) nah + ARENA_SIZE_GET(nah->a.attrs);
 
@@ -122,6 +126,7 @@ void __inject_free_block(struct free_arena_header *ah)
 	printf("conflict:ah: %p, a_end: %p, nah: %p, n_end: %p\n", ah, a_end, nah, n_end);
 
         /* Otherwise we have some sort of overlap - reject this block */
+	sem_up(&__malloc_semaphore);
         return;
     }
 
@@ -132,6 +137,8 @@ void __inject_free_block(struct free_arena_header *ah)
     ah->a.prev->a.next = ah;
 
     __free_block(ah);
+
+    sem_up(&__malloc_semaphore);
 }
 
 /*
@@ -140,6 +147,8 @@ void __inject_free_block(struct free_arena_header *ah)
 static void __free_tagged(malloc_tag_t tag) {
     struct free_arena_header *fp, *head;
     int i;
+
+    sem_down(&__malloc_semaphore, 0);
 
     for (i = 0; i < NHEAP; i++) {
 	dprintf("__free_tagged(%u) heap %d\n", tag, i);
@@ -151,6 +160,7 @@ static void __free_tagged(malloc_tag_t tag) {
 	}
     }
 
+    sem_up(&__malloc_semaphore);
     dprintf("__free_tagged(%u) done\n", tag);
 }
 

@@ -12,12 +12,9 @@
 #include "disk.h"
 
 /*
- * Maximum number of open files.  This is *currently* constrained by the
- * fact that PXE needs to be able to fit all its packet buffers into a
- * 64K segment; this should be fixed by moving the packet buffers to high
- * memory.
+ * Maximum number of open files.
  */
-#define MAX_OPEN_LG2	5
+#define MAX_OPEN_LG2	7
 #define MAX_OPEN	(1 << MAX_OPEN_LG2)
 
 #define FILENAME_MAX_LG2 8
@@ -56,7 +53,7 @@ struct fs_ops {
     enum fs_flags fs_flags;
     
     int      (*fs_init)(struct fs_info *);
-    void     (*searchdir)(const char *, struct file *);
+    void     (*searchdir)(const char *, int, struct file *);
     uint32_t (*getfssec)(struct file *, char *, int, bool *);
     void     (*close_file)(struct file *);
     void     (*mangle_name)(char *, const char *);
@@ -191,10 +188,10 @@ extern char *PATH;
 void pm_mangle_name(com32sys_t *);
 void pm_searchdir(com32sys_t *);
 void mangle_name(char *, const char *);
-int searchdir(const char *name);
+int searchdir(const char *name, int flags);
 void _close_file(struct file *);
 size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors);
-int open_file(const char *name, struct com32_filedata *filedata);
+int open_file(const char *name, int flags, struct com32_filedata *filedata);
 void pm_open_file(com32sys_t *);
 void close_file(uint16_t handle);
 void pm_close_file(com32sys_t *);

@@ -46,16 +46,21 @@ const struct image_types image_boot_types[] = {
 
 extern int create_args_and_load(char *);
 
-__export void execute(const char *cmdline, uint32_t type)
+__export void execute(const char *cmdline, uint32_t type, bool sysappend)
 {
 	const char *kernel, *args;
 	const char *p;
 	com32sys_t ireg;
-	char *q;
+	char *q, ch;
 
 	memset(&ireg, 0, sizeof ireg);
 
-	q = malloc(strlen(cmdline) + 2);
+	if (strlen(cmdline) >= MAX_CMDLINE_LEN) {
+		printf("cmdline too long\n");
+		return;
+	}
+
+	q = malloc(MAX_CMDLINE_LEN);
 	if (!q) {
 		printf("%s(): Fail to malloc a buffer to exec %s\n",
 			__func__, cmdline);
@@ -72,7 +77,17 @@ __export void execute(const char *cmdline, uint32_t type)
 	while (*p && my_isspace(*p))
 		p++;
 
-	strcpy(q, p);
+	do {
+		*q++ = ch = *p++;
+	} while (ch);
+
+	if (sysappend) {
+		/* If we've seen some args, insert a space */
+		if (--q != args)
+			*q++ = ' ';
+
+		do_sysappend(q);
+	}
 
 	dprintf("kernel is %s, args = %s  type = %d \n", kernel, args, type);
 
@@ -92,7 +107,7 @@ __export void execute(const char *cmdline, uint32_t type)
 						return;
 				}
 
-				execute(p, t->type);
+				execute(p, t->type, sysappend);
 				return;
 			}
 		}

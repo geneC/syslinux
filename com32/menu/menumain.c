@@ -1161,10 +1161,10 @@ int main(int argc, char *argv[])
 	if (cmdline) {
 	    uint32_t type = parse_image_type(cmdline);
 
-	    execute(cmdline, type);
+	    execute(cmdline, type, false);
 	    if (cm->onerror) {
 		type = parse_image_type(cm->onerror);
-		execute(cm->onerror, type);
+		execute(cm->onerror, type, true);
 	    }
 	} else {
 	    return 0;		/* Exit */

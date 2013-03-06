@@ -1,7 +1,7 @@
 /* -----------------------------------------------------------------------
  *
  *   Copyright 1999-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,67 +21,21 @@
 #define PXE_H
 
 #include <syslinux/pxe_api.h>
-#include "fs.h"			/* For MAX_OPEN, should go away */
+#include "fs.h"			/* Mostly for FILENAME_MAX */
 
 /*
  * Some basic defines...
  */
-#define TFTP_PORT        htons(69)              /* Default TFTP port */
-#define TFTP_BLOCKSIZE_LG2 9
-#define TFTP_BLOCKSIZE  (1 << TFTP_BLOCKSIZE_LG2)
-#define PKTBUF_SIZE     2048			/*  */
+#define PKTBUF_SIZE     2048	/* Used mostly by the gPXE backend */
 
 #define is_digit(c)     (((c) >= '0') && ((c) <= '9'))
-
-static inline bool is_hex(char c)
-{
-    return (c >= '0' && c <= '9') ||
-	(c >= 'A' && c <= 'F') ||
-	(c >= 'a' && c <= 'f');
-}
-
-static inline int hexval(char c)
-{
-    return (c >= 'A') ? (c & ~0x20) - 'A' + 10 : (c - '0');
-}
-
-/*
- * TFTP operation codes
- */
-#define TFTP_RRQ	 htons(1)		// Read rest
-#define TFTP_WRQ	 htons(2)		// Write rest
-#define TFTP_DATA	 htons(3)		// Data packet
-#define TFTP_ACK	 htons(4)		// ACK packet
-#define TFTP_ERROR	 htons(5)		// ERROR packet
-#define TFTP_OACK	 htons(6)		// OACK packet
-
-/*
- * TFTP error codes
- */
-#define TFTP_EUNDEF	 htons(0)		// Unspecified error
-#define TFTP_ENOTFOUND	 htons(1)		// File not found
-#define TFTP_EACCESS	 htons(2)		// Access violation
-#define TFTP_ENOSPACE	 htons(3)		// Disk full
-#define TFTP_EBADOP	 htons(4)		// Invalid TFTP operation
-#define TFTP_EBADID	 htons(5)		// Unknown transfer
-#define TFTP_EEXISTS	 htons(6)		// File exists
-#define TFTP_ENOUSER	 htons(7)		// No such user
-#define TFTP_EOPTNEG	 htons(8)		// Option negotiation failure
-
 
 #define BOOTP_OPTION_MAGIC  htonl(0x63825363)
 #define MAC_MAX 32
 
-/* Defines for DNS */
-#define DNS_PORT	htons(53)		/* Default DNS port */
-#define DNS_MAX_PACKET	512			/* Defined by protocol */
-#define DNS_MAX_SERVERS 4			/* Max no of DNS servers */
-
-
 /*
- * structures 
+ * structures
  */
-
 struct pxenv_t {
     uint8_t    signature[6];	/* PXENV+ */
     uint16_t   version;
@@ -149,22 +103,42 @@ struct bootp_t {
     uint8_t  options[1260]; /* Vendor options */
 } __attribute__ ((packed));
 
+struct netconn;
+struct netbuf;
 /*
  * Our inode private information -- this includes the packet buffer!
  */
+struct pxe_conn_ops {
+    void (*fill_buffer)(struct inode *inode);
+    void (*close)(struct inode *inode);
+    int (*readdir)(struct inode *inode, struct dirent *dirent);
+};    
+
+struct net_private {
+#ifdef IS_LPXELINUX
+    struct netconn *conn;      /* lwip network connection */
+    struct netbuf *buf;	       /* lwip cached buffer */
+#else
+    uint16_t tftp_localport;   /* Local port number  (0=not in use) */
+    uint32_t tftp_remoteip;    /* Remote IP address (0 = disconnected) */
+#endif
+
+};
+
 struct pxe_pvt_inode {
-    uint16_t tftp_localport;   /* Local port number  (0=not in us)*/
-    uint16_t tftp_remoteport;  /* Remote port number */
-    uint32_t tftp_remoteip;    /* Remote IP address */
-    uint32_t tftp_filepos;     /* bytes downloaded (includeing buffer) */
-    uint32_t tftp_blksize;     /* Block size for this connection(*) */
-    uint16_t tftp_bytesleft;   /* Unclaimed data bytes */
-    uint16_t tftp_lastpkt;     /* Sequence number of last packet (NBO) */
-    char    *tftp_dataptr;     /* Pointer to available data */
-    uint8_t  tftp_goteof;      /* 1 if the EOF packet received */
-    uint8_t  tftp_unused[3];   /* Currently unused */
-    char     tftp_pktbuf[PKTBUF_SIZE];
-} __attribute__ ((packed));
+    struct net_private private;   /* Network stack private data */
+    uint16_t tftp_remoteport;     /* Remote port number */
+    uint32_t tftp_filepos;        /* bytes downloaded (including buffer) */
+    uint32_t tftp_blksize;        /* Block size for this connection(*) */
+    uint16_t tftp_bytesleft;      /* Unclaimed data bytes */
+    uint16_t tftp_lastpkt;        /* Sequence number of last packet (HBO) */
+    char    *tftp_dataptr;        /* Pointer to available data */
+    uint8_t  tftp_goteof;         /* 1 if the EOF packet received */
+    uint8_t  tftp_unused[3];      /* Currently unused */
+    char    *tftp_pktbuf;         /* Packet buffer */
+    struct inode *ctl;	          /* Control connection (for FTP) */
+    const struct pxe_conn_ops *ops;
+};
 
 #define PVT(i) ((struct pxe_pvt_inode *)((i)->pvt))
 
@@ -184,6 +158,9 @@ struct ip_info {
  */
 extern struct ip_info IPInfo;
 
+extern t_PXENV_UNDI_GET_INFORMATION pxe_undi_info;
+extern t_PXENV_UNDI_GET_IFACE_INFO  pxe_undi_iface;
+
 extern uint8_t MAC[];
 extern char BOOTIFStr[];
 extern uint8_t MAC_len;
@@ -196,9 +173,6 @@ extern char boot_file[];
 extern char path_prefix[];
 extern char LocalDomain[];
 
-extern char IPOption[];
-extern char dot_quad_buf[];
-
 extern uint32_t dns_server[];
 
 extern uint16_t APIVer;
@@ -210,8 +184,6 @@ extern far_ptr_t InitStack;
 extern bool have_uuid;
 extern uint8_t uuid_type;
 extern uint8_t uuid[];
-
-extern const uint8_t TimeoutTable[];
 
 /*
  * Compute the suitable gateway for a specific route -- too many
@@ -226,24 +198,62 @@ static inline uint32_t gateway(uint32_t ip)
 }
 
 /*
- * functions 
+ * functions
  */
 
+/* pxeisr.inc */
+extern uint8_t pxe_irq_vector;
+extern void pxe_isr(void);
+extern far_ptr_t pxe_irq_chain;
+extern void pxe_poll(void);
+
+/* isr.c */
+void pxe_init_isr(void);
+void pxe_start_isr(void);
+int reset_pxe(void);
+
 /* pxe.c */
+struct url_info;
 bool ip_ok(uint32_t);
+int pxe_getc(struct inode *inode);
+void free_socket(struct inode *inode);
+
+/* undiif.c */
+int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw);
+void undiif_input(t_PXENV_UNDI_ISR *isr);
 
 /* dhcp_options.c */
 void parse_dhcp(const void *, size_t);
-
-/* dnsresolv.c */
-int dns_mangle(char **, const char *);
 
 /* idle.c */
 void pxe_idle_init(void);
 void pxe_idle_cleanup(void);
 
-/* socknum.c */
-uint16_t get_port(void);
-void free_port(uint16_t port);
+/* tftp.c */
+void tftp_open(struct url_info *url, int flags, struct inode *inode,
+	       const char **redir);
+
+/* gpxeurl.c */
+void gpxe_open(struct inode *inode, const char *url);
+#define GPXE 0
+
+/* http.c */
+void http_open(struct url_info *url, int flags, struct inode *inode,
+	       const char **redir);
+
+/* http_readdir.c */
+int http_readdir(struct inode *inode, struct dirent *dirent);
+
+/* ftp.c */
+void ftp_open(struct url_info *url, int flags, struct inode *inode,
+	      const char **redir);
+
+/* ftp_readdir.c */
+int ftp_readdir(struct inode *inode, struct dirent *dirent);
+
+/* tcp.c */
+void tcp_close_file(struct inode *inode);
+void tcp_fill_buffer(struct inode *inode);
+const struct pxe_conn_ops tcp_conn_ops;
 
 #endif /* pxe.h */

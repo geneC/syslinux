@@ -22,9 +22,17 @@ static inline int tolower(int c)
     return c;
 }
 
-static inline int isspace(int c)
+static inline int isspace(int ch)
 {
-	return c <= ' ';
+    int space = 0;
+    if ((ch == ' ') ||
+	(ch == '\f') ||
+	(ch == '\n') ||
+	(ch == '\r') ||
+	(ch == '\t') ||
+	(ch == '\v'))
+	space = 1;
+    return space;
 }
 
 #endif /* CTYPE_H */

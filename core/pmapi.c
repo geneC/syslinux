@@ -40,4 +40,7 @@ const struct com32_pmapi pm_api_vector =
 
     .jiffies	= &__jiffies,
     .ms_timer	= &__ms_timer,
+
+    .sysappend_count	= SYSAPPEND_MAX,
+    .sysappend_strings	= sysappend_strings,
 };

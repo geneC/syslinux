@@ -25,7 +25,8 @@ include $(MAKEDIR)/embedded.mk
 -include $(topdir)/version.mk
 
 OPTFLAGS =
-INCLUDES = -I./include -I$(com32)/include -I$(com32)/lib
+INCLUDES = -I./include -I$(com32)/include -I$(com32)/lib \
+	-I./lwip/src/include -I./lwip/src/include/ipv4 -I./fs/pxe
 
 # This is very similar to cp437; technically it's for Norway and Denmark,
 # but it's unlikely the characters that are different will be used in
@@ -35,27 +36,46 @@ CODEPAGE = cp865
 # The targets to build in this directory...
 BTARGET  = kwdhash.gen \
 	   ldlinux.bss ldlinux.sys ldlinux.bin \
-	   isolinux.bin isolinux-debug.bin pxelinux.0
+	   isolinux.bin isolinux-debug.bin pxelinux.0 lpxelinux.0
 
 # All primary source files for the main syslinux files
 NASMSRC	 := $(wildcard *.asm)
 NASMHDR  := $(wildcard *.inc)
-CSRC	 := $(wildcard *.c */*.c */*/*.c)
-SSRC	 := $(wildcard *.S */*.S */*/*.S)
-CHDR	 := $(wildcard *.h */*.h */*/*.h)
+CSRC	 := $(shell find . -name '*.c' -print)
+SSRC	 := $(shell find . -name '*.S' -print)
+CHDR	 := $(shell find . -name '*.h' -print)
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
 COBJ	 := $(patsubst %.c,%.o,$(CSRC))
 SOBJ	 := $(patsubst %.S,%.o,$(SSRC))
 
-# Don't include console objects
-COBJS	 = $(filter-out rawcon.o plaincon.o,$(COBJ))
+# To make this compatible with the following $(filter-out), make sure
+# we prefix everything with ./
+CORE_PXE_CSRC = \
+	$(addprefix ./fs/pxe/, dhcp_option.c pxe.c tftp.c urlparse.c)
+
+LPXELINUX_CSRC = $(CORE_PXE_CSRC) \
+	$(shell find ./lwip -name '*.c' -print) \
+	$(addprefix ./fs/pxe/, \
+		core.c dnsresolv.c ftp.c ftp_readdir.c gpxeurl.c http.c \
+		http_readdir.c idle.c isr.c tcp.c)
+
+PXELINUX_CSRC = $(CORE_PXE_CSRC) \
+	$(shell find ./legacynet -name '*.c' -print)
+
+LPXELINUX_OBJS = $(LPXELINUX_CSRC:%.c=%.o)
+PXELINUX_OBJS  = $(PXELINUX_CSRC:%.c=%.o)
+
+# Don't include console and network stack specific objects
+FILTER_OBJS = ./rawcon.o ./plaincon.o $(LPXELINUX_OBJS) $(PXELINUX_OBJS)
+COBJS	 = $(filter-out $(FILTER_OBJS),$(COBJ))
+SOBJS	 = $(filter-out $(FILTER_OBJS),$(SOBJ))
 
 LIB	 = libcom32.a
 LIBS	 = $(LIB) --whole-archive $(com32)/lib/libcom32core.a
 LIBDEP   = $(filter-out -% %start%,$(LIBS))
-LIBOBJS	 = $(COBJS) $(SOBJ)
+LIBOBJS	 = $(COBJS) $(SOBJS)
 
 NASMDEBUG = -g -F dwarf
 NASMOPT  += $(NASMDEBUG)
@@ -95,7 +115,8 @@ kwdhash.gen: keywords genhash.pl
 		-DHEXDATE="$(HEXDATE)" \
 		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
 
-AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a libpxelinux.a
+AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a \
+	libpxelinux.a liblpxelinux.a
 
 %.elf: %.o $(LIBDEP) syslinux.ld $(AUXLIBS)
 	$(LD) $(LDFLAGS) -Bsymbolic -pie -E --hash-style=gnu -T syslinux.ld -M -o $@ $< \
@@ -112,8 +133,20 @@ libisolinux.a: rawcon.o
 libisolinux-debug.a: libisolinux.a
 	cp $^ $@
 
-libpxelinux.a: libisolinux.a
-	cp $^ $@
+# Legacy network stack
+libpxelinux.a: rawcon.o $(PXELINUX_OBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
+	rm $(PXELINUX_OBJS)
+
+# LwIP network stack
+liblpxelinux.a: rawcon.o
+	$(MAKE) CFLAGS="$(CFLAGS) -DIS_LPXELINUX" $(LPXELINUX_OBJS)
+	rm -f $@
+	$(AR) cq $@ $^ $(LPXELINUX_OBJS)
+	$(RANLIB) $@
+	rm $(LPXELINUX_OBJS)
 
 libldlinux.a: plaincon.o
 	rm -f $@
@@ -125,7 +158,22 @@ $(LIB): $(LIBOBJS)
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
+pxelinux.o: pxelinux.asm kwdhash.gen ../version.gen
+	$(NASM) -f elf $(NASMOPT) -DDATE_STR="'$(DATE)'" \
+		-DHEXDATE="$(HEXDATE)" \
+		-DIS_LPXELINUX=0 \
+		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
+
 pxelinux.0: pxelinux.bin
+	cp -f $< $@
+
+lpxelinux.o: pxelinux.asm kwdhash.gen ../version.gen
+	$(NASM) -f elf $(NASMOPT) -DDATE_STR="'$(DATE)'" \
+		-DHEXDATE="$(HEXDATE)" \
+		-DIS_LPXELINUX=1 \
+		-l $(@:.o=.lsr) -o $@ -MP -MD .$@.d $<
+
+lpxelinux.0: lpxelinux.bin
 	cp -f $< $@
 
 ldlinux.bss: ldlinux.bin
@@ -148,10 +196,11 @@ install-all: install install-lib
 netinstall: installer
 
 tidy dist:
-	rm -f codepage.cp *.o *.elf *.a stupid.* patch.offset .depend .*.d
+	find . -type f \( -name '*.o' -o -name '*.a' -o -name '.*.d' \
+		-o -name '*.lst' \) -print | xargs -rt rm -f
+	rm -f codepage.cp *.elf stupid.* patch.offset .depend
 	rm -f *.elf.tmp *.sym
-	rm -f *.lsr *.lst *.map *.sec *.raw
-	rm -f */*.o */*/*.o */*.lst */*/*.lst */.*.d */*/.*.d
+	rm -f *.lsr *.map *.sec *.raw
 	rm -f $(OBSOLETE) $(LIB)
 
 clean: tidy
@@ -160,4 +209,4 @@ spotless: clean
 	rm -f $(BTARGET) *.bin *_bin.c
 
 # Include dependencies file
--include .*.d */.*.d */*/.*.d
+-include $(shell find . -name '.*.d' -print)
