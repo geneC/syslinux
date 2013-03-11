@@ -384,19 +384,6 @@ static void __pxe_searchdir(const char *filename, int flags, struct file *file)
 }
 
 
-static int __pxe_chdir(struct fs_info *fs, const char *src,
-		       enum url_type url_type)
-{
-    if (url_type == URL_SUFFIX)
-	strlcat(fs->cwd_name, src, sizeof fs->cwd_name);
-    else if (url_type == URL_OLD_TFTP)
-	snprintf(fs->cwd_name, sizeof fs->cwd_name, "::%s", src);
-    else
-	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);
-    return 0;
-
-}
-
 /*
  * Store standard filename prefix
  */
@@ -431,7 +418,25 @@ static void get_prefix(void)
     }
 
     printf("TFTP prefix: %s\n", path_prefix);
-    __pxe_chdir(this_fs, path_prefix, URL_OLD_TFTP);
+
+    if (url_type(path_prefix) == URL_SUFFIX) {
+	/*
+	 * Construct a ::-style TFTP path.
+	 *
+	 * We may have moved out of the root directory at the time
+	 * this function is invoked, but to maintain compatibility
+	 * with versions of Syslinux < 5.00, path_prefix must be
+	 * relative to "::".
+	 */
+	p = strdup(path_prefix);
+	if (!p)
+	    return;
+
+	snprintf(path_prefix, sizeof path_prefix, "::%s", p);
+	free(p);
+    }
+
+    chdir(path_prefix);
 }
 
 /*
@@ -450,7 +455,13 @@ static size_t pxe_realpath(struct fs_info *fs, char *dst, const char *src,
 static int pxe_chdir(struct fs_info *fs, const char *src)
 {
     /* The cwd for PXE is just a text prefix */
-    __pxe_chdir(fs, src, url_type(src));
+    enum url_type path_type = url_type(src);
+
+    if (url_type == URL_SUFFIX)
+	strlcat(fs->cwd_name, src, sizeof fs->cwd_name);
+    else
+	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);
+    return 0;
 
     dprintf("cwd = \"%s\"\n", fs->cwd_name);
     return 0;
@@ -471,7 +482,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
     char *last;
     int tries = 8;
 
-    get_prefix();
+    chdir(path_prefix);
     if (DHCPMagic & 0x02) {
         /* We got a DHCP option, try it first */
 	if (open_file(ConfigName, O_RDONLY, filedata) >= 0)
