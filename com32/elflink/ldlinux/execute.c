@@ -101,6 +101,7 @@ __export void execute(const char *cmdline, uint32_t type, bool sysappend)
 				 * filename extension if COM32 and
 				 * retry.
 				 */
+				p = args;
 				if (t->type == IMAGE_TYPE_COM32) {
 					p = apply_extension(p, ".c32");
 					if (!p)
