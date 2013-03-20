@@ -457,7 +457,7 @@ static int pxe_chdir(struct fs_info *fs, const char *src)
     /* The cwd for PXE is just a text prefix */
     enum url_type path_type = url_type(src);
 
-    if (url_type == URL_SUFFIX)
+    if (path_type == URL_SUFFIX)
 	strlcat(fs->cwd_name, src, sizeof fs->cwd_name);
     else
 	strlcpy(fs->cwd_name, src, sizeof fs->cwd_name);
