@@ -147,7 +147,8 @@ INSTALLABLE_MODULES = $(MODULES)
 BTARGET  = version.gen version.h $(OBJDIR)/version.mk
 BOBJECTS = $(BTARGET) \
 	mbr/*.bin \
-	core/pxelinux.0 core/isolinux.bin core/isolinux-debug.bin \
+	core/pxelinux.0 core/lpxelinux.0 \
+	core/isolinux.bin core/isolinux-debug.bin \
 	gpxe/gpxelinux.0 dos/syslinux.com \
 	win32/syslinux.exe win64/syslinux64.exe \
 	dosutil/*.com dosutil/*.sys \
@@ -185,7 +186,7 @@ INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
 INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 gpxe/gpxelinuxk.0 \
 		core/isolinux.bin core/isolinux-debug.bin \
-		dos/syslinux.com \
+		dos/syslinux.com core/lpxelinux.0 \
 		mbr/*.bin $(INSTALLABLE_MODULES)
 INSTALL_AUX_OPT = win32/syslinux.exe win64/syslinux64.exe
 INSTALL_DIAG  =	diag/mbr/handoff.bin \
@@ -198,7 +199,7 @@ INSTALLSUBDIRS = com32 utils dosutil
 EXTBOOTINSTALL = $(INSTALLABLE_MODULES)
 
 # Things to install in /tftpboot
-NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 \
+NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 core/lpxelinux.0 \
 		 $(INSTALLABLE_MODULES)
 
 endif # ifdef EFI_BUILD

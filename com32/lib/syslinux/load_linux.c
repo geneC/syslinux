@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2013 Intel Corporation; author: H. Peter Anvin
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -232,7 +232,10 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     if (!(hdr.loadflags & LOAD_HIGH) && prot_mode_size > 512 * 1024)
 	goto bail;		/* Kernel cannot be loaded low */
 
-    if (initramfs && hdr.version < 0x0200)
+    /* Get the size of the initramfs, if there is one */
+    irf_size = initramfs_size(initramfs);
+
+    if (irf_size && hdr.version < 0x0200)
 	goto bail;		/* initrd/initramfs not supported */
 
     if (hdr.version >= 0x0200) {
@@ -240,14 +243,6 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 	if (hdr.version >= 0x0201) {
 	    whdr->heap_end_ptr = cmdline_offset - 0x0200;
 	    whdr->loadflags |= CAN_USE_HEAP;
-	}
-	if (hdr.version >= 0x0202) {
-	    whdr->cmd_line_ptr = real_mode_base + cmdline_offset;
-	} else {
-	    whdr->old_cmd_line_magic = OLD_CMDLINE_MAGIC;
-	    whdr->old_cmd_line_offset = cmdline_offset;
-	    /* Be paranoid and round up to a multiple of 16 */
-	    whdr->setup_move_size = (cmdline_offset + cmdline_size + 15) & ~15;
 	}
     }
 
@@ -337,6 +332,9 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 		break;
 	    }
 	}
+
+	if (!ok)
+	    goto bail;
     }
 
     if (syslinux_add_movelist(&fraglist, real_mode_base, (addr_t) kernel_buf,
@@ -355,6 +353,16 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     if (syslinux_add_movelist(&fraglist, real_mode_base + cmdline_offset,
 			      (addr_t) cmdline, cmdline_size))
 	goto bail;
+    if (hdr.version >= 0x0202) {
+	whdr->cmd_line_ptr = real_mode_base + cmdline_offset;
+    } else {
+	whdr->old_cmd_line_magic = OLD_CMDLINE_MAGIC;
+	whdr->old_cmd_line_offset = cmdline_offset;
+	if (hdr.version >= 0x0200) {
+	    /* Be paranoid and round up to a multiple of 16 */
+	    whdr->setup_move_size = (cmdline_offset + cmdline_size + 15) & ~15;
+	}
+    }
 
     /* Protected-mode code */
     if (syslinux_add_movelist(&fraglist, prot_mode_base,
@@ -367,8 +375,6 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     /* Figure out the size of the initramfs, and where to put it.
        We should put it at the highest possible address which is
        <= hdr.initrd_addr_max, which fits the entire initramfs. */
-
-    irf_size = initramfs_size(initramfs);	/* Handles initramfs == NULL */
 
     if (irf_size) {
 	addr_t best_addr = 0;

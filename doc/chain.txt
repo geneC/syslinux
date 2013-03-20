@@ -53,28 +53,26 @@ Module invocation:
 
 chain [drive/partition] [options]
 
+In case of repeated arguments, rightmost ones take precedence.
+
+
 			DRIVE / PARTITION SPECIFICATION
 
 Drive can be specified as 'hd#', 'fd#', 'boot', 'mbr', or 'guid'.
 
-- 'mbr' will select a drive by a signature.
-- 'guid' will select a drive by a guid
+- 'mbr' will select a drive by its signature.
+- 'guid' will select a drive by its guid (GPT only).
 - 'boot' is the drive syslinux was booted from. This is the default value, if
   nothing else is specified.
 - 'hd#' and 'fd#' are standard ways to specify drive number as seen by bios,
   starting from 0.
 
-Option 'guid' is shared with partition selection (see below). If you happened
+Option 'guid' is shared with partition selection (see below). If you happen
 to have non-unique guids, they are searched in disk0, partitions of disk0,
 disk1 ...  order.
 
-The priority of those options are the same as in the above list.
-
-If you specify the same value more than once, the last value will be used.
-
 'mbr' and 'guid' take extra parameter - you should use ':' or '=' as a
 delimiter.
-
 
 Partition can be specified as '#', 'guid', 'label' or 'fs'.
 
@@ -85,10 +83,9 @@ Partition can be specified as '#', 'guid', 'label' or 'fs'.
 - '#' is the standard method. Partitions 1-4 are primary, 5+ logical, 0 = boot
   MBR (default).
 
-The priority of those options are the same as in the above list.
-
 If you use a number to select a partition it should be specified after a drive
 using space or comma as delimiters (after 'hd#', 'fd#', 'mbr', 'guid' or 'boot').
+
 
 				    OPTIONS
 	file=<file>
@@ -110,11 +107,11 @@ This triplet lets you alter the addresses a file will use. It's loaded at
 other bootloader or kernel, it's almost always mandatory.
 
 The defaults, if option is not specified, are 0:0x7c00:0x7c00
-If any of the fields are ommited (e.g. 0x2000::), they default to 0.
+If any of the fields are omitted (e.g. 0x2000::), they default to 0.
 
 	sect=<segment>:<offset>:<ip>
-	nosect
 	*sect=0:0x7c00:0x7c00
+	nosect
 	nosect sets: nomaps
 
 This triplet lets you alter the addresses a sector will use. It's loaded at
@@ -126,7 +123,7 @@ expect relocated sector at some particular address (e.g. DRKM).
 is being chainloaded, sector is not necessary.
 
 The defaults if option is not specified, are 0:0x7c00:0x7c00.
-If some of the fields are ommited (e.g. 0x2000::), they default to 0.
+If some of the fields are omitted (e.g. 0x2000::), they default to 0.
 
 	*maps
 	nomaps
@@ -229,8 +226,24 @@ stacks in memory (pxelinux only).
 This option will wait for a keypress right before continuing the chainloading.
 Useful to see warnings emited by the chain module.
 
-	*nobreak
+	prefmbr
+	*noprefmbr
+
+In the case of presence of non-standard hybrid MBR/GPT layout, this flag makes
+chain module prefer MBR layout over GPT.
+
+	relax
+	*norelax
+
+This option inhibits sanity checks during the traversal of the partition table.
+This is potentially useful in corner cases, when for example an usb stick moved
+to some different computer would report smaller size than previously with
+partitions spanning the whole space. Normally partition iterator would report
+an error and abort in such case. Another case scenario is disk corruption in
+some later EMBR partition.
+
 	break
+	*nobreak
 	break sets: nofile nomaps nohand
 
 It is possible to trigger a "service-only" run - The chain module will do

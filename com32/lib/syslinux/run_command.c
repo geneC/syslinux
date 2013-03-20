@@ -37,7 +37,7 @@ int syslinux_run_command(const char *command)
     if (!lm_command)
 	return -1;
     
-    create_args_and_load(lm_command);
+    load_kernel(lm_command);
 
     /* Should not return even on failure, but in case... */
     lfree(lm_command);

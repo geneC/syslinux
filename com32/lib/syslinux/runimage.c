@@ -37,8 +37,6 @@
 #include <syslinux/config.h>
 #include <core.h>
 
-extern unsigned int ipappend;
-
 void syslinux_run_kernel_image(const char *filename, const char *cmdline,
 			       uint32_t ipappend_flags, uint32_t type)
 {
@@ -56,8 +54,6 @@ void syslinux_run_kernel_image(const char *filename, const char *cmdline,
     if (rv == -1 || (size_t)rv >= len)
 	return;
 
-    if (syslinux_filesystem() == SYSLINUX_FS_PXELINUX)
-	ipappend = ipappend_flags;
-
-    execute(bbcmdline, type);
+    SysAppends = ipappend_flags;
+    execute(bbcmdline, type, true);
 }

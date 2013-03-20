@@ -32,8 +32,13 @@ COM32DIR = $(AUXDIR)/com32
 BOOTDIR	    = /boot
 EXTLINUXDIR = $(BOOTDIR)/extlinux
 
+ifdef DEBUG
+# This allows DEBUGOPT to be set from the command line
+DEBUGOPT = -DDEBUG=$(DEBUG)
+endif
+
 NASM	 = nasm
-NASMOPT  = -Ox
+NASMOPT  = -Ox $(DEBUGOPT)
 
 PERL	 = perl
 PYTHON	 = python
@@ -74,9 +79,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/)
 ARCH ?= $(strip $(SUBARCH))
 
 # Common warnings we want for all gcc-generated code
-GCCWARN := -W -Wall -Wstrict-prototypes
-# Extremely useful variant for debugging...
-#GCCWARN += -Wno-clobbered -Werror
+GCCWARN  = -W -Wall -Wstrict-prototypes $(DEBUGOPT)
 
 # Common stanza to make gcc generate .*.d dependency files
 MAKEDEPS = -Wp,-MT,$@,-MD,$(dir $@).$(notdir $@).d

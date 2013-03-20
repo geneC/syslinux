@@ -94,6 +94,15 @@ void pxe_int1a(void)
 
 uint8_t KeepPXE;
 
+mstime_t sem_down(struct semaphore *sem, mstime_t time)
+{
+	/* EFI is single threaded */
+}
+
+void sem_up(struct semaphore *sem)
+{
+	/* EFI is single threaded */
+}
 
 volatile uint32_t __ms_timer = 0;
 volatile uint32_t __jiffies = 0;

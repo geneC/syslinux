@@ -3,7 +3,7 @@
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *   Copyright 2010 Shao Miller
- *   Copyright 2010 Michal Soltys
+ *   Copyright 2010-2012 Michal Soltys
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -34,7 +34,6 @@
 #include <syslinux/config.h>
 #include <syslinux/disk.h>
 #include <syslinux/video.h>
-#include "common.h"
 #include "chain.h"
 #include "utility.h"
 #include "options.h"
@@ -72,14 +71,14 @@ static int find_by_sig(uint32_t mbr_sig,
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, 0)))
+	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
 	/* Check for a MBR disk */
 	if (boot_part->type != typedos) {
 	    pi_del(&boot_part);
 	    continue;
 	}
-	if (boot_part->sub.dos.disk_sig == mbr_sig) {
+	if (boot_part->dos.disk_sig == mbr_sig) {
 	    goto ok;
 	}
     }
@@ -103,22 +102,18 @@ static int find_by_guid(const struct guid *gpt_guid,
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, 0)))
+	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
 	/* Check for a GPT disk */
 	if (boot_part->type != typegpt) {
 	    pi_del(&boot_part);
 	    continue;
 	}
-	/* Check for a matching GPT disk guid */
-	if (!memcmp(&boot_part->sub.gpt.disk_guid, gpt_guid, sizeof(*gpt_guid))) {
-	    goto ok;
-	}
-	/* disk guid doesn't match, maybe partition guid will */
-	while (!pi_next(&boot_part)) {
-	    if (!memcmp(&boot_part->sub.gpt.part_guid, gpt_guid, sizeof(*gpt_guid)))
+	/* Check for a matching GPT disk/partition guid */
+	do {
+	    if (!memcmp(&boot_part->gpt.part_guid, gpt_guid, sizeof *gpt_guid))
 		goto ok;
-	}
+	} while (!pi_next(boot_part));
     }
     drive = -1;
 ok:
@@ -139,7 +134,7 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, 0)))
+	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
 	/* Check for a GPT disk */
 	if (!(boot_part->type == typegpt)) {
@@ -147,8 +142,8 @@ static int find_by_label(const char *label, struct part_iter **_boot_part)
 	    continue;
 	}
 	/* Check for a matching partition */
-	while (!pi_next(&boot_part)) {
-	    if (!strcmp(label, boot_part->sub.gpt.part_label))
+	while (!pi_next(boot_part)) {
+	    if (!strcmp(label, boot_part->gpt.part_label))
 		goto ok;
 	}
     }
@@ -160,8 +155,6 @@ ok:
 
 static void do_boot(struct data_area *data, int ndata)
 {
-    uint16_t *const bios_fbm = (uint16_t *) 0x413;
-    addr_t dosmem = (addr_t)(*bios_fbm << 10);	/* Technically a low bound */
     struct syslinux_memmap *mmap;
     struct syslinux_movelist *mlist = NULL;
     addr_t endimage;
@@ -172,7 +165,7 @@ static void do_boot(struct data_area *data, int ndata)
     mmap = syslinux_memory_map();
 
     if (!mmap) {
-	error("Cannot read system memory map\n");
+	error("Cannot read system memory map.");
 	return;
     }
 
@@ -181,7 +174,7 @@ static void do_boot(struct data_area *data, int ndata)
 	if (data[i].base + data[i].size > endimage)
 	    endimage = data[i].base + data[i].size;
     }
-    if (endimage > dosmem)
+    if (endimage > dosmax)
 	goto too_big;
 
     for (i = 0; i < ndata; i++) {
@@ -227,7 +220,7 @@ static void do_boot(struct data_area *data, int ndata)
 	static uint8_t swapstub[1024];
 	uint8_t *p;
 
-	/* Note: we can't rely on either INT 13h nor the dosmem
+	/* Note: we can't rely on either INT 13h nor the dosmax
 	   vector to be correct at this stage, so we have to use an
 	   installer stub to put things in the right place.
 	   Round the installer location to a 1K boundary so the only
@@ -247,14 +240,14 @@ static void do_boot(struct data_area *data, int ndata)
 
 	/* Mapping table; start out with identity mapping everything */
 	for (i = 0; i < 256; i++)
-	    p[i] = (uint8_t)i;
+	    p[i] = i;
 
 	/* And the actual swap */
 	p[driveno] = swapdrive;
 	p[swapdrive] = driveno;
 
 	/* Adjust registers */
-	opt.regs.ds = opt.regs.cs = (uint16_t)(endimage >> 4);
+	opt.regs.ds = opt.regs.cs = endimage >> 4;
 	opt.regs.esi.l = opt.regs.es = 0;
 	opt.regs.ecx.l = sizeof swapstub >> 2;
 	opt.regs.ip = 0x10;	/* Installer offset */
@@ -273,17 +266,17 @@ static void do_boot(struct data_area *data, int ndata)
     /* Force text mode */
     syslinux_force_text_mode();
 
-    fputs("Booting...\n", stdout);
+    puts("Booting...");
     syslinux_shuffle_boot_rm(mlist, mmap, opt.keeppxe, &opt.regs);
-    error("Chainboot failed!\n");
+    error("Chainboot failed !");
     return;
 
 too_big:
-    error("Loader file too large\n");
+    error("Loader file too large.");
     return;
 
 enomem:
-    error("Out of memory\n");
+    error("Out of memory.");
     return;
 }
 
@@ -300,23 +293,23 @@ int find_dp(struct part_iter **_iter)
 
     if (!strncmp(opt.drivename, "mbr", 3)) {
 	if (find_by_sig(strtoul(opt.drivename + 4, NULL, 0), &iter) < 0) {
-	    error("Unable to find requested MBR signature.\n");
+	    error("Unable to find requested MBR signature.");
 	    goto bail;
 	}
     } else if (!strncmp(opt.drivename, "guid", 4)) {
 	if (str_to_guid(opt.drivename + 5, &gpt_guid))
 	    goto bail;
 	if (find_by_guid(&gpt_guid, &iter) < 0) {
-	    error("Unable to find requested GPT disk or partition by guid.\n");
+	    error("Unable to find requested GPT disk or partition by guid.");
 	    goto bail;
 	}
     } else if (!strncmp(opt.drivename, "label", 5)) {
 	if (!opt.drivename[6]) {
-	    error("No label specified.\n");
+	    error("No label specified.");
 	    goto bail;
 	}
 	if (find_by_label(opt.drivename + 6, &iter) < 0) {
-	    error("Unable to find requested GPT partition by label.\n");
+	    error("Unable to find requested GPT partition by label.");
 	    goto bail;
 	}
     } else if ((opt.drivename[0] == 'h' || opt.drivename[0] == 'f') &&
@@ -328,13 +321,13 @@ int find_dp(struct part_iter **_iter)
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	/* this will start iteration over FDD, possibly raw */
-	if (!(iter = pi_begin(&diskinfo, 0)))
+	if (!(iter = pi_begin(&diskinfo, opt.piflags)))
 	    goto bail;
 
     } else if (!strcmp(opt.drivename, "boot") || !strcmp(opt.drivename, "fs")) {
 	if (!is_phys(sdi->c.filesystem)) {
 	    error("When syslinux is not booted from physical disk (or its emulation),\n"
-		   "'boot' and 'fs' are meaningless.\n");
+		   "'boot' and 'fs' are meaningless.");
 	    goto bail;
 	}
 	/* offsets match, but in case it changes in the future */
@@ -348,23 +341,23 @@ int find_dp(struct part_iter **_iter)
 	if (disk_get_params(drive, &diskinfo))
 	    goto bail;
 	/* this will start iteration over disk emulation, possibly raw */
-	if (!(iter = pi_begin(&diskinfo, 0)))
+	if (!(iter = pi_begin(&diskinfo, opt.piflags)))
 	    goto bail;
 
 	/* 'fs' => we should lookup the syslinux partition number and use it */
 	if (!strcmp(opt.drivename, "fs")) {
-	    while (!pi_next(&iter)) {
-		if (iter->start_lba == fs_lba)
+	    do {
+		if (iter->abs_lba == fs_lba)
 		    break;
-	    }
+	    } while (!pi_next(iter));
 	    /* broken part structure or other problems */
 	    if (iter->status) {
-		error("Can't find myself on the drive I booted from.\n");
+		error("Can't find myself on the drive I booted from.");
 		goto bail;
 	    }
 	}
     } else {
-	error("Unparsable drive specification.\n");
+	error("Unparsable drive specification.");
 	goto bail;
     }
     /* main options done - only thing left is explicit partition specification,
@@ -377,15 +370,15 @@ int find_dp(struct part_iter **_iter)
 	do {
 	    if (iter->index == partition)
 		break;
-	} while (!pi_next(&iter));
+	} while (!pi_next(iter));
 	if (iter->status) {
-	    error("Requested disk / partition combination not found.\n");
+	    error("Requested disk / partition combination not found.");
 	    goto bail;
 	}
     }
 
     if (!(iter->di.disk & 0x80) && iter->index) {
-	error("WARNING: Partitions on floppy devices may not work.\n");
+	warn("Partitions on floppy devices may not work.");
     }
 
     *_iter = iter;
@@ -401,51 +394,53 @@ static int setup_handover(const struct part_iter *iter,
 		   struct data_area *data)
 {
     struct disk_dos_part_entry *ha;
-    uint32_t synth_size;
-    uint32_t *plen;
+    uint32_t synth_size = sizeof *ha;
 
-    if (!iter->index) { /* implies typeraw or non-iterated */
+    /*
+     * we have to cover both non-iterated but otherwise properly detected
+     * gpt/dos schemes as well as raw disks; checking index for 0 covers both
+     */
+    if (iter->index == 0) {
 	uint32_t len;
 	/* RAW handover protocol */
-	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build RAW hand-over record!\n");
+	    critm();
 	    goto bail;
 	}
 	len = ~0u;
 	if (iter->length < len)
-	    len = (uint32_t)iter->length;
-	lba2chs(&ha->start, &iter->di, 0, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, len - 1, l2c_cadd);
+	    len = iter->length;
+	lba2chs(&ha->start, &iter->di, 0, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, len - 1, L2C_CADD);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xDA;	/* "Non-FS Data", anything is good here though ... */
 	ha->start_lba = 0;
 	ha->length = len;
     } else if (iter->type == typegpt) {
+	uint32_t *plen;
 	/* GPT handover protocol */
-	synth_size = sizeof(struct disk_dos_part_entry) +
-	    sizeof(uint32_t) + (uint32_t)iter->sub.gpt.pe_size;
+	synth_size += sizeof *plen + iter->gpt.pe_size;
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build GPT hand-over record!\n");
+	    critm();
 	    goto bail;
 	}
-	lba2chs(&ha->start, &iter->di, iter->start_lba, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, l2c_cadd);
+	lba2chs(&ha->start, &iter->di, iter->abs_lba, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, iter->abs_lba + iter->length - 1, L2C_CADD);
 	ha->active_flag = 0x80;
 	ha->ostype = 0xED;
 	/* All bits set by default */
 	ha->start_lba = ~0u;
 	ha->length = ~0u;
 	/* If these fit the precision, pass them on */
-	if (iter->start_lba < ha->start_lba)
-	    ha->start_lba = (uint32_t)iter->start_lba;
+	if (iter->abs_lba < ha->start_lba)
+	    ha->start_lba = iter->abs_lba;
 	if (iter->length < ha->length)
-	    ha->length = (uint32_t)iter->length;
+	    ha->length = iter->length;
 	/* Next comes the GPT partition record length */
-	plen = (uint32_t *) (ha + 1);
-	plen[0] = (uint32_t)iter->sub.gpt.pe_size;
+	plen = (uint32_t *)(ha + 1);
+	plen[0] = iter->gpt.pe_size;
 	/* Next comes the GPT partition record copy */
 	memcpy(plen + 1, iter->record, plen[0]);
 #ifdef DEBUG
@@ -453,20 +448,20 @@ static int setup_handover(const struct part_iter *iter,
 	disk_dos_part_dump(ha);
 	disk_gpt_part_dump((struct disk_gpt_part_entry *)(plen + 1));
 #endif
+    /* the only possible case left is dos scheme */
     } else if (iter->type == typedos) {
 	/* MBR handover protocol */
-	synth_size = sizeof(struct disk_dos_part_entry);
 	ha = malloc(synth_size);
 	if (!ha) {
-	    error("Could not build MBR hand-over record!\n");
+	    critm();
 	    goto bail;
 	}
 	memcpy(ha, iter->record, synth_size);
 	/* make sure these match bios imaginations and are ebr agnostic */
-	lba2chs(&ha->start, &iter->di, iter->start_lba, l2c_cadd);
-	lba2chs(&ha->end, &iter->di, iter->start_lba + iter->length - 1, l2c_cadd);
-	ha->start_lba = (uint32_t)iter->start_lba;
-	ha->length = (uint32_t)iter->length;
+	lba2chs(&ha->start, &iter->di, iter->abs_lba, L2C_CADD);
+	lba2chs(&ha->end, &iter->di, iter->abs_lba + iter->length - 1, L2C_CADD);
+	ha->start_lba = iter->abs_lba;
+	ha->length = iter->length;
 
 #ifdef DEBUG
 	dprintf("MBR handover:\n");
@@ -495,9 +490,9 @@ int main(int argc, char *argv[])
 
     console_ansi_raw();
 
-    memset(&fdat, 0, sizeof(fdat));
-    memset(&hdat, 0, sizeof(hdat));
-    memset(&sdat, 0, sizeof(sdat));
+    memset(&fdat, 0, sizeof fdat);
+    memset(&hdat, 0, sizeof hdat);
+    memset(&sdat, 0, sizeof sdat);
 
     opt_set_defs();
     if (opt_parse_args(argc, argv))
@@ -530,11 +525,11 @@ int main(int argc, char *argv[])
 	fdat.base = (opt.fseg << 4) + opt.foff;
 
 	if (loadfile(opt.file, &fdat.data, &fdat.size)) {
-	    error("Couldn't read the boot file.\n");
+	    error("Couldn't read the boot file.");
 	    goto bail;
 	}
-	if (fdat.base + fdat.size - 1 > ADDRMAX) {
-	    error("The boot file is too big to load at this address.\n");
+	if (fdat.base + fdat.size > dosmax) {
+	    error("The boot file is too big to load at this address.");
 	    goto bail;
 	}
     }
@@ -544,23 +539,23 @@ int main(int argc, char *argv[])
 	sdat.base = (opt.sseg << 4) + opt.soff;
 	sdat.size = iter->di.bps;
 
-	if (sdat.base + sdat.size - 1 > ADDRMAX) {
-	    error("The sector cannot be loaded at such high address.\n");
+	if (sdat.base + sdat.size > dosmax) {
+	    error("The sector cannot be loaded at such high address.");
 	    goto bail;
 	}
-	if (!(sdat.data = disk_read_sectors(&iter->di, iter->start_lba, 1))) {
-	    error("Couldn't read the sector.\n");
+	if (!(sdat.data = disk_read_sectors(&iter->di, iter->abs_lba, 1))) {
+	    error("Couldn't read the sector.");
 	    goto bail;
 	}
 	if (opt.save) {
 	    if (!(sbck = malloc(sdat.size))) {
-		error("Couldn't allocate cmp-buf for option 'save'.\n");
+		critm();
 		goto bail;
 	    }
 	    memcpy(sbck, sdat.data, sdat.size);
 	}
 	if (opt.file && opt.maps && overlap(&fdat, &sdat)) {
-	    error("WARNING: The sector won't be mmapped, as it would conflict with the boot file.\n");
+	    warn("The sector won't be mmapped, as it would conflict with the boot file.");
 	    opt.maps = false;
 	}
     }
@@ -572,8 +567,8 @@ int main(int argc, char *argv[])
 	/* Verify possible conflicts */
 	if ( ( opt.file && overlap(&fdat, &hdat)) ||
 	     ( opt.maps && overlap(&sdat, &hdat)) ) {
-	    error("WARNING: Handover area won't be prepared,\n"
-		  "as it would conflict with the boot file and/or the sector.\n");
+	    warn("Handover area won't be prepared,\n"
+		  "as it would conflict with the boot file and/or the sector.");
 	    opt.hand = false;
 	}
     }
@@ -617,22 +612,22 @@ int main(int argc, char *argv[])
      */
 
     if (opt.file)
-	memcpy(data + ndata++, &fdat, sizeof(fdat));
+	memcpy(data + ndata++, &fdat, sizeof fdat);
     if (opt.maps)
-	memcpy(data + ndata++, &sdat, sizeof(sdat));
+	memcpy(data + ndata++, &sdat, sizeof sdat);
     if (opt.hand)
-	memcpy(data + ndata++, &hdat, sizeof(hdat));
+	memcpy(data + ndata++, &hdat, sizeof hdat);
 
 #ifdef DEBUG
-    printf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %"PRIu64", %u\n"
+    dprintf("iter->di dsk, bps: %X, %u\niter->di lbacnt, C*H*S: %"PRIu64", %u\n"
 	   "iter->di C, H, S: %u, %u, %u\n",
 	iter->di.disk, iter->di.bps,
 	iter->di.lbacnt, iter->di.cyl * iter->di.head * iter->di.spt,
 	iter->di.cyl, iter->di.head, iter->di.spt);
-    printf("iter idx: %d\n", iter->index);
-    printf("iter lba: %"PRIu64"\n", iter->start_lba);
+    dprintf("iter idx: %d\n", iter->index);
+    dprintf("iter lba: %"PRIu64"\n", iter->abs_lba);
     if (opt.hand)
-	printf("hand lba: %u\n",
+	dprintf("hand lba: %u\n",
 		((struct disk_dos_part_entry *)hdat.data)->start_lba);
 #endif
 
@@ -644,7 +639,7 @@ int main(int argc, char *argv[])
     if (ndata && !opt.brkchain) /* boot only if we actually chainload */
 	do_boot(data, ndata);
     else
-	error("Service-only run completed, exiting.\n");
+	puts("Service-only run completed, exiting.");
 bail:
     pi_del(&iter);
     /* Free allocated areas */

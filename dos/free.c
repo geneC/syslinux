@@ -67,10 +67,6 @@ void free(void *ptr)
     ah = (struct free_arena_header *)
 	((struct arena_header *)ptr - 1);
 
-#ifdef DEBUG_MALLOC
-    assert(ah->a.type == ARENA_TYPE_USED);
-#endif
-
     __free_block(ah);
 
     /* Here we could insert code to return memory to the system. */

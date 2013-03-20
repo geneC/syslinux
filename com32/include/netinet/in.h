@@ -3,57 +3,17 @@
 
 /* COM32 will be running on an i386 platform */
 
-#include <stdint.h>
 #include <klibc/compiler.h>
 #include <klibc/extern.h>
+#include <stdint.h>
+#include <byteswap.h>
 
-#define __htons_macro(v) ((uint16_t)		  			\
-			  (((uint16_t)(v) << 8) | 			\
-			   ((uint16_t)(v) >> 8)))
-
-static inline __constfunc uint16_t __htons(uint16_t v)
-{
-    return __htons_macro(v);
-}
-
-#define htons(x) (__builtin_constant_p(x) ? __htons_macro(x) :  __htons(x))
-#define ntohs(x) htons(x)
-
-#define __htonl_macro(v) ((uint32_t)					\
-                          ((((uint32_t)(v) & 0x000000ff) << 24) |	\
-			   (((uint32_t)(v) & 0x0000ff00) << 8)  |	\
-			  (((uint32_t)(v) & 0x00ff0000) >> 8)  |	\
-			   (((uint32_t)(v) & 0xff000000) >> 24)))
-
-static inline __constfunc uint32_t __htonl(uint32_t v)
-{
-#if __SIZEOF_POINTER__ == 4
-    asm("xchgb %h0,%b0 ; roll $16,%0 ; xchgb %h0,%b0"
-	: "+q" (v));
-#elif __SIZEOF_POINTER__ == 8
-    asm("bswap	%0"
-	: "=r" (v)
-	: "0" (v));
-#else
-#error "unable to build for architecture"
-#endif
-    return v;
-}
-
-#define htonl(x) (__builtin_constant_p(x) ? __htonl_macro(x) : __htonl(x))
-#define ntohl(x) htonl(x)
-
-#define __htonq_macro(v) ((uint64_t)					\
-    (((uint64_t)__htonl_macro((uint32_t)(v)) << 32) |			\
-     (__htonl_macro((uint32_t)((uint64_t)(v) >> 32)))))
-
-static inline __constfunc uint64_t __htonq(uint64_t v)
-{
-    return ((uint64_t)__htonl(v) << 32) | __htonl(v >> 32);
-}
-
-#define htonq(x) (__builtin_constant_p(x) ? __htonq_macro(x) :  __htonq(x))
-#define ntohq(x) htonq(x)
+#define htons(x) bswap_16(x)
+#define ntohs(x) bswap_16(x)
+#define htonl(x) bswap_32(x)
+#define ntohl(x) bswap_32(x)
+#define htonq(x) bswap_64(x)
+#define ntohq(x) bswap_64(x)
 
 typedef uint32_t in_addr_t;
 typedef uint16_t in_port_t;

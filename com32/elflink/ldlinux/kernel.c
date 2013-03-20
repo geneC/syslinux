@@ -35,14 +35,10 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	else if (append)
 		args = append;
 
-	cmdline_len = strlen(kernel_name);
-	if (args) {
-		/* +1 for the space (' ') between kernel and args */
-		cmdline_len += strlen(args) + 1;
-	}
-
-	/* +1 for NUL termination */
-	cmdline_len++;
+	cmdline_len = strlen("BOOT_IMAGE=") + strlen(kernel_name);
+	cmdline_len += 1;	/* space between BOOT_IMAGE and args */
+	cmdline_len += strlen(args);
+	cmdline_len += 1;	/* NUL-termination */
 
 	cmdline = malloc(cmdline_len);
 	if (!cmdline) {
@@ -50,10 +46,7 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	    return 1;
 	}
 
-	if (args)
-		snprintf(cmdline, cmdline_len, "%s %s", kernel_name, args);
-	else
-		snprintf(cmdline, cmdline_len, "%s", kernel_name);
+	sprintf(cmdline, "BOOT_IMAGE=%s %s", kernel_name, args);
 
 	/* "keeppxe" handling */
 #if IS_PXELINUX

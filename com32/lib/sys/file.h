@@ -74,7 +74,7 @@ struct output_dev {
 
 /* File structure */
 
-#define NFILES 32		/* Number of files to support */
+#define NFILES 128		/* Number of files to support */
 #define MAXBLOCK 16384		/* Defined by ABI */
 
 struct file_info {

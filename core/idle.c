@@ -1,5 +1,5 @@
-/* -*- fundamental -*- ---------------------------------------------------
- *
+/* ----------------------------------------------------------------------- *
+ *   
  *   Copyright 2008 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *
@@ -24,7 +24,7 @@
 
 #define TICKS_TO_IDLE	4	/* Also in idle.inc */
 
-extern uint32_t _IdleTimer;
+extern jiffies_t _IdleTimer;
 __export uint16_t NoHalt = 0;
 
 int (*idle_hook_func)(void);

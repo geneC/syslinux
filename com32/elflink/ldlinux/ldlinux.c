@@ -154,9 +154,29 @@ __export void load_kernel(const char *command_line)
 	/* Virtual kernel? */
 	me = find_label(kernel);
 	if (me) {
-		type = parse_image_type(me->cmdline);
+		const char *args;
+		char *cmd;
+		size_t len = strlen(me->cmdline) + 1;
 
-		execute(me->cmdline, type);
+		/* Find the end of the command */
+		args = find_command(kernel);
+		while(*args && my_isspace(*args))
+			args++;
+
+		if (strlen(args))
+			len += strlen(args) + 1; /* +1 for space (' ') */
+
+		cmd = malloc(len);
+		if (!cmd)
+			goto bad_kernel;
+
+		if (strlen(args))
+			snprintf(cmd, len, "%s %s", me->cmdline, args);
+		else
+			strncpy(cmd, me->cmdline, len);
+
+		type = parse_image_type(cmd);
+		execute(cmd, type, false);
 		/* We shouldn't return */
 		goto bad_kernel;
 	}
@@ -193,7 +213,7 @@ __export void load_kernel(const char *command_line)
 		}
 	}
 
-	execute(kernel, type);
+	execute(kernel, type, true);
 	free((void *)kernel);
 
 bad_implicit:
@@ -210,7 +230,7 @@ bad_kernel:
 			rsprintf(&cmdline, "%s %s", onerror, default_cmd);
 
 		type = parse_image_type(cmdline);
-		execute(cmdline, type);
+		execute(cmdline, type, true);
 	}
 }
 
@@ -277,19 +297,15 @@ void ldlinux_console_init(void)
 	openconsole(&dev_stdcon_r, &dev_ansiserial_w);
 }
 
-__export int main(int argc __unused, char **argv __unused)
+__export int main(int argc __unused, char **argv)
 {
 	const void *adv;
 	const char *cmdline;
 	size_t count = 0;
-	char *config_argv[2] = { NULL, NULL };
 
 	ldlinux_console_init();
 
-	if (ConfigName[0])
-		config_argv[0] = ConfigName;
-
-	parse_configs(config_argv);
+	parse_configs(&argv[1]);
 
 	__syslinux_set_serial_console_info();
 

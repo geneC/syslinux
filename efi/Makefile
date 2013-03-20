@@ -17,9 +17,17 @@ include $(MAKEDIR)/efi.mk
 CORE_CSRC := $(wildcard $(core)/*.c $(core)/*/*.c $(core)/*/*/*.c)
 CORE_COBJ := $(subst $(core),$(OBJ)/../core/,$(patsubst %.c,%.o,$(CORE_CSRC)))
 
+# We don't want to include any of the networking stack or the thread
+# code since it will be implemented completely differently for EFI.
+FILTERED_OBJS:= $(subst $(core),$(OBJ)/../core/,$(patsubst %.c,%.o, \
+	$(wildcard $(core)/legacynet/*.c) \
+	$(wildcard $(core)/fs/pxe/*.c) \
+	$(wildcard $(core)/thread/*.c)))
+
 # Don't include console objects
 CORE_OBJS = $(filter-out %hello.o %rawcon.o %plaincon.o %strcasecmp.o %bios.o \
-	%diskio_bios.o %ldlinux-c.o %isolinux-c.o %pxelinux-c.o,$(CORE_COBJ))
+	%diskio_bios.o %ldlinux-c.o %isolinux-c.o %pxelinux-c.o \
+	$(FILTERED_OBJS),$(CORE_COBJ) $(CORE_SOBJ))
 
 LIB_OBJS = $(addprefix $(objdir)/com32/lib/,$(CORELIBOBJS))
 

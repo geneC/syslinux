@@ -537,9 +537,15 @@ void bios_init(void)
 
 	/* Init the memory subsystem */
 	bios_free_mem = (uint16_t *)0x413;
+	mem_init();
 
 	/* CPU-dependent initialization and related checks. */
 	check_escapes();
+
+	/*
+	 * Scan the DMI tables for interesting information.
+	 */
+	dmi_init();
 }
 
 extern void *bios_malloc(size_t, enum heap, size_t);

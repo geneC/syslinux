@@ -7,6 +7,7 @@
 #include <fs.h>
 #include <disk.h>
 #include <ilog2.h>
+#include <minmax.h>
 
 #include <syslinux/firmware.h>
 
@@ -19,17 +20,14 @@ void getoneblk(struct disk *disk, char *buf, block_t block, int block_size)
 
 /*
  * Initialize the device structure.
- *
- * NOTE: the disk cache needs to be revamped to support multiple devices...
  */
 struct device * device_init(void *args)
 {
     static struct device dev;
-    static __hugebss char diskcache[128*1024];
 
     dev.disk = firmware->disk_init(args);
-    dev.cache_data = diskcache;
-    dev.cache_size = sizeof diskcache;
+    dev.cache_size = 128*1024;
+    dev.cache_data = malloc(dev.cache_size);
 
     return &dev;
 }

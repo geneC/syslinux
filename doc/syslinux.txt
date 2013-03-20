@@ -153,9 +153,12 @@ APPEND options...
         usually permitting explicitly entered kernel options to override
         them.  This is the equivalent of the LILO "append" option.
 
-IPAPPEND flag_val			[PXELINUX only]
-	The IPAPPEND option is available only on PXELINUX.  The
-	flag_val is an OR of the following options:
+SYSAPPEND bitmask
+IPAPPEND bitmask
+
+	The SYSAPPEND option was introduced in Syslinux 5.10; it is an
+	enhancement of a previous option IPAPPEND which was only
+	available on PXELINUX.
 
 	1: indicates that an option of the following format
 	should be generated and added to the kernel command line:
@@ -169,6 +172,8 @@ IPAPPEND flag_val			[PXELINUX only]
 	the lease acquired by the PXE BIOS will expire, making the
 	IP address available for reuse by the DHCP server.
 
+	This option is empty for non-PXELINUX.
+
 	2: indicates that an option of the following format
 	should be generated and added to the kernel command line:
 
@@ -180,6 +185,8 @@ IPAPPEND flag_val			[PXELINUX only]
 	This allows an initrd program to determine from which
 	interface the system booted.
 
+	This option is empty for non-PXELINUX.
+
 	4: indicates that an option of the following format
 	should be generated and added to the kernel command line:
 
@@ -187,14 +194,105 @@ IPAPPEND flag_val			[PXELINUX only]
 
 	... in lower case hexadecimal in the format normally used for
 	UUIDs (same as for the configuration file; see pxelinux.txt.)
+	This may not be available if no valid UUID is found on the
+	system.
+
+	8: indicate the CPU family and certain particularly
+	significant CPU feature bits:
+
+		CPU=<family><features>
+
+	The <family> is a single digit from 3 (i386) to 6 (i686 or
+	higher.)  The following CPU feature are currently reported;
+	additional flags may be added in the future:
+
+		P	Physical Address Extension (PAE)
+		V	Intel Virtualization Technology (VT/VMX)
+		T	Intel Trusted Exection Technology (TXT/SMX)
+		X	Execution Disable (XD/NX)
+		L	Long Mode (x86-64)
+		S	AMD SMX virtualization
+	
+	This was added in 5.10.
+
+	The following strings are derived from DMI/SMBIOS information
+	if available; these are all new in version 5.10:
+	
+	Bit	String		Significance
+	-------------------------------------------------------------
+	0x00010	SYSVENDOR=	System vendor name
+	0x00020	SYSPRODUCT=	System product name
+	0x00040	SYSVERSION=	System version
+	0x00080	SYSSERIAL=	System serial number
+	0x00100	SYSSKU=		System SKU
+	0x00200	SYSFAMILY=	System family
+	0x00400	MBVENDOR=	Motherboard vendor name
+	0x00800	MBVERSION=	Motherboard version
+	0x01000	MBSERIAL=	Motherboard serial number
+	0x02000	MBASSET=	Motherboard asset tag
+	0x04000 BIOSVENDOR=	BIOS vendor name
+	0x08000	BIOSVERSION=	BIOS version
+	0x10000	SYSFF=		System form factor
+
+	If these strings contain whitespace they it is replaced with
+	underscores (_).
+
+	The system form factor value is a number defined in the SMBIOS
+	specification, available at http://www.dmtf.org/.  As of
+	version 2.7.1 of the specification, the following values are
+	defined:
+
+	  1	Other
+	  2	Unknown
+	  3	Desktop
+	  4	Low profile desktop
+	  5	Pizza box
+	  6	Mini tower
+	  7	Tower
+	  8	Portble
+	  9	Laptop
+	 10	Notebook
+	 11	Handheld
+	 12	Docking station
+	 13	All-in-one
+	 14	Subnotebook
+	 15	Space-saving
+	 16	Lunch box
+	 17	Main server chassis
+	 18	Expansion chassis
+	 19	Subchassis
+	 20	Bus expansion chassis
+	 21	Peripheral chassis
+	 22	RAID chassis
+	 23	Rack mount chasss
+	 24	Sealed-case PC
+	 25	Multi-system chassis
+	 26	Compact PCI
+	 27	Advanced TCI
+	 28	Blade
+	 29	Blade enclosure
+
+SENDCOOKIES bitmask			[PXELINUX only]
+
+	When downloading files over http, the SYSAPPEND strings are
+	prepended with _Syslinux_ and sent to the server as cookies.
+	The cookies are URL-encoded; whitespace is *not* replaced with
+	underscores.
+
+	This command limits the cookies send; 0 means no cookies.  The
+	default is -1, meaning send all cookies.
+
+	This option is "sticky" and is not automatically reset when
+	loading a new configuration file with the CONFIG command.
 
 LABEL label
     KERNEL image
     APPEND options...
-    IPAPPEND flag_val			[PXELINUX only]
+    SYSAPPEND flag_val			[5.10+]
+    IPAPPEND flag_val			[5.10+ or PXELINUX only]
 	Indicates that if "label" is entered as the kernel to boot,
         Syslinux should instead boot "image", and the specified APPEND
-	and IPAPPEND options should be used instead of the ones
+	and SYSAPPEND options should be used instead of the ones
         specified in the global section of the file (before the first
         LABEL command.)  The default for "image" is the same as
         "label", and if no APPEND is given the default is to use the
@@ -369,6 +467,9 @@ SERIAL port [[baudrate] flowcontrol]
 	Enabling interrupts (setting the 0x008 bit) may give better
 	responsiveness without setting the NOHALT option, but could
 	potentially cause problems with buggy BIOSes.
+
+	This option is "sticky" and is not automatically reset when
+	loading a new configuration file with the CONFIG command.
 
 NOHALT flag_val
 	If flag_val is 1, don't halt the processor while idle.

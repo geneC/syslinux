@@ -1,3 +1,33 @@
+/* ----------------------------------------------------------------------- *
+ *
+ *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2010 Shao Miller
+ *   Copyright 2010-2012 Michal Soltys
+ *
+ *   Permission is hereby granted, free of charge, to any person
+ *   obtaining a copy of this software and associated documentation
+ *   files (the "Software"), to deal in the Software without
+ *   restriction, including without limitation the rights to use,
+ *   copy, modify, merge, publish, distribute, sublicense, and/or
+ *   sell copies of the Software, and to permit persons to whom
+ *   the Software is furnished to do so, subject to the following
+ *   conditions:
+ *
+ *   The above copyright notice and this permission notice shall
+ *   be included in all copies or substantial portions of the Software.
+ *
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *   OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * ----------------------------------------------------------------------- */
+
 #include <com32.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -5,7 +35,6 @@
 #include <stdint.h>
 #include <dprintf.h>
 #include <syslinux/config.h>
-#include "common.h"
 #include "chain.h"
 #include "options.h"
 #include "utility.h"
@@ -32,7 +61,7 @@ int manglef_isolinux(struct data_area *data)
     sdi = syslinux_derivative_info();
 
     if (sdi->c.filesystem != SYSLINUX_FS_ISOLINUX) {
-	error ("The isolinux= option is only valid when run from ISOLINUX.\n");
+	error("The isolinux= option is only valid when run from ISOLINUX.");
 	goto bail;
     }
 
@@ -58,7 +87,7 @@ int manglef_isolinux(struct data_area *data)
     file_lba = get_file_lba(opt.file);
 
     if (file_lba == 0) {
-	error("Failed to find LBA offset of the boot file\n");
+	error("Failed to find LBA offset of the boot file.");
 	goto bail;
     }
     /* Set it */
@@ -132,8 +161,8 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
     if (!(opt.file && opt.grub))
 	return 0;
 
-    if (data->size < sizeof(struct grub_stage2_patch_area)) {
-	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.\n");
+    if (data->size < sizeof *stage2) {
+	error("The file specified by grub=<loader> is too small to be stage2 of GRUB Legacy.");
 	goto bail;
     }
     stage2 = data->data;
@@ -144,7 +173,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
      */
     if (stage2->compat_version_major != 3
 	    || stage2->compat_version_minor != 2) {
-	error("The file specified by grub=<loader> is not a supported stage2 GRUB Legacy binary.\n");
+	error("The file specified by grub=<loader> is not a supported stage2 GRUB Legacy binary.");
 	goto bail;
     }
 
@@ -174,7 +203,7 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
      *   0-3:  primary partitions
      *   4-*:  logical partitions
      */
-    stage2->install_partition.part1 = (uint8_t)(iter->index - 1);
+    stage2->install_partition.part1 = iter->index - 1;
 
     /*
      * Grub Legacy reserves 89 bytes (from 0x8217 to 0x826f) for the
@@ -182,8 +211,8 @@ int manglef_grub(const struct part_iter *iter, struct data_area *data)
      * the default config filename "/boot/grub/menu.lst".
      */
     if (opt.grubcfg) {
-	if (strlen(opt.grubcfg) > sizeof(stage2->config_file) - 1) {
-	    error ("The config filename length can't exceed 88 characters.\n");
+	if (strlen(opt.grubcfg) >= sizeof stage2->config_file) {
+	    error("The config filename length can't exceed 88 characters.");
 	    goto bail;
 	}
 
@@ -224,19 +253,19 @@ int manglef_drmk(struct data_area *data)
     dprintf("  fs_lba offset is %d\n", fs_lba);
     /* DRMK only uses a DWORD */
     if (fs_lba > 0xffffffff) {
-	error("LBA very large; Only using lower 32 bits; DRMK will probably fail\n");
+	error("LBA very large; Only using lower 32 bits; DRMK will probably fail.");
     }
     opt.regs.ss = opt.regs.fs = opt.regs.gs = 0;	/* Used before initialized */
     if (!realloc(data->data, tsize)) {
-	error("Failed to realloc for DRMK.\n");
+	error("Failed to realloc for DRMK.");
 	goto bail;
     }
     data->size = tsize;
     /* ds:bp is assumed by DRMK to be the boot sector */
     /* offset 28 is the FAT HiddenSectors value */
-    opt.regs.ds = (uint16_t)((tsize >> 4) + (opt.fseg - 2));
+    opt.regs.ds = (tsize >> 4) + (opt.fseg - 2);
     /* "Patch" into tail of the new space */
-    *(uint32_t *)((char*)data->data + tsize - 4) = (uint32_t)fs_lba;
+    *(uint32_t *)((char*)data->data + tsize - 4) = fs_lba;
 
     return 0;
 bail:
@@ -246,29 +275,32 @@ bail:
 /* Adjust BPB common function */
 static int mangle_bpb(const struct part_iter *iter, struct data_area *data, const char *tag)
 {
-    unsigned int off;
     int type = bpb_detect(data->data, tag);
+    int off = drvoff_detect(type);
 
+    /* BPB: hidden sectors 64bit - exFAT only for now */
+    if (type == bpbEXF)
+	    *(uint64_t *) ((char *)data->data + 0x40) = iter->abs_lba;
     /* BPB: hidden sectors 32bit*/
-    if (type >= bpbV34) {
-	if (iter->start_lba < ~0u)
-	    *(uint32_t *) ((char *)data->data + 0x1c) = (uint32_t)iter->start_lba;
+    else if (bpbV34 <= type && type <= bpbV70) {
+	if (iter->abs_lba < ~0u)
+	    *(uint32_t *) ((char *)data->data + 0x1c) = iter->abs_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint32_t *) ((char *)data->data + 0x1c) = ~0u;
-    }
     /* BPB: hidden sectors 16bit*/
-    if (bpbV30 <= type && type <= bpbV32) {
-	if (iter->start_lba < 0xFFFF)
-	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)iter->start_lba;
+    } else if (bpbV30 <= type && type <= bpbV32) {
+	if (iter->abs_lba < 0xFFFF)
+	    *(uint16_t *) ((char *)data->data + 0x1c) = iter->abs_lba;
 	else
 	    /* won't really help much, but ... */
 	    *(uint16_t *) ((char *)data->data + 0x1c) = (uint16_t)~0u;
     }
+
     /* BPB: legacy geometry */
-    if (type >= bpbV30) {
+    if (bpbV30 <= type && type <= bpbV70) {
 	if (iter->di.cbios)
-	    *(uint32_t *)((char *)data->data + 0x18) = (uint32_t)((iter->di.head << 16) | iter->di.spt);
+	    *(uint32_t *)((char *)data->data + 0x18) = (iter->di.head << 16) | iter->di.spt;
 	else {
 	    if (iter->di.disk & 0x80)
 		*(uint32_t *)((char *)data->data + 0x18) = 0x00FF003F;
@@ -277,9 +309,8 @@ static int mangle_bpb(const struct part_iter *iter, struct data_area *data, cons
 	}
     }
     /* BPB: drive */
-    if (drvoff_detect(type, &off)) {
-	*(uint8_t *)((char *)data->data + off) = (uint8_t)
-	    (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
+    if (off >= 0) {
+	*(uint8_t *)((char *)data->data + off) = (opt.swap ? iter->di.disk & 0x80 : iter->di.disk);
     }
 
     return 0;
@@ -314,7 +345,7 @@ int mangles_bpb(const struct part_iter *iter, struct data_area *data)
 int manglesf_bss(struct data_area *sec, struct data_area *fil)
 {
     int type1, type2;
-    unsigned int cnt = 0;
+    size_t cnt = 0;
 
     if (!(opt.sect && opt.file && opt.bss))
 	return 0;
@@ -323,12 +354,12 @@ int manglesf_bss(struct data_area *sec, struct data_area *fil)
     type2 = bpb_detect(sec->data, "bss/sect");
 
     if (!type1 || !type2) {
-	error("Couldn't determine the BPB type for option 'bss'.\n");
+	error("Couldn't determine the BPB type for option 'bss'.");
 	goto bail;
     }
     if (type1 != type2) {
 	error("Option 'bss' can't be used,\n"
-		"when a sector and a file have incompatible BPBs.\n");
+		"when a sector and a file have incompatible BPBs.");
 	goto bail;
     }
 
@@ -348,6 +379,8 @@ int manglesf_bss(struct data_area *sec, struct data_area *fil)
 	cnt = 0x3C;
     } else if (type1 <= bpbV70) {
 	cnt = 0x42;
+    } else if (type1 <= bpbEXF) {
+	cnt = 0x60;
     }
     memcpy((char *)fil->data + 0x18, (char *)sec->data + 0x18, cnt);
 
@@ -365,8 +398,8 @@ int mangles_save(const struct part_iter *iter, const struct data_area *data, voi
 	return 0;
 
     if (memcmp(org, data->data, data->size)) {
-	if (disk_write_sectors(&iter->di, iter->start_lba, data->data, 1)) {
-	    error("Cannot write the updated sector.\n");
+	if (disk_write_sectors(&iter->di, iter->abs_lba, data->data, 1)) {
+	    error("Cannot write the updated sector.");
 	    goto bail;
 	}
 	/* function can be called again */
@@ -388,7 +421,7 @@ int mangles_cmldr(struct data_area *data)
     if (!(opt.sect && opt.cmldr))
 	return 0;
 
-    memcpy((char *)data->data + 3, cmldr_signature, sizeof(cmldr_signature));
+    memcpy((char *)data->data + 3, cmldr_signature, sizeof cmldr_signature);
     return 0;
 }
 
@@ -397,18 +430,18 @@ int mangler_init(const struct part_iter *iter)
 {
     /* Set initial registry values */
     if (opt.file) {
-	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.fseg;
-	opt.regs.ip = (uint16_t)opt.fip;
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = opt.fseg;
+	opt.regs.ip = opt.fip;
     } else {
-	opt.regs.cs = opt.regs.ds = opt.regs.ss = (uint16_t)opt.sseg;
-	opt.regs.ip = (uint16_t)opt.sip;
+	opt.regs.cs = opt.regs.ds = opt.regs.ss = opt.sseg;
+	opt.regs.ip = opt.sip;
     }
 
     if (opt.regs.ip == 0x7C00 && !opt.regs.cs)
 	opt.regs.esp.l = 0x7C00;
 
     /* DOS kernels want the drive number in BL instead of DL. Indulge them. */
-    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = (uint8_t)iter->di.disk;
+    opt.regs.ebx.b[0] = opt.regs.edx.b[0] = iter->di.disk;
 
     return 0;
 }
@@ -418,7 +451,7 @@ int mangler_handover(const struct part_iter *iter, const struct data_area *data)
 {
     if (opt.file && opt.maps && !opt.hptr) {
 	opt.regs.esi.l = opt.regs.ebp.l = opt.soff;
-	opt.regs.ds = (uint16_t)opt.sseg;
+	opt.regs.ds = opt.sseg;
 	opt.regs.eax.l = 0;
     } else if (opt.hand) {
 	/* base is really 0x7be */
@@ -442,7 +475,7 @@ int mangler_handover(const struct part_iter *iter, const struct data_area *data)
 int mangler_grldr(const struct part_iter *iter)
 {
     if (opt.grldr)
-	opt.regs.edx.b[1] = (uint8_t)(iter->index - 1);
+	opt.regs.edx.b[1] = iter->index - 1;
 
     return 0;
 }
@@ -450,15 +483,15 @@ int mangler_grldr(const struct part_iter *iter)
 /*
  * try to copy values from temporary iterator, if positions match
  */
-static void push_embr(struct part_iter *diter, struct part_iter *siter)
+static void mbrcpy(struct part_iter *diter, struct part_iter *siter)
 {
-    if (diter->sub.dos.cebr_lba == siter->sub.dos.cebr_lba &&
+    if (diter->dos.cebr_lba == siter->dos.cebr_lba &&
 	    diter->di.disk == siter->di.disk) {
 	memcpy(diter->data, siter->data, sizeof(struct disk_dos_mbr));
     }
 }
 
-static int mpe_sethide(struct part_iter *iter, struct part_iter *miter)
+static int fliphide(struct part_iter *iter, struct part_iter *miter)
 {
     struct disk_dos_part_entry *dp;
     static const uint16_t mask =
@@ -471,8 +504,8 @@ static int mpe_sethide(struct part_iter *iter, struct part_iter *miter)
 
     if ((t <= 0x1f) && ((mask >> (t & ~0x10u)) & 1)) {
 	/* It's a hideable partition type */
-	if (miter->index == iter->index || opt.hide & 4)
-	    t &= (uint8_t)(~0x10u);	/* unhide */
+	if (miter->index == iter->index || opt.hide & HIDE_REV)
+	    t &= ~0x10u;	/* unhide */
 	else
 	    t |= 0x10u;	/* hide */
     }
@@ -494,69 +527,98 @@ int manglepe_hide(struct part_iter *miter)
 {
     int wb = 0, werr = 0;
     struct part_iter *iter = NULL;
-    struct disk_dos_part_entry *dp;
     int ridx;
 
-    if (!opt.hide)
+    if (!(opt.hide & HIDE_ON))
 	return 0;
 
     if (miter->type != typedos) {
-	error("Options '*hide*' is meaningful only for legacy partition scheme.\n");
+	error("Option '[un]hide[all]' works only for legacy (DOS) partition scheme.");
 	return -1;
     }
 
-    if (miter->index < 1)
-	error("WARNING: It's impossible to unhide a disk.\n");
+    if (miter->index > 4 && !(opt.hide & HIDE_EXT))
+	warn("Specified partition is logical, so it can't be unhidden without 'unhideall'.");
 
-    if (miter->index > 4 && !(opt.hide & 2))
-	error("WARNING: your partition is beyond mbr, so it can't be unhidden without '*hideall'.\n");
-
-    if (!(iter = pi_begin(&miter->di, 1)))  /* turn stepall on */
+    if (!(iter = pi_begin(&miter->di, PIF_STEPALL | opt.piflags)))
 	return -1;
 
-    while (!pi_next(&iter) && !werr) {
-	ridx = iter->rawindex;
-	if (!(opt.hide & 2) && ridx > 4)
+    while (!pi_next(iter) && !werr) {
+	ridx = iter->index0;
+	if (!(opt.hide & HIDE_EXT) && ridx > 3)
 	    break;  /* skip when we're constrained to pri only */
 
-	dp = (struct disk_dos_part_entry *)iter->record;
-	if (dp->ostype)
-	    wb |= mpe_sethide(iter, miter);
+	if (iter->index != -1)
+	    wb |= fliphide(iter, miter);
 
-	if (ridx >= 4 && wb && !werr) {
-	    push_embr(miter, iter);
-	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	/*
+	 * we have to update mbr and each extended partition, but only if
+	 * changes (wb) were detected and there was no prior write error (werr)
+	 */
+	if (ridx >= 3 && wb && !werr) {
+	    mbrcpy(miter, iter);
+	    werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
 	    wb = 0;
 	}
     }
 
-    if (iter->status > PI_DONE)
+    if (pi_errored(iter))
 	goto bail;
 
-    /* last write */
+    /* last update */
     if (wb && !werr) {
-	push_embr(miter, iter);
-	werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	mbrcpy(miter, iter);
+	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)
-	error("WARNING: failed to write E/MBR during '*hide*'\n");
+	warn("Failed to write E/MBR during '[un]hide[all]'.");
 
 bail:
     pi_del(&iter);
     return 0;
 }
 
-static int mpe_setchs(const struct disk_info *di,
-		     struct disk_dos_part_entry *dp,
-		     uint32_t lba1)
+static int updchs(struct part_iter *iter, int ext)
 {
-    uint32_t ochs1, ochs2;
+    struct disk_dos_part_entry *dp;
+    uint32_t ochs1, ochs2, lba;
 
+    dp = (struct disk_dos_part_entry *)iter->record;
+    if (!ext) {
+	/* primary or logical */
+	lba = (uint32_t)iter->abs_lba;
+    } else {
+	/* extended */
+	dp += 1;
+	lba = iter->dos.nebr_lba;
+    }
     ochs1 = *(uint32_t *)dp->start;
     ochs2 = *(uint32_t *)dp->end;
 
-    lba2chs(&dp->start, di, lba1, l2c_cadd);
-    lba2chs(&dp->end, di, lba1 + dp->length - 1, l2c_cadd);
+    /*
+     * We have to be a bit more careful here in case of 0 start and/or length;
+     * start = 0 would be converted to the beginning of the disk (C/H/S =
+     * 0/0/1) or the [B]EBR, length = 0 would actually set the end CHS to be
+     * lower than the start CHS.
+     *
+     * Both are harmless in case of a hole (and in non-hole case will make
+     * partiter complain about corrupt layout unless PIF_RELAX is set), but it
+     * makes everything look silly and not really correct.
+     *
+     * Thus the approach as seen below.
+     */
+
+    if (dp->start_lba || iter->index != -1) {
+	lba2chs(&dp->start, &iter->di, lba, L2C_CADD);
+    } else {
+	memset(&dp->start, 0, sizeof dp->start);
+    }
+
+    if ((dp->start_lba || iter->index != -1) && dp->length) {
+	lba2chs(&dp->end, &iter->di, lba + dp->length - 1, L2C_CADD);
+    } else {
+	memset(&dp->end, 0, sizeof dp->end);
+    }
 
     return
 	*(uint32_t *)dp->start != ochs1 ||
@@ -570,45 +632,47 @@ int manglepe_fixchs(struct part_iter *miter)
 {
     int wb = 0, werr = 0;
     struct part_iter *iter = NULL;
-    struct disk_dos_part_entry *dp;
     int ridx;
 
     if (!opt.fixchs)
 	return 0;
 
     if (miter->type != typedos) {
-	error("Options 'fixchs' is meaningful only for legacy partition scheme.\n");
+	error("Option 'fixchs' works only for legacy (DOS) partition scheme.");
 	return -1;
     }
 
-    if (!(iter = pi_begin(&miter->di, 1)))  /* turn stepall on */
+    if (!(iter = pi_begin(&miter->di, PIF_STEPALL | opt.piflags)))
 	return -1;
 
-    while (!pi_next(&iter) && !werr) {
-	ridx = iter->rawindex;
-	dp = (struct disk_dos_part_entry *)iter->record;
+    while (!pi_next(iter) && !werr) {
+	ridx = iter->index0;
 
-	wb |= mpe_setchs(&iter->di, dp, (uint32_t)iter->start_lba);
-	if (ridx > 4)
-		wb |= mpe_setchs(&iter->di, dp + 1, iter->sub.dos.nebr_lba);
+	wb |= updchs(iter, 0);
+	if (ridx > 3)
+	    wb |= updchs(iter, 1);
 
-	if (ridx >= 4 && wb && !werr) {
-	    push_embr(miter, iter);
-	    werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	/*
+	 * we have to update mbr and each extended partition, but only if
+	 * changes (wb) were detected and there was no prior write error (werr)
+	 */
+	if (ridx >= 3 && wb && !werr) {
+	    mbrcpy(miter, iter);
+	    werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
 	    wb = 0;
 	}
     }
 
-    if (iter->status > PI_DONE)
+    if (pi_errored(iter))
 	goto bail;
 
-    /* last write */
+    /* last update */
     if (wb && !werr) {
-	push_embr(miter, iter);
-	werr |= disk_write_sectors(&iter->di, iter->sub.dos.cebr_lba, iter->data, 1);
+	mbrcpy(miter, iter);
+	werr |= disk_write_sectors(&iter->di, iter->dos.cebr_lba, iter->data, 1);
     }
     if (werr)
-	error("WARNING: failed to write E/MBR during 'fixchs'\n");
+	warn("Failed to write E/MBR during 'fixchs'.");
 
 bail:
     pi_del(&iter);

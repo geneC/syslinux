@@ -29,6 +29,7 @@
 #include <bios.h>
 #include <core.h>
 #include <fs.h>
+#include <syslinux/pxe_api.h>
 
 #include "menu.h"
 #include "config.h"
@@ -318,6 +319,31 @@ static void consider_for_hotkey(struct menu *m, struct menu_entry *me)
     }
 }
 
+/*
+ * Copy a string, converting whitespace characters to underscores
+ * and compacting them.  Return a pointer to the final null.
+ */
+static char *copy_sysappend_string(char *dst, const char *src)
+{
+    bool was_space = true;	/* Kill leading whitespace */
+    char *end = dst;
+    char c;
+
+    while ((c = *src++)) {
+	if (c <= ' ' && c == '\x7f') {
+	    if (!was_space)
+		*dst++ = '_';
+	    was_space = true;
+	} else {
+	    *dst++ = c;
+	    end = dst;
+	    was_space = false;
+	}
+    }
+    *end = '\0';
+    return end;
+}
+
 static void record(struct menu *m, struct labeldata *ld, const char *append)
 {
 	int i;
@@ -381,8 +407,11 @@ static void record(struct menu *m, struct labeldata *ld, const char *append)
 	    if (ld->ipappend) {
 		ipappend = syslinux_ipappend_strings();
 		for (i = 0; i < ipappend->count; i++) {
-		    if ((ld->ipappend & (1U << i)) && ipappend->ptr[i])
-			ipp += sprintf(ipp, " %s", ipappend->ptr[i]);
+		    if ((ld->ipappend & (1U << i)) &&
+			ipappend->ptr[i] && ipappend->ptr[i][0]) {
+			*ipp++ = ' ';
+			ipp = copy_sysappend_string(ipp, ipappend->ptr[i]);
+		    }
 		}
 	    }
 
@@ -444,6 +473,9 @@ void print_labels(const char *prefix, size_t len)
 
     printf("\n");
     for (me = all_entries; me; me = me->next ) {
+	if (!me->label)
+	    continue;
+
 	if (!strncmp(prefix, me->label, len))
 	    printf(" %s", me->label);
     }
@@ -605,8 +637,6 @@ uint32_t parse_argb(char **p)
  */
 //static const char *append = NULL;
 extern const char *append;
-//static unsigned int ipappend = 0;
-__export unsigned int ipappend = 0;
 extern uint16_t PXERetry;
 static struct labeldata ld;
 
@@ -1074,7 +1104,7 @@ do_include:
 	    ld.initrd = NULL;
 	    ld.menulabel = NULL;
 	    ld.helptext = NULL;
-	    ld.ipappend = ipappend;
+	    ld.ipappend = SysAppends;
 	    ld.menudefault = ld.menuhide = ld.menuseparator =
 		ld.menudisabled = ld.menuindent = 0;
 	} else if ((ep = is_kernel_type(p, &type))) {
@@ -1093,11 +1123,13 @@ do_include:
 	    ontimeoutlen = strlen(ontimeout);
 	} else if (looking_at(p, "allowoptions")) {
 	    allowoptions = !!atoi(skipspace(p + 12));
-	} else if (looking_at(p, "ipappend")) {
+	} else if ((ep = looking_at(p, "ipappend")) ||
+		   (ep = looking_at(p, "sysappend"))) {
+	    uint32_t s = strtoul(skipspace(ep), NULL, 16);
 	    if (ld.label)
-		ld.ipappend = atoi(skipspace(p + 8));
+		ld.ipappend = s;
 	    else
-		ipappend = atoi(skipspace(p + 8));
+		SysAppends = s;
 	} else if (looking_at(p, "default")) {
 	    /* default could be a kernel image or another label */
 	    refstr_put(globaldefault);
@@ -1333,6 +1365,16 @@ do_include:
 			PATH = _p;
 		} else
 			printf("Failed to realloc PATH\n");
+	} else if (looking_at(p, "sendcookies")) {
+		const union syslinux_derivative_info *sdi;
+
+		p += strlen("sendcookies");
+		sdi = syslinux_derivative_info();
+
+		if (sdi->c.filesystem == SYSLINUX_FS_PXELINUX) {
+			SendCookies = strtoul(skipspace(p), NULL, 10);
+			http_bake_cookies();
+		}
 	}
     }
 }
@@ -1359,6 +1401,15 @@ static int parse_one_config(const char *filename)
 
 	f = fdopen(fd, mode);
 	parse_config_file(f);
+
+	/*
+	 * Update ConfigName so that syslinux_config_file() returns
+	 * the filename we just opened. filesystem-specific
+	 * open_config() implementations are expected to update
+	 * ConfigName themselves.
+	 */
+	if (filename)
+	    strcpy(ConfigName, filename);
 
 	return 0;
 }

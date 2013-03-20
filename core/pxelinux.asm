@@ -39,25 +39,6 @@ TFTP_BLOCKSIZE	equ (1 << TFTP_BLOCKSIZE_LG2)
 SECTOR_SHIFT	equ TFTP_BLOCKSIZE_LG2
 SECTOR_SIZE	equ TFTP_BLOCKSIZE
 
-;
-; The following structure is used for "virtual kernels"; i.e. LILO-style
-; option labels.  The options we permit here are `kernel' and `append
-; Since there is no room in the bottom 64K for all of these, we
-; stick them in high memory and copy them down before we need them.
-;
-		struc vkernel
-vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
-vk_rname:	resb FILENAME_MAX	; Real name
-vk_ipappend:	resb 1			; "IPAPPEND" flag
-vk_type:	resb 1			; Type of file
-vk_appendlen:	resw 1
-		alignb 4
-vk_append:	resb max_cmd_len+1	; Command line
-		alignb 4
-vk_end:		equ $			; Should be <= vk_size
-		endstruc
-
-
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
 ; ---------------------------------------------------------------------------
@@ -288,14 +269,6 @@ FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
 		global KernelName
 KernelName	resb FILENAME_MAX	; Mangled name for kernel
-		section .data16
-		extern IPOption, BOOTIFStr, SYSUUIDStr
-		global IPAppends, numIPAppends
-		alignz 2
-IPAppends	dw IPOption
-		dw BOOTIFStr
-		dw SYSUUIDStr
-numIPAppends	equ ($-IPAppends)/2
 
 		section .text16
 ;
@@ -386,9 +359,15 @@ pxenv:
 		call bios_timer_cleanup
 
 .store_stack:
+		pushf
+		cli
+		inc word [cs:PXEStackLock]
+		jnz .skip1
 		mov [cs:PXEStack],sp
 		mov [cs:PXEStack+2],ss
 		lss sp,[cs:InitStack]
+.skip1:
+		popf
 
 		; Pre-clear the Status field
 		mov word [es:di],cs
@@ -403,7 +382,13 @@ pxenv:
 		add sp,6
 		mov [cs:PXEStatus],ax
 
+		pushf
+		cli
+		dec word [cs:PXEStackLock]
+		jns .skip2
 		lss sp,[cs:PXEStack]
+.skip2:
+		popf
 
 		mov bp,sp
 		and ax,ax
@@ -430,10 +415,19 @@ pxenv:
                 global PXEEntry
 PXEEntry	equ pxenv.jump+1
 
+;
+; The PXEStackLock keeps us from switching stacks if we take an interrupt
+; (which ends up calling pxenv) while we are already on the PXE stack.
+; It will be -1 normally, 0 inside a PXE call, and a positive value
+; inside a *nested* PXE call.
+;
+		section .data16
+		alignb 2
+PXEStackLock	dw -1
+
 		section .bss16
 		alignb 2
 PXEStatus	resb 2
-
 
 		section .text16
 ;
@@ -525,6 +519,14 @@ pxe_file_exit_hook:
 %endif
 
 		section .text16
+
+; -----------------------------------------------------------------------------
+;  PXE modules
+; -----------------------------------------------------------------------------
+
+%if IS_LPXELINUX
+%include "pxeisr.inc"
+%endif
 
 ; -----------------------------------------------------------------------------
 ;  Common modules

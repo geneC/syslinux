@@ -15,6 +15,7 @@
  * is BIOS-specific.
  */
 
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -53,7 +54,7 @@ void chainboot_file(const char *file, uint32_t type)
     if (!buf)
 	goto bail;
     
-    rv = open_file(file, &fd);
+    rv = open_file(file, O_RDONLY, &fd);
     if (rv == -1)
 	goto bail;
     

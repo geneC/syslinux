@@ -80,27 +80,6 @@ static inline __constfunc uint32_t cpuid_edx(uint32_t level)
     return v;
 }
 
-/* Standard macro to see if a specific flag is changeable */
-static inline __constfunc bool cpu_has_eflag(uint32_t flag)
-{
-	uint32_t f0, f1;
-
-	asm("pushfl ; "
-	    "pushfl ; "
-	    "popl %0 ; "
-	    "movl %0,%1 ; "
-	    "xorl %2,%1 ; "
-	    "pushl %1 ; "
-	    "popfl ; "
-	    "pushfl ; "
-	    "popl %1 ; "
-	    "popfl"
-	    : "=&r" (f0), "=&r" (f1)
-	    : "ri" (flag));
-
-	return !!((f0^f1) & flag);
-}
-
 static inline uint64_t rdmsr(uint32_t msr)
 {
     uint64_t v;
@@ -116,20 +95,20 @@ static inline void wrmsr(uint64_t v, uint32_t msr)
 
 static inline void cpu_relax(void)
 {
-    asm volatile("rep ; nop");
+    asm volatile("rep ; nop" : : : "memory");
 }
 
 static inline void hlt(void)
 {
-    asm volatile("hlt");
+    asm volatile("hlt" : : : "memory");
 }
 
 static inline void cli(void)
 {
-    asm volatile("cli");
+    asm volatile("cli" : : : "memory");
 }
 
 static inline void sti(void)
 {
-    asm volatile("sti");
+    asm volatile("sti" : : : "memory");
 }

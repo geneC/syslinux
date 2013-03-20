@@ -1,7 +1,9 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2001-2010 H. Peter Anvin - All Rights Reserved
-##   Copyright 2010 Michal Soltys
+##   Copyright 2001-2009 H. Peter Anvin - All Rights Reserved
+##   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+##   Copyright 2010 Shao Miller
+##   Copyright 2010-2012 Michal Soltys
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -15,6 +17,7 @@ VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
 OBJS = chain.o partiter.o utility.o options.o mangle.o
+CFLAGS += -fno-strict-aliasing
 
 all: chain.c32
 

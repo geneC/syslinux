@@ -92,9 +92,11 @@ keywd_table:
 		keyword f0,		pc_filename,	FKeyN(10)
 		keyword f11,		pc_filename,	FKeyN(11)
 		keyword f12,		pc_filename,	FKeyN(12)
-%if IS_PXELINUX
-		keyword ipappend,	pc_ipappend
-%endif
+		keyword ipappend,	pc_sysappend
+		keyword sysappend,	pc_sysappend
 		keyword localboot,	pc_localboot
+%if IS_PXELINUX
+		keyword sendcookies,	pc_sendcookies
+%endif
 
 keywd_count	equ ($-keywd_table)/keywd_size

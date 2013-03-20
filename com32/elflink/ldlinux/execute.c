@@ -46,16 +46,21 @@ const struct image_types image_boot_types[] = {
 
 extern int create_args_and_load(char *);
 
-__export void execute(const char *cmdline, uint32_t type)
+__export void execute(const char *cmdline, uint32_t type, bool sysappend)
 {
 	const char *kernel, *args;
 	const char *p;
 	com32sys_t ireg;
-	char *q;
+	char *q, ch;
 
 	memset(&ireg, 0, sizeof ireg);
 
-	q = malloc(strlen(cmdline) + 2);
+	if (strlen(cmdline) >= MAX_CMDLINE_LEN) {
+		printf("cmdline too long\n");
+		return;
+	}
+
+	q = malloc(MAX_CMDLINE_LEN);
 	if (!q) {
 		printf("%s(): Fail to malloc a buffer to exec %s\n",
 			__func__, cmdline);
@@ -72,7 +77,17 @@ __export void execute(const char *cmdline, uint32_t type)
 	while (*p && my_isspace(*p))
 		p++;
 
-	strcpy(q, p);
+	do {
+		*q++ = ch = *p++;
+	} while (ch);
+
+	if (sysappend) {
+		/* If we've seen some args, insert a space */
+		if (--q != args)
+			*q++ = ' ';
+
+		do_sysappend(q);
+	}
 
 	dprintf("kernel is %s, args = %s  type = %d \n", kernel, args, type);
 
@@ -86,13 +101,14 @@ __export void execute(const char *cmdline, uint32_t type)
 				 * filename extension if COM32 and
 				 * retry.
 				 */
+				p = args;
 				if (t->type == IMAGE_TYPE_COM32) {
 					p = apply_extension(p, ".c32");
 					if (!p)
 						return;
 				}
 
-				execute(p, t->type);
+				execute(p, t->type, sysappend);
 				return;
 			}
 		}
@@ -122,17 +138,23 @@ __export void execute(const char *cmdline, uint32_t type)
 
 		ldlinux_enter_command();
 	} else if (type == IMAGE_TYPE_CONFIG) {
-		char *argv[] = { "ldlinux.c32", NULL };
+		char *argv[] = { "ldlinux.c32", NULL, NULL };
+		char *config;
 		int rv;
 
 		/* kernel contains the config file name */
-		realpath(ConfigName, kernel, FILENAME_MAX);
+		config = malloc(FILENAME_MAX);
+		if (!config)
+			goto out;
+
+		realpath(config, kernel, FILENAME_MAX);
 
 		/* If we got anything on the command line, do a chdir */
 		if (*args)
 			mangle_name(config_cwd, args);
 
-		rv = start_ldlinux(argv);
+		argv[1] = config;
+		rv = start_ldlinux(2, argv);
 		printf("Failed to exec ldlinux.c32: %s\n", strerror(rv));
 	} else if (type == IMAGE_TYPE_LOCALBOOT) {
 		local_boot(strtoul(kernel, NULL, 0));
@@ -142,9 +164,10 @@ __export void execute(const char *cmdline, uint32_t type)
 	} else {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */
-		new_linux_kernel((char *)kernel, (char *)cmdline);
+		new_linux_kernel((char *)kernel, (char *)args);
 	}
 
+out:
 	free((void *)kernel);
 
 	/* If this returns, something went bad; return to menu */

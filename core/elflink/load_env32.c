@@ -57,12 +57,12 @@ void init_module_subsystem(struct elf_module *module)
     list_add(&module->list, &modules_head);
 }
 
-__export int start_ldlinux(char **argv)
+__export int start_ldlinux(int argc, char **argv)
 {
 	int rv;
 
 again:
-	rv = spawn_load(LDLINUX, 1, argv);
+	rv = spawn_load(LDLINUX, argc, argv);
 	if (rv == EEXIST) {
 		/*
 		 * If a COM32 module calls execute() we may need to
@@ -139,7 +139,7 @@ void load_env32(com32sys_t * regs __unused)
 
 	init_module_subsystem(&core_module);
 
-	start_ldlinux(argv);
+	start_ldlinux(1, argv);
 
 	/*
 	 * If we failed to load LDLINUX it could be because our
@@ -147,10 +147,9 @@ void load_env32(com32sys_t * regs __unused)
 	 * a bit harder to find LDLINUX. If search_dirs() succeeds
 	 * in finding LDLINUX it will set the cwd.
 	 */
-	free(PATH);
 	fd = opendev(&__file_dev, NULL, O_RDONLY);
 	if (fd < 0)
-		return;
+		goto out;
 
 	fp = &__file_info[fd];
 
@@ -159,25 +158,43 @@ void load_env32(com32sys_t * regs __unused)
 
 		/*
 		 * search_dirs() sets the current working directory if
-		 * it successfully opens the file. Set PATH to the
-		 * directory in which we found ldlinux.c32.
+		 * it successfully opens the file. Add the directory
+		 * in which we found ldlinux.c32 to PATH.
 		 */
 		if (!core_getcwd(path, sizeof(path)))
 			goto out;
 
-		PATH = malloc(strlen(path) + 1);
-		if (!PATH) {
-			printf("Couldn't allocate memory for PATH\n");
-			goto out;
+		if (!strlen(PATH)) {
+			PATH = realloc(PATH, strlen(path) + 1);
+			if (!PATH) {
+				printf("Couldn't allocate memory for PATH\n");
+				goto out;
+			}
+
+			strcpy(PATH, path);
+		} else {
+			PATH = realloc(PATH, strlen(path) + strlen(PATH) + 2);
+			if (!PATH) {
+				printf("Couldn't allocate memory for PATH\n");
+				goto out;
+			}
+
+			strcat(PATH, ":");
+			strcat(PATH, path);
 		}
 
-		strcpy(PATH, path);
-
-		start_ldlinux(argv);
+		start_ldlinux(1, argv);
 	}
 
 out:
+	free(PATH);
 	writestr("\nFailed to load ldlinux.c32");
+}
+
+static const char *__cmdline;
+__export const char *com32_cmdline(void)
+{
+	return __cmdline;
 }
 
 __export int create_args_and_load(char *cmdline)
@@ -231,6 +248,12 @@ __export int create_args_and_load(char *cmdline)
 		 */
 		while (*p && isspace(*p))
 			p++;
+
+		/*
+		 * Point __cmdline at "argv[1] ... argv[argc-1]"
+		 */
+		if (i == 0)
+			__cmdline = p;
 	}
 
 	/* NUL-terminate */

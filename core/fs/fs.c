@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <dprintf.h>
 #include "core.h"
 #include "dev.h"
@@ -138,7 +139,7 @@ size_t pmapi_read_file(uint16_t *handle, void *buf, size_t sectors)
     return bytes_read;
 }
 
-int searchdir(const char *name)
+int searchdir(const char *name, int flags)
 {
     static char root_name[] = "/";
     struct file *file;
@@ -155,7 +156,7 @@ int searchdir(const char *name)
 
     /* if we have ->searchdir method, call it */
     if (file->fs->fs_ops->searchdir) {
-	file->fs->fs_ops->searchdir(name, file);
+	file->fs->fs_ops->searchdir(name, flags, file);
 
 	if (file->inode)
 	    return file_to_handle(file);
@@ -337,7 +338,7 @@ err_no_close:
     return -1;
 }
 
-__export int open_file(const char *name, struct com32_filedata *filedata)
+__export int open_file(const char *name, int flags, struct com32_filedata *filedata)
 {
     int rv;
     struct file *file;
@@ -346,7 +347,7 @@ __export int open_file(const char *name, struct com32_filedata *filedata)
     dprintf("open_file %s\n", name);
 
     mangle_name(mangled_name, name);
-    rv = searchdir(mangled_name);
+    rv = searchdir(mangled_name, flags);
 
     if (rv < 0)
 	return rv;
@@ -393,9 +394,6 @@ void fs_init(const struct fs_ops **ops, void *priv)
     static struct fs_info fs;	/* The actual filesystem buffer */
     int blk_shift = -1;
     struct device *dev = NULL;
-
-    /* Initialize malloc() */
-    mem_init();
 
     /* Default name for the root directory */
     fs.cwd_name[0] = '/';

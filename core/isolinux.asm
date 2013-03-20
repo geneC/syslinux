@@ -35,23 +35,6 @@ SECTOR_SIZE	equ (1 << SECTOR_SHIFT)
 
 ROOT_DIR_WORD	equ 0x002F
 
-;
-; The following structure is used for "virtual kernels"; i.e. LILO-style
-; option labels.  The options we permit here are `kernel' and `append
-; Since there is no room in the bottom 64K for all of these, we
-; stick them in high memory and copy them down before we need them.
-;
-		struc vkernel
-vk_vname:	resb FILENAME_MAX	; Virtual name **MUST BE FIRST!**
-vk_rname:	resb FILENAME_MAX	; Real name
-vk_appendlen:	resw 1
-vk_type:	resb 1			; Type of file
-		alignb 4
-vk_append:	resb max_cmd_len+1	; Command line
-		alignb 4
-vk_end:		equ $			; Should be <= vk_size
-		endstruc
-
 ; ---------------------------------------------------------------------------
 ;   BEGIN CODE
 ; ---------------------------------------------------------------------------
@@ -1219,17 +1202,6 @@ FuncFlag	resb 1			; Escape sequences received from keyboard
 KernelType	resb 1			; Kernel type, from vkernel, if known
 		global KernelName
 KernelName	resb FILENAME_MAX	; Mangled name for kernel
-		section .data16
-		global IPAppends, numIPAppends
-%if IS_PXELINUX
-		extern IPOption
-		alignz 2
-IPAppends	dw IPOption
-numIPAppends	equ ($-IPAppends)/2
-%else
-IPAppends	equ 0
-numIPAppends	equ 0
-%endif
 
 		section .text16
 ;

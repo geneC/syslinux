@@ -1,3 +1,4 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/dirent.h>
@@ -12,7 +13,7 @@ __export DIR *opendir(const char *path)
     int rv;
     struct file *file;
 
-    rv = searchdir(path);
+    rv = searchdir(path, O_RDONLY|O_DIRECTORY);
     if (rv < 0)
 	return NULL;
 
