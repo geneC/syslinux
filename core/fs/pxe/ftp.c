@@ -26,6 +26,7 @@
 #include "pxe.h"
 #include "thread.h"
 #include "url.h"
+#include "net.h"
 
 static int ftp_cmd_response(struct inode *inode, const char *cmd,
 			    const char *cmd_arg,
@@ -37,11 +38,11 @@ static int ftp_cmd_response(struct inode *inode, const char *cmd,
     int pb, pn;
     bool ps;
     bool first_line, done;
-    err_t err;
     char cmd_buf[4096];
     int cmd_len;
     const char *p;
     char *q;
+    int err;
 
     if (cmd) {
 	cmd_len = strlcpy(cmd_buf, cmd, sizeof cmd_buf);
@@ -69,7 +70,7 @@ static int ftp_cmd_response(struct inode *inode, const char *cmd,
 	*q++ = '\n';
 	cmd_len += 2;
 
-	err = netconn_write(socket->net.lwip.conn, cmd_buf, cmd_len, NETCONN_COPY);
+	err = core_tcp_write(socket, cmd_buf, cmd_len, true);
 	if (err)
 	    return -1;
     }
@@ -152,11 +153,11 @@ static void ftp_free(struct inode *inode)
     struct pxe_pvt_inode *socket = PVT(inode);
 
     if (socket->ctl) {
-	tcp_close_file(socket->ctl);
+	core_tcp_close_file(socket->ctl);
 	free_socket(socket->ctl);
 	socket->ctl = NULL;
     }
-    tcp_close_file(inode);
+    core_tcp_close_file(inode);
 }
 
 static void ftp_close_file(struct inode *inode)
@@ -166,7 +167,7 @@ static void ftp_close_file(struct inode *inode)
     int resp;
 
     ctlsock = socket->ctl ? PVT(socket->ctl) : NULL;
-    if (ctlsock->net.lwip.conn) {
+    if (core_tcp_is_connected(ctlsock)) {
 	resp = ftp_cmd_response(socket->ctl, "QUIT", NULL, NULL, NULL);
 	while (resp == 226) {
 	    resp = ftp_cmd_response(socket->ctl, NULL, NULL, NULL, NULL);
@@ -176,7 +177,7 @@ static void ftp_close_file(struct inode *inode)
 }
 
 static const struct pxe_conn_ops ftp_conn_ops = {
-    .fill_buffer	= tcp_fill_buffer,
+    .fill_buffer	= core_tcp_fill_buffer,
     .close		= ftp_close_file,
     .readdir		= ftp_readdir,
 };
@@ -186,7 +187,6 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
 {
     struct pxe_pvt_inode *socket = PVT(inode);
     struct pxe_pvt_inode *ctlsock;
-    struct ip_addr addr;
     uint8_t pasv_data[6];
     int pasv_bytes;
     int resp;
@@ -209,11 +209,9 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
 	return;
     ctlsock = PVT(socket->ctl);
     ctlsock->ops = &tcp_conn_ops; /* The control connection is just TCP */
-    ctlsock->net.lwip.conn = netconn_new(NETCONN_TCP);
-    if (!ctlsock->net.lwip.conn)
+    if (core_tcp_open(ctlsock))
 	goto err_free;
-    addr.addr = url->ip;
-    err = netconn_connect(ctlsock->net.lwip.conn, &addr, url->port);
+    err = core_tcp_connect(ctlsock, url->ip, url->port);
     if (err)
 	goto err_delete;
 
@@ -248,11 +246,11 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     if (resp != 227 || pasv_bytes != 6)
 	goto err_disconnect;
 
-    socket->net.lwip.conn = netconn_new(NETCONN_TCP);
-    if (!socket->net.lwip.conn)
+    err = core_tcp_open(socket);
+    if (err)
 	goto err_disconnect;
-    err = netconn_connect(socket->net.lwip.conn, (struct ip_addr *)&pasv_data[0],
-			  ntohs(*(uint16_t *)&pasv_data[4]));
+    err = core_tcp_connect(socket, ntohl(*(uint32_t*)&pasv_data[0]),
+			   ntohs(*(uint16_t *)&pasv_data[4]));
     if (err)
 	goto err_disconnect;
 
@@ -266,15 +264,10 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     return;			/* Sucess! */
 
 err_disconnect:
-    if (ctlsock->net.lwip.conn)
-	netconn_write(ctlsock->net.lwip.conn, "QUIT\r\n", 6, NETCONN_NOCOPY);
-    if (socket->net.lwip.conn)
-	netconn_delete(socket->net.lwip.conn);
-    if (ctlsock->net.lwip.buf)
-	netbuf_delete(ctlsock->net.lwip.buf);
+    core_tcp_write(ctlsock, "QUIT\r\n", 6, false);
+    core_tcp_close_file(inode);
 err_delete:
-    if (ctlsock->net.lwip.conn)
-	netconn_delete(ctlsock->net.lwip.conn);
+    core_tcp_close_file(socket->ctl);
 err_free:
     free_socket(socket->ctl);
 }

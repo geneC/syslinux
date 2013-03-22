@@ -17,29 +17,15 @@ const struct url_scheme url_schemes[] = {
  * Open a socket
  *
  * @param:socket, the socket to open
- * @param:proto, the protocol of the new connection
  *
  * @out: error code, 0 on success, -1 on failure
  */
-int net_core_open(struct pxe_pvt_inode *socket, enum net_core_proto proto)
+int core_udp_open(struct pxe_pvt_inode *socket)
 {
     struct net_private_lwip *priv = &socket->net.lwip;
-    enum netconn_type type;
     int err;
 
-    switch (proto) {
-    case NET_CORE_TCP:
-	type = NETCONN_TCP;
-	break;
-    case NET_CORE_UDP:
-	type = NETCONN_UDP;
-	break;
-    default:
-	type = NETCONN_INVALID;
-	break;
-    }
-
-    priv->conn = netconn_new(type);
+    priv->conn = netconn_new(NETCONN_UDP);
     if (!priv->conn)
 	return -1;
 
@@ -58,7 +44,7 @@ int net_core_open(struct pxe_pvt_inode *socket, enum net_core_proto proto)
  *
  * @param:socket, the socket to open
  */
-void net_core_close(struct pxe_pvt_inode *socket)
+void core_udp_close(struct pxe_pvt_inode *socket)
 {
     struct net_private_lwip *priv = &socket->net.lwip;
 
@@ -75,7 +61,7 @@ void net_core_close(struct pxe_pvt_inode *socket)
  * @param:ip, the ip address
  * @param:port, the port number, host-byte order
  */
-void net_core_connect(struct pxe_pvt_inode *socket, uint32_t ip,
+void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
 		      uint16_t port)
 {
     struct net_private_lwip *priv = &socket->net.lwip;
@@ -90,7 +76,7 @@ void net_core_connect(struct pxe_pvt_inode *socket, uint32_t ip,
  *
  * @param:socket, the open socket
  */
-void net_core_disconnect(struct pxe_pvt_inode *socket)
+void core_udp_disconnect(struct pxe_pvt_inode *socket)
 {
     struct net_private_lwip *priv = &socket->net.lwip;
     netconn_disconnect(priv->conn);
@@ -106,7 +92,7 @@ void net_core_disconnect(struct pxe_pvt_inode *socket)
  * @out: src_ip, ip address of the data source
  * @out: src_port, port number of the data source, host-byte order
  */
-int net_core_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
+int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 		  uint32_t *src_ip, uint16_t *src_port)
 {
     struct net_private_lwip *priv = &socket->net.lwip;
@@ -143,7 +129,7 @@ int net_core_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
  * @param:data, data buffer to send
  * @param:len, size of data bufer
  */
-void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
+void core_udp_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 {
     struct netconn *conn = socket->net.lwip.conn;
     struct netbuf *nbuf;
@@ -212,3 +198,99 @@ void probe_undi(void)
 	   pxe_undi_iface.IfaceType, pxe_undi_iface.ServiceFlags);
 }
 
+int core_tcp_open(struct pxe_pvt_inode *socket)
+{
+    socket->net.lwip.conn = netconn_new(NETCONN_TCP);
+    if (!socket->net.lwip.conn)
+	return -1;
+
+    return 0;
+}
+int core_tcp_connect(struct pxe_pvt_inode *socket, uint32_t ip, uint16_t port)
+{
+    struct ip_addr addr;
+    err_t err;
+
+    addr.addr = ip;
+    err = netconn_connect(socket->net.lwip.conn, &addr, port);
+    if (err) {
+	printf("netconn_connect error %d\n", err);
+	return -1;
+    }
+
+    return 0;
+}
+
+int core_tcp_write(struct pxe_pvt_inode *socket, const void *data, size_t len,
+		   bool copy)
+{
+    err_t err;
+    u8_t flags = copy ? NETCONN_COPY : NETCONN_NOCOPY;
+
+    err = netconn_write(socket->net.lwip.conn, data, len, flags);
+    if (err) {
+	printf("netconn_write failed: %d\n", err);
+	return -1;
+    }
+
+    return 0;
+}
+
+void core_tcp_close_file(struct inode *inode)
+{
+    struct pxe_pvt_inode *socket = PVT(inode);
+
+    if (socket->net.lwip.conn) {
+	netconn_delete(socket->net.lwip.conn);
+	socket->net.lwip.conn = NULL;
+    }
+    if (socket->net.lwip.buf) {
+	netbuf_delete(socket->net.lwip.buf);
+        socket->net.lwip.buf = NULL;
+    }
+}
+
+bool core_tcp_is_connected(struct pxe_pvt_inode *socket)
+{
+    if (socket->net.lwip.conn)
+	return true;
+
+    return false;
+}
+
+void core_tcp_fill_buffer(struct inode *inode)
+{
+    struct pxe_pvt_inode *socket = PVT(inode);
+    void *data;
+    u16_t len;
+    err_t err;
+
+    /* Clean up or advance an inuse netbuf */
+    if (socket->net.lwip.buf) {
+	if (netbuf_next(socket->net.lwip.buf) < 0) {
+	    netbuf_delete(socket->net.lwip.buf);
+	    socket->net.lwip.buf = NULL;
+	}
+    }
+    /* If needed get a new netbuf */
+    if (!socket->net.lwip.buf) {
+	err = netconn_recv(socket->net.lwip.conn, &(socket->net.lwip.buf));
+	if (!socket->net.lwip.buf || err) {
+	    socket->tftp_goteof = 1;
+	    if (inode->size == -1)
+		inode->size = socket->tftp_filepos;
+	    socket->ops->close(inode);
+	    return;
+	}
+    }
+    /* Report the current fragment of the netbuf */
+    err = netbuf_data(socket->net.lwip.buf, &data, &len);
+    if (err) {
+	printf("netbuf_data err: %d\n", err);
+	kaboom();
+    }
+    socket->tftp_dataptr = data;
+    socket->tftp_filepos += len;
+    socket->tftp_bytesleft = len;
+    return;
+}

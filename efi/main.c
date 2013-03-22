@@ -26,6 +26,86 @@ uint8_t KbdMap[256];
 char aux_seg[256];
 uint16_t BIOSName;
 
+static inline EFI_STATUS
+efi_close_protocol(EFI_HANDLE handle, EFI_GUID *guid, EFI_HANDLE agent,
+		   EFI_HANDLE controller)
+{
+    return uefi_call_wrapper(BS->CloseProtocol, 4, handle,
+			     guid, agent, controller);
+}
+
+struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
+{
+    EFI_SERVICE_BINDING *sbp;
+    struct efi_binding *b;
+    EFI_STATUS status;
+    EFI_HANDLE protocol, child, *handles = NULL;
+    UINTN i, nr_handles = 0;
+
+    b = malloc(sizeof(*b));
+    if (!b)
+	return NULL;
+
+    status = LibLocateHandle(ByProtocol, bguid, NULL, &nr_handles, &handles);
+    if (status != EFI_SUCCESS)
+	goto free_binding;
+
+    for (i = 0; i < nr_handles; i++) {
+	status = uefi_call_wrapper(BS->OpenProtocol, 6, handles[i],
+				   bguid, (void **)&sbp,
+				   image_handle, handles[i],
+				   EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (status == EFI_SUCCESS)
+	    break;
+
+	uefi_call_wrapper(BS->CloseProtocol, 4, handles[i], bguid,
+			  image_handle, handles[i]);
+    }
+
+    if (i == nr_handles)
+	goto free_binding;
+
+    child = NULL;
+
+    status = uefi_call_wrapper(sbp->CreateChild, 2, sbp, (EFI_HANDLE *)&child);
+    if (status != EFI_SUCCESS)
+	goto close_protocol;
+
+    status = uefi_call_wrapper(BS->OpenProtocol, 6, child,
+			      pguid, (void **)&protocol,
+			      image_handle, sbp,
+			      EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+    if (status != EFI_SUCCESS)
+	goto destroy_child;
+
+    b->parent = handles[i];
+    b->binding = sbp;
+    b->child = child;
+    b->this = protocol;
+
+    return b;
+
+destroy_child:
+    uefi_call_wrapper(sbp->DestroyChild, 2, sbp, child);
+
+close_protocol:
+    uefi_call_wrapper(BS->CloseProtocol, 4, handles[i], bguid,
+		      image_handle, handles[i]);
+
+free_binding:
+    free(b);
+    return NULL;
+}
+
+void efi_destroy_binding(struct efi_binding *b, EFI_GUID *guid)
+{
+    efi_close_protocol(b->child, guid, image_handle, b->binding);
+    uefi_call_wrapper(b->binding->DestroyChild, 2, b->binding, b->child);
+    efi_close_protocol(b->parent, guid, image_handle, b->parent);
+
+    free(b);
+}
+
 #undef kaboom
 void kaboom(void)
 {
@@ -1057,6 +1137,7 @@ static inline void syslinux_register_efi(void)
 
 extern void init(void);
 extern const struct fs_ops vfat_fs_ops;
+extern const struct fs_ops pxe_fs_ops;
 
 char free_high_memory[4096];
 
@@ -1098,7 +1179,11 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 {
 	EFI_LOADED_IMAGE *info;
 	EFI_STATUS status = EFI_SUCCESS;
+#if 0
 	const struct fs_ops *ops[] = { &vfat_fs_ops, NULL };
+#else
+	const struct fs_ops *ops[] = { &pxe_fs_ops, NULL };
+#endif
 	unsigned long len = (unsigned long)__bss_end - (unsigned long)__bss_start;
 	static struct efi_disk_private priv;
 	SIMPLE_INPUT_INTERFACE *in;
@@ -1120,10 +1205,8 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	}
 
 	/* Use device handle to set up the volume root to proceed with ADV init */
-	if (EFI_ERROR(efi_set_volroot(info->DeviceHandle))) {
-		Print(L"Failed to locate root device to prep for file operations & ADV initialization\n");
-		goto out;
-	}
+	efi_set_volroot(info->DeviceHandle);
+
 	/* setup timer for boot menu system support */
 	status = setup_default_timer(&timer_ev);
 	if (status != EFI_SUCCESS) {

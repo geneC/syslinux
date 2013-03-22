@@ -63,7 +63,7 @@ LIBOTHER_OBJS = \
 	lrand48.o stack.o memccpy.o memchr.o 		\
 	mempcpy.o memmem.o memmove.o memswap.o	\
 	perror.o qsort.o seed48.o \
-	srand48.o sscanf.o strcasecmp.o					\
+	srand48.o sscanf.o 						\
 	strerror.o errlist.o		\
 	strnlen.o							\
 	strncat.o strndup.o		\
@@ -185,7 +185,7 @@ CORELIBOBJS = \
 	memcpy.o memset.o memcmp.o printf.o strncmp.o vfprintf.o 	\
 	strlen.o vsnprintf.o snprintf.o stpcpy.o strcmp.o strdup.o 	\
 	strcpy.o strncpy.o setjmp.o fopen.o fread.o fread2.o puts.o 	\
-	strtoul.o strntoumax.o 						\
+	strtoul.o strntoumax.o strcasecmp.o 				\
 	sprintf.o strlcat.o strchr.o strlcpy.o strncasecmp.o ctypes.o 	\
 	fputs.o fwrite2.o fwrite.o fgetc.o fclose.o lmalloc.o 		\
 	sys/err_read.o sys/err_write.o sys/null_read.o 			\

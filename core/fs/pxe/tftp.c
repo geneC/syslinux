@@ -38,7 +38,7 @@ static void tftp_close_file(struct inode *inode)
     if (!socket->tftp_goteof) {
 	tftp_error(inode, 0, "No error, file close");
     }
-    net_core_close(socket);
+    core_udp_close(socket);
 }
 
 /**
@@ -64,7 +64,7 @@ static void tftp_error(struct inode *inode, uint16_t errnum,
     memcpy(err_buf.err_msg, errstr, len);
     err_buf.err_msg[len] = '\0';
 
-    net_core_send(socket, &err_buf, 4 + len + 1);
+    core_udp_send(socket, &err_buf, 4 + len + 1);
 }
 
 /**
@@ -83,7 +83,7 @@ static void ack_packet(struct inode *inode, uint16_t ack_num)
     ack_packet_buf[0]     = TFTP_ACK;
     ack_packet_buf[1]     = htons(ack_num);
 
-    net_core_send(socket, ack_packet_buf, 4);
+    core_udp_send(socket, ack_packet_buf, 4);
 }
 
 /*
@@ -118,7 +118,7 @@ static void tftp_get_packet(struct inode *inode)
 
     while (timeout) {
 	buf_len = socket->tftp_blksize + 4;
-	err = net_core_recv(socket, socket->tftp_pktbuf, &buf_len,
+	err = core_udp_recv(socket, socket->tftp_pktbuf, &buf_len,
 			    &src_ip, &src_port);
 	if (err) {
 	    jiffies_t now = jiffies();
@@ -238,7 +238,7 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
 	url->port = TFTP_PORT;
 
     socket->ops = &tftp_conn_ops;
-    if (net_core_open(socket, NET_CORE_UDP))
+    if (core_udp_open(socket))
 	return;
 
     buf = rrq_packet_buf;
@@ -255,22 +255,22 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
 sendreq:
-    net_core_disconnect(socket);
+    core_udp_disconnect(socket);
     timeout = *timeout_ptr++;
     if (!timeout)
 	return;			/* No file available... */
     oldtime = jiffies();
 
-    net_core_connect(socket, url->ip, url->port);
-    net_core_send(socket, rrq_packet_buf, rrq_len);
+    core_udp_connect(socket, url->ip, url->port);
+    core_udp_send(socket, rrq_packet_buf, rrq_len);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
 wait_pkt:
-    net_core_disconnect(socket);
+    core_udp_disconnect(socket);
     for (;;) {
 	buf_len = sizeof(reply_packet_buf);
 
-	err = net_core_recv(socket, reply_packet_buf, &buf_len,
+	err = core_udp_recv(socket, reply_packet_buf, &buf_len,
 			    &src_ip, &src_port);
 	if (err) {
 	    jiffies_t now = jiffies();
@@ -283,8 +283,8 @@ wait_pkt:
 	}
     }
 
-    net_core_disconnect(socket);
-    net_core_connect(socket, src_ip, src_port);
+    core_udp_disconnect(socket);
+    core_udp_connect(socket, src_ip, src_port);
 
     /* filesize <- -1 == unknown */
     inode->size = -1;
@@ -437,7 +437,7 @@ err_reply:
 
 done:
     if (!inode->size)
-	net_core_close(socket);
+	core_udp_close(socket);
 
     return;
 }

@@ -29,6 +29,13 @@ struct efi_disk_private {
 	EFI_DISK_IO *dio;
 };
 
+struct efi_binding {
+    EFI_SERVICE_BINDING *binding;
+    EFI_HANDLE parent;
+    EFI_HANDLE child;
+    EFI_HANDLE this;
+};
+
 extern EFI_HANDLE image_handle;
 
 struct screen_info;
@@ -40,5 +47,18 @@ enum heap;
 extern void *efi_malloc(size_t, enum heap, size_t);
 extern void *efi_realloc(void *, size_t);
 extern void efi_free(void *);
+
+extern struct efi_binding *efi_create_binding(EFI_GUID *, EFI_GUID *);
+extern void efi_destroy_binding(struct efi_binding *, EFI_GUID *);
+
+static inline EFI_STATUS
+efi_setup_event(EFI_EVENT *ev, EFI_EVENT_NOTIFY func, void *ctx)
+{
+    EFI_STATUS status;
+
+    status = uefi_call_wrapper(BS->CreateEvent, 5, EVT_NOTIFY_SIGNAL,
+			       TPL_CALLBACK, func, ctx, ev);
+    return status;
+}
 
 #endif /* _SYSLINUX_EFI_H */

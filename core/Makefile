@@ -53,7 +53,7 @@ SOBJ	 := $(subst $(SRC)/,,$(patsubst %.S,%.o,$(SSRC)))
 # To make this compatible with the following $(filter-out), make sure
 # we prefix everything with $(SRC)
 CORE_PXE_CSRC = \
-	$(addprefix $(SRC)/fs/pxe/, dhcp_option.c pxe.c tftp.c urlparse.c)
+	$(addprefix $(SRC)/fs/pxe/, dhcp_option.c pxe.c tftp.c urlparse.c bios.c)
 
 LPXELINUX_CSRC = $(CORE_PXE_CSRC) \
 	$(shell find $(SRC)/lwip -name '*.c' -print) \
@@ -82,6 +82,11 @@ endif
 COBJS	 = $(filter-out $(FILTER_OBJS),$(COBJ))
 SOBJS	 = $(filter-out $(FILTER_OBJS),$(SOBJ))
 
+ifdef EFI_BUILD
+COBJS += $(subst $(SRC)/,,$(CORE_PXE_CSRC:%.c=%.o) fs/pxe/ftp.o fs/pxe/ftp_readdir.o \
+	fs/pxe/http.o fs/pxe/http_readdir.o)
+endif
+
 LIB	 = libcom32.a
 LIBS	 = $(LIB) --whole-archive $(objdir)/com32/lib/libcom32core.a
 LIBDEP   = $(filter-out -% %start%,$(LIBS))
@@ -92,7 +97,7 @@ NASMOPT  += $(NASMDEBUG)
 
 PREPCORE = $(OBJ)/../lzo/prepcore
 
-CFLAGS += -D__SYSLINUX_CORE__
+CFLAGS += -D__SYSLINUX_CORE__ -I$(objdir)
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much

@@ -1,0 +1,251 @@
+#include <string.h>
+#include <minmax.h>
+#include "efi.h"
+#include "net.h"
+#include "fs/pxe/pxe.h"
+
+extern EFI_GUID Udp4ServiceBindingProtocol, Udp4Protocol;
+
+/*
+ * This UDP binding is configured to operate in promiscuous mode. It is
+ * only used for reading packets. It has no associated state unlike
+ * socket->net.efi.binding, which has a remote IP address and port
+ * number.
+ */
+static struct efi_binding *udp_reader;
+
+/**
+ * Open a socket
+ *
+ * @param:socket, the socket to open
+ *
+ * @out: error code, 0 on success, -1 on failure
+ */
+int core_udp_open(struct pxe_pvt_inode *socket)
+{
+    EFI_UDP4_CONFIG_DATA udata;
+    EFI_STATUS status;
+    EFI_UDP4 *udp;
+
+    (void)socket;
+
+    udp_reader = efi_create_binding(&Udp4ServiceBindingProtocol, &Udp4Protocol);
+    if (!udp_reader)
+	return -1;
+
+    udp = (EFI_UDP4 *)udp_reader->this;
+
+    memset(&udata, 0, sizeof(udata));
+    udata.AcceptPromiscuous = TRUE;
+    udata.AcceptAnyPort = TRUE;
+
+    status = uefi_call_wrapper(udp->Configure, 2, udp, &udata);
+    if (status != EFI_SUCCESS) {
+	efi_destroy_binding(udp_reader, &Udp4ServiceBindingProtocol);
+	udp_reader = NULL;
+	return -1;
+    }
+
+    return 0;
+}
+
+/**
+ * Close a socket
+ *
+ * @param:socket, the socket to open
+ */
+void core_udp_close(struct pxe_pvt_inode *socket)
+{
+    (void)socket;
+
+    efi_destroy_binding(udp_reader, &Udp4ServiceBindingProtocol);
+    udp_reader = NULL;
+}
+
+/**
+ * Establish a connection on an open socket
+ *
+ * @param:socket, the open socket
+ * @param:ip, the ip address
+ * @param:port, the port number, host-byte order
+ */
+void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
+		      uint16_t port)
+{
+    EFI_UDP4_CONFIG_DATA udata;
+    struct efi_binding *b;
+    EFI_STATUS status;
+    EFI_UDP4 *udp;
+
+    b = efi_create_binding(&Udp4ServiceBindingProtocol, &Udp4Protocol);
+    if (!b)
+	return;
+
+    socket->net.efi.binding = b;
+
+    udp = (EFI_UDP4 *)b->this;
+
+    memset(&udata, 0, sizeof(udata));
+
+    memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
+    memcpy(&udata.SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
+    memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
+    udata.RemotePort = port;
+    udata.AcceptPromiscuous = TRUE;
+
+    status = uefi_call_wrapper(udp->Configure, 2, udp, &udata);
+    if (status != EFI_SUCCESS)
+	Print(L"Failed to configure UDP: %d\n", status);
+}
+
+/**
+ * Tear down a connection on an open socket
+ *
+ * @param:socket, the open socket
+ */
+void core_udp_disconnect(struct pxe_pvt_inode *socket)
+{
+    struct efi_binding *b;
+
+    if (!socket->net.efi.binding)
+	return;
+
+    b = socket->net.efi.binding;
+    efi_destroy_binding(b, &Udp4ServiceBindingProtocol);
+    socket->net.efi.binding = NULL;
+}
+
+static int volatile cb_status = -1;
+static EFIAPI void udp4_cb(EFI_EVENT event, void *context)
+{
+    (void)event;
+
+    EFI_UDP4_COMPLETION_TOKEN *token = context;
+
+    if (token->Status == EFI_SUCCESS)
+	cb_status = 0;
+    else
+	cb_status = 1;
+}
+
+/**
+ * Read data from the network stack
+ *
+ * @param:socket, the open socket
+ * @param:buf, location of buffer to store data
+ * @param:buf_len, size of buffer
+
+ * @out: src_ip, ip address of the data source
+ * @out: src_port, port number of the data source, host-byte order
+ */
+int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
+		  uint32_t *src_ip, uint16_t *src_port)
+{
+    EFI_UDP4_COMPLETION_TOKEN token;
+    EFI_UDP4_FRAGMENT_DATA *frag;
+    EFI_UDP4_RECEIVE_DATA *rxdata;
+    struct efi_binding *b;
+    EFI_STATUS status;
+    EFI_UDP4 *udp;
+    size_t size;
+    int rv = -1;
+
+    (void)socket;
+
+    b = udp_reader;
+    udp = (EFI_UDP4 *)b->this;
+
+    status = efi_setup_event(&token.Event, (EFI_EVENT_NOTIFY)udp4_cb,
+			     &token);
+    if (status != EFI_SUCCESS)
+	return -1;
+
+    status = uefi_call_wrapper(udp->Receive, 2, udp, &token);
+    if (status != EFI_SUCCESS)
+	goto bail;
+
+    while (cb_status == -1)
+	uefi_call_wrapper(udp->Poll, 1, udp);
+
+    if (cb_status == 0)
+	rv = 0;
+
+    /* Reset */
+    cb_status = -1;
+
+    rxdata = token.Packet.RxData;
+    frag = &rxdata->FragmentTable[0];
+
+    size = min(frag->FragmentLength, *buf_len);
+    memcpy(buf, frag->FragmentBuffer, size);
+    *buf_len = size;
+
+    memcpy(src_port, &rxdata->UdpSession.SourcePort, sizeof(*src_port));
+    memcpy(src_ip, &rxdata->UdpSession.SourceAddress, sizeof(*src_ip));
+
+    uefi_call_wrapper(BS->SignalEvent, 1, rxdata->RecycleSignal);
+
+bail:
+    uefi_call_wrapper(BS->CloseEvent, 1, token.Event);
+    return rv;
+}
+
+/**
+ * Send a UDP packet.
+ *
+ * @param:socket, the open socket
+ * @param:data, data buffer to send
+ * @param:len, size of data bufer
+ */
+void core_udp_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
+{
+    EFI_UDP4_COMPLETION_TOKEN *token;
+    EFI_UDP4_TRANSMIT_DATA *txdata;
+    EFI_UDP4_FRAGMENT_DATA *frag;
+    struct efi_binding *b = socket->net.efi.binding;
+    EFI_STATUS status;
+    EFI_UDP4 *udp = (EFI_UDP4 *)b->this;
+
+    token = zalloc(sizeof(*token));
+    if (!token)
+	return;
+
+    txdata = zalloc(sizeof(*txdata));
+    if (!txdata) {
+	free(token);
+	return;
+    }
+
+    status = efi_setup_event(&token->Event, (EFI_EVENT_NOTIFY)udp4_cb,
+			     token);
+    if (status != EFI_SUCCESS)
+	goto bail;
+
+    txdata->UdpSessionData = NULL;
+    txdata->GatewayAddress = NULL;
+    txdata->DataLength = len;
+    txdata->FragmentCount = 1;
+    frag = &txdata->FragmentTable[0];
+
+    frag->FragmentLength = len;
+    frag->FragmentBuffer = (void *)data;
+
+    token->Packet.TxData = txdata;
+
+    status = uefi_call_wrapper(udp->Transmit, 2, udp, token);
+    if (status != EFI_SUCCESS)
+	goto close;
+
+    while (cb_status == -1)
+	uefi_call_wrapper(udp->Poll, 1, udp);
+
+    /* Reset */
+    cb_status = -1;
+
+close:
+    uefi_call_wrapper(BS->CloseEvent, 1, token->Event);
+
+bail:
+    free(txdata);
+    free(token);
+}

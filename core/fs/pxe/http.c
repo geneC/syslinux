@@ -4,6 +4,7 @@
 #include "pxe.h"
 #include "version.h"
 #include "url.h"
+#include "net.h"
 
 #define HTTP_PORT	80
 
@@ -146,8 +147,8 @@ void http_bake_cookies(void)
 }
 
 static const struct pxe_conn_ops http_conn_ops = {
-    .fill_buffer	= tcp_fill_buffer,
-    .close		= tcp_close_file,
+    .fill_buffer	= core_tcp_fill_buffer,
+    .close		= core_tcp_close_file,
     .readdir		= http_readdir,
 };
 
@@ -160,7 +161,6 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     char field_name[20];
     char field_value[1024];
     size_t field_name_len, field_value_len;
-    err_t err;
     enum state {
 	st_httpver,
 	st_stcode,
@@ -172,12 +172,12 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
 	st_skip_fieldvalue,
 	st_eoh,
     } state;
-    struct ip_addr addr;
     static char location[FILENAME_MAX];
     uint32_t content_length; /* same as inode->size */
     size_t response_size;
     int status;
     int pos;
+    int err;
 
     (void)flags;
 
@@ -191,21 +191,16 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     inode->size = content_length = -1;
 
     /* Start the http connection */
-    socket->net.lwip.conn = netconn_new(NETCONN_TCP);
-    if (!socket->net.lwip.conn) {
-	printf("netconn_new failed\n");
+    err = core_tcp_open(socket);
+    if (err)
         return;
-    }
 
-    addr.addr = url->ip;
     if (!url->port)
 	url->port = HTTP_PORT;
 
-    err = netconn_connect(socket->net.lwip.conn, &addr, url->port);
-    if (err) {
-	printf("netconn_connect error %d\n", err);
+    err = core_tcp_connect(socket, url->ip, url->port);
+    if (err)
 	goto fail;
-    }
 
     strcpy(header_buf, "GET /");
     header_bytes = 5;
@@ -225,12 +220,9 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     if (header_bytes >= header_len)
 	goto fail;		/* Buffer overflow */
 
-    err = netconn_write(socket->net.lwip.conn, header_buf,
-			header_bytes, NETCONN_NOCOPY);
-    if (err) {
-	printf("netconn_write error %d\n", err);
+    err = core_tcp_write(socket, header_buf, header_bytes, false);
+    if (err)
 	goto fail;
-    }
 
     /* Parse the HTTP header */
     state = st_httpver;
@@ -395,6 +387,6 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     return;
 fail:
     inode->size = 0;
-    tcp_close_file(inode);
+    core_tcp_close_file(inode);
     return;
 }

@@ -107,6 +107,8 @@ struct bootp_t {
 
 struct netconn;
 struct netbuf;
+struct efi_binding;
+
 /*
  * Our inode private information -- this includes the packet buffer!
  */
@@ -125,6 +127,9 @@ union net_private {
 	uint32_t remoteip;  	  /* Remote IP address (0 = disconnected) */
 	uint16_t localport;   	  /* Local port number  (0=not in use) */
     } tftp;
+    struct net_private_efi {
+	struct efi_binding *binding; /* EFI binding for protocol */
+    } efi;
 };
 
 struct pxe_pvt_inode {
@@ -254,8 +259,9 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
 int ftp_readdir(struct inode *inode, struct dirent *dirent);
 
 /* tcp.c */
-void tcp_close_file(struct inode *inode);
-void tcp_fill_buffer(struct inode *inode);
 const struct pxe_conn_ops tcp_conn_ops;
+
+extern void gpxe_init(void);
+extern int pxe_init(bool quiet);
 
 #endif /* pxe.h */

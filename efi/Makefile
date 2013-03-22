@@ -29,6 +29,10 @@ CORE_OBJS = $(filter-out %hello.o %rawcon.o %plaincon.o %strcasecmp.o %bios.o \
 	%diskio_bios.o %ldlinux-c.o %isolinux-c.o %pxelinux-c.o \
 	$(FILTERED_OBJS),$(CORE_COBJ) $(CORE_SOBJ))
 
+CORE_OBJS += $(addprefix $(OBJ)/../core/, \
+	fs/pxe/pxe.o fs/pxe/tftp.o fs/pxe/urlparse.o fs/pxe/dhcp_option.o \
+	fs/pxe/ftp.o fs/pxe/ftp_readdir.o fs/pxe/http.o fs/pxe/http_readdir.o)
+
 LIB_OBJS = $(addprefix $(objdir)/com32/lib/,$(CORELIBOBJS))
 
 CSRC = $(wildcard $(SRC)/*.c)
