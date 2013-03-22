@@ -33,9 +33,7 @@
 #include <sys/fpu.h>
 #include <syslinux/video.h>
 #include <dprintf.h>
-#include <efi.h>
-#include <efilib.h>
-#include <efistdarg.h>
+#include "efi.h"
 /* We use cp865_8x16.psf as the standard font for EFI implementation
  * the header file below contains raw data parsed from cp865_8x16.psf
  */
