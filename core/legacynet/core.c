@@ -11,6 +11,11 @@ static __lowmem char packet_buf[PKTBUF_SIZE] __aligned(16);
 extern uint16_t get_port(void);
 extern void free_port(uint16_t);
 
+const struct url_scheme url_schemes[] = {
+    { "tftp", tftp_open, 0 },
+    { NULL, NULL, 0 }
+};
+
 /**
  * Open a socket
  *
@@ -22,14 +27,14 @@ extern void free_port(uint16_t);
 int net_core_open(struct pxe_pvt_inode *socket __unused,
 		  enum net_core_proto proto)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_tftp *priv = &socket->net.tftp;
 
     /* The legacy stack only supports UDP */
     if (proto != NET_CORE_UDP)
 	return -1;
 
     /* Allocate local UDP port number */
-    priv->tftp_localport = get_port();
+    priv->localport = get_port();
 
     return 0;
 }
@@ -41,10 +46,10 @@ int net_core_open(struct pxe_pvt_inode *socket __unused,
  */
 void net_core_close(struct pxe_pvt_inode *socket)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_tftp *priv = &socket->net.tftp;
 
-    if (priv->tftp_localport)
-	free_port(priv->tftp_localport);
+    if (priv->localport)
+	free_port(priv->localport);
 }
 
 /**
@@ -57,10 +62,10 @@ void net_core_close(struct pxe_pvt_inode *socket)
 void net_core_connect(struct pxe_pvt_inode *socket, uint32_t ip,
 		      uint16_t port)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_tftp *priv = &socket->net.tftp;
 
     socket->tftp_remoteport = htons(port);
-    priv->tftp_remoteip = ip;
+    priv->remoteip = ip;
 
 }
 
@@ -87,7 +92,7 @@ int net_core_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 		  uint32_t *src_ip, uint16_t *src_port)
 {
     static __lowmem struct s_PXENV_UDP_READ  udp_read;
-    struct net_private *priv = &socket->private;
+    struct net_private_tftp *priv = &socket->net.tftp;
     uint16_t bytes;
     int err;
 
@@ -95,7 +100,7 @@ int net_core_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
     udp_read.buffer      = FAR_PTR(packet_buf);
     udp_read.buffer_size = PKTBUF_SIZE;
     udp_read.dest_ip     = IPInfo.myip;
-    udp_read.d_port      = priv->tftp_localport;
+    udp_read.d_port      = priv->localport;
 
     err = pxe_call(PXENV_UDP_READ, &udp_read);
     if (err)
@@ -124,7 +129,7 @@ int net_core_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 {
     static __lowmem struct s_PXENV_UDP_WRITE udp_write;
-    struct net_private *priv = &socket->private;
+    struct net_private_tftp *priv = &socket->net.tftp;
     void *lbuf;
     uint16_t tid;
 
@@ -134,9 +139,9 @@ void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 
     memcpy(lbuf, data, len);
 
-    tid = priv->tftp_localport;   /* TID(local port No) */
+    tid = priv->localport;   /* TID(local port No) */
     udp_write.buffer    = FAR_PTR(lbuf);
-    udp_write.ip        = priv->tftp_remoteip;
+    udp_write.ip        = priv->remoteip;
     udp_write.gw        = gateway(udp_write.ip);
     udp_write.src_port  = tid;
     udp_write.dst_port  = socket->tftp_remoteport;

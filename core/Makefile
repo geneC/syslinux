@@ -138,15 +138,12 @@ libpxelinux.a: rawcon.o $(PXELINUX_OBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
-	rm $(PXELINUX_OBJS)
 
 # LwIP network stack
-liblpxelinux.a: rawcon.o
-	$(MAKE) CFLAGS="$(CFLAGS) -DIS_LPXELINUX" $(LPXELINUX_OBJS)
+liblpxelinux.a: rawcon.o $(LPXELINUX_OBJS)
 	rm -f $@
-	$(AR) cq $@ $^ $(LPXELINUX_OBJS)
+	$(AR) cq $@ $^
 	$(RANLIB) $@
-	rm $(LPXELINUX_OBJS)
 
 libldlinux.a: plaincon.o
 	rm -f $@

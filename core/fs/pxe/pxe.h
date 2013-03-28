@@ -21,6 +21,7 @@
 #define PXE_H
 
 #include <syslinux/pxe_api.h>
+#include <fcntl.h>		/* For OK_FLAGS_MASK */
 #include "fs.h"			/* Mostly for FILENAME_MAX */
 
 /*
@@ -114,19 +115,19 @@ struct pxe_conn_ops {
     int (*readdir)(struct inode *inode, struct dirent *dirent);
 };    
 
-struct net_private {
-#ifdef IS_LPXELINUX
-    struct netconn *conn;      /* lwip network connection */
-    struct netbuf *buf;	       /* lwip cached buffer */
-#else
-    uint16_t tftp_localport;   /* Local port number  (0=not in use) */
-    uint32_t tftp_remoteip;    /* Remote IP address (0 = disconnected) */
-#endif
-
+union net_private {
+    struct net_private_lwip {
+	struct netconn *conn;      /* lwip network connection */
+	struct netbuf *buf;	   /* lwip cached buffer */
+    } lwip;
+    struct net_private_tftp {
+	uint32_t remoteip;  	  /* Remote IP address (0 = disconnected) */
+	uint16_t localport;   	  /* Local port number  (0=not in use) */
+    } tftp;
 };
 
 struct pxe_pvt_inode {
-    struct net_private private;   /* Network stack private data */
+    union net_private net;	  /* Network stack private data */
     uint16_t tftp_remoteport;     /* Remote port number */
     uint32_t tftp_filepos;        /* bytes downloaded (including buffer) */
     uint32_t tftp_blksize;        /* Block size for this connection(*) */
@@ -184,6 +185,17 @@ extern far_ptr_t InitStack;
 extern bool have_uuid;
 extern uint8_t uuid_type;
 extern uint8_t uuid[];
+
+struct url_info;
+struct url_scheme {
+    const char *name;
+    void (*open)(struct url_info *, int, struct inode *, const char **);
+    int ok_flags;
+};
+/* Flags which can be specified in url_scheme.ok_flags */
+#define OK_FLAGS_MASK	(O_DIRECTORY|O_WRONLY)
+
+extern const struct url_scheme url_schemes[];
 
 /*
  * Compute the suitable gateway for a specific route -- too many
