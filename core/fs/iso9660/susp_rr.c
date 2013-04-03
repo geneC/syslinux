@@ -201,6 +201,10 @@ static int susp_rr_switch_to_ca(struct susp_rr_iter *iter)
     iter->ce_allocated = 0;
     if (num_blocks > 1) {
 	/* The blocks are expected contiguously. Need to consolidate them. */
+	if (num_blocks > 50) {
+	    dprintf("susp_rr.c: More than 100 KB claimed by a CE entry.\n");
+	    return -1;
+	}
 	iter->ce_data = malloc(num_blocks * 2048);
 	if (susp_rr_is_out_of_mem(iter->ce_data))
 	    return -1;
