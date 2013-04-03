@@ -30,6 +30,7 @@
 #include <cache.h>
 #include <disk.h>
 #include <fs.h>
+#include <byteswap.h>
 #include "iso9660_fs.h"
 
 #else /* ! Isolinux_rockridge_in_libisofS */
@@ -99,15 +100,9 @@ static int susp_rr_is_out_of_mem(void *pt)
 }
 
 
-static uint32_t susp_rr_read_lsb(uint8_t *buf, int bytes)
+static uint32_t susp_rr_read_lsb32(const void *buf)
 {
-    int i;
-    uint32_t ret = 0;
-
-    for (i = 0; i < bytes; i++) {
-	ret += ((uint32_t) buf[i]) << (i * 8);
-    }
-    return ret;
+    return get_le32(buf);
 }
 
 
@@ -274,9 +269,9 @@ static int susp_rr_iterate(struct susp_rr_iter *iter, char **pos_pt)
 	}
 	/* Register address data of next Continuation Area */
 	u_entry = (uint8_t *) entries;
-	iter->next_lba = susp_rr_read_lsb(u_entry + 4, 4);
-	iter->next_offset = susp_rr_read_lsb(u_entry + 12, 4);
-	iter->next_length = susp_rr_read_lsb(u_entry + 20, 4);
+	iter->next_lba = susp_rr_read_lsb32(u_entry + 4);
+	iter->next_offset = susp_rr_read_lsb32(u_entry + 12);
+	iter->next_length = susp_rr_read_lsb32(u_entry + 20);
     }
 
     *pos_pt = entries;
@@ -461,7 +456,7 @@ int susp_rr_check_signatures(struct fs_info *fs, int flag)
 #endif /* Isolinux_rockridge_in_libisofS */
 
     /* Obtain first dir_rec of root directory */
-    lba = susp_rr_read_lsb(((uint8_t *) &(sbi->root)) + 2, 4);
+    lba = susp_rr_read_lsb32(((uint8_t *) &(sbi->root)) + 2);
     dir_rec = (char *) get_cache(fs->fs_dev, lba);
     if (dir_rec == NULL)
 	goto no_susp;
