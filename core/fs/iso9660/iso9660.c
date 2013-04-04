@@ -240,7 +240,7 @@ static int iso_readdir(struct file *file, struct dirent *dirent)
     /* Try to get Rock Ridge name */
     ret = susp_rr_get_nm(fs, (char *) de, &rr_name, &name_len);
     if (ret > 0) {
-	memcpy(dirent->d_name, rr_name, name_len);
+	memcpy(dirent->d_name, rr_name, name_len + 1);
 	free(rr_name);
 	rr_name = NULL;
     } else {
