@@ -29,20 +29,6 @@ static bool has_gpxe;
 static uint32_t gpxe_funcs;
 bool have_uuid = false;
 
-static struct url_scheme {
-    const char *name;
-    void (*open)(struct url_info *, int, struct inode *, const char **);
-    int ok_flags;
-} url_schemes[] = {
-    { "tftp", tftp_open, 0 },
-#ifdef IS_LPXELINUX
-    { "http", http_open, O_DIRECTORY },
-    { "ftp",  ftp_open,  O_DIRECTORY },
-#endif
-    { NULL, NULL, 0 },
-};
-#define OK_FLAGS_MASK	(O_DIRECTORY|O_WRONLY)
-
 /*
  * Allocate a local UDP port structure and assign it a local port number.
  * Return the inode pointer if success, or null if failure

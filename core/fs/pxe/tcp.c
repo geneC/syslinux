@@ -25,13 +25,13 @@ void tcp_close_file(struct inode *inode)
 {
     struct pxe_pvt_inode *socket = PVT(inode);
 
-    if (socket->private.conn) {
-	netconn_delete(socket->private.conn);
-	socket->private.conn = NULL;
+    if (socket->net.lwip.conn) {
+	netconn_delete(socket->net.lwip.conn);
+	socket->net.lwip.conn = NULL;
     }
-    if (socket->private.buf) {
-	netbuf_delete(socket->private.buf);
-        socket->private.buf = NULL;
+    if (socket->net.lwip.buf) {
+	netbuf_delete(socket->net.lwip.buf);
+        socket->net.lwip.buf = NULL;
     }
 }
 
@@ -43,16 +43,16 @@ void tcp_fill_buffer(struct inode *inode)
     err_t err;
 
     /* Clean up or advance an inuse netbuf */
-    if (socket->private.buf) {
-	if (netbuf_next(socket->private.buf) < 0) {
-	    netbuf_delete(socket->private.buf);
-	    socket->private.buf = NULL;
+    if (socket->net.lwip.buf) {
+	if (netbuf_next(socket->net.lwip.buf) < 0) {
+	    netbuf_delete(socket->net.lwip.buf);
+	    socket->net.lwip.buf = NULL;
 	}
     }
     /* If needed get a new netbuf */
-    if (!socket->private.buf) {
-	err = netconn_recv(socket->private.conn, &(socket->private.buf));
-	if (!socket->private.buf || err) {
+    if (!socket->net.lwip.buf) {
+	err = netconn_recv(socket->net.lwip.conn, &(socket->net.lwip.buf));
+	if (!socket->net.lwip.buf || err) {
 	    socket->tftp_goteof = 1;
 	    if (inode->size == -1)
 		inode->size = socket->tftp_filepos;
@@ -61,7 +61,7 @@ void tcp_fill_buffer(struct inode *inode)
 	}
     }
     /* Report the current fragment of the netbuf */
-    err = netbuf_data(socket->private.buf, &data, &len);
+    err = netbuf_data(socket->net.lwip.buf, &data, &len);
     if (err) {
 	printf("netbuf_data err: %d\n", err);
 	kaboom();

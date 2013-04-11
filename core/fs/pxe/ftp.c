@@ -69,7 +69,7 @@ static int ftp_cmd_response(struct inode *inode, const char *cmd,
 	*q++ = '\n';
 	cmd_len += 2;
 
-	err = netconn_write(socket->private.conn, cmd_buf, cmd_len, NETCONN_COPY);
+	err = netconn_write(socket->net.lwip.conn, cmd_buf, cmd_len, NETCONN_COPY);
 	if (err)
 	    return -1;
     }
@@ -166,7 +166,7 @@ static void ftp_close_file(struct inode *inode)
     int resp;
 
     ctlsock = socket->ctl ? PVT(socket->ctl) : NULL;
-    if (ctlsock->private.conn) {
+    if (ctlsock->net.lwip.conn) {
 	resp = ftp_cmd_response(socket->ctl, "QUIT", NULL, NULL, NULL);
 	while (resp == 226) {
 	    resp = ftp_cmd_response(socket->ctl, NULL, NULL, NULL, NULL);
@@ -209,11 +209,11 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
 	return;
     ctlsock = PVT(socket->ctl);
     ctlsock->ops = &tcp_conn_ops; /* The control connection is just TCP */
-    ctlsock->private.conn = netconn_new(NETCONN_TCP);
-    if (!ctlsock->private.conn)
+    ctlsock->net.lwip.conn = netconn_new(NETCONN_TCP);
+    if (!ctlsock->net.lwip.conn)
 	goto err_free;
     addr.addr = url->ip;
-    err = netconn_connect(ctlsock->private.conn, &addr, url->port);
+    err = netconn_connect(ctlsock->net.lwip.conn, &addr, url->port);
     if (err)
 	goto err_delete;
 
@@ -248,10 +248,10 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     if (resp != 227 || pasv_bytes != 6)
 	goto err_disconnect;
 
-    socket->private.conn = netconn_new(NETCONN_TCP);
-    if (!socket->private.conn)
+    socket->net.lwip.conn = netconn_new(NETCONN_TCP);
+    if (!socket->net.lwip.conn)
 	goto err_disconnect;
-    err = netconn_connect(socket->private.conn, (struct ip_addr *)&pasv_data[0],
+    err = netconn_connect(socket->net.lwip.conn, (struct ip_addr *)&pasv_data[0],
 			  ntohs(*(uint16_t *)&pasv_data[4]));
     if (err)
 	goto err_disconnect;
@@ -266,15 +266,15 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     return;			/* Sucess! */
 
 err_disconnect:
-    if (ctlsock->private.conn)
-	netconn_write(ctlsock->private.conn, "QUIT\r\n", 6, NETCONN_NOCOPY);
-    if (socket->private.conn)
-	netconn_delete(socket->private.conn);
-    if (ctlsock->private.buf)
-	netbuf_delete(ctlsock->private.buf);
+    if (ctlsock->net.lwip.conn)
+	netconn_write(ctlsock->net.lwip.conn, "QUIT\r\n", 6, NETCONN_NOCOPY);
+    if (socket->net.lwip.conn)
+	netconn_delete(socket->net.lwip.conn);
+    if (ctlsock->net.lwip.buf)
+	netbuf_delete(ctlsock->net.lwip.buf);
 err_delete:
-    if (ctlsock->private.conn)
-	netconn_delete(ctlsock->private.conn);
+    if (ctlsock->net.lwip.conn)
+	netconn_delete(ctlsock->net.lwip.conn);
 err_free:
     free_socket(socket->ctl);
 }

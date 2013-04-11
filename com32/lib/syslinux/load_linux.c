@@ -266,7 +266,8 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     /* Place the kernel in memory */
 
     /* First, find a suitable place for the protected-mode code */
-    if (syslinux_memmap_type(amap, prot_mode_base, prot_mode_size)
+    if (prot_mode_size &&
+	syslinux_memmap_type(amap, prot_mode_base, prot_mode_size)
 	!= SMT_FREE) {
 	const struct syslinux_memmap *mp;
 	if (!hdr.relocatable_kernel)
@@ -365,12 +366,15 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     }
 
     /* Protected-mode code */
-    if (syslinux_add_movelist(&fraglist, prot_mode_base,
-			      (addr_t) kernel_buf + real_mode_size,
-			      prot_mode_size))
-	goto bail;
-    if (syslinux_add_memmap(&amap, prot_mode_base, prot_mode_size, SMT_ALLOC))
-	goto bail;
+    if (prot_mode_size) {
+	if (syslinux_add_movelist(&fraglist, prot_mode_base,
+				  (addr_t) kernel_buf + real_mode_size,
+				  prot_mode_size))
+	    goto bail;
+	if (syslinux_add_memmap(&amap, prot_mode_base, prot_mode_size,
+				SMT_ALLOC))
+	    goto bail;
+    }
 
     /* Figure out the size of the initramfs, and where to put it.
        We should put it at the highest possible address which is

@@ -173,13 +173,10 @@ libpxelinux.a: rawcon.o pxelinux-c.o $(PXELINUX_OBJS)
 	$(RANLIB) $@
 
 # LwIP network stack
-liblpxelinux.a: rawcon.o pxelinux-c.o
-	$(MAKE) OBJ="$(OBJ)" SRC="$(SRC)" -f $(SRC)/Makefile \
-		CFLAGS="$(CFLAGS) -I$(objdir) -DIS_LPXELINUX" $(LPXELINUX_OBJS)
+liblpxelinux.a: rawcon.o pxelinux-c.o $(LPXELINUX_OBJS)
 	rm -f $@
-	$(AR) cq $@ $^ $(LPXELINUX_OBJS)
+	$(AR) cq $@ $^
 	$(RANLIB) $@
-	rm $(LPXELINUX_OBJS)
 
 libldlinux.a: plaincon.o ldlinux-c.o
 	rm -f $@

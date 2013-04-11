@@ -6,6 +6,13 @@
 #include <net.h>
 #include "pxe.h"
 
+const struct url_scheme url_schemes[] = {
+    { "tftp", tftp_open, 0 },
+    { "http", http_open, O_DIRECTORY },
+    { "ftp",  ftp_open,  O_DIRECTORY },
+    { NULL, NULL, 0 },
+};
+
 /**
  * Open a socket
  *
@@ -16,7 +23,7 @@
  */
 int net_core_open(struct pxe_pvt_inode *socket, enum net_core_proto proto)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_lwip *priv = &socket->net.lwip;
     enum netconn_type type;
     int err;
 
@@ -53,7 +60,7 @@ int net_core_open(struct pxe_pvt_inode *socket, enum net_core_proto proto)
  */
 void net_core_close(struct pxe_pvt_inode *socket)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_lwip *priv = &socket->net.lwip;
 
     if (priv->conn) {
 	netconn_delete(priv->conn);
@@ -71,7 +78,7 @@ void net_core_close(struct pxe_pvt_inode *socket)
 void net_core_connect(struct pxe_pvt_inode *socket, uint32_t ip,
 		      uint16_t port)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_lwip *priv = &socket->net.lwip;
     struct ip_addr addr;
 
     addr.addr = ip;
@@ -85,7 +92,7 @@ void net_core_connect(struct pxe_pvt_inode *socket, uint32_t ip,
  */
 void net_core_disconnect(struct pxe_pvt_inode *socket)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_lwip *priv = &socket->net.lwip;
     netconn_disconnect(priv->conn);
 }
 
@@ -102,7 +109,7 @@ void net_core_disconnect(struct pxe_pvt_inode *socket)
 int net_core_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 		  uint32_t *src_ip, uint16_t *src_port)
 {
-    struct net_private *priv = &socket->private;
+    struct net_private_lwip *priv = &socket->net.lwip;
     struct netbuf *nbuf;
     u16_t nbuf_len;
     int err;
@@ -138,7 +145,7 @@ int net_core_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
  */
 void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 {
-    struct netconn *conn = socket->private.conn;
+    struct netconn *conn = socket->net.lwip.conn;
     struct netbuf *nbuf;
     void *pbuf;
     int err;
