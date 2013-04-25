@@ -204,6 +204,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 
     cmdline_size = strlen(cmdline) + 1;
 
+    errno = EINVAL;
     if (kernel_size < 2 * 512)
 	goto bail;
 
@@ -307,8 +308,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     /* Get the memory map */
     mmap = syslinux_memory_map();	/* Memory map for shuffle_boot */
     amap = syslinux_dup_memmap(mmap);	/* Keep track of available memory */
-    if (!mmap || !amap)
+    if (!mmap || !amap) {
+	errno = ENOMEM;
 	goto bail;
+    }
 
     dprintf("Initial memory map:\n");
     syslinux_dump_memmap(mmap);
@@ -318,8 +321,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
        it's unavailable to the boot loader, which probably has already touched
        some of it), or just in the amap? */
     if (memlimit)
-	if (syslinux_add_memmap(&amap, memlimit, -memlimit, SMT_RESERVED))
+	if (syslinux_add_memmap(&amap, memlimit, -memlimit, SMT_RESERVED)) {
+	    errno = ENOMEM;
 	    goto bail;
+	}
 
     /* Place the kernel in memory */
 
@@ -400,18 +405,24 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 			      real_mode_size))
 	goto bail;
     if (syslinux_add_memmap
-	(&amap, real_mode_base, cmdline_offset + cmdline_size, SMT_ALLOC))
+	(&amap, real_mode_base, cmdline_offset + cmdline_size, SMT_ALLOC)) {
+	errno = ENOMEM;
 	goto bail;
+    }
 
     /* Zero region between real mode code and cmdline */
     if (syslinux_add_memmap(&mmap, real_mode_base + real_mode_size,
-			    cmdline_offset - real_mode_size, SMT_ZERO))
+			    cmdline_offset - real_mode_size, SMT_ZERO)) {
+	errno = ENOMEM;
 	goto bail;
+    }
 
     /* Command line */
     if (syslinux_add_movelist(&fraglist, real_mode_base + cmdline_offset,
-			      (addr_t) cmdline, cmdline_size))
+			      (addr_t) cmdline, cmdline_size)) {
+	errno = ENOMEM;
 	goto bail;
+    }
     if (hdr.version >= 0x0202) {
 	whdr->cmd_line_ptr = real_mode_base + cmdline_offset;
     } else {
@@ -427,11 +438,15 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     if (prot_mode_size) {
 	if (syslinux_add_movelist(&fraglist, prot_mode_base,
 				  (addr_t) kernel_buf + real_mode_size,
-				  prot_mode_size))
+				  prot_mode_size)) {
+	    errno = ENOMEM;
 	    goto bail;
+	}
 	if (syslinux_add_memmap(&amap, prot_mode_base, prot_mode_size,
-				SMT_ALLOC))
+				SMT_ALLOC)) {
+	    errno = ENOMEM;
 	    goto bail;
+	}
     }
 
     /* Figure out the size of the initramfs, and where to put it.
@@ -457,11 +472,15 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    whdr->ramdisk_image = best_addr;
 	    whdr->ramdisk_size = irf_size;
 
-	    if (syslinux_add_memmap(&amap, best_addr, irf_size, SMT_ALLOC))
+	    if (syslinux_add_memmap(&amap, best_addr, irf_size, SMT_ALLOC)) {
+		errno = ENOMEM;
 		goto bail;
+	    }
 
-	    if (map_initramfs(&fraglist, &mmap, initramfs, best_addr))
+	    if (map_initramfs(&fraglist, &mmap, initramfs, best_addr)) {
+		errno = ENOMEM;
 		goto bail;
+	    }
 	}
     }
 
@@ -497,14 +516,20 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    *prev_ptr = best_addr;
 	    prev_ptr = &sdp->hdr.next;
 
-	    if (syslinux_add_memmap(&amap, best_addr, size, SMT_ALLOC))
+	    if (syslinux_add_memmap(&amap, best_addr, size, SMT_ALLOC)) {
+		errno = ENOMEM;
 		goto bail;
+	    }
 	    if (syslinux_add_movelist(&fraglist, best_addr,
-				      (addr_t)&sdp->hdr, sizeof sdp->hdr))
+				      (addr_t)&sdp->hdr, sizeof sdp->hdr)) {
+		errno = ENOMEM;
 		goto bail;
+	    }
 	    if (syslinux_add_movelist(&fraglist, best_addr + sizeof sdp->hdr,
-				      (addr_t)sdp->data, sdp->hdr.len))
+				      (addr_t)sdp->data, sdp->hdr.len)) {
+		errno = ENOMEM;
 		goto bail;
+	    }
 	}
     }
 
