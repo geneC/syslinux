@@ -251,7 +251,7 @@ int do_open_file(char *name)
     unlink(name);
     fd = open(name, O_WRONLY | O_CREAT | O_TRUNC, 0444);
     if (fd < 0)
-	perror(opt.device);
+	perror(name);
 
     return fd;
 }
