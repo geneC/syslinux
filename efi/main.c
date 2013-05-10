@@ -1177,13 +1177,10 @@ static void efi_setcwd(CHAR16 *dp)
 
 EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 {
+	EFI_PXE_BASE_CODE *pxe;
 	EFI_LOADED_IMAGE *info;
 	EFI_STATUS status = EFI_SUCCESS;
-#if 0
-	const struct fs_ops *ops[] = { &vfat_fs_ops, NULL };
-#else
-	const struct fs_ops *ops[] = { &pxe_fs_ops, NULL };
-#endif
+	const struct fs_ops *ops[] = { NULL, NULL };
 	unsigned long len = (unsigned long)__bss_end - (unsigned long)__bss_start;
 	static struct efi_disk_private priv;
 	SIMPLE_INPUT_INTERFACE *in;
@@ -1204,8 +1201,22 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 		goto out;
 	}
 
-	/* Use device handle to set up the volume root to proceed with ADV init */
-	efi_set_volroot(info->DeviceHandle);
+	status = uefi_call_wrapper(BS->HandleProtocol, 3, info->DeviceHandle,
+				   &PxeBaseCodeProtocol, (void **)&pxe);
+	if (status != EFI_SUCCESS) {
+		/*
+		 * Use device handle to set up the volume root to
+		 * proceed with ADV init.
+		 */
+		if (EFI_ERROR(efi_set_volroot(info->DeviceHandle))) {
+			Print(L"Failed to locate root device to prep for ");
+			Print(L"file operations & ADV initialization\n");
+			goto out;
+		}
+
+		ops[0] = &vfat_fs_ops;
+	} else
+		ops[0] = &pxe_fs_ops;
 
 	/* setup timer for boot menu system support */
 	status = setup_default_timer(&timer_ev);
@@ -1216,7 +1227,6 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 
 	/* TODO: once all errors are captured in efi_errno, bail out if necessary */
 
-	/* XXX figure out what file system we're on */
 	priv.dev_handle = info->DeviceHandle;
 
 	/*
