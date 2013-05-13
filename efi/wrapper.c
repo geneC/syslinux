@@ -60,6 +60,14 @@ static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size, __uint8_
 
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.msdos_signature = MSDOS_SIGNATURE;
+
+	/*
+	 * The relocs table pointer needs to be >= 0x40 for PE files. It
+	 * informs things like file(1) that we are not an MS-DOS
+	 * executable.
+	 */
+	hdr.relocs_ptr = 0x40;
+
 	hdr.pe_hdr = OFFSETOF(struct header, pe_signature);
 	hdr.pe_signature = PE_SIGNATURE;
 	fwrite(&hdr, sizeof(hdr), 1, f);

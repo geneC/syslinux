@@ -28,7 +28,9 @@
 
 struct header {
 	__uint16_t msdos_signature;
-	__uint8_t _pad1[0x3c - 2];
+	__uint8_t _pad1[0x16];
+	__uint16_t relocs_ptr;
+	__uint8_t __pad2[0x3c - 0x1a];
 	__uint32_t pe_hdr;
 	__uint16_t pe_signature;
 	__uint16_t _pad2;
