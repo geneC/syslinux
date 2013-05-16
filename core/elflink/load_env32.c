@@ -22,8 +22,6 @@
 #include <sys/module.h>
 #include "common.h"
 
-#define LDLINUX	"ldlinux.c32"
-
 extern char __dynstr_start[];
 extern char __dynstr_end[], __dynsym_end[];
 extern char __dynsym_start[];
@@ -66,7 +64,7 @@ again:
 	if (rv == EEXIST) {
 		/*
 		 * If a COM32 module calls execute() we may need to
-		 * unload all the modules loaded since ldlinux.c32,
+		 * unload all the modules loaded since ldlinux.*,
 		 * and restart initialisation. This is especially
 		 * important for config files.
 		 *
@@ -159,7 +157,7 @@ void load_env32(com32sys_t * regs __unused)
 		/*
 		 * search_dirs() sets the current working directory if
 		 * it successfully opens the file. Add the directory
-		 * in which we found ldlinux.c32 to PATH.
+		 * in which we found ldlinux.* to PATH.
 		 */
 		if (!core_getcwd(path, sizeof(path)))
 			goto out;
@@ -188,7 +186,8 @@ void load_env32(com32sys_t * regs __unused)
 
 out:
 	free(PATH);
-	writestr("\nFailed to load ldlinux.c32");
+	writestr("\nFailed to load ");
+	writestr(LDLINUX);
 }
 
 static const char *__cmdline;

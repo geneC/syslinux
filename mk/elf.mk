@@ -59,7 +59,7 @@ CFLAGS     = $(GCCOPT) -W -Wall \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \
 		-I$(com32)/include/sys $(GPLINCLUDE) -I$(core)/include \
-		-I$(objdir)
+		-I$(objdir) -DLDLINUX=\"$(LDLINUX)\"
 SFLAGS     = $(GCCOPT) -D__COM32__ 
 LDFLAGS    = -m elf_$(ARCH) -shared --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld --as-needed
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)

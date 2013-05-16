@@ -20,12 +20,20 @@ OBJS = ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o adv.o \
 	execute.o chainboot.o kernel.o get_key.o advwrite.o setadv.o \
 	loadhigh.o msg.o
 
-BTARGET = ldlinux.c32
+BTARGET = $(LDLINUX)
+
+ifdef EFI_BUILD
+%.e$(BITS): %.elf
+	$(OBJCOPY) --strip-debug --strip-unneeded $< $@
+SONAME = $(patsubst %.elf,%.e$(BITS),$(@F))
+else
+SONAME = $(patsubst %.elf,%.c32,$(@F))
+endif
 
 all: $(BTARGET) ldlinux_lnx.a
 
 ldlinux.elf : $(OBJS)
-	$(LD) $(LDFLAGS) -soname $(patsubst %.elf,%.c32,$(@F)) -o $@ $^ $(LIBS)
+	$(LD) $(LDFLAGS) -soname $(SONAME) -o $@ $^ $(LIBS)
 
 LNXCFLAGS += -D__export='__attribute__((visibility("default")))'
 LNXLIBOBJS = get_key.lo

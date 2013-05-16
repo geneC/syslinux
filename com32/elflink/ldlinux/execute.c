@@ -131,14 +131,14 @@ __export void execute(const char *cmdline, uint32_t type, bool sysappend)
 		 * irrespective of how the COM32 module was loaded,
 		 * e.g. from vesamenu.c32.
 		 */
-		unload_modules_since("ldlinux.c32");
+		unload_modules_since(LDLINUX);
 
 		/* Restore the console */
 		ldlinux_console_init();
 
 		ldlinux_enter_command();
 	} else if (type == IMAGE_TYPE_CONFIG) {
-		char *argv[] = { "ldlinux.c32", NULL, NULL };
+		char *argv[] = { LDLINUX, NULL, NULL };
 		char *config;
 		int rv;
 
@@ -155,7 +155,7 @@ __export void execute(const char *cmdline, uint32_t type, bool sysappend)
 
 		argv[1] = config;
 		rv = start_ldlinux(2, argv);
-		printf("Failed to exec ldlinux.c32: %s\n", strerror(rv));
+		printf("Failed to exec %s: %s\n", LDLINUX, strerror(rv));
 	} else if (type == IMAGE_TYPE_LOCALBOOT) {
 		local_boot(strtoul(kernel, NULL, 0));
 	} else if (type == IMAGE_TYPE_PXE || type == IMAGE_TYPE_BSS ||

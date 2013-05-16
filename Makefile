@@ -239,19 +239,21 @@ bios:
 	@mkdir -p $(OBJ)/bios
 	$(MAKE) -C $(OBJ)/bios -f $(SRC)/Makefile SRC="$(SRC)" \
 		objdir=$(OBJ)/bios OBJ=$(OBJ)/bios HAVE_FIRMWARE=1 \
-		ARCH=i386 $(MAKECMDGOALS)
+		ARCH=i386 LDLINUX=ldlinux.c32 $(MAKECMDGOALS)
 
 efi32:
 	@mkdir -p $(OBJ)/efi32
 	$(MAKE) -C $(OBJ)/efi32 -f $(SRC)/Makefile SRC="$(SRC)" \
 		objdir=$(OBJ)/efi32 OBJ=$(OBJ)/efi32 HAVE_FIRMWARE=1 \
-		ARCH=i386 BITS=32 EFI_BUILD=1 $(MAKECMDGOALS)
+		ARCH=i386 BITS=32 EFI_BUILD=1 LDLINUX=ldlinux.e32 \
+		$(MAKECMDGOALS)
 
 efi64:
 	@mkdir -p $(OBJ)/efi64
 	$(MAKE) -C $(OBJ)/efi64 -f $(SRC)/Makefile SRC="$(SRC)" \
 		objdir=$(OBJ)/efi64 OBJ=$(OBJ)/efi64 HAVE_FIRMWARE=1 \
-		ARCH=x86_64 BITS=64 EFI_BUILD=1 $(MAKECMDGOALS)
+		ARCH=x86_64 BITS=64 EFI_BUILD=1 LDLINUX=ldlinux.e64 \
+		$(MAKECMDGOALS)
 
 else # ifeq($(HAVE_FIRMWARE),)
 
