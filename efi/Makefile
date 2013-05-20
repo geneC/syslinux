@@ -44,7 +44,7 @@ OBJS += $(objdir)/core/codepage.o
 BTARGET  = syslinux.efi
 
 syslinux.so: $(OBJS) $(CORE_OBJS) $(LIB_OBJS)
-	$(LD) $(LDFLAGS) -o $@ $^ -lgnuefi -lefi
+	$(LD) $(LDFLAGS) --strip-debug -o $@ $^ -lgnuefi -lefi
 
 # We need to rename the .hash section because the EFI firmware
 # linker really doesn't like it.
