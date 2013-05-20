@@ -36,13 +36,15 @@ typedef Elf64_Addr Elf_Addr;
 
 /*
  * 'so_size' is the file size of the ELF shared object.
+ * 'data_size' is the size of initialised data in the shared object.
  *  'class' dictates how the header is written
  * 	For 32bit machines (class == ELFCLASS32), the optional
  * 	header includes PE32 header fields
  * 	For 64bit machines (class == ELFCLASS64), the optional
  * 	header includes PE32+header fields
  */
-static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size, __uint8_t class)
+static void write_header(FILE *f, __uint32_t entry, size_t data_size,
+			 __uint32_t so_size, __uint8_t class)
 {
 	struct optional_hdr o_hdr;
 	struct optional_hdr_pe32p o_hdr_pe32p;
@@ -56,7 +58,6 @@ static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size, __uint8_
 	__uint32_t dummy = 0;
 	__uint32_t hdr_sz;
 	__uint32_t reloc_start, reloc_end;
-
 
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.msdos_signature = MSDOS_SIGNATURE;
@@ -93,6 +94,7 @@ static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size, __uint8_
 		o_hdr.minor_linker_version = 0x14;
 		o_hdr.code_sz = total_sz;
 		o_hdr.entry_point = entry;
+		o_hdr.initialized_data_sz = data_size;
 		fwrite(&o_hdr, sizeof(o_hdr), 1, f);
 		memset(&e_hdr, 0, sizeof(e_hdr));
 		e_hdr.section_align = 4096;
@@ -120,6 +122,7 @@ static void write_header(FILE *f, __uint32_t entry, __uint32_t so_size, __uint8_
 		o_hdr_pe32p.minor_linker_version = 0x14;
 		o_hdr_pe32p.code_sz = total_sz;
 		o_hdr_pe32p.entry_point = entry;
+		o_hdr.initialized_data_sz = data_size;
 		fwrite(&o_hdr_pe32p, sizeof(o_hdr_pe32p), 1, f);
 		memset(&e_hdr_pe32p, 0, sizeof(e_hdr));
 		e_hdr_pe32p.section_align = 4096;
@@ -175,10 +178,12 @@ int main(int argc, char **argv)
 	Elf64_Ehdr e64_hdr;
 	__uint32_t entry;
 	__uint8_t class;
+	__uint64_t shoff;
+	__uint16_t shnum, shentsize, shstrndx;
 	unsigned char *id;
 	FILE *f_in, *f_out;
 	void *buf;
-	size_t rv;
+	size_t datasz, rv;
 
 	if (argc < 3) {
 		usage(argv[0]);
@@ -210,6 +215,10 @@ int main(int argc, char **argv)
 		id = e32_hdr.e_ident;
 		class = ELFCLASS32;
 		entry = e32_hdr.e_entry;
+		shoff = e32_hdr.e_shoff;
+		shnum = e32_hdr.e_shnum;
+		shstrndx = e32_hdr.e_shstrndx;
+		shentsize = e32_hdr.e_shentsize;
 	}
 	else if (e32_hdr.e_ident[EI_CLASS] == ELFCLASS64) {
 		/* read the header again for x86_64 
@@ -220,6 +229,10 @@ int main(int argc, char **argv)
 		fread((void *)&e64_hdr, sizeof(e64_hdr), 1, f_in);
 		id = e64_hdr.e_ident;
 		entry = e64_hdr.e_entry;
+		shoff = e64_hdr.e_shoff;
+		shnum = e64_hdr.e_shnum;
+		shstrndx = e64_hdr.e_shstrndx;
+		shentsize = e64_hdr.e_shentsize;
 	} else {
 		fprintf(stderr, "Unsupported architecture\n");
 		exit(EXIT_FAILURE);
@@ -233,22 +246,116 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	buf = malloc(st.st_size);
+	if (!shoff || !shnum || (shstrndx == SHN_UNDEF)) {
+		fprintf(stderr, "Cannot find section table\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/*
+	 * Find the beginning of the .bss section. Everything preceding
+	 * it is copied verbatim to the output file.
+	 */
+	if (e32_hdr.e_ident[EI_CLASS] == ELFCLASS32) {
+		const char *shstrtab, *name;
+		Elf32_Shdr shdr;
+		int i;
+		void *strtab;
+
+		fseek(f_in, shoff, SEEK_SET);
+
+		/* First find the strtab section */
+		fseek(f_in, shstrndx * shentsize, SEEK_CUR);
+		fread(&shdr, sizeof(shdr), 1, f_in);
+
+		strtab = malloc(shdr.sh_size);
+		if (!strtab) {
+			fprintf(stderr, "Failed to malloc strtab\n");
+			exit(EXIT_FAILURE);
+		}
+
+		fseek(f_in, shdr.sh_offset, SEEK_SET);
+		fread(strtab, shdr.sh_size, 1, f_in);
+
+		/* Now search for the .bss section */
+		fseek(f_in, shoff, SEEK_SET);
+		for (i = 0; i < shnum; i++) {
+			rv = fread(&shdr, sizeof(shdr), 1, f_in);
+			if (!rv) {
+				fprintf(stderr, "Failed to read section table\n");
+				exit(EXIT_FAILURE);
+			}
+
+			name = strtab + shdr.sh_name;
+			if (!strcmp(name, ".bss"))
+				break;
+		}
+
+		if (i == shnum) {
+			fprintf(stderr, "Failed to find .bss section\n");
+			exit(EXIT_FAILURE);
+		}
+
+		datasz = shdr.sh_offset;
+	}
+	else if (e32_hdr.e_ident[EI_CLASS] == ELFCLASS64) {
+		const char *shstrtab, *name;
+		Elf64_Shdr shdr;
+		int i;
+		void *strtab;
+
+		fseek(f_in, shoff, SEEK_SET);
+
+		/* First find the strtab section */
+		fseek(f_in, shstrndx * shentsize, SEEK_CUR);
+		fread(&shdr, sizeof(shdr), 1, f_in);
+
+		strtab = malloc(shdr.sh_size);
+		if (!strtab) {
+			fprintf(stderr, "Failed to malloc strtab\n");
+			exit(EXIT_FAILURE);
+		}
+
+		fseek(f_in, shdr.sh_offset, SEEK_SET);
+		fread(strtab, shdr.sh_size, 1, f_in);
+
+		/* Now search for the .bss section */
+		fseek(f_in, shoff, SEEK_SET);
+		for (i = 0; i < shnum; i++) {
+			rv = fread(&shdr, sizeof(shdr), 1, f_in);
+			if (!rv) {
+				fprintf(stderr, "Failed to read section table\n");
+				exit(EXIT_FAILURE);
+			}
+
+			name = strtab + shdr.sh_name;
+			if (!strcmp(name, ".bss"))
+				break;
+		}
+
+		if (i == shnum) {
+			fprintf(stderr, "Failed to find .bss section\n");
+			exit(EXIT_FAILURE);
+		}
+
+		datasz = shdr.sh_offset;
+	}
+
+	buf = malloc(datasz);
 	if (!buf) {
 		perror("malloc");
 		exit(EXIT_FAILURE);
 	}
 
-	write_header(f_out, entry, st.st_size, class);
+	write_header(f_out, entry, datasz, st.st_size, class);
 
 	/* Write out the entire ELF shared object */
 	rewind(f_in);
-	rv = fread(buf, st.st_size, 1, f_in);
+	rv = fread(buf, datasz, 1, f_in);
 	if (!rv && ferror(f_in)) {
 		fprintf(stderr, "Failed to read all bytes from input\n");
 		exit(EXIT_FAILURE);
 	}
 
-	fwrite(buf, st.st_size, rv, f_out);
+	fwrite(buf, datasz, rv, f_out);
 	return 0;
 }

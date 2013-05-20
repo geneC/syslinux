@@ -128,10 +128,6 @@ SECTIONS
 		*(.reloc)
 	}
 
-	.comment : {
-		*(.commet)
-	}
-
 	.symtab : {
 		*(.symtab)
 	}
@@ -172,5 +168,6 @@ SECTIONS
 	/* Stuff we don't need... */
 	/DISCARD/ : {
 		*(.eh_frame)
+		*(.comment)
 	}
 }
