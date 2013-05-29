@@ -75,7 +75,7 @@ __export void loadfont(const char *filename)
 	for (i = 0; i < 256; i++) {
 		if (_fread(p, hdr.height, f) != hdr.height)
 			goto fail;
-		p += 32;
+		p += hdr.height;
 	}
 
 	/* Loaded OK */
