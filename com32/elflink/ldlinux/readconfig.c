@@ -1286,7 +1286,7 @@ do_include:
 		if (port <= 3) {
 			/* Get the I/O port from the BIOS */
 			port <<= 1;
-			port = *(volatile uint16_t *)serial_base;
+			port = *(volatile uint16_t *)(serial_base + port);
 		}
 
 		
