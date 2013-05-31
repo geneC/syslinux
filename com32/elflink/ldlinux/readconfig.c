@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2009 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2013 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -759,7 +759,6 @@ static uint8_t SerialNotice = 1;
 
 #define DEFAULT_BAUD	9600
 #define BAUD_DIVISOR	115200
-#define serial_base	0x0400
 
 extern void sirq_cleanup_nowipe(void);
 extern void sirq_install(void);
@@ -1279,18 +1278,7 @@ do_include:
 		baud = BAUD_DIVISOR / baud;
 		baud &= 0xffff;
 		BaudDivisor = baud;
-
-		/*
-		 * If port > 3 then port is I/O addr
-		 */
-		if (port <= 3) {
-			/* Get the I/O port from the BIOS */
-			port <<= 1;
-			port = *(volatile uint16_t *)(serial_base + port);
-		}
-
-		
-		SerialPort = port;
+		SerialPort = get_serial_port(port);
 
 		/*
 		 * Begin code to actually set up the serial port

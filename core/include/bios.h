@@ -30,7 +30,7 @@
 #define fdctab1		fdctab
 #define fdctab2		(fdctab + 2)
 
-#define serial_base	0x0400	/* Base address for 4 serial ports */
+#define SERIAL_BASE	0x0400	/* Base address for 4 serial ports */
 #define BIOS_fbm	0x0413	/* Free Base Memory (kilobytes) */
 #define BIOS_page	0x0462	/* Current video page */
 #define BIOS_timer	0x046C	/* Timer ticks */
@@ -95,5 +95,20 @@ extern char *SerialTail;
 
 extern void bios_init(void);
 extern void bios_cleanup_hardware(void);
+
+static inline uint16_t get_serial_port(uint16_t port)
+{
+    /* Magic array in BIOS memory, contains four entries */
+    const uint16_t * const serial_ports = (const uint16_t *)SERIAL_BASE;
+
+    /*
+     * If port > 3 then the port is simply the I/O base address
+     */
+    if (port > 3)
+	return port;
+
+    /* Get the I/O port from the BIOS */
+    return serial_ports[port];
+}
 
 #endif /* _BIOS_H */
