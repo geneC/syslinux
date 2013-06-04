@@ -7,7 +7,9 @@ Changes in 5.10:
 	  the lwIP embedded TCP/IP stack.  As a result, plain PXELINUX
 	  can now support HTTP and FTP without gPXE/iPXE.  ls/readdir
 	  functionality is supported over HTTP with an indexing
-	  webserver, or over FTP with most common FTP servers.
+	  webserver, or over FTP with most common FTP servers. For the
+	  new network stack use lpxelinux.0. For the legacy stack use
+	  pxelinux.0.
 	* Rename the "ipappend" option to "sysappend" ("ipappend" is
 	  still accepted as an alias) and make it available for all
 	  derivatives.  Add additional strings derived from the system
