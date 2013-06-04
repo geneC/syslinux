@@ -17,6 +17,15 @@ Changes in 5.10:
 	* "sysappend" strings are also sent as http cookies, with the
 	  prefix _Syslinux_ added, on all http transfers.  This can be
 	  overridden with the SENDCOOKIES configuration file command.
+	* poweroff.c32: A new module to power off a system via APM. It
+	  replaces the poweroff COMBOOT module (Sebastian Herbszt).
+	* PXELINUX: Fix booting with DHCP options 209 and 210 which was
+	  broken in 5.00.
+	* Handle loading kernel images with no protected mode code. A
+	  legitimate kernel image can consist solely of real-mode code.
+	  The support for booting such images was broken in 5.00 (Josh Triplett).
+	* Fix a regression in the .psf font file loader introduced
+	  in 5.00.
 
 Changes in 5.01:
 	* txt/: A new AsciiDoc documentation set (work-in-progress)
