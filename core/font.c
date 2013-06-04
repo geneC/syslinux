@@ -46,8 +46,6 @@ __export void loadfont(const char *filename)
 		uint8_t height;
 	} hdr;
 	FILE *f;
-	char *p;
-	int i;
 
 	f = fopen(filename, "r");
 	if (!f)
@@ -71,7 +69,7 @@ __export void loadfont(const char *filename)
 
 	/* Load the actual font into the font buffer. */
 	memset(fontbuf, 0, 256*32);
-	if (_fread(p, 256*hdr.height, f) != 256*hdr.height)
+	if (_fread(fontbuf, 256*hdr.height, f) != 256*hdr.height)
 	    goto fail;
 
 	/* Loaded OK */
