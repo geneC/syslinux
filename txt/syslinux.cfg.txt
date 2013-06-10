@@ -503,6 +503,18 @@ attempting to load modules. This directive is useful for specifying the
 directories containing the lib*.c32 library files as other modules may
 be dependent on these files, but may not reside in the same directory.
 
+*SENDCOOKIES* 'bitmask'::
+(*PXELINUX* 5.10+) When downloading files over http, the SYSAPPEND
+strings are prepended with _Syslinux_ and sent to the server as cookies.
+The cookies are URL-encoded; whitespace is *not* replaced with
+underscores.
+
+This command limits the cookies send; 0 means no cookies.  The default
+is -1, meaning send all cookies.
+
+This option is "sticky" and is not automatically reset when loading a
+new configuration file with the CONFIG command.
+
 
 == DISPLAY FILE FORMAT ==
 DISPLAY and function-key help files are text files in either DOS or UNIX
@@ -630,6 +642,30 @@ Any file that *Syslinux* uses can be marked hidden, system or readonly
 if so is convenient; *Syslinux* ignores all file attributes.  The
 *SYSLINUX* installer automatically sets the readonly/hidden/system
 attributes on LDLINUX.SYS.
+
+== EXAMPLE ==
+Here are some sample config files:
+----
+# SERIAL 0 115200
+DEFAULT linux
+PROMPT 1
+TIMEOUT 600
+
+LABEL linux
+  LINUX vmlinuz
+  APPEND initrd=initrd1.gz,initrd2.gz
+
+LABEL m
+  COM32 menu.c32
+----
+In this example, serial port use is disabled but can be enabled by
+uncommenting the first line and utilize serial port 0 at 115200 bps.  If
+'linux' is typed on the command line, the kernel-like file 'vmlinuz' is
+executed as a Linux kernel, initrd files initrd1.gz and initrd2.gz are
+loaded as initial ramdisk files (like cpio.gz files for initramfs).  If
+'m' is typed on the command line, the COM32 module 'menu.c32' is
+executed to launch a menu system.
+
 
 
 == KNOWN BUGS ==
