@@ -426,7 +426,7 @@ ONERROR kernel options...
 
 		xyzzy plugh foo bar baz
 
-SERIAL port [[baudrate] flowcontrol]
+SERIAL port [baudrate [flowcontrol]]
 	Enables a serial port to act as the console.  "port" is a
 	number (0 = /dev/ttyS0 = COM1, etc.) or an I/O port address
 	(e.g. 0x3F8); if "baudrate" is omitted, the baud rate defaults
