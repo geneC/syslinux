@@ -234,7 +234,7 @@ IPAPPEND bitmask
 	0x08000	BIOSVERSION=	BIOS version
 	0x10000	SYSFF=		System form factor
 
-	If these strings contain whitespace they it is replaced with
+	If these strings contain whitespace they are replaced with
 	underscores (_).
 
 	The system form factor value is a number defined in the SMBIOS
