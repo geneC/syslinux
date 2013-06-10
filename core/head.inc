@@ -34,6 +34,5 @@
 %include "tracers.inc"
 %include "stack.inc"
 %include "io.inc"
-%include "vkernel.inc"
 
 %endif ; _HEAD_INC
