@@ -121,9 +121,12 @@ Append nothing.  *APPEND* with a single hyphen as argument in a *LABEL*
 section can be used to override a global *APPEND*.
 
 //[FIXME: Shorten subdefinitions]
-*IPAPPEND* 'flag_val'::
-(*PXELINUX* only) The *IPAPPEND* option is available only on *PXELINUX*.
- The flag_val is an OR (sum) of the following integer options:
+*SYSAPPEND* 'bitmask'::
+*IPAPPEND* 'bitmask'::
+(*SYSAPPEND*: 5.10+; *IPAPPEND*: *PXELINUX* only)
+The *SYSAPPEND* option was introduced in *Syslinux* 5.10; it is an
+enhancement of a previous option *IPAPPEND* which was only available on
+*PXELINUX*.  The 'bitmask' is an OR (sum) of the following integer options:
 
 ifndef::doctype-manpage[[horizontal]]
 *1*::: An option of the following format should be generated, based on
@@ -158,6 +161,77 @@ line:
 ----
 SYSUUID=<system uuid>
 ----
++
+*8*::: (5.10+) indicate the CPU family and certain particularly significant CPU
+feature bits:
++
+----
+CPU=<family><features>
+----
++
+The <family> is a single digit from 3 (i386) to 6 (i686 or higher.)  The following CPU feature are currently reported; additional flags may be added in the future:
++
+....
+P	Physical Address Extension (PAE)
+V	Intel Virtualization Technology (VT/VMX)
+T	Intel Trusted Exection Technology (TXT/SMX)
+X	Execution Disable (XD/NX)
+L	Long Mode (x86-64)
+S	AMD SMX virtualization
+....
++
+*DMI*::: (5.10+) The following strings are derived from DMI/SMBIOS information if available:
++
+	Bit	String		Significance
+	-------------------------------------------------------------
+	0x00010	SYSVENDOR=	System vendor name
+	0x00020	SYSPRODUCT=	System product name
+	0x00040	SYSVERSION=	System version
+	0x00080	SYSSERIAL=	System serial number
+	0x00100	SYSSKU=		System SKU
+	0x00200	SYSFAMILY=	System family
+	0x00400	MBVENDOR=	Motherboard vendor name
+	0x00800	MBVERSION=	Motherboard version
+	0x01000	MBSERIAL=	Motherboard serial number
+	0x02000	MBASSET=	Motherboard asset tag
+	0x04000 BIOSVENDOR=	BIOS vendor name
+	0x08000	BIOSVERSION=	BIOS version
+	0x10000	SYSFF=		System form factor
++
+If these strings contain whitespace they are replaced with underscores (_).
++
+The system form factor value is a number defined in the SMBIOS specification, available at http://www.dmtf.org/.  As of version 2.7.1 of the specification, the following values are defined:
++
+	  1	Other
+	  2	Unknown
+	  3	Desktop
+	  4	Low profile desktop
+	  5	Pizza box
+	  6	Mini tower
+	  7	Tower
+	  8	Portble
+	  9	Laptop
+	 10	Notebook
+	 11	Handheld
+	 12	Docking station
+	 13	All-in-one
+	 14	Subnotebook
+	 15	Space-saving
+	 16	Lunch box
+	 17	Main server chassis
+	 18	Expansion chassis
+	 19	Subchassis
+	 20	Bus expansion chassis
+	 21	Peripheral chassis
+	 22	RAID chassis
+	 23	Rack mount chasss
+	 24	Sealed-case PC
+	 25	Multi-system chassis
+	 26	Compact PCI
+	 27	Advanced TCI
+	 28	Blade
+	 29	Blade enclosure
+
 
 
 == KERNEL-LIKE DIRECTIVES ==
