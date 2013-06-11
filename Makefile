@@ -329,12 +329,13 @@ install: local-install
 		-f $(SRC)/$$i/Makefile $@; done
 else
 install:
+	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 	set -e ; for i in $(INSTALLSUBDIRS) ; \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
-		BITS="$(BITS)" -f $(SRC)/$$i/Makefile $@; done
-
-	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
-	install -m 755 $(MODULES) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
+		BITS="$(BITS)" AUXDIR="$(AUXDIR)/efi$(BITS)" \
+		-f $(SRC)/$$i/Makefile $@; done
+	-install -m 644 $(INSTALLABLE_MODULES) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
+	install -m 644 com32/elflink/ldlinux/$(LDLINUX) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 endif
 
 netinstall: installer

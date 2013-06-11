@@ -69,8 +69,7 @@ codepage.o: ../codepage/cp865.cp
 installer: syslinux.efi
 
 install: all
-	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
-	install -m 755 $(BTARGET) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
+	install -m 755 $(BTARGET) $(INSTALLROOT)$(AUXDIR)
 
 strip:
 
