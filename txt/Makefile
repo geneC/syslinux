@@ -71,8 +71,11 @@ syslinux.cfg.txt:	com-bug.txt com-rpt.txt
 # %.html:	%.txt
 # 	asciidoc -D html $<
 
+# Mark as .PHONY so they're ignored if found in VPATH
+.PHONY: html/ man/ text/ xhtml/
+
 html/ man/ text/ xhtml/:
-	mkdir $@
+	mkdir -p $@
 
 html/%.html:	%.txt html/
 	asciidoc -o $@ $<
