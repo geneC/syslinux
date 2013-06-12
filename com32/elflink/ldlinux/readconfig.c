@@ -1278,7 +1278,9 @@ do_include:
 		baud = BAUD_DIVISOR / baud;
 		baud &= 0xffff;
 		BaudDivisor = baud;
-		SerialPort = get_serial_port(port);
+
+		port = get_serial_port(port);
+		SerialPort = port;
 
 		/*
 		 * Begin code to actually set up the serial port
