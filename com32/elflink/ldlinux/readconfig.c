@@ -1224,16 +1224,9 @@ do_include:
 		refstr_put(filename);
 	} else if (looking_at(p, "kbdmap")) {
 		const char *filename;
-		char *dst = KernelName;
-		size_t len = FILENAME_MAX - 1;
 
-		filename = refstrdup(skipspace(p + 4));
-
-		while (len-- && not_whitespace(*filename))
-			*dst++ = *filename++;
-		*dst = '\0';
-
-		loadkeys(KernelName);
+		filename = refstrdup(skipspace(p + 6));
+		loadkeys(filename);
 		refstr_put(filename);
 	}
 	/*
