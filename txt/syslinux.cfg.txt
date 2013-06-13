@@ -57,9 +57,10 @@ file. Files can currently be nested up to 16 levels deep, but it is not
 guaranteed that more than 8 levels will be supported in the future.
 
 *DEFAULT* 'kernel' 'options...'::
-Sets the default command line.  If *Syslinux* boots automatically, it
-will act just as if the entries after *DEFAULT* had been typed in at the
-'boot:' prompt.  Multiple uses will result in an override.
+Sets the default command line (which often references a LABEL).  If
+*Syslinux* boots automatically, it will act just as if the entries after
+*DEFAULT* had been typed in at the 'boot:' prompt.  Multiple uses will
+result in an override.
 +
 If no configuration file is present, or no *DEFAULT* or *UI* entry is
 present in the config file, an error message is displayed and the
@@ -69,8 +70,9 @@ present in the config file, an error message is displayed and the
 Selects a specific user interface 'module' (typically menu.c32 or
 vesamenu.c32).  The command-line interface treats this as a directive
 that overrides the *DEFAULT* directive to load this module instead at
-startup and for an empty command line and *PROMPT* directive to not
-prompt.  Multiple uses will result in an override.
+startup, for an empty command line and at timeout and *PROMPT* directive
+to not prompt (but these directives may have effects on other
+configuration parsers).  Multiple uses will result in an override.
 
 *LABEL* 'mylabel'::
 Begin a new *LABEL* clause.  If 'mylabel' is entered as the kernel to
@@ -131,7 +133,7 @@ enhancement of a previous option *IPAPPEND* which was only available on
 ifndef::doctype-manpage[[horizontal]]
 *1*::: An option of the following format should be generated, based on
 the input from the DHCP/BOOTP or PXE boot server and added to the kernel
-command line(see note below):
+command line(see note below; empty for non-PXELINUX variants):
 +
 ----
 ip=<client-ip>:<boot-server-ip>:<gw-ip>:<netmask>
@@ -147,7 +149,7 @@ server.
 dash-separated hexadecimal with leading hardware type (same as for the
 configuration file; see pxelinux.txt.) and added to the kernel command
 line, allowing an initrd program to determine from which interface the
-system booted:
+system booted(empty for non-PXELINUX variants):
 +
 ----
 BOOTIF=<hardware-address-of-boot-interface>
@@ -162,14 +164,16 @@ line:
 SYSUUID=<system uuid>
 ----
 +
-*8*::: (5.10+) indicate the CPU family and certain particularly significant CPU
-feature bits:
+*8*::: (5.10+) indicate the CPU family and certain particularly
+significant CPU feature bits:
 +
 ----
 CPU=<family><features>
 ----
 +
-The <family> is a single digit from 3 (i386) to 6 (i686 or higher.)  The following CPU feature are currently reported; additional flags may be added in the future:
+The <family> is a single digit from 3 (i386) to 6 (i686 or higher.)  The
+following CPU features are currently reported; additional flags may be
+added in the future:
 +
 ....
 P	Physical Address Extension (PAE)
@@ -180,7 +184,8 @@ L	Long Mode (x86-64)
 S	AMD SMX virtualization
 ....
 +
-*DMI*::: (5.10+) The following strings are derived from DMI/SMBIOS information if available:
+*DMI*::: (5.10+) The following strings are derived from DMI/SMBIOS
+information if available:
 +
 	Bit	String		Significance
 	-------------------------------------------------------------
@@ -198,9 +203,12 @@ S	AMD SMX virtualization
 	0x08000	BIOSVERSION=	BIOS version
 	0x10000	SYSFF=		System form factor
 +
-If these strings contain whitespace they are replaced with underscores (_).
+If these strings contain white-space characters, they are replaced with
+underscores (_).
 +
-The system form factor value is a number defined in the SMBIOS specification, available at http://www.dmtf.org/.  As of version 2.7.1 of the specification, the following values are defined:
+The system form factor value is a number defined in the SMBIOS
+specification, available at http://www.dmtf.org/.  As of version 2.7.1
+of the specification, the following values are defined:
 +
 	  1	Other
 	  2	Unknown
@@ -323,15 +331,16 @@ explicitly named in a *LABEL* statement.  The default is 1.
 Indicates how long to wait at the 'boot:' prompt until booting
 automatically, in units of 1/10 s.  The timeout is cancelled as soon as
 the user types anything on the keyboard, the assumption being that the
-user will complete the command line already begun.  A timeout of zero
-(the default) will disable the timeout completely.
+user will complete the command line already begun.  The timer is reset
+to 0 upon return from an unsuccessful attempt to boot or from a module. 
+A timeout of zero (the default) will disable the timeout completely.
 
 *TOTALTIMEOUT* 'timeout'::
 Indicates how long to wait until booting automatically, in units of
 1/10 s.  This timeout is *not* cancelled by user input, and can thus be
 used to deal with serial port glitches or "the user walked away" type
-situations.  A timeout of zero will disable the timeout completely, this
-is also the default.
+situations.  A timeout of zero (the default) will disable the timeout
+completely.
 +
 Both *TIMEOUT* and *TOTALTIMEOUT* can be used together, for example:
 +
@@ -344,9 +353,8 @@ TOTALTIMEOUT 9000
 
 // FIXME: be consistent
 *ONTIMEOUT* 'kernel options...'::
-Sets the command line invoked on a timeout.  Normally this is the same
-thing as invoked by 'DEFAULT'.  If this is specified, then 'DEFAULT' is
-used only if the user presses <Enter> to boot.
+Sets the command line invoked on a timeout (which often references a
+LABEL).  If not specified, 'UI' (if used) or 'DEFAULT is used.
 
 *ONERROR* 'kernel options...'::
 If a kernel image is not found (either due to it not existing, or
@@ -415,6 +423,9 @@ values 0x3F8, 0x2F8, 0x3E8, 0x2E8.
 Enabling interrupts (setting the 0x008 bit) may give better
 responsiveness without setting the *NOHALT* option, but could
 potentially cause problems with buggy BIOSes.
++
+This option is "sticky" and is not automatically reset when loading a
+new configuration file with the CONFIG command.
 
 *NOHALT* 'flag_val'::
 If 'flag_val' is 1, don't halt the processor while idle. Halting the
@@ -498,20 +509,22 @@ screens, e.g. <Ctrl-F><2> to get to the F2 screen. For F10-F12, hit
 versions, F10 can also be entered as <Ctrl-F>0.
 
 *PATH* 'path'::
-(5.00+) Specify a colon-separated (':') list of directories to search when
-attempting to load modules. This directive is useful for specifying the
-directories containing the lib*.c32 library files as other modules may
-be dependent on these files, but may not reside in the same directory.
+(5.00+) Specify a space-separated (' '; 5.00-5.10 was a colon ':') list
+of directories to search when attempting to load modules. This directive
+is useful for specifying the directories containing the lib*.c32 library
+files as other modules may be dependent on these files, but may not
+reside in the same directory.  Multiple instances will append additional
+paths.
 
 *SENDCOOKIES* 'bitmask'::
 (*PXELINUX* 5.10+) When downloading files over http, the SYSAPPEND
 strings are prepended with _Syslinux_ and sent to the server as cookies.
 The cookies are URL-encoded; whitespace is *not* replaced with
 underscores.
-
++
 This command limits the cookies send; 0 means no cookies.  The default
 is -1, meaning send all cookies.
-
++
 This option is "sticky" and is not automatically reset when loading a
 new configuration file with the CONFIG command.
 
