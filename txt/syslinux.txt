@@ -1,11 +1,11 @@
 = syslinux(1) =
 :doctype: manpage
-:revdate: 2012-10-28
+:revdate: 2013-06-12
 :author: H. Peter Anvin
 :author-email: hpa@zytor.com
 :editor1: Gene Cumm
 :editor1-email: gene.cumm@gmail.com
-:editor1-revlast: 2012-10-28
+:editor1-revlast: 2013-06-12
 
 
 == NAME ==
@@ -16,8 +16,8 @@ syslinux - Install SYSLINUX to a file system
 [verse]
 *syslinux* ['OPTIONS'] 'DEVICE'
 *extlinux* ['OPTIONS'] 'PATH'
-*syslinux* [-h | --help]
-*extlinux* [-h | --help]
+*syslinux* [-h | --help | -v | --version]
+*extlinux* [-h | --help | -v | --version]
 
 
 == DESCRIPTION ==
@@ -47,7 +47,8 @@ Please note, the ldlinux.sys boot loader file is flagged as immutable
 (where applicable) and is modified after copying in to help ensure
 boot-time integrity.  File systems with a sufficiently large boot loader
 reserved area, like btrfs, will have ldlinux.sys installed there rather
-than as a normal file.
+than as a normal file.  Prior to version 4.00, extlinux would install a
+file extlinux.sys which versions 4.00 and later installers will replace with ldlinux.sys.
 
 
 == OPTIONS ==
@@ -190,7 +191,8 @@ the partition as active.
 For altmbr.bin, an easy way to overwrite the MBR boot block and specify
 the partion number is:
 +
-  printf '\1' | cat altmbr.bin - | dd bs=440 count=1 iflag=fullblock conv=notrunc of=/dev/sda
+  printf '\1' | cat altmbr.bin - | dd bs=440 count=1 iflag=fullblock \
+    conv=notrunc of=/dev/sda
 +
 Note: using 'cat' for writing the MBR can under some circumstances cause
 data loss or overwritting.  For this reason, using 'dd' is recommended
