@@ -770,6 +770,46 @@ extern void loadkeys(char *);
 extern char syslinux_banner[];
 extern char copyright_str[];
 
+/*
+ * PATH-based lookup
+ *
+ * Each entry in the PATH directive is separated by a colon, e.g.
+ *
+ *     PATH /bar:/bin/foo:/baz/bar/bin
+ */
+static int parse_path(char *p)
+{
+    struct path_entry *entry;
+    const char *str;
+
+    while (*p) {
+	char *c = p;
+
+	/* Find the next directory */
+	while (*c && *c != ':')
+	    c++;
+
+	str = refstrndup(p, c - p);
+	if (!str)
+	    goto bail;
+
+	entry = path_add(str);
+	refstr_put(str);
+
+	if (!entry)
+	    goto bail;
+
+	if (!*c++)
+	    break;
+	p = c;
+    }
+
+    return 0;
+
+bail:
+    return -1;
+}
+
 static void parse_config_file(FILE * f)
 {
     char line[MAX_LINE], *p, *ep, ch;
@@ -1337,24 +1377,8 @@ do_include:
 	} else if (looking_at(p, "say")) {
 		printf("%s\n", p+4);
 	} else if (looking_at(p, "path")) {
-		/* PATH-based lookup */
-		const char *new_path;
-		char *_p;
-		size_t len, new_len;
-
-		new_path = refstrdup(skipspace(p + 4));
-		len = strlen(PATH);
-		new_len = strlen(new_path);
-		_p = malloc(len + new_len + 2);
-		if (_p) {
-			strncpy(_p, PATH, len);
-			_p[len++] = ':';
-			strncpy(_p + len, new_path, new_len);
-			_p[len + new_len] = '\0';
-			free(PATH);
-			PATH = _p;
-		} else
-			printf("Failed to realloc PATH\n");
+		if (parse_path(skipspace(p + 4)))
+			printf("Failed to parse PATH\n");
 	} else if (looking_at(p, "sendcookies")) {
 		const union syslinux_derivative_info *sdi;
 

@@ -59,40 +59,28 @@ void print_elf_symbols(struct elf_module *module) {
 
 FILE *findpath(char *name)
 {
+	struct path_entry *entry;
 	char path[FILENAME_MAX];
 	FILE *f;
-	char *p, *n;
-	int i;
 
 	f = fopen(name, "rb"); /* for full path */
 	if (f)
 		return f;
 
-	p = PATH;
-again:
-	i = 0;
-	while (*p && *p != ':' && i < FILENAME_MAX - 1) {
-		path[i++] = *p++;
+	list_for_each_entry(entry, &PATH, list) {
+		bool slash = false;
+
+		/* Ensure we have a '/' separator */
+		if (entry->str[strlen(entry->str) - 1] != '/')
+			slash = true;
+
+		snprintf(path, sizeof(path), "%s%s%s",
+			 entry->str, slash ? "/" : "", name);
+
+		f = fopen(path, "rb");
+		if (f)
+			return f;
 	}
-
-	if (*p == ':')
-		p++;
-
-	/* Ensure we have a '/' separator */
-	if (path[i] != '/' && i < FILENAME_MAX - 1)
-		path[i++] = '/';
-
-	n = name;
-	while (*n && i < FILENAME_MAX - 1)
-		path[i++] = *n++;
-	path[i] = '\0';
-
-	f = fopen(path, "rb");
-	if (f)
-		return f;
-
-	if (p >= PATH && p < PATH + strlen(PATH))
-		goto again;
 
 	return NULL;
 }

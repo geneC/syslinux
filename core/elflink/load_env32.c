@@ -124,13 +124,10 @@ void load_env32(com32sys_t * regs __unused)
 
 	dprintf("Starting 32 bit elf module subsystem...\n");
 
-	PATH = malloc(strlen(CurrentDirName) + 1);
-	if (!PATH) {
+	if (strlen(CurrentDirName) && !path_add(CurrentDirName)) {
 		printf("Couldn't allocate memory for PATH\n");
 		goto out;
 	}
-
-	strcpy(PATH, CurrentDirName);
 
 	init_module_subsystem(&core_module);
 
@@ -159,30 +156,15 @@ void load_env32(com32sys_t * regs __unused)
 		if (!core_getcwd(path, sizeof(path)))
 			goto out;
 
-		if (!strlen(PATH)) {
-			PATH = realloc(PATH, strlen(path) + 1);
-			if (!PATH) {
-				printf("Couldn't allocate memory for PATH\n");
-				goto out;
-			}
-
-			strcpy(PATH, path);
-		} else {
-			PATH = realloc(PATH, strlen(path) + strlen(PATH) + 2);
-			if (!PATH) {
-				printf("Couldn't allocate memory for PATH\n");
-				goto out;
-			}
-
-			strcat(PATH, ":");
-			strcat(PATH, path);
+		if (!path_add(path)) {
+			printf("Couldn't allocate memory for PATH\n");
+			goto out;
 		}
 
 		start_ldlinux(1, argv);
 	}
 
 out:
-	free(PATH);
 	writestr("\nFailed to load ldlinux.c32");
 }
 
