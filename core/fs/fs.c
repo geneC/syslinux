@@ -10,8 +10,6 @@
 #include "fs.h"
 #include "cache.h"
 
-__export char *PATH;
-
 /* The currently mounted filesystem */
 __export struct fs_info *this_fs = NULL;		/* Root filesystem */
 

@@ -168,7 +168,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 	    prev_len = max(len, prev_len);
 
 	    /* Redraw the command line */
-	    printf("\033[?7l\033[?25l");
+	    printf("\033[?25l");
 	    printf("\033[1G%s ", input);
 
 	    x = strlen(input);

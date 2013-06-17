@@ -10,7 +10,9 @@ Changes in 5.10:
 	  the lwIP embedded TCP/IP stack.  As a result, plain PXELINUX
 	  can now support HTTP and FTP without gPXE/iPXE.  ls/readdir
 	  functionality is supported over HTTP with an indexing
-	  webserver, or over FTP with most common FTP servers.
+	  webserver, or over FTP with most common FTP servers. For the
+	  new network stack use lpxelinux.0. For the legacy stack use
+	  pxelinux.0.
 	* Rename the "ipappend" option to "sysappend" ("ipappend" is
 	  still accepted as an alias) and make it available for all
 	  derivatives.  Add additional strings derived from the system
@@ -18,6 +20,15 @@ Changes in 5.10:
 	* "sysappend" strings are also sent as http cookies, with the
 	  prefix _Syslinux_ added, on all http transfers.  This can be
 	  overridden with the SENDCOOKIES configuration file command.
+	* poweroff.c32: A new module to power off a system via APM. It
+	  replaces the poweroff COMBOOT module (Sebastian Herbszt).
+	* PXELINUX: Fix booting with DHCP options 209 and 210 which was
+	  broken in 5.00.
+	* Handle loading kernel images with no protected mode code. A
+	  legitimate kernel image can consist solely of real-mode code.
+	  The support for booting such images was broken in 5.00 (Josh Triplett).
+	* Fix a regression in the .psf font file loader introduced
+	  in 5.00.
 
 Changes in 5.01:
 	* txt/: A new AsciiDoc documentation set (work-in-progress)

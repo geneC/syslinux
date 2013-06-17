@@ -1,6 +1,7 @@
 #ifndef FS_H
 #define FS_H
 
+#include <linux/list.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
@@ -182,7 +183,14 @@ static inline struct file *handle_to_file(uint16_t handle)
     return handle ? &files[handle-1] : NULL;
 }
 
-extern char *PATH;
+struct path_entry {
+    struct list_head list;
+    const char *str;
+};
+
+extern struct list_head PATH;
+
+extern struct path_entry *path_add(const char *str);
 
 /* fs.c */
 void fs_init(const struct fs_ops **ops, void *priv);

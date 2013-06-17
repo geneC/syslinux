@@ -1,7 +1,7 @@
-/*
- * -----------------------------------------------------------------------
+/* ----------------------------------------------------------------------- *
  *
  *   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
+ *   Copyright 2013 Intel Corporation
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -9,8 +9,9 @@
  *   Boston MA 02111-1307, USA; either version 2 of the License, or
  *   (at your option) any later version; incorporated herein by reference.
  *
- * -----------------------------------------------------------------------
- *
+ * ----------------------------------------------------------------------- */
+
+/*
  *
  * font.c
  *
@@ -46,8 +47,6 @@ __export void loadfont(const char *filename)
 		uint8_t height;
 	} hdr;
 	FILE *f;
-	char *p;
-	int i;
 
 	f = fopen(filename, "r");
 	if (!f)
@@ -71,13 +70,8 @@ __export void loadfont(const char *filename)
 
 	/* Load the actual font into the font buffer. */
 	memset(fontbuf, 0, 256*32);
-
-	p = fontbuf;
-	for (i = 0; i < 256; i++) {
-		if (_fread(p, hdr.height, f) != hdr.height)
-			goto fail;
-		p += 32;
-	}
+	if (_fread(fontbuf, 256*hdr.height, f) != 256*hdr.height)
+	    goto fail;
 
 	/* Loaded OK */
 	VGAFontSize = hdr.height;
