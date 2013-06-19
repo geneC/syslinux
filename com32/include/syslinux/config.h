@@ -188,4 +188,6 @@ static inline enum syslinux_filesystem syslinux_filesystem(void)
     return syslinux_derivative_info()->c.filesystem;
 }
 
+extern void get_derivative_info(union syslinux_derivative_info *di);
+
 #endif /* _SYSLINUX_CONFIG_H */
