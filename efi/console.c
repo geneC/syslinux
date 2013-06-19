@@ -3,7 +3,7 @@
 
 extern EFI_GUID GraphicsOutputProtocol;
 
-void writechr(char data)
+__export void writechr(char data)
 {
 	efi_write_char(data, 0);
 }

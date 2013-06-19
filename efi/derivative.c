@@ -14,7 +14,7 @@
 struct syslinux_ipinfo IPInfo;
 uint16_t APIVer;		/* PXE API version found */
 
-void get_derivative_info(union syslinux_derivative_info *di)
+__export void get_derivative_info(union syslinux_derivative_info *di)
 {
 	di->disk.filesystem = SYSLINUX_FS_SYSLINUX;
 }

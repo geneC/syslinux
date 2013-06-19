@@ -7,7 +7,7 @@ extern far_ptr_t PartInfo;
 extern far_ptr_t OrigESDI;
 extern uint64_t Hidden;
 
-void get_derivative_info(union syslinux_derivative_info *di)
+__export void get_derivative_info(union syslinux_derivative_info *di)
 {
 	di->disk.filesystem = SYSLINUX_FS_SYSLINUX;
 	di->disk.sector_shift = SectorShift;

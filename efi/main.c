@@ -10,10 +10,10 @@
 #include "efi.h"
 #include "fio.h"
 
-uint16_t PXERetry;
-char copyright_str[] = "Copyright (C) 2011\n";
+__export uint16_t PXERetry;
+__export char copyright_str[] = "Copyright (C) 2011\n";
 uint8_t SerialNotice = 1;
-char syslinux_banner[] = "Syslinux 5.x (EFI)\n";
+__export char syslinux_banner[] = "Syslinux 5.x (EFI)\n";
 char CurrentDirName[CURRENTDIR_MAX];
 struct com32_sys_args __com32;
 
@@ -131,7 +131,7 @@ void __cdecl core_farcall(uint32_t c, const com32sys_t *a, com32sys_t *b)
 {
 }
 
-struct firmware *firmware = NULL;
+__export struct firmware *firmware = NULL;
 void *__syslinux_adv_ptr;
 size_t __syslinux_adv_size;
 char core_xfer_buf[65536];
@@ -180,7 +180,7 @@ void sem_up(struct semaphore *sem)
 	/* EFI is single threaded */
 }
 
-volatile uint32_t __ms_timer = 0;
+__export volatile uint32_t __ms_timer = 0;
 volatile uint32_t __jiffies = 0;
 
 void efi_write_char(uint8_t ch, uint8_t attribute)

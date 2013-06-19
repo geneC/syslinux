@@ -12,7 +12,7 @@
 #include <sys/vesa/debug.h>
 #include <minmax.h>
 
-struct firmware *firmware = NULL;
+__export struct firmware *firmware = NULL;
 
 extern struct ansi_ops bios_ansi_ops;
 

@@ -9,7 +9,7 @@ extern uint16_t bios_cdrom;
 extern uint8_t DriveNumber;
 extern uint8_t spec_packet;
 
-void get_derivative_info(union syslinux_derivative_info *di)
+__export void get_derivative_info(union syslinux_derivative_info *di)
 {
 	di->iso.filesystem = SYSLINUX_FS_ISOLINUX;
 	di->iso.sector_shift = SectorShift;

@@ -40,7 +40,8 @@ CFLAGS = -I$(EFIINC) -I$(EFIINC)/$(EFI_SUBARCH) \
 		-I$(core)/include -I$(core)/ $(CARCHOPT) \
 		-I$(com32)/lib/ -I$(com32)/libutil/include -std=gnu99 \
 		-DELF_DEBUG -DSYSLINUX_EFI -I$(objdir) \
-		$(GCCWARN) -D__COM32__ -mno-red-zone -DLDLINUX=\"$(LDLINUX)\"
+		$(GCCWARN) -D__COM32__ -mno-red-zone \
+		-DLDLINUX=\"$(LDLINUX)\" -fvisibility=hidden
 
 # gnuefi sometimes installs these under a gnuefi/ directory, and sometimes not
 CRT0 := $(shell find $(LIBDIR) -name crt0-efi-$(EFI_SUBARCH).o 2>/dev/null | tail -n1)
