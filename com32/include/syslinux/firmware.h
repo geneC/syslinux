@@ -14,7 +14,7 @@ struct output_ops {
 	void (*beep) (void);
 	void (*get_mode)(int *, int *);
 	void (*set_mode)(uint16_t);
-	void (*get_cursor)(int *, int *);
+	void (*get_cursor)(uint8_t *, uint8_t *);
 };
 
 struct input_ops {

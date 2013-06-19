@@ -254,7 +254,7 @@ static void efi_set_mode(uint16_t mode)
 {
 }
 
-static void efi_get_cursor(int *x, int *y)
+static void efi_get_cursor(uint8_t *x, uint8_t *y)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	*x = out->Mode->CursorColumn;

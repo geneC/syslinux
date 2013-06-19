@@ -34,7 +34,7 @@ static void bios_get_mode(int *cols, int *rows)
 
 static uint16_t cursor_type;	/* Saved cursor pattern */
 
-static void bios_get_cursor(int *x, int *y)
+static void bios_get_cursor(uint8_t *x, uint8_t *y)
 {
     com32sys_t ireg, oreg;
 
