@@ -207,7 +207,7 @@ void core_tcp_fill_buffer(struct inode *inode)
     status = uefi_call_wrapper(tcp->Receive, 2, tcp, &iotoken);
     if (status == EFI_CONNECTION_FIN) {
 	socket->tftp_goteof = 1;
-	if (inode->size == -1)
+	if (inode->size == (uint64_t)-1)
 	    inode->size = socket->tftp_filepos;
 	socket->ops->close(inode);
 	goto out;
