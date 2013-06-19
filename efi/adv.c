@@ -24,6 +24,7 @@
  */
 #define  _GNU_SOURCE
 
+#include <string.h>
 #include "adv.h"
 
 #define IS_SYSLINUX	/* remove this: test build only */
