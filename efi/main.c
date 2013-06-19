@@ -10,7 +10,6 @@
 #include "efi.h"
 #include "fio.h"
 
-char KernelName[FILENAME_MAX];
 uint16_t PXERetry;
 char copyright_str[] = "Copyright (C) 2011\n";
 uint8_t SerialNotice = 1;
@@ -24,7 +23,6 @@ uint32_t BIOS_timer_next;
 uint32_t timer_irq;
 uint8_t KbdMap[256];
 char aux_seg[256];
-uint16_t BIOSName;
 
 static inline EFI_STATUS
 efi_close_protocol(EFI_HANDLE handle, EFI_GUID *guid, EFI_HANDLE agent,
@@ -156,9 +154,7 @@ size_t numIPAppends = 0;
 const uint16_t IPAppends[32];
 uint16_t BIOS_fbm = 1;
 far_ptr_t InitStack;
-char StackBuf[4096];
 far_ptr_t PXEEntry;
-unsigned int __bcopyxx_len = 0;
 
 void gpxe_unload(void)
 {
