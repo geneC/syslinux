@@ -497,7 +497,7 @@ static inline void bios_timer_init(void)
 	*hook = (uint32_t)&timer_irq;
 }
 
-extern uint8_t bios_free_mem;
+extern uint16_t *bios_free_mem;
 
 void bios_init(void)
 {
