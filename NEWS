@@ -4,6 +4,8 @@ to all derivatives.
 
 Changes in 6.00:
 	* Add support for booting from EFI.
+	* EFI TCP/IP support. This allows the EFI backend to hook into
+	  the generic TFTP, HTTP and FTP functionality.
 
 Changes in 5.10:
 	* PXELINUX: An entirely new network implementation based on
