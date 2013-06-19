@@ -168,6 +168,7 @@ void pxe_int1a(void)
 
 uint8_t KeepPXE;
 
+struct semaphore;
 mstime_t sem_down(struct semaphore *sem, mstime_t time)
 {
 	/* EFI is single threaded */
