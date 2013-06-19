@@ -141,30 +141,6 @@ struct input_ops bios_input_ops = {
 	.pollchar = bios_pollchar,
 };
 
-static const char *syslinux_ipappend_string_list[32];
-bool bios_ipappend_strings(char **list, int *count)
-{
-    static com32sys_t reg;
-    int i;
-
-    reg.eax.w[0] = 0x000f;
-    __intcall(0x22, &reg, &reg);
-
-    if (reg.eflags.l & EFLAGS_CF)
-	return false;
-
-    for (i = 0; i < reg.ecx.w[0]; i++) {
-	syslinux_ipappend_string_list[i] =
-	    MK_PTR(reg.es,
-		   *(uint16_t *) MK_PTR(reg.es, reg.ebx.w[0] + i * 2));
-    }
-
-    *list = syslinux_ipappend_string_list;
-    *count = reg.ecx.w[0];
-
-    return true;
-}
-
 static void bios_get_serial_console_info(uint16_t *iobase, uint16_t *divisor,
 					 uint16_t *flowctl)
 {
@@ -566,7 +542,6 @@ struct firmware bios_fw = {
 	.disk_init = bios_disk_init,
 	.o_ops = &bios_output_ops,
 	.i_ops = &bios_input_ops,
-	.ipappend_strings = bios_ipappend_strings,
 	.get_serial_console_info = bios_get_serial_console_info,
 	.adv_ops = &bios_adv_ops,
 	.vesa = &bios_vesa_ops,

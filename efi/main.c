@@ -150,8 +150,6 @@ void pxenv(void)
 {
 }
 
-size_t numIPAppends = 0;
-const uint16_t IPAppends[32];
 uint16_t BIOS_fbm = 1;
 far_ptr_t InitStack;
 far_ptr_t PXEEntry;
@@ -361,12 +359,6 @@ struct input_ops efi_iops = {
 	.getchar = efi_getchar,
 	.pollchar = efi_pollchar,
 };
-
-bool efi_ipappend_strings(char **list, int *count)
-{
-	*count = numIPAppends;
-	*list = (char *)IPAppends;
-}
 
 extern void efi_adv_init(void);
 extern int efi_adv_write(void);
@@ -1119,7 +1111,6 @@ struct firmware efi_fw = {
 	.o_ops = &efi_ops,
 	.i_ops = &efi_iops,
 	.get_serial_console_info = serialcfg,
-	.ipappend_strings = efi_ipappend_strings,
 	.adv_ops = &efi_adv_ops,
 	.boot_linux = efi_boot_linux,
 	.vesa = &efi_vesa_ops,

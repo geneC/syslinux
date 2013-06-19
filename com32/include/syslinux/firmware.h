@@ -56,7 +56,6 @@ struct firmware {
 	struct output_ops *o_ops;
 	struct input_ops *i_ops;
 	void (*get_serial_console_info)(uint16_t *, uint16_t *, uint16_t *);
-	bool (*ipappend_strings)(char **, int *);
 	struct adv_ops *adv_ops;
 	int (*boot_linux)(void *, size_t, struct initramfs *,
 			  struct setup_data *, char *);
