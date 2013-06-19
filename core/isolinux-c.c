@@ -3,11 +3,11 @@
 #include <fs.h>
 
 extern far_ptr_t OrigESDI;
-extern uint64_t Hidden;
+extern const uint64_t *Hidden;
 extern uint16_t BIOSType;
 extern uint16_t bios_cdrom;
 extern uint8_t DriveNumber;
-extern uint8_t spec_packet;
+extern const void *spec_packet;
 
 __export void get_derivative_info(union syslinux_derivative_info *di)
 {
