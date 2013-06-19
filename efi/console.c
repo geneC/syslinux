@@ -83,10 +83,12 @@ static int setup_gop(struct screen_info *si)
 		EFI_PCI_IO *pciio = NULL;
 		EFI_HANDLE *h = handles[i];
 
-		status = uefi_call_wrapper(BS->HandleProtocol, 3, h, &GraphicsOutputProtocol, &gop);
+		status = uefi_call_wrapper(BS->HandleProtocol, 3, h,
+					   &GraphicsOutputProtocol, (void **)&gop);
 		if (status != EFI_SUCCESS)
 			continue;
-		uefi_call_wrapper(BS->HandleProtocol, 3, h, &PciIoProtocol, &pciio);
+		uefi_call_wrapper(BS->HandleProtocol, 3, h,
+				  &PciIoProtocol, (void **)&pciio);
 		status = gop_query_mode(gop, &size, &info);
 		if (status == EFI_SUCCESS && (!found || pciio)) {
 			lfb_width = info->HorizontalResolution;
@@ -227,12 +229,12 @@ static int setup_uga(struct screen_info *si)
 		UINT32 w, h, depth, refresh;
 
 		status = uefi_call_wrapper(BS->HandleProtocol, 3, handle,
-					   &UgaProtocol, &uga);
+					   &UgaProtocol, (void **)&uga);
 		if (status != EFI_SUCCESS)
 			continue;
 
 		uefi_call_wrapper(BS->HandleProtocol, 3, handle,
-				  &PciIoProtocol, &pciio);
+				  &PciIoProtocol, (void **)&pciio);
 
 		status = uefi_call_wrapper(uga->GetMode, 5, uga, &w, &h,
 					   &depth, &refresh);
