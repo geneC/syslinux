@@ -14,7 +14,7 @@ __export void get_derivative_info(union syslinux_derivative_info *di)
 	di->iso.filesystem = SYSLINUX_FS_ISOLINUX;
 	di->iso.sector_shift = SectorShift;
 	di->iso.drive_number = DriveNumber;
-	di->iso.cd_mode = (BIOSType - bios_cdrom >> 2);
+	di->iso.cd_mode = ((BIOSType - bios_cdrom) >> 2);
 
 	di->iso.spec_packet = spec_packet;
 	di->iso.esdi_ptr = GET_PTR(OrigESDI);
