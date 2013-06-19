@@ -50,11 +50,11 @@ static int setup_gop(struct screen_info *si)
 	EFI_GRAPHICS_PIXEL_FORMAT pixel_fmt;
 	EFI_PIXEL_BITMASK pixel_info;
 	uint32_t pixel_scanline;
-	UINTN nr_handles;
+	UINTN i, nr_handles;
 	UINTN size;
 	uint16_t lfb_width, lfb_height;
 	uint32_t lfb_base, lfb_size;
-	int i, err = 0;
+	int err = 0;
 	void **gop_handle = NULL;
 
 	size = 0;
@@ -213,8 +213,8 @@ static int setup_uga(struct screen_info *si)
 	UINT32 width, height;
 	EFI_STATUS status;
 	EFI_HANDLE *handles;
-	UINTN nr_handles;
-	int i, rv = 0;
+	UINTN i, nr_handles;
+	int rv = 0;
 
 	status = LibLocateHandle(ByProtocol, &UgaProtocol,
 				 NULL, &nr_handles, &handles);
