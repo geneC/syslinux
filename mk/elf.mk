@@ -60,6 +60,10 @@ CFLAGS     = $(GCCOPT) -W -Wall \
 	     -I$(com32)/libutil/include -I$(com32)/include \
 		-I$(com32)/include/sys $(GPLINCLUDE) -I$(core)/include \
 		-I$(objdir) -DLDLINUX=\"$(LDLINUX)\"
+ifndef EFI_BUILD
+CFLAGS	  += -mregparm=3 -DREGPARM=3
+endif
+
 SFLAGS     = $(GCCOPT) -D__COM32__ 
 LDFLAGS    = -m elf_$(ARCH) -shared --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld --as-needed
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)

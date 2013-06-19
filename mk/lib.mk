@@ -54,6 +54,10 @@ WARNFLAGS = $(GCCWARN) -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winl
 
 CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
 
+ifndef EFI_BUILD
+CFLAGS += -mregparm=3 -DREGPARM=3
+endif
+
 VPATH = $(SRC)
 LIBOTHER_OBJS = \
 	atoi.o atol.o atoll.o calloc.o creat.o		\

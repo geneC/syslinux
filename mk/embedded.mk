@@ -38,7 +38,12 @@ GCCOPT    += $(call gcc_ok,-ffreestanding,)
 GCCOPT	  += $(call gcc_ok,-fno-stack-protector,)
 GCCOPT	  += $(call gcc_ok,-fwrapv,)
 GCCOPT	  += $(call gcc_ok,-freg-struct-return,)
+ifdef EFI_BUILD
 GCCOPT    += -Os -fomit-frame-pointer -msoft-float
+else
+GCCOPT    += -Os -fomit-frame-pointer -mregparm=3 -DREGPARM=3 \
+             -msoft-float
+endif
 GCCOPT    += $(call gcc_ok,-fno-exceptions,)
 GCCOPT	  += $(call gcc_ok,-fno-asynchronous-unwind-tables,)
 GCCOPT	  += $(call gcc_ok,-fno-strict-aliasing,)
