@@ -1,4 +1,5 @@
 #include <mem/malloc.h>
+#include <string.h>
 #include "efi.h"
 
 void *efi_malloc(size_t size, enum heap heap, malloc_tag_t tag)
