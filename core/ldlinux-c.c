@@ -5,7 +5,7 @@
 extern uint8_t DriveNumber;
 extern far_ptr_t PartInfo;
 extern far_ptr_t OrigESDI;
-extern uint64_t Hidden;
+extern const uint64_t *Hidden;
 
 __export void get_derivative_info(union syslinux_derivative_info *di)
 {
