@@ -522,6 +522,6 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	return -1;
     }
 
-    firmware->boot_linux(kernel_buf, kernel_size, initramfs,
-			 setup_data, cmdline);
+    return firmware->boot_linux(kernel_buf, kernel_size, initramfs,
+				setup_data, cmdline);
 }
