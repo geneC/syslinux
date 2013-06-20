@@ -990,9 +990,9 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	if (!map)
 		goto free_map;
 
-	_bp->efi.memmap = (uint32_t)(uint64_t)map;
+	_bp->efi.memmap = (uint32_t)(unsigned long)map;
 	_bp->efi.memmap_size = nr_entries * desc_sz;
-	_bp->efi.systab = (uint32_t)(uint64_t)ST;
+	_bp->efi.systab = (uint32_t)(unsigned long)ST;
 	_bp->efi.desc_size = desc_sz;
 	_bp->efi.desc_version = desc_ver;
 #if defined(__x86_64__)
@@ -1079,8 +1079,13 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	/* NOTREACHED */
 
 free_map:
-	if (_cmdline) efree((EFI_PHYSICAL_ADDRESS)_cmdline, strlen(_cmdline) + 1);
-	if (_bp) efree((EFI_PHYSICAL_ADDRESS)_bp, BOOT_PARAM_BLKSIZE);
+	if (_cmdline)
+		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)_cmdline,
+		      strlen(_cmdline) + 1);
+
+	if (_bp)
+		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)_bp,
+		       BOOT_PARAM_BLKSIZE);
 	if (kernel_start) efree(kernel_start, init_size);
 	FreePool(map);
 	if (irf_size)
