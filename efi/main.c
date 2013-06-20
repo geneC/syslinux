@@ -281,11 +281,10 @@ get_memory_map(UINTN *nr_entries, UINTN *key, UINTN *desc_sz,
 
 int efi_scan_memory(scan_memory_callback_t callback, void *data)
 {
-	UINTN nr_entries, key, desc_sz;
+	UINTN i, nr_entries, key, desc_sz;
 	UINTN buf, bufpos;
 	UINT32 desc_ver;
 	int rv = 0;
-	int i;
 
 	buf = (UINTN)get_memory_map(&nr_entries, &key, &desc_sz, &desc_ver);
 	if (!buf)
@@ -523,9 +522,8 @@ static void find_addr(EFI_PHYSICAL_ADDRESS *first,
 	EFI_MEMORY_DESCRIPTOR *map;
 	EFI_STATUS status;
 	UINT32 desc_ver;
-	UINTN nr_entries, key, desc_sz;
+	UINTN i, nr_entries, key, desc_sz;
 	UINT64 addr;
-	int i;
 
 	map = get_memory_map(&nr_entries, &key, &desc_sz, &desc_ver);
 	if (!map)
@@ -706,13 +704,12 @@ static EFI_STATUS setup_default_timer(EFI_EVENT *ev)
  */
 EFI_STATUS emalloc(UINTN size, UINTN align, EFI_PHYSICAL_ADDRESS *addr)
 {
-	UINTN nr_entries, map_key, desc_size;
+	UINTN i, nr_entries, map_key, desc_size;
 	EFI_MEMORY_DESCRIPTOR *map_buf;
 	UINTN d;
 	UINT32 desc_version;
 	EFI_STATUS err;
 	UINTN nr_pages = EFI_SIZE_TO_PAGES(size);
-	int i;
 
 	map_buf = get_memory_map(&nr_entries, &map_key,
 				 &desc_size, &desc_version);
@@ -801,11 +798,10 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	EFI_STATUS status;
 	EFI_PHYSICAL_ADDRESS last, addr, pref_address, kernel_start = 0;
 	UINT64 setup_sz, init_size = 0;
-	UINTN nr_entries, key, desc_sz;
+	UINTN i, nr_entries, key, desc_sz;
 	UINT32 desc_ver;
 	uint32_t e820_type;
 	addr_t irf_size;
-	int i;
 	char *_cmdline = NULL; /* internal, in efi_physical below 0x3FFFFFFF */
 
 	hdr = (struct linux_header *)kernel_buf;
