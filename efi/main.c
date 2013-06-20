@@ -172,6 +172,7 @@ struct semaphore;
 mstime_t sem_down(struct semaphore *sem, mstime_t time)
 {
 	/* EFI is single threaded */
+	return 0;
 }
 
 void sem_up(struct semaphore *sem)
