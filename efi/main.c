@@ -521,10 +521,8 @@ static void find_addr(EFI_PHYSICAL_ADDRESS *first,
 		      size_t size, size_t align)
 {
 	EFI_MEMORY_DESCRIPTOR *map;
-	EFI_STATUS status;
 	UINT32 desc_ver;
 	UINTN i, nr_entries, key, desc_sz;
-	UINT64 addr;
 
 	map = get_memory_map(&nr_entries, &key, &desc_sz, &desc_ver);
 	if (!map)
