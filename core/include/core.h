@@ -129,4 +129,6 @@ extern void dmi_init(void);
 
 extern void do_sysappend(char *buf);
 
+extern void load_env32(com32sys_t *regs);
+
 #endif /* CORE_H */

@@ -1235,7 +1235,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
 	} while (status != EFI_NOT_READY);
 
-	load_env32();
+	load_env32(NULL);
 
 	/* load_env32() failed.. cancel timer and bailout */
 	status = cancel_timer(timer_ev);
