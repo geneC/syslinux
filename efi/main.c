@@ -227,8 +227,7 @@ static void efi_get_mode(int *cols, int *rows)
 	*cols = c;
 }
 
-static void efi_erase(const struct term_state *st,
-		       int x0, int y0, int x1, int y1)
+static void efi_erase(int x0, int y0, int x1, int y1, uint8_t attribute)
 {
 	SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
 	int cols, rows;
