@@ -21,7 +21,7 @@ uint32_t _IdleTimer = 0;
 char __lowmem_heap[32];
 uint32_t BIOS_timer_next;
 uint32_t timer_irq;
-uint8_t KbdMap[256];
+__export uint8_t KbdMap[256];
 char aux_seg[256];
 
 static inline EFI_STATUS
