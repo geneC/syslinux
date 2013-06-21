@@ -153,6 +153,7 @@ void pxenv(void)
 uint16_t BIOS_fbm = 1;
 far_ptr_t InitStack;
 far_ptr_t PXEEntry;
+__export unsigned int __bcopyxx_len = 0;
 
 void gpxe_unload(void)
 {
