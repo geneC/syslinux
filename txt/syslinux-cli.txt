@@ -32,7 +32,7 @@ The command line prompt supports the following keystrokes:
   <Ctrl-F><digit>	equivalent to F1..F10
   <Ctrl-C>		interrupt boot in progress
   <Esc>			interrupt boot in progress
-  <Ctrl-N>		display network information (PXELINUX only)
+  <Ctrl-N>		display network information (PXELINUX only; 3.50-4.06)
 
 
 === WORKING DIRECTORY ===
