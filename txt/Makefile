@@ -26,8 +26,10 @@ A2X_OPTS	 = -k
 # A2X_OPTS	+= -v
 A2X_MAN_OPTS	 = -D man -f manpage
 
-DOCS 		 = syslinux.txt syslinux-cli.txt syslinux.cfg.txt
-MAN_DOCS	 = man/syslinux.1 man/syslinux-cli.1 man/syslinux.cfg.5
+DOCS 		 = syslinux.txt syslinux-cli.txt syslinux.cfg.txt \
+		   isolinux.txt pxelinux.txt
+MAN_DOCS	 = man/syslinux.1 man/syslinux-cli.1 man/syslinux.cfg.5 \
+		   man/isolinux.1 man/pxelinux.1
 HTML_DOCS	:= $(patsubst %.txt,html/%.html,$(DOCS)) 
 XHTML_DOCS	:= $(patsubst %.txt,%.html,$(DOCS))
 # MAN_DOCS	:= $(patsubst %.txt,man/%.1,$(DOCS1)) $(patsubst %.txt,man/%.5,$(DOCS5))
