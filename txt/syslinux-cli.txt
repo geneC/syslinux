@@ -32,7 +32,7 @@ The command line prompt supports the following keystrokes:
   <Ctrl-F><digit>	equivalent to F1..F10
   <Ctrl-C>		interrupt boot in progress
   <Esc>			interrupt boot in progress
-  <Ctrl-N>		display network information (PXELINUX only)
+  <Ctrl-N>		display network information (PXELINUX only; 3.50-4.06)
 
 
 === WORKING DIRECTORY ===
@@ -57,6 +57,34 @@ the file is not found in the following order: .0[*PXELINUX* only],
 .c32, .cbt[Up to 4.06], .com[Up to 4.06] and .img[*ISOLINUX* 1.65-4.04 only].
 
 // Is this true of file names specified in a config?  As of when?
+
+
+=== PATH RULES ===
+
+The current working directory is *always* searched first, before PATH,
+when attempting to open a filename. The current working directory is
+not affected when specifying a file with an absolute path. For
+example, given the following file system layout,
+
+....
+/boot/
+	/bin/
+		ls.c32
+		libls.c32
+	/foo/
+		libls.c32
+....
+
+assuming that the current working directory is /boot/foo, and assuming
+that libls.c32 is a dependency of ls.c32, executing /boot/bin/ls.c32
+will cause /boot/foo/libls.c32 to be loaded, not /boot/bin/libls.c32,
+even if /boot/bin is specified in the PATH directive of a config file.
+
+The reason that things work this way is that typically a user will
+install all library files in the Syslinux installation directory, as
+specified with the --directory installer option. This method allows
+the user to omit the PATH directive from their config file and still
+have things work correctly.
 
 
 == AUTHOR ==
