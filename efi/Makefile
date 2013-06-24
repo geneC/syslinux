@@ -66,8 +66,6 @@ codepage.o: ../codepage/cp865.cp
 	cp $(objdir)/../codepage/cp865.cp codepage.cp
 	$(CC) $(SFLAGS) -c -o $@ $(core)/codepage.S
 
-installer: syslinux.efi
-
 install: all
 	install -m 755 $(BTARGET) $(INSTALLROOT)$(AUXDIR)
 

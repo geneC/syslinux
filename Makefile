@@ -164,7 +164,7 @@ BOBJECTS = $(BTARGET) \
 ifdef EFI_BUILD
 
 BSUBDIRS = codepage com32 lzo core mbr sample efi txt
-ISUBDIRS = efi utils
+ISUBDIRS =
 
 INSTALLSUBDIRS = efi
 
