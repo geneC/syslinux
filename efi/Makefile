@@ -38,7 +38,13 @@ LIB_OBJS = $(addprefix $(objdir)/com32/lib/,$(CORELIBOBJS))
 CSRC = $(wildcard $(SRC)/*.c)
 OBJS = $(subst $(SRC)/,,$(filter-out %wrapper.o, $(patsubst %.c,%.o,$(CSRC))))
 
-OBJS += $(objdir)/core/codepage.o
+OBJS += $(objdir)/core/codepage.o $(ARCH)/linux.o
+
+.PHONY: subdirs
+subdirs:
+	mkdir -p $(ARCH)
+
+$(OBJS): subdirs
 
 # The targets to build in this directory
 BTARGET  = syslinux.efi

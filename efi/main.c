@@ -417,74 +417,12 @@ struct boot_params {
  * allocate_pool()/free_pool()
  * memory_map()
  */ 
+extern void kernel_jump(EFI_PHYSICAL_ADDRESS kernel_start,
+			       struct boot_params *boot_params);
 #if __SIZEOF_POINTER__ == 4
 #define EFI_LOAD_SIG	"EL32"
-static inline void kernel_jump(EFI_PHYSICAL_ADDRESS kernel_start,
-			       struct boot_params *boot_params)
-{
-	asm volatile ("cli		\n"
-		      "movl %0, %%esi	\n"
-		      "movl %1, %%ecx	\n"
-		      "jmp *%%ecx	\n"
-		      :: "m" (boot_params), "m" (kernel_start));
-}
-
-static inline void handover_jump(EFI_HANDLE image, struct boot_params *bp,
-				 EFI_PHYSICAL_ADDRESS kernel_start)
-{
-	/* handover protocol not implemented yet; the linux header needs to be updated */
-#if 0
-	kernel_start += hdr->handover_offset;
-
-	asm volatile ("cli		\n"
-		      "pushl %0         \n"
-		      "pushl %1         \n"
-		      "pushl %2         \n"
-		      "movl %3, %%ecx	\n"
-		      "jmp *%%ecx	\n"
-		      :: "m" (bp), "m" (ST),
-		         "m" (image), "m" (kernel_start));
-#endif
-}
 #elif __SIZEOF_POINTER__ == 8
 #define EFI_LOAD_SIG	"EL64"
-typedef void(*kernel_func)(void *, struct boot_params *);
-typedef void(*handover_func)(void *, EFI_SYSTEM_TABLE *, struct boot_params *);
-static inline void kernel_jump(EFI_PHYSICAL_ADDRESS kernel_start,
-			       struct boot_params *boot_params)
-{
-	kernel_func kf;
-
-	asm volatile ("cli");
-
-	/* The 64-bit kernel entry is 512 bytes after the start. */
-	kf = (kernel_func)kernel_start + 512;
-
-	/*
-	 * The first parameter is a dummy because the kernel expects
-	 * boot_params in %[re]si.
-	 */
-	kf(NULL, boot_params);
-}
-
-static inline void handover_jump(EFI_HANDLE image, struct boot_params *bp,
-				 EFI_PHYSICAL_ADDRESS kernel_start)
-{
-#if 0
-	/* handover protocol not implemented yet the linux header needs to be updated */
-
-	UINT32 offset = bp->hdr.handover_offset;
-	handover_func hf;
-
-	asm volatile ("cli");
-
-	/* The 64-bit kernel entry is 512 bytes after the start. */
-	kernel_start += 512;
-
-	hf = (handover_func)(kernel_start + offset);
-	hf(image, ST, bp);
-#endif
-}
 #else
 #error "unsupported architecture"
 #endif
