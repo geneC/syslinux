@@ -517,11 +517,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 			struct setup_data *setup_data,
 			char *cmdline)
 {
-    if (!firmware->boot_linux) {
-	printf("No linux boot function registered for firmware\n");
-	return -1;
-    }
+    if (firmware->boot_linux)
+	return firmware->boot_linux(kernel_buf, kernel_size, initramfs,
+				    setup_data, cmdline);
 
-    return firmware->boot_linux(kernel_buf, kernel_size, initramfs,
-				setup_data, cmdline);
+    return bios_boot_linux(kernel_buf, kernel_size, initramfs,
+			   setup_data, cmdline);
 }
