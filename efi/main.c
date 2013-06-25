@@ -744,14 +744,9 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 
 	hdr = (struct linux_header *)kernel_buf;
 	bp = (struct boot_params *)hdr;
-	/*
-	 * We require a relocatable kernel because we have no control
-	 * over free memory in the memory map.
-	 */
-	if (hdr->version < 0x20a || !hdr->relocatable_kernel) {
-		printf("bzImage version 0x%x unsupported\n", hdr->version);
-		goto bail;
-	}
+
+	if (hdr->version < 0x205)
+		hdr->relocatable_kernel = 0;
 
 	/* FIXME: check boot sector signature */
 	if (hdr->boot_flag != BOOT_SIGNATURE) {
@@ -802,6 +797,11 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 		 * We failed to allocate the preferred address, so
 		 * just allocate some memory and hope for the best.
 		 */
+		if (!hdr->relocatable_kernel) {
+			printf("Cannot relocate kernel, bailing out\n");
+			goto bail;
+		}
+
 		status = emalloc(init_size, hdr->kernel_alignment, &addr);
 		if (status != EFI_SUCCESS) {
 			printf("Failed to allocate memory for kernel image, bailing out\n");
