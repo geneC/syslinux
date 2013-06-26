@@ -62,6 +62,8 @@ int core_tcp_connect(struct pxe_pvt_inode *socket, uint32_t ip, uint16_t port)
     ap->RemotePort = port;
     ap->ActiveFlag = TRUE; /* Initiate active open */
 
+    tdata.TimeToLive = 64;
+
     status = uefi_call_wrapper(tcp->Configure, 2, tcp, &tdata);
     if (status != EFI_SUCCESS)
 	return -1;
