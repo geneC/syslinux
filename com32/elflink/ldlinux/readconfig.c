@@ -1164,7 +1164,7 @@ do_include:
 	    allowoptions = !!atoi(skipspace(p + 12));
 	} else if ((ep = looking_at(p, "ipappend")) ||
 		   (ep = looking_at(p, "sysappend"))) {
-	    uint32_t s = strtoul(skipspace(ep), NULL, 16);
+	    uint32_t s = strtoul(skipspace(ep), NULL, 0);
 	    if (ld.label)
 		ld.ipappend = s;
 	    else
