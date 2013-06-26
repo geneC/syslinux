@@ -709,6 +709,87 @@ void efree(EFI_PHYSICAL_ADDRESS memory, UINTN size)
 	free_pages(memory, nr_pages);
 }
 
+/*
+ * Check whether 'buf' contains a PE/COFF header and that the PE/COFF
+ * file can be executed by this architecture.
+ */
+static bool valid_pecoff_image(char *buf)
+{
+    struct pe_header {
+	uint16_t signature;
+	uint8_t _pad[0x3a];
+	uint32_t offset;
+    } *pehdr = (struct pe_header *)buf;
+    struct coff_header {
+	uint32_t signature;
+	uint16_t machine;
+    } *chdr;
+
+    if (pehdr->signature != 0x5a4d) {
+	dprintf("Invalid MS-DOS header signature\n");
+	return false;
+    }
+
+    if (!pehdr->offset || pehdr->offset > 512) {
+	dprintf("Invalid PE header offset\n");
+	return false;
+    }
+
+    chdr = (struct coff_header *)&buf[pehdr->offset];
+    if (chdr->signature != 0x4550) {
+	dprintf("Invalid PE header signature\n");
+	return false;
+    }
+
+#if defined(__x86_64__)
+    if (chdr->machine != 0x8664) {
+	dprintf("Invalid PE machine field\n");
+	return false;
+    }
+#else
+    if (chdr->machine != 0x14c) {
+	dprintf("Invalid PE machine field\n");
+	return false;
+    }
+#endif
+
+    return true;
+}
+
+/*
+ * Boot a Linux kernel using the EFI boot stub handover protocol.
+ *
+ * This function will not return to its caller if booting the kernel
+ * image succeeds. If booting the kernel image fails, a legacy boot
+ * method should be attempted.
+ */
+static void handover_boot(struct linux_header *hdr, struct boot_params *bp)
+{
+    unsigned long address = hdr->code32_start + hdr->handover_offset;
+    handover_func_t *func = efi_handover;
+
+    dprintf("Booting kernel using handover protocol\n");
+
+    /*
+     * Ensure that the kernel is a valid PE32(+) file and that the
+     * architecture of the file matches this version of Syslinux - we
+     * can't mix firmware and kernel bitness (e.g. 32-bit kernel on
+     * 64-bit EFI firmware) using the handover protocol.
+     */
+    if (!valid_pecoff_image((char *)hdr))
+	return;
+
+    if (hdr->version >= 0x20c) {
+	if (hdr->xloadflags & XLF_EFI_HANDOVER_32)
+	    func = efi_handover_32;
+
+	if (hdr->xloadflags & XLF_EFI_HANDOVER_64)
+	    func = efi_handover_64;
+    }
+
+    func(image_handle, ST, bp, address);
+}
+
 /* efi_boot_linux: 
  * Boots the linux kernel using the image and parameters to boot with.
  * The EFI boot loader is reworked taking the cue from
@@ -836,13 +917,13 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	kernel_start, kernel_size, initramfs, setup_data, _cmdline);
 	si = &_bp->screen_info;
 	memset(si, 0, sizeof(*si));
+
+	/* Attempt to use the handover protocol if available */
+	if (hdr->version >= 0x20b && hdr->handover_offset)
+		handover_boot(bhdr, _bp);
+
 	setup_screen(si);
 
-	/*
-	 * FIXME: implement handover protocol 
-	 * Use the kernel's EFI boot stub by invoking the handover
-	 * protocol.
-	 */
 	/* Allocate gdt consistent with the alignment for architecture */
 	status = emalloc(gdt.limit, __SIZEOF_POINTER__ , (EFI_PHYSICAL_ADDRESS *)&gdt.base);
 	if (status != EFI_SUCCESS) {

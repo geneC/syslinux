@@ -43,3 +43,21 @@ pm_code:
 
 	/* Far return */
 	lret
+
+	.code64
+	.align 4
+	.globl efi_handover_32
+	.type  efi_handover_32,@function
+efi_handover_32:
+	movl	$38, errno(%rip)	/* ENOSYS */
+	ret
+
+	.globl efi_handover_64
+	.globl efi_handover
+	.type  efi_handover_64,@function
+	.type  efi_handover,@function
+efi_handover_64:
+efi_handover:
+	add	$512, %rcx
+	cli
+	jmp	*%rcx

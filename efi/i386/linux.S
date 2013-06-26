@@ -18,3 +18,33 @@ kernel_jump:
 	movl	0x8(%esp), %esi
 	movl	0x4(%esp), %ecx
 	jmp	*%ecx
+
+	/*
+	 * The default handover function should only be invoked for
+	 * bzImage boot protocol versions < 2.12.
+	 */
+	.globl efi_handover
+	.type  efi_handover,@function
+efi_handover:
+	cli
+	popl	%ecx		/* discard return address */
+	movl	0xc(%esp), %ecx
+	jmp	*%ecx
+
+	.globl efi_handover_32
+	.type  efi_handover_32,@function
+efi_handover_32:
+	cli
+	popl	%ecx		/* discard return address */
+	movl	0xc(%esp), %ecx
+	call	*%ecx
+
+	.globl efi_handover_64
+	.type  efi_handover_64,@function
+efi_handover_64:
+	call	1f
+1:
+	popl	%eax
+	subl	$1b, %eax
+	movl	$38, errno(%eax)	/* ENOSYS */
+	ret

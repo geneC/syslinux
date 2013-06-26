@@ -61,4 +61,12 @@ efi_setup_event(EFI_EVENT *ev, EFI_EVENT_NOTIFY func, void *ctx)
     return status;
 }
 
+struct boot_params;
+typedef void (handover_func_t)(void *, EFI_SYSTEM_TABLE *,
+			       struct boot_params *, unsigned long);
+
+handover_func_t efi_handover_32;
+handover_func_t efi_handover_64;
+handover_func_t efi_handover;
+
 #endif /* _SYSLINUX_EFI_H */
