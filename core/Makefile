@@ -68,7 +68,8 @@ LPXELINUX_OBJS = $(LPXELINUX_CSRC:%.c=%.o)
 PXELINUX_OBJS  = $(PXELINUX_CSRC:%.c=%.o)
 
 # Don't include console and network stack specific objects
-FILTER_OBJS = ./rawcon.o ./plaincon.o $(LPXELINUX_OBJS) $(PXELINUX_OBJS)
+FILTER_OBJS = ./rawcon.o ./plaincon.o ./localboot.o ./pxeboot.o \
+	$(LPXELINUX_OBJS) $(PXELINUX_OBJS)
 COBJS	 = $(filter-out $(FILTER_OBJS),$(COBJ))
 SOBJS	 = $(filter-out $(FILTER_OBJS),$(SOBJ))
 
@@ -125,7 +126,7 @@ AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a \
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
-libisolinux.a: rawcon.o
+libisolinux.a: rawcon.o localboot.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
@@ -134,18 +135,18 @@ libisolinux-debug.a: libisolinux.a
 	cp $^ $@
 
 # Legacy network stack
-libpxelinux.a: rawcon.o $(PXELINUX_OBJS)
+libpxelinux.a: rawcon.o $(PXELINUX_OBJS) pxeboot.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
 # LwIP network stack
-liblpxelinux.a: rawcon.o $(LPXELINUX_OBJS)
+liblpxelinux.a: rawcon.o $(LPXELINUX_OBJS) pxeboot.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-libldlinux.a: plaincon.o
+libldlinux.a: plaincon.o localboot.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
