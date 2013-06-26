@@ -105,6 +105,7 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
     udata.AcceptPromiscuous = TRUE;
+    udata.TimeToLive = 64;
 
     status = uefi_call_wrapper(udp->Configure, 2, udp, &udata);
     if (status != EFI_SUCCESS) {
