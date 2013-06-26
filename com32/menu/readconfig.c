@@ -1046,7 +1046,7 @@ do_include:
 	    m->allowedit = !!atoi(skipspace(p + 12));
 	} else if ((ep = looking_at(p, "ipappend")) ||
 		   (ep = looking_at(p, "sysappend"))) {
-	    uint32_t s = atoi(skipspace(ep));
+	    uint32_t s = strtoul(skipspace(ep), NULL, 0);
 	    if (ld.label)
 		ld.ipappend = s;
 	    else
