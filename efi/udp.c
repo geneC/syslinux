@@ -24,6 +24,7 @@ static struct efi_binding *udp_reader;
 int core_udp_open(struct pxe_pvt_inode *socket)
 {
     EFI_UDP4_CONFIG_DATA udata;
+    struct efi_binding *b;
     EFI_STATUS status;
     EFI_UDP4 *udp;
 
@@ -33,6 +34,10 @@ int core_udp_open(struct pxe_pvt_inode *socket)
     if (!udp_reader)
 	return -1;
 
+    b = efi_create_binding(&Udp4ServiceBindingProtocol, &Udp4Protocol);
+    if (!b)
+	goto bail;
+
     udp = (EFI_UDP4 *)udp_reader->this;
 
     memset(&udata, 0, sizeof(udata));
@@ -40,13 +45,21 @@ int core_udp_open(struct pxe_pvt_inode *socket)
     udata.AcceptAnyPort = TRUE;
 
     status = uefi_call_wrapper(udp->Configure, 2, udp, &udata);
-    if (status != EFI_SUCCESS) {
-	efi_destroy_binding(udp_reader, &Udp4ServiceBindingProtocol);
-	udp_reader = NULL;
-	return -1;
-    }
+    if (status != EFI_SUCCESS)
+	goto bail;
+
+    socket->net.efi.binding = b;
 
     return 0;
+
+bail:
+    if (b)
+	efi_destroy_binding(b, &Udp4ServiceBindingProtocol);
+
+    efi_destroy_binding(udp_reader, &Udp4ServiceBindingProtocol);
+    udp_reader = NULL;
+
+    return -1;
 }
 
 /**
@@ -56,10 +69,14 @@ int core_udp_open(struct pxe_pvt_inode *socket)
  */
 void core_udp_close(struct pxe_pvt_inode *socket)
 {
-    (void)socket;
-
     efi_destroy_binding(udp_reader, &Udp4ServiceBindingProtocol);
     udp_reader = NULL;
+
+    if (!socket->net.efi.binding)
+	return;
+
+    efi_destroy_binding(socket->net.efi.binding, &Udp4ServiceBindingProtocol);
+    socket->net.efi.binding = NULL;
 }
 
 /**
@@ -73,19 +90,15 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
 		      uint16_t port)
 {
     EFI_UDP4_CONFIG_DATA udata;
-    struct efi_binding *b;
     EFI_STATUS status;
     EFI_UDP4 *udp;
 
-    b = efi_create_binding(&Udp4ServiceBindingProtocol, &Udp4Protocol);
-    if (!b)
-	return;
-
-    socket->net.efi.binding = b;
-
-    udp = (EFI_UDP4 *)b->this;
+    udp = (EFI_UDP4 *)socket->net.efi.binding->this;
 
     memset(&udata, 0, sizeof(udata));
+
+    /* Re-use the existing local port number */
+    udata.StationPort = socket->net.efi.localport;
 
     memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
     memcpy(&udata.SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
@@ -94,8 +107,25 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     udata.AcceptPromiscuous = TRUE;
 
     status = uefi_call_wrapper(udp->Configure, 2, udp, &udata);
-    if (status != EFI_SUCCESS)
+    if (status != EFI_SUCCESS) {
 	Print(L"Failed to configure UDP: %d\n", status);
+	return;
+    }
+
+    /*
+     * If this is the first time connecting, save the random local port
+     * number that the UDPv4 Protocol Driver picked for us. The TFTP
+     * protocol uses the local port number as the TID, and it needs to
+     * be consistent across connect()/disconnect() calls.
+     */
+    if (!socket->net.efi.localport) {
+	status = uefi_call_wrapper(udp->GetModeData, 5, udp,
+				   &udata, NULL, NULL, NULL);
+	if (status != EFI_SUCCESS)
+	    Print(L"Failed to get UDP mode data: %d\n", status);
+	else
+	    socket->net.efi.localport = udata.StationPort;
+    }
 }
 
 /**
@@ -105,14 +135,16 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
  */
 void core_udp_disconnect(struct pxe_pvt_inode *socket)
 {
-    struct efi_binding *b;
+    EFI_STATUS status;
+    EFI_UDP4 *udp;
 
-    if (!socket->net.efi.binding)
-	return;
+    udp = (EFI_UDP4 *)socket->net.efi.binding->this;
 
-    b = socket->net.efi.binding;
-    efi_destroy_binding(b, &Udp4ServiceBindingProtocol);
-    socket->net.efi.binding = NULL;
+    /* Reset */
+    status = uefi_call_wrapper(udp->Configure, 2, udp, NULL);
+    if (status != EFI_SUCCESS)
+	Print(L"Failed to reset UDP: %d\n", status);
+
 }
 
 static int volatile cb_status = -1;

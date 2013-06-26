@@ -129,6 +129,7 @@ union net_private {
     } tftp;
     struct net_private_efi {
 	struct efi_binding *binding; /* EFI binding for protocol */
+	uint16_t localport;          /* Local port number (0=not in use) */
     } efi;
 };
 
