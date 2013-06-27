@@ -422,6 +422,8 @@ static int bios_font_query(uint8_t **font)
 
     /* Get BIOS 8x16 font */
 
+    memset(&rm, 0, sizeof rm);
+
     rm.eax.w[0] = 0x1130;	/* Get Font Information */
     rm.ebx.w[0] = 0x0600;	/* Get 8x16 ROM font */
     __intcall(0x10, &rm, &rm);
