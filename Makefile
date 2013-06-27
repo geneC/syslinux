@@ -285,6 +285,7 @@ libinstaller: core
 utils: mbr
 core: com32
 efi: core
+gpxe: core
 
 installer: installer-local
 	set -e; for i in $(ISUBDIRS); \
