@@ -2,6 +2,10 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 5.11:
+	* Dynamic debug support: Add new module, debug.c32, that allows
+	  debug code to be dynamically enabled and disabled at runtime.
+
 Changes in 5.10:
 	* PXELINUX: An entirely new network implementation based on
 	  the lwIP embedded TCP/IP stack.  As a result, plain PXELINUX

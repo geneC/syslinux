@@ -5,6 +5,8 @@
 #ifndef _DPRINTF_H
 #define _DPRINTF_H
 
+#include <syslinux/debug.h>
+
 #if !defined(DEBUG_PORT) && !defined(DEBUG_STDIO)
 # undef DEBUG
 #endif
@@ -23,8 +25,12 @@ void vdprintf(const char *, va_list);
 
 #else
 
-# define dprintf(fmt, ...)	((void)(0))
-# define vdprintf(fmt, ap)	((void)(0))
+#define dprintf(...) \
+    if (syslinux_debug_enabled) \
+        printf(__VA_ARGS__)
+#define vdprintf(fmt, ap) \
+    if (syslinux_debug_enabled) \
+        vprintf(fmt, ap)
 
 #endif /* DEBUG */
 
