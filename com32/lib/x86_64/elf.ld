@@ -76,17 +76,6 @@ SECTIONS
   {
     KEEP (*(.preinit_array))
   }
-  .init_array     :
-  {
-     KEEP (*(SORT(.init_array.*)))
-     KEEP (*(.init_array))
-  }
-  .fini_array     :
-  {
-    KEEP (*(.fini_array))
-    KEEP (*(SORT(.fini_array.*)))
-  }
- 
   .ctors          :
   {
   	__ctors_start = .;
@@ -94,6 +83,8 @@ SECTIONS
     KEEP (*(.ctors))
     KEEP (*(.ctors_modinit))
     KEEP (*(.ctors_modmain))
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array))
 	__ctors_end = .;
   }
   
@@ -103,6 +94,8 @@ SECTIONS
     KEEP (*(SORT(.dtors.*)))
     KEEP (*(.dtors))
     KEEP (*(.dtors_modexit))
+    KEEP (*(.fini_array))
+    KEEP (*(SORT(.fini_array.*)))
 	__dtors_end = .;
   }
   
