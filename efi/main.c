@@ -117,7 +117,7 @@ void printf_init(void)
 {
 }
 
-void local_boot16(void)
+__export void local_boot(uint16_t ax)
 {
 }
 

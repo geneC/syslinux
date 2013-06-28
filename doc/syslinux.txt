@@ -158,7 +158,8 @@ IPAPPEND bitmask
 
 	The SYSAPPEND option was introduced in Syslinux 5.10; it is an
 	enhancement of a previous option IPAPPEND which was only
-	available on PXELINUX.
+	available on PXELINUX.  bitmask is interpretted as decimal format
+	unless prefixed with "0x" for hexidecimal.
 
 	1: indicates that an option of the following format
 	should be generated and added to the kernel command line:
@@ -234,7 +235,7 @@ IPAPPEND bitmask
 	0x08000	BIOSVERSION=	BIOS version
 	0x10000	SYSFF=		System form factor
 
-	If these strings contain whitespace they it is replaced with
+	If these strings contain whitespace they are replaced with
 	underscores (_).
 
 	The system form factor value is a number defined in the SMBIOS
@@ -426,7 +427,7 @@ ONERROR kernel options...
 
 		xyzzy plugh foo bar baz
 
-SERIAL port [[baudrate] flowcontrol]
+SERIAL port [baudrate [flowcontrol]]
 	Enables a serial port to act as the console.  "port" is a
 	number (0 = /dev/ttyS0 = COM1, etc.) or an I/O port address
 	(e.g. 0x3F8); if "baudrate" is omitted, the baud rate defaults

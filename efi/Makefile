@@ -27,6 +27,7 @@ FILTERED_OBJS:= $(subst $(core),$(OBJ)/../core/,$(patsubst %.c,%.o, \
 # Don't include console objects
 CORE_OBJS = $(filter-out %hello.o %rawcon.o %plaincon.o %strcasecmp.o %bios.o \
 	%diskio_bios.o %ldlinux-c.o %isolinux-c.o %pxelinux-c.o \
+	%localboot.o %pxeboot.o \
 	$(FILTERED_OBJS),$(CORE_COBJ) $(CORE_SOBJ))
 
 CORE_OBJS += $(addprefix $(OBJ)/../core/, \

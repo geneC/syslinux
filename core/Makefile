@@ -68,7 +68,8 @@ LPXELINUX_OBJS = $(subst $(SRC)/,,$(LPXELINUX_CSRC:%.c=%.o))
 PXELINUX_OBJS  = $(subst $(SRC)/,,$(PXELINUX_CSRC:%.c=%.o))
 
 # Don't include console and network stack specific objects
-FILTER_OBJS = %rawcon.o %plaincon.o %pxelinux-c.o %ldlinux-c.o %isolinux-c.o \
+FILTER_OBJS = %rawcon.o %plaincon.o %pxelinux-c.o %ldlinux-c.o \
+	%isolinux-c.o %localboot.o %pxeboot.o \
 	$(subst $(OBJ)/,,$(LPXELINUX_OBJS)) \
 	$(subst $(OBJ)/,,$(PXELINUX_OBJS))
 
@@ -163,7 +164,7 @@ LDSCRIPT = $(SRC)/$(ARCH)/syslinux.ld
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) $(SRC)/lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
-libisolinux.a: rawcon.o isolinux-c.o
+libisolinux.a: rawcon.o localboot.o isolinux-c.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
@@ -172,18 +173,18 @@ libisolinux-debug.a: libisolinux.a
 	cp $^ $@
 
 # Legacy network stack
-libpxelinux.a: rawcon.o pxelinux-c.o $(PXELINUX_OBJS)
+libpxelinux.a: rawcon.o pxeboot.o pxelinux-c.o $(PXELINUX_OBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
 # LwIP network stack
-liblpxelinux.a: rawcon.o pxelinux-c.o $(LPXELINUX_OBJS)
+liblpxelinux.a: rawcon.o pxeboot.o pxelinux-c.o $(LPXELINUX_OBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
 
-libldlinux.a: plaincon.o ldlinux-c.o
+libldlinux.a: plaincon.o localboot.o ldlinux-c.o
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@

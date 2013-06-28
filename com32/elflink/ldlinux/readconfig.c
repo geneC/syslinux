@@ -640,7 +640,7 @@ extern const char *append;
 extern uint16_t PXERetry;
 static struct labeldata ld;
 
-static int parse_one_config(const char *filename);
+static int parse_main_config(const char *filename);
 
 static char *is_kernel_type(char *cmdstr, enum kernel_type *type)
 {
@@ -810,6 +810,70 @@ bail:
     return -1;
 }
 
+static void parse_config_file(FILE * f);
+
+static void do_include_menu(char *str, struct menu *m)
+{
+    const char *file;
+    char *p;
+    FILE *f;
+    int fd;
+
+    p = skipspace(str);
+    file = refdup_word(&p);
+    p = skipspace(p);
+
+    fd = open(file, O_RDONLY);
+    if (fd < 0)
+	goto put;
+
+    f = fdopen(fd, "r");
+    if (!f)
+	goto bail;
+
+    if (*p) {
+	record(m, &ld, append);
+	m = current_menu = begin_submenu(p);
+    }
+
+    parse_config_file(f);
+
+    if (*p) {
+	record(m, &ld, append);
+	m = current_menu = end_submenu();
+    }
+
+bail:
+    close(fd);
+put:
+    refstr_put(file);
+
+}
+
+static void do_include(char *str)
+{
+    const char *file;
+    char *p;
+    FILE *f;
+    int fd;
+
+    p = skipspace(str);
+    file = refdup_word(&p);
+
+    fd = open(file, O_RDONLY);
+    if (fd < 0)
+	goto put;
+
+    f = fdopen(fd, "r");
+    if (f)
+	parse_config_file(f);
+
+bail:
+    close(fd);
+put:
+    refstr_put(file);
+}
+
 static void parse_config_file(FILE * f)
 {
     char line[MAX_LINE], *p, *ep, ch;
@@ -898,7 +962,7 @@ static void parse_config_file(FILE * f)
 		    m->menu_master_passwd = refstrdup(skipspace(p + 6));
 		}
 	    } else if ((ep = looking_at(p, "include"))) {
-		goto do_include;
+		do_include_menu(ep, m);
 	    } else if ((ep = looking_at(p, "background"))) {
 		p = skipspace(ep);
 		refstr_put(m->menu_background);
@@ -1095,23 +1159,7 @@ static void parse_config_file(FILE * f)
 		m->fkeyhelp[fkeyno].background = refdup_word(&p);
 	    }
 	} else if ((ep = looking_at(p, "include"))) {
-do_include:
-	    {
-		const char *file;
-		p = skipspace(ep);
-		file = refdup_word(&p);
-		p = skipspace(p);
-		if (*p) {
-		    record(m, &ld, append);
-		    m = current_menu = begin_submenu(p);
-		    parse_one_config(file);
-		    record(m, &ld, append);
-		    m = current_menu = end_submenu();
-		} else {
-		    parse_one_config(file);
-		}
-		refstr_put(file);
-	    }
+	    do_include(ep);
 	} else if (looking_at(p, "append")) {
 	    const char *a = refstrdup(skipspace(p + 6));
 	    if (ld.label) {
@@ -1164,7 +1212,7 @@ do_include:
 	    allowoptions = !!atoi(skipspace(p + 12));
 	} else if ((ep = looking_at(p, "ipappend")) ||
 		   (ep = looking_at(p, "sysappend"))) {
-	    uint32_t s = strtoul(skipspace(ep), NULL, 16);
+	    uint32_t s = strtoul(skipspace(ep), NULL, 0);
 	    if (ld.label)
 		ld.ipappend = s;
 	    else
@@ -1386,7 +1434,7 @@ do_include:
     }
 }
 
-static int parse_one_config(const char *filename)
+static int parse_main_config(const char *filename)
 {
 	const char *mode = "r";
 	FILE *f;
@@ -1466,14 +1514,14 @@ void parse_configs(char **argv)
     current_menu = root_menu;
 
     if (!argv || !*argv) {
-	if (parse_one_config(NULL) < 0) {
+	if (parse_main_config(NULL) < 0) {
 	    printf("WARNING: No configuration file found\n");
 	    return;
 	}
     } else {
 	while ((filename = *argv++)) {
 		dprintf("Parsing config: %s", filename);
-	    parse_one_config(filename);
+	    parse_main_config(filename);
 	}
     }
 
