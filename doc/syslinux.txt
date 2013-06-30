@@ -158,8 +158,9 @@ IPAPPEND bitmask
 
 	The SYSAPPEND option was introduced in Syslinux 5.10; it is an
 	enhancement of a previous option IPAPPEND which was only
-	available on PXELINUX.  bitmask is interpretted as decimal format
-	unless prefixed with "0x" for hexidecimal.
+	available on PXELINUX.  bitmask is interpreted as decimal format
+	unless prefixed with "0x" for hexadecimal or "0" (zero) for
+	octal.
 
 	1: indicates that an option of the following format
 	should be generated and added to the kernel command line:
