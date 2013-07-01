@@ -205,8 +205,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     cmdline_size = strlen(cmdline) + 1;
 
     errno = EINVAL;
-    if (kernel_size < 2 * 512)
+    if (kernel_size < 2 * 512) {
+	dprintf("Kernel size too small\n");
 	goto bail;
+    }
 
     /* Look for specific command-line arguments we care about */
     if ((arg = find_argument(cmdline, "mem=")))
@@ -237,8 +239,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     memcpy(&hdr, kernel_buf, sizeof hdr);
     whdr = (struct linux_header *)kernel_buf;
 
-    if (hdr.boot_flag != BOOT_MAGIC)
+    if (hdr.boot_flag != BOOT_MAGIC) {
+	dprintf("Invalid boot magic\n");
 	goto bail;
+    }
 
     if (hdr.header != LINUX_MAGIC) {
 	hdr.version = 0x0100;	/* Very old kernel */
@@ -288,14 +292,18 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	hdr.init_size = 3 * prot_mode_size;
     }
 
-    if (!(hdr.loadflags & LOAD_HIGH) && prot_mode_size > 512 * 1024)
-	goto bail;		/* Kernel cannot be loaded low */
+    if (!(hdr.loadflags & LOAD_HIGH) && prot_mode_size > 512 * 1024) {
+	dprintf("Kernel cannot be loaded low\n");
+	goto bail;
+    }
 
     /* Get the size of the initramfs, if there is one */
     irf_size = initramfs_size(initramfs);
 
-    if (irf_size && hdr.version < 0x0200)
-	goto bail;		/* initrd/initramfs not supported */
+    if (irf_size && hdr.version < 0x0200) {
+	dprintf("Initrd specified but not supported by kernel\n");
+	goto bail;
+    }
 
     if (hdr.version >= 0x0200) {
 	whdr->type_of_loader = 0x30;	/* SYSLINUX unknown module */
@@ -333,8 +341,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	syslinux_memmap_type(amap, prot_mode_base, prot_mode_size)
 	!= SMT_FREE) {
 	const struct syslinux_memmap *mp;
-	if (!hdr.relocatable_kernel)
-	    goto bail;		/* Can't relocate - no hope */
+	if (!hdr.relocatable_kernel) {
+	    dprintf("Cannot relocate kernel\n");
+	    goto bail;
+	}
 
 	ok = false;
 	for (mp = amap; mp; mp = mp->next) {
@@ -363,8 +373,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    }
 	}
 
-	if (!ok)
+	if (!ok) {
+	    dprintf("Could not find location for protected-mode code\n");
 	    goto bail;
+	}
     }
 
     /* Real mode code */
@@ -397,8 +409,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 	    }
 	}
 
-	if (!ok)
+	if (!ok) {
+	    dprintf("Could not find location for real-mode code\n");
 	    goto bail;
+	}
     }
 
     if (syslinux_add_movelist(&fraglist, real_mode_base, (addr_t) kernel_buf,
@@ -466,8 +480,10 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
 		    best_addr = (adj_end - irf_size) & ~align_mask;
 	    }
 
-	    if (!best_addr)
-		goto bail;	/* Insufficient memory for initramfs */
+	    if (!best_addr) {
+		dprintf("Insufficient memory for initramfs\n");
+		goto bail;
+	    }
 
 	    whdr->ramdisk_image = best_addr;
 	    whdr->ramdisk_size = irf_size;
@@ -562,6 +578,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     }
 
     syslinux_shuffle_boot_rm(fraglist, mmap, 0, &regs);
+    dprintf("shuffle_boot_rm failed\n");
 
 bail:
     syslinux_free_movelist(fraglist);
