@@ -254,7 +254,7 @@ int syslinux_boot_linux(void *kernel_buf, size_t kernel_size,
     if (!hdr.setup_sects)
 	hdr.setup_sects = 4;
 
-    if (hdr.version < 0x0203)
+    if (hdr.version < 0x0203 || !hdr.initrd_addr_max)
 	hdr.initrd_addr_max = 0x37ffffff;
 
     if (!memlimit && memlimit - 1 > hdr.initrd_addr_max)
