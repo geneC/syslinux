@@ -171,7 +171,8 @@ ROOT_FS_OPS:
 ;
 ; Initialize the idle mechanism
 ;
-		call reset_idle
+		extern reset_idle
+		pm_call reset_idle
 
 ;
 ; Now we're all set to start with our *real* business.

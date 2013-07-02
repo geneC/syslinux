@@ -32,6 +32,7 @@ int (*idle_hook_func)(void);
 void reset_idle(void)
 {
     _IdleTimer = jiffies();
+    sti();	/* Guard against BIOS/PXE brokenness... */
 }
 
 __export void __idle(void)

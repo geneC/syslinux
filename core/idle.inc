@@ -14,14 +14,6 @@
 		section .text16
 TICKS_TO_IDLE	equ 4		; Also in idle.c
 
-reset_idle:
-		push eax
-		mov eax,[cs:__jiffies]
-		mov [cs:_IdleTimer],eax
-		pop eax
-		sti		; Guard against BIOS/PXE brokenness...
-		ret
-
 		global do_idle:function hidden
 do_idle:
 		push eax
