@@ -24,7 +24,7 @@
 
 #define TICKS_TO_IDLE	4	/* Also in idle.inc */
 
-extern jiffies_t _IdleTimer;
+static jiffies_t _IdleTimer;
 __export uint16_t NoHalt = 0;
 
 int (*idle_hook_func)(void);

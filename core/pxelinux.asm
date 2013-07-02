@@ -341,7 +341,7 @@ kaboom:
 .wait2:		mov dx,[BIOS_timer]
 .wait3:		call pollchar
 		jnz .keypress
-		call do_idle
+		pm_call __idle
 		cmp dx,[BIOS_timer]
 		je .wait3
 		loop .wait2,ecx
