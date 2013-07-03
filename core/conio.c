@@ -190,8 +190,6 @@ void pm_pollchar(com32sys_t *regs)
 		regs->eflags.l |= EFLAGS_ZF;
 }
 
-extern void do_idle(void);
-
 /*
  * getchar: Read a character from keyboard or serial port
  */
@@ -203,7 +201,7 @@ __export char getchar(char *hi)
 	memset(&ireg, 0, sizeof(ireg));
 	memset(&oreg, 0, sizeof(oreg));
 	while (1) {
-		call16(do_idle, &zero_regs, NULL);
+		__idle();
 
 		ireg.eax.b[1] = 0x11;	/* Poll keyboard */
 		__intcall(0x16, &ireg, &oreg);
