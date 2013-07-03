@@ -24,10 +24,9 @@
  */
 #define  _GNU_SOURCE
 
+#include <syslinux/config.h>
 #include <string.h>
 #include "adv.h"
-
-#define IS_SYSLINUX	/* remove this: test build only */
 
 unsigned char syslinux_adv[2 * ADV_SIZE];
 
@@ -183,93 +182,29 @@ int read_adv(const char *path, const char *cfg)
     return err;
 }
 
-/* For EFI platform, initialize ADV by opening ldlinux.sys or extlinux.sys
+/* For EFI platform, initialize ADV by opening ldlinux.sys
  * as configured and return the primary (adv0) and alternate (adv1)
  * data into caller's buffer. File remains open for subsequent
- * operations. This routine is to be called from comboot
- * vector. Currently only IS_SYSLINUX or IS_EXTLINUX is supported
- *
- * TODO:
- * 1. Need to set the path to ldlinux.sys or extlinux.sys; currently null
- * 2. What if there are errors?
+ * operations. This routine is to be called from comboot vector.
  */
 void efi_adv_init(void)
 {
-    char *name;
-    int rv;
-    int err = 0;
-    unsigned char *advbuf = syslinux_adv;
-    EFI_FILE_HANDLE	fd;	/* handle to ldlinux.sys or extlinux.sys */
-    CHAR16 *file;
-    EFI_FILE_INFO st, xst;
+    union syslinux_derivative_info sdi;
 
-#if defined IS_SYSLINUX
-    name = SYSLINUX_FILE;
-#elif defined IS_EXTLINUX
-    name = EXTLINUX_FILE;
-#else
-	#error "IS_SYSLINUX or IS_EXTLINUX must be specified to build ADV"
-#endif
-	/* FIXME: No path defined to syslinux/extlinux file */
-    rv = make_filespec(&file, "", name);
-    if (rv < 0 || !file) {
-	efi_errno = EFI_OUT_OF_RESOURCES;
-	efi_perror(L"efi_adv_init:");
-	return;
-    }
+    get_derivative_info(&sdi);
 
-    fd = efi_open(file, EFI_FILE_MODE_READ);
-    if (fd == (EFI_FILE_HANDLE)NULL) {
-	err = -1;
-	efi_printerr(L"efi_adv_init: Unable to open file %s\n", file);
-    } else if (efi_fstat(fd, &st)) {
-	err = -1;
-	efi_printerr(L"efi_adv_init: Unable to get info for file %s\n", file);
-    } else if (st.FileSize < 2 * ADV_SIZE) {
-	/* Too small to be useful */
-	err = -2;
-	efi_printerr(L"efi_adv_init: File %s size too small to be useful %s\n", file);
-    } else if (efi_xpread(fd, advbuf, 2 * ADV_SIZE,
-		      st.FileSize - 2 * ADV_SIZE) != 2 * ADV_SIZE) {
-	err = -1;
-	efi_printerr(L"efi_adv_init: Error reading ADV data from file %s\n", file);
-    } else {
-	/* We got it... maybe? */
+    if (sdi.c.filesystem == SYSLINUX_FS_SYSLINUX)
+	read_adv("", SYSLINUX_FILE);
+    else {
 	__syslinux_adv_ptr = &syslinux_adv[8]; /* skip head, csum */
 	__syslinux_adv_size = ADV_LEN;
 
-	err = syslinux_validate_adv(advbuf) ? -2 : 0;
-	if (!err) {
-	    /* Got a good one*/
-	    efi_clear_attributes(fd);
-
-	    /* Need to re-open read-write */
-	    efi_close(fd);
-		/* There is no SYNC attribute with EFI open */
-	    fd = efi_open(file, EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE);
-		/* on error, only explicit comparison with null handle works */
-	    if (fd == (EFI_FILE_HANDLE)NULL) {
-		err = -1;
-		efi_perror(L"efi_adv_init:");
-	    } else if (efi_fstat(fd, &xst) || xst.FileSize != st.FileSize) {
-			/* device/inode info don't exist in the EFI file info structure */
-		efi_perror(L"efi_adv_init: file status error/mismatch");
-		err = -2;
-	    }
-		/* TODO: Do we need to set attributes of the sys file? */
-	}
-     }
-     if (file)
-	free(file);
-     if (fd != 0)
-	efi_close(fd);
-	/* TODO: In case of errors, we could set efi_errno to EFI_LOAD_ERROR
-	 * to mean that ADV could not be loaded up
-	 */
+	syslinux_validate_adv(syslinux_adv);
+    }
 }
 
 /* For EFI platform, write 2 * ADV_SIZE data to the file opened
- * at ADV initialization. (i.e ldlinux.sys or extlinux.sys).
+ * at ADV initialization. (i.e ldlinux.sys).
  *
  * TODO:
  * 1. Validate assumption: write back to file from __syslinux_adv_ptr
@@ -284,17 +219,16 @@ int efi_adv_write(void)
     unsigned char *advbuf = syslinux_adv;
     int rv;
     int err = 0;
-    EFI_FILE_HANDLE	fd;	/* handle to ldlinux.sys or extlinux.sys */
+    EFI_FILE_HANDLE	fd;	/* handle to ldlinux.sys */
     CHAR16 *file;
     EFI_FILE_INFO st, xst;
+    union syslinux_derivative_info sdi;
 
-#if defined IS_SYSLINUX
+    get_derivative_info(&sdi);
+    if (sdi.c.filesystem != SYSLINUX_FS_SYSLINUX)
+	return -1;
+
     name = SYSLINUX_FILE;
-#elif defined IS_EXTLINUX
-    name = EXTLINUX_FILE;
-#else
-	#error "IS_SYSLINUX or IS_EXTLINUX must be specified to build ADV"
-#endif
     rv = make_filespec(&file, "", name);
     if (rv < 0 || !file) {
 	efi_errno = EFI_OUT_OF_RESOURCES;
