@@ -1,6 +1,7 @@
 #ifndef _SYSLINUX_EFI_H
 #define _SYSLINUX_EFI_H
 
+#include <syslinux/config.h>
 #include <core.h>
 #include <sys/types.h>	/* needed for off_t */
 //#include <syslinux/version.h> /* avoid redefinition of __STDC_VERSION__ */
@@ -60,5 +61,7 @@ efi_setup_event(EFI_EVENT *ev, EFI_EVENT_NOTIFY func, void *ctx)
 			       TPL_CALLBACK, func, ctx, ev);
     return status;
 }
+
+extern void efi_derivative(enum syslinux_filesystem fs);
 
 #endif /* _SYSLINUX_EFI_H */

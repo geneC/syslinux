@@ -1202,9 +1202,12 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 			goto out;
 		}
 
+		efi_derivative(SYSLINUX_FS_SYSLINUX);
 		ops[0] = &vfat_fs_ops;
-	} else
+	} else {
+		efi_derivative(SYSLINUX_FS_PXELINUX);
 		ops[0] = &pxe_fs_ops;
+	}
 
 	/* setup timer for boot menu system support */
 	status = setup_default_timer(&timer_ev);
