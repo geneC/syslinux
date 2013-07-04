@@ -21,7 +21,7 @@ extern struct ansi_ops bios_ansi_ops;
 #define BIOS_COLS (*(uint16_t *)0x44A)
 #define BIOS_PAGE (*(uint8_t *)0x462)
 
-static void bios_set_mode(uint16_t mode)
+static void bios_text_mode(void)
 {
     syslinux_force_text_mode();
 }
@@ -129,7 +129,7 @@ struct output_ops bios_output_ops = {
 	.scroll_up = bios_scroll_up,
 	.beep = bios_beep,
 	.get_mode = bios_get_mode,
-	.set_mode = bios_set_mode,
+	.text_mode = bios_text_mode,
 	.get_cursor = bios_get_cursor,
 };
 

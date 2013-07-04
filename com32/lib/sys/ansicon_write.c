@@ -83,7 +83,7 @@ int __ansicon_open(struct file_info *fp)
 	    ti.cols = 80;
 	} else {
 	    /* Force text mode */
-	    firmware->o_ops->set_mode(TEXT_MODE);
+	    firmware->o_ops->text_mode();
 
 	    /* Initial state */
 	    firmware->o_ops->get_mode(&ti.cols, &ti.rows);

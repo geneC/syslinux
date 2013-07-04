@@ -250,7 +250,7 @@ static void efi_erase(int x0, int y0, int x1, int y1, uint8_t attribute)
 	}
 }
 
-static void efi_set_mode(uint16_t mode)
+static void efi_text_mode(void)
 {
 }
 
@@ -268,7 +268,7 @@ struct output_ops efi_ops = {
 	.set_cursor = efi_set_cursor,
 	.scroll_up = efi_scroll_up,
 	.get_mode = efi_get_mode,
-	.set_mode = efi_set_mode,
+	.text_mode = efi_text_mode,
 	.get_cursor = efi_get_cursor,
 };
 

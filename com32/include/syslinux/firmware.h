@@ -13,7 +13,7 @@ struct output_ops {
 	void (*set_cursor) (int, int, bool);
 	void (*beep) (void);
 	void (*get_mode)(int *, int *);
-	void (*set_mode)(uint16_t);
+	void (*text_mode)(void);
 	void (*get_cursor)(uint8_t *, uint8_t *);
 };
 
