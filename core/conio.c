@@ -167,8 +167,8 @@ int bios_pollchar(void)
 		/* Already-queued input? */
 		if (SerialTail == SerialHead) {
 			/* LSR */
-			data = !(inb(SerialPort + 5) & 1);
-			if (!data) {
+			data = inb(SerialPort + 5) & 1;
+			if (data) {
 				/* MSR */
 				data = inb(SerialPort + 6);
 
@@ -179,8 +179,7 @@ int bios_pollchar(void)
 					data = 1;
 				else
 					data = 0;
-			} else
-				data = 1;
+			}
 		} else
 			data = 1;
 		sti();
