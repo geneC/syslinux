@@ -498,7 +498,7 @@ struct dt_desc gdt = { 0x800, (uint64_t *)0 };
 struct dt_desc idt = { 0, 0 };
 
 static inline EFI_MEMORY_DESCRIPTOR *
-get_mem_desc(addr_t memmap, UINTN desc_sz, int i)
+get_mem_desc(unsigned long memmap, UINTN desc_sz, int i)
 {
 	return (EFI_MEMORY_DESCRIPTOR *)(memmap + (i * desc_sz));
 }
@@ -534,7 +534,7 @@ static void find_addr(EFI_PHYSICAL_ADDRESS *first,
 		EFI_PHYSICAL_ADDRESS best;
 		UINT64 start, end;
 
-		m = get_mem_desc((addr_t)map, desc_sz, i);
+		m = get_mem_desc((unsigned long)map, desc_sz, i);
 		if (m->Type != EfiConventionalMemory)
 			continue;
 
