@@ -2,6 +2,21 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 6.01:
+	* efi: Mark some symbols as __export otherwise libcom32.c32 and
+	  vesamenu.c32 will refuse to load.
+	* bios: Wire up the bios kernel loader. It was impossible to
+	  load a kernel from bios in 6.00.
+	* efi: Fix 'make installer'. There are no EFI installers so
+	  don't try and build them as we run into build errors.
+	* efi: Reuse the initial TFTP client port in subsequent
+	  transfers otherwise the server will send an error packet.
+	* efi: Some firmware will not set a default TTL value in IP
+	  packets - we must explicitly set it ourselves otherwise a
+	  value of zero may be used.
+	* bios, font: Fix a font regression affecting some VirtualBox
+	  users.
+
 Changes in 6.00:
 	* Add support for booting from EFI.
 	* EFI TCP/IP support. This allows the EFI backend to hook into
