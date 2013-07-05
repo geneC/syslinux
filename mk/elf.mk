@@ -42,7 +42,7 @@ GPLLIB     =
 GPLINCLUDE =
 endif
 
-CFLAGS     = $(GCCOPT) -W -Wall -march=i386 \
+CFLAGS     = $(GCCOPT) $(GCCWARN) -W -Wall -march=i386 \
 	     -fomit-frame-pointer -D__COM32__ -DDYNAMIC_MODULE \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include $(GPLINCLUDE) \
