@@ -6,6 +6,7 @@
 #include <syslinux/firmware.h>
 #include <syslinux/linux.h>
 #include <sys/ansi.h>
+#include <setjmp.h>
 
 #include "efi.h"
 #include "fio.h"
@@ -23,6 +24,8 @@ uint32_t BIOS_timer_next;
 uint32_t timer_irq;
 __export uint8_t KbdMap[256];
 char aux_seg[256];
+
+static jmp_buf load_error_buf;
 
 static inline EFI_STATUS
 efi_close_protocol(EFI_HANDLE handle, EFI_GUID *guid, EFI_HANDLE agent,
@@ -119,6 +122,11 @@ void printf_init(void)
 
 __export void local_boot(uint16_t ax)
 {
+    /*
+     * Inform the firmware that we failed to execute correctly, which
+     * will trigger the next entry in the EFI Boot Manager list.
+     */
+    longjmp(load_error_buf, 1);
 }
 
 void bios_timer_cleanup(void)
@@ -1320,7 +1328,8 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
 	} while (status != EFI_NOT_READY);
 
-	load_env32(NULL);
+	if (!setjmp(load_error_buf))
+		load_env32(NULL);
 
 	/* load_env32() failed.. cancel timer and bailout */
 	status = cancel_timer(timer_ev);
