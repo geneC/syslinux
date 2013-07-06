@@ -790,6 +790,233 @@ static void handover_boot(struct linux_header *hdr, struct boot_params *bp)
     func(image_handle, ST, bp, address);
 }
 
+static char *build_cmdline(char *str)
+{
+	EFI_PHYSICAL_ADDRESS addr;
+	EFI_STATUS status;
+	char *cmdline = NULL; /* internal, in efi_physical below 0x3FFFFFFF */
+
+	/*
+	 * The kernel expects cmdline to be allocated pretty low,
+	 * Documentation/x86/boot.txt says,
+	 *
+	 *	"The kernel command line can be located anywhere
+	 *	between the end of the setup heap and 0xA0000"
+	 */
+	addr = 0xA0000;
+	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
+			     EFI_SIZE_TO_PAGES(strlen(str) + 1),
+			     &addr);
+	if (status != EFI_SUCCESS) {
+		printf("Failed to allocate memory for kernel command line, bailing out\n");
+		return NULL;
+	}
+	cmdline = (char *)(UINTN)addr;
+	memcpy(cmdline, str, strlen(str) + 1);
+	return cmdline;
+}
+
+static int build_gdt(void)
+{
+	EFI_STATUS status;
+
+	/* Allocate gdt consistent with the alignment for architecture */
+	status = emalloc(gdt.limit, __SIZEOF_POINTER__ , (EFI_PHYSICAL_ADDRESS *)&gdt.base);
+	if (status != EFI_SUCCESS) {
+		printf("Failed to allocate memory for GDT, bailing out\n");
+		return -1;
+	}
+	memset(gdt.base, 0x0, gdt.limit);
+
+	/*
+         * 4Gb - (0x100000*0x1000 = 4Gb)
+         * base address=0
+         * code read/exec
+         * granularity=4096, 386 (+5th nibble of limit)
+         */
+        gdt.base[2] = 0x00cf9a000000ffff;
+
+        /*
+         * 4Gb - (0x100000*0x1000 = 4Gb)
+         * base address=0
+         * data read/write
+         * granularity=4096, 386 (+5th nibble of limit)
+         */
+        gdt.base[3] = 0x00cf92000000ffff;
+
+        /* Task segment value */
+        gdt.base[4] = 0x0080890000000000;
+
+	return 0;
+}
+
+/*
+ * Callers use ->ramdisk_size to check whether any memory was
+ * allocated (and therefore needs free'ing). The return value indicates
+ * hard error conditions, such as failing to alloc memory for the
+ * ramdisk image. Having no initramfs is not an error.
+ */
+static int handle_ramdisks(struct linux_header *hdr,
+			   struct initramfs *initramfs)
+{
+	EFI_PHYSICAL_ADDRESS last;
+	struct initramfs *ip;
+	EFI_STATUS status;
+	addr_t irf_size;
+	addr_t next_addr, len, pad;
+
+	hdr->ramdisk_image = 0;
+	hdr->ramdisk_size = 0;
+
+	/*
+	 * Figure out the size of the initramfs, and where to put it.
+	 * We should put it at the highest possible address which is
+	 * <= hdr->initrd_addr_max, which fits the entire initramfs.
+	 */
+	irf_size = initramfs_size(initramfs);	/* Handles initramfs == NULL */
+	if (!irf_size)
+		return 0;
+
+	last = 0;
+	find_addr(NULL, &last, 0x1000, hdr->initrd_addr_max,
+		  irf_size, INITRAMFS_MAX_ALIGN);
+	if (last)
+		status = allocate_addr(&last, irf_size);
+
+	if (!last || status != EFI_SUCCESS) {
+		printf("Failed to allocate initramfs memory, bailing out\n");
+		return -1;
+	}
+
+	hdr->ramdisk_image = (uint32_t)last;
+	hdr->ramdisk_size = irf_size;
+
+	/* Copy initramfs into allocated memory */
+	for (ip = initramfs->next; ip->len; ip = ip->next) {
+		len = ip->len;
+		next_addr = last + len;
+
+		/*
+		 * If this isn't the last entry, extend the
+		 * zero-pad region to enforce the alignment of
+		 * the next chunk.
+		 */
+		if (ip->next->len) {
+			pad = -next_addr & (ip->next->align - 1);
+			len += pad;
+			next_addr += pad;
+		}
+
+		if (ip->data_len)
+			memcpy((void *)(UINTN)last, ip->data, ip->data_len);
+
+		if (len > ip->data_len)
+			memset((void *)(UINTN)(last + ip->data_len), 0,
+			       len - ip->data_len);
+
+		last = next_addr;
+	}
+	return 0;
+}
+
+static int exit_boot(struct boot_params *bp)
+{
+	struct e820_entry *e820buf, *e;
+	EFI_MEMORY_DESCRIPTOR *map;
+	EFI_STATUS status;
+	uint32_t e820_type;
+	UINTN i, nr_entries, key, desc_sz;
+	UINT32 desc_ver;
+
+	/* Build efi memory map */
+	map = get_memory_map(&nr_entries, &key, &desc_sz, &desc_ver);
+	if (!map)
+		return -1;
+
+	bp->efi.memmap = (uint32_t)(unsigned long)map;
+	bp->efi.memmap_size = nr_entries * desc_sz;
+	bp->efi.systab = (uint32_t)(unsigned long)ST;
+	bp->efi.desc_size = desc_sz;
+	bp->efi.desc_version = desc_ver;
+#if defined(__x86_64__)
+        bp->efi.systab_hi = ((unsigned long)ST) >> 32;
+        bp->efi.memmap_hi = ((unsigned long)map) >> 32;
+#endif
+
+
+	/*
+	 * Even though 'memmap' contains the memory map we provided
+	 * previously in efi_scan_memory(), we should recalculate the
+	 * e820 map because it will most likely have changed in the
+	 * interim.
+	 */
+	e = e820buf = bp->e820_map;
+	for (i = 0; i < nr_entries && i < E820MAX; i++) {
+		struct e820_entry *prev = NULL;
+
+		if (e > e820buf)
+			prev = e - 1;
+
+		map = get_mem_desc(bp->efi.memmap, desc_sz, i);
+		e->start = map->PhysicalStart;
+		e->len = map->NumberOfPages << EFI_PAGE_SHIFT;
+
+		switch (map->Type) {
+		case EfiReservedMemoryType:
+                case EfiRuntimeServicesCode:
+                case EfiRuntimeServicesData:
+                case EfiMemoryMappedIO:
+                case EfiMemoryMappedIOPortSpace:
+                case EfiPalCode:
+                        e820_type = E820_RESERVED;
+                        break;
+
+                case EfiUnusableMemory:
+                        e820_type = E820_UNUSABLE;
+                        break;
+
+                case EfiACPIReclaimMemory:
+                        e820_type = E820_ACPI;
+                        break;
+
+                case EfiLoaderCode:
+                case EfiLoaderData:
+                case EfiBootServicesCode:
+                case EfiBootServicesData:
+                case EfiConventionalMemory:
+			e820_type = E820_RAM;
+			break;
+
+		case EfiACPIMemoryNVS:
+			e820_type = E820_NVS;
+			break;
+		default:
+			continue;
+		}
+
+		e->type = e820_type;
+
+		/* Check for adjacent entries we can merge. */
+		if (prev && (prev->start + prev->len) == e->start &&
+		    prev->type == e->type)
+			prev->len += e->len;
+		else
+			e++;
+	}
+
+	bp->e820_entries = e - e820buf;
+
+	dprintf("efi_boot_linux: exit boot services\n");
+	status = uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, key);
+	if (status != EFI_SUCCESS) {
+		printf("Failed to exit boot services: 0x%016lx\n", status);
+		FreePool(map);
+		return -1;
+	}
+
+	return 0;
+}
+
 /* efi_boot_linux: 
  * Boots the linux kernel using the image and parameters to boot with.
  * The EFI boot loader is reworked taking the cue from
@@ -808,20 +1035,14 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 		   struct setup_data *setup_data,
 		   char *cmdline)
 {
-	EFI_MEMORY_DESCRIPTOR *map;
 	struct linux_header *hdr, *bhdr;
 	struct boot_params *bp;
 	struct boot_params *_bp; /* internal, in efi_physical below 0x3FFFFFFF */
 	struct screen_info *si;
-	struct e820_entry *e820buf, *e;
 	EFI_STATUS status;
-	EFI_PHYSICAL_ADDRESS last, addr, pref_address, kernel_start = 0;
+	EFI_PHYSICAL_ADDRESS addr, pref_address, kernel_start = 0;
 	UINT64 setup_sz, init_size = 0;
-	UINTN i, nr_entries, key, desc_sz;
-	UINT32 desc_ver;
-	uint32_t e820_type;
-	addr_t irf_size;
-	char *_cmdline = NULL; /* internal, in efi_physical below 0x3FFFFFFF */
+	char *_cmdline;
 
 	hdr = (struct linux_header *)kernel_buf;
 	bp = (struct boot_params *)hdr;
@@ -850,24 +1071,12 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 		init_size = (kernel_size - setup_sz) * 3;
 	}
 	hdr->type_of_loader = SYSLINUX_EFILDR;	/* SYSLINUX boot loader module */
-	/*
-	 * The kernel expects cmdline to be allocated pretty low,
-	 * Documentation/x86/boot.txt says,
-	 *
-	 *	"The kernel command line can be located anywhere
-	 *	between the end of the setup heap and 0xA0000"
-	 */
-	addr = 0xA0000;
-	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
-			     EFI_SIZE_TO_PAGES(strlen(cmdline) + 1),
-			     &addr);
-	if (status != EFI_SUCCESS) {
-		printf("Failed to allocate memory for kernel command line, bailing out\n");
+	_cmdline = build_cmdline(cmdline);
+	if (!_cmdline)
 		goto bail;
-	}
-	_cmdline = (char *)(UINTN)addr;
-	memcpy(_cmdline, cmdline, strlen(cmdline) + 1);
+
 	hdr->cmd_line_ptr = (UINT32)(UINTN)_cmdline;
+
 	memset((char *)&bp->screen_info, 0x0, sizeof(bp->screen_info));
 
 	addr = pref_address;
@@ -924,170 +1133,17 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 
 	setup_screen(si);
 
-	/* Allocate gdt consistent with the alignment for architecture */
-	status = emalloc(gdt.limit, __SIZEOF_POINTER__ , (EFI_PHYSICAL_ADDRESS *)&gdt.base);
-	if (status != EFI_SUCCESS) {
-		printf("Failed to allocate memory for GDT, bailing out\n");
+	if (build_gdt())
 		goto free_map;
-	}
-	memset(gdt.base, 0x0, gdt.limit);
-
-	/*
-         * 4Gb - (0x100000*0x1000 = 4Gb)
-         * base address=0
-         * code read/exec
-         * granularity=4096, 386 (+5th nibble of limit)
-         */
-        gdt.base[2] = 0x00cf9a000000ffff;
-
-        /*
-         * 4Gb - (0x100000*0x1000 = 4Gb)
-         * base address=0
-         * data read/write
-         * granularity=4096, 386 (+5th nibble of limit)
-         */
-        gdt.base[3] = 0x00cf92000000ffff;
-
-        /* Task segment value */
-        gdt.base[4] = 0x0080890000000000;
 
 	dprintf("efi_boot_linux: setup_sects %d kernel_size %d\n", hdr->setup_sects, kernel_size);
 
-	/*
-	 * Figure out the size of the initramfs, and where to put it.
-	 * We should put it at the highest possible address which is
-	 * <= hdr->initrd_addr_max, which fits the entire initramfs.
-	 */
-	irf_size = initramfs_size(initramfs);	/* Handles initramfs == NULL */
-	if (irf_size) {
-		struct initramfs *ip;
-		addr_t next_addr, len, pad;
-
-		last = 0;
-		find_addr(NULL, &last, 0x1000, hdr->initrd_addr_max,
-			  irf_size, INITRAMFS_MAX_ALIGN);
-		if (last)
-			status = allocate_addr(&last, irf_size);
-
-		if (!last || status != EFI_SUCCESS) {
-			printf("Failed to allocate initramfs memory, bailing out\n");
-			goto free_map;
-		}
-
-		bhdr->ramdisk_image = (uint32_t)last;
-		bhdr->ramdisk_size = irf_size;
-
-		/* Copy initramfs into allocated memory */
-		for (ip = initramfs->next; ip->len; ip = ip->next) {
-			len = ip->len;
-			next_addr = last + len;
-
-			/*
-			 * If this isn't the last entry, extend the
-			 * zero-pad region to enforce the alignment of
-			 * the next chunk.
-			 */
-			if (ip->next->len) {
-				pad = -next_addr & (ip->next->align - 1);
-				len += pad;
-				next_addr += pad;
-			}
-
-			if (ip->data_len)
-				memcpy((void *)(UINTN)last, ip->data, ip->data_len);
-
-			if (len > ip->data_len)
-				memset((void *)(UINTN)(last + ip->data_len), 0,
-				       len - ip->data_len);
-
-			last = next_addr;
-		}
-	}
-
-	/* Build efi memory map */
-	map = get_memory_map(&nr_entries, &key, &desc_sz, &desc_ver);
-	if (!map)
+	if (handle_ramdisks(bhdr, initramfs))
 		goto free_map;
 
-	_bp->efi.memmap = (uint32_t)(unsigned long)map;
-	_bp->efi.memmap_size = nr_entries * desc_sz;
-	_bp->efi.systab = (uint32_t)(unsigned long)ST;
-	_bp->efi.desc_size = desc_sz;
-	_bp->efi.desc_version = desc_ver;
-#if defined(__x86_64__)
-        _bp->efi.systab_hi = ((unsigned long)ST) >> 32;
-        _bp->efi.memmap_hi = ((unsigned long)map) >> 32;
-#endif
-
-
-	/*
-	 * Even though 'memmap' contains the memory map we provided
-	 * previously in efi_scan_memory(), we should recalculate the
-	 * e820 map because it will most likely have changed in the
-	 * interim.
-	 */
-	e = e820buf = _bp->e820_map;
-	for (i = 0; i < nr_entries && i < E820MAX; i++) {
-		struct e820_entry *prev = NULL;
-
-		if (e > e820buf)
-			prev = e - 1;
-
-		map = get_mem_desc(_bp->efi.memmap, desc_sz, i);
-		e->start = map->PhysicalStart;
-		e->len = map->NumberOfPages << EFI_PAGE_SHIFT;
-
-		switch (map->Type) {
-		case EfiReservedMemoryType:
-                case EfiRuntimeServicesCode:
-                case EfiRuntimeServicesData:
-                case EfiMemoryMappedIO:
-                case EfiMemoryMappedIOPortSpace:
-                case EfiPalCode:
-                        e820_type = E820_RESERVED;
-                        break;
-
-                case EfiUnusableMemory:
-                        e820_type = E820_UNUSABLE;
-                        break;
-
-                case EfiACPIReclaimMemory:
-                        e820_type = E820_ACPI;
-                        break;
-
-                case EfiLoaderCode:
-                case EfiLoaderData:
-                case EfiBootServicesCode:
-                case EfiBootServicesData:
-                case EfiConventionalMemory:
-			e820_type = E820_RAM;
-			break;
-
-		case EfiACPIMemoryNVS:
-			e820_type = E820_NVS;
-			break;
-		default:
-			continue;
-		}
-
-		e->type = e820_type;
-
-		/* Check for adjacent entries we can merge. */
-		if (prev && (prev->start + prev->len) == e->start &&
-		    prev->type == e->type)
-			prev->len += e->len;
-		else
-			e++;
-	}
-
-	_bp->e820_entries = e - e820buf;
-
-	dprintf("efi_boot_linux: exit boot services\n");
-	status = uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, key);
-	if (status != EFI_SUCCESS) {
-		printf("Failed to exit boot services: 0x%016lx\n", status);
+	if (exit_boot(_bp))
 		goto free_map;
-	}
+
 	memcpy(&_bp->efi.load_signature, EFI_LOAD_SIG, sizeof(uint32_t));
 
 	asm volatile ("lidt %0" :: "m" (idt));
@@ -1106,9 +1162,8 @@ free_map:
 		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)_bp,
 		       BOOT_PARAM_BLKSIZE);
 	if (kernel_start) efree(kernel_start, init_size);
-	FreePool(map);
-	if (irf_size)
-		free_addr(last, irf_size);
+	if (bhdr->ramdisk_size)
+		free_addr(bhdr->ramdisk_image, bhdr->ramdisk_size);
 bail:
 	return -1;
 }
