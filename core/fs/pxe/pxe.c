@@ -123,7 +123,9 @@ int pxe_call(int opcode, void *data)
 {
     static DECLARE_INIT_SEMAPHORE(pxe_sem, 1);
     extern void pxenv(void);
+#ifdef DEBUG
     extern uint32_t pxe_irq_count, pxe_irq_count_us;	
+#endif
     com32sys_t regs;
 
     sem_down(&pxe_sem, 0);
