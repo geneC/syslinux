@@ -1037,7 +1037,6 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 {
 	struct linux_header *hdr, *bhdr;
 	struct boot_params *bp;
-	struct boot_params *_bp; /* internal, in efi_physical below 0x3FFFFFFF */
 	struct screen_info *si;
 	EFI_STATUS status;
 	EFI_PHYSICAL_ADDRESS addr, pref_address, kernel_start = 0;
@@ -1045,7 +1044,6 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	char *_cmdline;
 
 	hdr = (struct linux_header *)kernel_buf;
-	bp = (struct boot_params *)hdr;
 
 	if (hdr->version < 0x205)
 		hdr->relocatable_kernel = 0;
@@ -1055,6 +1053,22 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 		printf("Invalid Boot signature 0x%x, bailing out\n", hdr->boot_flag);
 		goto bail;
 	}
+
+	/* allocate for boot parameter block */
+	addr = 0x3FFFFFFF;
+	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
+			     BOOT_PARAM_BLKSIZE, &addr);
+	if (status != EFI_SUCCESS) {
+		printf("Failed to allocate memory for kernel boot parameter block, bailing out\n");
+		goto bail;
+	}
+
+	bp = (struct boot_params *)(UINTN)addr;
+
+	memset((void *)bp, 0x0, BOOT_PARAM_BLKSIZE);
+	/* Copy the first two sectors to boot_params */
+	memcpy((char *)bp, kernel_buf, 2 * 512);
+	bhdr = (struct linux_header *)bp;
 
 	setup_sz = (hdr->setup_sects + 1) * 512;
 	if (hdr->version >= 0x20a) {
@@ -1105,31 +1119,16 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	 */
 	memcpy((void *)(UINTN)kernel_start, kernel_buf+setup_sz, kernel_size-setup_sz);
 
-	/* allocate for boot parameter block */
-	addr = 0x3FFFFFFF;
-	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
-			     BOOT_PARAM_BLKSIZE, &addr);
-	if (status != EFI_SUCCESS) {
-		printf("Failed to allocate memory for kernel boot parameter block, bailing out\n");
-		goto free_map;
-	}
-
-	_bp = (struct boot_params *)(UINTN)addr;
-
-	memset((void *)_bp, 0x0, BOOT_PARAM_BLKSIZE);
-	/* Copy the first two sectors to boot_params */
-	memcpy((char *)_bp, kernel_buf, 2 * 512);
-	bhdr = (struct linux_header *)_bp;
 	bhdr->code32_start = (UINT32)((UINT64)kernel_start);
 
 	dprintf("efi_boot_linux: kernel_start 0x%x kernel_size 0x%x initramfs 0x%x setup_data 0x%x cmdline 0x%x\n",
 	kernel_start, kernel_size, initramfs, setup_data, _cmdline);
-	si = &_bp->screen_info;
+	si = &bp->screen_info;
 	memset(si, 0, sizeof(*si));
 
 	/* Attempt to use the handover protocol if available */
 	if (hdr->version >= 0x20b && hdr->handover_offset)
-		handover_boot(bhdr, _bp);
+		handover_boot(bhdr, bp);
 
 	setup_screen(si);
 
@@ -1141,15 +1140,15 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	if (handle_ramdisks(bhdr, initramfs))
 		goto free_map;
 
-	if (exit_boot(_bp))
+	if (exit_boot(bp))
 		goto free_map;
 
-	memcpy(&_bp->efi.load_signature, EFI_LOAD_SIG, sizeof(uint32_t));
+	memcpy(&bp->efi.load_signature, EFI_LOAD_SIG, sizeof(uint32_t));
 
 	asm volatile ("lidt %0" :: "m" (idt));
 	asm volatile ("lgdt %0" :: "m" (gdt));
 
-	kernel_jump(kernel_start, _bp);
+	kernel_jump(kernel_start, bp);
 
 	/* NOTREACHED */
 
@@ -1158,8 +1157,8 @@ free_map:
 		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)_cmdline,
 		      strlen(_cmdline) + 1);
 
-	if (_bp)
-		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)_bp,
+	if (bp)
+		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)bp,
 		       BOOT_PARAM_BLKSIZE);
 	if (kernel_start) efree(kernel_start, init_size);
 	if (bhdr->ramdisk_size)
