@@ -1,5 +1,6 @@
 #include <syslinux/linux.h>
 #include "efi.h"
+#include <string.h>
 
 extern EFI_GUID GraphicsOutputProtocol;
 
@@ -276,6 +277,8 @@ out:
 
 void setup_screen(struct screen_info *si)
 {
+	memset(si, 0, sizeof(*si));
+
 	if (!setup_gop(si))
 		setup_uga(si);
 }

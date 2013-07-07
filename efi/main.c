@@ -1051,7 +1051,6 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 {
 	struct linux_header *hdr;
 	struct boot_params *bp;
-	struct screen_info *si;
 	EFI_STATUS status;
 	EFI_PHYSICAL_ADDRESS addr, pref_address, kernel_start = 0;
 	UINT64 setup_sz, init_size = 0;
@@ -1097,8 +1096,6 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 
 	hdr->cmd_line_ptr = (UINT32)(UINTN)_cmdline;
 
-	memset((char *)&bp->screen_info, 0x0, sizeof(bp->screen_info));
-
 	addr = pref_address;
 	status = allocate_pages(AllocateAddress, EfiLoaderData,
 			     EFI_SIZE_TO_PAGES(init_size), &addr);
@@ -1129,14 +1126,12 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 
 	dprintf("efi_boot_linux: kernel_start 0x%x kernel_size 0x%x initramfs 0x%x setup_data 0x%x cmdline 0x%x\n",
 	kernel_start, kernel_size, initramfs, setup_data, _cmdline);
-	si = &bp->screen_info;
-	memset(si, 0, sizeof(*si));
 
 	/* Attempt to use the handover protocol if available */
 	if (hdr->version >= 0x20b && hdr->handover_offset)
 		handover_boot(hdr, bp);
 
-	setup_screen(si);
+	setup_screen(&bp->screen_info);
 
 	if (build_gdt())
 		goto free_map;
