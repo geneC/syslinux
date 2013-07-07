@@ -1089,7 +1089,7 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	if (!_cmdline)
 		goto bail;
 
-	hdr->cmd_line_ptr = (UINT32)(UINTN)_cmdline;
+	bhdr->cmd_line_ptr = (UINT32)(UINTN)_cmdline;
 
 	memset((char *)&bp->screen_info, 0x0, sizeof(bp->screen_info));
 
