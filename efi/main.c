@@ -1020,7 +1020,6 @@ static int exit_boot(struct boot_params *bp)
 
 	bp->e820_entries = e - e820buf;
 
-	dprintf("efi_boot_linux: exit boot services\n");
 	status = uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, key);
 	if (status != EFI_SUCCESS) {
 		printf("Failed to exit boot services: 0x%016lx\n", status);
@@ -1141,6 +1140,8 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	if (handle_ramdisks(hdr, initramfs))
 		goto free_map;
 
+	efi_console_restore();
+
 	if (exit_boot(bp))
 		goto free_map;
 
@@ -1254,6 +1255,8 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 
 	image_handle = image;
 	syslinux_register_efi();
+
+	efi_console_save();
 	init();
 
 	status = uefi_call_wrapper(BS->HandleProtocol, 3, image,
@@ -1321,5 +1324,6 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	 */
 	status = EFI_LOAD_ERROR;
 out:
+	efi_console_restore();
 	return status;
 }
