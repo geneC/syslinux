@@ -22,6 +22,10 @@ Changes in 6.00:
 	* EFI TCP/IP support. This allows the EFI backend to hook into
 	  the generic TFTP, HTTP and FTP functionality.
 
+Changes in 5.11:
+	* Dynamic debug support: Add new module, debug.c32, that allows
+	  debug code to be dynamically enabled and disabled at runtime.
+
 Changes in 5.10:
 	* PXELINUX: An entirely new network implementation based on
 	  the lwIP embedded TCP/IP stack.  As a result, plain PXELINUX

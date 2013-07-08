@@ -54,7 +54,7 @@ GPLLIB     =
 GPLINCLUDE =
 endif
 
-CFLAGS     = $(GCCOPT) -W -Wall \
+CFLAGS     = $(GCCOPT) $(GCCWARN) -W -Wall \
 	     -fomit-frame-pointer -D__COM32__ -DDYNAMIC_MODULE \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \

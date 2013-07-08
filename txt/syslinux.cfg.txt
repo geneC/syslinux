@@ -128,9 +128,9 @@ section can be used to override a global *APPEND*.
 (*SYSAPPEND*: 5.10+; *IPAPPEND*: *PXELINUX* only)
 The *SYSAPPEND* option was introduced in *Syslinux* 5.10; it is an
 enhancement of a previous option *IPAPPEND* which was only available on
-*PXELINUX*.  'bitmask' is interpretted as decimal format unless prefixed
-with "0x" for hexidecimal.  The 'bitmask' is an OR (sum) of the
-following integer options:
+*PXELINUX*.  'bitmask' is interpreted as decimal format unless prefixed
+with "0x" for hexadecimal or "0" (zero) for octal.  The 'bitmask' is an
+OR (sum) of the following integer options:
 
 ifndef::doctype-manpage[[horizontal]]
 *1*::: An option of the following format should be generated, based on

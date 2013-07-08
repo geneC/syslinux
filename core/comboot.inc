@@ -294,7 +294,8 @@ comboot_getchar:
 comboot_int28:
 		sti
 		cld
-		call do_idle
+		extern __idle
+		pm_call __idle
 		iret
 
 ;

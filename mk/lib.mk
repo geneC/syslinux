@@ -199,6 +199,7 @@ CORELIBOBJS = \
 	libgcc/__negdi2.o libgcc/__ashrdi3.o libgcc/__lshrdi3.o		\
 	libgcc/__muldi3.o libgcc/__udivmoddi4.o libgcc/__umoddi3.o	\
 	libgcc/__divdi3.o libgcc/__moddi3.o				\
+	syslinux/debug.o						\
 	$(LIBENTRY_OBJS) \
 	$(LIBMODULE_OBJS)
 
