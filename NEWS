@@ -2,6 +2,11 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 6.02:
+	* efi64: Add support for booting 32-bit kernels.
+	* efi: Use the EFI handover protocol when booting kernels if
+	  available.
+
 Changes in 6.01:
 	* efi: Mark some symbols as __export otherwise libcom32.c32 and
 	  vesamenu.c32 will refuse to load.
