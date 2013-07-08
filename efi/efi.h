@@ -64,4 +64,15 @@ efi_setup_event(EFI_EVENT *ev, EFI_EVENT_NOTIFY func, void *ctx)
 
 extern void efi_derivative(enum syslinux_filesystem fs);
 
+struct boot_params;
+typedef void (handover_func_t)(void *, EFI_SYSTEM_TABLE *,
+			       struct boot_params *, unsigned long);
+
+handover_func_t efi_handover_32;
+handover_func_t efi_handover_64;
+handover_func_t efi_handover;
+
+extern void efi_console_save(void);
+extern void efi_console_restore(void);
+
 #endif /* _SYSLINUX_EFI_H */

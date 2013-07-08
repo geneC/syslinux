@@ -69,6 +69,11 @@ struct setup_data {
 #define SETUP_E820_EXT	1
 #define SETUP_DTB	2
 
+#define XLF_KERNEL_64			(1 << 0)
+#define XLF_CAN_BE_LOADED_ABOVE_4G	(1 << 1)
+#define XLF_EFI_HANDOVER_32		(1 << 2)
+#define XLF_EFI_HANDOVER_64		(1 << 3)
+
 struct linux_header {
     uint8_t boot_sector_1[0x0020];
     uint16_t old_cmd_line_magic;
@@ -100,7 +105,8 @@ struct linux_header {
     uint32_t initrd_addr_max;
     uint32_t kernel_alignment;
     uint8_t relocatable_kernel;
-    uint8_t pad2[3];
+    uint8_t min_alignment;
+    uint16_t xloadflags;
     uint32_t cmdline_max_len;
     uint32_t hardware_subarch;
     uint64_t hardware_subarch_data;
@@ -109,6 +115,7 @@ struct linux_header {
     uint64_t setup_data;
     uint64_t pref_address;
     uint32_t init_size;
+    uint32_t handover_offset;
 } __packed;
 
 struct screen_info {

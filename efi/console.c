@@ -1,7 +1,32 @@
 #include <syslinux/linux.h>
 #include "efi.h"
+#include <string.h>
 
 extern EFI_GUID GraphicsOutputProtocol;
+
+static uint32_t console_default_attribute;
+static bool console_default_cursor;
+
+/*
+ * We want to restore the console state when we boot a kernel or return
+ * to the firmware.
+ */
+void efi_console_save(void)
+{
+    SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
+    SIMPLE_TEXT_OUTPUT_MODE *mode = out->Mode;
+
+    console_default_attribute = mode->Attribute;
+    console_default_cursor = mode->CursorVisible;
+}
+
+void efi_console_restore(void)
+{
+    SIMPLE_TEXT_OUTPUT_INTERFACE *out = ST->ConOut;
+
+    uefi_call_wrapper(out->SetAttribute, 2, out, console_default_attribute);
+    uefi_call_wrapper(out->EnableCursor, 2, out, console_default_cursor);
+}
 
 __export void writechr(char data)
 {
@@ -276,6 +301,8 @@ out:
 
 void setup_screen(struct screen_info *si)
 {
+	memset(si, 0, sizeof(*si));
+
 	if (!setup_gop(si))
 		setup_uga(si);
 }

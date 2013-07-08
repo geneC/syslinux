@@ -417,74 +417,12 @@ struct boot_params {
  * allocate_pool()/free_pool()
  * memory_map()
  */ 
+extern void kernel_jump(EFI_PHYSICAL_ADDRESS kernel_start,
+			       struct boot_params *boot_params);
 #if __SIZEOF_POINTER__ == 4
 #define EFI_LOAD_SIG	"EL32"
-static inline void kernel_jump(EFI_PHYSICAL_ADDRESS kernel_start,
-			       struct boot_params *boot_params)
-{
-	asm volatile ("cli		\n"
-		      "movl %0, %%esi	\n"
-		      "movl %1, %%ecx	\n"
-		      "jmp *%%ecx	\n"
-		      :: "m" (boot_params), "m" (kernel_start));
-}
-
-static inline void handover_jump(EFI_HANDLE image, struct boot_params *bp,
-				 EFI_PHYSICAL_ADDRESS kernel_start)
-{
-	/* handover protocol not implemented yet; the linux header needs to be updated */
-#if 0
-	kernel_start += hdr->handover_offset;
-
-	asm volatile ("cli		\n"
-		      "pushl %0         \n"
-		      "pushl %1         \n"
-		      "pushl %2         \n"
-		      "movl %3, %%ecx	\n"
-		      "jmp *%%ecx	\n"
-		      :: "m" (bp), "m" (ST),
-		         "m" (image), "m" (kernel_start));
-#endif
-}
 #elif __SIZEOF_POINTER__ == 8
 #define EFI_LOAD_SIG	"EL64"
-typedef void(*kernel_func)(void *, struct boot_params *);
-typedef void(*handover_func)(void *, EFI_SYSTEM_TABLE *, struct boot_params *);
-static inline void kernel_jump(EFI_PHYSICAL_ADDRESS kernel_start,
-			       struct boot_params *boot_params)
-{
-	kernel_func kf;
-
-	asm volatile ("cli");
-
-	/* The 64-bit kernel entry is 512 bytes after the start. */
-	kf = (kernel_func)kernel_start + 512;
-
-	/*
-	 * The first parameter is a dummy because the kernel expects
-	 * boot_params in %[re]si.
-	 */
-	kf(NULL, boot_params);
-}
-
-static inline void handover_jump(EFI_HANDLE image, struct boot_params *bp,
-				 EFI_PHYSICAL_ADDRESS kernel_start)
-{
-#if 0
-	/* handover protocol not implemented yet the linux header needs to be updated */
-
-	UINT32 offset = bp->hdr.handover_offset;
-	handover_func hf;
-
-	asm volatile ("cli");
-
-	/* The 64-bit kernel entry is 512 bytes after the start. */
-	kernel_start += 512;
-
-	hf = (handover_func)(kernel_start + offset);
-	hf(image, ST, bp);
-#endif
-}
 #else
 #error "unsupported architecture"
 #endif
@@ -771,71 +709,107 @@ void efree(EFI_PHYSICAL_ADDRESS memory, UINTN size)
 	free_pages(memory, nr_pages);
 }
 
-/* efi_boot_linux: 
- * Boots the linux kernel using the image and parameters to boot with.
- * The EFI boot loader is reworked taking the cue from
- * http://git.kernel.org/?p=boot/efilinux/efilinux.git on the need to
- * cap key kernel data structures at * 0x3FFFFFFF.
- * The kernel image, kernel command line and boot parameter block are copied
- * into allocated memory areas that honor the address capping requirement
- * prior to kernel handoff. 
- *
- * FIXME
- * Can we move this allocation requirement to com32 linux loader in order
- * to avoid double copying kernel image?
+/*
+ * Check whether 'buf' contains a PE/COFF header and that the PE/COFF
+ * file can be executed by this architecture.
  */
-int efi_boot_linux(void *kernel_buf, size_t kernel_size,
-		   struct initramfs *initramfs,
-		   struct setup_data *setup_data,
-		   char *cmdline)
+static bool valid_pecoff_image(char *buf)
 {
-	EFI_MEMORY_DESCRIPTOR *map;
-	struct linux_header *hdr, *bhdr;
-	struct boot_params *bp;
-	struct boot_params *_bp; /* internal, in efi_physical below 0x3FFFFFFF */
-	struct screen_info *si;
-	struct e820_entry *e820buf, *e;
-	EFI_STATUS status;
-	EFI_PHYSICAL_ADDRESS last, addr, pref_address, kernel_start = 0;
-	UINT64 setup_sz, init_size = 0;
-	UINTN i, nr_entries, key, desc_sz;
-	UINT32 desc_ver;
-	uint32_t e820_type;
-	addr_t irf_size;
-	char *_cmdline = NULL; /* internal, in efi_physical below 0x3FFFFFFF */
+    struct pe_header {
+	uint16_t signature;
+	uint8_t _pad[0x3a];
+	uint32_t offset;
+    } *pehdr = (struct pe_header *)buf;
+    struct coff_header {
+	uint32_t signature;
+	uint16_t machine;
+    } *chdr;
 
-	hdr = (struct linux_header *)kernel_buf;
-	bp = (struct boot_params *)hdr;
-	/*
-	 * We require a relocatable kernel because we have no control
-	 * over free memory in the memory map.
-	 */
-	if (hdr->version < 0x20a || !hdr->relocatable_kernel) {
-		printf("bzImage version 0x%x unsupported\n", hdr->version);
-		goto bail;
-	}
+    if (pehdr->signature != 0x5a4d) {
+	dprintf("Invalid MS-DOS header signature\n");
+	return false;
+    }
+
+    if (!pehdr->offset || pehdr->offset > 512) {
+	dprintf("Invalid PE header offset\n");
+	return false;
+    }
+
+    chdr = (struct coff_header *)&buf[pehdr->offset];
+    if (chdr->signature != 0x4550) {
+	dprintf("Invalid PE header signature\n");
+	return false;
+    }
+
+#if defined(__x86_64__)
+    if (chdr->machine != 0x8664) {
+	dprintf("Invalid PE machine field\n");
+	return false;
+    }
+#else
+    if (chdr->machine != 0x14c) {
+	dprintf("Invalid PE machine field\n");
+	return false;
+    }
+#endif
+
+    return true;
+}
+
+/*
+ * Boot a Linux kernel using the EFI boot stub handover protocol.
+ *
+ * This function will not return to its caller if booting the kernel
+ * image succeeds. If booting the kernel image fails, a legacy boot
+ * method should be attempted.
+ */
+static void handover_boot(struct linux_header *hdr, struct boot_params *bp)
+{
+    unsigned long address = hdr->code32_start + hdr->handover_offset;
+    handover_func_t *func = efi_handover;
+
+    dprintf("Booting kernel using handover protocol\n");
+
+    /*
+     * Ensure that the kernel is a valid PE32(+) file and that the
+     * architecture of the file matches this version of Syslinux - we
+     * can't mix firmware and kernel bitness (e.g. 32-bit kernel on
+     * 64-bit EFI firmware) using the handover protocol.
+     */
+    if (!valid_pecoff_image((char *)hdr))
+	return;
+
+    if (hdr->version >= 0x20c) {
+	if (hdr->xloadflags & XLF_EFI_HANDOVER_32)
+	    func = efi_handover_32;
+
+	if (hdr->xloadflags & XLF_EFI_HANDOVER_64)
+	    func = efi_handover_64;
+    }
+
+    func(image_handle, ST, bp, address);
+}
+
+static int check_linux_header(struct linux_header *hdr)
+{
+	if (hdr->version < 0x205)
+		hdr->relocatable_kernel = 0;
 
 	/* FIXME: check boot sector signature */
 	if (hdr->boot_flag != BOOT_SIGNATURE) {
 		printf("Invalid Boot signature 0x%x, bailing out\n", hdr->boot_flag);
-		goto bail;
+		return -1;
 	}
 
-	setup_sz = (hdr->setup_sects + 1) * 512;
-	if (hdr->version >= 0x20a) {
-		pref_address = hdr->pref_address;
-		init_size = hdr->init_size;
-	} else {
-		pref_address = 0x100000;
+	return 0;
+}
 
-		/*
-		 * We need to account for the fact that the kernel
-		 * needs room for decompression, otherwise we could
-		 * end up trashing other chunks of allocated memory.
-		 */
-		init_size = (kernel_size - setup_sz) * 3;
-	}
-	hdr->type_of_loader = SYSLINUX_EFILDR;	/* SYSLINUX boot loader module */
+static char *build_cmdline(char *str)
+{
+	EFI_PHYSICAL_ADDRESS addr;
+	EFI_STATUS status;
+	char *cmdline = NULL; /* internal, in efi_physical below 0x3FFFFFFF */
+
 	/*
 	 * The kernel expects cmdline to be allocated pretty low,
 	 * Documentation/x86/boot.txt says,
@@ -845,71 +819,26 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	 */
 	addr = 0xA0000;
 	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
-			     EFI_SIZE_TO_PAGES(strlen(cmdline) + 1),
+			     EFI_SIZE_TO_PAGES(strlen(str) + 1),
 			     &addr);
 	if (status != EFI_SUCCESS) {
 		printf("Failed to allocate memory for kernel command line, bailing out\n");
-		goto bail;
+		return NULL;
 	}
-	_cmdline = (char *)(UINTN)addr;
-	memcpy(_cmdline, cmdline, strlen(cmdline) + 1);
-	hdr->cmd_line_ptr = (UINT32)(UINTN)_cmdline;
-	memset((char *)&bp->screen_info, 0x0, sizeof(bp->screen_info));
+	cmdline = (char *)(UINTN)addr;
+	memcpy(cmdline, str, strlen(str) + 1);
+	return cmdline;
+}
 
-	addr = pref_address;
-	status = allocate_pages(AllocateAddress, EfiLoaderData,
-			     EFI_SIZE_TO_PAGES(init_size), &addr);
-	if (status != EFI_SUCCESS) {
-		/*
-		 * We failed to allocate the preferred address, so
-		 * just allocate some memory and hope for the best.
-		 */
-		status = emalloc(init_size, hdr->kernel_alignment, &addr);
-		if (status != EFI_SUCCESS) {
-			printf("Failed to allocate memory for kernel image, bailing out\n");
-			goto free_map;
-		}
-	}
-	kernel_start = addr;
-	/* FIXME: we copy the kernel into the physical memory allocated here
-	 * The syslinux kernel image load elsewhere could allocate the EFI memory from here
-	 * prior to copying kernel and save an extra copy
-	 */
-	memcpy((void *)(UINTN)kernel_start, kernel_buf+setup_sz, kernel_size-setup_sz);
+static int build_gdt(void)
+{
+	EFI_STATUS status;
 
-	/* allocate for boot parameter block */
-	addr = 0x3FFFFFFF;
-	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
-			     BOOT_PARAM_BLKSIZE, &addr);
-	if (status != EFI_SUCCESS) {
-		printf("Failed to allocate memory for kernel boot parameter block, bailing out\n");
-		goto free_map;
-	}
-
-	_bp = (struct boot_params *)(UINTN)addr;
-
-	memset((void *)_bp, 0x0, BOOT_PARAM_BLKSIZE);
-	/* Copy the first two sectors to boot_params */
-	memcpy((char *)_bp, kernel_buf, 2 * 512);
-	bhdr = (struct linux_header *)_bp;
-	bhdr->code32_start = (UINT32)((UINT64)kernel_start);
-
-	dprintf("efi_boot_linux: kernel_start 0x%x kernel_size 0x%x initramfs 0x%x setup_data 0x%x cmdline 0x%x\n",
-	kernel_start, kernel_size, initramfs, setup_data, _cmdline);
-	si = &_bp->screen_info;
-	memset(si, 0, sizeof(*si));
-	setup_screen(si);
-
-	/*
-	 * FIXME: implement handover protocol 
-	 * Use the kernel's EFI boot stub by invoking the handover
-	 * protocol.
-	 */
 	/* Allocate gdt consistent with the alignment for architecture */
 	status = emalloc(gdt.limit, __SIZEOF_POINTER__ , (EFI_PHYSICAL_ADDRESS *)&gdt.base);
 	if (status != EFI_SUCCESS) {
 		printf("Failed to allocate memory for GDT, bailing out\n");
-		goto free_map;
+		return -1;
 	}
 	memset(gdt.base, 0x0, gdt.limit);
 
@@ -932,7 +861,26 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
         /* Task segment value */
         gdt.base[4] = 0x0080890000000000;
 
-	dprintf("efi_boot_linux: setup_sects %d kernel_size %d\n", hdr->setup_sects, kernel_size);
+	return 0;
+}
+
+/*
+ * Callers use ->ramdisk_size to check whether any memory was
+ * allocated (and therefore needs free'ing). The return value indicates
+ * hard error conditions, such as failing to alloc memory for the
+ * ramdisk image. Having no initramfs is not an error.
+ */
+static int handle_ramdisks(struct linux_header *hdr,
+			   struct initramfs *initramfs)
+{
+	EFI_PHYSICAL_ADDRESS last;
+	struct initramfs *ip;
+	EFI_STATUS status;
+	addr_t irf_size;
+	addr_t next_addr, len, pad;
+
+	hdr->ramdisk_image = 0;
+	hdr->ramdisk_size = 0;
 
 	/*
 	 * Figure out the size of the initramfs, and where to put it.
@@ -940,64 +888,73 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	 * <= hdr->initrd_addr_max, which fits the entire initramfs.
 	 */
 	irf_size = initramfs_size(initramfs);	/* Handles initramfs == NULL */
-	if (irf_size) {
-		struct initramfs *ip;
-		addr_t next_addr, len, pad;
+	if (!irf_size)
+		return 0;
 
-		last = 0;
-		find_addr(NULL, &last, 0x1000, hdr->initrd_addr_max,
-			  irf_size, INITRAMFS_MAX_ALIGN);
-		if (last)
-			status = allocate_addr(&last, irf_size);
+	last = 0;
+	find_addr(NULL, &last, 0x1000, hdr->initrd_addr_max,
+		  irf_size, INITRAMFS_MAX_ALIGN);
+	if (last)
+		status = allocate_addr(&last, irf_size);
 
-		if (!last || status != EFI_SUCCESS) {
-			printf("Failed to allocate initramfs memory, bailing out\n");
-			goto free_map;
-		}
-
-		bhdr->ramdisk_image = (uint32_t)last;
-		bhdr->ramdisk_size = irf_size;
-
-		/* Copy initramfs into allocated memory */
-		for (ip = initramfs->next; ip->len; ip = ip->next) {
-			len = ip->len;
-			next_addr = last + len;
-
-			/*
-			 * If this isn't the last entry, extend the
-			 * zero-pad region to enforce the alignment of
-			 * the next chunk.
-			 */
-			if (ip->next->len) {
-				pad = -next_addr & (ip->next->align - 1);
-				len += pad;
-				next_addr += pad;
-			}
-
-			if (ip->data_len)
-				memcpy((void *)(UINTN)last, ip->data, ip->data_len);
-
-			if (len > ip->data_len)
-				memset((void *)(UINTN)(last + ip->data_len), 0,
-				       len - ip->data_len);
-
-			last = next_addr;
-		}
+	if (!last || status != EFI_SUCCESS) {
+		printf("Failed to allocate initramfs memory, bailing out\n");
+		return -1;
 	}
+
+	hdr->ramdisk_image = (uint32_t)last;
+	hdr->ramdisk_size = irf_size;
+
+	/* Copy initramfs into allocated memory */
+	for (ip = initramfs->next; ip->len; ip = ip->next) {
+		len = ip->len;
+		next_addr = last + len;
+
+		/*
+		 * If this isn't the last entry, extend the
+		 * zero-pad region to enforce the alignment of
+		 * the next chunk.
+		 */
+		if (ip->next->len) {
+			pad = -next_addr & (ip->next->align - 1);
+			len += pad;
+			next_addr += pad;
+		}
+
+		if (ip->data_len)
+			memcpy((void *)(UINTN)last, ip->data, ip->data_len);
+
+		if (len > ip->data_len)
+			memset((void *)(UINTN)(last + ip->data_len), 0,
+			       len - ip->data_len);
+
+		last = next_addr;
+	}
+	return 0;
+}
+
+static int exit_boot(struct boot_params *bp)
+{
+	struct e820_entry *e820buf, *e;
+	EFI_MEMORY_DESCRIPTOR *map;
+	EFI_STATUS status;
+	uint32_t e820_type;
+	UINTN i, nr_entries, key, desc_sz;
+	UINT32 desc_ver;
 
 	/* Build efi memory map */
 	map = get_memory_map(&nr_entries, &key, &desc_sz, &desc_ver);
 	if (!map)
-		goto free_map;
+		return -1;
 
-	_bp->efi.memmap = (uint32_t)(unsigned long)map;
-	_bp->efi.memmap_size = nr_entries * desc_sz;
-	_bp->efi.systab = (uint32_t)(unsigned long)ST;
-	_bp->efi.desc_size = desc_sz;
-	_bp->efi.desc_version = desc_ver;
+	bp->efi.memmap = (uint32_t)(unsigned long)map;
+	bp->efi.memmap_size = nr_entries * desc_sz;
+	bp->efi.systab = (uint32_t)(unsigned long)ST;
+	bp->efi.desc_size = desc_sz;
+	bp->efi.desc_version = desc_ver;
 #if defined(__x86_64__)
-        _bp->efi.systab_hi = ((unsigned long)ST) >> 32;
-        _bp->efi.memmap_hi = ((unsigned long)map) >> 32;
+        bp->efi.systab_hi = ((unsigned long)ST) >> 32;
+        bp->efi.memmap_hi = ((unsigned long)map) >> 32;
 #endif
 
 
@@ -1007,14 +964,14 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	 * e820 map because it will most likely have changed in the
 	 * interim.
 	 */
-	e = e820buf = _bp->e820_map;
+	e = e820buf = bp->e820_map;
 	for (i = 0; i < nr_entries && i < E820MAX; i++) {
 		struct e820_entry *prev = NULL;
 
 		if (e > e820buf)
 			prev = e - 1;
 
-		map = get_mem_desc(_bp->efi.memmap, desc_sz, i);
+		map = get_mem_desc(bp->efi.memmap, desc_sz, i);
 		e->start = map->PhysicalStart;
 		e->len = map->NumberOfPages << EFI_PAGE_SHIFT;
 
@@ -1061,20 +1018,139 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 			e++;
 	}
 
-	_bp->e820_entries = e - e820buf;
+	bp->e820_entries = e - e820buf;
 
-	dprintf("efi_boot_linux: exit boot services\n");
 	status = uefi_call_wrapper(BS->ExitBootServices, 2, image_handle, key);
 	if (status != EFI_SUCCESS) {
 		printf("Failed to exit boot services: 0x%016lx\n", status);
-		goto free_map;
+		FreePool(map);
+		return -1;
 	}
-	memcpy(&_bp->efi.load_signature, EFI_LOAD_SIG, sizeof(uint32_t));
+
+	return 0;
+}
+
+/* efi_boot_linux: 
+ * Boots the linux kernel using the image and parameters to boot with.
+ * The EFI boot loader is reworked taking the cue from
+ * http://git.kernel.org/?p=boot/efilinux/efilinux.git on the need to
+ * cap key kernel data structures at * 0x3FFFFFFF.
+ * The kernel image, kernel command line and boot parameter block are copied
+ * into allocated memory areas that honor the address capping requirement
+ * prior to kernel handoff. 
+ *
+ * FIXME
+ * Can we move this allocation requirement to com32 linux loader in order
+ * to avoid double copying kernel image?
+ */
+int efi_boot_linux(void *kernel_buf, size_t kernel_size,
+		   struct initramfs *initramfs,
+		   struct setup_data *setup_data,
+		   char *cmdline)
+{
+	struct linux_header *hdr;
+	struct boot_params *bp;
+	EFI_STATUS status;
+	EFI_PHYSICAL_ADDRESS addr, pref_address, kernel_start = 0;
+	UINT64 setup_sz, init_size = 0;
+	char *_cmdline;
+
+	if (check_linux_header(kernel_buf))
+		goto bail;
+
+	/* allocate for boot parameter block */
+	addr = 0x3FFFFFFF;
+	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
+			     BOOT_PARAM_BLKSIZE, &addr);
+	if (status != EFI_SUCCESS) {
+		printf("Failed to allocate memory for kernel boot parameter block, bailing out\n");
+		goto bail;
+	}
+
+	bp = (struct boot_params *)(UINTN)addr;
+
+	memset((void *)bp, 0x0, BOOT_PARAM_BLKSIZE);
+	/* Copy the first two sectors to boot_params */
+	memcpy((char *)bp, kernel_buf, 2 * 512);
+	hdr = (struct linux_header *)bp;
+
+	setup_sz = (hdr->setup_sects + 1) * 512;
+	if (hdr->version >= 0x20a) {
+		pref_address = hdr->pref_address;
+		init_size = hdr->init_size;
+	} else {
+		pref_address = 0x100000;
+
+		/*
+		 * We need to account for the fact that the kernel
+		 * needs room for decompression, otherwise we could
+		 * end up trashing other chunks of allocated memory.
+		 */
+		init_size = (kernel_size - setup_sz) * 3;
+	}
+	hdr->type_of_loader = SYSLINUX_EFILDR;	/* SYSLINUX boot loader module */
+	_cmdline = build_cmdline(cmdline);
+	if (!_cmdline)
+		goto bail;
+
+	hdr->cmd_line_ptr = (UINT32)(UINTN)_cmdline;
+
+	addr = pref_address;
+	status = allocate_pages(AllocateAddress, EfiLoaderData,
+			     EFI_SIZE_TO_PAGES(init_size), &addr);
+	if (status != EFI_SUCCESS) {
+		/*
+		 * We failed to allocate the preferred address, so
+		 * just allocate some memory and hope for the best.
+		 */
+		if (!hdr->relocatable_kernel) {
+			printf("Cannot relocate kernel, bailing out\n");
+			goto bail;
+		}
+
+		status = emalloc(init_size, hdr->kernel_alignment, &addr);
+		if (status != EFI_SUCCESS) {
+			printf("Failed to allocate memory for kernel image, bailing out\n");
+			goto free_map;
+		}
+	}
+	kernel_start = addr;
+	/* FIXME: we copy the kernel into the physical memory allocated here
+	 * The syslinux kernel image load elsewhere could allocate the EFI memory from here
+	 * prior to copying kernel and save an extra copy
+	 */
+	memcpy((void *)(UINTN)kernel_start, kernel_buf+setup_sz, kernel_size-setup_sz);
+
+	hdr->code32_start = (UINT32)((UINT64)kernel_start);
+
+	dprintf("efi_boot_linux: kernel_start 0x%x kernel_size 0x%x initramfs 0x%x setup_data 0x%x cmdline 0x%x\n",
+	kernel_start, kernel_size, initramfs, setup_data, _cmdline);
+
+	/* Attempt to use the handover protocol if available */
+	if (hdr->version >= 0x20b && hdr->handover_offset)
+		handover_boot(hdr, bp);
+
+	setup_screen(&bp->screen_info);
+
+	if (build_gdt())
+		goto free_map;
+
+	dprintf("efi_boot_linux: setup_sects %d kernel_size %d\n", hdr->setup_sects, kernel_size);
+
+	if (handle_ramdisks(hdr, initramfs))
+		goto free_map;
+
+	efi_console_restore();
+
+	if (exit_boot(bp))
+		goto free_map;
+
+	memcpy(&bp->efi.load_signature, EFI_LOAD_SIG, sizeof(uint32_t));
 
 	asm volatile ("lidt %0" :: "m" (idt));
 	asm volatile ("lgdt %0" :: "m" (gdt));
 
-	kernel_jump(kernel_start, _bp);
+	kernel_jump(kernel_start, bp);
 
 	/* NOTREACHED */
 
@@ -1083,13 +1159,12 @@ free_map:
 		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)_cmdline,
 		      strlen(_cmdline) + 1);
 
-	if (_bp)
-		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)_bp,
+	if (bp)
+		efree((EFI_PHYSICAL_ADDRESS)(unsigned long)bp,
 		       BOOT_PARAM_BLKSIZE);
 	if (kernel_start) efree(kernel_start, init_size);
-	FreePool(map);
-	if (irf_size)
-		free_addr(last, irf_size);
+	if (hdr->ramdisk_size)
+		free_addr(hdr->ramdisk_image, hdr->ramdisk_size);
 bail:
 	return -1;
 }
@@ -1180,6 +1255,8 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 
 	image_handle = image;
 	syslinux_register_efi();
+
+	efi_console_save();
 	init();
 
 	status = uefi_call_wrapper(BS->HandleProtocol, 3, image,
@@ -1250,5 +1327,6 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	 */
 	status = EFI_LOAD_ERROR;
 out:
+	efi_console_restore();
 	return status;
 }
