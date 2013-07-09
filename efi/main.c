@@ -1289,7 +1289,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	/* setup timer for boot menu system support */
 	status = setup_default_timer(&timer_ev);
 	if (status != EFI_SUCCESS) {
-		printf("Failed to set up EFI timer support, bailing out\n");
+		Print(L"Failed to set up EFI timer support, bailing out\n");
 		goto out;
 	}
 
