@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+#   Copyright (C) 2013 Intel Corporation; author Matt Fleming
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+#   Boston MA 02111-1307, USA; either version 2 of the License, or
+#   (at your option) any later version; incorporated herein by reference.
+#
+
+usage()
+{
+    echo "Usage: " $0 "[start|stop] <objdir> <outputfile> <config>" > /dev/stderr
+}
+
+if [ $# -lt 4 ]; then
+    usage
+    exit 1
+fi
+
+if [ `id -u` -ne 0 ]; then
+    echo $0 "must be invoked as root" > /dev/stderr
+    exit 1
+fi
+
+start_func()
+{
+    dd if=/dev/zero of=$2 bs=512 count=$(((32 * 1024 * 1024)/512)) > /dev/null 2>&1
+
+    tmpdir=`mktemp -d || exit 1`
+
+    next=`losetup -f`
+    losetup $next $2
+
+    mkfs.vfat $next > /dev/null 2>&1
+
+    mount $next $tmpdir
+
+    mkdir -p $tmpdir/boot/syslinux
+    cp $3 $tmpdir/boot/syslinux/syslinux.cfg
+
+    for f in `find $1 -name "*.c32"`; do
+	cp $f $tmpdir/boot/syslinux
+    done
+
+    $1/linux/syslinux --directory /boot/syslinux --install $next > /dev/stderr
+    sync
+
+    echo $tmpdir $next
+}
+
+stop_func()
+{
+    umount $1
+    rm -fr $1
+
+    losetup -d $2
+}
+
+case "$1" in
+    start)
+	shift
+	start_func $*
+	;;
+    stop)
+	shift
+	stop_func $*
+	;;
+esac

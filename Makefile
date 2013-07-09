@@ -72,7 +72,7 @@ include $(MAKEDIR)/syslinux.mk
 -include $(OBJDIR)/version.mk
 
 private-targets = prerel unprerel official release burn isolinux.iso \
-		  preupload upload
+		  preupload upload test
 
 ifeq ($(MAKECMDGOALS),)
 	MAKECMDGOALS += all
@@ -100,6 +100,13 @@ endif
 $(filter-out $(private-targets), $(MAKECMDGOALS)):
 	$(MAKE) -C $(OBJDIR) -f $(CURDIR)/Makefile SRC="$(topdir)" \
 		OBJ=$(OBJDIR) objdir=$(OBJDIR) $(MAKECMDGOALS)
+
+test:
+	printf "Executing unit tests\n"
+	$(MAKE) -C com32/lib/syslinux/tests all
+	$(MAKE) -C tests SRC="$(topdir)/tests" OBJ="$(topdir)/tests" \
+		objdir=$(OBJDIR) \
+		-f $(topdir)/tests/Makefile all
 
 # Hook to add private Makefile targets for the maintainer.
 -include $(topdir)/Makefile.private
@@ -206,7 +213,7 @@ NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 core/lpxelinux.0 \
 
 endif # ifdef EFI_BUILD
 
-.PHONY: subdirs $(BSUBDIRS) $(ISUBDIRS)
+.PHONY: subdirs $(BSUBDIRS) $(ISUBDIRS) test
 
 ifeq ($(HAVE_FIRMWARE),)
 

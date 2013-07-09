@@ -1,0 +1,3 @@
+Hello, World!
+Marking PXE code region 0x9c630 - 0x9cee8 as SMT_TERMINAL
+Marking PXE data region 0x9cef0 - 0x9fbf8 as SMT_TERMINAL

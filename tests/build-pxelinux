@@ -1,0 +1,51 @@
+#!/bin/bash
+#
+#   Copyright (C) 2013 Intel Corporation; author Matt Fleming
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
+#   Boston MA 02111-1307, USA; either version 2 of the License, or
+#   (at your option) any later version; incorporated herein by reference.
+#
+
+usage()
+{
+    echo "Usage: " $0 "[start|stop] <srcdir> <config>" > /dev/stderr
+}
+
+if [ $# -lt 3 ]; then
+    usage
+    exit 1
+fi
+
+start_func()
+{
+    tmpdir=`mktemp -d || exit 1`
+    echo $tmpdir
+
+    mkdir -p $tmpdir/tftpboot/pxelinux.cfg
+    cp $2 $tmpdir/tftpboot/pxelinux.cfg/default 
+
+    # This doesn't work if we built with O=/tmp/foobar
+    #make -p -s -C $1 bios netinstall INSTALLROOT=$tmpdir > /dev/stderr
+    for f in `find $1/bios -name "*.c32" -o -name "*.0"`; do
+	cp $f $tmpdir/tftpboot/
+    done
+}
+
+stop_func()
+{
+    rm -fr $1
+}
+
+case "$1" in
+    start)
+	shift
+	start_func $*
+	;;
+    stop)
+	shift
+	stop_func $*
+	;;
+esac

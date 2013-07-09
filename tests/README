@@ -1,0 +1,15 @@
+Syslinux Regression Tests
+
+This directory contains acceptance or regression tests. Each test is
+intended to exercise a specific execution path through Syslinux, from
+user input to output. Unit tests are located in a module directory, e.g.
+com32/lib/syslinux/tests/, and test a specific "unit" of code such as a
+function or interface.
+
+The regression tests are intended to be run on the development
+environment. As such they must remain fast.
+
+Qemu must be installed and we grab OVMF from a predetermined location.
+
+If you're thinking of rewriting or refactoring a subsystem in a major
+way, please ensure there is a suitable test, and if not, write one.
