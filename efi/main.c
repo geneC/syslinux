@@ -787,6 +787,7 @@ static void handover_boot(struct linux_header *hdr, struct boot_params *bp)
 	    func = efi_handover_64;
     }
 
+    efi_console_restore();
     func(image_handle, ST, bp, address);
 }
 
