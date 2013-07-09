@@ -1126,6 +1126,9 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	dprintf("efi_boot_linux: kernel_start 0x%x kernel_size 0x%x initramfs 0x%x setup_data 0x%x cmdline 0x%x\n",
 	kernel_start, kernel_size, initramfs, setup_data, _cmdline);
 
+	if (handle_ramdisks(hdr, initramfs))
+		goto free_map;
+
 	/* Attempt to use the handover protocol if available */
 	if (hdr->version >= 0x20b && hdr->handover_offset)
 		handover_boot(hdr, bp);
@@ -1136,9 +1139,6 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 		goto free_map;
 
 	dprintf("efi_boot_linux: setup_sects %d kernel_size %d\n", hdr->setup_sects, kernel_size);
-
-	if (handle_ramdisks(hdr, initramfs))
-		goto free_map;
 
 	efi_console_restore();
 
