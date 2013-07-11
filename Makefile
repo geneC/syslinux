@@ -136,7 +136,7 @@ MODULES = com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
 	com32/sysdump/*.c32 com32/lua/src/*.c32 com32/chain/*.c32 \
 	com32/lib/*.c32 com32/libutil/*.c32 com32/gpllib/*.c32 \
-	com32/elflink/ldlinux/*.c32 com32/cmenu/libmenu/*.c32
+	com32/cmenu/libmenu/*.c32 com32/elflink/ldlinux/$(LDLINUX)
 endif
 
 # List of module objects that should be installed for all derivatives
