@@ -57,14 +57,14 @@ tidy dist:
 libclean:
 	rm -f libmenu/*.c32
 
-clean: tidy menuclean libclean
-	rm -f *.lss *.c32 *.com
+clean: tidy menuclean
+	rm -f *.lss *.com
 
 menuclean:
 	rm -f $(patsubst %.menu,%.c,$(wildcard *.menu))
 
 spotless: clean libclean menuclean
-	rm -f *~ \#*
+	rm -f *~ \#* *.c32
 
 menus: $(MENUS)
 
