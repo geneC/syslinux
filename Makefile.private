@@ -51,7 +51,7 @@ release:
 	git archive --format=tar syslinux-$(VERSION) | \
 		tar -x -f - -C release/syslinux-$(VERSION)
 	find release/syslinux-$(VERSION) \
-		\( -name '*~' -or -name '#*' \) -type f -print0 | \
+		\( -name '*~' -or -name '#*' -or -name '.git*' \) -type f -print0 | \
 		xargs -0rt rm -f
 	sed -e 's/@@VERSION@@/$(VERSION)/g' -e 's/@@RPMVERSION@@/$(VERSION)/g' \
 		< release/syslinux-$(VERSION)/syslinux.spec.in \
