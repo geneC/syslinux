@@ -168,6 +168,8 @@ ISUBDIRS =
 
 INSTALLSUBDIRS = efi
 
+NETINSTALLABLE = efi/syslinux.efi $(INSTALLABLE_MODULES)
+
 else
 
 BSUBDIRS = codepage com32 lzo core memdisk mbr memdump gpxe sample \
@@ -213,13 +215,13 @@ firmware = bios efi32 efi64
 # If no firmware was specified the rest of MAKECMDGOALS applies to all
 # firmware.
 ifeq ($(filter $(firmware),$(MAKECMDGOALS)),)
-all strip tidy clean dist spotless install installer: bios efi32 efi64
+all strip tidy clean dist spotless install installer netinstall: bios efi32 efi64
 
 else
 
 # Don't do anything for the rest of MAKECMDGOALS at this level. It
 # will be handled for each of $(firmware).
-strip tidy clean dist spotless install installer:
+strip tidy clean dist spotless install installer netinstall:
 
 endif
 
@@ -339,9 +341,15 @@ install:
 	install -m 644 com32/elflink/ldlinux/$(LDLINUX) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 endif
 
+ifdef EFI_BUILD
+netinstall:
+	mkdir -p $(INSTALLROOT)$(TFTPBOOT)/efi$(BITS)
+	install -m 644 $(NETINSTALLABLE) $(INSTALLROOT)$(TFTPBOOT)/efi$(BITS)
+else
 netinstall: installer
 	mkdir -p $(INSTALLROOT)$(TFTPBOOT)
 	install -m 644 $(NETINSTALLABLE) $(INSTALLROOT)$(TFTPBOOT)
+endif
 
 extbootinstall: installer
 	mkdir -m 755 -p $(INSTALLROOT)$(EXTLINUXDIR)
