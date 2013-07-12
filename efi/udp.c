@@ -182,6 +182,7 @@ int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
     EFI_UDP4 *udp;
     size_t size;
     int rv = -1;
+    jiffies_t start;
 
     (void)socket;
 
@@ -197,14 +198,28 @@ int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
     if (status != EFI_SUCCESS)
 	goto bail;
 
-    while (cb_status == -1)
+    start = jiffies();
+    while (cb_status == -1) {
+	/* 15ms receive timeout... */
+	if (jiffies() - start >= 15) {
+	    if (jiffies() - start >= 30)
+		dprintf("Failed to cancel UDP\n");
+
+	    uefi_call_wrapper(udp->Cancel, 2, udp, &token);
+	    dprintf("core_udp_recv: timed out\n");
+	}
+
 	uefi_call_wrapper(udp->Poll, 1, udp);
+    }
 
     if (cb_status == 0)
 	rv = 0;
 
     /* Reset */
     cb_status = -1;
+
+    if (rv)
+	goto bail;
 
     rxdata = token.Packet.RxData;
     frag = &rxdata->FragmentTable[0];
