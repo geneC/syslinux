@@ -18,7 +18,8 @@
 .PHONY: official release
 
 # These files are removed when tarballs are generated.
-PRIVATE = Makefile.private mk/devel.mk
+PRE_PRIVATE = Makefile.private
+REL_PRIVATE = $(PRE_PRIVATE) mk/devel.mk
 
 GIT_DIR ?= .git
 ABS_GIT_DIR := $(shell cd '$(GIT_DIR)' 2>/dev/null && pwd)
@@ -58,7 +59,7 @@ release:
 	rm -f release/syslinux-$(VERSION)/syslinux.spec.in
 	$(MAKE) -C release/syslinux-$(VERSION) official DATE=`date +%Y-%m-%d`
 
-	cd release/syslinux-$(VERSION) && rm -rf $(PRIVATE)
+	cd release/syslinux-$(VERSION) && rm -rf $(REL_PRIVATE)
 	cd release && tar cvvf - syslinux-$(VERSION) | \
 		gzip -9 > syslinux-$(VERSION).tar.gz
 	cd release/syslinux-$(VERSION) && \
@@ -87,7 +88,7 @@ prerel:
 		> $(PRERELDIR)/$(PREREL)/syslinux.spec
 	rm -f $(PRERELDIR)/$(PREREL)/syslinux.spec.in
 	$(MAKE) -C $(PRERELDIR)/$(PREREL) official DATE=`printf '%s-pre%d          ' $(VERSION) $(PRERELNO) | dd bs=10 count=1 2>/dev/null`
-	cd $(PRERELDIR)/$(PREREL) && rm -rf $(PRIVATE)
+	cd $(PRERELDIR)/$(PREREL) && rm -rf $(PRE_PRIVATE)
 	cd $(PRERELDIR) && tar cvvf - $(PREREL) | \
 		gzip -9 > $(PREREL).tar.gz
 	cd $(PRERELDIR)/$(PREREL) && \
