@@ -6,6 +6,9 @@ Changes in 6.02:
 	* efi64: Add support for booting 32-bit kernels.
 	* efi: Use the EFI handover protocol when booting kernels if
 	  available.
+	* Fix various make targets that became broken when switching to
+	  per-firmware object directories, including 'make install' and
+	  'make netinstall'.
 
 Changes in 6.01:
 	* efi: Mark some symbols as __export otherwise libcom32.c32 and
