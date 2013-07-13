@@ -100,7 +100,8 @@ PACK_STRUCT_BEGIN
 struct arp_hdr {
   PACK_STRUCT_FIELD(u16_t hwtype);
   PACK_STRUCT_FIELD(u16_t proto);
-  PACK_STRUCT_FIELD(u16_t _hwlen_protolen);
+  PACK_STRUCT_FIELD(u8_t  hwlen);
+  PACK_STRUCT_FIELD(u8_t  protolen);
   PACK_STRUCT_FIELD(u16_t opcode);
 } PACK_STRUCT_STRUCT;
 PACK_STRUCT_END
@@ -394,8 +395,8 @@ undiarp_request(struct netif *netif, struct ip_addr *ipaddr)
   hdr->opcode = htons(ARP_REQUEST);
   hdr->hwtype = htons(MAC_type);
   hdr->proto = htons(ETHTYPE_IP);
-  /* set hwlen and protolen together */
-  hdr->_hwlen_protolen = htons((netif->hwaddr_len << 8) | sizeof(struct ip_addr));
+  hdr->hwlen = netif->hwaddr_len;
+  hdr->protolen = sizeof(struct ip_addr);
 
   hdr_ptr = (unsigned char *)(hdr + 1);
   memcpy(hdr_ptr, netif->hwaddr, netif->hwaddr_len);
@@ -1138,11 +1139,12 @@ undiarp_input(struct netif *netif, struct pbuf *p)
   hdr = p->payload;
   /* RFC 826 "Packet Reception": */
   if ((hdr->hwtype != htons(MAC_type)) ||
-      (hdr->_hwlen_protolen != htons((netif->hwaddr_len << 8) | sizeof(struct ip_addr))) ||
+      (hdr->hwlen != netif->hwaddr_len) ||
+      (hdr->protolen != sizeof(struct ip_addr)) ||
       (hdr->proto != htons(ETHTYPE_IP))) {
     LWIP_DEBUGF(UNDIIF_ARP_DEBUG | UNDIIF_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_LEVEL_WARNING,
       ("undiarp_input: packet dropped, wrong hw type, hwlen, proto, or protolen (%"U16_F"/%"U16_F"/%"U16_F"/%"U16_F"/%"U16_F")\n",
-      hdr->hwtype, ARPH_HWLEN(hdr), hdr->proto, ARPH_PROTOLEN(hdr)));
+      hdr->hwtype, hdr->hwlen, hdr->proto, hdr->protolen));
     ETHARP_STATS_INC(etharp.proterr);
     ETHARP_STATS_INC(etharp.drop);
     printf("malformed arp packet\n");
