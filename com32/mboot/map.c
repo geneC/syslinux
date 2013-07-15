@@ -53,7 +53,7 @@ addr_t map_data(const void *data, size_t len, size_t align, int flags)
     addr_t pad = (flags & MAP_NOPAD) ? 0 : -len & (align - 1);
     addr_t xlen = len + pad;
 
-    if (syslinux_memmap_find(amap, SMT_FREE, &start, &xlen, align) ||
+    if (syslinux_memmap_find_type(amap, SMT_FREE, &start, &xlen, align) ||
 	syslinux_add_memmap(&amap, start, len + pad, SMT_ALLOC) ||
 	syslinux_add_movelist(&ml, start, (addr_t) data, len) ||
 	(pad && syslinux_add_memmap(&mmap, start + len, pad, SMT_ZERO))) {

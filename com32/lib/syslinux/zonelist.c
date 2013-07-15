@@ -214,9 +214,9 @@ int syslinux_memmap_largest(struct syslinux_memmap *list,
  * a certain minimum size, with an optional starting address.
  * The input values of start and len are used as minima.
  */
-int syslinux_memmap_find(struct syslinux_memmap *list,
-			 enum syslinux_memmap_types type,
-			 addr_t * start, addr_t * len, addr_t align)
+int syslinux_memmap_find_type(struct syslinux_memmap *list,
+			      enum syslinux_memmap_types type,
+			      addr_t * start, addr_t * len, addr_t align)
 {
     addr_t min_start = *start;
     addr_t min_len = *len;

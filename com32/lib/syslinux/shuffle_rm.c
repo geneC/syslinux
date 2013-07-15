@@ -105,7 +105,7 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
      */
     regstub = 0x800;
     stublen = sizeof handoff_code;
-    rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 16);
+    rv = syslinux_memmap_find_type(tmap, SMT_FREE, &regstub, &stublen, 16);
 
     if (rv || (regstub > 0x100000 - sizeof handoff_code)) {
 	/*
@@ -116,7 +116,7 @@ int syslinux_shuffle_boot_rm(struct syslinux_movelist *fraglist,
 	 */
 	regstub = 0x510;	/* Try the 0x5xx segment... */
 	stublen = sizeof handoff_code;
-	rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 16);
+	rv = syslinux_memmap_find_type(tmap, SMT_FREE, &regstub, &stublen, 16);
 
 	if (!rv && (regstub > 0x100000 - sizeof handoff_code))
 	    rv = -1;		/* No acceptable memory found */

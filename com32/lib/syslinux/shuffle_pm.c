@@ -52,7 +52,7 @@ int syslinux_shuffle_boot_pm(struct syslinux_movelist *fraglist,
 
     regstub = 0x800;		/* Locate anywhere above this point */
     stublen = sizeof handoff_code;
-    rv = syslinux_memmap_find(tmap, SMT_FREE, &regstub, &stublen, 1);
+    rv = syslinux_memmap_find_type(tmap, SMT_FREE, &regstub, &stublen, 1);
     syslinux_free_memmap(tmap);
     if (rv)
 	return -1;
