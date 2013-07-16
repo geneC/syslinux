@@ -160,7 +160,7 @@ static const struct syslinux_memmap *is_free_zone(const struct syslinux_memmap
 	if (list->start <= start) {
 	    if (llast >= last) {
 		/* Chunk has a single, well-defined type */
-		if (list->type == SMT_FREE) {
+		if (list->type == SMT_FREE || list->type == SMT_TERMINAL) {
 		    dprintf("F: 0x%08x bytes at 0x%08x\n",
 			    list->next->start, list->start);
 		    return list;	/* It's free */

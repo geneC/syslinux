@@ -300,7 +300,7 @@ int syslinux_memmap_find(struct syslinux_memmap *mmap,
 	return 0;
 
     type = syslinux_memmap_type(mmap, *base, size);
-    if (type == SMT_FREE)
+    if (type == SMT_FREE || type == SMT_TERMINAL)
 	return 0;
 
     if (!relocate) {

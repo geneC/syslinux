@@ -35,6 +35,7 @@ enum syslinux_memmap_types {
     SMT_RESERVED,		/* Unusable memory */
     SMT_ALLOC,			/* Memory allocated by user */
     SMT_ZERO,			/* Memory that should be zeroed */
+    SMT_TERMINAL,		/* Memory to be used as a last resort */
 };
 
 struct syslinux_memmap {
