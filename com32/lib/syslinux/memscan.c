@@ -70,7 +70,7 @@ int bios_scan_memory(scan_memory_callback_t callback, void *data)
 	else
 	    dosmem = 640 * 1024;	/* Hope for the best... */
     }
-    rv = callback(data, bios_data, dosmem - bios_data, true);
+    rv = callback(data, bios_data, dosmem - bios_data, SMT_FREE);
     if (rv)
 	return rv;
 
@@ -113,8 +113,10 @@ int bios_scan_memory(scan_memory_callback_t callback, void *data)
 		len = maxlen;
 
 	    if (len) {
-		rv = callback(data, (addr_t) start, (addr_t) len,
-			      e820buf->type == 1);
+		enum syslinux_memmap_types type;
+
+		type = e820buf->type == 1 ? SMT_FREE : SMT_RESERVED;
+		rv = callback(data, (addr_t) start, (addr_t) len, type);
 		if (rv)
 		    return rv;
 		memfound = 1;
@@ -134,12 +136,13 @@ int bios_scan_memory(scan_memory_callback_t callback, void *data)
     __intcall(0x15, &ireg, &oreg);
 
     if (!(oreg.eflags.l & EFLAGS_CF) && oreg.ecx.w[0]) {
-	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, true);
+	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, SMT_FREE);
 	if (rv)
 	    return rv;
 
 	if (oreg.edx.w[0]) {
-	    rv = callback(data, (addr_t) 16 << 20, oreg.edx.w[0] << 16, true);
+	    rv = callback(data, (addr_t) 16 << 20,
+			  oreg.edx.w[0] << 16, SMT_FREE);
 	    if (rv)
 		return rv;
 	}
@@ -150,7 +153,7 @@ int bios_scan_memory(scan_memory_callback_t callback, void *data)
     /* Finally try INT 15h AH=88h */
     ireg.eax.w[0] = 0x8800;
     if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.w[0]) {
-	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, true);
+	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, SMT_FREE);
 	if (rv)
 	    return rv;
     }

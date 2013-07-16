@@ -40,12 +40,11 @@
 #include <syslinux/memscan.h>
 #include <syslinux/movebits.h>
 
-static int syslinux_memory_map_callback(void *map, addr_t start,
-					addr_t len, bool valid)
+static int syslinux_memory_map_callback(void *map, addr_t start, addr_t len,
+					enum syslinux_memmap_types type)
 {
     struct syslinux_memmap **mmap = map;
-    return syslinux_add_memmap(mmap, start, len,
-			       valid ? SMT_FREE : SMT_RESERVED);
+    return syslinux_add_memmap(mmap, start, len, type);
 }
 
 struct syslinux_memmap *syslinux_memory_map(void)

@@ -12,16 +12,17 @@ extern char __lowmem_heap[];
 extern char free_high_memory[];
 
 #define E820_MEM_MAX 0xfff00000	/* 4 GB - 1 MB */
-int scan_highmem_area(void *data, addr_t start, addr_t len, bool is_ram)
+int scan_highmem_area(void *data, addr_t start, addr_t len,
+		      enum syslinux_memmap_types type)
 {
 	struct free_arena_header *fp;
 
 	(void)data;
 
-	dprintf("start = %x, len = %x, is_ram = %d", start, len, is_ram);
+	dprintf("start = %x, len = %x, type = %d", start, len, type);
 
 	if (start < 0x100000 || start > E820_MEM_MAX
-			     || !is_ram)
+			     || !SMT_FREE)
 		return 0;
 
 	if (start < __com32.cs_memsize) {
