@@ -3,6 +3,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 typedef uint32_t addr_t;
 
@@ -81,6 +82,11 @@ struct syslinux_memmap *syslinux_dup_memmap(struct syslinux_memmap *list);
 int syslinux_memmap_find_type(struct syslinux_memmap *list,
 			      enum syslinux_memmap_types type,
 			      addr_t * start, addr_t * len, addr_t align);
+int syslinux_memmap_find(struct syslinux_memmap *mmap,
+			 addr_t *base, size_t size,
+			 bool relocate, size_t align,
+			 addr_t start_min, addr_t start_max,
+			 addr_t end_min, addr_t end_max);
 
 /* Debugging functions */
 #ifdef DEBUG

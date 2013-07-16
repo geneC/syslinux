@@ -281,3 +281,66 @@ struct syslinux_memmap *syslinux_dup_memmap(struct syslinux_memmap *list)
 
     return newlist;
 }
+
+/*
+ * Find a memory region, given a set of heuristics and update 'base' if
+ * successful.
+ */
+int syslinux_memmap_find(struct syslinux_memmap *mmap,
+			 addr_t *base, size_t size,
+			 bool relocate, size_t align,
+			 addr_t start_min, addr_t start_max,
+			 addr_t end_min, addr_t end_max)
+{
+    const struct syslinux_memmap *mp;
+    enum syslinux_memmap_types type;
+    bool ok;
+
+    if (!size)
+	return 0;
+
+    type = syslinux_memmap_type(mmap, *base, size);
+    if (type == SMT_FREE)
+	return 0;
+
+    if (!relocate) {
+	dprintf("Cannot relocate\n");
+	return -1;
+    }
+
+    ok = false;
+    for (mp = mmap; mp && mp->type != SMT_END; mp = mp->next) {
+	addr_t start, end;
+	start = mp->start;
+	end = mp->next->start;
+
+	if (mp->type != SMT_FREE)
+	    continue;
+
+	/* min */
+	if (end <= end_min)
+	    continue;	/* Only relocate upwards */
+
+	if (start < start_min)
+	    start = start_min;
+
+	/* max */
+	if (end > end_max)
+	    end = end_max;
+
+	start = ALIGN_UP(start, align);
+	if (start > start_max || start >= end)
+	    continue;
+
+	if (end - start >= size) {
+	    *base = start;
+	    ok = true;
+	    break;
+	}
+    }
+
+    if (!ok)
+	return -1;
+
+    return 0;
+}

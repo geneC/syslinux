@@ -130,7 +130,7 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 		    char *cmdline)
 {
     struct linux_header hdr, *whdr;
-    size_t real_mode_size, prot_mode_size;
+    size_t real_mode_size, prot_mode_size, base;
     addr_t real_mode_base, prot_mode_base;
     addr_t irf_size;
     size_t cmdline_size, cmdline_offset;
@@ -139,7 +139,6 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     struct syslinux_movelist *fraglist = NULL;
     struct syslinux_memmap *mmap = NULL;
     struct syslinux_memmap *amap = NULL;
-    bool ok;
     uint32_t memlimit = 0;
     uint16_t video_mode = 0;
     const char *arg;
@@ -279,82 +278,24 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     /* Place the kernel in memory */
 
     /* First, find a suitable place for the protected-mode code */
+    base = prot_mode_base;
     if (prot_mode_size &&
-	syslinux_memmap_type(amap, prot_mode_base, prot_mode_size)
-	!= SMT_FREE) {
-	const struct syslinux_memmap *mp;
-	if (!hdr.relocatable_kernel) {
-	    dprintf("Cannot relocate kernel\n");
-	    goto bail;
-	}
-
-	ok = false;
-	for (mp = amap; mp; mp = mp->next) {
-	    addr_t start, end;
-	    start = mp->start;
-	    end = mp->next->start;
-
-	    if (mp->type != SMT_FREE)
-		continue;
-
-	    if (end <= prot_mode_base)
-		continue;	/* Only relocate upwards */
-
-	    if (start <= prot_mode_base)
-		start = prot_mode_base;
-
-	    start = ALIGN_UP(start, hdr.kernel_alignment);
-	    if (start >= end)
-		continue;
-
-	    if (end - start >= hdr.init_size) {
-		whdr->code32_start += start - prot_mode_base;
-		prot_mode_base = start;
-		ok = true;
-		break;
-	    }
-	}
-
-	if (!ok) {
-	    dprintf("Could not find location for protected-mode code\n");
-	    goto bail;
-	}
+	syslinux_memmap_find(amap, &base, hdr.init_size,
+			     hdr.relocatable_kernel, hdr.kernel_alignment,
+			     prot_mode_base, (addr_t)-1,
+			     prot_mode_base, (addr_t)-1)) {
+	dprintf("Could not find location for protected-mode code\n");
+	goto bail;
     }
 
+    whdr->code32_start += base - prot_mode_base;
+
     /* Real mode code */
-    if (syslinux_memmap_type(amap, real_mode_base,
-			     cmdline_offset + cmdline_size) != SMT_FREE) {
-	const struct syslinux_memmap *mp;
-
-	ok = false;
-	for (mp = amap; mp; mp = mp->next) {
-	    addr_t start, end;
-	    start = mp->start;
-	    end = mp->next->start;
-
-	    if (mp->type != SMT_FREE)
-		continue;
-
-	    if (start < real_mode_base)
-		start = real_mode_base;	/* Lowest address we'll use */
-	    if (end > 640 * 1024)
-		end = 640 * 1024;
-
-	    start = ALIGN_UP(start, 16);
-	    if (start > 0x90000 || start >= end)
-		continue;
-
-	    if (end - start >= cmdline_offset + cmdline_size) {
-		real_mode_base = start;
-		ok = true;
-		break;
-	    }
-	}
-
-	if (!ok) {
-	    dprintf("Could not find location for real-mode code\n");
-	    goto bail;
-	}
+    if (syslinux_memmap_find(amap, &real_mode_base,
+			     cmdline_offset + cmdline_size, true, 16,
+			     real_mode_base, 0x90000, 0, 640*1024)) {
+	dprintf("Could not find location for real-mode code\n");
+	goto bail;
     }
 
     if (syslinux_add_movelist(&fraglist, real_mode_base, (addr_t) kernel_buf,
