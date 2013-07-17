@@ -142,6 +142,18 @@ static void free_movelist(struct syslinux_movelist **parentptr)
 	delete_movelist(parentptr);
 }
 
+static bool valid_type_combination(enum syslinux_memmap_types type1,
+				   enum syslinux_memmap_types type2)
+{
+    if (type1 != SMT_FREE && type1 != SMT_TERMINAL)
+	return false;
+
+    if (type2 != SMT_FREE && type2 != SMT_TERMINAL)
+	return false;
+
+    return true;
+}
+
 /*
  * Scan the freelist looking for a particular chunk of memory
  */
@@ -167,7 +179,10 @@ static const struct syslinux_memmap *is_free_zone(const struct syslinux_memmap
 		}
 		return NULL;	/* Not free */
 	    } else if (llast >= start) {
-		return NULL;	/* Crosses region boundary */
+		if (valid_type_combination(list->type, list->next->type))
+		    return list;
+
+		return NULL;	/* Crosses incompatible region boundary */
 	    }
 	}
 	list = list->next;
