@@ -1,4 +1,5 @@
 #include <syslinux/firmware.h>
+#include <syslinux/memscan.h>
 #include <core.h>
 #include "pxe.h"
 #include <net.h>
@@ -9,6 +10,9 @@ static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
+
+static addr_t pxe_code_start, pxe_code_size;
+static addr_t pxe_data_start, pxe_data_size;
 
 /*
  * Validity check on possible !PXE structure in buf
@@ -86,6 +90,29 @@ static const struct pxe_t *memory_scan_for_pxe_struct(void)
 static const struct pxenv_t *memory_scan_for_pxenv_struct(void)
 {
     return memory_scan(0x10000, is_pxenv);
+}
+
+static int pxelinux_scan_memory(scan_memory_callback_t callback, void *data)
+{
+    int rv = 0;
+
+    /*
+     * If we are planning on calling unload_pxe() and unmapping the PXE
+     * region before we transfer control away from PXELINUX we can mark
+     * that region as SMT_TERMINAL to indicate that the region will
+     * become free at some point in the future.
+     */
+    if (!KeepPXE) {
+	dprintf("Marking PXE code region 0x%x - 0x%x as SMT_TERMINAL\n",
+		pxe_code_start, pxe_code_start + pxe_code_size);
+	rv = callback(data, pxe_code_start, pxe_code_size, SMT_TERMINAL);
+
+	dprintf("Marking PXE data region 0x%x - 0x%x as SMT_TERMINAL\n",
+		pxe_data_start, pxe_data_start + pxe_data_size);
+	rv = callback(data, pxe_data_start, pxe_data_size, SMT_TERMINAL);
+    }
+
+    return rv;
 }
 
 /*
@@ -203,6 +230,14 @@ int pxe_init(bool quiet)
 	printf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
 	printf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
     }
+
+    pxe_code_start = code_seg << 4;
+    pxe_code_size = code_len;
+
+    pxe_data_start = data_seg << 4;
+    pxe_data_size = data_len;
+
+    syslinux_memscan_new(pxelinux_scan_memory);
 
     code_seg = code_seg + ((code_len + 15) >> 4);
     data_seg = data_seg + ((data_len + 15) >> 4);
