@@ -296,21 +296,21 @@ int efi_scan_memory(scan_memory_callback_t callback, void *data)
 	for (i = 0; i < nr_entries; bufpos += desc_sz, i++) {
 		EFI_MEMORY_DESCRIPTOR *m;
 		UINT64 region_sz;
-		int valid;
+		enum syslinux_memmap_types type;
 
 		m = (EFI_MEMORY_DESCRIPTOR *)bufpos;
 		region_sz = m->NumberOfPages * EFI_PAGE_SIZE;
 
 		switch (m->Type) {
                 case EfiConventionalMemory:
-			valid = 1;
+			type = SMT_FREE;
                         break;
 		default:
-			valid = 0;
+			type = SMT_RESERVED;
 			break;
 		}
 
-		rv = callback(data, m->PhysicalStart, region_sz, valid);
+		rv = callback(data, m->PhysicalStart, region_sz, type);
 		if (rv)
 			break;
 	}
@@ -319,11 +319,16 @@ int efi_scan_memory(scan_memory_callback_t callback, void *data)
 	return rv;
 }
 
+static struct syslinux_memscan efi_memscan = {
+    .func = efi_scan_memory,
+};
+
 extern uint16_t *bios_free_mem;
 void efi_init(void)
 {
 	/* XXX timer */
 	*bios_free_mem = 0;
+	syslinux_memscan_add(&efi_memscan);
 	mem_init();
 }
 
@@ -1179,7 +1184,6 @@ struct mem_ops efi_mem_ops = {
 	.malloc = efi_malloc,
 	.realloc = efi_realloc,
 	.free = efi_free,
-	.scan_memory = efi_scan_memory,
 };
 
 struct firmware efi_fw = {

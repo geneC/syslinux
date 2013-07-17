@@ -1,7 +1,8 @@
 #ifndef _SYSLINUX_FIRMWARE_H
 #define _SYSLINUX_FIRMWARE_H
 
-#include <syslinux/memscan.h>
+#include <inttypes.h>
+#include <stdbool.h>
 
 struct term_state;
 
@@ -42,7 +43,6 @@ struct mem_ops {
 	void *(*malloc)(size_t, enum heap, size_t);
 	void *(*realloc)(void *, size_t);
 	void (*free)(void *);
-	int (*scan_memory)(scan_memory_callback_t, void *);
 };
 
 struct initramfs;

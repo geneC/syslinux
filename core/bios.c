@@ -501,6 +501,129 @@ static inline void bios_timer_init(void)
 
 extern uint16_t *bios_free_mem;
 
+struct e820_entry {
+    uint64_t start;
+    uint64_t len;
+    uint32_t type;
+};
+
+static int bios_scan_memory(scan_memory_callback_t callback, void *data)
+{
+    static com32sys_t ireg;
+    com32sys_t oreg;
+    struct e820_entry *e820buf;
+    uint64_t start, len, maxlen;
+    int memfound = 0;
+    int rv;
+    addr_t dosmem;
+    const addr_t bios_data = 0x510;	/* Amount to reserve for BIOS data */
+
+    /* Use INT 12h to get DOS memory */
+    __intcall(0x12, &__com32_zero_regs, &oreg);
+    dosmem = oreg.eax.w[0] << 10;
+    if (dosmem < 32 * 1024 || dosmem > 640 * 1024) {
+	/* INT 12h reports nonsense... now what? */
+	uint16_t ebda_seg = *(uint16_t *) 0x40e;
+	if (ebda_seg >= 0x8000 && ebda_seg < 0xa000)
+	    dosmem = ebda_seg << 4;
+	else
+	    dosmem = 640 * 1024;	/* Hope for the best... */
+    }
+    rv = callback(data, bios_data, dosmem - bios_data, SMT_FREE);
+    if (rv)
+	return rv;
+
+    /* First try INT 15h AX=E820h */
+    e820buf = lzalloc(sizeof *e820buf);
+    if (!e820buf)
+	return -1;
+
+    ireg.eax.l = 0xe820;
+    ireg.edx.l = 0x534d4150;
+    ireg.ebx.l = 0;
+    ireg.ecx.l = sizeof(*e820buf);
+    ireg.es = SEG(e820buf);
+    ireg.edi.w[0] = OFFS(e820buf);
+
+    do {
+	__intcall(0x15, &ireg, &oreg);
+
+	if ((oreg.eflags.l & EFLAGS_CF) ||
+	    (oreg.eax.l != 0x534d4150) || (oreg.ecx.l < 20))
+	    break;
+
+	start = e820buf->start;
+	len = e820buf->len;
+
+	if (start < 0x100000000ULL) {
+	    /* Don't rely on E820 being valid for low memory.  Doing so
+	       could mean stuff like overwriting the PXE stack even when
+	       using "keeppxe", etc. */
+	    if (start < 0x100000ULL) {
+		if (len > 0x100000ULL - start)
+		    len -= 0x100000ULL - start;
+		else
+		    len = 0;
+		start = 0x100000ULL;
+	    }
+
+	    maxlen = 0x100000000ULL - start;
+	    if (len > maxlen)
+		len = maxlen;
+
+	    if (len) {
+		enum syslinux_memmap_types type;
+
+		type = e820buf->type == 1 ? SMT_FREE : SMT_RESERVED;
+		rv = callback(data, (addr_t) start, (addr_t) len, type);
+		if (rv)
+		    return rv;
+		memfound = 1;
+	    }
+	}
+
+	ireg.ebx.l = oreg.ebx.l;
+    } while (oreg.ebx.l);
+
+    lfree(e820buf);
+
+    if (memfound)
+	return 0;
+
+    /* Next try INT 15h AX=E801h */
+    ireg.eax.w[0] = 0xe801;
+    __intcall(0x15, &ireg, &oreg);
+
+    if (!(oreg.eflags.l & EFLAGS_CF) && oreg.ecx.w[0]) {
+	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, SMT_FREE);
+	if (rv)
+	    return rv;
+
+	if (oreg.edx.w[0]) {
+	    rv = callback(data, (addr_t) 16 << 20,
+			  oreg.edx.w[0] << 16, SMT_FREE);
+	    if (rv)
+		return rv;
+	}
+
+	return 0;
+    }
+
+    /* Finally try INT 15h AH=88h */
+    ireg.eax.w[0] = 0x8800;
+    if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.w[0]) {
+	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, SMT_FREE);
+	if (rv)
+	    return rv;
+    }
+
+    return 0;
+}
+
+static struct syslinux_memscan bios_memscan = {
+    .func = bios_scan_memory,
+};
+
 void bios_init(void)
 {
 	int i;
@@ -515,6 +638,7 @@ void bios_init(void)
 
 	/* Init the memory subsystem */
 	bios_free_mem = (uint16_t *)0x413;
+	syslinux_memscan_add(&bios_memscan);
 	mem_init();
 
 	/* CPU-dependent initialization and related checks. */
@@ -534,7 +658,6 @@ struct mem_ops bios_mem_ops = {
 	.malloc = bios_malloc,
 	.realloc = bios_realloc,
 	.free = bios_free,
-	.scan_memory = bios_scan_memory,
 };
 
 struct firmware bios_fw = {
