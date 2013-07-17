@@ -72,7 +72,7 @@ include $(MAKEDIR)/syslinux.mk
 -include $(OBJDIR)/version.mk
 
 private-targets = prerel unprerel official release burn isolinux.iso \
-		  preupload upload test
+		  preupload upload test unittest regression
 
 ifeq ($(MAKECMDGOALS),)
 	MAKECMDGOALS += all
@@ -101,12 +101,16 @@ $(filter-out $(private-targets), $(MAKECMDGOALS)):
 	$(MAKE) -C $(OBJDIR) -f $(CURDIR)/Makefile SRC="$(topdir)" \
 		OBJ=$(OBJDIR) objdir=$(OBJDIR) $(MAKECMDGOALS)
 
-test:
+unittest:
 	printf "Executing unit tests\n"
 	$(MAKE) -C com32/lib/syslinux/tests all
+
+regression:
 	$(MAKE) -C tests SRC="$(topdir)/tests" OBJ="$(topdir)/tests" \
 		objdir=$(OBJDIR) \
 		-f $(topdir)/tests/Makefile all
+
+test: unittest regression
 
 # Hook to add private Makefile targets for the maintainer.
 -include $(topdir)/Makefile.private
