@@ -4,6 +4,15 @@
 #include "core.h"
 #include <dprintf.h>
 
+#ifdef DEBUG_THREAD
+#  ifdef DEBUG
+#    if DEBUG < 2
+#	undef DEBUG
+#	define DEBUG 2
+#    endif /* DEBUG < 2 */
+#  endif /* DEBUG */
+#endif /* DEBUG_THREAD */
+
 void (*sched_hook_func)(void);
 
 /*
@@ -17,7 +26,7 @@ void __schedule(void)
 
 #if DEBUG
     if (__unlikely(irq_state() & 0x200)) {
-	dprintf("In __schedule with interrupts on!\n");
+	dprintf2("In __schedule with interrupts on!\n");
 	kaboom();
     }
 #endif
@@ -29,7 +38,7 @@ void __schedule(void)
     if (in_sched_hook)
 	return;
 
-    dprintf("Schedule ");
+    dprintf2("Schedule ");
 
     /* Possibly update the information on which we make
      * scheduling decisions.
@@ -49,18 +58,18 @@ void __schedule(void)
     nt = st = container_of(curr->list.next, struct thread, list);
     do {
 	if (__unlikely(nt->thread_magic != THREAD_MAGIC)) {
-	    dprintf("Invalid thread on thread list %p magic = 0x%08x\n",
+	    dprintf2("Invalid thread on thread list %p magic = 0x%08x\n",
 		    nt, nt->thread_magic);
 	    kaboom();
 	}
 
-	dprintf("Thread %p (%s) ", nt, nt->name);
+	dprintf2("Thread %p (%s) ", nt, nt->name);
 	if (!nt->blocked) {
-	    dprintf("runnable priority %d\n", nt->prio);
+	    dprintf2("runnable priority %d\n", nt->prio);
 	    if (!best || nt->prio < best->prio)
 		best = nt;
 	} else {
-	    dprintf("blocked\n");
+	    dprintf2("blocked\n");
 	}
 	nt = container_of(nt->list.next, struct thread, list);
     } while (nt != st);
@@ -73,10 +82,10 @@ void __schedule(void)
 	
 	asm volatile("rdtsc" : "=A" (tsc));
 	
-	dprintf("@ %llu -> %p (%s)\n", tsc, best, best->name);
+	dprintf2("@ %llu -> %p (%s)\n", tsc, best, best->name);
 	__switch_to(best);
     } else {
-	dprintf("no change\n");
+	dprintf2("no change\n");
     }
 }
 

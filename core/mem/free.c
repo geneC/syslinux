@@ -10,6 +10,15 @@
 
 #include <stdio.h>
 
+#ifdef DEBUG_MALLOC
+#  ifdef DEBUG
+#    if DEBUG < 2
+#	undef DEBUG
+#	define DEBUG 2
+#    endif /* DEBUG < 2 */
+#  endif /* DEBUG */
+#endif /* DEBUG_MALLOC */
+
 static struct free_arena_header *
 __free_block(struct free_arena_header *ah)
 {
@@ -70,7 +79,7 @@ __export void free(void *ptr)
 {
     struct free_arena_header *ah;
 
-    dprintf("free(%p) @ %p\n", ptr, __builtin_return_address(0));
+    dprintf2("free(%p) @ %p\n", ptr, __builtin_return_address(0));
 
     if ( !ptr )
         return;
@@ -106,7 +115,7 @@ void __inject_free_block(struct free_arena_header *ah)
     size_t a_end = (size_t) ah + ARENA_SIZE_GET(ah->a.attrs);
     size_t n_end;
 
-    dprintf("inject: %#zx bytes @ %p, heap %u (%p)\n",
+    dprintf2("inject: %#zx bytes @ %p, heap %u (%p)\n",
 	    ARENA_SIZE_GET(ah->a.attrs), ah,
 	    ARENA_HEAP_GET(ah->a.attrs), head);
 
@@ -151,7 +160,7 @@ static void __free_tagged(malloc_tag_t tag) {
     sem_down(&__malloc_semaphore, 0);
 
     for (i = 0; i < NHEAP; i++) {
-	dprintf("__free_tagged(%u) heap %d\n", tag, i);
+	dprintf2("__free_tagged(%u) heap %d\n", tag, i);
 	head = &__core_malloc_head[i];
 	for (fp = head->a.next ; fp != head ; fp = fp->a.next) {
 	    if (ARENA_TYPE_GET(fp->a.attrs) == ARENA_TYPE_USED &&
@@ -161,7 +170,7 @@ static void __free_tagged(malloc_tag_t tag) {
     }
 
     sem_up(&__malloc_semaphore);
-    dprintf("__free_tagged(%u) done\n", tag);
+    dprintf2("__free_tagged(%u) done\n", tag);
 }
 
 void comboot_cleanup_lowmem(com32sys_t *regs)
