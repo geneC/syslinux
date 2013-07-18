@@ -170,6 +170,37 @@ extern uint16_t get_port(void);
 extern void free_port(uint16_t port);
 
 /*
+ * parse the ip_str and return the ip address with *res.
+ * return true if the whole string was consumed and the result
+ * was valid.
+ *
+ */
+static bool parse_dotquad(const char *ip_str, uint32_t *res)
+{
+    const char *p = ip_str;
+    uint8_t part = 0;
+    uint32_t ip = 0;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        while (is_digit(*p)) {
+            part = part * 10 + *p - '0';
+            p++;
+        }
+        if (i != 3 && *p != '.')
+            return false;
+
+        ip = (ip << 8) | part;
+        part = 0;
+        p++;
+    }
+    p--;
+
+    *res = htonl(ip);
+    return *p == '\0';
+}
+
+/*
  * Actual resolver function
  * Points to a null-terminated or :-terminated string in _name_
  * and returns the ip addr in _ip_ if it exists and can be found.
@@ -208,6 +239,10 @@ __export uint32_t dns_resolv(const char *name)
      */
     if (!name || !*name)
 	return 0;
+
+    /* If it is a valid dot quad, just return that value */
+    if (parse_dotquad(name, &result))
+	return result;
 
     /* Make sure we have at least one valid DNS server */
     if (!dns_server[0])
