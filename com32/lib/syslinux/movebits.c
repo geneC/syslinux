@@ -142,48 +142,32 @@ static void free_movelist(struct syslinux_movelist **parentptr)
 	delete_movelist(parentptr);
 }
 
-static bool valid_type_combination(enum syslinux_memmap_types type1,
-				   enum syslinux_memmap_types type2)
-{
-    if (type1 != SMT_FREE && type1 != SMT_TERMINAL)
-	return false;
-
-    if (type2 != SMT_FREE && type2 != SMT_TERMINAL)
-	return false;
-
-    return true;
-}
-
 /*
- * Scan the freelist looking for a particular chunk of memory
+ * Scan the freelist looking for a particular chunk of memory.  Returns
+ * the memmap chunk containing to the first byte of the region.
  */
 static const struct syslinux_memmap *is_free_zone(const struct syslinux_memmap
 						  *list, addr_t start,
 						  addr_t len)
 {
-    dprintf("f: 0x%08x bytes at 0x%08x\n", len, start);
-
     addr_t last, llast;
+
+    dprintf("f: 0x%08x bytes at 0x%08x\n", len, start);
 
     last = start + len - 1;
 
     while (list->type != SMT_END) {
-	llast = list->next->start - 1;
 	if (list->start <= start) {
-	    if (llast >= last) {
-		/* Chunk has a single, well-defined type */
-		if (list->type == SMT_FREE || list->type == SMT_TERMINAL) {
-		    dprintf("F: 0x%08x bytes at 0x%08x\n",
-			    list->next->start, list->start);
-		    return list;	/* It's free */
-		}
-		return NULL;	/* Not free */
-	    } else if (llast >= start) {
-		if (valid_type_combination(list->type, list->next->type))
-		    return list;
-
-		return NULL;	/* Crosses incompatible region boundary */
+	    const struct syslinux_memmap *ilist = list;
+	    while (valid_terminal_type(list->type)) {
+		llast = list->next->start - 1;
+		if (llast >= last)
+		    return ilist;
+		list = list->next;
 	    }
+
+	    if (list->start > start)
+		return NULL;	/* Invalid type in region */
 	}
 	list = list->next;
     }
