@@ -156,7 +156,8 @@ int syslinux_add_memmap(struct syslinux_memmap **list,
 
 /*
  * Verify what type a certain memory region is.  This function returns
- * SMT_ERROR if the memory region has multiple types.
+ * SMT_ERROR if the memory region has multiple types, except that
+ * SMT_FREE can be demoted to SMT_TERMINAL.
  */
 enum syslinux_memmap_types syslinux_memmap_type(struct syslinux_memmap *list,
 						addr_t start, addr_t len)
@@ -168,10 +169,18 @@ enum syslinux_memmap_types syslinux_memmap_type(struct syslinux_memmap *list,
     while (list->type != SMT_END) {
 	llast = list->next->start - 1;
 	if (list->start <= start) {
-	    if (llast >= last)
+	    if (llast >= last) {
 		return list->type;	/* Region has a well-defined type */
-	    else if (llast >= start)
-		return SMT_ERROR;	/* Crosses region boundary */
+	    } else if (llast >= start) {
+		/* Crosses region boundary */
+		while (valid_terminal_type(list->type)) {
+		    list = list->next;
+		    llast = list->next->start - 1;
+		    if (llast >= last)
+			return SMT_TERMINAL;
+		}
+		return SMT_ERROR;
+	    }
 	}
 	list = list->next;
     }
@@ -300,7 +309,9 @@ int syslinux_memmap_find(struct syslinux_memmap *mmap,
 	return 0;
 
     type = syslinux_memmap_type(mmap, *base, size);
-    if (type == SMT_FREE || type == SMT_TERMINAL)
+
+    /* This assumes SMT_TERMINAL is OK if we can get the exact address */
+    if (valid_terminal_type(type))
 	return 0;
 
     if (!relocate) {
