@@ -44,6 +44,11 @@ struct syslinux_memmap {
     struct syslinux_memmap *next;
 };
 
+static inline bool valid_terminal_type(enum syslinux_memmap_types type)
+{
+    return (type == SMT_FREE) || (type == SMT_TERMINAL);
+}
+
 /*
  * moves is computed from "fraglist" and "memmap".  Areas that are
  * to be zeroed should be marked as such in the memmap, not in the
