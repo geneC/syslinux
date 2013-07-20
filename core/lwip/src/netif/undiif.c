@@ -45,9 +45,26 @@
  * something that better describes your network interface.
  */
 
+/* other headers include deprintf.h too early */
+#define UNDIIF_ID_FULL_DEBUG (UNDIIF_ID_DEBUG | UNDIIF_DEBUG)
+
+#if UNDIIF_ID_FULL_DEBUG
+# ifndef DEBUG
+#  define DEBUG 1
+# endif
+# ifndef DEBUG_PORT
+#  define DEBUG_PORT 0x3f8
+# endif
+#endif /* UNDIIF_ID_FULL_DEBUG */
+
 #include <core.h>
 
 #include "lwip/opt.h"
+
+#define LWIP_UNDIIF_DBG(debug) \
+    ( ((debug) & LWIP_DBG_ON) && \
+      ((debug) & LWIP_DBG_TYPES_ON) && \
+      (((debug) & LWIP_DBG_MASK_LEVEL) >= LWIP_DBG_MIN_LEVEL) )
 
 #include "lwip/def.h"
 #include "lwip/mem.h"
@@ -65,6 +82,11 @@
 #include <string.h>
 #include <syslinux/pxe_api.h>
 #include <dprintf.h>
+
+/* debug extras */
+#include "ipv4/lwip/icmp.h"
+#include "lwip/tcp_impl.h"
+#include "lwip/udp.h"
 
 #if LWIP_AUTOIP
 #error "AUTOIP not supported"
@@ -152,6 +174,8 @@ static u8_t undiarp_cached_entry;
 #define UNDIARP_TRY_HARD 1
 #define UNDIARP_FIND_ONLY  2
 
+#define UNIDIF_ID_STRLEN 244
+
 
 static inline bool undi_is_ethernet(struct netif *netif)
 {
@@ -213,6 +237,153 @@ static void print_arp_pbuf(struct netif *netif, struct pbuf *p)
   hdr_ptr += 4;
 }
 #endif
+
+#if LWIP_UNDIIF_DBG(UNDIIF_ID_FULL_DEBUG)
+int snprintf_eth_hdr(char *str, size_t size, char head[],
+		     struct eth_hdr *ethhdr, char dir, char status,
+		     char tail[])
+{
+  u8_t *d = ethhdr->dest.addr;
+  u8_t *s = ethhdr->src.addr;
+  return snprintf(str, size,
+		"%s: d:%02x:%02x:%02x:%02x:%02x:%02x"
+		" s:%02x:%02x:%02x:%02x:%02x:%02x"
+		" t:%4hx %c%c %s\n", head,
+		d[0], d[1], d[2], d[3], d[4], d[5],
+		s[0], s[1], s[2], s[3], s[4], s[5],
+		(unsigned)htons(ethhdr->type),
+		dir, status, tail);
+}
+
+int snprintf_arp_hdr(char *str, size_t size, char head[],
+		      struct eth_hdr *ethhdr, char dir,
+		      char status, char tail[])
+{
+  struct etharp_hdr *arphdr;
+  u8_t *d, *s;
+  struct ip_addr *sip, *dip;
+  if (ntohs(ethhdr->type) == ETHTYPE_ARP) {
+    arphdr = (struct etharp_hdr *)((void *)ethhdr + 14);
+    d = arphdr->dhwaddr.addr;
+    s = arphdr->shwaddr.addr;
+    sip = (struct ip_addr *) &(arphdr->sipaddr);
+    dip = (struct ip_addr *) &(arphdr->dipaddr);
+    return snprintf(str, size,
+		"%s: s:%02x:%02x:%02x:%02x:%02x:%02x"
+		" %3d.%3d.%3d.%3d"
+		" %02x:%02x:%02x:%02x:%02x:%02x"
+		" %3d.%3d.%3d.%3d"
+		" %c%c %s\n", head,
+		s[0], s[1], s[2], s[3], s[4], s[5],
+		ip4_addr1(sip), ip4_addr2(sip),
+		ip4_addr3(sip), ip4_addr4(sip),
+		d[0], d[1], d[2], d[3], d[4], d[5],
+		ip4_addr1(dip), ip4_addr2(dip),
+		ip4_addr3(dip), ip4_addr4(dip),
+		dir, status, tail);
+  } else {
+    return 0;
+  }
+}
+ 
+int snprintf_ip_hdr(char *str, size_t size, char head[],
+		     struct eth_hdr *ethhdr, char dir,
+		     char status, char tail[])
+{
+  struct ip_hdr *iphdr;
+  if (ntohs(ethhdr->type) == ETHTYPE_IP) {
+    iphdr = (struct ip_hdr *)((void *)ethhdr + 14);
+    return snprintf(str, size,
+		 "%s: s:%3d.%3d.%3d.%3d %3d.%3d.%3d.%3d l:%5d"
+		 " i:%04x p:%04x c:%04x hl:%3d"
+		 " %c%c %s\n", head,
+		  ip4_addr1(&iphdr->src), ip4_addr2(&iphdr->src),
+		  ip4_addr3(&iphdr->src), ip4_addr4(&iphdr->src),
+		  ip4_addr1(&iphdr->dest), ip4_addr2(&iphdr->dest),
+		  ip4_addr3(&iphdr->dest), ip4_addr4(&iphdr->dest),
+		  ntohs(IPH_LEN(iphdr)), ntohs(IPH_ID(iphdr)),
+		  IPH_PROTO(iphdr), ntohs(IPH_CHKSUM(iphdr)),
+		  (IPH_HL(iphdr) << 2),
+		  dir, status, tail);
+  } else {
+    return 0;
+  }
+}
+
+int snprintf_icmp_hdr(char *str, size_t size, char head[],
+		       struct eth_hdr *ethhdr, char dir,
+		       char status, char tail[])
+{
+  struct ip_hdr *iphdr;
+  struct icmp_echo_hdr *icmphdr;
+  if (ntohs(ethhdr->type) == ETHTYPE_IP) {
+    iphdr = (struct ip_hdr *)((void *)ethhdr + 14);
+    if (IPH_PROTO(iphdr) == IP_PROTO_ICMP) {
+      icmphdr = (struct icmp_echo_hdr *)((void *)iphdr + (IPH_HL(iphdr) << 2));
+      return snprintf(str, size,
+		 "%s: t:%02x c:%02x k:%04x"
+		   " i:%04x s:%04x "
+		   " %c%c %s\n", head,
+		   icmphdr->type, icmphdr->code, ntohs(icmphdr->chksum),
+		   ntohs(icmphdr->id), ntohs(icmphdr->seqno),
+		    dir, status, tail);
+    } else {
+      return 0;
+    }
+  } else {
+    return 0;
+  }
+}
+ 
+int snprintf_tcp_hdr(char *str, size_t size, char head[],
+		     struct eth_hdr *ethhdr, char dir,
+		     char status, char tail[])
+{
+  struct ip_hdr *iphdr;
+  struct tcp_hdr *tcphdr;
+  if (ntohs(ethhdr->type) == ETHTYPE_IP) {
+    iphdr = (struct ip_hdr *)((void *)ethhdr + 14);
+    if (IPH_PROTO(iphdr) == IP_PROTO_TCP) {
+      tcphdr = (struct tcp_hdr *)((void *)iphdr + (IPH_HL(iphdr) << 2));
+      return snprintf(str, size,
+		 "%s: s:%5d %5d q:%08x a:%08x k:%04x"
+		   " %c%c %s\n", head,
+		    ntohs(tcphdr->src), ntohs(tcphdr->dest),
+		    ntohl(tcphdr->seqno), ntohl(tcphdr->ackno),
+		    ntohs(tcphdr->chksum),
+		    dir, status, tail);
+    } else {
+      return 0;
+    }
+  } else {
+    return 0;
+  }
+}
+ 
+int snprintf_udp_hdr(char *str, size_t size, char head[],
+		      struct eth_hdr *ethhdr, char dir,
+		      char status, char tail[])
+{
+  struct ip_hdr *iphdr;
+  struct udp_hdr *udphdr;
+  if (ntohs(ethhdr->type) == ETHTYPE_IP) {
+    iphdr = (struct ip_hdr *)((void *)ethhdr + 14);
+    if (IPH_PROTO(iphdr) == IP_PROTO_UDP) {
+      udphdr = (struct udp_hdr *)((void *)iphdr + (IPH_HL(iphdr) << 2));
+      return snprintf(str, size,
+		 "%s: s:%5d %5d l:%d c:%04x"
+		   " %c%c %s\n", head,
+		    ntohs(udphdr->src), ntohs(udphdr->dest),
+		    ntohs(udphdr->len), ntohs(udphdr->chksum),
+		    dir, status, tail);
+    } else {
+      return 0;
+    }
+  } else {
+    return 0;
+  }
+}
+#endif /* UNDIIF_ID_FULL_DEBUG */
 
 /**
  * In this function, the hardware should be initialized.
@@ -303,6 +474,27 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
   static __lowmem char pkt_buf[PKTBUF_SIZE];
   uint32_t now;
   static uint32_t first_xmit;
+#if LWIP_UNDIIF_DBG(UNDIIF_ID_FULL_DEBUG)
+  char *str = malloc(UNIDIF_ID_STRLEN);
+  int strpos = 0;
+  struct eth_hdr *ethhdr = pbuf->payload;
+
+
+  strpos = snprintf_eth_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			      "undi", ethhdr, 'x', '0', "");
+  strpos += snprintf_arp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			      "  arp", ethhdr, 'x', '0', "");
+  strpos += snprintf_ip_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			      "  ip", ethhdr, 'x', '0', "");
+  strpos += snprintf_icmp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			      "    icmp", ethhdr, 'x', '0', "");
+  strpos += snprintf_tcp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			      "    tcp", ethhdr, 'x', '0', "");
+  strpos += snprintf_udp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			      "    udp", ethhdr, 'x', '0', "");
+  LWIP_DEBUGF(UNDIIF_ID_FULL_DEBUG, ("%s", str));
+  free(str);
+#endif /* UNDIIF_ID_FULL_DEBUG */
 
   /* Drop jumbo frames */
   if ((pbuf->tot_len > sizeof(pkt_buf)) || (pbuf->tot_len > netif->mtu))
@@ -314,6 +506,7 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
 	  first_xmit = now;
       } else if (now - first_xmit > 3000) {
 	  /* 3 seconds after first transmit, and no interrupts */
+	  LWIP_PLATFORM_DIAG(("undiif: forcing polling\n"));
 	  asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
 	  asm volatile("incl %0" : "+m" (pxe_irq_count));
       }
@@ -1267,7 +1460,26 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
   if (undi_is_ethernet(&undi_netif)) {
     /* points to packet payload, which starts with an Ethernet header */
     struct eth_hdr *ethhdr = p->payload;
-    
+#if LWIP_UNDIIF_DBG(UNDIIF_ID_FULL_DEBUG)
+    char *str = malloc(UNIDIF_ID_STRLEN);
+    int strpos = 0;
+
+    strpos = snprintf_eth_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			        "undi", ethhdr, 'r', '0', "");
+    strpos += snprintf_arp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			        "  arp", ethhdr, 'r', '0', "");
+    strpos += snprintf_ip_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			        "  ip", ethhdr, 'r', '0', "");
+    strpos += snprintf_icmp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+				"    icmp", ethhdr, 'r', '0', "");
+    strpos += snprintf_tcp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			        "    tcp", ethhdr, 'r', '0', "");
+    strpos += snprintf_udp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+			        "    udp", ethhdr, 'r', '0', "");
+    LWIP_DEBUGF(UNDIIF_ID_FULL_DEBUG, ("%s", str));
+    free(str);
+#endif /* UNDIIF_ID_FULL_DEBUG */
+
     switch (htons(ethhdr->type)) {
     /* IP or ARP packet? */
     case ETHTYPE_IP:
