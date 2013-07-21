@@ -398,54 +398,7 @@ static int main_md5sum(int argc, char **argv)
 #include <inttypes.h>
 #include <alloca.h>
 #include <syslinux/boot.h>
-
-struct e820_data {
-	uint64_t base;
-	uint64_t len;
-	uint32_t type;
-	uint32_t extattr;
-} __attribute__((packed));
-
-// Get memory size in Kb
-static unsigned long memory_size(void)
-{
-	uint64_t bytes = 0;
-	static com32sys_t ireg, oreg;
-	static struct e820_data ed;
-
-	ireg.eax.w[0] = 0xe820;
-	ireg.edx.l    = 0x534d4150;
-	ireg.ecx.l    = sizeof(struct e820_data);
-	ireg.edi.w[0] = OFFS(__com32.cs_bounce);
-	ireg.es       = SEG(__com32.cs_bounce);
-
-	ed.extattr = 1;
-
-	do {
-		memcpy(__com32.cs_bounce, &ed, sizeof ed);
-
-		__intcall(0x15, &ireg, &oreg);
-		if (oreg.eflags.l & EFLAGS_CF ||
-		    oreg.eax.l != 0x534d4150  ||
-		    oreg.ecx.l < 20)
-			break;
-
-		memcpy(&ed, __com32.cs_bounce, sizeof ed);
-
-		if (ed.type == 1)
-			bytes += ed.len;
-
-		ireg.ebx.l = oreg.ebx.l;
-	} while (ireg.ebx.l);
-
-	if (!bytes) {
-		memset(&ireg, 0, sizeof ireg);
-		ireg.eax.w[0] = 0x8800;
-		__intcall(0x15, &ireg, &oreg);
-		return ireg.eax.w[0];
-	}
-	return bytes >> 10;
-}
+#include <memory.h>
 
 static void usage(const char *msg)
 {
@@ -464,7 +417,7 @@ static int main_ifmem(int argc, char *argv[])
 	}
 
 	// find target according to ram size
-	ram_size = memory_size();
+	ram_size = detect_memsize();
 	printf("Total memory found %luK.\n",ram_size);
 	ram_size += (1 << 10); // add 1M to round boundaries...
   
