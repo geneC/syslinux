@@ -1,8 +1,8 @@
 #include <syslinux/config.h>
 #include <com32.h>
 
-extern far_ptr_t StrucPtr;
-extern far_ptr_t InitStack;
+extern void *StrucPtr;
+extern void *InitStack;
 
 /*
  * IP information.  Note that the field are in the same order as the
@@ -15,8 +15,8 @@ __export void get_derivative_info(union syslinux_derivative_info *di)
 {
 	di->pxe.filesystem = SYSLINUX_FS_PXELINUX;
 	di->pxe.apiver = APIVer;
-	di->pxe.pxenvptr = GET_PTR(StrucPtr);
-	di->pxe.stack = GET_PTR(InitStack);
+	di->pxe.pxenvptr = &StrucPtr;
+	di->pxe.stack = &InitStack;
 	di->pxe.ipinfo = &IPInfo;
 	di->pxe.myip = IPInfo.myip;
 }

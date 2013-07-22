@@ -2,8 +2,8 @@
 #include <com32.h>
 #include <fs.h>
 
-extern far_ptr_t OrigESDI;
-extern const uint64_t *Hidden;
+extern uint32_t OrigESDI;
+extern const uint64_t Hidden;
 extern uint16_t BIOSType;
 extern uint16_t bios_cdrom;
 extern uint8_t DriveNumber;
@@ -16,7 +16,7 @@ __export void get_derivative_info(union syslinux_derivative_info *di)
 	di->iso.drive_number = DriveNumber;
 	di->iso.cd_mode = ((BIOSType - bios_cdrom) >> 2);
 
-	di->iso.spec_packet = spec_packet;
-	di->iso.esdi_ptr = GET_PTR(OrigESDI);
-	di->iso.partoffset = Hidden;
+	di->iso.spec_packet = &spec_packet;
+	di->iso.esdi_ptr = &OrigESDI;
+	di->iso.partoffset = &Hidden;
 }
