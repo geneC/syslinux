@@ -4,6 +4,26 @@
  * poweroff.c, kbdmap.c, setarg.c, ifarg.c, listarg.c, say.c
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <console.h>
+#include <com32.h>
+#include <md5.h>
+
+static int main_say(int argc, char **argv)
+{
+	int i;
+	for (i = 1; i < argc; i++) {
+		printf("%s ",argv[i]);
+	}
+	printf("\n");
+	sleep(5);
+	return 0;
+}
+
 /*
  * Based on busybox code.
  *
@@ -21,14 +41,6 @@
  *
  * Licensed under GPLv2 or later
  */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <console.h>
-#include <com32.h>
 
 #define ALIGN1
 
@@ -303,16 +315,6 @@ static uint8_t *hash_file(const char *filename)
 	bin2hex((char *)hash_value);
 
 	return hash_value;
-}
-
-static int main_say(int argc, char **argv)
-{
-	int i;
-	for (i = 1; i < argc; i++) {
-		printf("%s ",argv[i]);
-	}
-	sleep(5);
-	return 0;
 }
 
 static int main_md5sum(int argc, char **argv)
