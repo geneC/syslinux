@@ -336,7 +336,7 @@ static void setlinuxarg(int slot, int argc, char *argv[])
 		syslinux_setadv(slot++, strlen(*argv), *argv);
 }
 
-static int main_kbdmap(int argc, char *argv[])
+static int main_kbdmap_cpio(int argc, char *argv[])
 {
     const struct syslinux_keyboard_map *const kmap = syslinux_keyboard_map();
     size_t map_size, size, i;
@@ -788,16 +788,17 @@ int main(int argc, char *argv[])
 		char *name;
 		int (*main)(int argc, char *argv[]);
 	} bin[] = {
-		{ "say",	main_say      },
-		{ "md5sum",	main_md5sum   },
-		{ "ifmem",	main_ifmem    },
-		{ "reboot",	main_reboot   },
-		{ "poweroff",	main_poweroff },
-		{ "kbdmap",	main_kbdmap   },
-		{ "linux",	main_linux    },
-		{ "setarg",	main_setarg   },
-		{ "ifarg",	main_ifarg    },
-		{ "listarg",	main_listarg  }
+		{ "echo",	main_say	 },
+		{ "say",	main_say	 },
+		{ "md5sum",	main_md5sum	 },
+		{ "ifmem",	main_ifmem	 },
+		{ "reboot",	main_reboot	 },
+		{ "poweroff",	main_poweroff	 },
+		{ "kbdmap",	main_kbdmap_cpio },
+		{ "linux",	main_linux	 },
+		{ "setarg",	main_setarg	 },
+		{ "ifarg",	main_ifarg	 },
+		{ "listarg",	main_listarg	 }
 	};
 
 	openconsole(&dev_null_r, &dev_stdcon_w);
