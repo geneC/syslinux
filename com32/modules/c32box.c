@@ -89,6 +89,18 @@ static char *unrockridge(const char *name)
 	return buffer;
 }
 
+static char *unrockridge_iso(const char *name)
+{
+	const struct syslinux_version *sv;
+	sv = syslinux_version();
+	if (sv->filesystem != SYSLINUX_FS_ISOLINUX) {
+		return unrockridge(name);
+	} else {
+		return name;
+	}
+}
+
+
 static uint8_t *md5_file(const char *filename)
 {
 	int src_fd, count;
@@ -99,7 +111,7 @@ static uint8_t *md5_file(const char *filename)
 
 	src_fd = open(filename, O_RDONLY);
 	if (src_fd < 0) {
-		src_fd = open(unrockridge(filename), O_RDONLY);
+		src_fd = open(unrockridge_iso(filename), O_RDONLY);
 	}
 	if (src_fd < 0) {
 		return NULL;
@@ -134,7 +146,7 @@ static int main_md5sum(int argc, char **argv)
 		char eol, *line, buffer[4096];
 		fp = fopen(*argv,"r");
 		if (fp == NULL)
-			fp = fopen(unrockridge(*argv),"r");
+			fp = fopen(unrockridge_iso(*argv),"r");
 
 		while ((line = fgets(buffer,sizeof(buffer),fp)) != NULL) {
 			uint8_t *hash_value;
