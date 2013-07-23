@@ -52,6 +52,8 @@ release:
 	find release/syslinux-$(VERSION) \
 		\( -name '*~' -or -name '#*' -or -name '.git*' \) -type f -print0 | \
 		xargs -0rt rm -f
+	find release/syslinux-$(VERSION) -name 'tests' -type d -print0 | \
+		xargs -0rt rm -rf
 	sed -e 's/@@VERSION@@/$(VERSION)/g' -e 's/@@RPMVERSION@@/$(VERSION)/g' \
 		< release/syslinux-$(VERSION)/syslinux.spec.in \
 		> release/syslinux-$(VERSION)/syslinux.spec
@@ -81,6 +83,9 @@ prerel:
 	find $(PRERELDIR)/$(PREREL) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
+	find $(PRERELDIR)/$(PREREL) \
+		-name 'tests' -type d -print0 | \
+		xargs -0rt rm -rf
 	sed -e 's/@@VERSION@@/$(VERSION)-pre$(PRERELNO)/g' \
 	    -e 's/@@RPMVERSION@@/$(RPMPREREL)/g' \
 		< $(PRERELDIR)/$(PREREL)/syslinux.spec.in \
