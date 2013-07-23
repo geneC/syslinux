@@ -22,7 +22,7 @@ int scan_highmem_area(void *data, addr_t start, addr_t len,
 	dprintf("start = %x, len = %x, type = %d", start, len, type);
 
 	if (start < 0x100000 || start > E820_MEM_MAX
-			     || !SMT_FREE)
+			     || type != SMT_FREE)
 		return 0;
 
 	if (start < __com32.cs_memsize) {
