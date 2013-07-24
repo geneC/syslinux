@@ -67,9 +67,13 @@ PXELINUX_CSRC = $(CORE_PXE_CSRC) \
 LPXELINUX_OBJS = $(subst $(SRC)/,,$(LPXELINUX_CSRC:%.c=%.o))
 PXELINUX_OBJS  = $(subst $(SRC)/,,$(PXELINUX_CSRC:%.c=%.o))
 
-# Don't include console and network stack specific objects
+UNITTEST_CSRC = $(shell find $(SRC) -path '*/tests/*.c' -print)
+UNITTEST_OBJS = $(subst $(SRC)/,,$(UNITTEST_CSRC:%.c=%.o))
+
+# Don't include console and network stack specific objects or unit tests
 FILTER_OBJS = %rawcon.o %plaincon.o %pxelinux-c.o %ldlinux-c.o \
 	%isolinux-c.o %localboot.o %pxeboot.o \
+	$(subst $(OBJ)/,,$(UNITTEST_OBJS)) \
 	$(subst $(OBJ)/,,$(LPXELINUX_OBJS)) \
 	$(subst $(OBJ)/,,$(PXELINUX_OBJS))
 

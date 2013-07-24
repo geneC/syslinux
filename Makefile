@@ -103,6 +103,7 @@ $(filter-out $(private-targets), $(MAKECMDGOALS)):
 
 unittest:
 	printf "Executing unit tests\n"
+	$(MAKE) -C core/mem/tests all
 	$(MAKE) -C com32/lib/syslinux/tests all
 
 regression:

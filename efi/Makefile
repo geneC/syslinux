@@ -27,6 +27,10 @@ FILTERED_OBJS:= $(subst $(core),$(OBJ)/../core/,$(patsubst %.c,%.o, \
 	$(wildcard $(core)/fs/pxe/*.c) \
 	$(wildcard $(core)/thread/*.c)))
 
+# Don't include unit tests
+FILTERED_OBJS += $(subst $(core),$(OBJ)/../core/, \
+	$(patsubst %.c,%.o,$(shell find $(core) -path "*/tests/*.c" -print)))
+
 # Don't include console objects
 CORE_OBJS = $(filter-out %hello.o %rawcon.o %plaincon.o %strcasecmp.o %bios.o \
 	%diskio_bios.o %ldlinux-c.o %isolinux-c.o %pxelinux-c.o \
