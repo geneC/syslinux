@@ -11,13 +11,6 @@ static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
 
-struct pxe_region {
-    addr_t start;
-    addr_t size;
-};
-
-static struct pxe_region __pxe_regions[PXE_Seg_BC_CodeWrite + 1];
-
 /*
  * Validity check on possible !PXE structure in buf
  * return 1 for success, 0 for failure.
@@ -98,8 +91,8 @@ static const struct pxenv_t *memory_scan_for_pxenv_struct(void)
 
 static int pxelinux_scan_memory(scan_memory_callback_t callback, void *data)
 {
-    addr_t start, end, size;
-    int i, rv = 0;
+    addr_t start, size;
+    int rv = 0;
 
     if (KeepPXE)
 	return 0;
@@ -110,44 +103,13 @@ static int pxelinux_scan_memory(scan_memory_callback_t callback, void *data)
      * that region as SMT_TERMINAL to indicate that the region will
      * become free at some point in the future.
      */
-    for (i = PXE_Seg_Stack; i <= PXE_Seg_BC_CodeWrite; i++) {
-	start = __pxe_regions[i].start;
-	size = __pxe_regions[i].size;
-	end = start + size;
+    start = bios_fbm() << 10;
+    size = (real_base_mem - bios_fbm()) << 10;
+    dprintf("Marking PXE region 0x%x - 0x%x as SMT_TERMINAL\n",
+	start, start + size);
 
-	if (!start || !size)
-	    continue;
-
-	dprintf("Marking PXE region (%d) 0x%x - 0x%x as SMT_TERMINAL\n",
-		i, start, end);
-	rv = callback(data, start, size, SMT_TERMINAL);
-    }
-
+    callback(data, start, size, SMT_TERMINAL);
     return rv;
-}
-
-static void setup_pxenv_regions(const struct pxenv_t *pxenv)
-{
-    __pxe_regions[PXE_Seg_Stack].start = pxenv->stackseg << 4;
-    __pxe_regions[PXE_Seg_Stack].size = pxenv->stacksize;
-    __pxe_regions[PXE_Seg_UNDIData].start = pxenv->undidataseg << 4;
-    __pxe_regions[PXE_Seg_UNDIData].size = pxenv->undidatasize;
-    __pxe_regions[PXE_Seg_UNDICode].start = pxenv->undicodeseg << 4;
-    __pxe_regions[PXE_Seg_UNDICode].size = pxenv->undicodesize;
-    __pxe_regions[PXE_Seg_BC_Data].start = pxenv->bc_dataseg << 4;
-    __pxe_regions[PXE_Seg_BC_Data].size = pxenv->bc_datasize;
-    __pxe_regions[PXE_Seg_BC_Code].start = pxenv->bc_codeseg << 4;
-    __pxe_regions[PXE_Seg_BC_Code].size = pxenv->bc_codesize;
-}
-
-static void setup_pxe_regions(const pxe_segdesc_t *seg)
-{
-    int i;
-
-    for (i = PXE_Seg_Stack; i <= PXE_Seg_BC_CodeWrite; i++) {
-	__pxe_regions[i].start = seg[i].sel << 4;
-	__pxe_regions[i].size = seg[i].size;
-    }
 }
 
 /*
@@ -249,7 +211,6 @@ int pxe_init(bool quiet)
     PXEEntry = pxenv->rmentry;
     type = "PXENV+";
 
-    setup_pxenv_regions(pxenv);
     goto have_entrypoint;
 
  have_pxe:
@@ -260,7 +221,6 @@ int pxe_init(bool quiet)
     PXEEntry = pxe->entrypointsp;
     type = "!PXE";
 
-    setup_pxe_regions(pxe->seg);
  have_entrypoint:
     if (!quiet) {
 	printf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
