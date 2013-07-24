@@ -1,9 +1,8 @@
-#include "test.h"
 #include "../addlist.c"
 #include "../freelist.c"
 #include "../movebits.c"
 
-struct syslinux_memmap *test_build_mmap(struct mmap_entry *entries,
+struct syslinux_memmap *test_build_mmap(struct test_memmap_entry *entries,
 					size_t nr_entries)
 {
     struct syslinux_memmap *mmap;

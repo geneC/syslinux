@@ -1,4 +1,5 @@
-#include "test.h"
+#include "unittest/unittest.h"
+#include "unittest/memmap.h"
 #include <setjmp.h>
 
 #include "../../../include/minmax.h"
@@ -11,7 +12,7 @@ static int move_to_terminal_region(void)
     addr_t dst, src;
     size_t len;
     int rv = -1;
-    struct mmap_entry entries[] = {
+    struct test_memmap_entry entries[] = {
 	{ 0x00000, 0x90000, SMT_RESERVED },
 	{ 0x90000, 0x10000, SMT_TERMINAL },
 	{ 0xa0000, 0xf000, SMT_FREE },
@@ -46,7 +47,7 @@ static int move_to_overlapping_region(void)
     addr_t dst, src;
     size_t len;
     int rv = -1;
-    struct mmap_entry entries[] = {
+    struct test_memmap_entry entries[] = {
 	{ 0x00000, 0x90000, SMT_RESERVED },
 	{ 0x90000, 0x10000, SMT_TERMINAL },
 	{ 0xa0000, 0xf000, SMT_FREE },

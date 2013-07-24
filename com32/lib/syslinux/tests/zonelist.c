@@ -15,7 +15,8 @@
  * run on the development host we must include all headers with absolute
  * paths.
  */
-#include "test.h"
+#include "unittest/unittest.h"
+#include "unittest/memmap.h"
 #include "../zonelist.c"
 #include "test-harness.c"
 
@@ -172,7 +173,7 @@ static int demote_free_region_to_terminal(void)
     enum syslinux_memmap_types type;
     struct syslinux_memmap *mmap;
     int rv = -1;
-    struct mmap_entry entries[] = {
+    struct test_memmap_entry entries[] = {
 	{ 0x100000, 0x300000, SMT_TERMINAL },
 	{ 0x400000, 0x300000, SMT_FREE },
 	{ 0x700000, 0x20000, SMT_FREE },
