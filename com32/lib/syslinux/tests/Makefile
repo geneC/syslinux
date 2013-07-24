@@ -1,13 +1,11 @@
 CFLAGS = -I$(topdir)/tests/unittest/include
 
 tests = zonelist movebits memscan
+.INTERMEDIATE: $(tests)
 
 all: banner $(tests)
 	for t in $(tests); \
 		do printf "      [+] $$t passed\n" ; ./$$t ; done
-clean:
-	rm $(tests)
-
 banner:
 	printf "    Running library unit tests...\n"
 
