@@ -4,6 +4,7 @@
 #include "malloc.h"
 #include "core.h"
 #include <syslinux/memscan.h>
+#include <dprintf.h>
 
 struct free_arena_header __core_malloc_head[NHEAP];
 
