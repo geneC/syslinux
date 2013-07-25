@@ -13,6 +13,8 @@
 #include <com32.h>
 #include <md5.h>
 
+#include <syslinux/config.h>
+
 static int main_say(int argc, char **argv)
 {
 	int i;
@@ -89,7 +91,7 @@ static char *unrockridge(const char *name)
 	return buffer;
 }
 
-static char *unrockridge_iso(const char *name)
+static const char *unrockridge_iso(const char *name)
 {
 	const struct syslinux_version *sv;
 	sv = syslinux_version();
@@ -99,7 +101,6 @@ static char *unrockridge_iso(const char *name)
 		return name;
 	}
 }
-
 
 static uint8_t *md5_file(const char *filename)
 {
