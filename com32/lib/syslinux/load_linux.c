@@ -124,6 +124,15 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
     return 0;
 }
 
+static size_t calc_cmdline_offset(struct linux_header *hdr,
+				  size_t cmdline_size)
+{
+    if (hdr->version < 0x0202 || !(hdr->loadflags & 0x01))
+	return (0x9ff0 - cmdline_size) & ~15;
+
+    return 0x10000;
+}
+
 int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 		    struct initramfs *initramfs,
 		    struct setup_data *setup_data,
@@ -212,10 +221,7 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 	cmdline[cmdline_size - 1] = '\0';
     }
 
-    if (hdr.version < 0x0202 || !(hdr.loadflags & 0x01))
-	cmdline_offset = (0x9ff0 - cmdline_size) & ~15;
-    else
-	cmdline_offset = 0x10000;
+    cmdline_offset = calc_cmdline_offset(&hdr, cmdline_size);
 
     real_mode_size = (hdr.setup_sects + 1) << 9;
     real_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x10000 : 0x90000;
