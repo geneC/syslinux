@@ -1,0 +1,3 @@
+
+[    0.000000] Kernel command line: BOOT_IMAGE=kernelhello-vmlinuz console=ttyS0 this-is-my-cmdline arguments
+Hello, World!

@@ -31,7 +31,11 @@ kernelhello_cfg = kernelhello.cfg
 kernelhello_files = $(kernelhello_cfg) kernelhello-vmlinuz
 kernelhello_results = kernelhello.results
 
-STANDARD_TESTS = kernelhello pxetest
+cmdline_cfg = cmdline.cfg
+cmdline_files = $(cmdline_cfg) kernelhello-vmlinuz
+cmdline_results = cmdline.results
+
+STANDARD_TESTS = kernelhello pxetest cmdline
 $(STANDARD_TESTS):
 	$(run-test)
 
@@ -39,7 +43,7 @@ empty:
 	touch empty-vmlinuz
 	$(run-test)
 
-tests: banner empty kernelhello $(derivative-tests)
+tests: banner empty kernelhello cmdline $(derivative-tests)
 
 banner:
 	printf "    Running Linux kernel regression tests...\n"
