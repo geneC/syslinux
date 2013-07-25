@@ -219,6 +219,51 @@ int syslinux_memmap_largest(struct syslinux_memmap *list,
 }
 
 /*
+ * Find the highest zone of a specific type that satisfies the
+ * constraints.
+ *
+ * 'start' is updated with the highest address on success. 'start' can
+ * be used to set a minimum address to begin searching from.
+ *
+ * Returns -1 on failure.
+ */
+int syslinux_memmap_highest(struct syslinux_memmap *list,
+			    enum syslinux_memmap_types type,
+			    addr_t *start, addr_t len,
+			    addr_t ceiling, addr_t align)
+{
+    addr_t size, best;
+
+    for (best = 0; list->type != SMT_END; list = list->next) {
+	size = list->next->start - list->start;
+
+	if (list->type != type)
+	    continue;
+
+	if (list->start + size <= *start)
+	    continue;
+
+	if (list->start + len >= ceiling)
+	    continue;
+
+	if (list->start + size < ceiling)
+	    best = ALIGN_DOWN(list->start + size - len, align);
+	else
+	    best = ALIGN_DOWN(ceiling - len, align);
+
+	if (best < *start)
+	    best = 0;
+    }
+
+    if (!best)
+	return -1;
+
+    *start = best;
+
+    return 0;
+}
+
+/*
  * Find the first (lowest address) zone of a specific type and of
  * a certain minimum size, with an optional starting address.
  * The input values of start and len are used as minima.

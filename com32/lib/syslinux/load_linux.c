@@ -125,10 +125,29 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
 }
 
 static size_t calc_cmdline_offset(struct linux_header *hdr,
-				  size_t cmdline_size)
+				  size_t cmdline_size, addr_t base,
+				  addr_t start)
 {
-    if (hdr->version < 0x0202 || !(hdr->loadflags & 0x01))
+    if (hdr->version < 0x0202 || !(hdr->loadflags & 0x01)) {
+	struct syslinux_memmap *mmap;
+
+	mmap = syslinux_memory_map();
+	if (mmap && !syslinux_memmap_highest(mmap, SMT_FREE, &start,
+					     cmdline_size, 0xa0000, 16)) {
+	    syslinux_free_memmap(mmap);
+	    return start - base;
+	}
+
+	if (mmap && !syslinux_memmap_highest(mmap, SMT_TERMINAL, &start,
+					     cmdline_size, 0xa0000, 16)) {
+	    syslinux_free_memmap(mmap);
+	    return start - base;
+	}
+
+	syslinux_free_memmap(mmap);
+	dprintf("Unable to find lowmem for cmdline\n");
 	return (0x9ff0 - cmdline_size) & ~15;
+    }
 
     return 0x10000;
 }
@@ -221,12 +240,14 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 	cmdline[cmdline_size - 1] = '\0';
     }
 
-    cmdline_offset = calc_cmdline_offset(&hdr, cmdline_size);
-
     real_mode_size = (hdr.setup_sects + 1) << 9;
     real_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x10000 : 0x90000;
     prot_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x100000 : 0x10000;
     prot_mode_size = kernel_size - real_mode_size;
+
+    cmdline_offset = calc_cmdline_offset(&hdr, cmdline_size, real_mode_base,
+					 real_mode_base + real_mode_size);
+    dprintf("cmdline_offset at 0x%x\n", real_mode_base + cmdline_offset);
 
     if (hdr.version < 0x020a) {
 	/*

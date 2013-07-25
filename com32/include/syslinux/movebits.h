@@ -83,6 +83,10 @@ enum syslinux_memmap_types syslinux_memmap_type(struct syslinux_memmap *list,
 int syslinux_memmap_largest(struct syslinux_memmap *list,
 			    enum syslinux_memmap_types type,
 			    addr_t * start, addr_t * len);
+int syslinux_memmap_highest(struct syslinux_memmap *list,
+			    enum syslinux_memmap_types types,
+			    addr_t *start, addr_t len,
+			    addr_t ceiling, addr_t align);
 void syslinux_free_memmap(struct syslinux_memmap *list);
 struct syslinux_memmap *syslinux_dup_memmap(struct syslinux_memmap *list);
 int syslinux_memmap_find_type(struct syslinux_memmap *list,
