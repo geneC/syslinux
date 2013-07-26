@@ -1816,6 +1816,34 @@
 #endif
 
 /**
+ * UNDIIF_DEBUG: Enable debugging in undiif.c.
+ */
+#ifndef UNDIIF_DEBUG
+#define UNDIIF_DEBUG                     LWIP_DBG_OFF
+#endif
+
+/**
+ * UNDIIF_ARP_DEBUG: Enable ETHARP debugging in undiif.c.
+ */
+#ifndef UNDIIF_ARP_DEBUG
+#define UNDIIF_ARP_DEBUG                     LWIP_DBG_OFF
+#endif
+
+/**
+ * UNDIIF_NET_DEBUG: Enable NETIF debugging in undiif.c.
+ */
+#ifndef UNDIIF_NET_DEBUG
+#define UNDIIF_NET_DEBUG                     LWIP_DBG_OFF
+#endif
+
+/**
+ * UNDIIF_ID_DEBUG: Enable debugging to identify packets in undiif.c.
+ */
+#ifndef UNDIIF_ID_DEBUG
+#define UNDIIF_ID_DEBUG                     LWIP_DBG_OFF
+#endif
+
+/**
  * PBUF_DEBUG: Enable debugging in pbuf.c.
  */
 #ifndef PBUF_DEBUG
