@@ -203,6 +203,70 @@ bail:
     return rv;
 }
 
+/*
+ * Find the highest address given a set of boundary conditions.
+ */
+static int test_find_highest(void)
+{
+    struct syslinux_memmap *mmap;
+    addr_t start;
+    int rv = -1;
+    struct test_memmap_entry entries[] = {
+	0x000000, 0x000000, SMT_FREE,
+	0x090000, 0x002000, SMT_FREE,
+	0x092000, 0x100000, SMT_RESERVED,
+	0x192001, 0x000021, SMT_TERMINAL,
+    };
+
+    mmap = test_build_mmap(entries, array_sz(entries));
+    if (!mmap)
+	goto bail;
+
+    start = 0x90000;
+    rv = syslinux_memmap_highest(mmap, SMT_FREE, &start, 0x20, 0x192000, 1);
+
+    syslinux_assert(!rv, "Failed to find highest SMT_FREE address");
+    syslinux_assert_str(start == 0x91fe0,
+			"0x%x incorrect highest address", start);
+
+    start = 0x40000;
+    rv = syslinux_memmap_highest(mmap, SMT_FREE, &start, 0x20, 0x91480, 1);
+
+    syslinux_assert(!rv, "Failed to find highest SMT_FREE address");
+    syslinux_assert_str(start == 0x91460,
+			"0x%x incorrect highest address", start);
+
+
+    start = 0x90023;
+    rv = syslinux_memmap_highest(mmap, SMT_FREE, &start, 0x20, 0x90057, 0x10);
+    syslinux_assert_str(start == 0x90030,
+			"0x%x incorrectly aligned highest address", start);
+
+    start = 0x00000;
+    rv = syslinux_memmap_highest(mmap, SMT_TERMINAL, &start,
+				 0x7, 0x192300, 0x10);
+    syslinux_assert_str(start == 0x192010,
+			"0x%x incorrectly aligned SMT_TERMINAL address", start);
+
+    start = 0x192001;
+    rv = syslinux_memmap_highest(mmap, SMT_RESERVED, &start,
+				 0x400, (addr_t)-1, 1);
+    syslinux_assert_str(rv && start == 0x192001,
+			"Unexpectedly succeeded finding invalid region: 0x%x",
+			start);
+
+    start = 0x191fff;
+    rv = syslinux_memmap_highest(mmap, SMT_RESERVED, &start,
+				 0x800, (addr_t)-1, 1);
+    syslinux_assert_str(rv && start == 0x191fff,
+			"Unexpectedly succeeded finding invalid region: 0x%x",
+			start);
+    rv = 0;
+bail:
+    syslinux_free_memmap(mmap);
+    return rv;
+}
+
 int main(int argc, char **argv)
 {
     refuse_to_alloc_reserved_region();
@@ -215,6 +279,8 @@ int main(int argc, char **argv)
 
     alloc_in_pxe_region();
     demote_free_region_to_terminal();
+
+    test_find_highest();
 
     return 0;
 }
