@@ -9,6 +9,7 @@
 
 #include "bios.h"
 #include "graphics.h"
+#include <syslinux/video.h>
 
 __export void writechr(char data)
 {

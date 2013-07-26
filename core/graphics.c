@@ -24,6 +24,7 @@
 
 #include "bios.h"
 #include "graphics.h"
+#include <syslinux/video.h>
 
 __export uint8_t UsingVGA = 0;
 uint16_t VGAPos;		/* Pointer into VGA memory */

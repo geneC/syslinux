@@ -4,6 +4,7 @@
 
 #include "bios.h"
 #include "graphics.h"
+#include <syslinux/video.h>
 
 /*
  * Write a single character in AL to the console without

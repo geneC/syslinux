@@ -16,6 +16,7 @@
 #include <graphics.h>
 #include "syslnx.h"
 #include <syslinux/config.h>
+#include <syslinux/video.h>
 
 com32sys_t inreg, outreg;	// Global registers for this module
 

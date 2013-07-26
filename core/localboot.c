@@ -16,7 +16,7 @@
 #include <core.h>
 #include <fs.h>
 #include <bios.h>
-#include <graphics.h>
+#include <syslinux/video.h>
 
 /*
  * localboot.c

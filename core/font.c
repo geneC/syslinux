@@ -20,6 +20,7 @@
  */
 
 #include <syslinux/firmware.h>
+#include <syslinux/video.h>
 #include <sys/io.h>
 #include <stdio.h>
 #include <fs.h>

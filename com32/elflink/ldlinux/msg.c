@@ -1,3 +1,4 @@
+#include <syslinux/video.h>
 #include <com32.h>
 #include <stdio.h>
 #include <bios.h>

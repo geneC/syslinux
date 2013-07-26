@@ -6,6 +6,7 @@
 #include <graphics.h>
 #include <syslinux/memscan.h>
 #include <syslinux/firmware.h>
+#include <syslinux/video.h>
 
 #include <sys/vesa/vesa.h>
 #include <sys/vesa/video.h>

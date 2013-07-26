@@ -40,7 +40,6 @@
 #include <minmax.h>
 #include <errno.h>
 #include <suffix_number.h>
-#include <graphics.h>
 #include <dprintf.h>
 
 #include <syslinux/align.h>
@@ -48,6 +47,7 @@
 #include <syslinux/bootrm.h>
 #include <syslinux/movebits.h>
 #include <syslinux/firmware.h>
+#include <syslinux/video.h>
 
 #define BOOT_MAGIC 0xAA55
 #define LINUX_MAGIC ('H' + ('d' << 8) + ('r' << 16) + ('S' << 24))
