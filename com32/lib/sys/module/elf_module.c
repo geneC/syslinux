@@ -29,12 +29,12 @@ static int check_header(Elf_Ehdr *elf_hdr) {
 		return res;
 
 	if (elf_hdr->e_type != MODULE_ELF_TYPE) {
-		DBG_PRINT("The ELF file must be a shared object\n");
+		dprintf("The ELF file must be a shared object\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_phoff == 0x00000000) {
-		DBG_PRINT("PHT missing\n");
+		dprintf("PHT missing\n");
 		return -1;
 	}
 
@@ -188,7 +188,7 @@ int module_load(struct elf_module *module) {
 
 	// Do not allow duplicate modules
 	if (module_find(module->name) != NULL) {
-		DBG_PRINT("Module %s is already loaded.\n", module->name);
+		dprintf("Module %s is already loaded.\n", module->name);
 		return EEXIST;
 	}
 
@@ -196,6 +196,7 @@ int module_load(struct elf_module *module) {
 	res = image_load(module);
 
 	if (res < 0) {
+		dprintf("Image load failed for %s\n", module->name);
 		return res;
 	}
 
@@ -281,7 +282,7 @@ int module_load(struct elf_module *module) {
 	image_unload(module);
 
 	/*
-	DBG_PRINT("MODULE %s LOADED SUCCESSFULLY (main@%p, init@%p, exit@%p)\n",
+	dprintf("MODULE %s LOADED SUCCESSFULLY (main@%p, init@%p, exit@%p)\n",
 			module->name,
 			(module->main_func == NULL) ? NULL : *(module->main_func),
 			(module->init_func == NULL) ? NULL : *(module->init_func),

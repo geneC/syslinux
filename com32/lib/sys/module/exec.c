@@ -169,6 +169,7 @@ int spawn_load(const char *name, int argc, char **argv)
 
 	if (get_module_type(module) == EXEC_MODULE) {
 		if (!argc || !argv || strcmp(argv[0], name)) {
+			dprintf("invalid args for %s\n", name);
 			res = -1;
 			goto out;
 		}
@@ -182,8 +183,10 @@ int spawn_load(const char *name, int argc, char **argv)
 	}
 
 	res = module_load(module);
-	if (res != 0)
+	if (res != 0) {
+		dprintf("failed to load module %s\n", module->name);
 		goto out;
+	}
 
 	type = get_module_type(module);
 

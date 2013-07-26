@@ -77,6 +77,7 @@ FILE *findpath(char *name)
 		snprintf(path, sizeof(path), "%s%s%s",
 			 entry->str, slash ? "/" : "", name);
 
+		dprintf("findpath: trying \"%s\"\n", path);
 		f = fopen(path, "rb");
 		if (f)
 			return f;
@@ -94,7 +95,7 @@ int image_load(struct elf_module *module)
 	module->u.l._file = findpath(module->name);
 
 	if (module->u.l._file == NULL) {
-		DBG_PRINT("Could not open object file '%s'\n", module->name);
+		dprintf("Could not open object file '%s'\n", module->name);
 		goto error;
 	}
 
@@ -225,30 +226,30 @@ int check_header_common(Elf_Ehdr *elf_hdr) {
 		elf_hdr->e_ident[EI_MAG2] != ELFMAG2 ||
 		elf_hdr->e_ident[EI_MAG3] != ELFMAG3) {
 
-		DBG_PRINT("The file is not an ELF object\n");
+		dprintf("The file is not an ELF object\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_ident[EI_CLASS] != ELFCLASS32 &&
 	    elf_hdr->e_ident[EI_CLASS] != ELFCLASS64) {
-		DBG_PRINT("Invalid ELF class code\n");
+		dprintf("Invalid ELF class code\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_ident[EI_DATA] != MODULE_ELF_DATA) {
-		DBG_PRINT("Invalid ELF data encoding\n");
+		dprintf("Invalid ELF data encoding\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_ident[EI_VERSION] != MODULE_ELF_VERSION ||
 			elf_hdr->e_version != MODULE_ELF_VERSION) {
-		DBG_PRINT("Invalid ELF file version\n");
+		dprintf("Invalid ELF file version\n");
 		return -1;
 	}
 
 	if (elf_hdr->e_machine != EM_386 &&
 		elf_hdr->e_machine != EM_X86_64) {
-		DBG_PRINT("Invalid ELF architecture\n");
+		dprintf("Invalid ELF architecture\n");
 		return -1;
 	}
 
@@ -360,7 +361,7 @@ int check_symbols(struct elf_module *module)
 			// and ISOLINUX. See perform_relocations().
 			if (strong_count == 0 && weak_count == 0)
 			{
-				DBG_PRINT("Symbol %s is undefined\n", crt_name);
+				dprintf("Symbol %s is undefined\n", crt_name);
 				printf("Undef symbol FAIL: %s\n",crt_name);
 				return -1;
 			}
@@ -371,7 +372,7 @@ int check_symbols(struct elf_module *module)
 			{
 				// It's not an error - at relocation, the most recent symbol
 				// will be considered
-				DBG_PRINT("Info: Symbol %s is defined more than once\n", crt_name);
+				dprintf("Info: Symbol %s is defined more than once\n", crt_name);
 			}
 		}
 		//printf("symbol %s laoded from %d\n",crt_name,crt_sym->st_value);
@@ -393,7 +394,7 @@ int _module_unload(struct elf_module *module) {
 	struct module_dep *crt_dep, *tmp;
 	// Make sure nobody needs us
 	if (!module_unloadable(module)) {
-		DBG_PRINT("Module is required by other modules.\n");
+		dprintf("Module is required by other modules.\n");
 		return -1;
 	}
 
@@ -409,9 +410,11 @@ int _module_unload(struct elf_module *module) {
 	if (module->module_addr != NULL) {
 		elf_free(module->module_addr);
 
-		DBG_PRINT("%s MODULE %s UNLOADED\n", module->shallow ? "SHALLOW" : "",
+		dprintf("%s MODULE %s UNLOADED\n", module->shallow ? "SHALLOW" : "",
 				module->name);
 	}
+
+	dprintf("Unloading module %s\n", module->name);
 	// Release the module structure
 	free(module);
 
@@ -487,7 +490,7 @@ static Elf_Sym *module_find_symbol_gnu(const char *name, struct elf_module *modu
 	Elf_Word bitmask_nwords = *cr_word++;
 
 	if ((bitmask_nwords & (bitmask_nwords - 1)) != 0) {
-		DBG_PRINT("Invalid GNU Hash structure\n");
+		dprintf("Invalid GNU Hash structure\n");
 		return NULL;
 	}
 
