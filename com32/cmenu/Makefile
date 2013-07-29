@@ -21,6 +21,8 @@ LIBS  = libmenu/libmenu.c32 \
         $(objdir)/com32/libutil/libutil.c32 \
         $(objdir)/com32/lib/libcom32.c32
 
+C_LIBS	  = libmenu/libmenu.c32
+
 VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 

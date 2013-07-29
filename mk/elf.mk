@@ -72,7 +72,7 @@ LNXCFLAGS  = -I$(com32)/libutil/include -W -Wall -O -g -D_GNU_SOURCE
 LNXSFLAGS  = -g
 LNXLDFLAGS = -g
 
-C_LIBS	   = $(objdir)/com32/libutil/libutil.c32 $(GPLLIB) \
+C_LIBS	   += $(objdir)/com32/libutil/libutil.c32 $(GPLLIB) \
 	     $(objdir)/com32/lib/libcom32.c32
 C_LNXLIBS  = $(objdir)/com32/libutil/libutil_lnx.a \
 	     $(objdir)/com32/elflink/ldlinux/ldlinux_lnx.a
