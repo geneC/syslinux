@@ -26,10 +26,9 @@ include $(MAKEDIR)/elf.mk
 
 CFLAGS	  += -I$(SRC)/libmenu
 
-LIBMENU = $(objdir)/com32/libutil/libutil.c32 \
-	$(objdir)/com32/lib/libcom32.c32 \
-	libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
-	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o
+LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
+	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o \
+	$(objdir)/com32/libutil/libutil.c32 $(objdir)/com32/lib/libcom32.c32
 
 CMENUS = $(patsubst %.c,%.c32,$(wildcard $(SRC)/*.c))
 IMENUS = $(patsubst %.menu,%.c32,$(wildcard $(SRC)/*.menu))

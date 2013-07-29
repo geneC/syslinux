@@ -19,11 +19,17 @@ chaindisk_results = chaindisk.results
 chaindisk:
 	$(run-test)
 
-tests: banner chaindisk
+tests: banner chaindisk hdt
 else
 
-tests:
+tests: banner hdt
 endif # ifeq ($(DERIVATIVE),SYSLINUX)
+
+hdt_cfg = hdt.cfg
+hdt_files = $(hdt_cfg)
+hdt_results = hdt.results
+hdt:
+	$(run-test)
 
 banner:
 	printf "    Running COM32 module regression tests...\n"
