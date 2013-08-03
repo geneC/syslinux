@@ -248,7 +248,7 @@ int snprintf_eth_hdr(char *str, size_t size, char head[],
   return snprintf(str, size,
 		"%s: d:%02x:%02x:%02x:%02x:%02x:%02x"
 		" s:%02x:%02x:%02x:%02x:%02x:%02x"
-		" t:%4hx %c%c %s\n", head,
+		" t:%4hx %c%c%s\n", head,
 		d[0], d[1], d[2], d[3], d[4], d[5],
 		s[0], s[1], s[2], s[3], s[4], s[5],
 		(unsigned)htons(ethhdr->type),
@@ -273,7 +273,7 @@ int snprintf_arp_hdr(char *str, size_t size, char head[],
 		" %3d.%3d.%3d.%3d"
 		" %02x:%02x:%02x:%02x:%02x:%02x"
 		" %3d.%3d.%3d.%3d"
-		" %c%c %s\n", head,
+		" %c%c%s\n", head,
 		s[0], s[1], s[2], s[3], s[4], s[5],
 		ip4_addr1(sip), ip4_addr2(sip),
 		ip4_addr3(sip), ip4_addr4(sip),
@@ -296,7 +296,7 @@ int snprintf_ip_hdr(char *str, size_t size, char head[],
     return snprintf(str, size,
 		 "%s: s:%3d.%3d.%3d.%3d %3d.%3d.%3d.%3d l:%5d"
 		 " i:%04x p:%04x c:%04x hl:%3d"
-		 " %c%c %s\n", head,
+		 " %c%c%s\n", head,
 		  ip4_addr1(&iphdr->src), ip4_addr2(&iphdr->src),
 		  ip4_addr3(&iphdr->src), ip4_addr4(&iphdr->src),
 		  ip4_addr1(&iphdr->dest), ip4_addr2(&iphdr->dest),
@@ -323,7 +323,7 @@ int snprintf_icmp_hdr(char *str, size_t size, char head[],
       return snprintf(str, size,
 		 "%s: t:%02x c:%02x k:%04x"
 		   " i:%04x s:%04x "
-		   " %c%c %s\n", head,
+		   " %c%c%s\n", head,
 		   icmphdr->type, icmphdr->code, ntohs(icmphdr->chksum),
 		   ntohs(icmphdr->id), ntohs(icmphdr->seqno),
 		    dir, status, tail);
@@ -345,12 +345,13 @@ int snprintf_tcp_hdr(char *str, size_t size, char head[],
     iphdr = (struct ip_hdr *)((void *)ethhdr + 14);
     if (IPH_PROTO(iphdr) == IP_PROTO_TCP) {
       tcphdr = (struct tcp_hdr *)((void *)iphdr + (IPH_HL(iphdr) << 2));
+      u16_t lenfl = ntohs(tcphdr->_hdrlen_rsvd_flags);
       return snprintf(str, size,
-		 "%s: s:%5d %5d q:%08x a:%08x k:%04x"
-		   " %c%c %s\n", head,
+		 "%s: s:%5d %5d q:%08x a:%08x lf:%04x k:%04x"
+		   " %c%c%s\n", head,
 		    ntohs(tcphdr->src), ntohs(tcphdr->dest),
 		    ntohl(tcphdr->seqno), ntohl(tcphdr->ackno),
-		    ntohs(tcphdr->chksum),
+		    lenfl, ntohs(tcphdr->chksum),
 		    dir, status, tail);
     } else {
       return 0;
@@ -372,7 +373,7 @@ int snprintf_udp_hdr(char *str, size_t size, char head[],
       udphdr = (struct udp_hdr *)((void *)iphdr + (IPH_HL(iphdr) << 2));
       return snprintf(str, size,
 		 "%s: s:%5d %5d l:%d c:%04x"
-		   " %c%c %s\n", head,
+		   " %c%c%s\n", head,
 		    ntohs(udphdr->src), ntohs(udphdr->dest),
 		    ntohs(udphdr->len), ntohs(udphdr->chksum),
 		    dir, status, tail);
