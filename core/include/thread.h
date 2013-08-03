@@ -93,7 +93,8 @@ void sem_init(struct semaphore *, int);
  */
 static inline void sem_set_invalid(struct semaphore *sem)
 {
-    sem->list.next = NULL;
+    if (!!sem)
+	sem->list.next = NULL;
 }
 
 /*
@@ -101,7 +102,7 @@ static inline void sem_set_invalid(struct semaphore *sem)
  */
 static inline bool sem_is_valid(struct semaphore *sem)
 {
-    return !!sem->list.next;
+    return ((!!sem) && (!!sem->list.next));
 }
 
 struct thread *start_thread(const char *name, size_t stack_size, int prio,

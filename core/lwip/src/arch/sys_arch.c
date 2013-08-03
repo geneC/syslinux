@@ -71,8 +71,11 @@ err_t sys_mbox_new(sys_mbox_t *mbox, int size)
 
 void sys_mbox_free(sys_mbox_t *mbox)
 {
-    if (!!mbox && !!*mbox)
+    if (!!mbox && !!*mbox) {
+	sys_mbox_set_invalid(mbox);
 	free(*mbox);
+	*mbox = NULL;
+    }
 }
 
 void sys_mbox_post(sys_mbox_t *mbox, void *msg)
