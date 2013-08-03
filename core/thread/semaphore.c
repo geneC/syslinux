@@ -16,7 +16,7 @@ mstime_t __sem_down_slow(struct semaphore *sem, mstime_t timeout)
 
     irq = irq_save();
 
-    if (!sem) {
+    if (!sem_is_valid(sem)) {
 	rv = -1;
     } else if (sem->count >= 0) {
 	/* Something already freed the semaphore on us */

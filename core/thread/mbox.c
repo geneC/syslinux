@@ -24,7 +24,7 @@ void mbox_init(struct mailbox *mbox, size_t size)
 
 int mbox_post(struct mailbox *mbox, void *msg, mstime_t timeout)
 {
-    if (!mbox)
+    if (!mbox_is_valid(mbox))
 	return ENOMEM;
     if (sem_down(&mbox->prod_sem, timeout) == (mstime_t)-1)
 	return ENOMEM;
