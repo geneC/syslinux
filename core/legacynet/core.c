@@ -153,6 +153,43 @@ void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 }
 
 /**
+ * Send a UDP packet to a destination
+ *
+ * @param:socket, the open socket
+ * @param:data, data buffer to send
+ * @param:len, size of data bufer
+ * @param:ip, the ip address
+ * @param:port, the port number, host-byte order
+ */
+void net_core_sendto(struct pxe_pvt_inode *socket, const void *data, size_t len,
+		     uint32_t ip, uint16_t port)
+{
+    static __lowmem struct s_PXENV_UDP_WRITE udp_write;
+    struct net_private_tftp *priv = &socket->net.tftp;
+    void *lbuf;
+    uint16_t tid;
+
+    lbuf = lmalloc(len);
+    if (!lbuf)
+	return;
+
+    memcpy(lbuf, data, len);
+
+    tid = priv->localport;   /* TID(local port No) */
+    udp_write.buffer    = FAR_PTR(lbuf);
+    udp_write.ip        = ip;
+    udp_write.gw        = gateway(udp_write.ip);
+    udp_write.src_port  = tid;
+    udp_write.dst_port  = htons(port);
+    udp_write.buffer_size = len;
+
+    pxe_call(PXENV_UDP_WRITE, &udp_write);
+
+    lfree(lbuf);
+}
+
+
+/**
  * Network stack-specific initialization
  *
  * Initialize UDP stack
