@@ -18,9 +18,11 @@
 # ifdef DEBUG_STDIO
 #  define dprintf  printf
 #  define vdprintf vprintf
+#  define ddprintf dprintf
 # else
 void dprintf(const char *, ...);
 void vdprintf(const char *, va_list);
+#  define ddprintf(...)	{ printf(__VA_ARGS__); dprintf(__VA_ARGS__); }
 # endif
 
 #else
@@ -31,6 +33,7 @@ void vdprintf(const char *, va_list);
 #define vdprintf(fmt, ap) \
     if (syslinux_debug_enabled) \
         vprintf(fmt, ap)
+#define ddprintf	printf
 
 #endif /* DEBUG */
 
