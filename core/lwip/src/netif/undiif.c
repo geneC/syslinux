@@ -174,7 +174,7 @@ static u8_t undiarp_cached_entry;
 #define UNDIARP_TRY_HARD 1
 #define UNDIARP_FIND_ONLY  2
 
-#define UNIDIF_ID_STRLEN 244
+#define UNIDIF_ID_STRLEN 300
 
 
 static inline bool undi_is_ethernet(struct netif *netif)
@@ -481,7 +481,9 @@ undi_transmit(struct netif *netif, struct pbuf *pbuf,
   struct eth_hdr *ethhdr = pbuf->payload;
 
 
-  strpos = snprintf_eth_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+  strpos += snprintf(str + strpos, UNIDIF_ID_STRLEN - strpos,
+		     "undi xmit thd '%s'\n", current()->name);
+  strpos += snprintf_eth_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
 			      "undi", ethhdr, 'x', '0', "");
   strpos += snprintf_arp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
 			      "  arp", ethhdr, 'x', '0', "");
@@ -1465,7 +1467,9 @@ void undiif_input(t_PXENV_UNDI_ISR *isr)
     char *str = malloc(UNIDIF_ID_STRLEN);
     int strpos = 0;
 
-    strpos = snprintf_eth_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
+    strpos += snprintf(str + strpos, UNIDIF_ID_STRLEN - strpos,
+		       "undi recv thd '%s'\n", current()->name);
+    strpos += snprintf_eth_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
 			        "undi", ethhdr, 'r', '0', "");
     strpos += snprintf_arp_hdr(str + strpos, UNIDIF_ID_STRLEN - strpos,
 			        "  arp", ethhdr, 'r', '0', "");
