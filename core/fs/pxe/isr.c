@@ -11,12 +11,17 @@
 #include <string.h>
 #include <sys/cpu.h>
 #include <sys/io.h>
+#include <dprintf.h>
 
 extern uint8_t pxe_irq_pending;
 extern volatile uint8_t pxe_need_poll;
 static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
 static DECLARE_INIT_SEMAPHORE(pxe_poll_thread_sem, 0);
 static struct thread *pxe_thread, *poll_thread;
+
+#ifndef PXE_POLL_FORCE
+#  define PXE_POLL_FORCE 0
+#endif
 
 /*
  * Note: this *must* be called with interrupts enabled.
@@ -117,8 +122,9 @@ static void pxe_poll_wakeups(void)
 
     if (pxe_need_poll == 1) {
 	/* If we need polling now, activate polling */
-	pxe_need_poll = 3;
+	asm volatile("orb $2,%0" : "+m" (pxe_need_poll));
 	sem_up(&pxe_poll_thread_sem);
+	dprintf("pxe_poll_wakeups: pxe_need_poll=%d\n", pxe_need_poll);
     }
 
     if (now != last_jiffies) {
@@ -251,8 +257,12 @@ void pxe_start_isr(void)
     poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
 			       pxe_poll_thread, NULL);
 
-    if (!irq ||	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
+    if (!irq || !(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ)) {
 	asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
+    } else if (PXE_POLL_FORCE) {
+	asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
+	dprintf("pxe_start_isr: forcing pxe_need_poll\n");
+    }
 }
 
 int reset_pxe(void)
