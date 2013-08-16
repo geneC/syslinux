@@ -562,13 +562,14 @@ pxe_file_exit_hook:
 		section .data16
 
 		global copyright_str, syslinux_banner
-copyright_str   db ' Copyright (C) 1994-'
+copyright_str   db 'Copyright (C) 1994-'
 		asciidec YEAR
 		db ' H. Peter Anvin et al', CR, LF, 0
 err_bootfailed	db CR, LF, 'Boot failed: press a key to retry, or wait for reset...', CR, LF, 0
 bailmsg		equ err_bootfailed
 localboot_msg	db 'Booting from local disk...', CR, LF, 0
-syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', DATE_STR, ' ', 0
+syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', MY_TYPE, ' '
+		db DATE_STR, ' ', 0
 
 ;
 ; Misc initialized (data) variables
