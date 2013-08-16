@@ -31,6 +31,11 @@
 %endif
 %ifdef IS_PXELINUX
  %define MY_NAME 'PXELINUX'
+ %if IS_LPXELINUX > 0
+  %define MY_TYPE 'lwIP'
+ %else
+  %define MY_TYPE 'PXE'
+ %endif
 %else
  %define IS_PXELINUX 0
 %endif
