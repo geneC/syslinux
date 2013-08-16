@@ -48,7 +48,7 @@ int net_core_open(struct pxe_pvt_inode *socket, enum net_core_proto proto)
     priv->conn->recv_timeout = 15; /* A 15 ms recv timeout... */
     err = netconn_bind(priv->conn, NULL, 0);
     if (err) {
-	printf("netconn_bind error %d\n", err);
+	ddprintf("netconn_bind error %d\n", err);
 	return -1;
     }
 
@@ -83,7 +83,7 @@ void net_core_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     struct net_private_lwip *priv = &socket->net.lwip;
     struct ip_addr addr;
 
-    dprintf2("net_core_connect: %08X %04X\n", ntohl(ip), port);
+    dprintf("net_core_connect: %08X %04X\n", ntohl(ip), port);
     addr.addr = ip;
     netconn_connect(priv->conn, &addr, port);
 }
@@ -155,13 +155,13 @@ void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 
     nbuf = netbuf_new();
     if (!nbuf) {
-	printf("netbuf allocation error\n");
+	ddprintf("netbuf allocation error\n");
 	return;
     }
 
     pbuf = netbuf_alloc(nbuf, len);
     if (!pbuf) {
-	printf("pbuf allocation error\n");
+	ddprintf("pbuf allocation error\n");
 	goto out;
     }
 
@@ -169,7 +169,7 @@ void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 
     err = netconn_send(conn, nbuf);
     if (err) {
-	printf("netconn_send error %d\n", err);
+	ddprintf("netconn_send error %d\n", err);
 	goto out;
     }
 
@@ -197,13 +197,13 @@ void net_core_sendto(struct pxe_pvt_inode *socket, const void *data,
 
     nbuf = netbuf_new();
     if (!nbuf) {
-	printf("netbuf allocation error\n");
+	ddprintf("netbuf allocation error\n");
 	return;
     }
 
     pbuf = netbuf_alloc(nbuf, len);
     if (!pbuf) {
-	printf("pbuf allocation error\n");
+	ddprintf("pbuf allocation error\n");
 	goto out;
     }
 
@@ -214,7 +214,7 @@ void net_core_sendto(struct pxe_pvt_inode *socket, const void *data,
 
     err = netconn_sendto(conn, nbuf, &addr, port);
     if (err) {
-	printf("netconn_sendto error %d\n", err);
+	ddprintf("netconn_sendto error %d\n", err);
 	goto out;
     }
 
@@ -238,7 +238,7 @@ void net_core_init(void)
     /* Start up the undi driver for lwip */
     err = undiif_start(IPInfo.myip, IPInfo.netmask, IPInfo.gateway);
     if (err) {
-       printf("undiif driver failed to start: %d\n", err);
+       ddprintf("undiif driver failed to start: %d\n", err);
        kaboom();
     }
 
@@ -254,7 +254,7 @@ void probe_undi(void)
     pxe_call(PXENV_UNDI_GET_INFORMATION, &pxe_undi_info);
     pxe_call(PXENV_UNDI_GET_IFACE_INFO,  &pxe_undi_iface);
 
-    printf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
+    ddprintf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
 	   pxe_undi_info.BaseIo, pxe_undi_info.IntNumber,
 	   pxe_undi_info.MaxTranUnit, pxe_undi_info.HwType,
 	   pxe_undi_iface.IfaceType, pxe_undi_iface.ServiceFlags);

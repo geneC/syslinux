@@ -142,7 +142,7 @@ static int pxe_get_cached_info(int type, void *buf, size_t bufsiz)
 {
     int err;
     static __lowmem struct s_PXENV_GET_CACHED_INFO get_cached_info;
-    printf(" %02x", type);
+    ddprintf(" %02x", type);
 
     memset(&get_cached_info, 0, sizeof get_cached_info);
     get_cached_info.PacketType  = type;
@@ -150,7 +150,7 @@ static int pxe_get_cached_info(int type, void *buf, size_t bufsiz)
     get_cached_info.Buffer      = FAR_PTR(buf);
     err = pxe_call(PXENV_GET_CACHED_INFO, &get_cached_info);
     if (err) {
-        printf("PXE API call failed, error  %04x\n", err);
+        ddprintf("PXE API call failed, error  %04x\n", err);
 	kaboom();
     }
 
@@ -403,7 +403,7 @@ static void get_prefix(void)
 	*(p + 2) = 0;                /* Zero-terminate after delimiter */
     }
 
-    printf("TFTP prefix: %s\n", path_prefix);
+    ddprintf("TFTP prefix: %s\n", path_prefix);
 
     if (url_type(path_prefix) == URL_SUFFIX) {
 	/*
@@ -508,7 +508,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
     if (open_file(ConfigName, O_RDONLY, filedata) >= 0)
         return 0;
 
-    printf("%-68s\n", "Unable to locate configuration file");
+    ddprintf("%-68s\n", "Unable to locate configuration file");
     kaboom();
 }
 
@@ -564,7 +564,7 @@ static void ip_init(void)
     gendotquad(dot_quad_buf, ip);
 
     ip = ntohl(ip);
-    printf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
+    ddprintf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
 }
 
 /*
@@ -714,13 +714,13 @@ static int pxe_init(bool quiet)
 
     /* Found nothing at all !! */
     if (!quiet)
-	printf("No !PXE or PXENV+ API found; we're dead...\n");
+	ddprintf("No !PXE or PXENV+ API found; we're dead...\n");
     return -1;
 
  have_pxenv:
     APIVer = pxenv->version;
     if (!quiet)
-	printf("Found PXENV+ structure\nPXE API version is %04x\n", APIVer);
+	ddprintf("Found PXENV+ structure\nPXE API version is %04x\n", APIVer);
 
     /* if the API version number is 0x0201 or higher, use the !PXE structure */
     if (APIVer >= 0x201) {
@@ -757,10 +757,10 @@ static int pxe_init(bool quiet)
 
  have_entrypoint:
     if (!quiet) {
-	printf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
+	ddprintf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
 	       type, PXEEntry.seg, PXEEntry.offs, plan);
-	printf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
-	printf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
+	ddprintf("UNDI code segment at %04X len %04X\n", code_seg, code_len);
+	ddprintf("UNDI data segment at %04X len %04X\n", data_seg, data_len);
     }
 
     code_seg = code_seg + ((code_len + 15) >> 4);
@@ -804,7 +804,7 @@ static void network_init(void)
 
     bp = lmalloc(dhcp_max_packet);
     if (!bp) {
-	printf("Out of low memory\n");
+	ddprintf("Out of low memory\n");
 	kaboom();
     }
 
@@ -813,7 +813,7 @@ static void network_init(void)
     /*
      * Get the DHCP client identifiers (query info 1)
      */
-    printf("Getting cached packet ");
+    ddprintf("Getting cached packet ");
     pkt_len = pxe_get_cached_info(1, bp, dhcp_max_packet);
     parse_dhcp(bp, pkt_len);
     /*
@@ -848,7 +848,7 @@ static void network_init(void)
      */
     pkt_len = pxe_get_cached_info(3, bp, dhcp_max_packet);
     parse_dhcp(bp, pkt_len);
-    printf("\n");
+    ddprintf("\n");
 
     lfree(bp);
 
@@ -1032,7 +1032,7 @@ __export void unload_pxe(uint16_t flags)
 	memset(&unload_call, 0, sizeof unload_call);
 	err = pxe_call(api, &unload_call);
 	if (err || unload_call.Status != PXENV_STATUS_SUCCESS) {
-	    printf("PXE unload API call %04x failed: 0x%x\n",
+	    ddprintf("PXE unload API call %04x failed: 0x%x\n",
 		   api, unload_call.Status);
 	    goto cant_free;
 	}
@@ -1060,7 +1060,7 @@ __export void unload_pxe(uint16_t flags)
 	    *(uint32_t *)(4 * 0x1a), int_addr);
 
 cant_free:
-    printf("Failed to free base memory error %04x-%08x (%d/%dK)\n",
+    ddprintf("Failed to free base memory error %04x-%08x (%d/%dK)\n",
 	   api, *(uint32_t *)(4 * 0x1a), bios_fbm(), real_base_mem);
     return;
 }
