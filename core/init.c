@@ -80,6 +80,8 @@ void init(com32sys_t *regs __unused)
 	/* Init the memory subsystem */
 	mem_init();
 
+	dprintf("%s%s", syslinux_banner, copyright_str);
+
 	/* CPU-dependent initialization and related checks. */
 	check_escapes();
 
