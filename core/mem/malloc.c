@@ -72,7 +72,7 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
     struct free_arena_header *head = &__core_malloc_head[heap];
     void *p = NULL;
 
-    dprintf("_malloc(%zu, %u, %u) @ %p = ",
+    dprintf2("_malloc(%zu, %u, %u) @ %p = ",
 	size, heap, tag, __builtin_return_address(0));
 
     sem_down(&__malloc_semaphore, 0);
@@ -92,7 +92,7 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
 
     sem_up(&__malloc_semaphore);
 
-    dprintf("%p\n", p);
+    dprintf2("%p\n", p);
     return p;
 }
 
