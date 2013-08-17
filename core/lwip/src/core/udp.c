@@ -344,6 +344,7 @@ udp_input(struct pbuf *p, struct netif *inp)
         /* move payload pointer back to ip header */
         pbuf_header(p, (IPH_HL(iphdr) * 4) + UDP_HLEN);
         LWIP_ASSERT("p->payload == iphdr", (p->payload == iphdr));
+        LWIP_DEBUGF(UDP_DUR_DEBUG | UDP_DEBUG,("udp_input: unreachable\n"));
         icmp_dest_unreach(p, ICMP_DUR_PORT);
       }
 #endif /* LWIP_ICMP */
@@ -841,6 +842,13 @@ udp_connect(struct udp_pcb *pcb, ip_addr_t *ipaddr, u16_t port)
                ip4_addr1_16(&pcb->local_ip), ip4_addr2_16(&pcb->local_ip),
                ip4_addr3_16(&pcb->local_ip), ip4_addr4_16(&pcb->local_ip),
                pcb->local_port));
+  LWIP_DEBUGF(UDP_DEBUG,
+              ("pcb (%"U16_F".%"U16_F".%"U16_F".%"U16_F", %"U16_F") --- "
+               "(%"U16_F".%"U16_F".%"U16_F".%"U16_F", %"U16_F")\n",
+               ip4_addr1_16(&pcb->local_ip), ip4_addr2_16(&pcb->local_ip),
+               ip4_addr3_16(&pcb->local_ip), ip4_addr4_16(&pcb->local_ip), pcb->local_port,
+               ip4_addr1_16(&pcb->remote_ip), ip4_addr2_16(&pcb->remote_ip),
+               ip4_addr3_16(&pcb->remote_ip), ip4_addr4_16(&pcb->remote_ip), pcb->remote_port));
 
   /* Insert UDP PCB into the list of active UDP PCBs. */
   for (ipcb = udp_pcbs; ipcb != NULL; ipcb = ipcb->next) {

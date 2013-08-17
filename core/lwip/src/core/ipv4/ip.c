@@ -522,6 +522,7 @@ ip_input(struct pbuf *p, struct netif *inp)
       if (!ip_addr_isbroadcast(&current_iphdr_dest, inp) &&
           !ip_addr_ismulticast(&current_iphdr_dest)) {
         p->payload = iphdr;
+        LWIP_DEBUGF(IP_DUR_DEBUG | IP_DEBUG, ("ip_input() unreachable\n"));
         icmp_dest_unreach(p, ICMP_DUR_PROTO);
       }
 #endif /* LWIP_ICMP */

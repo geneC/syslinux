@@ -1907,6 +1907,13 @@
 #endif
 
 /**
+ * IP_DUR_DEBUG: Enable debugging in IP for Destination Unreachable
+ */
+#ifndef IP_DUR_DEBUG
+#define IP_DUR_DEBUG                        LWIP_DBG_OFF
+#endif
+
+/**
  * RAW_DEBUG: Enable debugging in raw.c.
  */
 #ifndef RAW_DEBUG
@@ -2010,6 +2017,13 @@
  */
 #ifndef UDP_DEBUG
 #define UDP_DEBUG                       LWIP_DBG_OFF
+#endif
+
+/**
+ * UDP_DUR_DEBUG: Enable debugging in UDP for Destination Unreachable.
+ */
+#ifndef UDP_DUR_DEBUG
+#define UDP_DUR_DEBUG                       LWIP_DBG_OFF
 #endif
 
 /**
