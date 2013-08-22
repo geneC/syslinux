@@ -48,7 +48,7 @@ u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 {
     mstime_t rv;
 
-    if (!!sem)
+    if (!sem || !*sem)
 	return SYS_ARCH_TIMEOUT;
     rv = sem_down(*sem, timeout);
     if (rv == (mstime_t)-1)
