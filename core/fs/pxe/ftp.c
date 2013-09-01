@@ -249,7 +249,7 @@ void ftp_open(struct url_info *url, int flags, struct inode *inode,
     err = core_tcp_open(socket);
     if (err)
 	goto err_disconnect;
-    err = core_tcp_connect(socket, ntohl(*(uint32_t*)&pasv_data[0]),
+    err = core_tcp_connect(socket, *(uint32_t*)&pasv_data[0],
 			   ntohs(*(uint16_t *)&pasv_data[4]));
     if (err)
 	goto err_disconnect;
