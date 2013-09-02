@@ -5,7 +5,10 @@
 #include "../../../version.h"
 #include "url.h"
 
+#include <dprintf.h>
+
 #define HTTP_PORT	80
+#define STATLEN		80
 
 static bool is_tspecial(int ch)
 {
@@ -178,6 +181,9 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     size_t response_size;
     int status;
     int pos;
+    int ln;
+    static char stat[STATLEN];
+    int statpos;
 
     (void)flags;
 
@@ -239,6 +245,8 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     response_size = 0;
     field_value_len = 0;
     field_name_len = 0;
+    ln = 0;
+    statpos = 0;
 
     while (state != st_eoh) {
 	int ch = pxe_getc(inode);
@@ -248,6 +256,9 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
 #if 0
         printf("%c", ch);
 #endif
+	if ((DEBUG) && (ln == 0) && (statpos < (STATLEN - 1)))
+	    stat[statpos++] = ch;
+// 	dprintf("%c", ch);
 	response_size++;
 	if (ch == '\r' || ch == '\0')
 	    continue;
@@ -268,8 +279,19 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
 	    break;
 
 	case st_skipline:
-	    if (ch == '\n')
+	    if (ch == '\n') {
+		if ((DEBUG) && (ln == 0)) {
+		    if (stat[statpos-1] != '\n') {
+			if (!(statpos < (STATLEN - 1)))
+			    statpos--;
+			stat[statpos++] = '\n';
+		    }
+		    stat[statpos] = 0;
+		    dprintf("%s", stat);
+		}
+		ln++;
 		state = st_fieldfirst;
+	    }
 	    break;
 
 	case st_fieldfirst:
