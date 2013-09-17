@@ -33,6 +33,7 @@
  * Deal with disks and partitions
  */
 
+#include <core.h>
 #include <dprintf.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -158,6 +159,83 @@ out:
 }
 
 /**
+ * Fill inreg based on EBIOS addressing properties.
+ *
+ * @v diskinfo			The disk drive to read from
+ * @v inreg			Register data structure to be filled.
+ * @v lba			The logical block address to begin reading at
+ * @v count			The number of sectors to read
+ * @v op_code			Code to write/read operation
+ * @ret 			lmalloc'd buf upon success, NULL upon failure
+ */
+static void *ebios_setup(const struct disk_info *const diskinfo, com32sys_t *inreg,
+			 uint64_t lba, uint8_t count, uint8_t op_code)
+{
+    static __lowmem struct disk_ebios_dapa dapa;
+    void *buf;
+
+    buf = lmalloc(count * diskinfo->bps);
+    if (!buf)
+	return NULL;
+
+    dapa.len = sizeof(dapa);
+    dapa.count = count;
+    dapa.off = OFFS(buf);
+    dapa.seg = SEG(buf);
+    dapa.lba = lba;
+
+    inreg->eax.b[1] = op_code;
+    inreg->esi.w[0] = OFFS(&dapa);
+    inreg->ds = SEG(&dapa);
+    inreg->edx.b[0] = diskinfo->disk;
+
+    return buf;
+}
+
+/**
+ * Fill inreg based on CHS addressing properties.
+ *
+ * @v diskinfo			The disk drive to read from
+ * @v inreg			Register data structure to be filled.
+ * @v lba			The logical block address to begin reading at
+ * @v count			The number of sectors to read
+ * @v op_code			Code to write/read operation
+ * @ret 			lmalloc'd buf upon success, NULL upon failure
+ */
+static void *chs_setup(const struct disk_info *const diskinfo, com32sys_t *inreg,
+		       uint64_t lba, uint8_t count, uint8_t op_code)
+{
+    unsigned int c, h, s, t;
+    void *buf;
+
+    buf = lmalloc(count * diskinfo->bps);
+    if (!buf)
+	return NULL;
+
+    /*
+     * if we passed lba + count check and we get here, that means that
+     * lbacnt was calculated from chs geometry (or faked from 1/1/1), thus
+     * 32bits are perfectly enough and lbacnt corresponds to cylinder
+     * boundary
+     */
+    s = lba % diskinfo->spt;
+    t = lba / diskinfo->spt;
+    h = t % diskinfo->head;
+    c = t / diskinfo->head;
+
+    inreg->eax.b[0] = count;
+    inreg->eax.b[1] = op_code;
+    inreg->ecx.b[1] = c;
+    inreg->ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
+    inreg->edx.b[1] = h;
+    inreg->edx.b[0] = diskinfo->disk;
+    inreg->ebx.w[0] = OFFS(buf);
+    inreg->es = SEG(buf);
+
+    return buf;
+}
+
+/**
  * Get disk block(s) and return a malloc'd buffer.
  *
  * @v diskinfo			The disk drive to read from
@@ -172,7 +250,6 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 			uint8_t count)
 {
     com32sys_t inreg;
-    struct disk_ebios_dapa *dapa;
     void *buf;
     void *data = NULL;
     uint32_t maxcnt;
@@ -184,47 +261,13 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 
     memset(&inreg, 0, sizeof inreg);
 
-    buf = lmalloc(count * diskinfo->bps);
+    if (diskinfo->ebios)
+	buf = ebios_setup(diskinfo, &inreg, lba, count, EBIOS_READ_CODE);
+    else
+	buf = chs_setup(diskinfo, &inreg, lba, count, CHS_READ_CODE);
+
     if (!buf)
 	return NULL;
-
-    dapa = lmalloc(sizeof(*dapa));
-    if (!dapa)
-	goto out;
-
-    if (diskinfo->ebios) {
-	dapa->len = sizeof(*dapa);
-	dapa->count = count;
-	dapa->off = OFFS(buf);
-	dapa->seg = SEG(buf);
-	dapa->lba = lba;
-
-	inreg.esi.w[0] = OFFS(dapa);
-	inreg.ds = SEG(dapa);
-	inreg.edx.b[0] = diskinfo->disk;
-	inreg.eax.b[1] = 0x42;	/* Extended read */
-    } else {
-	unsigned int c, h, s, t;
-	/*
-	 * if we passed lba + count check and we get here, that means that
-	 * lbacnt was calculated from chs geometry (or faked from 1/1/1), thus
-	 * 32bits are perfectly enough and lbacnt corresponds to cylinder
-	 * boundary
-	 */
-	s = lba % diskinfo->spt;
-	t = lba / diskinfo->spt;
-	h = t % diskinfo->head;
-	c = t / diskinfo->head;
-
-	inreg.eax.b[0] = count;
-	inreg.eax.b[1] = 0x02;	/* Read */
-	inreg.ecx.b[1] = c;
-	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
-	inreg.edx.b[1] = h;
-	inreg.edx.b[0] = diskinfo->disk;
-	inreg.ebx.w[0] = OFFS(buf);
-	inreg.es = SEG(buf);
-    }
 
     if (disk_int13_retry(&inreg, NULL))
 	goto out;
@@ -233,7 +276,6 @@ void *disk_read_sectors(const struct disk_info *const diskinfo, uint64_t lba,
     if (data)
 	memcpy(data, buf, count * diskinfo->bps);
 out:
-    lfree(dapa);
     lfree(buf);
     return data;
 }
@@ -254,7 +296,6 @@ int disk_write_sectors(const struct disk_info *const diskinfo, uint64_t lba,
 		       const void *data, uint8_t count)
 {
     com32sys_t inreg;
-    struct disk_ebios_dapa *dapa;
     void *buf;
     uint32_t maxcnt;
     uint32_t size = 65536;
@@ -264,57 +305,23 @@ int disk_write_sectors(const struct disk_info *const diskinfo, uint64_t lba,
     if (!count || count > maxcnt || lba + count > diskinfo->lbacnt)
 	return -1;
 
-    buf = lmalloc(count * diskinfo->bps);
+    memset(&inreg, 0, sizeof inreg);
+
+    if (diskinfo->ebios)
+	buf = ebios_setup(diskinfo, &inreg, lba, count, EBIOS_WRITE_CODE);
+    else
+	buf = chs_setup(diskinfo, &inreg, lba, count, CHS_WRITE_CODE);
+
     if (!buf)
 	return -1;
 
     memcpy(buf, data, count * diskinfo->bps);
-    memset(&inreg, 0, sizeof inreg);
-
-    dapa = lmalloc(sizeof(*dapa));
-    if (!dapa)
-	goto out;
-
-    if (diskinfo->ebios) {
-	dapa->len = sizeof(*dapa);
-	dapa->count = count;
-	dapa->off = OFFS(buf);
-	dapa->seg = SEG(buf);
-	dapa->lba = lba;
-
-	inreg.esi.w[0] = OFFS(dapa);
-	inreg.ds = SEG(dapa);
-	inreg.edx.b[0] = diskinfo->disk;
-	inreg.eax.b[1] = 0x43;	/* Extended write */
-    } else {
-	unsigned int c, h, s, t;
-	/*
-	 * if we passed lba + count check and we get here, that means that
-	 * lbacnt was calculated from chs geometry (or faked from 1/1/1), thus
-	 * 32bits are perfectly enough and lbacnt corresponds to cylinder
-	 * boundary
-	 */
-	s = lba % diskinfo->spt;
-	t = lba / diskinfo->spt;
-	h = t % diskinfo->head;
-	c = t / diskinfo->head;
-
-	inreg.eax.b[0] = count;
-	inreg.eax.b[1] = 0x03;	/* Write */
-	inreg.ecx.b[1] = c;
-	inreg.ecx.b[0] = ((c & 0x300) >> 2) | (s+1);
-	inreg.edx.b[1] = h;
-	inreg.edx.b[0] = diskinfo->disk;
-	inreg.ebx.w[0] = OFFS(buf);
-	inreg.es = SEG(buf);
-    }
 
     if (disk_int13_retry(&inreg, NULL))
 	goto out;
 
     rv = 0;			/* ok */
 out:
-    lfree(dapa);
     lfree(buf);
     return rv;
 }
