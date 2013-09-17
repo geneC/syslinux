@@ -41,6 +41,13 @@
 
 #define SECTOR 512u		/* bytes/sector */
 
+enum disk_op_codes {
+    EBIOS_READ_CODE = 0x42, /* Extended read */
+    EBIOS_WRITE_CODE = 0x43, /* Extended write */
+    CHS_READ_CODE = 0x02,
+    CHS_WRITE_CODE = 0x03,
+};
+
 struct disk_info {
     int disk;
     int ebios;			/* EBIOS supported on this disk */
