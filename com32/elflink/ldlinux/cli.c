@@ -461,11 +461,14 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 
     printf("\033[?7h");
 
-    /* Add the command to the history */
-    comm_counter = malloc(sizeof(struct cli_command));
-    comm_counter->command = malloc(sizeof(char) * (strlen(ret) + 1));
-    strcpy(comm_counter->command, ret);
-    list_add(&(comm_counter->list), &cli_history_head);
+    /* Add the command to the history if its length is larger than 0 */
+    len = strlen(ret);
+    if (len > 0) {
+	comm_counter = malloc(sizeof(struct cli_command));
+	comm_counter->command = malloc(sizeof(char) * (len + 1));
+	strcpy(comm_counter->command, ret);
+	list_add(&(comm_counter->list), &cli_history_head);
+    }
 
     return len ? ret : NULL;
 }
