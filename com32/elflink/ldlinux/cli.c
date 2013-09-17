@@ -89,10 +89,14 @@ static const char * cmd_reverse_search(int *cursor, clock_t *kbd_to,
 	    break;
 	}
 
-	while (!list_is_last(&last_found->list, &cli_history_head)) {
+	while (last_found) {
 	    p = strstr(last_found->command, buf);
 	    if (p)
 	        break;
+
+	    if (list_is_last(&last_found->list, &cli_history_head))
+		break;
+
 	    last_found = list_entry(last_found->list.next, typeof(*last_found), list);
 	}
 
@@ -391,7 +395,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    len = strlen(cmdline);
 	        } else {
 	            cmdline[0] = '\0';
-		    len = 0;
+		    cursor = len = 0;
 	        }
 	        redraw = 1;
 	    }
@@ -441,6 +445,9 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 		    }
 		    prev_len++;
 		} else {
+		    if (cursor > len)
+			return NULL;
+
 		    memmove(cmdline + cursor + 1, cmdline + cursor,
 			    len - cursor + 1);
 		    cmdline[cursor++] = key;
