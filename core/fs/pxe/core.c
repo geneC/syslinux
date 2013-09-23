@@ -6,6 +6,8 @@
 #include <net.h>
 #include "pxe.h"
 
+#include <dprintf.h>
+
 const struct url_scheme url_schemes[] = {
     { "tftp", tftp_open, 0 },
     { "http", http_open, O_DIRECTORY },
@@ -81,6 +83,7 @@ void net_core_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     struct net_private_lwip *priv = &socket->net.lwip;
     struct ip_addr addr;
 
+    dprintf2("net_core_connect: %08X %04X\n", ntohl(ip), port);
     addr.addr = ip;
     netconn_connect(priv->conn, &addr, port);
 }
@@ -167,6 +170,51 @@ void net_core_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
     err = netconn_send(conn, nbuf);
     if (err) {
 	printf("netconn_send error %d\n", err);
+	goto out;
+    }
+
+out:
+    netbuf_delete(nbuf);
+}
+
+ /**
+ * Send a UDP packet to a destination
+ *
+ * @param:socket, the open socket
+ * @param:data, data buffer to send
+ * @param:len, size of data bufer
+ * @param:ip, the ip address
+ * @param:port, the port number, host-byte order
+ */
+void net_core_sendto(struct pxe_pvt_inode *socket, const void *data,
+		     size_t len, uint32_t ip, uint16_t port)
+{
+    struct netconn *conn = socket->net.lwip.conn;
+    struct ip_addr addr;
+    struct netbuf *nbuf;
+    void *pbuf;
+    int err;
+
+    nbuf = netbuf_new();
+    if (!nbuf) {
+	printf("netbuf allocation error\n");
+	return;
+    }
+
+    pbuf = netbuf_alloc(nbuf, len);
+    if (!pbuf) {
+	printf("pbuf allocation error\n");
+	goto out;
+    }
+
+    memcpy(pbuf, data, len);
+
+    dprintf("net_core_sendto: %08X %04X\n", ntohl(ip), port);
+    addr.addr = ip;
+
+    err = netconn_sendto(conn, nbuf, &addr, port);
+    if (err) {
+	printf("netconn_sendto error %d\n", err);
 	goto out;
     }
 
