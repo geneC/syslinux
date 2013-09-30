@@ -371,7 +371,7 @@ static void get_prefix(void)
 	*(p + 2) = 0;                /* Zero-terminate after delimiter */
     }
 
-    printf("TFTP prefix: %s\n", path_prefix);
+    ddprintf("TFTP prefix: %s\n", path_prefix);
 
     if (url_type(path_prefix) == URL_SUFFIX) {
 	/*
@@ -476,7 +476,7 @@ static int pxe_open_config(struct com32_filedata *filedata)
     if (open_file(ConfigName, O_RDONLY, filedata) >= 0)
         return 0;
 
-    printf("%-68s\n", "Unable to locate configuration file");
+    ddprintf("%-68s\n", "Unable to locate configuration file");
     kaboom();
 }
 
@@ -532,7 +532,7 @@ static void ip_init(void)
     gendotquad(dot_quad_buf, ip);
 
     ip = ntohl(ip);
-    printf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
+    ddprintf("My IP address seems to be %08X %s\n", ip, dot_quad_buf);
 }
 
 /*

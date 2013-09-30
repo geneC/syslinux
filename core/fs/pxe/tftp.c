@@ -255,18 +255,15 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
 
     timeout_ptr = TimeoutTable;   /* Reset timeout */
 sendreq:
-    core_udp_disconnect(socket);
     timeout = *timeout_ptr++;
     if (!timeout)
 	return;			/* No file available... */
     oldtime = jiffies();
 
-    core_udp_connect(socket, url->ip, url->port);
-    core_udp_send(socket, rrq_packet_buf, rrq_len);
+    core_udp_sendto(socket, rrq_packet_buf, rrq_len, url->ip, url->port);
 
     /* If the WRITE call fails, we let the timeout take care of it... */
 wait_pkt:
-    core_udp_disconnect(socket);
     for (;;) {
 	buf_len = sizeof(reply_packet_buf);
 
@@ -277,8 +274,10 @@ wait_pkt:
 	    if (now - oldtime >= timeout)
 		 goto sendreq;
 	} else {
-	    /* Make sure the packet actually came from the server */
-	    if (src_ip == url->ip)
+	    /* Make sure the packet actually came from the server and
+	       is long enough for a TFTP opcode */
+	    dprintf("tftp_open: got packet buflen=%d\n", buf_len);
+	    if ((src_ip == url->ip) && (buf_len >= 2))
 		break;
 	}
     }
@@ -290,8 +289,6 @@ wait_pkt:
     inode->size = -1;
     socket->tftp_blksize = TFTP_BLOCKSIZE;
     buffersize = buf_len - 2;	  /* bytes after opcode */
-    if (buffersize < 0)
-        goto wait_pkt;                     /* Garbled reply */
 
     /*
      * Get the opcode type, and parse it

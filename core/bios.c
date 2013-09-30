@@ -642,6 +642,8 @@ void bios_init(void)
 	syslinux_memscan_add(&bios_memscan);
 	mem_init();
 
+	dprintf("%s%s", syslinux_banner, copyright_str);
+
 	/* CPU-dependent initialization and related checks. */
 	check_escapes();
 

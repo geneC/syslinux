@@ -18,6 +18,14 @@ static DECLARE_INIT_SEMAPHORE(pxe_receive_thread_sem, 0);
 static DECLARE_INIT_SEMAPHORE(pxe_poll_thread_sem, 0);
 static struct thread *pxe_thread, *poll_thread;
 
+#ifndef PXE_POLL_FORCE
+#  define PXE_POLL_FORCE 0
+#endif
+
+#ifndef PXE_POLL_BY_MODEL
+#  define PXE_POLL_BY_MODEL 1
+#endif
+
 /*
  * Note: this *must* be called with interrupts enabled.
  */
@@ -73,7 +81,7 @@ static bool install_irq_vector(uint8_t irq, void (*isr)(void), far_ptr_t *old)
     if (!ok)
 	*entry = *old;		/* Restore the old vector */
 
-    printf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
+    ddprintf("UNDI: IRQ %d(0x%02x): %04x:%04x -> %04x:%04x\n", irq, vec,
 	   old->seg, old->offs, entry->seg, entry->offs);
 
     return ok;
@@ -251,8 +259,20 @@ void pxe_start_isr(void)
     poll_thread = start_thread("pxe poll", 4096, POLL_THREAD_PRIORITY,
 			       pxe_poll_thread, NULL);
 
-    if (!irq ||	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ))
+    if (!irq ||	!(pxe_undi_iface.ServiceFlags & PXE_UNDI_IFACE_FLAG_IRQ)) {
 	asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
+	dprintf("pxe_start_isr: forcing pxe_need_poll\n");
+    } else if (PXE_POLL_BY_MODEL) {
+	dprintf("pxe_start_isr: trying poll by model\n");
+	int hwad = ((int)MAC[0] << 16) + ((int)MAC[1] << 8) + MAC[2];
+	dprintf("pxe_start_isr: got %06x %04x\n", hwad, pxe_undi_iface.ServiceFlags);
+	if (hwad == 0x000023ae) {
+	    if (pxe_undi_iface.ServiceFlags == 0xdc1b) {
+		asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
+		dprintf("pxe_start_isr: forcing pxe_need_poll by model\n");
+	    }
+	}
+    }
 }
 
 int reset_pxe(void)

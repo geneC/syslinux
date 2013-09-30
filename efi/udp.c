@@ -297,3 +297,88 @@ bail:
     free(txdata);
     free(token);
 }
+
+/**
+ * Send a UDP packet to a destination
+ *
+ * @param:socket, the open socket
+ * @param:data, data buffer to send
+ * @param:len, size of data bufer
+ * @param:ip, the ip address
+ * @param:port, the port number, host-byte order
+ */
+void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
+		     size_t len, uint32_t ip, uint16_t port)
+{
+    EFI_UDP4_COMPLETION_TOKEN *token;
+    EFI_UDP4_TRANSMIT_DATA *txdata;
+    EFI_UDP4_FRAGMENT_DATA *frag;
+    EFI_UDP4_CONFIG_DATA udata;
+    EFI_STATUS status;
+    struct efi_binding *b;
+    EFI_UDP4 *udp;
+
+    (void)socket;
+
+    b = efi_create_binding(&Udp4ServiceBindingProtocol, &Udp4Protocol);
+    if (!b)
+	return;
+
+    udp = (EFI_UDP4 *)b->this;
+
+    token = zalloc(sizeof(*token));
+    if (!token)
+	goto out;
+
+    txdata = zalloc(sizeof(*txdata));
+    if (!txdata)
+	goto bail;
+
+    memset(&udata, 0, sizeof(udata));
+
+    memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
+    memcpy(&udata.SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
+    memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
+    udata.RemotePort = port;
+    udata.AcceptPromiscuous = TRUE;
+    udata.TimeToLive = 64;
+
+    status = uefi_call_wrapper(udp->Configure, 2, udp, &udata);
+    if (status != EFI_SUCCESS)
+	goto bail;
+
+    status = efi_setup_event(&token->Event, (EFI_EVENT_NOTIFY)udp4_cb,
+			     token);
+    if (status != EFI_SUCCESS)
+	goto bail;
+
+    txdata->UdpSessionData = NULL;
+    txdata->GatewayAddress = NULL;
+    txdata->DataLength = len;
+    txdata->FragmentCount = 1;
+    frag = &txdata->FragmentTable[0];
+
+    frag->FragmentLength = len;
+    frag->FragmentBuffer = (void *)data;
+
+    token->Packet.TxData = txdata;
+
+    status = uefi_call_wrapper(udp->Transmit, 2, udp, token);
+    if (status != EFI_SUCCESS)
+	goto close;
+
+    while (cb_status == -1)
+	uefi_call_wrapper(udp->Poll, 1, udp);
+
+    /* Reset */
+    cb_status = -1;
+
+close:
+    uefi_call_wrapper(BS->CloseEvent, 1, token->Event);
+
+bail:
+    free(txdata);
+    free(token);
+out:
+    efi_destroy_binding(b, &Udp4ServiceBindingProtocol);
+}

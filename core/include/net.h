@@ -23,6 +23,9 @@ int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 void core_udp_send(struct pxe_pvt_inode *socket,
 		   const void *data, size_t len);
 
+void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data, size_t len,
+		     uint32_t ip, uint16_t port);
+
 void probe_undi(void);
 void pxe_init_isr(void);
 

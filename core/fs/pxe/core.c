@@ -6,6 +6,8 @@
 #include <net.h>
 #include "pxe.h"
 
+#include <dprintf.h>
+
 const struct url_scheme url_schemes[] = {
     { "tftp", tftp_open, 0 },
     { "http", http_open, O_DIRECTORY },
@@ -32,7 +34,7 @@ int core_udp_open(struct pxe_pvt_inode *socket)
     priv->conn->recv_timeout = 15; /* A 15 ms recv timeout... */
     err = netconn_bind(priv->conn, NULL, 0);
     if (err) {
-	printf("netconn_bind error %d\n", err);
+	ddprintf("netconn_bind error %d\n", err);
 	return -1;
     }
 
@@ -67,6 +69,7 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     struct net_private_lwip *priv = &socket->net.lwip;
     struct ip_addr addr;
 
+    dprintf("net_core_connect: %08X %04X\n", ntohl(ip), port);
     addr.addr = ip;
     netconn_connect(priv->conn, &addr, port);
 }
@@ -138,13 +141,13 @@ void core_udp_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 
     nbuf = netbuf_new();
     if (!nbuf) {
-	printf("netbuf allocation error\n");
+	ddprintf("netbuf allocation error\n");
 	return;
     }
 
     pbuf = netbuf_alloc(nbuf, len);
     if (!pbuf) {
-	printf("pbuf allocation error\n");
+	ddprintf("pbuf allocation error\n");
 	goto out;
     }
 
@@ -152,7 +155,52 @@ void core_udp_send(struct pxe_pvt_inode *socket, const void *data, size_t len)
 
     err = netconn_send(conn, nbuf);
     if (err) {
-	printf("netconn_send error %d\n", err);
+	ddprintf("netconn_send error %d\n", err);
+	goto out;
+    }
+
+out:
+    netbuf_delete(nbuf);
+}
+
+ /**
+ * Send a UDP packet to a destination
+ *
+ * @param:socket, the open socket
+ * @param:data, data buffer to send
+ * @param:len, size of data bufer
+ * @param:ip, the ip address
+ * @param:port, the port number, host-byte order
+ */
+void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
+		     size_t len, uint32_t ip, uint16_t port)
+{
+    struct netconn *conn = socket->net.lwip.conn;
+    struct ip_addr addr;
+    struct netbuf *nbuf;
+    void *pbuf;
+    int err;
+
+    nbuf = netbuf_new();
+    if (!nbuf) {
+	ddprintf("netbuf allocation error\n");
+	return;
+    }
+
+    pbuf = netbuf_alloc(nbuf, len);
+    if (!pbuf) {
+	ddprintf("pbuf allocation error\n");
+	goto out;
+    }
+
+    memcpy(pbuf, data, len);
+
+    dprintf("core_udp_sendto: %08X %04X\n", ntohl(ip), port);
+    addr.addr = ip;
+
+    err = netconn_sendto(conn, nbuf, &addr, port);
+    if (err) {
+	ddprintf("netconn_sendto error %d\n", err);
 	goto out;
     }
 
@@ -176,7 +224,7 @@ void net_core_init(void)
     /* Start up the undi driver for lwip */
     err = undiif_start(IPInfo.myip, IPInfo.netmask, IPInfo.gateway);
     if (err) {
-       printf("undiif driver failed to start: %d\n", err);
+       ddprintf("undiif driver failed to start: %d\n", err);
        kaboom();
     }
 
@@ -192,7 +240,7 @@ void probe_undi(void)
     pxe_call(PXENV_UNDI_GET_INFORMATION, &pxe_undi_info);
     pxe_call(PXENV_UNDI_GET_IFACE_INFO,  &pxe_undi_iface);
 
-    printf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
+    ddprintf("UNDI: baseio %04x int %d MTU %d type %d \"%s\" flags 0x%x\n",
 	   pxe_undi_info.BaseIo, pxe_undi_info.IntNumber,
 	   pxe_undi_info.MaxTranUnit, pxe_undi_info.HwType,
 	   pxe_undi_iface.IfaceType, pxe_undi_iface.ServiceFlags);
