@@ -25,6 +25,7 @@
  *
  * ----------------------------------------------------------------------- */
 
+#include <getkey.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -473,6 +474,19 @@ static int sl_version(lua_State * L)
     return 1;
 }
 
+static int sl_get_key (lua_State * L)
+{
+    int timeout = luaL_checkint (L, 1);
+    lua_pushinteger (L, get_key (stdin, timeout));
+    return 1;
+}
+
+static int sl_KEY_CTRL (lua_State * L)
+{
+    lua_pushinteger (L, KEY_CTRL (luaL_checkint (L, 1)));
+    return 1;
+}
+
 static const luaL_Reg syslinuxlib[] = {
     {"run_command", sl_run_command},
     {"run_default", sl_run_default},
@@ -494,6 +508,8 @@ static const luaL_Reg syslinuxlib[] = {
     {"reboot", sl_reboot},
     {"derivative", sl_derivative},
     {"version", sl_version},
+    {"get_key", sl_get_key},
+    {"KEY_CTRL", sl_KEY_CTRL},
     {NULL, NULL}
 };
 
@@ -505,5 +521,38 @@ LUALIB_API int luaopen_syslinux(lua_State * L)
     luaL_newmetatable(L, SYSLINUX_FILE);
 
     luaL_newlib(L, syslinuxlib);
+
+    lua_newtable (L);
+#define export_key(x) lua_pushinteger (L, KEY_##x); lua_setfield (L, -2, #x);
+    export_key (NONE);
+    export_key (BACKSPACE);
+    export_key (TAB);
+    export_key (ENTER);
+    export_key (ESC);
+    export_key (DEL);
+    export_key (F1);
+    export_key (F2);
+    export_key (F3);
+    export_key (F4);
+    export_key (F5);
+    export_key (F6);
+    export_key (F7);
+    export_key (F8);
+    export_key (F9);
+    export_key (F10);
+    export_key (F11);
+    export_key (F12);
+    export_key (UP);
+    export_key (DOWN);
+    export_key (LEFT);
+    export_key (RIGHT);
+    export_key (PGUP);
+    export_key (PGDN);
+    export_key (HOME);
+    export_key (END);
+    export_key (INSERT);
+    export_key (DELETE);
+    lua_setfield (L, -2, "KEY");
+
     return 1;
 }
