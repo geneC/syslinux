@@ -263,11 +263,13 @@ static int os_time (lua_State *L) {
 }
 
 
+#ifndef LUA_NUMBER_INTEGRAL
 static int os_difftime (lua_State *L) {
   lua_pushnumber(L, difftime((time_t)(luaL_checknumber(L, 1)),
                              (time_t)(luaL_optnumber(L, 2, 0))));
   return 1;
 }
+#endif
 
 /* }====================================================== */
 
@@ -300,7 +302,9 @@ static int os_exit (lua_State *L) {
 static const luaL_Reg syslib[] = {
   {"clock",     os_clock},
   {"date",      os_date},
+#ifndef LUA_NUMBER_INTEGRAL
   {"difftime",  os_difftime},
+#endif
   {"execute",   os_execute},
   {"exit",      os_exit},
   {"getenv",    os_getenv},

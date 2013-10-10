@@ -383,14 +383,31 @@
 ** ===================================================================
 */
 
+/* Define LUA_NUMBER_INTEGRAL to produce a system that uses no
+   floating point operations by changing the type of Lua numbers from
+   double to long.  It implements division and modulus so that 
+
+   x == (x / y) * y + x % y.  
+   
+   The exponentiation function returns zero for negative exponents.
+   Defining LUA_NUMBER_INTEGRAL also removes the difftime function,
+   and the math module should not be used.  The string.format function
+   no longer handles the floating point directives %e, %E, %f, %g, and
+   %G. */
+
+#define LUA_NUMBER_INTEGRAL
+#ifdef LUA_NUMBER_INTEGRAL
+#define LUA_NUMBER	long
+#else
 #define LUA_NUMBER_DOUBLE
 #define LUA_NUMBER	double
+#endif
 
 /*
 @@ LUAI_UACNUMBER is the result of an 'usual argument conversion'
 @* over a number.
 */
-#define LUAI_UACNUMBER	double
+#define LUAI_UACNUMBER	LUA_NUMBER
 
 
 /*
@@ -399,8 +416,13 @@
 @@ lua_number2str converts a number to a string.
 @@ LUAI_MAXNUMBER2STR is maximum size of previous conversion.
 */
+#ifdef LUA_NUMBER_INTEGRAL
+#define LUA_NUMBER_SCAN		"%ld"
+#define LUA_NUMBER_FMT		"%ld"
+#else
 #define LUA_NUMBER_SCAN		"%lf"
 #define LUA_NUMBER_FMT		"%.14g"
+#endif
 #define lua_number2str(s,n)	sprintf((s), LUA_NUMBER_FMT, (n))
 #define LUAI_MAXNUMBER2STR	32 /* 16 digits, sign, point, and \0 */
 
@@ -419,10 +441,14 @@
 ** systems, you can leave 'lua_strx2number' undefined and Lua will
 ** provide its own implementation.
 */
+#ifdef LUA_NUMBER_INTEGRAL
+#define lua_str2number(s,p)	strtol((s), (p), 10)
+#else
 #define lua_str2number(s,p)	strtod((s), (p))
+#endif
 
-#if defined(LUA_USE_STRTODHEX)
-#define lua_strx2number(s,p)	strtod((s), (p))
+#ifdef SYSLINUX
+#define lua_strx2number(s,p)	strtol((s), (p), 16)
 #endif
 
 
@@ -430,11 +456,13 @@
 @@ The luai_num* macros define the primitive operations over numbers.
 */
 
+#ifndef LUA_NUMBER_INTEGRAL
 /* the following operations need the math library */
 #if defined(lobject_c) || defined(lvm_c)
 #include <math.h>
 #define luai_nummod(L,a,b)	((a) - l_mathop(floor)((a)/(b))*(b))
 #define luai_numpow(L,a,b)	(l_mathop(pow)(a,b))
+#endif
 #endif
 
 /* these are quite standard operations */
@@ -442,7 +470,32 @@
 #define luai_numadd(L,a,b)	((a)+(b))
 #define luai_numsub(L,a,b)	((a)-(b))
 #define luai_nummul(L,a,b)	((a)*(b))
+#ifdef LUA_NUMBER_INTEGRAL
+#define luai_numdiv(L,a,b)		\
+  (-1/2?				\
+   (a)/(b):				\
+   (((a)<0)==((b)<0)||(a)%(b)==0?	\
+    (a)/(b):				\
+    (a)/(b)-1))
+#define luai_nummod(L,a,b)		\
+  (-1/2?				\
+   (a)%(b):				\
+   (((a)<0)==((b)<0)||(a)%(b)==0?	\
+    (a)%(b):				\
+    (a)%(b)+(b)))
+#define luai_lnumdiv(L,a,b)		\
+  ((b)==0?				\
+   (luaG_runerror(L,"divide by zero"),0): \
+   luai_numdiv(a,b))
+#define luai_lnummod(L,a,b)		\
+  ((b)==0?				\
+   (luaG_runerror(L,"modulo by zero"),0): \
+   luai_nummod(a,b))
+LUA_NUMBER luai_ipow(void *L, LUA_NUMBER, LUA_NUMBER);
+#define luai_numpow(L,a,b)	(luai_ipow(L,a,b))
+#else
 #define luai_numdiv(L,a,b)	((a)/(b))
+#endif
 #define luai_numunm(L,a)	(-(a))
 #define luai_numeq(a,b)		((a)==(b))
 #define luai_numlt(L,a,b)	((a)<(b))
@@ -457,7 +510,8 @@
 ** CHANGE that if ptrdiff_t is not adequate on your machine. (On most
 ** machines, ptrdiff_t gives a good choice between int or long.)
 */
-#define LUA_INTEGER	ptrdiff_t
+#define LUA_INTEGER	long
+/* Changed to long for use with integral Lua numbers. */
 
 /*
 @@ LUA_UNSIGNED is the integral type used by lua_pushunsigned/lua_tounsigned.

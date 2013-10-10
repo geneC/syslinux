@@ -27,6 +27,26 @@
 #include "lvm.h"
 
 
+#ifdef LUA_NUMBER_INTEGRAL
+LUA_NUMBER luai_ipow(void *L, LUA_NUMBER a, LUA_NUMBER b) {
+  (void)L;
+  if (b < 0)
+    return 0;
+  else if (b == 0)
+    return 1;
+  else {
+    LUA_NUMBER c = 1;
+    for (;;) {
+      if (b & 1)
+	c *= a;
+      b = b >> 1;
+      if (b == 0)
+	return c;
+      a *= a;
+    }
+  }
+}
+#endif
 
 /* limit for table tag-method chains (to avoid loops) */
 #define MAXTAGLOOP	100

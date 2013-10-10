@@ -77,15 +77,16 @@ static const Node dummynode_ = {
 /*
 ** hash for lua_Numbers
 */
+/* Taken from Lua 5.1 to avoid frexp() */
+#define numints	cast_int(sizeof(lua_Number)/sizeof(int))
 static Node *hashnum (const Table *t, lua_Number n) {
+  unsigned int a[numints];
   int i;
-  luai_hashnum(i, n);
-  if (i < 0) {
-    if (cast(unsigned int, i) == 0u - i)  /* use unsigned to avoid overflows */
-      i = 0;  /* handle INT_MIN */
-    i = -i;  /* must be a positive value */
-  }
-  return hashmod(t, i);
+  if (luai_numeq(n, 0))  /* avoid problems with -0 */
+    return gnode(t, 0);
+  memcpy(a, &n, sizeof(a));
+  for (i = 1; i < numints; i++) a[0] += a[i];
+  return hashmod(t, a[0]);
 }
 
 
