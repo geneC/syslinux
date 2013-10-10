@@ -5,7 +5,11 @@
 */
 
 
+#ifdef SYSLINUX
+#define signal(x,y)
+#else
 #include <signal.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,6 +95,7 @@ static const char *progname = LUA_PROGNAME;
 
 
 
+#ifndef SYSLINUX
 static void lstop (lua_State *L, lua_Debug *ar) {
   (void)ar;  /* unused arg. */
   lua_sethook(L, NULL, 0, 0);
@@ -103,6 +108,7 @@ static void laction (int i) {
                               terminate process (default action) */
   lua_sethook(globalL, lstop, LUA_MASKCALL | LUA_MASKRET | LUA_MASKCOUNT, 1);
 }
+#endif
 
 
 static void print_usage (const char *badoption) {
