@@ -1,5 +1,5 @@
 /*
-** $Id: lualib.h,v 1.36.1.1 2007/12/27 13:02:25 roberto Exp $
+** $Id: lualib.h,v 1.43 2011/12/08 12:11:37 roberto Exp $
 ** Lua standard libraries
 ** See Copyright Notice in lua.h
 */
@@ -11,60 +11,43 @@
 #include "lua.h"
 
 
-/* Key to file-handle type */
-#define LUA_FILEHANDLE		"FILE*"
 
+LUAMOD_API int (luaopen_base) (lua_State *L);
 
 #define LUA_COLIBNAME	"coroutine"
-LUALIB_API int (luaopen_base) (lua_State *L);
+LUAMOD_API int (luaopen_coroutine) (lua_State *L);
 
 #define LUA_TABLIBNAME	"table"
-LUALIB_API int (luaopen_table) (lua_State *L);
+LUAMOD_API int (luaopen_table) (lua_State *L);
 
 #define LUA_IOLIBNAME	"io"
-LUALIB_API int (luaopen_io) (lua_State *L);
+LUAMOD_API int (luaopen_io) (lua_State *L);
 
 #define LUA_OSLIBNAME	"os"
-LUALIB_API int (luaopen_os) (lua_State *L);
+LUAMOD_API int (luaopen_os) (lua_State *L);
 
 #define LUA_STRLIBNAME	"string"
-LUALIB_API int (luaopen_string) (lua_State *L);
+LUAMOD_API int (luaopen_string) (lua_State *L);
+
+#define LUA_BITLIBNAME	"bit32"
+LUAMOD_API int (luaopen_bit32) (lua_State *L);
 
 #define LUA_MATHLIBNAME	"math"
-LUALIB_API int (luaopen_math) (lua_State *L);
+LUAMOD_API int (luaopen_math) (lua_State *L);
 
 #define LUA_DBLIBNAME	"debug"
-LUALIB_API int (luaopen_debug) (lua_State *L);
+LUAMOD_API int (luaopen_debug) (lua_State *L);
 
 #define LUA_LOADLIBNAME	"package"
-LUALIB_API int (luaopen_package) (lua_State *L);
+LUAMOD_API int (luaopen_package) (lua_State *L);
 
-#ifdef SYSLINUX
-#define LUA_PCILIBNAME	"pci"
-LUALIB_API int (luaopen_pci) (lua_State *L);
-
-#define LUA_SYSLINUXLIBNAME	"syslinux"
-LUALIB_API int (luaopen_syslinux) (lua_State *L);
-
-#define LUA_DMILIBNAME "dmi"
-LUALIB_API int (luaopen_dmi) (lua_State *L);
-
-#define LUA_VESALIBNAME "vesa"
-LUALIB_API int (luaopen_vesa) (lua_State *L);
-
-#define LUA_CPULIBNAME	"cpu"
-LUALIB_API int (luaopen_cpu) (lua_State *L);
-
-#define LUA_DHCPLIBNAME	"dhcp"
-LUALIB_API int (luaopen_dhcp) (lua_State *L);
-#endif
 
 /* open all previous libraries */
-LUALIB_API void (luaL_openlibs) (lua_State *L); 
+LUALIB_API void (luaL_openlibs) (lua_State *L);
 
 
 
-#ifndef lua_assert
+#if !defined(lua_assert)
 #define lua_assert(x)	((void)0)
 #endif
 
