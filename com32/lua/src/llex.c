@@ -5,7 +5,11 @@
 */
 
 
+#ifndef SYSLINUX
 #include <locale.h>
+#else
+#define getlocaledecpoint() '.'
+#endif
 #include <string.h>
 
 #define llex_c
