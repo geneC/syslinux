@@ -47,8 +47,13 @@
 ** created; the seed is used to randomize hashes.
 */
 #if !defined(luai_makeseed)
+#ifndef SYSLINUX
 #include <time.h>
 #define luai_makeseed()		cast(unsigned int, time(NULL))
+#else
+#include <sys/times.h>
+#define luai_makeseed()		cast(unsigned int, times(NULL))
+#endif /* SYSLINUX */
 #endif
 
 
