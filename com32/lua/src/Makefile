@@ -36,7 +36,7 @@ LIBLUA_OBJS += lgc.o llex.o lmem.o lobject.o lopcodes.o lparser.o
 LIBLUA_OBJS += lstate.o lstring.o ltable.o ltm.o lundump.o lvm.o lzio.o
 
 LIBLUA_OBJS += lauxlib.o lbaselib.o lbitlib.o lcorolib.o ldblib.o liolib.o
-LIBLUA_OBJS += lstrlib.o ltablib.o loadlib.o linit.o
+LIBLUA_OBJS += loslib.o lstrlib.o ltablib.o loadlib.o linit.o
 
 CFLAGS += -DLUA_ANSI
 

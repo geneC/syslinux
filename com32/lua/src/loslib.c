@@ -6,7 +6,9 @@
 
 
 #include <errno.h>
+#ifndef SYSLINUX
 #include <locale.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -20,6 +22,7 @@
 #include "lualib.h"
 
 
+#ifndef SYSLINUX
 /*
 ** list of valid conversion specifiers for the 'strftime' function
 */
@@ -111,6 +114,7 @@ static int os_tmpname (lua_State *L) {
   lua_pushstring(L, buff);
   return 1;
 }
+#endif /* SYSLINUX */
 
 
 static int os_getenv (lua_State *L) {
@@ -119,6 +123,7 @@ static int os_getenv (lua_State *L) {
 }
 
 
+#ifndef SYSLINUX
 static int os_clock (lua_State *L) {
   lua_pushnumber(L, ((lua_Number)clock())/(lua_Number)CLOCKS_PER_SEC);
   return 1;
@@ -284,6 +289,7 @@ static int os_setlocale (lua_State *L) {
   lua_pushstring(L, setlocale(cat[op], l));
   return 1;
 }
+#endif /* SYSLINUX */
 
 
 static int os_exit (lua_State *L) {
@@ -300,19 +306,23 @@ static int os_exit (lua_State *L) {
 
 
 static const luaL_Reg syslib[] = {
+#ifndef SYSLINUX
   {"clock",     os_clock},
   {"date",      os_date},
 #ifndef LUA_NUMBER_INTEGRAL
   {"difftime",  os_difftime},
 #endif
   {"execute",   os_execute},
+#endif
   {"exit",      os_exit},
   {"getenv",    os_getenv},
+#ifndef SYSLINUX
   {"remove",    os_remove},
   {"rename",    os_rename},
   {"setlocale", os_setlocale},
   {"time",      os_time},
   {"tmpname",   os_tmpname},
+#endif
   {NULL, NULL}
 };
 
