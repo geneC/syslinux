@@ -15,6 +15,11 @@
 
 #include "luaconf.h"
 
+#ifdef SYSLINUX
+#define clearerr(x) (void)0
+#define feof(x) 0
+#define ferror(x) 0
+#endif
 
 #define LUA_VERSION_MAJOR	"5"
 #define LUA_VERSION_MINOR	"2"

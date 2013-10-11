@@ -252,11 +252,13 @@ static int io_popen (lua_State *L) {
 }
 
 
+#ifndef SYSLINUX
 static int io_tmpfile (lua_State *L) {
   LStream *p = newfile(L);
   p->f = tmpfile();
   return (p->f == NULL) ? luaL_fileresult(L, 0, NULL) : 1;
 }
+#endif
 
 
 static FILE *getiofile (lua_State *L, const char *findex) {
@@ -346,6 +348,7 @@ static int io_lines (lua_State *L) {
 */
 
 
+#ifndef SYSLINUX
 static int read_number (lua_State *L, FILE *f) {
   lua_Number d;
   if (fscanf(f, LUA_NUMBER_SCAN, &d) == 1) {
@@ -365,6 +368,13 @@ static int test_eof (lua_State *L, FILE *f) {
   lua_pushlstring(L, NULL, 0);
   return (c != EOF);
 }
+#else
+static int test_eof (lua_State *L, FILE *f) {
+  (void)f;
+  lua_pushlstring(L, NULL, 0);
+  return 1;
+}
+#endif
 
 
 static int read_line (lua_State *L, FILE *f, int chop) {
@@ -442,7 +452,11 @@ static int g_read (lua_State *L, FILE *f, int first) {
         luaL_argcheck(L, p && p[0] == '*', n, "invalid option");
         switch (p[1]) {
           case 'n':  /* number */
+#ifndef SYSLINUX
             success = read_number(L, f);
+#else
+            return luaL_argerror(L, n, "\"*number\" not supported");
+#endif
             break;
           case 'l':  /* line */
             success = read_line(L, f, 1);
@@ -542,6 +556,7 @@ static int f_write (lua_State *L) {
 }
 
 
+#ifndef SYSLINUX
 static int f_seek (lua_State *L) {
   static const int mode[] = {SEEK_SET, SEEK_CUR, SEEK_END};
   static const char *const modenames[] = {"set", "cur", "end", NULL};
@@ -570,6 +585,7 @@ static int f_setvbuf (lua_State *L) {
   int res = setvbuf(f, NULL, mode[op], sz);
   return luaL_fileresult(L, res == 0, NULL);
 }
+#endif
 
 
 
@@ -595,7 +611,9 @@ static const luaL_Reg iolib[] = {
   {"output", io_output},
   {"popen", io_popen},
   {"read", io_read},
+#ifndef SYSLINUX
   {"tmpfile", io_tmpfile},
+#endif
   {"type", io_type},
   {"write", io_write},
   {NULL, NULL}
@@ -610,8 +628,10 @@ static const luaL_Reg flib[] = {
   {"flush", f_flush},
   {"lines", f_lines},
   {"read", f_read},
+#ifndef SYSLINUX
   {"seek", f_seek},
   {"setvbuf", f_setvbuf},
+#endif
   {"write", f_write},
   {"__gc", f_gc},
   {"__tostring", f_tostring},
