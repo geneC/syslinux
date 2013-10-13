@@ -175,7 +175,7 @@ extern struct list_head modules_head;
 #define for_each_module(m)	list_for_each_entry(m, &modules_head, list)
 
 /**
- * for_each_module - iterator loop through the list of loaded modules safe against removal.
+ * for_each_module_safe - iterator loop through the list of loaded modules safe against removal.
  */
 #define for_each_module_safe(m, n)				\
 	list_for_each_entry_safe(m, n, &modules_head, list)
@@ -250,6 +250,7 @@ extern int module_unload(struct elf_module *module);
 
 /**
  * _module_unload - unloads the module without running destructors
+ * @module: the module descriptor structure.
  *
  * This function is the same as module_unload(), except that the
  * module's destructors are not executed.
@@ -257,7 +258,7 @@ extern int module_unload(struct elf_module *module);
 extern int _module_unload(struct elf_module *module);
 
 /**
- * module_unload - unloads the module from the system.
+ * get_module_type - get type of the module
  * @module: the module descriptor structure.
  *
  * This function returns the type of module we're dealing with
