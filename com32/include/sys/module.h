@@ -156,24 +156,6 @@ extern struct elf_module *unload_modules_since(const char *name);
 extern FILE *findpath(char *name);
 
 
-#ifdef DYNAMIC_MODULE
-
-/*
- * This portion is included by dynamic (ELF) module source files.
- */
-
-#define MODULE_INIT(fn)	static module_init_t __module_init \
-	__used __attribute__((section(".ctors_modinit")))  = fn
-
-#define MODULE_EXIT(fn) static module_exit_t __module_exit \
-	__used __attribute__((section(".dtors_modexit")))  = fn
-
-#else
-
-/*
- * This portion is included by the core COM32 module.
- */
-
 /**
  * Names of symbols with special meaning (treated as special cases at linking)
  */
@@ -364,7 +346,5 @@ static inline const struct elf_module *syslinux_current(void)
 	return __syslinux_current;
 }
 
-
-#endif // DYNAMIC_MODULE
 
 #endif // MODULE_H_
