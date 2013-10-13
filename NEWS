@@ -9,6 +9,10 @@ Changes in 6.02:
 	* Fix various make targets that became broken when switching to
 	  per-firmware object directories, including 'make install' and
 	  'make netinstall'.
+	* efi: Improve handling of packet loss in UDP stack.
+	* tests: Introduce a new regression test framework designed to
+	  ensure bugs are not reintroduced once fixed.
+	* efi: Implement localboot support.
 
 Changes in 6.01:
 	* efi: Mark some symbols as __export otherwise libcom32.c32 and
