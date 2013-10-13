@@ -212,6 +212,51 @@ static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym) {
 /* }====================================================== */
 
 
+#elif defined(SYSLINUX)
+/*
+** {=========================================================================
+** This is an implementation of loadlib for the Syslinux COM32 module system.
+** ==========================================================================
+*/
+
+#include <sys/module.h>
+
+static void ll_unloadlib (void *lib) {
+  module_unload ((struct elf_module *)lib);
+}
+
+
+static void *ll_load (lua_State *L, const char *path, int seeglb) {
+  int err;
+  struct elf_module *lib = module_alloc (path);
+  if (lib == NULL) {
+    lua_pushstring (L, "module not found");
+    return NULL;
+  }
+  (void)seeglb; /* gcc, ignore it */
+  err = module_load (lib);
+  if (err) {
+    printf ("module load error: %d\n", err);
+    lua_pushstring (L, "failed to load module");
+    return NULL;
+  }
+  return (void *)lib;
+}
+
+
+static lua_CFunction ll_sym (lua_State *L, void *lib, const char *sym) {
+  Elf_Sym *p = module_find_symbol (sym, (struct elf_module *)lib);
+  if (p == NULL) {
+    lua_pushstring (L, "symbol not found in module");
+    return NULL;
+  }
+  return (lua_CFunction)module_get_absolute(p->st_value, (struct elf_module *)lib);
+}
+
+/* }====================================================== */
+
+
+
 #else
 /*
 ** {======================================================

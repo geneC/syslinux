@@ -97,6 +97,9 @@
 #define LUA_CPATH_DEFAULT \
 		LUA_CDIR"?.dll;" LUA_CDIR"loadall.dll;" ".\\?.dll"
 
+#elif defined(SYSLINUX)
+#define LUA_PATH_DEFAULT  "./?.lua"
+#define LUA_CPATH_DEFAULT "./?.c32"
 #else			/* }{ */
 
 #define LUA_VDIR	LUA_VERSION_MAJOR "." LUA_VERSION_MINOR "/"
