@@ -26,6 +26,7 @@ LNXLIBS	   =
 CFLAGS    += -DSYSLINUX
 MODULES	  = lua.c32
 MODULES   += lfs.c32
+MODULES   += syslinux.c32
 TESTFILES =
 
 OBJS	  = lua.o

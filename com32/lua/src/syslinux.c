@@ -473,7 +473,7 @@ static int sl_version(lua_State * L)
     return 1;
 }
 
-static const luaL_reg syslinuxlib[] = {
+static const luaL_Reg syslinuxlib[] = {
     {"run_command", sl_run_command},
     {"run_default", sl_run_default},
     {"local_boot", sl_local_boot},
@@ -504,6 +504,6 @@ LUALIB_API int luaopen_syslinux(lua_State * L)
 
     luaL_newmetatable(L, SYSLINUX_FILE);
 
-    luaL_openlib(L, LUA_SYSLINUXLIBNAME, syslinuxlib, 0);
+    luaL_newlib(L, syslinuxlib);
     return 1;
 }
