@@ -9,8 +9,18 @@
 #include "lualib.h"
 #include "dmi/dmi.h"
 
-extern void add_string_item(lua_State*, const char*, const char*);
-extern void add_int_item(lua_State*, const char*, int);
+static void add_string_item(lua_State *L, const char *item, const char *value_str) {
+ lua_pushstring(L,item);
+ lua_pushstring(L,value_str);
+ lua_settable(L,-3);
+}
+
+static void add_int_item(lua_State *L, const char *item, int value_int) {
+ lua_pushstring(L,item);
+ lua_pushnumber(L,value_int);
+ lua_settable(L,-3);
+}
+
 typedef int (*table_fn)(lua_State*, s_dmi*);
 
 /* Add a Lua_String entry to the table on stack
