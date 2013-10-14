@@ -25,8 +25,13 @@ LNXLIBS	   =
 
 CFLAGS    += -DSYSLINUX
 MODULES	  = lua.c32
+MODULES   += cpu.c32
+MODULES   += dhcp.c32
+MODULES   += dmi.c32
 MODULES   += lfs.c32
+MODULES   += pci.c32
 MODULES   += syslinux.c32
+MODULES   += vesa.c32
 TESTFILES =
 
 OBJS	  = lua.o

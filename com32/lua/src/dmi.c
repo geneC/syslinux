@@ -519,7 +519,7 @@ static const luaL_Reg dmilib[] = {
 
 
 LUALIB_API int luaopen_dmi (lua_State *L) {
-  luaL_openlib(L, LUA_DMILIBNAME, dmilib, 0);
+  luaL_newlib(L, dmilib);
   return 1;
 }
 

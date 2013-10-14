@@ -346,13 +346,13 @@ static int	dhcp_gettable(lua_State *L)
   return 1;
 }
 
-static const luaL_reg dhcplib[] = {
+static const luaL_Reg dhcplib[] = {
   {"gettable", dhcp_gettable},
   {"getoptions", dhcp_getoptions},
   {NULL, NULL}
 };
 
 LUALIB_API int luaopen_dhcp (lua_State *L) {
-  luaL_openlib(L, LUA_DHCPLIBNAME, dhcplib, 0);
+  luaL_newlib(L, dhcplib);
   return 1;
 }

@@ -152,7 +152,7 @@ static const luaL_Reg cpulib[] = {
 
 
 LUALIB_API int luaopen_cpu(lua_State *L) {
-  luaL_openlib(L, LUA_CPULIBNAME, cpulib, 0);
+  luaL_newlib(L, cpulib);
   return 1;
 }
 

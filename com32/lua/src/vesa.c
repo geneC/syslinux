@@ -123,7 +123,7 @@ static int vesa_load_background(lua_State *L)
   return 0;
 }
 
-static const luaL_reg vesalib[] = {
+static const luaL_Reg vesalib[] = {
   {"getmodes", vesa_getmodes},
   {"setmode", vesa_setmode},
   {"load_background", vesa_load_background},
@@ -133,7 +133,7 @@ static const luaL_reg vesalib[] = {
 /* This defines a function that opens up your library. */
 
 LUALIB_API int luaopen_vesa (lua_State *L) {
-  luaL_openlib(L, LUA_VESALIBNAME, vesalib, 0);
+  luaL_newlib(L, vesalib);
   return 1;
 }
 
