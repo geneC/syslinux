@@ -6,6 +6,7 @@
 
 
 #ifdef SYSLINUX
+#include <console.h>
 #define signal(x,y)
 #else
 #include <signal.h>
@@ -490,6 +491,9 @@ int main (int argc, char **argv) {
     l_message(argv[0], "cannot create state: not enough memory");
     return EXIT_FAILURE;
   }
+#ifdef SYSLINUX
+  openconsole(&dev_stdcon_r, &dev_stdcon_w);
+#endif
   /* call 'pmain' in protected mode */
   lua_pushcfunction(L, &pmain);
   lua_pushinteger(L, argc);  /* 1st argument */
