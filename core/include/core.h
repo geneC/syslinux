@@ -92,8 +92,10 @@ void call16(void (*)(void), const com32sys_t *, com32sys_t *);
 /*
  * __lowmem is in the low 1 MB; __bss16 in the low 64K
  */
-#define __lowmem __attribute__((nocommon,section(".lowmem")))
-#define __bss16  __attribute__((nocommon,section(".bss16")))
+#ifdef __SYSLINUX_CORE__	/* Not supported in modules */
+# define __lowmem __attribute__((nocommon,section(".lowmem")))
+# define __bss16  __attribute__((nocommon,section(".bss16")))
+#endif
 
 /*
  * Helper routine to return a specific set of flags
