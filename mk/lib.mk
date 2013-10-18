@@ -109,6 +109,7 @@ LIBOTHER_OBJS = \
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
 	syslinux/disk.o	syslinux/utility.o syslinux/partiter.o		\
+	syslinux/multifs_utils.o					\
 	\
 	syslinux/setup_data.o
 
