@@ -15,7 +15,7 @@
  * the block size, which is 512 byte for FAT fs of the current 
  * implementation since the block(cluster) size in FAT is a bit big.
  */
-void cache_init(struct device *dev, int block_size_shift)
+__export void cache_init(struct device *dev, int block_size_shift)
 {
     struct cache *prev, *cur;
     char *data = dev->cache_data;

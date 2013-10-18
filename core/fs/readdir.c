@@ -4,6 +4,7 @@
 #include <sys/dirent.h>
 #include "fs.h"
 #include "core.h"
+#include "multifs.h"
 
 /* 
  * Open a directory
@@ -12,6 +13,9 @@ __export DIR *opendir(const char *path)
 {
     int rv;
     struct file *file;
+
+    if (switch_fs(&path))
+	return NULL;
 
     rv = searchdir(path, O_RDONLY|O_DIRECTORY);
     if (rv < 0)
@@ -24,6 +28,9 @@ __export DIR *opendir(const char *path)
 	return NULL;
     }
 
+    restore_fs();
+    restore_chdir_start();
+
     return (DIR *)file;
 }
 
@@ -35,7 +42,7 @@ __export struct dirent *readdir(DIR *dir)
     static struct dirent buf;
     struct file *dd_dir = (struct file *)dir;
     int rv = -1;
-    
+
     if (dd_dir) {
         if (dd_dir->fs->fs_ops->readdir) {
 	    rv = dd_dir->fs->fs_ops->readdir(dd_dir, &buf);

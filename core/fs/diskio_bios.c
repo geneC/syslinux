@@ -287,7 +287,7 @@ static int edd_rdwr_sectors(struct disk *disk, void *buf,
 
 struct disk *bios_disk_init(void *private)
 {
-    static struct disk disk;
+    struct disk *disk;
     struct bios_disk_private *priv = (struct bios_disk_private *)private;
     com32sys_t *regs = priv->regs;
     static __lowmem struct edd_disk_params edd_params;
@@ -301,6 +301,10 @@ struct disk *bios_disk_init(void *private)
     bool ebios;
     int sector_size;
     unsigned int hard_max_transfer;
+
+    disk = malloc(sizeof(struct disk));
+    if (!disk)
+        return NULL;
 
     memset(&ireg, 0, sizeof ireg);
     ireg.edx.b[0] = devno;
@@ -319,18 +323,18 @@ struct disk *bios_disk_init(void *private)
 	hard_max_transfer = 63;
 
 	/* CBIOS parameters */
-	disk.h = bsHeads;
-	disk.s = bsSecPerTrack;
+	disk->h = bsHeads;
+	disk->s = bsSecPerTrack;
 
 	if ((int8_t)devno < 0) {
 	    /* Get hard disk geometry from BIOS */
-	    
+
 	    ireg.eax.b[1] = 0x08;
 	    __intcall(0x13, &ireg, &oreg);
-	    
+
 	    if (!(oreg.eflags.l & EFLAGS_CF)) {
-		disk.h = oreg.edx.b[1] + 1;
-		disk.s = oreg.ecx.b[0] & 63;
+		disk->h = oreg.edx.b[1] + 1;
+		disk->s = oreg.ecx.b[0] & 63;
 	    }
 	}
 
@@ -374,24 +378,24 @@ struct disk *bios_disk_init(void *private)
 
     }
 
-    disk.disk_number   = devno;
-    disk.sector_size   = sector_size;
-    disk.sector_shift  = ilog2(sector_size);
-    disk.part_start    = part_start;
-    disk.secpercyl     = disk.h * disk.s;
-    disk.rdwr_sectors  = ebios ? edd_rdwr_sectors : chs_rdwr_sectors;
+    disk->disk_number   = devno;
+    disk->sector_size   = sector_size;
+    disk->sector_shift  = ilog2(sector_size);
+    disk->part_start    = part_start;
+    disk->secpercyl     = disk->h * disk->s;
+    disk->rdwr_sectors  = ebios ? edd_rdwr_sectors : chs_rdwr_sectors;
 
     if (!MaxTransfer || MaxTransfer > hard_max_transfer)
 	MaxTransfer = hard_max_transfer;
 
-    disk.maxtransfer   = MaxTransfer;
+    disk->maxtransfer   = MaxTransfer;
 
     dprintf("disk %02x cdrom %d type %d sector %u/%u offset %llu limit %u\n",
-	    devno, cdrom, ebios, sector_size, disk.sector_shift,
-	    part_start, disk.maxtransfer);
+	    devno, cdrom, ebios, sector_size, disk->sector_shift,
+	    part_start, disk->maxtransfer);
 
-    disk.private = private;
-    return &disk;
+    disk->private = private;
+    return disk;
 }
 
 void pm_fs_init(com32sys_t *regs)
