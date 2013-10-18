@@ -16,7 +16,7 @@
 VPATH = $(SRC)
 include $(MAKEDIR)/elf.mk
 
-OBJS = chain.o partiter.o utility.o options.o mangle.o
+OBJS = chain.o options.o mangle.o
 CFLAGS += -fno-strict-aliasing
 
 all: chain.c32

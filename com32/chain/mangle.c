@@ -37,8 +37,8 @@
 #include <syslinux/config.h>
 #include "chain.h"
 #include "options.h"
-#include "utility.h"
-#include "partiter.h"
+#include <syslinux/utility.h>
+#include <syslinux/partiter.h>
 #include "mangle.h"
 
 static const char cmldr_signature[8] = "cmdcons";

@@ -108,7 +108,7 @@ LIBOTHER_OBJS = \
 	pci/writeb.o pci/writew.o pci/writel.o	\
 	\
 	sys/x86_init_fpu.o math/pow.o math/strtod.o			\
-	syslinux/disk.o							\
+	syslinux/disk.o	syslinux/utility.o syslinux/partiter.o		\
 	\
 	syslinux/setup_data.o
 

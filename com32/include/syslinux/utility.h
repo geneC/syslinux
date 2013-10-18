@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <syslinux/disk.h>
 #include <syslinux/movebits.h>
+#include <klibc/compiler.h>
 
 /* most (all ?) bpb "types" known to humankind as of 2012 */
 enum {bpbUNK, bpbV20, bpbV30, bpbV32, bpbV34, bpbV40, bpbVNT, bpbV70, bpbEXF};
@@ -58,7 +59,7 @@ static inline int warn(const char *x)
     return fprintf(stderr, "WARN: %s\n", x);
 }
 
-static inline int error(const char *x)
+static __unusedfunc int error(const char *x)
 {
     return fprintf(stderr, "ERR: %s\n", x);
 }

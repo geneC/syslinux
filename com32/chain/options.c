@@ -33,8 +33,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "chain.h"
-#include "partiter.h"
-#include "utility.h"
+#include <syslinux/partiter.h>
+#include <syslinux/utility.h>
 #include "options.h"
 
 struct options opt;

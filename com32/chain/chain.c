@@ -35,9 +35,9 @@
 #include <syslinux/disk.h>
 #include <syslinux/video.h>
 #include "chain.h"
-#include "utility.h"
+#include <syslinux/utility.h>
 #include "options.h"
-#include "partiter.h"
+#include <syslinux/partiter.h>
 #include "mangle.h"
 
 static int fixed_cnt = 128;   /* see comments in main() */

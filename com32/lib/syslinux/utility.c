@@ -38,7 +38,7 @@
 #include <fs.h>
 #include <syslinux/disk.h>
 #include <syslinux/pmapi.h>
-#include "utility.h"
+#include <syslinux/utility.h>
 
 static const char *bpbtypes[] = {
     [0] =  "unknown",

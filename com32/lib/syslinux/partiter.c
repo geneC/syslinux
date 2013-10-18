@@ -40,8 +40,8 @@
 #include <stdarg.h>
 #include <zlib.h>
 #include <syslinux/disk.h>
-#include "partiter.h"
-#include "utility.h"
+#include <syslinux/partiter.h>
+#include <syslinux/utility.h>
 
 #define ost_is_ext(type) ((type) == 0x05 || (type) == 0x0F || (type) == 0x85)
 #define ost_is_nondata(type) (ost_is_ext(type) || (type) == 0x00)
@@ -407,7 +407,7 @@ static void gpt_conv_label(struct part_iter *iter)
     iter->gpt.part_label[PI_GPTLABSIZE/2] = 0;
 }
 
-static inline int valid_crc(uint32_t crc, const uint8_t *buf, unsigned int siz)
+static int valid_crc(uint32_t crc, const uint8_t *buf, unsigned int siz)
 {
     return crc == crc32(crc32(0, NULL, 0), buf, siz);
 }

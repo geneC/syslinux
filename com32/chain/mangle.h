@@ -32,7 +32,7 @@
 #define COM32_CHAIN_MANGLE_H
 
 #include "chain.h"
-#include "partiter.h"
+#include <syslinux/partiter.h>
 
 /* file's manglers */
 int manglef_isolinux(struct data_area *data);
