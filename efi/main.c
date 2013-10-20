@@ -10,11 +10,12 @@
 
 #include "efi.h"
 #include "fio.h"
+#include "version.h"
 
 __export uint16_t PXERetry;
-__export char copyright_str[] = "Copyright (C) 2011\n";
+__export char copyright_str[] = "Copyright (C) 2011-" YEAR_STR "\n";
 uint8_t SerialNotice = 1;
-__export char syslinux_banner[] = "Syslinux 5.x (EFI)\n";
+__export char syslinux_banner[] = "Syslinux " VERSION_STR " (EFI; " DATE_STR ")\n";
 char CurrentDirName[CURRENTDIR_MAX];
 struct com32_sys_args __com32;
 
