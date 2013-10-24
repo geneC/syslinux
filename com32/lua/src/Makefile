@@ -32,6 +32,7 @@ MODULES   += lfs.c32
 MODULES   += pci.c32
 MODULES   += syslinux.c32
 MODULES   += vesa.c32
+MODULES   += cmenu.c32
 TESTFILES =
 
 OBJS	  = lua.o
@@ -55,6 +56,9 @@ liblua.elf : $(LIBLUA_OBJS)
 
 lua.elf : $(OBJS) $(LIBLUA) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
+
+cmenu.o : CFLAGS += -I$(com32)/cmenu/libmenu
+cmenu.elf : $(objdir)/com32/cmenu/libmenu/libmenu.c32
 
 tidy dist:
 	rm -f *.o *.lo *.lst *.elf .*.d *.tmp
