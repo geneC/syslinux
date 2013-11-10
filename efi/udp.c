@@ -333,6 +333,9 @@ void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
 
     memset(&udata, 0, sizeof(udata));
 
+    /* Re-use the existing local port number */
+    udata.StationPort = socket->net.efi.localport;
+
     memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
     memcpy(&udata.SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
