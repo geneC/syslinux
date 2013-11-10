@@ -50,6 +50,18 @@ int core_udp_open(struct pxe_pvt_inode *socket)
 
     socket->net.efi.binding = b;
 
+    /*
+     * Save the random local port number that the UDPv4 Protocol
+     * Driver picked for us. The TFTP protocol uses the local port
+     * number as the TID.
+     */
+    status = uefi_call_wrapper(udp->GetModeData, 5, udp,
+			       &udata, NULL, NULL, NULL);
+    if (status != EFI_SUCCESS)
+	Print(L"Failed to get UDP mode data: %d\n", status);
+    else
+	socket->net.efi.localport = udata.StationPort;
+
     return 0;
 
 bail:
@@ -111,21 +123,6 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     if (status != EFI_SUCCESS) {
 	Print(L"Failed to configure UDP: %d\n", status);
 	return;
-    }
-
-    /*
-     * If this is the first time connecting, save the random local port
-     * number that the UDPv4 Protocol Driver picked for us. The TFTP
-     * protocol uses the local port number as the TID, and it needs to
-     * be consistent across connect()/disconnect() calls.
-     */
-    if (!socket->net.efi.localport) {
-	status = uefi_call_wrapper(udp->GetModeData, 5, udp,
-				   &udata, NULL, NULL, NULL);
-	if (status != EFI_SUCCESS)
-	    Print(L"Failed to get UDP mode data: %d\n", status);
-	else
-	    socket->net.efi.localport = udata.StationPort;
     }
 }
 
