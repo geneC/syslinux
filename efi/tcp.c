@@ -56,8 +56,7 @@ int core_tcp_connect(struct pxe_pvt_inode *socket, uint32_t ip, uint16_t port)
     memset(&tdata, 0, sizeof(tdata));
 
     ap = &tdata.AccessPoint;
-    memcpy(&ap->StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
-    memcpy(&ap->SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
+    ap->UseDefaultAddress = TRUE;
     memcpy(&ap->RemoteAddress, &ip, sizeof(ip));
     ap->RemotePort = port;
     ap->ActiveFlag = TRUE; /* Initiate active open */
