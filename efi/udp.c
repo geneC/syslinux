@@ -41,8 +41,6 @@ int core_udp_open(struct pxe_pvt_inode *socket)
     udp = (EFI_UDP4 *)udp_reader->this;
 
     memset(&udata, 0, sizeof(udata));
-    udata.AcceptPromiscuous = TRUE;
-    udata.AcceptAnyPort = TRUE;
 
     status = uefi_call_wrapper(udp->Configure, 2, udp, &udata);
     if (status != EFI_SUCCESS)
