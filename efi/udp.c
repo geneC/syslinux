@@ -112,8 +112,7 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     /* Re-use the existing local port number */
     udata.StationPort = socket->net.efi.localport;
 
-    memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
-    memcpy(&udata.SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
+    udata.UseDefaultAddress = TRUE;
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
     udata.AcceptPromiscuous = TRUE;
@@ -336,8 +335,7 @@ void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
     /* Re-use the existing local port number */
     udata.StationPort = socket->net.efi.localport;
 
-    memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
-    memcpy(&udata.SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
+    udata.UseDefaultAddress = TRUE;
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
     udata.AcceptPromiscuous = TRUE;
