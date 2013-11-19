@@ -73,6 +73,9 @@ struct fs_ops {
     int      (*next_extent)(struct inode *, uint32_t);
 
     int      (*copy_super)(void *buf);
+
+    char *   (*fs_uuid)(struct fs_info *);
+
 };
 
 /*
@@ -205,6 +208,7 @@ void pm_open_file(com32sys_t *);
 void close_file(uint16_t handle);
 void pm_close_file(com32sys_t *);
 int open_config(void);
+char *fs_uuid(void);
 
 extern uint16_t SectorShift;
 

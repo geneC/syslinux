@@ -428,4 +428,5 @@ const struct fs_ops xfs_fs_ops = {
     .iget		= xfs_iget,
     .next_extent	= xfs_next_extent,
     .readlink		= xfs_readlink,
+    .fs_uuid            = NULL,
 };

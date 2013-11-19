@@ -336,4 +336,5 @@ const struct fs_ops ext2_fs_ops = {
     .readlink      = ext2_readlink,
     .readdir       = ext2_readdir,
     .next_extent   = ext2_next_extent,
+    .fs_uuid       = NULL,
 };

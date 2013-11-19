@@ -98,6 +98,8 @@ struct fat_sb_info {
 	int      clust_size;
 
 	int      fat_type;
+
+	uint32_t uuid;             /* fs UUID */
 } __attribute__ ((packed));
 
 struct fat_dir_entry {

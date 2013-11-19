@@ -53,6 +53,7 @@ enum syslinux_sysappend {
     SYSAPPEND_BIOSVENDOR,	/* BIOS vendor */
     SYSAPPEND_BIOSVERSION,	/* BIOS version string */
     SYSAPPEND_SYSFF,		/* System form factor */
+    SYSAPPEND_FSUUID,		/* Boot filesystem UUID */
     SYSAPPEND_MAX		/* Total number of strings */
 };
 

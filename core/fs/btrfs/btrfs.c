@@ -674,5 +674,6 @@ const struct fs_ops btrfs_fs_ops = {
     .next_extent   = btrfs_next_extent,
     .readdir       = btrfs_readdir,
     .chdir_start   = generic_chdir_start,
-    .open_config   = generic_open_config
+    .open_config   = generic_open_config,
+    .fs_uuid       = NULL,
 };

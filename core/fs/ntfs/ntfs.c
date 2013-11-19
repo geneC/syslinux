@@ -1385,4 +1385,5 @@ const struct fs_ops ntfs_fs_ops = {
     .iget_root      = ntfs_iget_root,
     .iget           = ntfs_iget,
     .next_extent    = ntfs_next_extent,
+    .fs_uuid        = NULL,
 };

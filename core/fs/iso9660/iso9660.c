@@ -332,4 +332,5 @@ const struct fs_ops iso_fs_ops = {
     .iget          = iso_iget,
     .readdir       = iso_readdir,
     .next_extent   = no_next_extent,
+    .fs_uuid       = NULL,
 };

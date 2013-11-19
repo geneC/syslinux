@@ -1,5 +1,6 @@
 #include <dprintf.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <sys/dirent.h>
 #include <cache.h>
@@ -777,6 +778,12 @@ static int vfat_fs_init(struct fs_info *fs)
     }
     sbi->clusters = clusters;
 
+    /* fs UUID - serial number */
+    if (FAT32 == sbi->fat_type)
+	sbi->uuid = fat.fat32.num_serial;
+    else
+	sbi->uuid = fat.fat12_16.num_serial;
+
     /* Initialize the cache */
     cache_init(fs->fs_dev, fs->block_shift);
 
@@ -811,6 +818,29 @@ static int vfat_copy_superblock(void *buf)
 	return 0;
 }
 
+#define FAT_UUID_LEN (4 + 1 + 4 + 1)
+static char *vfat_fs_uuid(struct fs_info *fs)
+{
+    char *uuid = NULL;
+    char *ptr;
+
+    uuid = malloc(FAT_UUID_LEN);
+    if (!uuid)
+	return NULL;
+
+    if (snprintf(uuid, FAT_UUID_LEN, "%04x-%04x",
+	          (uint16_t)(FAT_SB(fs)->uuid >> 16),
+	          (uint16_t)FAT_SB(fs)->uuid) < 0) {
+	free(uuid);
+	return NULL;
+    }
+
+    for (ptr = uuid; ptr && *ptr; ptr++)
+	*ptr = toupper(*ptr);
+
+    return uuid;
+}
+
 const struct fs_ops vfat_fs_ops = {
     .fs_name       = "vfat",
     .fs_flags      = FS_USEMEM | FS_THISIND,
@@ -826,4 +856,5 @@ const struct fs_ops vfat_fs_ops = {
     .iget          = vfat_iget,
     .next_extent   = fat_next_extent,
     .copy_super    = vfat_copy_superblock,
+    .fs_uuid       = vfat_fs_uuid,
 };

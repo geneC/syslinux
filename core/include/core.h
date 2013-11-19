@@ -91,6 +91,7 @@ extern void print_sysappend(void);
 extern const char *sysappend_strings[SYSAPPEND_MAX];
 extern uint32_t SysAppends;
 extern void sysappend_set_uuid(const uint8_t *uuid);
+extern void sysappend_set_fs_uuid(void);
 
 void __cdecl core_intcall(uint8_t, const com32sys_t *, com32sys_t *);
 void __cdecl core_farcall(uint32_t, const com32sys_t *, com32sys_t *);
