@@ -312,6 +312,9 @@ static int ext2_fs_init(struct fs_info *fs)
     sbi->s_first_data_block = sb.s_first_data_block;
     sbi->s_inode_size = sb.s_inode_size;
 
+    /* Volume UUID */
+    memcpy(sbi->s_uuid, sb.s_uuid, sizeof(sbi->s_uuid));
+
     /* Initialize the cache, and force block zero to all zero */
     cache_init(fs->fs_dev, fs->block_shift);
     cs = _get_cache_block(fs->fs_dev, 0);
@@ -319,6 +322,41 @@ static int ext2_fs_init(struct fs_info *fs)
     cache_lock_block(cs);
 
     return fs->block_shift;
+}
+
+#define EXT2_UUID_LEN (4 + 4 + 1 + 4 + 1 + 4 + 1 + 4 + 1 + 4 + 4 + 4 + 1)
+static char *ext2_fs_uuid(struct fs_info *fs)
+{
+    char *uuid = NULL;
+
+    uuid = malloc(EXT2_UUID_LEN);
+    if (!uuid)
+	return NULL;
+
+    if (snprintf(uuid, EXT2_UUID_LEN,
+                  "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+	          EXT2_SB(fs)->s_uuid[0],
+	          EXT2_SB(fs)->s_uuid[1],
+	          EXT2_SB(fs)->s_uuid[2],
+	          EXT2_SB(fs)->s_uuid[3],
+	          EXT2_SB(fs)->s_uuid[4],
+	          EXT2_SB(fs)->s_uuid[5],
+	          EXT2_SB(fs)->s_uuid[6],
+	          EXT2_SB(fs)->s_uuid[7],
+	          EXT2_SB(fs)->s_uuid[8],
+	          EXT2_SB(fs)->s_uuid[9],
+	          EXT2_SB(fs)->s_uuid[10],
+	          EXT2_SB(fs)->s_uuid[11],
+	          EXT2_SB(fs)->s_uuid[12],
+	          EXT2_SB(fs)->s_uuid[13],
+	          EXT2_SB(fs)->s_uuid[14],
+	          EXT2_SB(fs)->s_uuid[15]
+	          ) < 0) {
+	free(uuid);
+	return NULL;
+    }
+
+    return uuid;
 }
 
 const struct fs_ops ext2_fs_ops = {
@@ -336,5 +374,5 @@ const struct fs_ops ext2_fs_ops = {
     .readlink      = ext2_readlink,
     .readdir       = ext2_readdir,
     .next_extent   = ext2_next_extent,
-    .fs_uuid       = NULL,
+    .fs_uuid       = ext2_fs_uuid,
 };
