@@ -415,7 +415,7 @@ MaxLMA		equ 384*1024		; Reasonable limit (384K)
 		call getlinsec
 		pop eax
 		pop cx
-		mov dx,cx
+		movzx edx,cx
 		pop bp
 		pop bx
 
