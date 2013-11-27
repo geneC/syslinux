@@ -24,6 +24,11 @@
 #include <efilib.h>
 #include <efistdarg.h>
 
+/* Delay for 100 ms */
+#define EFI_NOMAP_PRINT_DELAY	100
+/* We should keep EFI_NOMAP_PRINT_COUNT at 10 to limit flooding the console */
+#define EFI_NOMAP_PRINT_COUNT	10
+
 struct efi_disk_private {
 	EFI_HANDLE dev_handle;
 	EFI_BLOCK_IO *bio;

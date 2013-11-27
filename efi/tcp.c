@@ -52,6 +52,8 @@ int core_tcp_connect(struct pxe_pvt_inode *socket, uint32_t ip, uint16_t port)
     EFI_STATUS status;
     EFI_TCP4 *tcp = (EFI_TCP4 *)b->this;
     int rv = -1;
+    int unmapped = 1;
+    jiffies_t start, last, cur;
 
     memset(&tdata, 0, sizeof(tdata));
 
@@ -63,7 +65,22 @@ int core_tcp_connect(struct pxe_pvt_inode *socket, uint32_t ip, uint16_t port)
 
     tdata.TimeToLive = 64;
 
-    status = uefi_call_wrapper(tcp->Configure, 2, tcp, &tdata);
+    last = start = jiffies();
+    while (unmapped){
+	status = uefi_call_wrapper(tcp->Configure, 2, tcp, &tdata);
+	if (status != EFI_NO_MAPPING)
+		unmapped = 0;
+	else {
+	    cur = jiffies();
+	    if ( (cur - last) >= EFI_NOMAP_PRINT_DELAY ) {
+		last = cur;
+		Print(L"core_tcp_connect: stalling on configure with no mapping\n");
+	    } else if ( (cur - start) > EFI_NOMAP_PRINT_DELAY * EFI_NOMAP_PRINT_COUNT) {
+		Print(L"core_tcp_connect: aborting on no mapping\n");
+		unmapped = 0;
+	    }
+	}
+    }
     if (status != EFI_SUCCESS)
 	return -1;
 
