@@ -218,6 +218,7 @@ int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 
     b = udp_reader;
     udp = (EFI_UDP4 *)b->this;
+    memset(&token, 0, sizeof(token));
 
     status = efi_setup_event(&token.Event, (EFI_EVENT_NOTIFY)udp4_cb,
 			     &token);
