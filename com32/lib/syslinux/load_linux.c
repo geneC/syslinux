@@ -124,32 +124,29 @@ static int map_initramfs(struct syslinux_movelist **fraglist,
     return 0;
 }
 
-static size_t calc_cmdline_offset(struct linux_header *hdr,
+static size_t calc_cmdline_offset(const struct syslinux_memmap *mmap,
+				  const struct linux_header *hdr,
 				  size_t cmdline_size, addr_t base,
 				  addr_t start)
 {
-    if (hdr->version < 0x0202 || !(hdr->loadflags & 0x01)) {
-	struct syslinux_memmap *mmap;
+    size_t max_offset;
 
-	mmap = syslinux_memory_map();
-	if (mmap && !syslinux_memmap_highest(mmap, SMT_FREE, &start,
-					     cmdline_size, 0xa0000, 16)) {
-	    syslinux_free_memmap(mmap);
-	    return start - base;
-	}
+    if (hdr->version >= 0x0202 && (hdr->loadflags & LOAD_HIGH))
+	max_offset = 0x10000;
+    else
+	max_offset = 0xfff0 - cmdline_size;
 
-	if (mmap && !syslinux_memmap_highest(mmap, SMT_TERMINAL, &start,
-					     cmdline_size, 0xa0000, 16)) {
-	    syslinux_free_memmap(mmap);
-	    return start - base;
-	}
+    if (!syslinux_memmap_highest(mmap, SMT_FREE, &start,
+				 cmdline_size, 0xa0000, 16) ||
+	!syslinux_memmap_highest(mmap, SMT_TERMINAL, &start,
+				 cmdline_size, 0xa0000, 16)) {
+	
 
-	syslinux_free_memmap(mmap);
-	dprintf("Unable to find lowmem for cmdline\n");
-	return (0x9ff0 - cmdline_size) & ~15;
+	return min(start - base, max_offset) & ~15;
     }
 
-    return 0x10000;
+    dprintf("Unable to find lowmem for cmdline\n");
+    return (0x9ff0 - cmdline_size) & ~15; /* Legacy value: pure hope... */
 }
 
 int bios_boot_linux(void *kernel_buf, size_t kernel_size,
@@ -159,7 +156,7 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 {
     struct linux_header hdr, *whdr;
     size_t real_mode_size, prot_mode_size, base;
-    addr_t real_mode_base, prot_mode_base;
+    addr_t real_mode_base, prot_mode_base, prot_mode_max;
     addr_t irf_size;
     size_t cmdline_size, cmdline_offset;
     struct setup_data *sdp;
@@ -243,9 +240,19 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     real_mode_size = (hdr.setup_sects + 1) << 9;
     real_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x10000 : 0x90000;
     prot_mode_base = (hdr.loadflags & LOAD_HIGH) ? 0x100000 : 0x10000;
+    prot_mode_max  = (hdr.loadflags & LOAD_HIGH) ? (addr_t)-1 : 0x8ffff;
     prot_mode_size = kernel_size - real_mode_size;
 
-    cmdline_offset = calc_cmdline_offset(&hdr, cmdline_size, real_mode_base,
+    /* Get the memory map */
+    mmap = syslinux_memory_map();	/* Memory map for shuffle_boot */
+    amap = syslinux_dup_memmap(mmap);	/* Keep track of available memory */
+    if (!mmap || !amap) {
+	errno = ENOMEM;
+	goto bail;
+    }
+
+    cmdline_offset = calc_cmdline_offset(mmap, &hdr, cmdline_size,
+					 real_mode_base,
 					 real_mode_base + real_mode_size);
     dprintf("cmdline_offset at 0x%x\n", real_mode_base + cmdline_offset);
 
@@ -281,14 +288,6 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 	}
     }
 
-    /* Get the memory map */
-    mmap = syslinux_memory_map();	/* Memory map for shuffle_boot */
-    amap = syslinux_dup_memmap(mmap);	/* Keep track of available memory */
-    if (!mmap || !amap) {
-	errno = ENOMEM;
-	goto bail;
-    }
-
     dprintf("Initial memory map:\n");
     syslinux_dump_memmap(mmap);
 
@@ -304,13 +303,21 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 
     /* Place the kernel in memory */
 
-    /* First, find a suitable place for the protected-mode code */
+    /*
+     * First, find a suitable place for the protected-mode code.  If
+     * the kernel image is not relocatable, just worry if it fits (it
+     * might not even be a Linux image, after all, and for !LOAD_HIGH
+     * we end up decompressing into a different location anyway), but
+     * if it is, make sure everything fits.
+     */
     base = prot_mode_base;
     if (prot_mode_size &&
-	syslinux_memmap_find(amap, &base, hdr.init_size,
+	syslinux_memmap_find(amap, &base,
+			     hdr.relocatable_kernel ?
+			     hdr.init_size : prot_mode_size,
 			     hdr.relocatable_kernel, hdr.kernel_alignment,
-			     prot_mode_base, (addr_t)-1,
-			     prot_mode_base, (addr_t)-1)) {
+			     prot_mode_base, prot_mode_max,
+			     prot_mode_base, prot_mode_max)) {
 	dprintf("Could not find location for protected-mode code\n");
 	goto bail;
     }
