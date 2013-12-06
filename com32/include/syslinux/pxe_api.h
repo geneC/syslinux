@@ -589,7 +589,7 @@ int __weak pxe_call(int, void *);
 void __weak unload_pxe(uint16_t flags);
 uint32_t __weak dns_resolv(const char *);
 
-uint32_t __weak SendCookies;
+extern uint32_t SendCookies;
 void __weak http_bake_cookies(void);
 
 #endif /* _SYSLINUX_PXE_API_H */
