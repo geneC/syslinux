@@ -7,11 +7,9 @@ core = $(topdir)/core
 # Set up architecture specifics; for cross compilation, set ARCH as apt
 # gnuefi sets up architecture specifics in ia32 or x86_64 sub directories
 # set up the LIBDIR and EFIINC for building for the appropriate architecture
-# For now, the following assumptions are made:
-# 1. gnu-efi lib for IA32 is installed in /usr/local/lib
-# and the include files in /usr/local/include/efi.
-# 2. gnu-efi lib for x86_64 is installed in /usr/lib
-# and the include files in /usr/include/efi.
+EFIINC = $(objdir)/include/efi
+LIBDIR  = $(objdir)/lib
+
 ifeq ($(ARCH),i386)
 	SARCHOPT = -march=i386
 	CARCHOPT = -m32 -march=i386
@@ -23,13 +21,7 @@ ifeq ($(ARCH),x86_64)
 	EFI_SUBARCH = $(ARCH)
 endif
 
-EFIINC = $(shell $(topdir)/efi//find-gnu-efi.sh include $(EFI_SUBARCH))
-$(if $(EFIINC),, \
-	$(error Missing $(EFI_SUBARCH) gnu-efi header files))
-
-LIBDIR = $(shell $(topdir)/efi/find-gnu-efi.sh lib $(EFI_SUBARCH))
-$(if $(LIBDIR),, \
-	$(error Missing $(EFI_SUBARCH) gnu-efi libraries))
+$(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH))
 
 #LIBDIR=/usr/lib
 FORMAT=efi-app-$(EFI_SUBARCH)
@@ -44,9 +36,8 @@ CFLAGS = -I$(EFIINC) -I$(EFIINC)/$(EFI_SUBARCH) \
 		-DLDLINUX=\"$(LDLINUX)\" -fvisibility=hidden \
 		-Wno-unused-parameter
 
-# gnuefi sometimes installs these under a gnuefi/ directory, and sometimes not
-CRT0 := $(shell find $(LIBDIR) -name crt0-efi-$(EFI_SUBARCH).o 2>/dev/null | tail -n1)
-LDSCRIPT := $(shell find $(LIBDIR) -name elf_$(EFI_SUBARCH)_efi.lds 2>/dev/null | tail -n1)
+CRT0 := $(LIBDIR)/crt0-efi-$(EFI_SUBARCH).o
+LDSCRIPT := $(LIBDIR)/elf_$(EFI_SUBARCH)_efi.lds
 
 LDFLAGS = -T $(SRC)/$(ARCH)/syslinux.ld -Bsymbolic -pie -nostdlib -znocombreloc \
 		-L$(LIBDIR) --hash-style=gnu -m elf_$(ARCH) $(CRT0) -E
