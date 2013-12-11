@@ -21,7 +21,7 @@ ifeq ($(ARCH),x86_64)
 	EFI_SUBARCH = $(ARCH)
 endif
 
-$(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH))
+$(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(topdir) $(objdir))
 
 #LIBDIR=/usr/lib
 FORMAT=efi-app-$(EFI_SUBARCH)
