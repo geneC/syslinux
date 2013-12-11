@@ -22,7 +22,7 @@ ARCH=$1
 srcdir=`realpath $2`
 objdir=`realpath $3`
 
-if [ ! -f $objdir/include/$ARCH/efibind.h ]; then
+if [ ! -f $objdir/include/efi/$ARCH/efibind.h ]; then
     # Build the external project with a clean make environment, as
     # Syslinux disables built-in implicit rules.
     export MAKEFLAGS=
