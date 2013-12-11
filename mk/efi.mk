@@ -21,7 +21,11 @@ ifeq ($(ARCH),x86_64)
 	EFI_SUBARCH = $(ARCH)
 endif
 
-$(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(topdir) $(objdir))
+output = $(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) \
+		$(topdir) $(objdir))
+ifneq ($(output),)
+$(error Failed to build gnu-efi for $(EFI_SUBARCH))
+endif
 
 #LIBDIR=/usr/lib
 FORMAT=efi-app-$(EFI_SUBARCH)
