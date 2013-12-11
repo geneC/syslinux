@@ -48,6 +48,17 @@ OBJS = $(subst $(SRC)/,,$(filter-out %wrapper.o, $(patsubst %.c,%.o,$(CSRC))))
 
 OBJS += $(objdir)/core/codepage.o $(ARCH)/linux.o
 
+# The DATE is set on the make command line when building binaries for
+# official release.  Otherwise, substitute a hex string that is pretty much
+# guaranteed to be unique to be unique from build to build.
+ifndef HEXDATE
+HEXDATE := $(shell $(PERL) $(SRC)/../now.pl $(SRCS))
+endif
+ifndef DATE
+DATE    := $(shell sh $(SRC)/../gen-id.sh $(VERSION) $(HEXDATE))
+endif
+CFLAGS		+= -DDATE_STR='"$(DATE)"'
+
 .PHONY: subdirs
 subdirs:
 	mkdir -p $(ARCH)
