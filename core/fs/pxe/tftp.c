@@ -8,26 +8,11 @@ const uint8_t TimeoutTable[] = {
     2, 2, 3, 3, 4, 5, 6, 7, 9, 10, 12, 15, 18, 21, 26, 31, 37, 44,
     53, 64, 77, 92, 110, 132, 159, 191, 229, 255, 255, 255, 255, 0
 };
-struct tftp_options {
-    const char *str_ptr;        /* string pointer */
-    size_t      offset;		/* offset into socket structre */
-};
 struct tftp_packet {
     uint16_t opcode;
     uint16_t serial;
     char data[];
 };
-
-#define IFIELD(x)	offsetof(struct inode, x)
-#define PFIELD(x)	(offsetof(struct inode, pvt) + \
-			 offsetof(struct pxe_pvt_inode, x))
-
-static const struct tftp_options tftp_options[] =
-{
-    { "tsize",   IFIELD(size) },
-    { "blksize", PFIELD(tftp_blksize) },
-};
-static const int tftp_nopts = sizeof tftp_options / sizeof tftp_options[0];
 
 static void tftp_error(struct inode *file, uint16_t errnum,
 		       const char *errstr);
@@ -209,8 +194,6 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
     static const char rrq_tail[] = "octet\0""tsize\0""0\0""blksize\0""1408";
     char rrq_packet_buf[2+2*FILENAME_MAX+sizeof rrq_tail];
     char reply_packet_buf[PKTBUF_SIZE];
-    const struct tftp_options *tftp_opt;
-    int i = 0;
     int err;
     int buffersize;
     int rrq_len;
@@ -219,7 +202,7 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
     jiffies_t oldtime;
     uint16_t opcode;
     uint16_t blk_num;
-    uint32_t opdata, *opdata_ptr;
+    uint64_t opdata;
     uint16_t src_port;
     uint32_t src_ip;
 
@@ -381,22 +364,6 @@ wait_pkt:
 	    if (!buffersize)
 		break;		/* No option data */
 
-            /*
-             * Parse option pointed to by options; guaranteed to be
-	     * null-terminated
-             */
-            tftp_opt = tftp_options;
-            for (i = 0; i < tftp_nopts; i++) {
-                if (!strcmp(opt, tftp_opt->str_ptr))
-                    break;
-                tftp_opt++;
-            }
-            if (i == tftp_nopts)
-                goto err_reply; /* Non-negotitated option returned,
-				   no idea what it means ...*/
-
-            /* get the address of the filed that we want to write on */
-            opdata_ptr = (uint32_t *)((char *)inode + tftp_opt->offset);
 	    opdata = 0;
 
             /* do convert a number-string to decimal number, just like atoi */
@@ -409,7 +376,16 @@ wait_pkt:
                     goto err_reply;     /* Not a decimal digit */
                 opdata = opdata*10 + d;
             }
-	    *opdata_ptr = opdata;
+
+	    if (!strcmp(opt, "tsize"))
+		inode->size = opdata;
+	    else if (!strcmp(opt, "blksize"))
+		socket->tftp_blksize = opdata;
+	    else
+		goto err_reply; /* Non-negotitated option returned,
+				   no idea what it means ...*/
+
+
 	}
 
 	if (socket->tftp_blksize < 64 || socket->tftp_blksize > PKTBUF_SIZE)
