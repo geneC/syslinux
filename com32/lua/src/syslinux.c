@@ -219,7 +219,7 @@ static int sl_boot_linux(lua_State * L)
        msleep(1000);
      */
 
-    printf("Loading kernel %s...\n", kernel);
+    printf("Loading kernel %s... ", kernel);
     if (loadfile(kernel, &kernel_data, &kernel_len))
 	printf("failed!\n");
     else
@@ -237,10 +237,10 @@ static int sl_boot_linux(lua_State * L)
 
 	    initrd = arg;
 	    printf("Loading initrd %s... ", initrd);
-	    if (initramfs_load_archive(initramfs, initrd)) {
+	    if (initramfs_load_archive(initramfs, initrd))
 		printf("failed!\n");
-	    }
-	    printf("ok\n");
+	    else
+		printf("ok\n");
 
 	    if (p)
 		*p++ = ',';
