@@ -16,6 +16,10 @@
 #include <windows.h>
 #endif
 
+/* Base the Lua paths on the Syslinux path */
+#ifdef SYSLINUX
+#include <fs.h>
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -667,6 +671,33 @@ static int ll_seeall (lua_State *L) {
 #define AUXMARK		"\1"
 
 
+#ifdef SYSLINUX
+static void setpath (lua_State *L, const char *fieldname, const char *envname1,
+                                   const char *envname2, const char *def) {
+  struct path_entry *entry;
+  luaL_Buffer b;
+  luaL_buffinit (L, &b);
+  (void)envname1;
+  (void)envname2;
+  list_for_each_entry(entry, &PATH, list) {
+    const char *e = entry->str;
+    int need_slash = e[strlen(e)-1] != '/';
+    void add (const char *stem) {
+      luaL_addstring (&b, e);
+      if (need_slash) luaL_addchar (&b, '/');
+      luaL_addstring (&b, stem);
+      luaL_addstring (&b, def);
+      luaL_addchar (&b, ';');
+    }
+    add ("?");
+    add ("?/init");
+  }
+  luaL_addstring (&b, "./?");
+  luaL_addstring (&b, def);
+  luaL_pushresult (&b);
+  lua_setfield(L, -2, fieldname);
+}
+#else
 /*
 ** return registry.LUA_NOENV as a boolean
 */
@@ -696,6 +727,7 @@ static void setpath (lua_State *L, const char *fieldname, const char *envname1,
   setprogdir(L);
   lua_setfield(L, -2, fieldname);
 }
+#endif
 
 
 static const luaL_Reg pk_funcs[] = {
