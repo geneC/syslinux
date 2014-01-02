@@ -1056,8 +1056,8 @@ startup_msg:	db 'Starting up, DL = ', 0
 spec_ok_msg:	db 'Loaded spec packet OK, drive = ', 0
 secsize_msg:	db 'Sector size ', 0
 offset_msg:	db 'Main image LBA = ', 0
-verify_msg:	db 'Image checksum verified.', CR, LF, 0
-allread_msg	db 'Main image read, jumping to main code...', CR, LF, 0
+verify_msg:	db 'Image csum verified.', CR, LF, 0
+allread_msg	db 'Image read, jumping to main code...', CR, LF, 0
 %endif
 noinfotable_msg	db 'No boot info table, assuming single session disk...', CR, LF, 0
 noinfoinspec_msg db 'Spec packet missing LBA information, trying to wing it...', CR, LF, 0
