@@ -19,8 +19,16 @@ EOF
 fi
 
 ARCH=$1
-srcdir=`realpath $2`
-objdir=`realpath $3`
+if which realpath > /dev/null;then
+	REALPATH="realpath"
+elif which readlink > /dev/null;then
+	REALPATH="readlink -f"
+else
+	echo "No realpath or readlink found; aborting"
+	return 1
+fi
+srcdir=`$REALPATH $2`
+objdir=`$REALPATH $3`
 
 if [ ! -f $objdir/include/efi/$ARCH/efibind.h ]; then
     # Build the external project with a clean make environment, as

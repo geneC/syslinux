@@ -20,18 +20,28 @@ EOF
 fi
 
 ARCH=$1
-srcdir=`realpath $2`
-objdir=`realpath $3`
+if which realpath > /dev/null;then
+	REALPATH="realpath"
+elif which readlink > /dev/null;then
+	REALPATH="readlink -f"
+else
+	echo "No realpath or readlink found; aborting"
+	return 1
+fi
+srcdir=`$REALPATH $2`
+objdir=`$REALPATH $3`
 
-pushd $srcdir
-git submodule init
-git submodule update
+do_build()(
+	cd $srcdir
+	git submodule init
+	git submodule update
 
-cd gnu-efi/gnu-efi-3.0/
+	cd gnu-efi/gnu-efi-3.0/
 
-make ARCH=$ARCH
+	make ARCH=$ARCH
 
-make ARCH=$ARCH PREFIX=$objdir install
-make ARCH=$ARCH clean
+	make ARCH=$ARCH PREFIX=$objdir install
+	make ARCH=$ARCH clean )
 
-popd
+# (do_build)
+do_build
