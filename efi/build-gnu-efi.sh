@@ -20,6 +20,11 @@ EOF
 fi
 
 ARCH=$1
+if gcc -dumpmachine|grep x86_64 > /dev/null;then
+	HOSTARCH=x86_64
+else
+	HOSTARCH=ia32
+fi
 if which realpath > /dev/null;then
 	REALPATH="realpath"
 elif which readlink > /dev/null;then
@@ -38,10 +43,10 @@ do_build()(
 
 	cd gnu-efi/gnu-efi-3.0/
 
-	make ARCH=$ARCH
+	make ARCH=$ARCH HOSTARCH=$HOSTARCH
 
-	make ARCH=$ARCH PREFIX=$objdir install
-	make ARCH=$ARCH clean )
+	make ARCH=$ARCH HOSTARCH=$HOSTARCH PREFIX=$objdir install
+	make ARCH=$ARCH HOSTARCH=$HOSTARCH clean )
 
 # (do_build)
 do_build
