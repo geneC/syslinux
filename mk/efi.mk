@@ -21,8 +21,7 @@ ifeq ($(ARCH),x86_64)
 	EFI_SUBARCH = $(ARCH)
 endif
 
-output = $(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) \
-		$(topdir) $(objdir))
+output = $(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(objdir))
 ifneq ($(output),)
 $(error Failed to build gnu-efi for $(EFI_SUBARCH))
 endif

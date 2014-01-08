@@ -3,15 +3,14 @@
 # Verify that gnu-efi is installed in the object directory for our
 # firmware. If it isn't, build it.
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 2 ]; then
 cat <<EOF
-Usage: $0: <arch> <srcdir> <objdir>
+Usage: $0: <arch> <objdir>
 
 Check for gnu-efi libraries and header files in <objdir> and, if none
 exist, build and install them.
 
   <arch>   - A gnu-efi \$ARCH argument, i.e. ia32, x86_64
-  <srcdir> - The top-level directory of the Syslinux source
   <objdir> - The Syslinux object directory
 
 EOF
@@ -19,20 +18,18 @@ EOF
 fi
 
 ARCH=$1
-srcdir=`realpath $2`
-objdir=`realpath $3`
+objdir=$2
 
 if [ ! -f $objdir/include/efi/$ARCH/efibind.h ]; then
     # Build the external project with a clean make environment, as
     # Syslinux disables built-in implicit rules.
     export MAKEFLAGS=
 
-    build=$srcdir/efi/build-gnu-efi.sh
-    $build $ARCH $srcdir $objdir &> /dev/null
+    ../../efi/build-gnu-efi.sh $ARCH $objdir &> /dev/null
     if [ $? -ne 0 ]; then
 	printf "Failed to build gnu-efi. "
 	printf "Execute the following command for full details: \n\n"
-	printf "$build $ARCH $srcdir $objdir\n\n"
+	printf "build-gnu-efi.sh $ARCH $objdir\n\n"
 
 	exit 1
     fi
