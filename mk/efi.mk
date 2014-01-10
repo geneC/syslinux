@@ -21,12 +21,6 @@ ifeq ($(ARCH),x86_64)
 	EFI_SUBARCH = $(ARCH)
 endif
 
-output = $(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) \
-		$(topdir) $(objdir))
-ifneq ($(output),)
-$(error Failed to build gnu-efi for $(EFI_SUBARCH))
-endif
-
 #LIBDIR=/usr/lib
 FORMAT=efi-app-$(EFI_SUBARCH)
 
@@ -51,13 +45,22 @@ SFLAGS     = $(GCCOPT) $(GCCWARN) $(SARCHOPT) \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include -I$(com32)/include/sys $(GPLINCLUDE)
 
-.PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
+lib/libefi.a:
+	@echo Building gnu-efi for $(EFI_SUBARCH)
+	$(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(topdir) $(objdir)
+
+%.o : %.c # Cancel previous rule
+
+%.o : %.S
 
 .PRECIOUS: %.o
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+%.o: %.S lib/libefi.a
+	$(CC) $(MAKEDEPS) $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
+
+
+.PRECIOUS: %.o
+%.o: %.c lib/libefi.a
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 #%.efi: %.so
 #	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel \

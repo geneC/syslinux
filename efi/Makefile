@@ -105,3 +105,5 @@ clean: tidy
 
 spotless: clean
 	rm -f $(BTARGET)
+	$(topdir)/efi/clean-gnu-efi.sh arch $(topdir) obj
+
