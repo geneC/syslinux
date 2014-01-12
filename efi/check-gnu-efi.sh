@@ -36,7 +36,7 @@ if [ ! -f $objdir/include/efi/$ARCH/efibind.h ]; then
     export MAKEFLAGS=
 
     build=$srcdir/efi/build-gnu-efi.sh
-    $build $ARCH $srcdir $objdir &> /dev/null
+    $build $ARCH $srcdir $objdir > /dev/null
     if [ $? -ne 0 ]; then
 	printf "Failed to build gnu-efi. "
 	printf "Execute the following command for full details: \n\n"

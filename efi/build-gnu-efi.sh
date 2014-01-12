@@ -36,17 +36,19 @@ fi
 srcdir=`$REALPATH $2`
 objdir=`$REALPATH $3`
 
-do_build()(
+do_build() (
+	echo Building gnu-efi for $ARCH on $HOSTARCH from $srcdir to $objdir
 	cd $srcdir
-	git submodule init
-	git submodule update
+	git submodule update --init
 
 	cd gnu-efi/gnu-efi-3.0/
 
+	echo Building gnu-efi: make
 	make ARCH=$ARCH HOSTARCH=$HOSTARCH
+	echo Built gnu-efi, installing
 
 	make ARCH=$ARCH HOSTARCH=$HOSTARCH PREFIX=$objdir install
-	make ARCH=$ARCH HOSTARCH=$HOSTARCH clean )
+	make ARCH=$ARCH HOSTARCH=$HOSTARCH clean
+)
 
-# (do_build)
 do_build

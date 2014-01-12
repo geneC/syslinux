@@ -45,9 +45,22 @@ SFLAGS     = $(GCCOPT) $(GCCWARN) $(SARCHOPT) \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include -I$(com32)/include/sys $(GPLINCLUDE)
 
+ifeq ($(EFI_SUBARCH),ia32)
+	EFIELFARCH=elf32-i386
+else
+	ifeq ($(EFI_SUBARCH),x86_64)
+		EFIELFARCH=elf64-x86-64
+	else
+		EFIELFARCH=BADARCH
+	endif
+endif
+
 lib/libefi.a:
 	@echo Building gnu-efi for $(EFI_SUBARCH)
-	$(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(topdir) $(objdir)
+	$(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(topdir) $(objdir) )
+	objdump -a $(objdir)/lib/libefi.a|grep 'file format'|head -n 1|grep $(EFIELFARCH)
+
+libefi.a: lib/libefi.a
 
 %.o : %.c # Cancel previous rule
 
