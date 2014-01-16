@@ -51,3 +51,6 @@
 *GPATH
 *GRTAGS
 *GTAGS
+/bios
+/efi32
+/efi64
