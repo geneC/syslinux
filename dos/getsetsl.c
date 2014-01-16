@@ -123,3 +123,20 @@ void memcpy_from_sl(void *dst, const void *src, size_t len)
 		 : "r" (seg)
 		 : "memory");
 }
+
+void memset_sl(void *dst, int c, size_t len)
+{
+    uint16_t seg;
+    uint16_t off;
+
+    seg = ds() + ((size_t)dst >> 4);
+    off = (size_t)dst & 15;
+
+    asm volatile("pushw %%es ; "
+		 "movw %3,%%es ; "
+		 "rep ; stosb ; "
+		 "popw %%es"
+		 : "+D" (off), "+c" (len)
+		 : "a" (c), "r" (seg)
+		 : "memory");
+}

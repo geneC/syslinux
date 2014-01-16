@@ -41,7 +41,7 @@ static void generate_extents(struct syslinux_extent *ex, int nptrs,
     base = addr;
     len = lba = 0;
 
-    memset(ex, 0, nptrs * sizeof *ex);
+    memset_sl(ex, 0, nptrs * sizeof *ex);
 
     while (nsect) {
 	sect = *sectp++;

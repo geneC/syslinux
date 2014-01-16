@@ -134,6 +134,7 @@ void set_32_sl(uint32_t * p, uint32_t v);
 void set_64_sl(uint64_t * p, uint64_t v);
 void memcpy_to_sl(void *dst, const void *src, size_t len);
 void memcpy_from_sl(void *dst, const void *src, size_t len);
+void memset_sl(void *dst, int c, size_t len);
 
 #else
 
@@ -148,6 +149,7 @@ void memcpy_from_sl(void *dst, const void *src, size_t len);
 #define set_64_sl(x,y) 		set_64(x,y)
 #define memcpy_to_sl(d,s,l)	memcpy(d,s,l)
 #define memcpy_from_sl(d,s,l)	memcpy(d,s,l)
+#define memset_sl(d,c,l)	memset(d,c,l)
 
 #endif
 
