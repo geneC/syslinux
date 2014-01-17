@@ -213,7 +213,7 @@ found_part:
 
 	movzwl	%cx,%eax		/* Length of GPT entry */
 	stosl
-	
+
 	rep; movsb			/* GPT entry follows MBR entry */
 	popw	%si
 

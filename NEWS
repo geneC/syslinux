@@ -106,6 +106,14 @@ Changes in 5.00:
 	  COMBOOT files (.cbt and .com) are no longer supported under
 	  Syslinux.
 
+Changes in 4.07:
+	* EXTLINUX: fix crash caused by dereferencing garbage pointer.
+	* Plug memory leak in searchdir which eventually leads to an
+	  observable hang (Shao Miller).
+	* ISOLINUX: fix bug triggered by isohybrid images larger than
+	  32K which results in an invalid image checksum error.
+	* menugen: make it Py3k compatible (Paulo Alcantara).
+
 Changes in 4.06:
 	* Support for NTFS, by Paulo Alcantara.
 	* EXTLINUX: more robust device detection, allow user to override.
