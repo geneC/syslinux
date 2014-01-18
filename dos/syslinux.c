@@ -170,15 +170,6 @@ ssize_t write_file(int fd, const void *buf, size_t count)
     return done;
 }
 
-static inline __attribute__ ((const))
-uint16_t data_segment(void)
-{
-    uint16_t ds;
-
-    asm("movw %%ds,%0" : "=rm"(ds));
-    return ds;
-}
-
 void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
 {
     uint16_t errnum = 0x0001;
@@ -189,7 +180,7 @@ void write_device(int drive, const void *buf, size_t nsecs, unsigned int sector)
     dio.startsector = sector;
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
-    dio.bufseg = data_segment();
+    dio.bufseg = ds();
 
     if (dos_version >= 0x070a) {
 	/* Try FAT32-aware system call first */
@@ -222,7 +213,7 @@ void read_device(int drive, void *buf, size_t nsecs, unsigned int sector)
     dio.startsector = sector;
     dio.sectors = nsecs;
     dio.bufoffs = (uintptr_t) buf;
-    dio.bufseg = data_segment();
+    dio.bufseg = ds();
 
     if (dos_version >= 0x070a) {
 	/* Try FAT32-aware system call first */
@@ -322,7 +313,7 @@ void write_mbr(int drive, const void *buf)
     dprintf("write_mbr(%d,%p)", drive, buf);
 
     mbr.bufferoffset = (uintptr_t) buf;
-    mbr.bufferseg = data_segment();
+    mbr.bufferseg = ds();
 
     rv = 0x440d;
     asm volatile ("int $0x21 ; setc %0" : "=bcdm" (err), "+a"(rv)
@@ -351,7 +342,7 @@ void read_mbr(int drive, const void *buf)
     dprintf("read_mbr(%d,%p)", drive, buf);
 
     mbr.bufferoffset = (uintptr_t) buf;
-    mbr.bufferseg = data_segment();
+    mbr.bufferseg = ds();
 
     rv = 0x440d;
     asm volatile ("int $0x21 ; setc %0":"=abcdm" (err), "+a"(rv)
