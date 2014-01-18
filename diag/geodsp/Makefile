@@ -40,7 +40,7 @@ all: $(BTARGET)
 
 # in case someone really wants these without needing a decompressor
 %.img: %.bin mk-lba-img.pl
-	$(PERL) mk-lba-img.pl $< > $@ || ( rm -f $@ ; false )
+	$(PERL) $(SRC)/mk-lba-img.pl $< > $@ || ( rm -f $@ ; false )
 
 %.bin: %.asm $(coredir)/writehex.inc $(coredir)/macros.inc $(coredir)/diskboot.inc
 	$(NASM) $(NASMOPT) -o $@ -l $(@:.bin=.lst) $<
