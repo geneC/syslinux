@@ -121,29 +121,32 @@ int rename(const char *oldname, const char *newname)
     return 0;
 }
 
-ssize_t write_file_seg(int fd, unsigned char *buf, const unsigned int len)
+ssize_t write_file_sl(int fd, const unsigned char _slimg *buf,
+		      const unsigned int len)
 {
-    uint16_t seg = ((size_t)buf >> 4) + ds();
-    uint32_t offset = 0;
+    uint32_t filepos = 0;
     uint16_t rv;
     uint8_t err;
 
-    while (offset < len) {
-	uint32_t chunk = len - offset;
-	if (chunk > 32768)
-	    chunk = 32768;
+    while (filepos < len) {
+	uint16_t seg = ((size_t)buf >> 4) + ds();
+	uint16_t offset = (size_t)buf & 15;
+	uint32_t chunk = len - filepos;
+	if (chunk > 32768 - offset)
+	    chunk = 32768 - offset;
 	asm volatile ("pushw %%ds ; "
 		      "movw %6,%%ds ; "
 		      "int $0x21 ; "
 		      "popw %%ds ; " "setc %0":"=bcdm" (err), "=a"(rv)
-		      :"a"(0x4000), "b"(fd), "c"(chunk), "d" (offset & 15),
-		      "SD" ((uint16_t)(seg + (offset >> 4))));
+		      :"a"(0x4000), "b"(fd), "c"(chunk), "d" (offset),
+		       "SD" (seg));
 	if (err || rv == 0)
 	    die("file write error");
-	offset += rv;
+	filepos += rv;
+	buf += rv;
     }
 
-    return offset;
+    return filepos;
 }
 
 ssize_t write_file(int fd, const void *buf, size_t count)
@@ -685,14 +688,14 @@ int main(int argc, char *argv[])
 
     set_attributes(ldlinux_name, 0);
     fd = creat(ldlinux_name, 0);	/* SYSTEM HIDDEN READONLY */
-    write_file_seg(fd, syslinux_ldlinux, syslinux_ldlinux_len);
+    write_file_sl(fd, syslinux_ldlinux, syslinux_ldlinux_len);
     write_file(fd, syslinux_adv, 2 * ADV_SIZE);
     close(fd);
     set_attributes(ldlinux_name, 0x07);	/* SYSTEM HIDDEN READONLY */
 
     set_attributes(ldlinuxc32_name, 0);
     fd = creat(ldlinuxc32_name, 0);		/* SYSTEM HIDDEN READONLY */
-    write_file_seg(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len);
+    write_file_sl(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len);
     close(fd);
     set_attributes(ldlinuxc32_name, 0x07);	/* SYSTEM HIDDEN READONLY */
 
