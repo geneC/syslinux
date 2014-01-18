@@ -433,7 +433,8 @@ int main(int argc, char *argv[])
     }
 
     /* Write it the first time */
-    if (xpwrite(fd, boot_image, boot_image_len, 0) != (int)boot_image_len ||
+    if (xpwrite(fd, (const char _force *)boot_image, boot_image_len, 0)
+	!= (int)boot_image_len ||
 	xpwrite(fd, syslinux_adv, 2 * ADV_SIZE,
 		boot_image_len) != 2 * ADV_SIZE) {
 	fprintf(stderr, "%s: write failure on %s\n", program, ldlinux_name);
@@ -468,7 +469,8 @@ int main(int argc, char *argv[])
 	goto umount;
     }
 
-    rv = xpwrite(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len, 0);
+    rv = xpwrite(fd, (const char _force *)syslinux_ldlinuxc32,
+		 syslinux_ldlinuxc32_len, 0);
     if (rv != (int)syslinux_ldlinuxc32_len) {
 	fprintf(stderr, "%s: write failure on %s\n", program, ldlinux_name);
 	exit(1);
@@ -505,7 +507,9 @@ umount:
      * Write the now-patched first sectors of ldlinux.sys
      */
     for (i = 0; i < patch_sectors; i++) {
-	xpwrite(dev_fd, boot_image + i * SECTOR_SIZE, SECTOR_SIZE,
+	xpwrite(dev_fd,
+		(const char _force *)boot_image + i * SECTOR_SIZE,
+		SECTOR_SIZE,
 		opt.offset + ((off_t) sectors[i] << SECTOR_SHIFT));
     }
 

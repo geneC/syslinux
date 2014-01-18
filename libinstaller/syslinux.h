@@ -17,16 +17,24 @@
 #include "advconst.h"
 #include "setadv.h"
 
+#ifdef __CHECKER__
+# define _slimg __attribute__((noderef,address_space(1)))
+# define _force __attribute__((force))
+#else
+# define _slimg
+# define _force
+#endif
+
 /* The standard boot sector and ldlinux image */
 extern unsigned char syslinux_bootsect[];
 extern const unsigned int syslinux_bootsect_len;
 extern const int syslinux_bootsect_mtime;
 
-extern unsigned char syslinux_ldlinux[];
+extern unsigned char _slimg syslinux_ldlinux[];
 extern const unsigned int syslinux_ldlinux_len;
 extern const int syslinux_ldlinux_mtime;
 
-extern unsigned char syslinux_ldlinuxc32[];
+extern unsigned char _slimg syslinux_ldlinuxc32[];
 extern const unsigned int syslinux_ldlinuxc32_len;
 
 #define boot_sector	syslinux_bootsect

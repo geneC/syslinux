@@ -416,8 +416,8 @@ int main(int argc, char *argv[])
     }
 
     /* Write ldlinux.sys file */
-    if (!WriteFile(f_handle, syslinux_ldlinux, syslinux_ldlinux_len,
-		   &bytes_written, NULL) ||
+    if (!WriteFile(f_handle, (const char _force *)syslinux_ldlinux,
+		   syslinux_ldlinux_len, &bytes_written, NULL) ||
 	bytes_written != syslinux_ldlinux_len) {
 	error("Could not write ldlinux.sys");
 	exit(1);
@@ -533,8 +533,8 @@ map_done:
     }
 
     /* Write ldlinux.c32 file */
-    if (!WriteFile(f_handle, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len,
-		   &bytes_written, NULL) ||
+    if (!WriteFile(f_handle, (const char _force *)syslinux_ldlinuxc32,
+		   syslinux_ldlinuxc32_len, &bytes_written, NULL) ||
 	bytes_written != syslinux_ldlinuxc32_len) {
 	error("Could not write ldlinux.c32");
 	exit(1);

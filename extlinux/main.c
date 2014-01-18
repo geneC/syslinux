@@ -455,7 +455,7 @@ static int rewrite_boot_image(int devfd, const char *path, const char *filename)
     }
 
     /* Write boot image data into LDLINUX.SYS file */
-    ret = xpwrite(fd, boot_image, boot_image_len, 0);
+    ret = xpwrite(fd, (const char _force *)boot_image, boot_image_len, 0);
     if (ret != boot_image_len) {
 	perror("writing bootblock");
 	goto error;
@@ -473,7 +473,7 @@ static int rewrite_boot_image(int devfd, const char *path, const char *filename)
 
     /* Write the patch area again - this relies on the file being overwritten
      * in place! */
-    ret = xpwrite(fd, boot_image, modbytes, 0);
+    ret = xpwrite(fd, (const char _force *)boot_image, modbytes, 0);
     if (ret != modbytes) {
 	fprintf(stderr, "%s: write failure on %s\n", program, filename);
 	goto error;
@@ -552,7 +552,8 @@ int ext2_fat_install_file(const char *path, int devfd, struct stat *rst)
 	goto bail;
     }
 
-    r3 = xpwrite(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len, 0);
+    r3 = xpwrite(fd, (const char _force *)syslinux_ldlinuxc32,
+		 syslinux_ldlinuxc32_len, 0);
     if (r3 != syslinux_ldlinuxc32_len) {
 	fprintf(stderr, "%s: write failure on %s\n", program, c32file);
 	goto bail;
@@ -584,7 +585,8 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
     int fd, rv;
 
     patch_file_and_bootblock(-1, path, devfd);
-    if (xpwrite(devfd, boot_image, boot_image_len, BTRFS_EXTLINUX_OFFSET)
+    if (xpwrite(devfd, (const char _force *)boot_image,
+		boot_image_len, BTRFS_EXTLINUX_OFFSET)
 		!= boot_image_len) {
 	perror("writing bootblock");
 	return 1;
@@ -621,7 +623,8 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 	return 1;
     }
 
-    rv = xpwrite(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len, 0);
+    rv = xpwrite(fd, (const char _force *)syslinux_ldlinuxc32,
+		 syslinux_ldlinuxc32_len, 0);
     if (rv != (int)syslinux_ldlinuxc32_len) {
 	fprintf(stderr, "%s: write failure on %s\n", program, file);
 	rv = 1;
@@ -699,7 +702,8 @@ static int xfs_install_file(const char *path, int devfd, struct stat *rst)
 	goto bail;
     }
 
-    retval = xpwrite(fd, syslinux_ldlinuxc32, syslinux_ldlinuxc32_len, 0);
+    retval = xpwrite(fd, (const char _force *)syslinux_ldlinuxc32,
+		     syslinux_ldlinuxc32_len, 0);
     if (retval != (int)syslinux_ldlinuxc32_len) {
 	fprintf(stderr, "%s: write failure on %s\n", program, file);
 	goto bail;

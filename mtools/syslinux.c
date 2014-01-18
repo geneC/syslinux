@@ -303,9 +303,11 @@ int main(int argc, char *argv[])
 
     mtp = popen("mcopy -D o -D O -o - s:/ldlinux.sys", "w");
     if (!mtp ||
-	fwrite(syslinux_ldlinux, 1, syslinux_ldlinux_len, mtp)
+	fwrite((const void _force *)syslinux_ldlinux,
+	       1, syslinux_ldlinux_len, mtp)
 		!= syslinux_ldlinux_len ||
-	fwrite(syslinux_adv, 1, 2 * ADV_SIZE, mtp)
+	fwrite((const void _force *)syslinux_adv,
+	       1, 2 * ADV_SIZE, mtp)
 		!= 2 * ADV_SIZE ||
 	(status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status))) {
 	die("failed to create ldlinux.sys");
@@ -336,7 +338,8 @@ int main(int argc, char *argv[])
 
     /* Write the now-patched first sectors of ldlinux.sys */
     for (i = 0; i < patch_sectors; i++) {
-	xpwrite(dev_fd, syslinux_ldlinux + i * SECTOR_SIZE, SECTOR_SIZE,
+	xpwrite(dev_fd, (const char _force *)syslinux_ldlinux
+		+ i * SECTOR_SIZE, SECTOR_SIZE,
 		opt.offset + ((off_t) sectors[i] << SECTOR_SHIFT));
     }
 
@@ -358,7 +361,8 @@ int main(int argc, char *argv[])
     (void)status;		/* Keep _FORTIFY_SOURCE happy */
 
     mtp = popen("mcopy -D o -D O -o - s:/ldlinux.c32", "w");
-    if (!mtp ||	fwrite(syslinux_ldlinuxc32, 1, syslinux_ldlinuxc32_len, mtp)
+    if (!mtp ||	fwrite((const char _force *)syslinux_ldlinuxc32,
+		       1, syslinux_ldlinuxc32_len, mtp)
 	!= syslinux_ldlinuxc32_len ||
 	(status = pclose(mtp), !WIFEXITED(status) || WEXITSTATUS(status))) {
 	die("failed to create ldlinux.c32");
