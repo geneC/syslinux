@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2014 Intel Corporation; author: H. Peter Anvin
  *   Copyright 2011 Paulo Alcantara <pcacjr@gmail.com>
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -60,7 +60,7 @@ static inline uint32_t get_32(const uint32_t * p)
     return *p;
 #else
     const uint16_t *pp = (const uint16_t *)p;
-    return get_16(pp[0]) + (uint32_t)get_16(pp[1]);
+    return get_16(&pp[0]) + ((uint32_t)get_16(&pp[1]) << 16);
 #endif
 }
 
@@ -71,7 +71,7 @@ static inline uint64_t get_64(const uint64_t * p)
     return *p;
 #else
     const uint32_t *pp = (const uint32_t *)p;
-    return get_32(pp[0]) + (uint64_t)get_32(pp[1]);
+    return get_32(&pp[0]) + ((uint64_t)get_32(&pp[1]) << 32);
 #endif
 }
 
@@ -87,8 +87,8 @@ static inline void set_16(uint16_t *p, uint16_t v)
     *p = v;
 #else
     uint8_t *pp = (uint8_t *) p;
-    pp[0] = (v & 0xff);
-    pp[1] = ((v >> 8) & 0xff);
+    pp[0] = v;
+    pp[1] = v >> 8;
 #endif
 }
 
@@ -98,11 +98,9 @@ static inline void set_32(uint32_t *p, uint32_t v)
     /* Littleendian and unaligned-capable */
     *p = v;
 #else
-    uint8_t *pp = (uint8_t *) p;
-    pp[0] = (v & 0xff);
-    pp[1] = ((v >> 8) & 0xff);
-    pp[2] = ((v >> 16) & 0xff);
-    pp[3] = ((v >> 24) & 0xff);
+    uint16_t *pp = (uint16_t *) p;
+    set_16(&pp[0], v);
+    set_16(&pp[1], v >> 16);
 #endif
 }
 
@@ -113,8 +111,8 @@ static inline void set_64(uint64_t *p, uint64_t v)
     *p = v;
 #else
     uint32_t *pp = (uint32_t *) p;
-    set_32(pp[0], v);
-    set_32(pp[1], v >> 32);
+    set_32(&pp[0], v);
+    set_32(&pp[1], v >> 32);
 #endif
 }
 
