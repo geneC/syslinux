@@ -84,4 +84,4 @@ ntfstest.exe: $(OBJS) $(RESS)
 %.res: %.rc
 	$(WINDRES) -O COFF $< $@
 
--include .*.d *.tmp
+-include .*.d

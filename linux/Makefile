@@ -68,4 +68,4 @@ strip:
 %.s: %.c
 	$(CC) $(UMAKEDEPS) $(CFLAGS) -S -o $@ $<
 
--include .*.d *.tmp
+-include .*.d
