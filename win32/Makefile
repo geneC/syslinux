@@ -99,4 +99,4 @@ syslinux.exe: $(OBJS) $(LIB)
 %.s: %.c
 	$(WINCC) $(UMAKEDEPS) $(WINCFLAGS) -S -o $@ $<
 
--include .*.d *.tmp
+-include .*.d

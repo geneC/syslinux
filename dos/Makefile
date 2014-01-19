@@ -76,4 +76,4 @@ syslinux.com: syslinux.elf
 
 ldlinux.o: ldlinux.S ../core/ldlinux.sys
 
--include .*.d *.tmp
+-include .*.d
