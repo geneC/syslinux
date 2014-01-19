@@ -66,4 +66,4 @@ memdump.com: memdump.elf
 %.s: %.S
 	$(CC) $(MAKEDEPS) $(SFLAGS) -E -o $@ $<
 
--include .*.d *.tmp
+-include .*.d
