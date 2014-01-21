@@ -57,6 +57,7 @@ __export void local_boot(int16_t ax)
 	 * Load boot sector from the specified BIOS device and jump to
 	 * it.
 	 */
+	memset(&ireg, 0, sizeof ireg);
 	ireg.edx.b[0] = ax & 0xff;
 	ireg.eax.w[0] = 0;	/* Reset drive */
 	__intcall(0x13, &ireg, NULL);
