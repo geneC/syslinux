@@ -633,6 +633,7 @@ static int bios_scan_memory(scan_memory_callback_t callback, void *data)
     /* Finally try INT 15h AH=88h */
     memset(&ireg, 0, sizeof ireg);
     ireg.eax.w[0] = 0x8800;
+    __intcall(0x15, &ireg, &oreg);
     if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.w[0]) {
 	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, SMT_FREE);
 	if (rv)

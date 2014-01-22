@@ -150,6 +150,7 @@ static int mboot_scan_memory(struct AddrRangeDesc **ardp, uint32_t * dosmem)
     /* Finally try INT 15h AH=88h */
     memset(&ireg, 0, sizeof ireg);
     ireg.eax.w[0] = 0x8800;
+    __intcall(0x15, &ireg, &oreg);
     if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.w[0]) {
 	ard[1].size = 20;
 	ard[1].BaseAddr = 1 << 20;
