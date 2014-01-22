@@ -24,6 +24,7 @@ __export void writechr(char data)
 		bool curxyok = false;
 		uint16_t dx;
 
+                memset(&ireg, 0, sizeof ireg);
 		ireg.ebx.b[1] = *(uint8_t *)BIOS_page;
 		ireg.eax.b[1] = 0x03; /* Read cursor position */
 		__intcall(0x10, &ireg, &oreg);

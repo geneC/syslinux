@@ -328,6 +328,7 @@ void pxe_set_regs(struct syslinux_rm_regs *regs)
 {
     com32sys_t tregs;
 
+    memset(&tregs,0,sizeof(tregs));
     regs->ip = 0x7C00;
     /* Plan A uses SS:[SP + 4] */
     /* sdi->pxe.stack is a usable pointer, not something that can be nicely

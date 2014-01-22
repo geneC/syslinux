@@ -52,6 +52,7 @@ static void bios_get_cursor(uint8_t *x, uint8_t *y)
 static void bios_erase(int x0, int y0, int x1, int y1, uint8_t attribute)
 {
     static com32sys_t ireg;
+    memset(&ireg, 0, sizeof(ireg));
 
     ireg.eax.w[0] = 0x0600;	/* Clear window */
     ireg.ebx.b[1] = attribute;
@@ -67,6 +68,8 @@ static void bios_showcursor(const struct term_state *st)
     static com32sys_t ireg;
     uint16_t cursor = st->cursor ? cursor_type : 0x2020;
 
+    memset(&ireg, 0, sizeof(ireg));
+
     ireg.eax.b[1] = 0x01;
     ireg.ecx.w[0] = cursor;
     __intcall(0x10, &ireg, NULL);
@@ -77,6 +80,8 @@ static void bios_set_cursor(int x, int y, bool visible)
     const int page = BIOS_PAGE;
     struct curxy xy = BIOS_CURXY[page];
     static com32sys_t ireg;
+
+    memset(&ireg, 0, sizeof(ireg));
 
     (void)visible;
 
@@ -93,6 +98,8 @@ static void bios_write_char(uint8_t ch, uint8_t attribute)
 {
     static com32sys_t ireg;
 
+    memset(&ireg, 0, sizeof(ireg));
+
     ireg.eax.b[1] = 0x09;
     ireg.eax.b[0] = ch;
     ireg.ebx.b[1] = BIOS_PAGE;
@@ -105,6 +112,8 @@ static void bios_scroll_up(uint8_t cols, uint8_t rows, uint8_t attribute)
 {
     static com32sys_t ireg;
 
+    memset(&ireg, 0, sizeof(ireg));
+
     ireg.eax.w[0] = 0x0601;
     ireg.ebx.b[1] = attribute;
     ireg.ecx.w[0] = 0;
@@ -116,6 +125,8 @@ static void bios_scroll_up(uint8_t cols, uint8_t rows, uint8_t attribute)
 static void bios_beep(void)
 {
     static com32sys_t ireg;
+
+    memset(&ireg, 0, sizeof(ireg));
 
     ireg.eax.w[0] = 0x0e07;
     ireg.ebx.b[1] = BIOS_PAGE;
@@ -161,9 +172,11 @@ void bios_adv_init(void)
 {
     static com32sys_t reg;
 
+    memset(&reg, 0, sizeof(reg));
     reg.eax.w[0] = 0x0025;
     __intcall(0x22, &reg, &reg);
 
+    memset(&reg, 0, sizeof(reg));
     reg.eax.w[0] = 0x001c;
     __intcall(0x22, &reg, &reg);
     __syslinux_adv_ptr = MK_PTR(reg.es, reg.ebx.w[0]);
@@ -174,6 +187,7 @@ int bios_adv_write(void)
 {
     static com32sys_t reg;
 
+    memset(&reg, 0, sizeof(reg));
     reg.eax.w[0] = 0x001d;
     __intcall(0x22, &reg, &reg);
     return (reg.eflags.l & EFLAGS_CF) ? -1 : 0;
@@ -262,6 +276,7 @@ static int bios_vesacon_set_mode(struct vesa_info *vesa_info, int *px, int *py,
 
 	debug("Found mode: 0x%04x\r\n", mode);
 
+        memset(&rm, 0, sizeof rm);
 	memset(mi, 0, sizeof *mi);
 	rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
 	rm.ecx.w[0] = mode;
@@ -357,6 +372,7 @@ static int bios_vesacon_set_mode(struct vesa_info *vesa_info, int *px, int *py,
     mi = &vesa_info->mi;
     mode = bestmode;
 
+    memset(&rm, 0, sizeof rm);
     /* Now set video mode */
     rm.eax.w[0] = 0x4F02;	/* Set SVGA video mode */
     if (mi->mode_attr & 0x0080)
@@ -384,6 +400,7 @@ static void set_window_pos(struct win_info *wi, size_t win_pos)
     if (wi->win_num < 0)
 	return;			/* This should never happen... */
 
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.w[0] = 0x4F05;
     ireg.ebx.b[0] = wi->win_num;
     ireg.edx.w[0] = win_pos >> wi->win_gshift;
@@ -450,6 +467,7 @@ static inline void check_escapes(void)
 {
 	com32sys_t ireg, oreg;
 
+        memset(&ireg, 0, sizeof ireg);
 	ireg.eax.b[1] = 0x02;	/* Check keyboard flags */
 	__intcall(0x16, &ireg, &oreg);
 
@@ -539,6 +557,7 @@ static int bios_scan_memory(scan_memory_callback_t callback, void *data)
     if (!e820buf)
 	return -1;
 
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.l = 0xe820;
     ireg.edx.l = 0x534d4150;
     ireg.ebx.l = 0;
@@ -592,6 +611,7 @@ static int bios_scan_memory(scan_memory_callback_t callback, void *data)
 	return 0;
 
     /* Next try INT 15h AX=E801h */
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.w[0] = 0xe801;
     __intcall(0x15, &ireg, &oreg);
 
@@ -611,6 +631,7 @@ static int bios_scan_memory(scan_memory_callback_t callback, void *data)
     }
 
     /* Finally try INT 15h AH=88h */
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.w[0] = 0x8800;
     if (!(oreg.eflags.l & EFLAGS_CF) && oreg.eax.w[0]) {
 	rv = callback(data, (addr_t) 1 << 20, oreg.ecx.w[0] << 10, SMT_FREE);

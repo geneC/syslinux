@@ -20,6 +20,7 @@ com32sys_t inreg, outreg;	// Global register sets for use
 
 void getpos(char *row, char *col, char page)
 {
+    memset(&inreg, 0, sizeof inreg);
     REG_AH(inreg) = 0x03;
     REG_BH(inreg) = page;
     __intcall(0x10, &inreg, &outreg);
@@ -30,6 +31,7 @@ void getpos(char *row, char *col, char page)
 char inputc(char *scancode)
 {
     syslinux_idle();		/* So syslinux can perform periodic activity */
+    memset(&inreg, 0, sizeof inreg);
     REG_AH(inreg) = 0x10;
     __intcall(0x16, &inreg, &outreg);
     if (scancode)
@@ -40,6 +42,7 @@ char inputc(char *scancode)
 void getcursorshape(char *start, char *end)
 {
     char page = 0; // XXX TODO
+    memset(&inreg, 0, sizeof inreg);
     REG_AH(inreg) = 0x03;
     REG_BH(inreg) = page;
     __intcall(0x10, &inreg, &outreg);
@@ -49,6 +52,7 @@ void getcursorshape(char *start, char *end)
 
 void setcursorshape(char start, char end)
 {
+    memset(&inreg, 0, sizeof inreg);
     REG_AH(inreg) = 0x01;
     REG_CH(inreg) = start;
     REG_CL(inreg) = end;
@@ -57,6 +61,7 @@ void setcursorshape(char start, char end)
 
 void setvideomode(char mode)
 {
+    memset(&inreg, 0, sizeof inreg);
     REG_AH(inreg) = 0x00;
     REG_AL(inreg) = mode;
     __intcall(0x10, &inreg, &outreg);
@@ -65,6 +70,7 @@ void setvideomode(char mode)
 // Get char displayed at current position
 unsigned char getcharat(char page)
 {
+    memset(&inreg, 0, sizeof inreg);
     REG_AH(inreg) = 0x08;
     REG_BH(inreg) = page;
     __intcall(0x16, &inreg, &outreg);

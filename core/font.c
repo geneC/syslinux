@@ -134,6 +134,7 @@ void use_font(void)
 
 			__intcall(0x10, &ireg, &oreg);
 
+                        memset(&ireg, 0, sizeof(ireg));
 			ireg.ebx.b[0] = 0;
 			ireg.eax.w[0] = 0x1103; /* Select page 0 */
 			__intcall(0x10, &ireg, NULL);
@@ -153,6 +154,8 @@ void bios_adjust_screen(void)
 	com32sys_t ireg, oreg;
 	volatile uint8_t *vidrows = (volatile uint8_t *)BIOS_vidrows;
 	uint8_t rows, cols;
+
+	memset(&ireg, 0, sizeof(ireg));
 
 	rows = *vidrows;
 	if (!rows) {

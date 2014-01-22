@@ -24,6 +24,7 @@ extern void local_boot16(void);
 __export void local_boot(uint16_t ax)
 {
     com32sys_t ireg;
+    memset(&ireg, 0, sizeof ireg);
 
     syslinux_force_text_mode();
 

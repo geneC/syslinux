@@ -100,6 +100,7 @@ void set_graphics_mode(const struct multiboot_header *mbh,
     while ((mode = *mode_ptr++) != 0xFFFF) {
 	mode &= 0x1FF;		/* The rest are attributes of sorts */
 
+        memset(&rm, 0, sizeof rm);
 	memset(mi, 0, sizeof *mi);
 	rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
 	rm.ecx.w[0] = mode;
@@ -193,6 +194,7 @@ void set_graphics_mode(const struct multiboot_header *mbh,
     mode = bestmode;
 
     /* Now set video mode */
+    memset(&rm, 0, sizeof rm);
     rm.eax.w[0] = 0x4F02;	/* Set SVGA video mode */
     mode |= 0x4000;		/* Request linear framebuffer */
     rm.ebx.w[0] = mode;

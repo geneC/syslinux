@@ -41,6 +41,7 @@ void dump_vesa_tables(struct upload_backend *be)
     mode_ptr = GET_PTR(gi.video_mode_ptr);
     while ((mode = *mode_ptr++) != 0xFFFF) {
 	memset(mip, 0, sizeof *mip);
+        memset(&rm, 0, sizeof rm);
 	rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
 	rm.ecx.w[0] = mode;
 	rm.edi.w[0] = OFFS(mip);

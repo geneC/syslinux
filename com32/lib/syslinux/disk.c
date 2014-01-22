@@ -229,6 +229,7 @@ static void *chs_setup(const struct disk_info *const diskinfo, com32sys_t *inreg
     h = t % diskinfo->head;
     c = t / diskinfo->head;
 
+    memset(inreg, 0, sizeof *inreg);
     inreg->eax.b[0] = count;
     inreg->eax.b[1] = op_code;
     inreg->ecx.b[1] = c;

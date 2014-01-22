@@ -72,10 +72,12 @@ void dump_memory_map(struct upload_backend *be)
     __intcall(0x12, &ireg, &oreg);
     cpio_writefile(be, "memmap/12", &oreg, sizeof oreg);
 
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.b[1] = 0x88;
     __intcall(0x15, &ireg, &oreg);
     cpio_writefile(be, "memmap/1588", &oreg, sizeof oreg);
 
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.w[0] = 0xe801;
     __intcall(0x15, &ireg, &oreg);
     cpio_writefile(be, "memmap/15e801", &oreg, sizeof oreg);

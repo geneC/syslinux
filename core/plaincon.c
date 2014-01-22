@@ -14,6 +14,8 @@ __export void writechr(char data)
 {
 	com32sys_t ireg, oreg;
 
+        memset(&ireg, 0, sizeof ireg);
+        memset(&oreg, 0, sizeof oreg);
 	write_serial(data);	/* write to serial port if needed */
 
 	if (UsingVGA & 0x8)

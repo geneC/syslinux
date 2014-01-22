@@ -334,6 +334,7 @@ int detect_vesa(struct s_hardware *hardware)
 	goto out;
 
     gi->signature = VBE2_MAGIC;	/* Get VBE2 extended data */
+    memset(&rm, 0, sizeof rm);
     rm.eax.w[0] = 0x4F00;	/* Get SVGA general information */
     rm.edi.w[0] = OFFS(gi);
     rm.es = SEG(gi);
@@ -361,6 +362,7 @@ int detect_vesa(struct s_hardware *hardware)
 
     while ((mode = *mode_ptr++) != 0xFFFF) {
 
+        memset(&rm, 0, sizeof rm);
 	rm.eax.w[0] = 0x4F01;	/* Get SVGA mode information */
 	rm.ecx.w[0] = mode;
 	rm.edi.w[0] = OFFS(mi);

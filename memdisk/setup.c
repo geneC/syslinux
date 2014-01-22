@@ -1223,6 +1223,7 @@ void setup(const struct real_mode_args *rm_args_ptr)
 
     if (getcmditem("pause") != CMD_NOTFOUND) {
 	puts("press any key to boot... ");
+	memset(&regs, 0, sizeof regs);
 	regs.eax.w[0] = 0;
 	intcall(0x16, &regs, NULL);
     }

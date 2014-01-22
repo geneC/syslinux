@@ -334,6 +334,7 @@ struct disk *bios_disk_init(void *private)
 	    }
 	}
 
+        memset(&ireg, 0, sizeof ireg);
 	/* Get EBIOS support */
 	ireg.eax.b[1] = 0x41;
 	ireg.ebx.w[0] = 0x55aa;
@@ -352,6 +353,7 @@ struct disk *bios_disk_init(void *private)
 	    /* memset(&edd_params, 0, sizeof edd_params);  */
 	    edd_params.len = sizeof edd_params;
 
+            memset(&ireg, 0, sizeof ireg);
 	    ireg.eax.b[1] = 0x48;
 	    ireg.ds = SEG(&edd_params);
 	    ireg.esi.w[0] = OFFS(&edd_params);

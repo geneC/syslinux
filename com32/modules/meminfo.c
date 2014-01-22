@@ -110,11 +110,13 @@ static void dump_legacy(void)
 	 ivt[0x15].seg, ivt[0x15].offs, dosram, dosram << 10, oreg.eax.w[0],
 	 oreg.eax.w[0] << 10);
 
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.b[1] = 0x88;
     __intcall(0x15, &ireg, &oreg);
 
     printf("INT 15 88: 0x%04x (%uK)  ", oreg.eax.w[0], oreg.eax.w[0]);
 
+    memset(&ireg, 0, sizeof ireg);
     ireg.eax.w[0] = 0xe801;
     __intcall(0x15, &ireg, &oreg);
 

@@ -538,6 +538,7 @@ int gfx_init(char *file)
   void *lowmem = lowmem_buf;
   unsigned lowmem_size = LOWMEM_BUF_SIZE;
 
+  memset(&r,0,sizeof(r));
   progress_active = 0;
 
   printf("Loading %s...\n", file);
@@ -646,6 +647,7 @@ int gfx_menu_init(void)
 {
   com32sys_t r;
 
+  memset(&r,0,sizeof(r));
   r.esi.l = (uint32_t) &gfx_menu;
   __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_MENU_INIT], &r, &r);
 
@@ -658,6 +660,7 @@ void gfx_done(void)
 {
   com32sys_t r;
 
+  memset(&r,0,sizeof(r));
   gfx_progress_done();
 
   __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_DONE], &r, &r);
@@ -674,6 +677,7 @@ int gfx_input(void)
 {
   com32sys_t r;
 
+  memset(&r,0,sizeof(r));
   r.edi.l = (uint32_t) cmdline;
   r.ecx.l = sizeof cmdline;
   r.eax.l = timeout * 182 / 100;
@@ -692,6 +696,7 @@ void gfx_infobox(int type, char *str1, char *str2)
 {
   com32sys_t r;
 
+  memset(&r,0,sizeof(r));
   r.eax.l = type;
   r.esi.l = (uint32_t) str1;
   r.edi.l = (uint32_t) str2;
@@ -707,6 +712,7 @@ void gfx_progress_init(ssize_t kernel_size, char *label)
 {
   com32sys_t r;
 
+  memset(&r,0,sizeof(r));
   if(!progress_active) {
     r.eax.l = kernel_size >> gfx_config.sector_shift;		// in sectors
     r.esi.l = (uint32_t) label;
@@ -722,6 +728,7 @@ void gfx_progress_update(ssize_t advance)
 {
   com32sys_t r;
 
+  memset(&r,0,sizeof(r));
   if(progress_active) {
     r.eax.l = advance >> gfx_config.sector_shift;		// in sectors
     __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_UPDATE], &r, &r);
@@ -734,6 +741,7 @@ void gfx_progress_done(void)
 {
   com32sys_t r;
 
+  memset(&r,0,sizeof(r));
   if(progress_active) {
     __farcall(gfx.code_seg, gfx.jmp_table[GFX_CB_PROGRESS_DONE], &r, &r);
   }

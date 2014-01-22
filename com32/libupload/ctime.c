@@ -24,9 +24,11 @@ uint32_t posix_time(void)
     ir.eax.b[1] = 0x04;
     __intcall(0x1A, &ir, &d0);
 
+    memset(&ir, 0, sizeof ir);
     ir.eax.b[1] = 0x02;
     __intcall(0x1A, &ir, &t0);
 
+    memset(&ir, 0, sizeof ir);
     ir.eax.b[1] = 0x04;
     __intcall(0x1A, &ir, &d1);
 
