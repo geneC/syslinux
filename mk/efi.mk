@@ -51,13 +51,17 @@ lib/libefi.a:
 
 # libefi.a: lib/libefi.a
 
-.PRECIOUS: %.o
-%.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
+%.o : %.c # Cancel previous rule
+
+%.o : %.S
 
 .PRECIOUS: %.o
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+%.o: %.S lib/libefi.a
+	$(CC) $(MAKEDEPS) $(SFLAGS) -D__ASSEMBLY__ -c -o $@ $<
+
+.PRECIOUS: %.o
+%.o: %.c lib/libefi.a
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 #%.efi: %.so
 #	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel \
