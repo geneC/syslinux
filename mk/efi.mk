@@ -21,11 +21,6 @@ ifeq ($(ARCH),x86_64)
 	EFI_SUBARCH = $(ARCH)
 endif
 
-output = $(shell $(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(objdir))
-ifneq ($(output),)
-$(error Failed to build gnu-efi for $(EFI_SUBARCH))
-endif
-
 #LIBDIR=/usr/lib
 FORMAT=efi-app-$(EFI_SUBARCH)
 
@@ -49,6 +44,12 @@ SFLAGS     = $(GCCOPT) $(GCCWARN) $(SARCHOPT) \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include -I$(com32)/include/sys $(GPLINCLUDE)
+
+lib/libefi.a:
+	@echo Building gnu-efi for $(EFI_SUBARCH)
+	$(topdir)/efi/check-gnu-efi.sh $(EFI_SUBARCH) $(objdir)
+
+# libefi.a: lib/libefi.a
 
 .PRECIOUS: %.o
 %.o: %.S

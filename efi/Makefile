@@ -100,6 +100,7 @@ tidy dist:
 	rm -f *.so *.o wrapper
 	find . \( -name \*.o -o -name \*.a -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
+	$(topdir)/efi/clean-gnu-efi.sh $(EFI_SUBARCH) $(objdir)
 
 clean: tidy
 
