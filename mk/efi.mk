@@ -54,11 +54,11 @@ lib/libefi.a:
 %.o: %.c
 
 .PRECIOUS: %.o
-%.o: %.S
+%.o: %.S lib/libefi.a
 	$(CC) $(SFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.o
-%.o: %.c
+%.o: %.c lib/libefi.a
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 #%.efi: %.so
