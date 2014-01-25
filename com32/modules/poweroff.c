@@ -20,7 +20,7 @@
 #include <string.h>
 #include <com32.h>
 
-int main(__attribute__((unused)) int argc, __attribute__((unused)) char *argv[])
+int main(int argc __unused, char *argv[] __unused)
 {
 	com32sys_t inregs, outregs;
 
