@@ -868,7 +868,6 @@ static void do_include(char *str)
     if (f)
 	parse_config_file(f);
 
-bail:
     close(fd);
 put:
     refstr_put(file);
