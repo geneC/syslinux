@@ -764,8 +764,8 @@ extern void sirq_cleanup_nowipe(void);
 extern void sirq_install(void);
 extern void write_serial_str(char *);
 
-extern void loadfont(char *);
-extern void loadkeys(char *);
+extern void loadfont(const char *);
+extern void loadkeys(const char *);
 
 extern char syslinux_banner[];
 extern char copyright_str[];
@@ -868,7 +868,6 @@ static void do_include(char *str)
     if (f)
 	parse_config_file(f);
 
-bail:
     close(fd);
 put:
     refstr_put(file);
