@@ -45,7 +45,7 @@ static inline __constfunc uint32_t __bswap_32(uint32_t v)
 
 #define __bswap_64_macro(v) ((uint64_t)					\
     (((uint64_t)__bswap_32_macro((uint32_t)(v)) << 32) |		\
-     (__bswap_32__macro((uint32_t)((uint64_t)(v) >> 32)))))
+     (__bswap_32_macro((uint32_t)((uint64_t)(v) >> 32)))))
 
 static inline __constfunc uint64_t __bswap_64(uint64_t v)
 {
