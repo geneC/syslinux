@@ -25,7 +25,7 @@ if [ ! -f $objdir/include/efi/$ARCH/efibind.h ]; then
     # Syslinux disables built-in implicit rules.
     export MAKEFLAGS=
 
-    ../../efi/build-gnu-efi.sh $ARCH $objdir &> /dev/null
+    ../../efi/build-gnu-efi.sh $ARCH $objdir > /dev/null
     if [ $? -ne 0 ]; then
 	printf "Failed to build gnu-efi. "
 	printf "Execute the following command for full details: \n\n"
