@@ -53,7 +53,7 @@ uint8_t ScrollAttribute = 0x07; /* Grey on white (normal text color) */
  *
  * Returns 0 on success, or -1 on error.
  */
-__export int loadkeys(char *filename)
+__export int loadkeys(const char *filename)
 {
 	FILE *f;
 
