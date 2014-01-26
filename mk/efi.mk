@@ -51,13 +51,17 @@ SFLAGS     = $(GCCOPT) $(GCCWARN) $(SARCHOPT) \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include -I$(com32)/include/sys $(GPLINCLUDE)
 
+%.o: %.S	# Cancel old rule
+
+%.o: %.c
+
 .PRECIOUS: %.o
 %.o: %.S
-	$(CC) $(SFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -D__ASSEMBLY__ -c -o $@ $<
 
 .PRECIOUS: %.o
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(MAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 #%.efi: %.so
 #	$(OBJCOPY) -j .text -j .sdata -j .data -j .dynamic -j .dynsym -j .rel \
