@@ -780,6 +780,8 @@ void start_auto_mode(struct s_hardware *hardware)
 	mypch = strtok(NULL, AUTO_SEPARATOR);
     }
 
+    free(temp);
+
     /* Executing found commands */
     for (int i = 1; i <= nb_commands; i++) {
 	if (commands[i]) {
