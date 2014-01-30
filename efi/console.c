@@ -1,3 +1,7 @@
+/*
+ * Copyright 2011-2014 Intel Corporation - All Rights Reserved
+ */
+
 #include <syslinux/linux.h>
 #include "efi.h"
 #include <string.h>

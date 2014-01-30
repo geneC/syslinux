@@ -1,3 +1,7 @@
+/*
+ * Copyright 2011-2014 Intel Corporation - All Rights Reserved
+ */
+
 #include <codepage.h>
 #include <core.h>
 #include <fs.h>

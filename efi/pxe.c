@@ -1,3 +1,7 @@
+/*
+ * Copyright 2013-2014 Intel Corporation - All Rights Reserved
+ */
+
 #include <syslinux/firmware.h>
 #include <syslinux/pxe_api.h>
 #include "efi.h"

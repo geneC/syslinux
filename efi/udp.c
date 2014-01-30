@@ -1,3 +1,7 @@
+/*
+ * Copyright 2013-2014 Intel Corporation - All Rights Reserved
+ */
+
 #include <string.h>
 #include <minmax.h>
 #include "efi.h"
