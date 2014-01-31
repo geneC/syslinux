@@ -50,6 +50,10 @@ SFLAGS     = $(GCCOPT) $(GCCWARN) $(SARCHOPT) \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include -I$(com32)/include/sys $(GPLINCLUDE)
 
+%.o: %.S	# Cancel old rule
+
+%.o: %.c
+
 .PRECIOUS: %.o
 %.o: %.S
 	$(CC) $(SFLAGS) -c -o $@ $<
