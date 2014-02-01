@@ -35,7 +35,6 @@
 /* M1PS flags have to be interpreted as strings */
 char *flags_to_string(char *buffer, uint16_t flags)
 {
-    memset(buffer, 0, sizeof(buffer));
     strcpy(buffer, "default");
     if ((flags & POLARITY_ACTIVE_HIGH) == POLARITY_ACTIVE_HIGH)
 	strcpy(buffer, "high");
