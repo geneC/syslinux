@@ -228,8 +228,8 @@ printh(void)
 
     printf("\n");
     printf("Options:\n");
-    printf(FMT, "   -h <X>", "Number of default geometry heads");
-    printf(FMT, "   -s <X>", "Number of default geometry sectors");
+    printf(FMT, "   -h <X>", "Number of geometry heads (default 64)");
+    printf(FMT, "   -s <X>", "Number of geometry sectors (default 32)");
     printf(FMT, "   -e --entry", "Specify partition entry number (1-4)");
     printf(FMT, "   -o --offset", "Specify partition offset (default 0)");
     printf(FMT, "   -t --type", "Specify partition type (default 0x17)");
