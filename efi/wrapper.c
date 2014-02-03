@@ -102,7 +102,7 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 		e_hdr.image_sz = total_sz;
 		e_hdr.headers_sz = 512;
 		e_hdr.subsystem = IMAGE_SUBSYSTEM_EFI_APPLICATION;
-		e_hdr.rva_and_sizes_nr = 1;
+		e_hdr.rva_and_sizes_nr = sizeof(e_hdr.data_directory) / sizeof(__uint64_t);
 		fwrite(&e_hdr, sizeof(e_hdr), 1, f);
 	}
 	else if (class == ELFCLASS64) {
@@ -130,7 +130,7 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 		e_hdr_pe32p.image_sz = total_sz;
 		e_hdr_pe32p.headers_sz = 512;
 		e_hdr_pe32p.subsystem = IMAGE_SUBSYSTEM_EFI_APPLICATION;
-		e_hdr_pe32p.rva_and_sizes_nr = 1;
+		e_hdr_pe32p.rva_and_sizes_nr = sizeof(e_hdr_pe32p.data_directory) / sizeof(__uint64_t);
 		fwrite(&e_hdr_pe32p, sizeof(e_hdr_pe32p), 1, f);
 	}
 
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Unsupported architecture\n");
 		exit(EXIT_FAILURE);
 	}
-		
+
 	if (id[EI_MAG0] != ELFMAG0 ||
 	    id[EI_MAG1] != ELFMAG1 ||
 	    id[EI_MAG2] != ELFMAG2 ||

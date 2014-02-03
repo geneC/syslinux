@@ -102,12 +102,14 @@ struct extra_hdr {
 	__uint32_t heap_commit_sz;
 	__uint32_t loader_flags;
 	__uint32_t rva_and_sizes_nr;
-	__uint64_t export_table;
-	__uint64_t import_table;
-	__uint64_t resource_table;
-	__uint64_t exception_table;
-	__uint64_t certification_table;
-	__uint64_t base_relocation_table;
+	struct {
+		__uint64_t export_table;
+		__uint64_t import_table;
+		__uint64_t resource_table;
+		__uint64_t exception_table;
+		__uint64_t certification_table;
+		__uint64_t base_relocation_table;
+	} data_directory;
 } __packed;
 
 /* Extra header for PE32+ format 
@@ -136,12 +138,14 @@ struct extra_hdr_pe32p {
 	__uint64_t heap_commit_sz;
 	__uint32_t loader_flags;
 	__uint32_t rva_and_sizes_nr;
-	__uint64_t export_table;
-	__uint64_t import_table;
-	__uint64_t resource_table;
-	__uint64_t exception_table;
-	__uint64_t certification_table;
-	__uint64_t base_relocation_table;
+	struct {
+		__uint64_t export_table;
+		__uint64_t import_table;
+		__uint64_t resource_table;
+		__uint64_t exception_table;
+		__uint64_t certification_table;
+		__uint64_t base_relocation_table;
+	} data_directory;
 } __packed;
 
 struct section {
