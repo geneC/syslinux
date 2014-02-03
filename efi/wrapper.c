@@ -54,10 +54,18 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 	struct coff_hdr c_hdr;
 	struct header hdr;
 	struct coff_reloc c_rel;
-	__uint32_t total_sz = so_size;
+	__uint32_t total_sz = data_size;
 	__uint32_t dummy = 0;
 	__uint32_t hdr_sz;
 	__uint32_t reloc_start, reloc_end;
+
+	/*
+	 * The header size have to be a multiple of file_align, which currently
+	 * is 512
+	 */
+	hdr_sz = 512;
+	total_sz += hdr_sz;
+	entry += hdr_sz;
 
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.msdos_signature = MSDOS_SIGNATURE;
@@ -77,11 +85,6 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 	c_hdr.nr_sections = 2;
 	c_hdr.nr_syms = 1;
 	if (class == ELFCLASS32) {
-		hdr_sz = sizeof(o_hdr) + sizeof(t_sec) + sizeof(e_hdr) +
-				sizeof(r_sec) + sizeof(c_hdr) + sizeof(hdr) + sizeof(c_rel)
-				+ sizeof(dummy);
-		total_sz += hdr_sz;
-		entry += hdr_sz;
 		c_hdr.arch = IMAGE_FILE_MACHINE_I386;
 		c_hdr.characteristics = IMAGE_FILE_32BIT_MACHINE |
 			IMAGE_FILE_DEBUG_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE |
@@ -92,25 +95,20 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 		o_hdr.format = PE32_FORMAT;
 		o_hdr.major_linker_version = 0x02;
 		o_hdr.minor_linker_version = 0x14;
-		o_hdr.code_sz = total_sz;
+		o_hdr.code_sz = data_size;
 		o_hdr.entry_point = entry;
 		o_hdr.initialized_data_sz = data_size;
 		fwrite(&o_hdr, sizeof(o_hdr), 1, f);
 		memset(&e_hdr, 0, sizeof(e_hdr));
 		e_hdr.section_align = 4096;
 		e_hdr.file_align = 512;
-		e_hdr.image_sz = total_sz;
-		e_hdr.headers_sz = 512;
+		e_hdr.image_sz = hdr_sz + so_size;
+		e_hdr.headers_sz = hdr_sz;
 		e_hdr.subsystem = IMAGE_SUBSYSTEM_EFI_APPLICATION;
 		e_hdr.rva_and_sizes_nr = sizeof(e_hdr.data_directory) / sizeof(__uint64_t);
 		fwrite(&e_hdr, sizeof(e_hdr), 1, f);
 	}
 	else if (class == ELFCLASS64) {
-		hdr_sz = sizeof(o_hdr_pe32p) + sizeof(t_sec) + sizeof(e_hdr_pe32p) +
-				sizeof(r_sec) + sizeof(c_hdr) + sizeof(hdr) + sizeof(c_rel)
-				+ sizeof(dummy);
-		total_sz += hdr_sz;
-		entry += hdr_sz;
 		c_hdr.arch = IMAGE_FILE_MACHINE_X86_64;
 		c_hdr.characteristics = IMAGE_FILE_DEBUG_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE |
 			IMAGE_FILE_LINE_NUMBERS_STRIPPED;
@@ -120,15 +118,15 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 		o_hdr_pe32p.format = PE32P_FORMAT;
 		o_hdr_pe32p.major_linker_version = 0x02;
 		o_hdr_pe32p.minor_linker_version = 0x14;
-		o_hdr_pe32p.code_sz = total_sz;
+		o_hdr_pe32p.code_sz = data_size;
 		o_hdr_pe32p.entry_point = entry;
 		o_hdr.initialized_data_sz = data_size;
 		fwrite(&o_hdr_pe32p, sizeof(o_hdr_pe32p), 1, f);
 		memset(&e_hdr_pe32p, 0, sizeof(e_hdr));
 		e_hdr_pe32p.section_align = 4096;
 		e_hdr_pe32p.file_align = 512;
-		e_hdr_pe32p.image_sz = total_sz;
-		e_hdr_pe32p.headers_sz = 512;
+		e_hdr_pe32p.image_sz = hdr_sz + so_size;
+		e_hdr_pe32p.headers_sz = hdr_sz;
 		e_hdr_pe32p.subsystem = IMAGE_SUBSYSTEM_EFI_APPLICATION;
 		e_hdr_pe32p.rva_and_sizes_nr = sizeof(e_hdr_pe32p.data_directory) / sizeof(__uint64_t);
 		fwrite(&e_hdr_pe32p, sizeof(e_hdr_pe32p), 1, f);
@@ -136,8 +134,10 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 
 	memset(&t_sec, 0, sizeof(t_sec));
 	strcpy((char *)t_sec.name, ".text");
-	t_sec.virtual_sz = total_sz;
-	t_sec.raw_data_sz = total_sz;
+	t_sec.virtual_sz = data_size;
+	t_sec.virtual_address = hdr_sz;
+	t_sec.raw_data_sz = t_sec.virtual_sz;
+	t_sec.raw_data = t_sec.virtual_address;
 	t_sec.characteristics = IMAGE_SCN_CNT_CODE |
 		IMAGE_SCN_ALIGN_16BYTES | IMAGE_SCN_MEM_EXECUTE |
 		IMAGE_SCN_MEM_READ;
@@ -163,6 +163,16 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 	fwrite(&c_rel, sizeof(c_rel), 1, f);
 	fwrite(&dummy, sizeof(dummy), 1, f);
 
+	/*
+	 * Add some padding to align the ELF as needed
+	 */
+	if (ftell(f) > t_sec.virtual_address) {
+		/* Don't rewind! hdr_sz need to be increased. */
+		fprintf(stderr, "PE32+ headers are too large.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	fseek(f, t_sec.virtual_address, SEEK_SET);
 }
 
 static void usage(char *progname)
