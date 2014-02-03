@@ -136,7 +136,7 @@ SECTIONS
 		*(.strtab)
 	}
 
-	.bss : {
+	.bss (NOLOAD) : {
 		/* the EFI loader doesn't seem to like a .bss section,
 		   so we stick it all into .data: */
 		__bss_start = .;
@@ -153,7 +153,7 @@ SECTIONS
 	__bss_dwords = (__bss_len + 3) >> 2;
 
 	. = ALIGN(128);
-	
+
 	/* Very large objects which don't need to be zeroed */
 
 	.hugebss : {
