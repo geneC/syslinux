@@ -48,7 +48,7 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 {
 	struct optional_hdr o_hdr;
 	struct optional_hdr_pe32p o_hdr_pe32p;
-	struct section t_sec, r_sec;
+	struct section t_sec;
 	struct extra_hdr e_hdr;
 	struct extra_hdr_pe32p e_hdr_pe32p;
 	struct coff_hdr c_hdr;
@@ -80,7 +80,7 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 	fwrite(&hdr, sizeof(hdr), 1, f);
 
 	memset(&c_hdr, 0, sizeof(c_hdr));
-	c_hdr.nr_sections = 2;
+	c_hdr.nr_sections = 1;
 	c_hdr.nr_syms = 1;
 	if (class == ELFCLASS32) {
 		c_hdr.arch = IMAGE_FILE_MACHINE_I386;
@@ -140,22 +140,6 @@ static void write_header(FILE *f, __uint32_t entry, size_t data_size,
 		IMAGE_SCN_ALIGN_16BYTES | IMAGE_SCN_MEM_EXECUTE |
 		IMAGE_SCN_MEM_READ;
 	fwrite(&t_sec, sizeof(t_sec), 1, f);
-
-	/*
-	 * Write our empty reloc section.
-	 */
-	memset(&r_sec, 0, sizeof(r_sec));
-	strcpy((char *)r_sec.name, ".reloc");
-	r_sec.virtual_sz = 0;
-	/* /!\ Attention! Some UEFI implementations require a valid virtual
-	 * address despite the virtual_sz = 0. */
-	r_sec.virtual_address = t_sec.virtual_address;
-	r_sec.raw_data_sz = r_sec.virtual_sz;
-	r_sec.raw_data = r_sec.virtual_address;
-	r_sec.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA |
-		IMAGE_SCN_ALIGN_1BYTES | IMAGE_SCN_MEM_DISCARDABLE |
-		IMAGE_SCN_MEM_READ;
-	fwrite(&r_sec, sizeof(r_sec), 1, f);
 
 	/*
 	 * Add some padding to align the ELF as needed
