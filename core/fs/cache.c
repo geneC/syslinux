@@ -55,6 +55,8 @@ void cache_init(struct device *dev, int block_size_shift)
         data += dev->cache_block_size;
         prev = cur++;
     }
+
+    dev->cache_init = 1; /* Set cache as initialized */
 }
 
 /*

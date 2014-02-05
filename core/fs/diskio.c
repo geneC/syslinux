@@ -28,6 +28,7 @@ struct device * device_init(void *args)
     dev.disk = firmware->disk_init(args);
     dev.cache_size = 128*1024;
     dev.cache_data = malloc(dev.cache_size);
+    dev.cache_init = 0; /* Explicitly set cache as uninitialized */
 
     return &dev;
 }

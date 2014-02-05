@@ -430,8 +430,9 @@ void fs_init(const struct fs_ops **ops, void *priv)
     }
     this_fs = &fs;
 
-    /* initialize the cache */
-    if (fs.fs_dev && fs.fs_dev->cache_data)
+    /* initialize the cache only if it wasn't already initialized
+     * by the fs driver */
+    if (fs.fs_dev && fs.fs_dev->cache_data && !fs.fs_dev->cache_init)
         cache_init(fs.fs_dev, blk_shift);
 
     /* start out in the root directory */

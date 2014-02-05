@@ -133,6 +133,7 @@ struct device {
     struct disk *disk;
 
     /* the cache stuff */
+    uint8_t cache_init; /* cache initialized state */
     char *cache_data;
     struct cache *cache_head;
     uint16_t cache_block_size;
