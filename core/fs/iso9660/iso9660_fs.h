@@ -37,6 +37,11 @@ struct iso_dir_entry {
 
 struct iso_sb_info {
     struct iso_dir_entry root;
+
+    int do_rr;       /* 1 , 2 = try to process Rock Ridge info , 0 = do not.
+                        2 indicates that the id of RRIP 1.12 was found.
+                     */
+    int susp_skip;   /* Skip length from SUSP entry SP */
 };
 
 /*

@@ -8,12 +8,12 @@
 #include <stdint.h>
 #include <byteswap.h>
 
-#define htons(x) bswap_16(x)
-#define ntohs(x) bswap_16(x)
-#define htonl(x) bswap_32(x)
-#define ntohl(x) bswap_32(x)
-#define htonq(x) bswap_64(x)
-#define ntohq(x) bswap_64(x)
+#define htons(x) cpu_to_be16(x)
+#define ntohs(x) be16_to_cpu(x)
+#define htonl(x) cpu_to_be32(x)
+#define ntohl(x) be32_to_cpu(x)
+#define htonq(x) cpu_to_be64(x)
+#define ntohq(x) be64_to_cpu(x)
 
 typedef uint32_t in_addr_t;
 typedef uint16_t in_port_t;

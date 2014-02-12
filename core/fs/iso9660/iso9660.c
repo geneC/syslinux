@@ -8,6 +8,7 @@
 #include <fs.h>
 #include <stdlib.h>
 #include "iso9660_fs.h"
+#include "susp_rr.h"
 
 /* Convert to lower case string */
 static inline char iso_tolower(char c)
@@ -100,9 +101,10 @@ iso_find_entry(const char *dname, struct inode *inode)
     block_t dir_block = PVT(inode)->lba;
     int i = 0, offset = 0;
     const char *de_name;
-    int de_name_len, de_len;
+    int de_name_len, de_len, rr_name_len, ret;
     const struct iso_dir_entry *de;
     const char *data = NULL;
+    char *rr_name = NULL;
 
     dprintf("iso_find_entry: \"%s\"\n", dname);
     
@@ -131,10 +133,24 @@ iso_find_entry(const char *dname, struct inode *inode)
 	    continue;
 	}
 	
+	/* Try to get Rock Ridge name */
+	ret = susp_rr_get_nm(fs, (char *) de, &rr_name, &rr_name_len);
+	if (ret > 0) {
+	    if (strcmp(rr_name, dname) == 0) {
+		dprintf("Found (by RR name).\n");
+		free(rr_name);
+		return de;
+	    }
+	    free(rr_name);
+	    rr_name = NULL;
+	    continue; /* Rock Ridge was valid and did not match */
+	}
+
+	/* Fall back to ISO name */
 	de_name_len = de->name_len;
 	de_name = de->name;
 	if (iso_compare_name(de_name, de_name_len, dname)) {
-	    dprintf("Found.\n");
+	    dprintf("Found (by ISO name).\n");
 	    return de;
 	}
     }
@@ -194,6 +210,8 @@ static int iso_readdir(struct file *file, struct dirent *dirent)
     struct inode *inode = file->inode;
     const struct iso_dir_entry *de;
     const char *data = NULL;
+    char *rr_name = NULL;
+    int name_len, ret;
     
     while (1) {
 	size_t offset = file->offset & (BLOCK_SIZE(fs) - 1);
@@ -218,8 +236,18 @@ static int iso_readdir(struct file *file, struct dirent *dirent)
     dirent->d_ino = 0;           /* Inode number is invalid to ISO fs */
     dirent->d_off = file->offset;
     dirent->d_type = get_inode_mode(de->flags);
-    dirent->d_reclen = offsetof(struct dirent, d_name) + 1 +
-	iso_convert_name(dirent->d_name, de->name, de->name_len);
+
+    /* Try to get Rock Ridge name */
+    ret = susp_rr_get_nm(fs, (char *) de, &rr_name, &name_len);
+    if (ret > 0) {
+	memcpy(dirent->d_name, rr_name, name_len + 1);
+	free(rr_name);
+	rr_name = NULL;
+    } else {
+	name_len = iso_convert_name(dirent->d_name, de->name, de->name_len);
+    }
+
+    dirent->d_reclen = offsetof(struct dirent, d_name) + 1 + name_len;
 
     file->offset += de->length;  /* Update for next reading */
     
@@ -281,6 +309,11 @@ static int iso_fs_init(struct fs_info *fs)
 
     /* Initialize the cache */
     cache_init(fs->fs_dev, fs->block_shift);
+
+    /* Check for SP and ER in the first directory record of the root directory.
+       Set sbi->susp_skip and enable sbi->do_rr as appropriate.
+    */
+    susp_rr_check_signatures(fs, 1);
 
     return fs->block_shift;
 }
