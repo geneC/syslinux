@@ -326,25 +326,27 @@ void print_pxe_bootp_t(pxe_bootp_t *p, size_t len)
 
 void pxe_set_regs(struct syslinux_rm_regs *regs)
 {
-    com32sys_t tregs;
+    const union syslinux_derivative_info *sdi;
+    const com32sys_t *pxe_regs;
 
-    memset(&tregs,0,sizeof(tregs));
+    sdi = syslinux_derivative_info();
+    pxe_regs = sdi->pxe.stack;	/* Original register values */
+
+    /* Just to be sure... */
+    memset(regs, 0, sizeof *regs);
+
     regs->ip = 0x7C00;
-    /* Plan A uses SS:[SP + 4] */
-    /* sdi->pxe.stack is a usable pointer, not something that can be nicely
-       and reliably split to SS:SP without causing issues */
-    tregs.eax.l = 0x000A;
-    __intcall(0x22, &tregs, &tregs);
-    regs->ss = tregs.fs;
-    regs->esp.l = tregs.esi.w[0] + sizeof(tregs);
-    /* Plan B uses [ES:BX] */
-    regs->es = tregs.es;
-    regs->ebx = tregs.ebx;
+
+    /* Point to the original stack */
+    regs->ss    = sdi->pxe.stack_seg;
+    regs->esp.l = sdi->pxe.stack_offs + sizeof(com32sys_t);
+
+    /* Point to the PXENV+ address */
+    regs->es    = pxe_regs->es;
+    regs->ebx.l = pxe_regs->ebx.l;
+
     dprintf("\nsp:%04x    ss:%04x    es:%04x    bx:%04x\n", regs->esp.w[0],
 	regs->ss, regs->es, regs->ebx.w[0]);
-    /* Zero out everything else just to be sure */
-    regs->cs = regs->ds = regs->fs = regs->gs = 0;
-    regs->eax.l = regs->ecx.l = regs->edx.l = 0;
 }
 
 int hostlen_limit(int len)

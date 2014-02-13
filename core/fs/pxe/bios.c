@@ -11,6 +11,8 @@ static uint16_t real_base_mem;	   /* Amount of DOS memory after freeing */
 static bool has_gpxe;
 static uint32_t gpxe_funcs;
 
+far_ptr_t StrucPtr;
+
 /*
  * Validity check on possible !PXE structure in buf
  * return 1 for success, 0 for failure.
@@ -162,20 +164,28 @@ int pxe_init(bool quiet)
     regs.eax.w[0] = 0x5650;
     call16(pxe_int1a, &regs, &regs);
     if (!(regs.eflags.l & EFLAGS_CF) && (regs.eax.w[0] == 0x564e)) {
-	pxenv = MK_PTR(regs.es, regs.ebx.w[0]);
+	off = regs.ebx.w[0];
+	seg = regs.es;
+	pxenv = MK_PTR(seg, off);
         if (is_pxenv(pxenv))
             goto have_pxenv;
     }
 
     /* Plan D: !PXE memory scan */
     plan++;
-    if ((pxe = memory_scan_for_pxe_struct()))
+    if ((pxe = memory_scan_for_pxe_struct())) {
+	off = OFFS(pxe);
+	seg = SEG(pxe);
         goto have_pxe;
+    }
 
     /* Plan E: PXENV+ memory scan */
     plan++;
-    if ((pxenv = memory_scan_for_pxenv_struct()))
+    if ((pxenv = memory_scan_for_pxenv_struct())) {
+	off = OFFS(pxenv);
+	seg = SEG(pxenv);
         goto have_pxenv;
+    }
 
     /* Found nothing at all !! */
     if (!quiet)
@@ -222,6 +232,9 @@ int pxe_init(bool quiet)
     type = "!PXE";
 
  have_entrypoint:
+    StrucPtr.offs = off;
+    StrucPtr.seg  = seg;
+
     if (!quiet) {
 	ddprintf("%s entry point found (we hope) at %04X:%04X via plan %c\n",
 	       type, PXEEntry.seg, PXEEntry.offs, plan);

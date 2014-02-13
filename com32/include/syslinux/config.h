@@ -115,8 +115,8 @@ union syslinux_derivative_info {
 	const uint64_t *partoffset;
     } disk;			/* syslinux/extlinux */
     struct {
-	uint16_t _gs, _fs, _es, _ds;
-	uint32_t _edi, _esi, _ebp, _esp, _ebx;
+	uint16_t _gs, stack_seg, pxenv_seg, _ds;
+	uint32_t _edi, stack_offs, _ebp, _esp, pxenv_offs;
 	uint16_t apiver;
 	uint16_t _dxh;
 	uint32_t myip;
