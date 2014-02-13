@@ -691,10 +691,8 @@ EFI_STATUS emalloc(UINTN size, UINTN align, EFI_PHYSICAL_ADDRESS *addr)
 		/* Low-memory is super-precious! */
 		if (end <= 1 << 20)
 			continue;
-		if (start < 1 << 20) {
-			size -= (1 << 20) - start;
+		if (start < 1 << 20)
 			start = (1 << 20);
-		}
 
 		aligned = (start + align -1) & ~(align -1);
 
