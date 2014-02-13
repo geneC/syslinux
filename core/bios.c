@@ -12,6 +12,7 @@
 #include <sys/vesa/video.h>
 #include <sys/vesa/debug.h>
 #include <minmax.h>
+#include "core.h"
 
 __export struct firmware *firmware = NULL;
 
@@ -165,22 +166,12 @@ static void bios_get_serial_console_info(uint16_t *iobase, uint16_t *divisor,
 	*flowctl |= (0x80 << 8);
 }
 
-void *__syslinux_adv_ptr;
-size_t __syslinux_adv_size;
-
 void bios_adv_init(void)
 {
     static com32sys_t reg;
 
     memset(&reg, 0, sizeof(reg));
-    reg.eax.w[0] = 0x0025;
-    __intcall(0x22, &reg, &reg);
-
-    memset(&reg, 0, sizeof(reg));
-    reg.eax.w[0] = 0x001c;
-    __intcall(0x22, &reg, &reg);
-    __syslinux_adv_ptr = MK_PTR(reg.es, reg.ebx.w[0]);
-    __syslinux_adv_size = reg.ecx.w[0];
+    call16(adv_init, &reg, NULL);
 }
 
 int bios_adv_write(void)
@@ -188,8 +179,7 @@ int bios_adv_write(void)
     static com32sys_t reg;
 
     memset(&reg, 0, sizeof(reg));
-    reg.eax.w[0] = 0x001d;
-    __intcall(0x22, &reg, &reg);
+    call16(adv_write, &reg, &reg);
     return (reg.eflags.l & EFLAGS_CF) ? -1 : 0;
 }
 

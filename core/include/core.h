@@ -61,6 +61,10 @@ extern void (*core_pm_hook)(void);
 /* getc.inc */
 extern void core_open(void);
 
+/* adv.inc */
+extern void adv_init(void);
+extern void adv_write(void);
+
 /* hello.c */
 extern void myputs(const char*);
 

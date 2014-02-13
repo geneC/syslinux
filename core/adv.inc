@@ -43,6 +43,13 @@ ADV_LEN		equ 500				; Data bytes
 
 adv_retries	equ 6				; Disk retries
 
+		section .data
+		global __syslinux_adv_ptr, __syslinux_adv_size
+__syslinux_adv_ptr:
+		dd adv0.data
+__syslinux_adv_size:
+		dd ADV_LEN
+
 		section .adv
 		; Introduce the ADVs to valid but blank
 adv0:
@@ -63,6 +70,7 @@ adv1:
 		; This is called after config file parsing, so we know
 		; the intended location of the ADV
 		;
+		global adv_init
 adv_init:
 		cmp byte [ADVDrive],-1
 		jne adv_read
@@ -293,6 +301,7 @@ adv_cleanup:
 ;
 ;		Returns CF=1 if the ADV cannot be written.
 ;
+		global adv_write
 adv_write:
 		push eax
 		mov eax,[ADVSec0]

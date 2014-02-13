@@ -1,7 +1,7 @@
 ;; -----------------------------------------------------------------------
 ;;
 ;;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
-;;   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+;;   Copyright 2009-2014 Intel Corporation; author: H. Peter Anvin
 ;;
 ;;   This program is free software; you can redistribute it and/or modify
 ;;   it under the terms of the GNU General Public License as published by
@@ -343,20 +343,6 @@ comapi_err:
 		ret
 
 ;
-; INT 22h AX=001Ch	Get pointer to auxillary data vector
-;
-comapi_getadv:
-		mov P_ES,ds
-		mov P_BX,adv0.data
-		mov P_CX,ADV_LEN
-		ret
-
-;
-; INT 22h AX=001Dh	Write auxillary data vector
-;
-comapi_writeadv	equ adv_write
-
-;
 ; INT 22h AX=0024h	Cleanup, shuffle and boot raw
 ;
 comapi_shufraw:
@@ -377,13 +363,6 @@ comapi_shufraw:
 		mov esi,P_ESI
 		mov ecx,P_ECX
 		jmp shuffle_and_boot_raw
-
-;
-; INT 22h AX=0025h	Initialize the ADV structure
-;
-comapi_initadv:
-		call adv_init
-		ret
 
 		section .data16
 
@@ -417,8 +396,8 @@ int22_table:
 		dw comapi_err		; 0019 read disk
 		dw comapi_err		; 001A cleanup, shuffle and boot to pm
 		dw comapi_err		; 001B cleanup, shuffle and boot to rm
-		dw comapi_getadv	; 001C get pointer to ADV
-		dw comapi_writeadv	; 001D write ADV to disk
+		dw comapi_err		; 001C get pointer to ADV
+		dw comapi_err		; 001D write ADV to disk
 		dw comapi_err		; 001E keyboard remapping table
 		dw comapi_err		; 001F get current working directory
 		dw comapi_err		; 0020 open directory
@@ -426,7 +405,7 @@ int22_table:
 		dw comapi_err		; 0022 close directory
 		dw comapi_err		; 0023 query shuffler size
 		dw comapi_shufraw	; 0024 cleanup, shuffle and boot raw
-		dw comapi_initadv	; 0025 initialize adv structure
+		dw comapi_err		; 0025 initialize adv structure
 int22_count	equ ($-int22_table)/2
 
 APIKeyWait	db 0
