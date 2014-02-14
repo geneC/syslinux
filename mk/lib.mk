@@ -151,7 +151,7 @@ LIBCONSOLE_OBJS = \
 LIBLOAD_OBJS = \
 	syslinux/addlist.o syslinux/freelist.o syslinux/memmap.o	\
 	syslinux/movebits.o syslinux/shuffle.o syslinux/shuffle_pm.o	\
-	syslinux/shuffle_rm.o syslinux/zonelist.o			\
+	syslinux/shuffle_rm.o syslinux/biosboot.o syslinux/zonelist.o	\
 	syslinux/dump_mmap.o syslinux/dump_movelist.o			\
 	\
 	syslinux/run_default.o syslinux/run_command.o			\
