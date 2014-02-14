@@ -117,10 +117,6 @@ void kaboom(void)
 {
 }
 
-void comboot_cleanup_api(void)
-{
-}
-
 void printf_init(void)
 {
 }

@@ -665,7 +665,6 @@ void bios_init(void)
 	dmi_init();
 }
 
-extern void comboot_cleanup_api(void);
 extern void bios_timer_cleanup(void);
 
 extern uint32_t OrigFDCTabPtr;
@@ -683,7 +682,6 @@ static void bios_cleanup_hardware(void)
 	 */
 	__intcall(0x13, &zero_regs, NULL);
 
-	call16(comboot_cleanup_api, &zero_regs, NULL);
 	call16(bios_timer_cleanup, &zero_regs, NULL);
 
 	/* If we enabled serial port interrupts, clean them up now */

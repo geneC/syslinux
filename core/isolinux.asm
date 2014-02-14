@@ -1205,23 +1205,13 @@ KernelName	resb FILENAME_MAX	; Mangled name for kernel
 
 		section .text16
 ;
-; COMBOOT-loading code
+; COM32 vestigial data structure
 ;
-%include "comboot.inc"
 %include "com32.inc"
 
 ;
-; Boot sector loading code
+; Common local boot code
 ;
-
-;
-; Abort loading code
-;
-
-;
-; Hardware cleanup common code
-;
-
 %include "localboot.inc"
 
 ; -----------------------------------------------------------------------------
@@ -1239,4 +1229,4 @@ err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
 
 		section .bss16
 		global OrigFDCTabPtr
-OrigFDCTabPtr	dd 0			; Keep bios_cleanup_hardware() honest
+OrigFDCTabPtr	resd 1			; Keep bios_cleanup_hardware() honest

@@ -225,7 +225,7 @@ bail:
 
     /* Actually do it... */
     bios_do_shuffle_and_boot(bootflags, descaddr, dbuf,
-			     (addr_t)dp - (addr_t)dbuf);
+			     (size_t)dp - (size_t)dbuf);
 
     return -1;			/* Shouldn't have returned! */
 }
