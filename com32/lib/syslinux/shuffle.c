@@ -43,6 +43,7 @@
 #include <dprintf.h>
 #include <syslinux/movebits.h>
 #include <klibc/compiler.h>
+#include <syslinux/boot.h>
 
 struct shuffle_descriptor {
     uint32_t dst, src, len;
@@ -78,7 +79,6 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
     int need_ptrs;
     addr_t desczone, descfree, descaddr;
     int nmoves, nzero;
-    com32sys_t ireg;
 
     descaddr = 0;
     dp = dbuf = NULL;
@@ -224,13 +224,8 @@ bail:
 	return rv;
 
     /* Actually do it... */
-    memset(&ireg, 0, sizeof ireg);
-    ireg.edi.l = descaddr;
-    ireg.esi.l = (addr_t) dbuf;
-    ireg.ecx.l = (addr_t) dp - (addr_t) dbuf;
-    ireg.edx.w[0] = bootflags;
-    ireg.eax.w[0] = 0x0024;
-    __intcall(0x22, &ireg, NULL);
+    bios_do_shuffle_and_boot(bootflags, descaddr, dbuf,
+			     (addr_t)dp - (addr_t)dbuf);
 
     return -1;			/* Shouldn't have returned! */
 }

@@ -575,3 +575,7 @@ syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', MY_TYPE, ' '
 		section .data16
                 global KeepPXE
 KeepPXE		db 0			; Should PXE be kept around?
+
+		section .bss16
+		global OrigFDCTabPtr
+OrigFDCTabPtr	dd 0			; Keep bios_cleanup_hardware() honest

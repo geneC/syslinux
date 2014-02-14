@@ -665,6 +665,31 @@ void bios_init(void)
 	dmi_init();
 }
 
+extern void comboot_cleanup_api(void);
+extern void bios_timer_cleanup(void);
+
+extern uint32_t OrigFDCTabPtr;
+
+static void bios_cleanup_hardware(void)
+{
+	/* Restore the original pointer to the floppy descriptor table */
+	if (OrigFDCTabPtr)
+		*((uint32_t *)(4 * 0x1e)) = OrigFDCTabPtr;
+
+	/*
+	 * Linux wants the floppy motor shut off before starting the
+	 * kernel, at least bootsect.S seems to imply so.  If we don't
+	 * load the floppy driver, this is *definitely* so!
+	 */
+	__intcall(0x13, &zero_regs, NULL);
+
+	call16(comboot_cleanup_api, &zero_regs, NULL);
+	call16(bios_timer_cleanup, &zero_regs, NULL);
+
+	/* If we enabled serial port interrupts, clean them up now */
+	sirq_cleanup();
+}
+
 extern void *bios_malloc(size_t, enum heap, size_t);
 extern void *bios_realloc(void *, size_t);
 extern void bios_free(void *);

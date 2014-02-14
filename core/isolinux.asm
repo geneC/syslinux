@@ -1236,3 +1236,7 @@ KernelName	resb FILENAME_MAX	; Mangled name for kernel
 
 		section .data16
 err_disk_image	db 'Cannot load disk image (invalid file)?', CR, LF, 0
+
+		section .bss16
+		global OrigFDCTabPtr
+OrigFDCTabPtr	dd 0			; Keep bios_cleanup_hardware() honest

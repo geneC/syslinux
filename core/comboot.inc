@@ -342,28 +342,6 @@ comapi_err:
 		stc
 		ret
 
-;
-; INT 22h AX=0024h	Cleanup, shuffle and boot raw
-;
-comapi_shufraw:
-%if IS_PXELINUX
-		; Unload PXE if requested
-		test dl,3
-		setnz [KeepPXE]
-		sub bp,sp               ; unload_pxe may move the stack around
-		pm_call unload_pxe
-		add bp,sp               ; restore frame pointer...
-%elif IS_SYSLINUX || IS_EXTLINUX
-		; Restore original FDC table
-		mov eax,[OrigFDCTabPtr]
-		mov [fdctab],eax
-%endif
-		pm_call cleanup_hardware
-		mov edi,P_EDI
-		mov esi,P_ESI
-		mov ecx,P_ECX
-		jmp shuffle_and_boot_raw
-
 		section .data16
 
 		alignz 2
@@ -404,7 +382,7 @@ int22_table:
 		dw comapi_err		; 0021 read directory
 		dw comapi_err		; 0022 close directory
 		dw comapi_err		; 0023 query shuffler size
-		dw comapi_shufraw	; 0024 cleanup, shuffle and boot raw
+		dw comapi_err		; 0024 cleanup, shuffle and boot raw
 		dw comapi_err		; 0025 initialize adv structure
 int22_count	equ ($-int22_table)/2
 
