@@ -352,7 +352,6 @@ static int parse_data_run(const void *stream, uint32_t *offset,
     uint8_t *byte;
     int byte_shift = 8;
     int mask;
-    uint8_t val;
     int64_t res;
 
     (void)attr_len;
@@ -381,11 +380,8 @@ static int parse_data_run(const void *stream, uint32_t *offset,
     count = v;
 
     res = 0LL;
-    while (count--) {
-        val = *byte--;
-        mask = val >> (byte_shift - 1);
-        res = (res << byte_shift) | ((val + mask) ^ mask);
-    }
+    while (count--)
+	res = (res << byte_shift) | *byte--;
 
     chunk->len = res;   /* get length data */
 
