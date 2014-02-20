@@ -40,6 +40,10 @@ static struct ntfs_readdir_state *readdir_state;
 /*** Function declarations */
 static f_mft_record_lookup ntfs_mft_record_lookup_3_0;
 static f_mft_record_lookup ntfs_mft_record_lookup_3_1;
+static inline enum dirent_type get_inode_mode(struct ntfs_mft_record *mrec);
+static inline struct ntfs_attr_record * ntfs_attr_lookup(struct fs_info *fs, uint32_t type, struct ntfs_mft_record **mmrec, struct ntfs_mft_record *mrec);
+static inline uint8_t *mapping_chunk_init(struct ntfs_attr_record *attr,struct mapping_chunk *chunk,uint32_t *offset);
+static int parse_data_run(const void *stream, uint32_t *offset, uint8_t *attr_len, struct mapping_chunk *chunk);
 
 /*** Function definitions */
 
@@ -176,127 +180,116 @@ out:
     return -1;
 }
 
+/* AndyAlex: read and validate single MFT record. Keep in mind that MFT itself can be fragmented */
+static struct ntfs_mft_record *ntfs_mft_record_lookup_any(struct fs_info *fs,
+                                                uint32_t file, block_t *out_blk, bool is_v31)
+{
+    const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
+    uint8_t *buf = NULL;
+    const uint32_t mft_record_shift = ilog2(mft_record_size);
+    const uint32_t clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
+    uint64_t next_offset = 0;
+    uint64_t lcn = 0;
+    block_t blk = 0;
+    uint64_t offset = 0;
+
+    struct ntfs_mft_record *mrec = NULL, *lmrec = NULL;
+    uint64_t start_blk = 0;
+    struct ntfs_attr_record *attr = NULL;
+    uint8_t *stream = NULL;
+    uint32_t attr_offset = 0;
+    uint8_t *attr_len = NULL;
+    struct mapping_chunk chunk;
+
+    int err = 0;
+
+    /* determine MFT record's LCN */
+    uint64_t vcn = (file << mft_record_shift >> clust_byte_shift);
+    dprintf("in %s(%s)\n", __func__,(is_v31?"v3.1":"v3.0"));
+    if (0==vcn) {
+      lcn = NTFS_SB(fs)->mft_lcn;
+    } else do {
+      dprintf("%s: looking for VCN %u for MFT record %u\n", __func__,(unsigned)vcn,(unsigned)file);
+      mrec = NTFS_SB(fs)->mft_record_lookup(fs, 0, &start_blk);
+      if (!mrec) {dprintf("%s: read MFT(0) failed\n", __func__); break;}
+      lmrec = mrec;
+      if (get_inode_mode(mrec) != DT_REG) {dprintf("%s: $MFT is not a file\n", __func__); break;}
+      attr = ntfs_attr_lookup(fs, NTFS_AT_DATA, &mrec, lmrec);
+      if (!attr) {dprintf("%s: $MFT have no data attr\n", __func__); break;}
+      if (!attr->non_resident) {dprintf("%s: $MFT data attr is resident\n", __func__); break;}
+      attr_len = (uint8_t *)attr + attr->len;
+      stream = mapping_chunk_init(attr, &chunk, &attr_offset);
+      while (true) {
+        err = parse_data_run(stream, &attr_offset, attr_len, &chunk);
+        if (err) {dprintf("%s: $MFT data run parse failed with error %d\n", __func__,err); break;}
+        if (chunk.flags & MAP_UNALLOCATED) continue;
+        if (chunk.flags & MAP_END) break;
+        if (chunk.flags & MAP_ALLOCATED) {
+          dprintf("%s: Chunk: VCN=%u, LCN=%u, len=%u\n", __func__,(unsigned)chunk.vcn,(unsigned)chunk.lcn,(unsigned)chunk.len);
+          if ((vcn>=chunk.vcn)&&(vcn<chunk.vcn+chunk.len)) {
+            lcn=vcn-chunk.vcn+chunk.lcn;
+            dprintf("%s: VCN %u for MFT record %u maps to lcn %u\n", __func__,(unsigned)vcn,(unsigned)file,(unsigned)lcn);
+            break;
+          }
+          chunk.vcn += chunk.len;
+        }
+      }
+    } while(false);
+    if (mrec!=NULL) free(mrec);
+    mrec = NULL;
+    if (0==lcn) {
+      dprintf("%s: unable to map VCN %u for MFT record %u\n", __func__,(unsigned)vcn,(unsigned)file);
+      return NULL;
+    }
+
+    /* determine MFT record's block number */
+    blk = (lcn << clust_byte_shift >> BLOCK_SHIFT(fs));
+    offset = (file << mft_record_shift) % BLOCK_SIZE(fs);
+
+    /* Allocate buffer */
+    buf = (uint8_t *)malloc(mft_record_size);
+    if (!buf) {malloc_error("uint8_t *");return 0;}
+
+    /* Read block */
+    err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &blk,
+                    &offset, &next_offset, &lcn);
+    if (err) {
+      dprintf("%s: error read block %u from cache\n", __func__, blk);
+      printf("Error while reading from cache.\n");
+      free(buf);
+      return NULL;
+    }
+
+    /* Process fixups and make structure pointer */
+    ntfs_fixups_writeback(fs, (struct ntfs_record *)buf);
+    mrec = (struct ntfs_mft_record *)buf;
+
+    /* check if it has a valid magic number and record number */
+    if (mrec->magic != NTFS_MAGIC_FILE) mrec = NULL;
+    if (mrec && is_v31) if (mrec->mft_record_no != file) mrec = NULL;
+    if (mrec!=NULL) {
+      if (out_blk) {
+        *out_blk = (file << mft_record_shift >> BLOCK_SHIFT(fs));   /* update record starting block */
+      }
+      return mrec;          /* found MFT record */
+    }
+
+    /* Invalid record */
+    dprintf("%s: MFT record %u is invalid\n", __func__, (unsigned)file);
+    free(buf);
+    return NULL;
+}
+
 static struct ntfs_mft_record *ntfs_mft_record_lookup_3_0(struct fs_info *fs,
                                                 uint32_t file, block_t *blk)
 {
-    const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
-    uint8_t *buf;
-    const block_t mft_blk = NTFS_SB(fs)->mft_blk;
-    block_t cur_blk;
-    block_t right_blk;
-    uint64_t offset;
-    uint64_t next_offset;
-    const uint32_t mft_record_shift = ilog2(mft_record_size);
-    const uint32_t clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
-    uint64_t lcn;
-    int err;
-    struct ntfs_mft_record *mrec;
-
-    dprintf("in %s()\n", __func__);
-
-    buf = (uint8_t *)malloc(mft_record_size);
-    if (!buf)
-        malloc_error("uint8_t *");
-
-    /* determine MFT record's LCN and block number */
-    lcn = NTFS_SB(fs)->mft_lcn + (file << mft_record_shift >> clust_byte_shift);
-    cur_blk = (lcn << clust_byte_shift >> BLOCK_SHIFT(fs)) - mft_blk;
-    offset = (file << mft_record_shift) % BLOCK_SIZE(fs);
-    for (;;) {
-        right_blk = cur_blk + mft_blk;
-        err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
-                        &offset, &next_offset, &lcn);
-        if (err) {
-            printf("Error while reading from cache.\n");
-            break;
-        }
-
-        ntfs_fixups_writeback(fs, (struct ntfs_record *)buf);
-
-        mrec = (struct ntfs_mft_record *)buf;
-        /* check if it has a valid magic number */
-        if (mrec->magic == NTFS_MAGIC_FILE) {
-            if (blk)
-                *blk = cur_blk;     /* update record starting block */
-
-            return mrec;            /* found MFT record */
-        }
-
-        if (next_offset >= BLOCK_SIZE(fs)) {
-            /* try the next FS block */
-            offset = 0;
-            cur_blk = right_blk - mft_blk + 1;
-        } else {
-            /* there's still content to fetch in the current block */
-            cur_blk = right_blk - mft_blk;
-            offset = next_offset;   /* update FS block offset */
-        }
-    }
-
-    free(buf);
-
-    return NULL;
+    return ntfs_mft_record_lookup_any(fs,file,blk,false);
 }
 
 static struct ntfs_mft_record *ntfs_mft_record_lookup_3_1(struct fs_info *fs,
                                                 uint32_t file, block_t *blk)
 {
-    const uint64_t mft_record_size = NTFS_SB(fs)->mft_record_size;
-    uint8_t *buf;
-    const block_t mft_blk = NTFS_SB(fs)->mft_blk;
-    block_t cur_blk;
-    block_t right_blk;
-    uint64_t offset;
-    uint64_t next_offset;
-    const uint32_t mft_record_shift = ilog2(mft_record_size);
-    const uint32_t clust_byte_shift = NTFS_SB(fs)->clust_byte_shift;
-    uint64_t lcn;
-    int err;
-    struct ntfs_mft_record *mrec;
-
-    dprintf("in %s()\n", __func__);
-
-    buf = (uint8_t *)malloc(mft_record_size);
-    if (!buf)
-        malloc_error("uint8_t *");
-
-    lcn = NTFS_SB(fs)->mft_lcn + (file << mft_record_shift >> clust_byte_shift);
-    cur_blk = (lcn << clust_byte_shift >> BLOCK_SHIFT(fs)) - mft_blk;
-    offset = (file << mft_record_shift) % BLOCK_SIZE(fs);
-    for (;;) {
-        right_blk = cur_blk + NTFS_SB(fs)->mft_blk;
-        err = ntfs_read(fs, buf, mft_record_size, mft_record_size, &right_blk,
-                        &offset, &next_offset, &lcn);
-        if (err) {
-            printf("Error while reading from cache.\n");
-            break;
-        }
-
-        ntfs_fixups_writeback(fs, (struct ntfs_record *)buf);
-
-        mrec = (struct ntfs_mft_record *)buf;
-        /* Check if the NTFS 3.1 MFT record number matches */
-        if (mrec->magic == NTFS_MAGIC_FILE && mrec->mft_record_no == file) {
-            if (blk)
-                *blk = cur_blk;     /* update record starting block */
-
-            return mrec;            /* found MFT record */
-        }
-
-        if (next_offset >= BLOCK_SIZE(fs)) {
-            /* try the next FS block */
-            offset = 0;
-            cur_blk = right_blk - NTFS_SB(fs)->mft_blk + 1;
-        } else {
-            /* there's still content to fetch in the current block */
-            cur_blk = right_blk - NTFS_SB(fs)->mft_blk;
-            offset = next_offset;   /* update FS block offset */
-        }
-    }
-
-    free(buf);
-
-    return NULL;
+    return ntfs_mft_record_lookup_any(fs,file,blk,true);
 }
 
 static bool ntfs_filename_cmp(const char *dname, struct ntfs_idx_entry *ie)
