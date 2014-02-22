@@ -55,11 +55,11 @@ $(LIBEFI):
 %.o: %.c
 
 .PRECIOUS: %.o
-%.o: %.S
+%.o: %.S $(LIBEFI)
 	$(CC) $(SFLAGS) -c -o $@ $<
 
 .PRECIOUS: %.o
-%.o: %.c
+%.o: %.c $(LIBEFI)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 #%.efi: %.so
