@@ -7,6 +7,7 @@ core = $(topdir)/core
 # Set up architecture specifics; for cross compilation, set ARCH as apt
 # gnuefi sets up architecture specifics in ia32 or x86_64 sub directories
 # set up the LIBDIR and EFIINC for building for the appropriate architecture
+GCCOPT := $(call gcc_ok,-fno-stack-protector,)
 EFIINC = $(objdir)/include/efi
 LIBDIR  = $(objdir)/lib
 
@@ -37,7 +38,7 @@ CFLAGS = -I$(EFIINC) -I$(EFIINC)/$(EFI_SUBARCH) \
 		-DELF_DEBUG -DSYSLINUX_EFI -I$(objdir) \
 		$(GCCWARN) -D__COM32__ -mno-red-zone \
 		-DLDLINUX=\"$(LDLINUX)\" -fvisibility=hidden \
-		-Wno-unused-parameter
+		-Wno-unused-parameter $(GCCOPT)
 
 CRT0 := $(LIBDIR)/crt0-efi-$(EFI_SUBARCH).o
 LDSCRIPT := $(LIBDIR)/elf_$(EFI_SUBARCH)_efi.lds
