@@ -12,13 +12,11 @@ EFIINC = $(objdir)/include/efi
 LIBDIR  = $(objdir)/lib
 
 ifeq ($(ARCH),i386)
-	SARCHOPT = -march=i386
-	CARCHOPT = -m32 -march=i386
+	ARCHOPT = -m32 -march=i386
 	EFI_SUBARCH = ia32
 endif
 ifeq ($(ARCH),x86_64)
-	SARCHOPT = -march=x86-64
-	CARCHOPT = -m64 -march=x86-64
+	ARCHOPT = -m64 -march=x86-64
 	EFI_SUBARCH = $(ARCH)
 endif
 
@@ -33,7 +31,7 @@ FORMAT=efi-app-$(EFI_SUBARCH)
 CFLAGS = -I$(EFIINC) -I$(EFIINC)/$(EFI_SUBARCH) \
 		-DEFI_FUNCTION_WRAPPER -fPIC -fshort-wchar -ffreestanding \
 		-Wall -I$(com32)/include -I$(com32)/include/sys \
-		-I$(core)/include -I$(core)/ $(CARCHOPT) \
+		-I$(core)/include -I$(core)/ $(ARCHOPT) \
 		-I$(com32)/lib/ -I$(com32)/libutil/include -std=gnu99 \
 		-DELF_DEBUG -DSYSLINUX_EFI -I$(objdir) \
 		$(GCCWARN) -D__COM32__ -mno-red-zone \
@@ -46,7 +44,7 @@ LDSCRIPT := $(LIBDIR)/elf_$(EFI_SUBARCH)_efi.lds
 LDFLAGS = -T $(SRC)/$(ARCH)/syslinux.ld -Bsymbolic -pie -nostdlib -znocombreloc \
 		-L$(LIBDIR) --hash-style=gnu -m elf_$(ARCH) $(CRT0) -E
 
-SFLAGS     = $(GCCOPT) $(GCCWARN) $(SARCHOPT) \
+SFLAGS     = $(GCCOPT) $(GCCWARN) $(ARCHOPT) \
 	     -fomit-frame-pointer -D__COM32__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include -I$(com32)/include/sys $(GPLINCLUDE)
