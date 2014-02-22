@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
-##   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
+##   Copyright 2009-2014 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
 #
 # Main Makefile for SYSLINUX
 #
+
+all_firmware := bios efi32 efi64
 
 #
 # topdir is only set when we are doing a recursive make. Do a bunch of
@@ -72,7 +74,7 @@ include $(MAKEDIR)/syslinux.mk
 -include $(OBJDIR)/version.mk
 
 private-targets = prerel unprerel official release burn isolinux.iso \
-		  preupload upload test unittest regression
+		  preupload upload test unittest regression spotless
 
 ifeq ($(MAKECMDGOALS),)
 	MAKECMDGOALS += all
@@ -84,7 +86,7 @@ endif
 # creating. Which means that we always need a *real* target, such as
 # 'all', appended to the make goals.
 #
-firmware = bios efi32 efi64
+firmware = $(all_firmware)
 real-target := $(filter-out $(firmware), $(MAKECMDGOALS))
 real-firmware := $(filter $(firmware), $(MAKECMDGOALS))
 
@@ -222,18 +224,18 @@ endif # ifdef EFI_BUILD
 
 ifeq ($(HAVE_FIRMWARE),)
 
-firmware = bios efi32 efi64
+firmware = $(all_firmware)
 
 # If no firmware was specified the rest of MAKECMDGOALS applies to all
 # firmware.
 ifeq ($(filter $(firmware),$(MAKECMDGOALS)),)
-all strip tidy clean dist spotless install installer netinstall: bios efi32 efi64
+all strip tidy clean dist install installer netinstall: $(all_firmware)
 
 else
 
 # Don't do anything for the rest of MAKECMDGOALS at this level. It
 # will be handled for each of $(firmware).
-strip tidy clean dist spotless install installer netinstall:
+strip tidy clean dist install installer netinstall:
 
 endif
 
@@ -388,11 +390,6 @@ local-dist:
 
 dist: local-dist local-tidy $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS)
 
-local-spotless:
-	rm -f $(BTARGET) .depend *.so.*
-
-spotless: local-clean local-dist local-spotless $(BESUBDIRS) $(IESUBDIRS) $(ISUBDIRS) $(BSUBDIRS)
-
 # Shortcut to build linux/syslinux using klibc
 klibc:
 	$(MAKE) clean
@@ -400,6 +397,15 @@ klibc:
 endif # ifeq ($(HAVE_FIRMWARE),)
 
 endif # ifeq ($(topdir),)
+
+local-spotless:
+	find . \( -name '*~' -o -name '#*' -o -name core \
+		-o -name '.*.d' -o -name .depend -o -name '*.so.*' \) \
+		-type f -print0 \
+	| xargs -0rt rm -f
+
+spotless: local-spotless
+	rm -rf $(all_firmware)
 
 #
 # Common rules that are needed by every invocation of make.
