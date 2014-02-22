@@ -49,6 +49,8 @@ release:
 	mkdir -p release/syslinux-$(VERSION)
 	git archive --format=tar syslinux-$(VERSION) | \
 		tar -x -f - -C release/syslinux-$(VERSION)
+	( cd gnu-efi && git archive --format=tar HEAD ) | \
+		tar -x -f - -C release/syslinux-$(VERSION)/gnu-efi
 	find release/syslinux-$(VERSION) \
 		\( -name '*~' -or -name '#*' -or -name '.git*' \) -type f -print0 | \
 		xargs -0rt rm -f
@@ -80,6 +82,8 @@ prerel:
 	mkdir -p $(PRERELDIR)/$(PREREL)
 	git archive --format=tar $(PREREL) | \
 		tar -x -f - -C $(PRERELDIR)/$(PREREL)
+	( cd gnu-efi && git archive --format=tar HEAD ) | \
+		tar -x -f - -C $(PRERELDIR)/$(PREREL)/gnu-efi
 	find $(PRERELDIR)/$(PREREL) \
 		\( -name '*~' -or -name '#*' \) -type f -print0 | \
 		xargs -0rt rm -f
