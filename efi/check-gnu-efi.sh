@@ -20,12 +20,12 @@ fi
 ARCH=$1
 objdir=$2
 
-if [ ! -f $objdir/include/efi/$ARCH/efibind.h ]; then
+if [ ! \( -f "$objdir/include/efi/$ARCH/efibind.h" -a -f "$objdir/lib/libefi.a" -a -f "$objdir/lib/libgnuefi.a" \) ]; then
     # Build the external project with a clean make environment, as
     # Syslinux disables built-in implicit rules.
     export MAKEFLAGS=
 
-    ../../efi/build-gnu-efi.sh $ARCH $objdir > /dev/null 2>&1
+    ../../efi/build-gnu-efi.sh $ARCH "$objdir" > /dev/null 2>&1
     if [ $? -ne 0 ]; then
 	printf "Failed to build gnu-efi. "
 	printf "Execute the following command for full details: \n\n"
@@ -33,4 +33,6 @@ if [ ! -f $objdir/include/efi/$ARCH/efibind.h ]; then
 
 	exit 1
     fi
+else
+    printf "skip gnu-efi build/install\n"
 fi

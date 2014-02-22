@@ -19,25 +19,17 @@ EOF
 fi
 
 ARCH="$1"
-objdir="$(readlink -f $2)"
-
-if [ ! -e ../version.h ]; then
-    printf "build-gnu-efi.sh: Cannot be run outside Syslinux object tree\n"
-    pwd
-    exit 1
-fi
+objdir=$(readlink -f "$2")
 
 (
 	cd ../..
 	git submodule update --init
 )
 
-mkdir -p "$objdir/gnu-efi"
-cd "$objdir/gnu-efi"
-
-EFIDIR="$(readlink -f "$objdir/../gnu-efi/gnu-efi-3.0")"
-
-make SRCDIR="$EFIDIR" TOPDIR="$EFIDIR" -f "$EFIDIR/Makefile" ARCH=$ARCH
-make SRCDIR="$EFIDIR" TOPDIR="$EFIDIR" -f "$EFIDIR/Makefile" ARCH=$ARCH PREFIX="$objdir" install
+if [ -d "$objdir/gnu-efi" ];then
+	cd "$objdir/gnu-efi"
+	EFIDIR="$(readlink -f "$objdir/../gnu-efi/gnu-efi-3.0")"
+	make SRCDIR="$EFIDIR" TOPDIR="$EFIDIR" -f "$EFIDIR/Makefile" ARCH=$ARCH clean
+fi
 
 cd "$objdir/efi"

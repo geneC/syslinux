@@ -41,7 +41,8 @@ CORE_OBJS += $(addprefix $(OBJ)/../core/, \
 	fs/pxe/pxe.o fs/pxe/tftp.o fs/pxe/urlparse.o fs/pxe/dhcp_option.o \
 	fs/pxe/ftp.o fs/pxe/ftp_readdir.o fs/pxe/http.o fs/pxe/http_readdir.o)
 
-LIB_OBJS = $(addprefix $(objdir)/com32/lib/,$(CORELIBOBJS))
+LIB_OBJS = $(addprefix $(objdir)/com32/lib/,$(CORELIBOBJS)) \
+	$(LIBEFI)
 
 CSRC = $(wildcard $(SRC)/*.c)
 OBJS = $(subst $(SRC)/,,$(filter-out %wrapper.o, $(patsubst %.c,%.o,$(CSRC))))
@@ -100,6 +101,7 @@ tidy dist:
 	rm -f *.so *.o wrapper
 	find . \( -name \*.o -o -name \*.a -o -name .\*.d -o -name \*.tmp \) -print0 | \
 		xargs -0r rm -f
+	$(topdir)/efi/clean-gnu-efi.sh $(EFI_SUBARCH) $(objdir)
 
 clean: tidy
 
