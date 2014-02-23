@@ -338,6 +338,7 @@ struct disk *bios_disk_init(void *private)
 	/* Get EBIOS support */
 	ireg.eax.b[1] = 0x41;
 	ireg.ebx.w[0] = 0x55aa;
+	ireg.edx.b[0] = devno;
 	ireg.eflags.b[0] = 0x3;	/* CF set */
 
 	__intcall(0x13, &ireg, &oreg);
@@ -355,6 +356,7 @@ struct disk *bios_disk_init(void *private)
 
             memset(&ireg, 0, sizeof ireg);
 	    ireg.eax.b[1] = 0x48;
+	    ireg.edx.b[0] = devno;
 	    ireg.ds = SEG(&edd_params);
 	    ireg.esi.w[0] = OFFS(&edd_params);
 	    __intcall(0x13, &ireg, &oreg);
