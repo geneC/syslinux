@@ -28,7 +28,7 @@ static inline void check_escapes(void)
 		 * NOTE: Linux doesn't use all of real_mode_seg, but we use
 		 * the same segment for COMBOOT images, which can use all 64K.
 		 */
-		uint16_t mem;
+		uint32_t mem;
 
 		__intcall(0x12, &ireg, &oreg);
 
