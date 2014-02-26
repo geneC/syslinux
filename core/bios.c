@@ -474,21 +474,21 @@ static inline void check_escapes(void)
 	KbdFlags = oreg.eax.b[0];
 
 	/* Ctrl->skip 386 check */
-	if (oreg.eax.b[0] & 0x04) {
+	if (!(oreg.eax.b[0] & 0x04)) {
 		/*
 		 * Now check that there is sufficient low (DOS) memory
 		 *
 		 * NOTE: Linux doesn't use all of real_mode_seg, but we use
 		 * the same segment for COMBOOT images, which can use all 64K.
 		 */
-		uint16_t mem;
+		uint32_t mem;
 
 		__intcall(0x12, &ireg, &oreg);
 
 		mem = ((uint32_t)__lowmem_heap) + min_lowmem_heap + 1023;
 		mem = mem >> 10;
 
-		if (mem < oreg.eax.w[0]) {
+		if (oreg.eax.w[0] < mem) {
 			char buf[256];
 
 			snprintf(buf, sizeof(buf),
