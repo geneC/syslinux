@@ -43,7 +43,7 @@ LIBFLAGS = -DDYNAMIC_CRC_TABLE -DPNG_NO_CONSOLE_IO \
 # fallback anyway, just use that on old machines...
 # LIBFLAGS += -DPNG_NO_FLOATING_POINT_SUPPORTED
 
-REQFLAGS  = $(GCCOPT) -g -D__COM32__ \
+REQFLAGS  = $(GCCOPT) -g -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ \
 	    -nostdinc -iwithprefix include -I. -I$(SRC)/sys \
 	    -I$(SRC)/../include -I$(com32)/include/sys \
 	    -I$(topdir)/core/include -I$(com32)/lib/ \

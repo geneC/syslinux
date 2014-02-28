@@ -55,7 +55,7 @@ GPLINCLUDE =
 endif
 
 CFLAGS     = $(GCCOPT) $(GCCWARN) -W -Wall \
-	     -fomit-frame-pointer -D__COM32__ -DDYNAMIC_MODULE \
+	     -fomit-frame-pointer -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ -DDYNAMIC_MODULE \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \
 		-I$(com32)/include/sys $(GPLINCLUDE) -I$(core)/include \
@@ -64,7 +64,7 @@ ifndef EFI_BUILD
 CFLAGS	  += -mregparm=3 -DREGPARM=3
 endif
 
-SFLAGS     = $(GCCOPT) -D__COM32__ 
+SFLAGS     = $(GCCOPT) -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ 
 LDFLAGS    = -m elf_$(ARCH) -shared --hash-style=gnu -T $(com32)/lib/$(ARCH)/elf.ld --as-needed
 LIBGCC    := $(shell $(CC) $(GCCOPT) --print-libgcc)
 

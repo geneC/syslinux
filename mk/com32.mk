@@ -64,12 +64,12 @@ GPLINCLUDE =
 endif
 
 CFLAGS     = $(GCCOPT) $(GCCWARN) \
-	     -fomit-frame-pointer -D__COM32__ \
+	     -fomit-frame-pointer -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \
 	     -I$(com32)/include/sys $(GPLINCLUDE)
 SFLAGS     = $(GCCOPT) $(GCCWARN) \
-	     -fomit-frame-pointer -D__COM32__ \
+	     -fomit-frame-pointer -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \
 	     -I$(com32)/include/sys $(GPLINCLUDE)

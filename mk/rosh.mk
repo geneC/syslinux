@@ -18,7 +18,7 @@
 include $(MAKEDIR)/elf.mk
 
 # CFLAGS     = $(GCCOPT) $(GCCWARN) -march=i386 \
-# 	     -fomit-frame-pointer -D__COM32__ \
+# 	     -fomit-frame-pointer -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ \
 # 	     -nostdinc -iwithprefix include \
 # 	     -I$(com32)/libutil/include -I$(com32)/include
 # 	 -g3 -dD

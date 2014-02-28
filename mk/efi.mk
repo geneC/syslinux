@@ -29,7 +29,7 @@ CFLAGS = -I$(EFIINC) -I$(EFIINC)/$(EFI_SUBARCH) \
 		-I$(core)/include -I$(core)/ $(ARCHOPT) \
 		-I$(com32)/lib/ -I$(com32)/libutil/include -std=gnu99 \
 		-DELF_DEBUG -DSYSLINUX_EFI -I$(objdir) \
-		$(GCCWARN) -D__COM32__ -mno-red-zone \
+		$(GCCWARN) -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ -mno-red-zone \
 		-DLDLINUX=\"$(LDLINUX)\" -fvisibility=hidden \
 		-Wno-unused-parameter $(GCCOPT)
 
@@ -40,7 +40,7 @@ LDFLAGS = -T $(SRC)/$(ARCH)/syslinux.ld -Bsymbolic -pie -nostdlib -znocombreloc 
 		-L$(LIBDIR) --hash-style=gnu -m elf_$(ARCH) $(CRT0) -E
 
 SFLAGS     = $(GCCOPT) $(GCCWARN) $(ARCHOPT) \
-	     -fomit-frame-pointer -D__COM32__ \
+	     -fomit-frame-pointer -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include -I$(com32)/include/sys $(GPLINCLUDE)
 
