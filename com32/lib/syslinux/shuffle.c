@@ -48,16 +48,6 @@ struct shuffle_descriptor {
     uint32_t dst, src, len;
 };
 
-static int shuffler_size;
-
-static void __syslinux_get_shuffer_size(void)
-{
-    if (!shuffler_size) {
-	/* +15 padding is to guarantee alignment */
-	shuffler_size = __bcopyxx_len + 15;
-    }
-}
-
 /*
  * Allocate descriptor memory in these chunks; if this is large we may
  * waste memory, if it is small we may get slow convergence.
@@ -79,6 +69,11 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
     addr_t desczone, descfree, descaddr;
     int nmoves, nzero;
     com32sys_t ireg;
+
+#ifndef __FIRMWARE_BIOS__
+    errno = ENOSYS;
+    return -1;			/* Not supported at this time*/
+#endif
 
     descaddr = 0;
     dp = dbuf = NULL;
@@ -116,14 +111,14 @@ int syslinux_do_shuffle(struct syslinux_movelist *fraglist,
     if (!rxmap)
 	goto bail;
 
-    __syslinux_get_shuffer_size();
     desc_blocks = (nzero + DESC_BLOCK_SIZE - 1) / DESC_BLOCK_SIZE;
     for (;;) {
 	/* We want (desc_blocks) allocation blocks, plus the terminating
 	   descriptor, plus the shuffler safe area. */
 	addr_t descmem = desc_blocks *
 	    sizeof(struct shuffle_descriptor) * DESC_BLOCK_SIZE
-	    + sizeof(struct shuffle_descriptor) + shuffler_size;
+	    + sizeof(struct shuffle_descriptor)
+	    + syslinux_shuffler_size();
 
 	descaddr = (desczone + descfree - descmem) & ~3;
 

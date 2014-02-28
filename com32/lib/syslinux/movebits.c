@@ -681,7 +681,7 @@ int main(int argc, char *argv[])
 	return 1;
     } else {
 	dprintf("Final move list:\n");
-	syslinux_dump_movelist(stdout, moves);
+	syslinux_dump_movelist(moves);
 	return 0;
     }
 }

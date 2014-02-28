@@ -26,7 +26,13 @@ extern char cmd_line[];
 extern char ConfigFile[];
 extern char syslinux_banner[];
 extern char copyright_str[];
-extern unsigned int __bcopyxx_len;
+
+extern const size_t __syslinux_shuffler_size;
+
+static inline size_t syslinux_shuffler_size(void)
+{
+    return __syslinux_shuffler_size;
+}
 
 /*
  * Mark symbols that are only used by BIOS as __weak until we can move
