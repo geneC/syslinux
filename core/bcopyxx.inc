@@ -316,5 +316,12 @@ RM_IDT_ptr:	dw 0FFFFh		; Length (nonsense, but matches CPU)
 
 bcopyxx_stack	equ 128			; We want this much stack
 
+		section .rodata
+		global __syslinux_shuffler_size
+		extern __bcopyxx_len
+		align 4
+__syslinux_shuffler_size:
+		dd __bcopyxx_len
+
 		bits 16
 		section .text16
