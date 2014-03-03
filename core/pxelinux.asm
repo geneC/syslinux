@@ -272,22 +272,9 @@ KernelName	resb FILENAME_MAX	; Mangled name for kernel
 
 		section .text16
 ;
-; COMBOOT-loading code
+; COM32 vestigial data structure
 ;
-%include "comboot.inc"
 %include "com32.inc"
-
-;
-; Boot sector loading code
-;
-
-;
-; Abort loading code
-;
-
-;
-; Hardware cleanup common code
-;
 
 		section .text16
 		global local_boot16:function hidden
@@ -575,3 +562,7 @@ syslinux_banner	db CR, LF, MY_NAME, ' ', VERSION_STR, ' ', MY_TYPE, ' '
 		section .data16
                 global KeepPXE
 KeepPXE		db 0			; Should PXE be kept around?
+
+		section .bss16
+		global OrigFDCTabPtr
+OrigFDCTabPtr	resd 1			; Keep bios_cleanup_hardware() honest

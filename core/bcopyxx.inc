@@ -207,6 +207,14 @@ pm_bcopy:
 ;
 ;     (*) dst, src, and len are four bytes each
 ;
+; do_raw_shuffle_and_boot is the same entry point, but with a C ABI:
+; do_raw_shuffle_and_boot(safearea, descriptors, bytecount)
+;
+		global do_raw_shuffle_and_boot
+do_raw_shuffle_and_boot:
+		mov edi,eax
+		mov esi,edx
+
 pm_shuffle:
 		cli			; End interrupt service (for good)
 		mov ebx,edi		; EBX <- descriptor list
