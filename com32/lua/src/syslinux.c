@@ -188,7 +188,6 @@ static int sl_boot_linux(lua_State * L)
     char *newcmdline;
     uint32_t mem_limit = luaL_optint(L, 3, 0);
     uint16_t video_mode = luaL_optint(L, 4, 0);
-//  int ret, i;
     int ret;
     char **argv, **argp, *arg, *p;
 
@@ -224,23 +223,6 @@ static int sl_boot_linux(lua_State * L)
     if ((arg = find_argument(argp, "mem=")))
 	mem_limit = saturate32(suffix_number(arg));
 
-    if ((arg = find_argument(argp, "vga="))) {
-	switch (arg[0] | 0x20) {
-	case 'a':		/* "ask" */
-	    video_mode = 0xfffd;
-	    break;
-	case 'e':		/* "ext" */
-	    video_mode = 0xfffe;
-	    break;
-	case 'n':		/* "normal" */
-	    video_mode = 0xffff;
-	    break;
-	default:
-	    video_mode = strtoul(arg, NULL, 0);
-	    break;
-	}
-    }
-
     printf("Loading kernel %s...\n", kernel);
     if (loadfile(kernel, &kernel_data, &kernel_len))
 	printf("failed!\n");
@@ -268,17 +250,6 @@ static int sl_boot_linux(lua_State * L)
 		*p++ = ',';
 	} while ((arg = p));
     }
-
-    if (!loadfile("/testfile1", &file_data, &file_len)) {
-	if (initramfs_add_file(initramfs, file_data, file_len, file_len,
-			       "/testfile1", 0, 0755))
-	    printf("Adding extra file failed\n");
-    } else
-	printf("Loading extra file failed\n");
-
-    /* DEBUG
-       msleep(10000);
-     */
 
     ret = syslinux_boot_linux(kernel_data, kernel_len, initramfs, NULL, newcmdline);
 
