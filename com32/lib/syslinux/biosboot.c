@@ -28,6 +28,8 @@
 #include <syslinux/boot.h>
 #include <syslinux/movebits.h>
 
+#ifdef __FIRMWARE_BIOS__
+
 void bios_do_shuffle_and_boot(uint16_t bootflags, uint32_t descaddr,
 			      const void *descbuf, uint32_t dsize)
 {
@@ -37,3 +39,5 @@ void bios_do_shuffle_and_boot(uint16_t bootflags, uint32_t descaddr,
     do_raw_shuffle_and_boot(descaddr, descbuf, dsize);
     /* Should not return */
 }
+
+#endif /* __FIRMWARE_BIOS__ */
