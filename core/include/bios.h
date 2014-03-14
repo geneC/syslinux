@@ -88,7 +88,6 @@ extern char *SerialHead;
 extern char *SerialTail;
 
 extern void bios_init(void);
-extern void bios_cleanup_hardware(void);
 
 static inline uint16_t get_serial_port(uint16_t port)
 {

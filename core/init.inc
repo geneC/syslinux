@@ -39,12 +39,6 @@ common_init:
 		pm_call init
 
 ;
-; Set up the COMBOOT APIs
-;
-		call comboot_setup_api
-
-		section .text16
-;
 ; The code to decompress the PM code and initialize other segments.
 ;
 		extern _lzo1x_decompress_asm_fast_safe

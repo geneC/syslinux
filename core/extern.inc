@@ -44,6 +44,9 @@
 	; newconfig.c
 	extern pm_is_config_file
 
+	; idle.c
+	extern __idle
+
 %ifdef DEBUG
 	; debug.c
 	extern pm_debug_msg

@@ -29,8 +29,6 @@
 ; "mov ax,0x4cff; int 0x21" in 16-bit mode.  This will abort the
 ; program with an error if run in 16-bit mode.
 ;
-com32_entry	equ	free_high_memory
-
 		bits 16
 		section .data16
 
@@ -58,5 +56,11 @@ HighMemSize	dd 0				; End of memory pointer (bytes)
 
 		section .uibss
 Com32Name	resb FILENAME_MAX
+
+		section .bss16
+%ifndef HAVE_CURRENTDIRNAME
+		global CurrentDirName:data hidden
+CurrentDirName	resb FILENAME_MAX
+%endif
 
 		section .text16
