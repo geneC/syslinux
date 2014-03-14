@@ -219,10 +219,6 @@ static int sl_boot_linux(lua_State * L)
        msleep(1000);
      */
 
-    /* Look for specific command-line arguments we care about */
-    if ((arg = find_argument(argp, "mem=")))
-	mem_limit = saturate32(suffix_number(arg));
-
     printf("Loading kernel %s...\n", kernel);
     if (loadfile(kernel, &kernel_data, &kernel_len))
 	printf("failed!\n");
