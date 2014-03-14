@@ -350,7 +350,7 @@ static int parse_data_run(const void *stream, uint32_t *offset,
                      * l is the number of changed low-order LCN bytes
                      */
     uint8_t *byte;
-    int byte_shift = 8;
+    const int byte_shift = 8;
     int mask;
     int64_t res;
 
