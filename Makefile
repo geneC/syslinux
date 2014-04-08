@@ -273,6 +273,16 @@ efi64:
 		FIRMWARE=EFI64 \
 		$(MAKECMDGOALS)
 
+install-all:
+
+install:
+
+netinstall:
+
+clean:
+
+all:
+
 else # ifeq($(HAVE_FIRMWARE),)
 
 all: all-local subdirs
