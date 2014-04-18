@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2011 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2014 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -611,9 +611,17 @@ static const char *edit_cmdline(const char *input, int top)
 
 static inline int shift_is_held(void)
 {
-    uint8_t shift_bits = *(uint8_t *) 0x417;
+#ifdef __FIRMWARE_BIOS__
+    com32sys_t reg;
 
-    return !!(shift_bits & 0x5d);	/* Caps/Scroll/Alt/Shift */
+    memset(&reg, 0, sizeof reg);
+    reg.eax.b[1] = 0x02;
+    __intcall(0x16, &reg, &reg);
+
+    return !!(reg.eax.b[0] & 0x5d);	/* Caps/Scroll/Alt/Shift */
+#else
+    return 0;				/* Need to implement this */
+#endif
 }
 
 static void print_timeout_message(int tol, int row, const char *msg)
