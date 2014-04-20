@@ -611,17 +611,7 @@ static const char *edit_cmdline(const char *input, int top)
 
 static inline int shift_is_held(void)
 {
-#ifdef __FIRMWARE_BIOS__
-    com32sys_t reg;
-
-    memset(&reg, 0, sizeof reg);
-    reg.eax.b[1] = 0x02;
-    __intcall(0x16, &reg, &reg);
-
-    return !!(reg.eax.b[0] & 0x5d);	/* Caps/Scroll/Alt/Shift */
-#else
-    return 0;				/* Need to implement this */
-#endif
+    return !!(kbd_shiftflags() & 0x5d); /* Caps/Scroll/Alt/Shift */
 }
 
 static void print_timeout_message(int tol, int row, const char *msg)

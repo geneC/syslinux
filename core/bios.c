@@ -148,10 +148,12 @@ struct output_ops bios_output_ops = {
 
 extern char bios_getchar(char *);
 extern int bios_pollchar(void);
+extern uint8_t bios_shiftflags(void);
 
 struct input_ops bios_input_ops = {
 	.getchar = bios_getchar,
 	.pollchar = bios_pollchar,
+	.shiftflags = bios_shiftflags,
 };
 
 static void bios_get_serial_console_info(uint16_t *iobase, uint16_t *divisor,

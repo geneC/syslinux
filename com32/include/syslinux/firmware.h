@@ -21,6 +21,7 @@ struct output_ops {
 struct input_ops {
 	char (*getchar)(char *);
 	int (*pollchar)(void);
+	uint8_t (*shiftflags)(void);
 };
 
 struct adv_ops {

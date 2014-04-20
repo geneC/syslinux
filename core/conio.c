@@ -2,7 +2,7 @@
  * -----------------------------------------------------------------------
  *
  *   Copyright 1994-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2014 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -266,6 +266,25 @@ char bios_getchar(char *hi)
 
 	reset_idle();		/* Character received */
 	return data;
+}
+
+uint8_t bios_shiftflags(void)
+{
+	com32sys_t reg;
+
+	memset(&reg, 0, sizeof reg);
+	reg.eax.b[1] = 0x02;
+	__intcall(0x16, &reg, &reg);
+
+	return reg.eax.b[0];
+}
+
+__export uint8_t kbd_shiftflags(void)
+{
+	if (firmware->i_ops->shiftflags)
+		return firmware->i_ops->shiftflags();
+	else
+		return 0;	/* Unavailable on this firmware */
 }
 
 /*
