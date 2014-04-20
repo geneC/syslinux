@@ -271,12 +271,27 @@ char bios_getchar(char *hi)
 uint8_t bios_shiftflags(void)
 {
 	com32sys_t reg;
+	uint8_t ah, al;
 
 	memset(&reg, 0, sizeof reg);
-	reg.eax.b[1] = 0x02;
+	reg.eax.b[1] = 0x12;
 	__intcall(0x16, &reg, &reg);
+	ah = reg.eax.b[1];
+	al = reg.eax.b[0];
 
-	return reg.eax.b[0];
+	/*
+	 * According to the Interrupt List, "many machines" don't correctly
+	 * fold the Alt state, presumably because it might be AltGr.
+	 * Explicitly fold the Alt and Ctrl states; it fits our needs
+	 * better.
+	 */
+
+	if (ah & 0x0a)
+		al |= 0x08;
+	if (ah & 0x05)
+		al |= 0x04;
+
+	return al;
 }
 
 __export uint8_t kbd_shiftflags(void)
