@@ -337,8 +337,7 @@ __export int main(int argc __unused, char **argv)
 		ldlinux_enter_command();
 	}
 
-	/* TODO: Check KbdFlags? */
-	if (!forceprompt)
+	if (!forceprompt && !shift_is_held())
 		ldlinux_auto_boot();
 
 	if (defaultlevel > 1)

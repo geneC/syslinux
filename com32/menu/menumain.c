@@ -609,11 +609,6 @@ static const char *edit_cmdline(const char *input, int top)
     }
 }
 
-static inline int shift_is_held(void)
-{
-    return !!(kbd_shiftflags() & 0x5d); /* Caps/Scroll/Alt/Shift */
-}
-
 static void print_timeout_message(int tol, int row, const char *msg)
 {
     static int last_msg_len = 0;

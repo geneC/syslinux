@@ -130,6 +130,15 @@ extern void writechr(char data);
 extern void crlf(void);
 extern int pollchar(void);
 extern char getchar(char *hi);
+extern uint8_t kbd_shiftflags(void);
+static inline bool shift_is_held(void)
+{
+    return !!(kbd_shiftflags() & 0x5d); /* Caps/Scroll/Alt/Shift */
+}
+static inline bool ctrl_is_held(void)
+{
+    return !!(kbd_shiftflags() & 0x04); /* Only Ctrl */
+}
 
 extern void cleanup_hardware(void);
 extern void sirq_cleanup(void);
