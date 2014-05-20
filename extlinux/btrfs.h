@@ -13,6 +13,12 @@
 #define BTRFS_FSID_SIZE 16
 #define BTRFS_UUID_SIZE 16
 
+/* Fixed areas reserved for the boot loader */
+#define BTRFS_BOOT_AREA_A_OFFSET	0
+#define BTRFS_BOOT_AREA_A_SIZE		BTRFS_SUPER_INFO_OFFSET
+#define BTRFS_BOOT_AREA_B_OFFSET	(256 * 1024)
+#define BTRFS_BOOT_AREA_B_SIZE		((1024-256) * 1024)
+
 typedef __u64 u64;
 typedef __u32 u32;
 typedef __u16 u16;

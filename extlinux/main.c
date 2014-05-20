@@ -1,7 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 1998-2008 H. Peter Anvin - All Rights Reserved
- *   Copyright 2009-2012 Intel Corporation; author: H. Peter Anvin
+ *   Copyright 2009-2014 Intel Corporation; author: H. Peter Anvin
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -76,14 +76,17 @@
 #define XFS_BOOTSECT_OFFSET	(4 << SECTOR_SHIFT)
 #define XFS_SUPPORTED_BLOCKSIZE 4096 /* 4 KiB filesystem block size */
 
-/* the btrfs partition first 64K blank area is used to store boot sector and
-   boot image, the boot sector is from 0~512, the boot image starts after */
-#define BTRFS_BOOTSECT_AREA	65536
-#define BTRFS_EXTLINUX_OFFSET	SECTOR_SIZE
+/*
+ * btrfs has two discontiguous areas reserved for the boot loader.
+ * Use the first one (Boot Area A) for the boot sector and the ADV,
+ * and the second one for "ldlinux.sys".
+ */
+#define BTRFS_EXTLINUX_OFFSET	BTRFS_BOOT_AREA_B_OFFSET
+#define BTRFS_EXTLINUX_SIZE	BTRFS_BOOT_AREA_B_SIZE
 #define BTRFS_SUBVOL_MAX 256	/* By btrfs specification */
 static char subvol[BTRFS_SUBVOL_MAX];
 
-#define BTRFS_ADV_OFFSET (BTRFS_BOOTSECT_AREA - 2 * ADV_SIZE)
+#define BTRFS_ADV_OFFSET (BOOT_AREA_A_OFFSET + BOOT_AREA_A_SIZE - 2*ADV_SIZE)
 
 /*
  * Get the size of a block device
