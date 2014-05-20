@@ -86,7 +86,8 @@
 #define BTRFS_SUBVOL_MAX 256	/* By btrfs specification */
 static char subvol[BTRFS_SUBVOL_MAX];
 
-#define BTRFS_ADV_OFFSET (BOOT_AREA_A_OFFSET + BOOT_AREA_A_SIZE - 2*ADV_SIZE)
+#define BTRFS_ADV_OFFSET (BTRFS_BOOT_AREA_A_OFFSET + BTRFS_BOOT_AREA_A_SIZE \
+			  - 2*ADV_SIZE)
 
 /*
  * Get the size of a block device
