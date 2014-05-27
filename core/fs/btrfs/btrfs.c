@@ -139,32 +139,6 @@ static u64 logical_physical(struct fs_info *fs, u64 logical)
 			chunk_map->map[slot-1].logical;
 }
 
-/* cache read from disk, offset and count are bytes */
-static int btrfs_read(struct fs_info *fs, void *buf, u64 offset, u64 count)
-{
-	const char *cd;
-	char *p = buf;
-	size_t off, cnt, total;
-	block_t block;
-
-	total = count;
-	while (count > 0) {
-		block = offset >> BTRFS_BLOCK_SHIFT;
-		off = offset & (BTRFS_BLOCK_SIZE - 1);
-		cd = get_cache(fs->fs_dev, block);
-		if (!cd)
-			break;
-		cnt = BTRFS_BLOCK_SIZE - off;
-		if (cnt > count)
-			cnt = count;
-		memcpy(p, cd + off, cnt);
-		count -= cnt;
-		p += cnt;
-		offset += cnt;
-	}
-	return total - count;
-}
-
 /* btrfs has several super block mirrors, need to calculate their location */
 static inline u64 btrfs_sb_offset(int mirror)
 {
@@ -193,7 +167,7 @@ static void btrfs_read_super_block(struct fs_info *fs)
 		if (offset >= bfs->sb.total_bytes)
 			break;
 
-		ret = btrfs_read(fs, (char *)&buf, offset, sizeof(buf));
+		ret = cache_read(fs, (char *)&buf, offset, sizeof(buf));
 		if (ret < sizeof(buf))
 			break;
 
@@ -268,10 +242,10 @@ static int search_tree(struct fs_info *fs, u64 loffset,
 	u64 offset;
 
 	offset = logical_physical(fs, loffset);
-	btrfs_read(fs, &tree_buf->header, offset, sizeof(tree_buf->header));
+	cache_read(fs, &tree_buf->header, offset, sizeof(tree_buf->header));
 	if (tree_buf->header.level) {
 		/* inner node */
-		btrfs_read(fs, (char *)&tree_buf->node.ptrs[0],
+		cache_read(fs, (char *)&tree_buf->node.ptrs[0],
 			   offset + sizeof tree_buf->header,
 			   bfs->sb.nodesize - sizeof tree_buf->header);
 		path->itemsnr[tree_buf->header.level] = tree_buf->header.nritems;
@@ -288,7 +262,7 @@ static int search_tree(struct fs_info *fs, u64 loffset,
 				  key, path);
 	} else {
 		/* leaf node */
-		btrfs_read(fs, (char *)&tree_buf->leaf.items[0],
+		cache_read(fs, (char *)&tree_buf->leaf.items[0],
 			   offset + sizeof tree_buf->header,
 			   bfs->sb.leafsize - sizeof tree_buf->header);
 		path->itemsnr[tree_buf->header.level] = tree_buf->header.nritems;
@@ -302,7 +276,7 @@ static int search_tree(struct fs_info *fs, u64 loffset,
 			slot--;
 		path->slots[tree_buf->header.level] = slot;
 		path->item = tree_buf->leaf.items[slot];
-		btrfs_read(fs, (char *)&path->data,
+		cache_read(fs, (char *)&path->data,
 			   offset + sizeof tree_buf->header +
 			   tree_buf->leaf.items[slot].offset,
 			   tree_buf->leaf.items[slot].size);
@@ -496,7 +470,7 @@ static struct inode *btrfs_iget(const char *name, struct inode *parent)
 
 static int btrfs_readlink(struct inode *inode, char *buf)
 {
-	btrfs_read(inode->fs, buf,
+	cache_read(inode->fs, buf,
 		   logical_physical(inode->fs, PVT(inode)->offset),
 		   inode->size);
 	buf[inode->size] = '\0';

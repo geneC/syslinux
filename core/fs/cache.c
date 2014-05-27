@@ -14,7 +14,6 @@
  * Initialize the cache data structres. the _block_size_shift_ specify
  * the block size, which is 512 byte for FAT fs of the current 
  * implementation since the block(cluster) size in FAT is a bit big.
- *
  */
 void cache_init(struct device *dev, int block_size_shift)
 {
@@ -60,7 +59,8 @@ void cache_init(struct device *dev, int block_size_shift)
 }
 
 /*
- * Lock a block permanently in the cache
+ * Lock a block permanently in the cache by removing it
+ * from the LRU chain.
  */
 void cache_lock_block(struct cache *cs)
 {
@@ -124,4 +124,36 @@ const void *get_cache(struct device *dev, block_t block)
     }
 
     return cs->data;
+}
+
+/*
+ * Read data from the cache at an arbitrary byte offset and length.
+ * This is useful for filesystems whose metadata is not necessarily
+ * aligned with their blocks.
+ *
+ * This is still reading linearly on the disk.
+ */
+size_t cache_read(struct fs_info *fs, void *buf, uint64_t offset, size_t count)
+{
+    const char *cd;
+    char *p = buf;
+    size_t off, cnt, total;
+    block_t block;
+
+    total = count;
+    while (count) {
+	block = offset >> fs->block_shift;
+	off = offset & (fs->block_size - 1);
+	cd = get_cache(fs->fs_dev, block);
+	if (!cd)
+	    break;
+	cnt = fs->block_size - off;
+	if (cnt > count)
+	    cnt = count;
+	memcpy(p, cd + off, cnt);
+	count -= cnt;
+	p += cnt;
+	offset += cnt;
+    }
+    return total - count;
 }
