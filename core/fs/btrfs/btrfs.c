@@ -19,14 +19,15 @@
 #include <disk.h>
 #include <fs.h>
 #include <dirent.h>
+#include <minmax.h>
 #include "btrfs.h"
 
 /* compare function used for bin_search */
-typedef int (*cmp_func)(void *ptr1, void *ptr2);
+typedef int (*cmp_func)(const void *ptr1, const void *ptr2);
 
 /* simple but useful bin search, used for chunk search and btree search */
 static int bin_search(void *ptr, int item_size, void *cmp_item, cmp_func func,
-			      int min, int max, int *slot)
+		      int min, int max, int *slot)
 {
 	int low = min;
 	int high = max;
@@ -129,18 +130,17 @@ static u64 logical_physical(u64 logical)
 static int btrfs_read(struct fs_info *fs, char *buf, u64 offset, u64 count)
 {
 	const char *cd;
-	size_t block_size = fs->fs_dev->cache_block_size;
 	size_t off, cnt, total;
 	block_t block;
 
 	total = count;
 	while (count > 0) {
-		block = offset / block_size;
-		off = offset % block_size;
+		block = offset >> BTRFS_BLOCK_SHIFT;
+		off = offset & (BTRFS_BLOCK_SIZE - 1);
 		cd = get_cache(fs->fs_dev, block);
 		if (!cd)
 			break;
-		cnt = block_size - off;
+		cnt = BTRFS_BLOCK_SIZE - off;
 		if (cnt > count)
 			cnt = count;
 		memcpy(buf, cd + off, cnt);
@@ -175,8 +175,6 @@ static void btrfs_read_super_block(struct fs_info *fs)
 	/* find most recent super block */
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		offset = btrfs_sb_offset(i);
-		dprintf("btrfs super: %llu max %llu\n",
-			offset, sb.total_bytes);
 		if (offset >= sb.total_bytes)
 			break;
 
@@ -212,7 +210,8 @@ static void clear_path(struct btrfs_path *path)
 	memset(path, 0, sizeof(*path));
 }
 
-static int btrfs_comp_keys(struct btrfs_disk_key *k1, struct btrfs_disk_key *k2)
+static int btrfs_comp_keys(const struct btrfs_disk_key *k1,
+			   const struct btrfs_disk_key *k2)
 {
 	if (k1->objectid > k2->objectid)
 		return 1;
@@ -230,8 +229,8 @@ static int btrfs_comp_keys(struct btrfs_disk_key *k1, struct btrfs_disk_key *k2)
 }
 
 /* compare keys but ignore offset, is useful to enumerate all same kind keys */
-static int btrfs_comp_keys_type(struct btrfs_disk_key *k1,
-					struct btrfs_disk_key *k2)
+static int btrfs_comp_keys_type(const struct btrfs_disk_key *k1,
+				const struct btrfs_disk_key *k2)
 {
 	if (k1->objectid > k2->objectid)
 		return 1;
@@ -245,45 +244,63 @@ static int btrfs_comp_keys_type(struct btrfs_disk_key *k1,
 }
 
 /* seach tree directly on disk ... */
+static union {
+	struct btrfs_header header;
+	struct btrfs_node node;
+	struct btrfs_leaf leaf;
+} *tree_buf;
+
 static int search_tree(struct fs_info *fs, u64 loffset,
-		struct btrfs_disk_key *key, struct btrfs_path *path)
+		       struct btrfs_disk_key *key, struct btrfs_path *path)
 {
-	u8 buf[BTRFS_MAX_LEAF_SIZE];
-	struct btrfs_header *header = (struct btrfs_header *)buf;
-	struct btrfs_node *node = (struct btrfs_node *)buf;
-	struct btrfs_leaf *leaf = (struct btrfs_leaf *)buf;
+	union {
+		u8 raw[BTRFS_MAX_LEAF_SIZE];
+		struct btrfs_header header;
+		struct btrfs_node node;
+		struct btrfs_leaf leaf;
+	} buf;
 	int slot, ret;
 	u64 offset;
 
 	offset = logical_physical(loffset);
-	btrfs_read(fs, (char *)header, offset, sizeof(*header));
-	if (header->level) {/*node*/
-		btrfs_read(fs, (char *)&node->ptrs[0], offset + sizeof(*header),
-			sb.nodesize - sizeof(*header));
-		path->itemsnr[header->level] = header->nritems;
-		path->offsets[header->level] = loffset;
-		ret = bin_search(&node->ptrs[0], sizeof(struct btrfs_key_ptr),
-			key, (cmp_func)btrfs_comp_keys,
-			path->slots[header->level], header->nritems, &slot);
-		if (ret && slot > path->slots[header->level])
+	btrfs_read(fs, &tree_buf->header, offset, sizeof(tree_buf->header));
+	if (tree_buf->header.level) {
+		/* inner node */
+		btrfs_read(fs, (char *)&tree_buf->node.ptrs[0],
+			   offset + sizeof tree_buf->header,
+			   sb.nodesize - sizeof tree_buf->header);
+		path->itemsnr[tree_buf->header.level] = tree_buf->header.nritems;
+		path->offsets[tree_buf->header.level] = loffset;
+		ret = bin_search(&tree_buf->node.ptrs[0],
+				 sizeof(struct btrfs_key_ptr),
+				 key, (cmp_func)btrfs_comp_keys,
+				 path->slots[tree_buf->header.level],
+				 tree_buf->header.nritems, &slot);
+		if (ret && slot > path->slots[tree_buf->header.level])
 			slot--;
-		path->slots[header->level] = slot;
-		ret = search_tree(fs, node->ptrs[slot].blockptr, key, path);
-	} else {/*leaf*/
-		btrfs_read(fs, (char *)&leaf->items, offset + sizeof(*header),
-			sb.leafsize - sizeof(*header));
-		path->itemsnr[header->level] = header->nritems;
-		path->offsets[0] = loffset;
-		ret = bin_search(&leaf->items[0], sizeof(struct btrfs_item),
-			key, (cmp_func)btrfs_comp_keys, path->slots[0],
-			header->nritems, &slot);
-		if (ret && slot > path->slots[header->level])
+		path->slots[tree_buf->header.level] = slot;
+		ret = search_tree(fs, tree_buf->node.ptrs[slot].blockptr,
+				  key, path);
+	} else {
+		/* leaf node */
+		btrfs_read(fs, (char *)&tree_buf->leaf.items[0],
+			   offset + sizeof tree_buf->header,
+			   sb.leafsize - sizeof tree_buf->header);
+		path->itemsnr[tree_buf->header.level] = tree_buf->header.nritems;
+		path->offsets[tree_buf->header.level] = loffset;
+		ret = bin_search(&tree_buf->leaf.items[0],
+				 sizeof(struct btrfs_item),
+				 key, (cmp_func)btrfs_comp_keys,
+				 path->slots[0],
+				 tree_buf->header.nritems, &slot);
+		if (ret && slot > path->slots[tree_buf->header.level])
 			slot--;
-		path->slots[0] = slot;
-		path->item = leaf->items[slot];
+		path->slots[tree_buf->header.level] = slot;
+		path->item = tree_buf->leaf.items[slot];
 		btrfs_read(fs, (char *)&path->data,
-			offset + sizeof(*header) + leaf->items[slot].offset,
-			leaf->items[slot].size);
+			   offset + sizeof tree_buf->header +
+			   tree_buf->leaf.items[slot].offset,
+			   tree_buf->leaf.items[slot].size);
 	}
 	return ret;
 }
@@ -653,6 +670,9 @@ static int btrfs_fs_init(struct fs_info *fs)
 
 	btrfs_read_super_block(fs);
 	if (strncmp((char *)(&sb.magic), BTRFS_MAGIC, sizeof(sb.magic)))
+		return -1;
+	tree_buf = malloc(max(sb.nodesize, sb.leafsize));
+	if (!tree_buf)
 		return -1;
 	btrfs_read_sys_chunk_array();
 	btrfs_read_chunk_tree(fs);
