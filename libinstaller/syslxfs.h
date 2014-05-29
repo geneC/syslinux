@@ -12,7 +12,7 @@
 #ifndef _SYSLXFS_H_
 #define _SYSLXFS_H_
 
-/* Global fs_type for handling fat, ntfs, ext2/3/4, btrfs and xfs */
+/* Global fs_type for handling fat, ntfs, ext2/3/4, btrfs, xfs and ufs1/2 */
 enum filesystem {
     NONE,
     EXT2,
@@ -20,6 +20,8 @@ enum filesystem {
     VFAT,
     NTFS,
     XFS,
+    UFS1,
+    UFS2,
 };
 
 extern int fs_type;

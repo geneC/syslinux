@@ -14,8 +14,8 @@
 /*
  * extlinux.c
  *
- * Install the syslinux boot block on an fat, ntfs, ext2/3/4, btrfs and xfs
- * filesystem.
+ * Install the syslinux boot block on an fat, ntfs, ext2/3/4, btrfs, xfs,
+ * and ufs1/2 filesystem.
  */
 
 #define  _GNU_SOURCE		/* Enable everything */
@@ -50,6 +50,8 @@
 #include "xfs.h"
 #include "xfs_types.h"
 #include "xfs_sb.h"
+#include "ufs.h"
+#include "ufs_fs.h"
 #include "misc.h"
 #include "version.h"
 #include "syslxint.h"
@@ -312,7 +314,7 @@ static int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     nsect += 2;			/* Two sectors for the ADV */
     sectp = alloca(sizeof(sector_t) * nsect);
     if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS ||
-	fs_type == XFS) {
+	fs_type == XFS || fs_type == UFS1 || fs_type == UFS2) {
 	if (sectmap(fd, sectp, nsect)) {
 		perror("bmap");
 		exit(1);
@@ -346,6 +348,7 @@ int install_bootblock(int fd, const char *device)
     struct fat_boot_sector sb3;
     struct ntfs_boot_sector sb4;
     xfs_sb_t sb5;
+    struct ufs_super_block sb6;
     bool ok = false;
 
     if (fs_type == EXT2) {
@@ -399,11 +402,25 @@ int install_bootblock(int fd, const char *device)
 
 	    ok = true;
 	}
+    } else if (fs_type == UFS1 || fs_type == UFS2) {
+	uint32_t sblock_off = (fs_type == UFS1) ?
+	    SBLOCK_UFS1 : SBLOCK_UFS2;
+	uint32_t ufs_smagic = (fs_type == UFS1) ?
+	    UFS1_SUPER_MAGIC : UFS2_SUPER_MAGIC;
+
+	if (xpread(fd, &sb6, sizeof sb6, sblock_off) != sizeof sb6) {
+		perror("reading superblock");
+		return 1;
+	}
+
+	if (sb6.fs_magic == ufs_smagic)
+		ok = true;
     }
 
     if (!ok) {
 	fprintf(stderr,
-		"no fat, ntfs, ext2/3/4, btrfs or xfs superblock found on %s\n",
+		"no fat, ntfs, ext2/3/4, btrfs, xfs "
+		"or ufs1/2 superblock found on %s\n",
 		device);
 	return 1;
     }
@@ -963,7 +980,8 @@ static char * get_default_subvol(char * rootdir, char * subvol)
 
 static int install_file(const char *path, int devfd, struct stat *rst)
 {
-    if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS)
+    if (fs_type == EXT2 || fs_type == VFAT || fs_type == NTFS
+	|| fs_type == UFS1 || fs_type == UFS2)
 	return ext2_fat_install_file(path, devfd, rst);
     else if (fs_type == BTRFS)
 	return btrfs_install_file(path, devfd, rst);
@@ -991,7 +1009,7 @@ static int validate_device(const char *path, int devfd)
     struct statfs sfs;
     int pfd;
     int rv = -1;
-    
+
     pfd = open(path, O_RDONLY|O_DIRECTORY);
     if (pfd < 0)
 	goto err;
@@ -1071,6 +1089,16 @@ static const char *find_device(const char *mtab_file, dev_t dev)
 		done = true;
 		break;
 	    }
+
+	    break;
+	case UFS1:
+	case UFS2:
+	    if (!strcmp(mnt->mnt_type, "ufs") && !stat(mnt->mnt_fsname, &dst) &&
+		dst.st_rdev == dev) {
+		done = true;
+	    }
+
+	    break;
 	case NONE:
 	    break;
 	}
@@ -1195,7 +1223,7 @@ static int validate_device_btrfs(int pfd, int dfd)
 	return -1;
 
     return 0;			/* It's good! */
-}    
+}
 
 static const char *find_device_btrfs(const char *path)
 {
@@ -1284,7 +1312,7 @@ static const char *get_devname(const char *path)
 	    fprintf(stderr, "%s: cannot create device %s\n", program, devname);
 	    return devname;
 	}
-	
+
 	atexit(device_cleanup);	/* unlink the device node on exit */
 	devname = devname_buf;
     }
@@ -1338,10 +1366,15 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
 	fs_type = NTFS;
     else if (sfs.f_type == XFS_SUPER_MAGIC)
 	fs_type = XFS;
+    else if (sfs.f_type == UFS1_SUPER_MAGIC)
+	fs_type = UFS1;
+    else if (sfs.f_type == UFS2_SUPER_MAGIC)
+	fs_type = UFS2;
 
     if (!fs_type) {
 	fprintf(stderr,
-		"%s: not a fat, ntfs, ext2/3/4, btrfs or xfs filesystem: %s\n",
+		"%s: not a fat, ntfs, ext2/3/4, btrfs, xfs or"
+		"ufs1/2 filesystem: %s\n",
 		program, path);
 	return -1;
     }
