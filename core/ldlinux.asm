@@ -43,6 +43,8 @@ ROOT_FS_OPS:
 		dd xfs_fs_ops
 		extern btrfs_fs_ops
 		dd btrfs_fs_ops
+		extern ufs_fs_ops
+		dd ufs_fs_ops
 		dd 0
 
 %include "diskfs.inc"
