@@ -1057,14 +1057,12 @@ static int ntfs_readdir(struct file *file, struct dirent *dirent)
     ir = (struct ntfs_idx_root *)((uint8_t *)attr +
                             attr->data.resident.value_offset);
 
-    if (!file->offset && readdir_state->in_idx_root) {
-        file->offset = (uint32_t)((uint8_t *)&ir->index +
-                                        ir->index.entries_offset);
-    }
+    if (!file->offset && readdir_state->in_idx_root)
+        file->offset = ir->index.entries_offset;
 
 idx_root_next_entry:
     if (readdir_state->in_idx_root) {
-        ie = (struct ntfs_idx_entry *)(uint8_t *)file->offset;
+        ie = (struct ntfs_idx_entry *)((uint8_t *)&ir->index + file->offset);
         if (ie->flags & INDEX_ENTRY_END) {
             file->offset = 0;
             readdir_state->in_idx_root = false;
@@ -1074,7 +1072,7 @@ idx_root_next_entry:
             goto descend_into_child_node;
         }
 
-        file->offset = (uint32_t)((uint8_t *)ie + ie->len);
+        file->offset += ie->len;
         len = ntfs_cvt_filename(filename, ie);
         if (!is_filename_printable(filename))
             goto idx_root_next_entry;
