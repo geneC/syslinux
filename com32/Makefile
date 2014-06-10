@@ -11,7 +11,7 @@ $(SUBDIRS):
 all tidy dist clean spotless install: subdirs
 
 # Parallel dependencies
-chain lua/src mboot menu: lib libutil gpllib
+chain mboot menu: lib libutil gpllib
 cmenu: lib libutil
 elflink/ldlinux: lib
 gfxboot: lib libutil gpllib
@@ -20,3 +20,4 @@ modules: lib libutil gpllib
 rosh: lib libutil
 samples: libutil elflink/ldlinux
 sysdump: lib libutil libupload gpllib
+lua/src: cmenu modules
