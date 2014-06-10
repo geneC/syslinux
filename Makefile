@@ -137,14 +137,13 @@ include $(MAKEDIR)/syslinux.mk
 #
 
 ifndef EFI_BUILD
-MODULES = memdisk/memdisk memdump/memdump.com \
+MODULES = memdisk/memdisk \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
 	com32/sysdump/*.c32 com32/lua/src/*.c32 com32/chain/*.c32 \
 	com32/lib/*.c32 com32/libutil/*.c32 com32/gpllib/*.c32 \
 	com32/elflink/ldlinux/*.c32 com32/cmenu/libmenu/*.c32
 else
-# memdump is BIOS specific code exclude it for EFI
 # FIXME: Prune other BIOS-centric modules
 MODULES = com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
@@ -186,7 +185,7 @@ NETINSTALLABLE = efi/syslinux.efi $(INSTALLABLE_MODULES)
 
 else
 
-BSUBDIRS = codepage com32 lzo core memdisk mbr memdump gpxe sample \
+BSUBDIRS = codepage com32 lzo core memdisk mbr gpxe sample \
 	   diag libinstaller dos win32 win64 dosutil txt
 
 ITARGET  =
