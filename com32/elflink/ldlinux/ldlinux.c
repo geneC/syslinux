@@ -337,7 +337,10 @@ __export int main(int argc __unused, char **argv)
 		ldlinux_enter_command();
 	}
 
-	if (!shift_is_held() && (!forceprompt || defaultlevel > 1))
+	if (!forceprompt && !shift_is_held())
+		ldlinux_auto_boot();
+
+	if (defaultlevel > 1)
 		ldlinux_auto_boot();
 
 	ldlinux_enter_command();
