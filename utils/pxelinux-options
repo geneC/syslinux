@@ -226,8 +226,6 @@ sub read_optsets($)
 	return undef unless (read($file, $data, 16) == 16);
 	($blen, $alen, $bufsize, $junk) = unpack("VVVV", $data);
 
-	printf STDERR "EFI: offset = 0x%x, blen = %d, alen = %d, bufsize = %d\n", $hdroffset, $blen, $alen, $bufsize;
-
 	$patch_start = $boff = $hdroffset + 32;
 	$aoff = $boff + $blen;
 
@@ -264,7 +262,7 @@ sub read_optsets($)
     return (\%hdr, $bdata, $adata);
 }
 
-sub write_optsets($$$@)
+sub write_optsets($$@)
 {
     my($file, $hdr, $bdata, $adata) = @_;
     my $boff = 0;
