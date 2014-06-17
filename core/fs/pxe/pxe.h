@@ -231,6 +231,7 @@ int undiif_start(uint32_t ip, uint32_t netmask, uint32_t gw);
 void undiif_input(t_PXENV_UNDI_ISR *isr);
 
 /* dhcp_options.c */
+void parse_dhcp_options(const void *, int, uint8_t);
 void parse_dhcp(const void *, size_t);
 
 /* idle.c */

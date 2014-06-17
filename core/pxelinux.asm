@@ -93,6 +93,7 @@ _start:
 hcdhcp_magic	dd 0x2983c8ac		; Magic number
 hcdhcp_len	dd 7*4			; Size of this structure
 hcdhcp_flags	dd 0			; Reserved for the future
+		global bdhcp_len, adhcp_len
 		; Parameters to be parsed before the ones from PXE
 bdhcp_offset	dd 0			; Offset (entered by patcher)
 bdhcp_len	dd 0			; Length (entered by patcher)

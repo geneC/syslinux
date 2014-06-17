@@ -3,6 +3,7 @@
 #include <core.h>
 #include <sys/cpu.h>
 #include <lwip/opt.h>		/* DNS_MAX_SERVERS */
+#include <dprintf.h>
 #include "pxe.h"
 
 char LocalDomain[256];
@@ -10,8 +11,6 @@ char LocalDomain[256];
 int over_load;
 uint8_t uuid_type;
 uint8_t uuid[16];
-
-static void parse_dhcp_options(const void *, int, uint8_t);
 
 static void subnet_mask(const void *data, int opt_len)
 {
@@ -164,7 +163,7 @@ static const struct dhcp_options dhcp_opts[] = {
  * filter  contains the minimum value for the option to recognize
  * -- this is used to restrict parsing to PXELINUX-specific options only.
  */
-static void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
+void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
 {
     int opt_num;
     int opt_len;
@@ -188,6 +187,8 @@ static void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
         size -= opt_len + 1;
         if (size < 0)
             break;
+
+	dprintf("DHCP: option %d, len %d\n", opt_num, opt_len);
 
 	if (opt_num >= opt_filter) {
 	    opt = dhcp_opts;
