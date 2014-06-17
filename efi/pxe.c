@@ -65,6 +65,28 @@ int pxe_init(bool quiet)
     return 0;
 }
 
+#define EDHCP_BUF_LEN 8192
+
+struct embedded_dhcp_options {
+    uint32_t magic[4];
+    uint32_t bdhcp_len;
+    uint32_t adhcp_len;
+    uint32_t buffer_size;
+    uint32_t reserved;
+    uint8_t  dhcp_data[EDHCP_BUF_LEN];
+} __attribute__((aligned(16)));
+
+struct embedded_dhcp_options embedded_dhcp_options =
+{
+    .magic[0] = 0x2a171ead,
+    .magic[1] = 0x0600e65e,
+    .magic[2] = 0x4025a4e4,
+    .magic[3] = 0x42388fc8,
+    .bdhcp_len = 0,
+    .adhcp_len = 0,
+    .buffer_size = EDHCP_BUF_LEN,
+};
+
 void net_parse_dhcp(void)
 {
     EFI_PXE_BASE_CODE_MODE *mode;
@@ -90,6 +112,12 @@ void net_parse_dhcp(void)
     }
 
     mode = bc->Mode;
+
+    /*
+     * Parse any "before" hardcoded options
+     */
+    parse_dhcp_options(embedded_dhcp_options.dhcp_data,
+		       embedded_dhcp_options.bdhcp_len, 0);
 
     /*
      * Get the DHCP client identifiers (query info 1)
@@ -128,6 +156,13 @@ void net_parse_dhcp(void)
      */
     parse_dhcp(&mode->PxeReply.Dhcpv4, pkt_len);
     Print(L"\n");
+
+    /*
+     * Parse any "after" hardcoded options
+     */
+    parse_dhcp_options(embedded_dhcp_options.dhcp_data +
+		       embedded_dhcp_options.bdhcp_len,
+		       embedded_dhcp_options.adhcp_len, 0);
 
     ip = IPInfo.myip;
     sprintf(dst, "%u.%u.%u.%u",

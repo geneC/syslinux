@@ -199,21 +199,56 @@ sub read_optsets($)
     my($file) = @_;
     my $data, $bdata, $adata;
     my $patch_start = (stat($file))[7];
+    my $hdroffset = 0;		# 0 means non-deep-embedded
+    my $bufsize = 0;
+    my $junk;
+    my %hdr;
 
-    return undef unless (seek($file, 8, SEEK_SET));
-    return undef unless (read($file, $data, 7*4) == 7*4);
+    return undef unless (seek($file, 0, SEEK_SET));
+    return undef unless (read($file, $data, 48) == 48);
 
-    my($magic, $len, $flags, $boff, $blen, $aoff, $alen)
-	= unpack("VVVVVVV", $data);
-    return undef if ($magic != 0x2983c8ac);
-    return undef if ($len < 7*4);
+    my($mzmagic, $junk, $magic, $len, $flags, $boff, $blen, $aoff, $alen)
+	= unpack("va[6]VVVVVVV", $data);
+
+    if ($mzmagic == 0x5a4d) {
+	# It is an EFI file... search for the magic number
+	$hdroffset = 48;
+	my $magic = pack("VVVV", 0x2a171ead, 0x0600e65e,
+			 0x4025a4e4, 0x42388fc8);
+
+	while (1) {
+	    return undef unless (read($file, $data, 16) == 16);
+	    last if ($data eq $magic);
+
+	    $hdroffset += 16;
+	}
+
+	return undef unless (read($file, $data, 16) == 16);
+	($blen, $alen, $bufsize, $junk) = unpack("VVVV", $data);
+
+	printf STDERR "EFI: offset = 0x%x, blen = %d, alen = %d, bufsize = %d\n", $hdroffset, $blen, $alen, $bufsize;
+
+	$patch_start = $boff = $hdroffset + 32;
+	$aoff = $boff + $blen;
+
+	$hdr{'deep'} = 1;
+	$hdr{'bufsize'} = $bufsize;
+	$hdr{'hdroffset'} = $hdroffset;
+    } else {
+	# It is a BIOS PXE file
+
+	return undef if ($magic != 0x2983c8ac);
+	return undef if ($len < 7*4);
+
+	$hdr{'deep'} = 0;
+    }
 
     if ($blen == 0) {
 	$bdata = '';
     } else {
 	return undef unless (seek($file, $boff, SEEK_SET));
 	return undef unless (read($file, $bdata, $blen) == $blen);
-	$patch_start = $boff if ($boff < $patch_start);
+	$patch_start = $boff if ($boff < patch_start);
     }
 
     if ($alen == 0) {
@@ -224,37 +259,57 @@ sub read_optsets($)
 	$patch_start = $aoff if ($aoff < $patch_start);
     }
 
-    return ($patch_start, $bdata, $adata);
+    $hdr{'patch_start'} = $patch_start;
+
+    return (\%hdr, $bdata, $adata);
 }
 
-sub write_optsets($$@)
+sub write_optsets($$$@)
 {
-    my($file, $patch_start, $bdata, $adata) = @_;
+    my($file, $hdr, $bdata, $adata) = @_;
     my $boff = 0;
     my $aoff = 0;
+    my $bufsize = 0;
+    my $patch_start = $hdr->{'patch_start'};
+    my $len;
 
-    if (length($bdata) > 0) {
-	$bdata .= "\xff";
+    $bdata .= "\xff" unless ($bdata eq '');
+    $adata .= "\xff" unless ($adata eq '');
+
+    $len = length($bdata) + length($adata);
+
+    if (defined($hdr->{'bufsize'})) {
+	return undef unless ($len <= $hdr->{'bufsize'});
+    }
+
+    return undef unless (seek($file, $patch_start, SEEK_SET));
+
+    if (length($bdata)) {
 	$boff = $patch_start;
-	return undef unless (seek($file, $boff, SEEK_SET));
 	return undef unless (print $file $bdata);
 	$patch_start += length($bdata);
     }
 
-    if (length($adata) > 0) {
-	$adata .= "\xff";
+    if (length($adata)) {
 	$aoff = $patch_start;
-	return undef unless (seek($file, $aoff, SEEK_SET));
 	return undef unless (print $file $adata);
 	$patch_start += length($adata);
     }
 
-    my $hdr = pack("VVVV", $boff, length($bdata), $aoff, length($adata));
+    if ($hdr->{'deep'}) {
+	return undef unless (print $file "\0" x ($hdr->{'bufsize'} - $len));
+	return undef unless (seek($file, $hdr->{'hdroffset'} + 16, SEEK_SET));
+	my $hdr = pack("VV", length($bdata), length($adata));
+	return undef unless (print $file $hdr);
+    } else {
+	my $hdr = pack("VVVV", $boff, length($bdata), $aoff, length($adata));
 
-    return undef unless (seek($file, 8+3*4, SEEK_SET));
-    return undef unless (print $file $hdr);
+	return undef unless (seek($file, 8+3*4, SEEK_SET));
+	return undef unless (print $file $hdr);
 
-    truncate($file, $patch_start);
+	truncate($file, $patch_start);
+    }
+
     return 1;
 }
 
@@ -468,8 +523,8 @@ $mode = $no_write ? '<' : '+<';
 
 open(FILE, $mode, $file)
     or die "$0: cannot open: $file: $!\n";
-($patch_start, @data) = read_optsets(\*FILE);
-if (!defined($patch_start)) {
+($hdrinfo, @data) = read_optsets(\*FILE);
+if (!defined($hdrinfo)) {
     die "$0: $file: patch block not found or file corrupt\n";
 }
 
@@ -490,7 +545,7 @@ if ($list) {
 }
 
 if (!$no_write) {
-    if (!write_optsets(\*FILE, $patch_start, @data)) {
+    if (!write_optsets(\*FILE, $hdrinfo, @data)) {
 	die "$0: $file: failed to write options: $!\n";
     }
 }
