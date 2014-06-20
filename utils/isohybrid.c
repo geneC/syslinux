@@ -1126,7 +1126,7 @@ main(int argc, char *argv[])
 	 * end of the image
 	 */
 
-	if (fseek(fp, (isostat.st_size + padding) - orig_gpt_size - 512,
+	if (fseeko(fp, (isostat.st_size + padding) - orig_gpt_size - 512,
 		  SEEK_SET))
 	    err(1, "%s: seek error - 8", argv[0]);
 
