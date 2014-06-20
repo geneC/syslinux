@@ -23,6 +23,7 @@
  *
  */
 
+#define _FILE_OFFSET_BITS 64
 #include <err.h>
 #include <time.h>
 #include <ctype.h>
