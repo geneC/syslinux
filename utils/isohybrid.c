@@ -916,13 +916,13 @@ main(int argc, char *argv[])
     if (!(fp = fopen(argv[0], "r+")))
         err(1, "could not open file `%s'", argv[0]);
 
-    if (fseek(fp, (16 << 11), SEEK_SET))
+    if (fseeko(fp, (off_t) (16 << 11), SEEK_SET))
         err(1, "%s: seek error - 0", argv[0]);
 
     if (fread(&descriptor, sizeof(char), sizeof(descriptor), fp) != sizeof(descriptor))
         err(1, "%s: read error - 0", argv[0]);
 
-    if (fseek(fp, 17 * 2048, SEEK_SET))
+    if (fseeko(fp, (off_t) 17 * 2048, SEEK_SET))
         err(1, "%s: seek error - 1", argv[0]);
 
     bufz = buf = calloc(BUFSIZE, sizeof(char));
@@ -935,7 +935,7 @@ main(int argc, char *argv[])
     if (mode & VERBOSE)
         printf("catalogue offset: %d\n", catoffset);
 
-    if (fseek(fp, catoffset * 2048, SEEK_SET))
+    if (fseeko(fp, ((off_t) catoffset) * 2048, SEEK_SET))
         err(1, "%s: seek error - 2", argv[0]);
 
     buf = bufz;
@@ -985,7 +985,7 @@ main(int argc, char *argv[])
 	}
     }
 
-    if (fseek(fp, (de_lba * 2048 + 0x40), SEEK_SET))
+    if (fseeko(fp, (((off_t) de_lba) * 2048 + 0x40), SEEK_SET))
         err(1, "%s: seek error - 3", argv[0]);
 
     buf = bufz;
@@ -1021,7 +1021,7 @@ main(int argc, char *argv[])
 
     if (!id)
     {
-        if (fseek(fp, 440, SEEK_SET))
+        if (fseeko(fp, (off_t) 440, SEEK_SET))
             err(1, "%s: seek error - 4", argv[0]);
 
 	if (fread(&id, 1, 4, fp) != 4)
@@ -1045,7 +1045,7 @@ main(int argc, char *argv[])
     if (mode & VERBOSE)
         display_mbr(buf, i);
 
-    if (fseek(fp, 0, SEEK_SET))
+    if (fseeko(fp, (off_t) 0, SEEK_SET))
         err(1, "%s: seek error - 5", argv[0]);
 
     if (fwrite(buf, sizeof(char), i, fp) != (size_t)i)
@@ -1086,7 +1086,7 @@ main(int argc, char *argv[])
 	 */
 	initialise_gpt(buf, 1, (isostat.st_size + padding - 512) / 512, 1);
 
-	if (fseek(fp, 512, SEEK_SET))
+	if (fseeko(fp, (off_t) 512, SEEK_SET))
 	    err(1, "%s: seek error - 6", argv[0]);
 
 	if (fwrite(buf, sizeof(char), gpt_size, fp) != (size_t)gpt_size)
@@ -1103,7 +1103,7 @@ main(int argc, char *argv[])
 
 	initialise_apm(buf, APM_OFFSET);
 
-	fseek(fp, APM_OFFSET, SEEK_SET);
+	fseeko(fp, (off_t) APM_OFFSET, SEEK_SET);
 	fwrite(buf, sizeof(char), apm_size, fp);
     }
 
@@ -1132,8 +1132,7 @@ main(int argc, char *argv[])
 	 * end of the image
 	 */
 
-	if (fseeko(fp, (isostat.st_size + padding) - orig_gpt_size,
-		  SEEK_SET))
+	if (fseeko(fp, (isostat.st_size + padding) - orig_gpt_size, SEEK_SET))
 	    err(1, "%s: seek error - 8", argv[0]);
 
 	if (fwrite(buf, sizeof(char), orig_gpt_size, fp) != orig_gpt_size)
