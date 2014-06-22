@@ -797,7 +797,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
     memcpy(part->partGUID, iso_uuid, sizeof(uuid_t));
     memcpy(part->partTypeGUID, basic_partition, sizeof(uuid_t));
     part->firstLBA = lendian_64(0);
-    part->lastLBA = lendian_64(psize);
+    part->lastLBA = lendian_64(psize - 1);
     memcpy(part->name, part_name_iso, 28);
 
     gpt += sizeof(struct gpt_part_header);
