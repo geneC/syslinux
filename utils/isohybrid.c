@@ -842,7 +842,7 @@ initialise_apm(uint8_t *gpt, uint32_t start)
     part->signature = bendian_short(0x504d);
     part->map_count = bendian_int(apm_parts);
     part->start_block = bendian_int(1);
-    part->block_count = bendian_int(0x10);
+    part->block_count = bendian_int(4);
     strcpy(part->name, "Apple");
     strcpy(part->type, "Apple_partition_map");
     part->data_start = bendian_int(0);
@@ -854,11 +854,11 @@ initialise_apm(uint8_t *gpt, uint32_t start)
     part->signature = bendian_short(0x504d);
     part->map_count = bendian_int(3);
     part->start_block = bendian_int(efi_lba);
-    part->block_count = bendian_int(efi_count);
+    part->block_count = bendian_int(efi_count / 4);
     strcpy(part->name, "EFI");
     strcpy(part->type, "Apple_HFS");
     part->data_start = bendian_int(0);
-    part->data_count = bendian_int(efi_count);
+    part->data_count = bendian_int(efi_count / 4);
     part->status = bendian_int(0x33);
 
     part = (struct apple_part_header *)(gpt + 4096);
@@ -868,11 +868,11 @@ initialise_apm(uint8_t *gpt, uint32_t start)
 	part->signature = bendian_short(0x504d);
 	part->map_count = bendian_int(3);
 	part->start_block = bendian_int(mac_lba);
-	part->block_count = bendian_int(mac_count);
+	part->block_count = bendian_int(mac_count / 4);
 	strcpy(part->name, "EFI");
 	strcpy(part->type, "Apple_HFS");
 	part->data_start = bendian_int(0);
-	part->data_count = bendian_int(mac_count);
+	part->data_count = bendian_int(mac_count / 4);
 	part->status = bendian_int(0x33);
     } else {
 	part->signature = bendian_short(0x504d);
