@@ -749,6 +749,11 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
     struct gpt_part_header *part;
     int hole = 0;
     int gptsize = 128 / 4 + 2;
+    char part_name_iso[] = {'I', 0, 'S', 0, 'O', 0, 'H', 0, 'y', 0,
+                            'b', 0, 'r', 0, 'i', 0, 'd', 0, ' ', 0,
+                            'I', 0, 'S', 0, 'O', 0,   0, 0};
+    char part_name_bootimg[]= {'I', 0, 'S', 0, 'O', 0, 'H', 0, 'y', 0,
+                               'b', 0, 'r', 0, 'i', 0, 'd', 0,   0, 0};
 
     if (mac_lba) {
 	/* 2048 bytes per partition, plus round to 2048 boundary */
@@ -793,7 +798,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
     memcpy(part->partTypeGUID, basic_partition, sizeof(uuid_t));
     part->firstLBA = lendian_64(0);
     part->lastLBA = lendian_64(psize);
-    memcpy(part->name, "ISOHybrid ISO", 28);
+    memcpy(part->name, part_name_iso, 28);
 
     gpt += sizeof(struct gpt_part_header);
     part++;
@@ -802,7 +807,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
     memcpy(part->partTypeGUID, basic_partition, sizeof(uuid_t));
     part->firstLBA = lendian_64(efi_lba * 4);
     part->lastLBA = lendian_64(part->firstLBA + efi_count - 1);
-    memcpy(part->name, "ISOHybrid", 20);
+    memcpy(part->name, part_name_bootimg, 20);
 
     gpt += sizeof(struct gpt_part_header);
 
@@ -815,7 +820,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
 	memcpy(part->partTypeGUID, hfs_partition, sizeof(uuid_t));
 	part->firstLBA = lendian_64(mac_lba * 4);
 	part->lastLBA = lendian_64(part->firstLBA + mac_count - 1);
-	memcpy(part->name, "ISOHybrid", 20);
+	memcpy(part->name, part_name_bootimg, 20);
 
 	part--;
     }
