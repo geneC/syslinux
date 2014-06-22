@@ -63,6 +63,8 @@ uint32_t id = 0;                /* MBR: 0 <= id <= 0xFFFFFFFF(4294967296) */
 uint8_t hd0 = 0;                /* 0 <= hd0 <= 2 */
 uint8_t partok = 0;             /* 0 <= partok <= 1 */
 
+char mbr_template_path[1024] = {0};   /* Path to MBR template */
+
 uint16_t ve[16];
 uint32_t catoffset = 0;
 uint32_t c = 0, cc = 0, cs = 0;
@@ -223,7 +225,7 @@ usage(void)
 void
 printh(void)
 {
-#define FMT "%-18s %s\n"
+#define FMT "%-20s %s\n"
 
     usage();
 
@@ -237,6 +239,7 @@ printh(void)
     printf(FMT, "   -i --id", "Specify MBR ID (default random)");
     printf(FMT, "   -u --uefi", "Build EFI bootable image");
     printf(FMT, "   -m --mac", "Add AFP table support");
+    printf(FMT, "   -b --mbr <PATH>", "Load MBR from PATH");
 
     printf("\n");
     printf(FMT, "   --forcehd0", "Assume we are loaded as disk ID 0");
@@ -272,6 +275,7 @@ check_option(int argc, char *argv[])
         { "partok", no_argument, NULL, 'p'},
 	{ "uefi", no_argument, NULL, 'u'},
 	{ "mac", no_argument, NULL, 'm'},
+        { "mbr", required_argument, NULL, 'b' },
 
         { "help", no_argument, NULL, '?' },
         { "verbose", no_argument, NULL, 'v' },
@@ -346,6 +350,12 @@ check_option(int argc, char *argv[])
 	    if (entry)
 		errx(1, "setting an entry is unsupported with EFI or Mac");
 	    break;
+
+	case 'b':
+            if (strlen(optarg) >= sizeof(mbr_template_path))
+                errx(1, "--mbr : Path too long");
+            strcpy(mbr_template_path, optarg);
+            break;
 
         case 'v':
             mode |= VERBOSE;
@@ -571,6 +581,24 @@ display_catalogue(void)
     printf("de_mbz2: %hu\n", de_mbz2);
 }
 
+
+void
+read_mbr_template(char *path, uint8_t *mbr)
+{
+    FILE *fp;
+    int ret;
+
+    fp = fopen(path, "rb");
+    if (fp == NULL)
+        err(1, "could not open MBR template file `%s'", path);
+    clearerr(fp);
+    ret = fread(mbr, 1, MBRSIZE, fp);
+    if (ferror(fp))
+        err(1, "error while reading MBR template file `%s'", path);
+    fclose(fp);
+}
+
+
 int
 initialise_mbr(uint8_t *mbr)
 {
@@ -580,9 +608,25 @@ initialise_mbr(uint8_t *mbr)
     uint8_t bhead = 0, bsect = 0, bcyle = 0;
     uint8_t ehead = 0, esect = 0, ecyle = 0;
 
+#ifndef ISOHYBRID_C_STANDALONE
     extern unsigned char isohdpfx[][MBRSIZE];
+#endif
 
-    memcpy(mbr, &isohdpfx[hd0 + 3 * partok], MBRSIZE);
+    if (mbr_template_path[0]) {
+        read_mbr_template(mbr_template_path, mbr);
+    } else {
+
+#ifdef ISOHYBRID_C_STANDALONE
+
+        err(1, "This is a standalone binary. You must specify --mbr. E.g with /usr/lib/syslinux/isohdpfx.bin");
+
+#else
+
+        memcpy(mbr, &isohdpfx[hd0 + 3 * partok], MBRSIZE);
+
+#endif /* ! ISOHYBRID_C_STANDALONE */
+
+    }
 
     if (mode & MAC) {
 	memcpy(mbr, afp_header, sizeof(afp_header));
