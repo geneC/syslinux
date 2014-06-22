@@ -1084,7 +1084,7 @@ main(int argc, char *argv[])
 	 * Primary GPT starts at sector 1, secondary GPT starts at 1 sector
 	 * before the end of the image
 	 */
-	initialise_gpt(buf, 1, (isostat.st_size + padding - 1024) / 512, 1);
+	initialise_gpt(buf, 1, (isostat.st_size + padding - 512) / 512, 1);
 
 	if (fseek(fp, 512, SEEK_SET))
 	    err(1, "%s: seek error - 6", argv[0]);
@@ -1122,7 +1122,7 @@ main(int argc, char *argv[])
 
 	buf += orig_gpt_size - sizeof(struct gpt_header);
 
-	initialise_gpt(buf, (isostat.st_size + padding - 1024) / 512, 1, 0);
+	initialise_gpt(buf, (isostat.st_size + padding - 512) / 512, 1, 0);
 
 	/* Shift back far enough to write the 128 GPT entries */
 	buf -= 128 * sizeof(struct gpt_part_header);
@@ -1132,7 +1132,7 @@ main(int argc, char *argv[])
 	 * end of the image
 	 */
 
-	if (fseeko(fp, (isostat.st_size + padding) - orig_gpt_size - 512,
+	if (fseeko(fp, (isostat.st_size + padding) - orig_gpt_size,
 		  SEEK_SET))
 	    err(1, "%s: seek error - 8", argv[0]);
 
