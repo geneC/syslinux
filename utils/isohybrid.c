@@ -262,7 +262,7 @@ check_option(int argc, char *argv[])
     char *err = NULL;
     int n = 0, ind = 0;
 
-    const char optstr[] = ":h:s:e:o:t:i:fcp?vV";
+    const char optstr[] = ":h:s:e:o:t:i:b:umfcp?vV";
     struct option lopt[] = \
     {
         { "entry", required_argument, NULL, 'e' },
