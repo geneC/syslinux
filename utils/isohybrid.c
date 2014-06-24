@@ -593,7 +593,7 @@ read_mbr_template(char *path, uint8_t *mbr)
         err(1, "could not open MBR template file `%s'", path);
     clearerr(fp);
     ret = fread(mbr, 1, MBRSIZE, fp);
-    if (ferror(fp))
+    if (ferror(fp) || ret != MBRSIZE)
         err(1, "error while reading MBR template file `%s'", path);
     fclose(fp);
 }
@@ -786,6 +786,21 @@ reverse_uuid(uuid_t uuid)
 	t = p[6]; p[6] = p[7]; p[7] = t;
 }
 
+static uint16_t *
+ascii_to_utf16le(uint16_t *dst, const char *src)
+{
+    uint8_t *p = (uint8_t *)dst;
+    char c;
+
+    do {
+	c = *src++;
+	*p++ = c;
+	*p++ = 0;
+    } while (c);
+
+    return (uint16_t *)p;
+}
+
 void
 initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
 {
@@ -793,11 +808,6 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
     struct gpt_part_header *part;
     int hole = 0;
     int gptsize = 128 / 4 + 2;
-    char part_name_iso[] = {'I', 0, 'S', 0, 'O', 0, 'H', 0, 'y', 0,
-                            'b', 0, 'r', 0, 'i', 0, 'd', 0, ' ', 0,
-                            'I', 0, 'S', 0, 'O', 0,   0, 0};
-    char part_name_bootimg[]= {'I', 0, 'S', 0, 'O', 0, 'H', 0, 'y', 0,
-                               'b', 0, 'r', 0, 'i', 0, 'd', 0,   0, 0};
 
     if (mac_lba) {
 	/* 2048 bytes per partition, plus round to 2048 boundary */
@@ -842,7 +852,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
     memcpy(part->partTypeGUID, basic_partition, sizeof(uuid_t));
     part->firstLBA = lendian_64(0);
     part->lastLBA = lendian_64(psize - 1);
-    memcpy(part->name, part_name_iso, 28);
+    ascii_to_utf16le(part->name, "ISOHybrid ISO");
 
     gpt += sizeof(struct gpt_part_header);
     part++;
@@ -851,7 +861,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
     memcpy(part->partTypeGUID, basic_partition, sizeof(uuid_t));
     part->firstLBA = lendian_64(efi_lba * 4);
     part->lastLBA = lendian_64(part->firstLBA + efi_count - 1);
-    memcpy(part->name, part_name_bootimg, 20);
+    ascii_to_utf16le(part->name, "ISOHybrid");
 
     gpt += sizeof(struct gpt_part_header);
 
@@ -864,7 +874,7 @@ initialise_gpt(uint8_t *gpt, uint32_t current, uint32_t alternate, int primary)
 	memcpy(part->partTypeGUID, hfs_partition, sizeof(uuid_t));
 	part->firstLBA = lendian_64(mac_lba * 4);
 	part->lastLBA = lendian_64(part->firstLBA + mac_count - 1);
-	memcpy(part->name, part_name_bootimg, 20);
+	ascii_to_utf16le(part->name, "ISOHybrid");
 
 	part--;
     }
