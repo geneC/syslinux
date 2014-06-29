@@ -637,12 +637,12 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 
     /* Preallocate iterator */
     if (!(iter = pi_alloc()))
-	goto bail;
+	goto out;
 
     /* Read MBR */
     if (!(mbr = disk_read_sectors(di, 0, 1))) {
 	error("Unable to read the first disk sector.");
-	goto bail;
+	goto out;
     }
 
     /* Check for MBR magic */
@@ -650,7 +650,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	warn("No MBR magic, treating disk as raw.");
 	/* looks like RAW */
 	ret = pi_ctor(iter, di, flags);
-	goto bail;
+	goto out;
     }
 
     /* Check for GPT protective MBR */
@@ -668,7 +668,7 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	     */
 	    gpth = try_gpt_hdr(di, 1);
 	if (!gpth)
-	    goto bail;
+	    goto out;
     }
 
     if (gpth && gpth->rev.uint32 == 0x00010000 &&
@@ -680,14 +680,14 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 #endif
 	if (notsane_gpt_hdr(di, gpth, flags)) {
 	    error("GPT header values are corrupted.");
-	    goto bail;
+	    goto out;
 	}
 
 	gptl = try_gpt_list(di, gpth, 0);
 	if (!gptl)
 	    gptl = try_gpt_list(di, gpth, 1);
 	if (!gptl)
-	    goto bail;
+	    goto out;
 
 	/* looks like GPT */
 	ret = pi_gpt_ctor(iter, di, flags, gpth, gptl);
@@ -695,9 +695,11 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	/* looks like MBR */
 	ret = pi_dos_ctor(iter, di, flags, mbr);
     }
-bail:
-    if (ret < 0)
+out:
+    if (ret < 0) {
 	free(iter);
+	iter = NULL;
+    }
     free(mbr);
     free(gpth);
     free(gptl);
