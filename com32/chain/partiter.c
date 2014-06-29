@@ -601,10 +601,15 @@ static int notsane_gpt_hdr(const struct disk_info *di, const struct disk_gpt_hea
     uint64_t gpt_loff;	    /* offset to GPT partition list in sectors */
     uint64_t gpt_lsiz;	    /* size of GPT partition list in bytes */
     uint64_t gpt_lcnt;	    /* size of GPT partition in sectors */
+    uint64_t gpt_sec;	    /* secondary gpt header */
 
     if (!(flags & PIF_STRICT))
 	return 0;
 
+    if (gpth->lba_alt < gpth->lba_cur)
+	gpt_sec = gpth->lba_cur;
+    else
+	gpt_sec = gpth->lba_alt;
     gpt_loff = gpth->lba_table;
     gpt_lsiz = (uint64_t)gpth->part_size * gpth->part_count;
     gpt_lcnt = (gpt_lsiz + di->bps - 1) / di->bps;
@@ -616,10 +621,9 @@ static int notsane_gpt_hdr(const struct disk_info *di, const struct disk_gpt_hea
     if (gpt_loff < 2 || !gpt_lsiz || gpt_lcnt > 255u ||
 	    gpth->lba_first_usable > gpth->lba_last_usable ||
 	    !sane(gpt_loff, gpt_lcnt) ||
-	    gpt_loff + gpt_lcnt > gpth->lba_first_usable ||
-	    !sane(gpth->lba_last_usable, gpt_lcnt) ||
-	    gpth->lba_last_usable + gpt_lcnt >= gpth->lba_alt ||
-	    ((flags & PIF_STRICTER) && (gpth->lba_alt >= di->lbacnt)) ||
+	    (gpt_loff + gpt_lcnt > gpth->lba_first_usable && gpt_loff <= gpth->lba_last_usable) ||
+	     gpt_loff + gpt_lcnt > gpt_sec ||
+	    ((flags & PIF_STRICTER) && (gpt_sec >= di->lbacnt)) ||
 	    gpth->part_size < sizeof(struct disk_gpt_part_entry))
 	return -1;
 
