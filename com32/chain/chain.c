@@ -64,27 +64,23 @@ static int is_phys(uint8_t sdifs)
 static int find_by_sig(uint32_t mbr_sig,
 			struct part_iter **_boot_part)
 {
-    struct part_iter *boot_part = NULL;
+    struct part_iter *iter = NULL;
     struct disk_info diskinfo;
     int drive;
 
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
+	if (!(iter = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
-	/* Check for a MBR disk */
-	if (boot_part->type != typedos) {
-	    pi_del(&boot_part);
-	    continue;
-	}
-	if (boot_part->dos.disk_sig == mbr_sig) {
+	/* Check for a matching MBR disk */
+	if (iter->type == typedos && iter->dos.disk_sig == mbr_sig)
 	    goto ok;
-	}
+	pi_del(&iter);
     }
     drive = -1;
 ok:
-    *_boot_part = boot_part;
+    *_boot_part = iter;
     return drive;
 }
 
@@ -95,29 +91,26 @@ ok:
 static int find_by_guid(const struct guid *gpt_guid,
 			struct part_iter **_boot_part)
 {
-    struct part_iter *boot_part = NULL;
+    struct part_iter *iter = NULL;
     struct disk_info diskinfo;
     int drive;
 
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
+	if (!(iter = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
-	/* Check for a GPT disk */
-	if (boot_part->type != typegpt) {
-	    pi_del(&boot_part);
-	    continue;
-	}
 	/* Check for a matching GPT disk/partition guid */
-	do {
-	    if (!memcmp(&boot_part->gpt.part_guid, gpt_guid, sizeof *gpt_guid))
-		goto ok;
-	} while (!pi_next(boot_part));
+	if (iter->type == typegpt)
+	    do {
+		if (!memcmp(&iter->gpt.part_guid, gpt_guid, sizeof *gpt_guid))
+		    goto ok;
+	    } while (!pi_next(iter));
+	pi_del(&iter);
     }
     drive = -1;
 ok:
-    *_boot_part = boot_part;
+    *_boot_part = iter;
     return drive;
 }
 
@@ -127,29 +120,26 @@ ok:
  */
 static int find_by_label(const char *label, struct part_iter **_boot_part)
 {
-    struct part_iter *boot_part = NULL;
+    struct part_iter *iter = NULL;
     struct disk_info diskinfo;
     int drive;
 
     for (drive = 0x80; drive < 0x80 + fixed_cnt; drive++) {
 	if (disk_get_params(drive, &diskinfo))
 	    continue;		/* Drive doesn't exist */
-	if (!(boot_part = pi_begin(&diskinfo, opt.piflags)))
+	if (!(iter = pi_begin(&diskinfo, opt.piflags)))
 	    continue;
-	/* Check for a GPT disk */
-	if (!(boot_part->type == typegpt)) {
-	    pi_del(&boot_part);
-	    continue;
-	}
-	/* Check for a matching partition */
-	while (!pi_next(boot_part)) {
-	    if (!strcmp(label, boot_part->gpt.part_label))
-		goto ok;
-	}
+	/* Check for a matching GPT partition label */
+	if (iter->type == typegpt)
+	    while (!pi_next(iter)) {
+		if (!strcmp(label, iter->gpt.part_label))
+		    goto ok;
+	    }
+	pi_del(&iter);
     }
     drive = -1;
 ok:
-    *_boot_part = boot_part;
+    *_boot_part = iter;
     return drive;
 }
 
