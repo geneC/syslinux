@@ -46,7 +46,7 @@ enum {PI_ERRLOAD = -31, PI_INSANE, PI_OK = 0, PI_DONE};
 
 /* flags */
 
-enum {PIF_STEPALL = 1, PIF_RELAX = 2, PIF_PREFMBR = 4};
+enum {PIF_STEPALL = 1, PIF_PREFMBR = 2, PIF_STRICT = 4, PIF_STRICTER = 8};
 
 struct itertype;
 struct part_iter;

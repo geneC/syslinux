@@ -160,6 +160,7 @@ useful to also fix its BPB values.
 
 	save
 	*nosave
+	save sets: strict=2
 
 Fixing BPB values only in memory might not be enough. This option allows
 writing of the corrected sector. You will probably want to use this option
@@ -195,6 +196,7 @@ drive we use during chainloading is not fd0 or hd0.
 	hide[all]
 	unhide[all]
 	*nohide
+	[un]hide[all] sets: strict=2
 
 In certain situations it's useful to hide partitions - for example to make sure
 DOS gets C:. 'hide' will hide hidable primary partitions, except the one we're
@@ -205,6 +207,7 @@ Writing is only performed, if the os type values actually changed.
 
 	fixchs
 	*nofixchs
+	fixchs sets: strict=2
 
 If you want to make a drive you're booting from totally compatible with current
 BIOS, you can use this to fix all partitions' CHS numbers. Good to silence e.g.
@@ -232,15 +235,23 @@ Useful to see warnings emited by the chain module.
 In the case of presence of non-standard hybrid MBR/GPT layout, this flag makes
 chain module prefer MBR layout over GPT.
 
+	strict[=<0|1|2>]
+	*strict=1
 	relax
-	*norelax
 
-This option inhibits sanity checks during the traversal of the partition table.
-This is potentially useful in corner cases, when for example an usb stick moved
-to some different computer would report smaller size than previously with
-partitions spanning the whole space. Normally partition iterator would report
-an error and abort in such case. Another case scenario is disk corruption in
-some later EMBR partition.
+Those options control the level of sanity checks used during the traversal of
+partition table(s). This is useful in buggy corner cases, when the disk size is
+reported differently across different computers or virtual machines (if it
+happens at all, the size usually differs by 1 sector). Normally the partition
+iterator would report an error and abort in such case. Another case scenario is
+disk corruption in some later EMBR partition.
+
+- strict=0 inhibits any checks
+- strict=1 enables checks, but ignores those that involve disk size
+- strict=2 enables all checks
+- relax and nostrict are equivalent to strict=0
+- norelax and strict are equivalent to strict=2
+
 
 	break
 	*nobreak

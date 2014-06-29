@@ -602,7 +602,7 @@ static int updchs(struct part_iter *iter, int ext)
      * lower than the start CHS.
      *
      * Both are harmless in case of a hole (and in non-hole case will make
-     * partiter complain about corrupt layout unless PIF_RELAX is set), but it
+     * partiter complain about corrupt layout if PIF_STRICT is set), but it
      * makes everything look silly and not really correct.
      *
      * Thus the approach as seen below.

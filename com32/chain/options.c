@@ -132,7 +132,9 @@ static void usage(void)
 "  keeppxe              Keep the PXE and UNDI stacks in memory (PXELINUX)",
 "  warn                 Wait for a keypress to continue chainloading",
 "  break                Don't chainload",
-"  relax                Relax sanity checks",
+"  strict[=<0|1|2>]     Set the level of strictness in sanity checks",
+"                       - strict w/o any value is the same as strict=2",
+"  relax                The same as strict=0",
 "  prefmbr              On hybrid MBR/GPT disks, prefer legacy layout",
 "",
 "  file=<file>          Load and execute <file>",
@@ -172,6 +174,7 @@ void opt_set_defs(void)
     opt.maps = true;	    /* by def. map sector */
     opt.hand = true;	    /* by def. prepare handover */
     opt.brkchain = false;   /* by def. do chainload */
+    opt.piflags = PIF_STRICT;	/* by def. be strict, but ignore disk sizes */
     opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";
 #ifdef DEBUG
@@ -303,12 +306,16 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.hide = HIDE_OFF;
 	} else if (!strcmp(argv[i], "hide")) {
 	    opt.hide = HIDE_ON;
+	    opt.piflags |= PIF_STRICT | PIF_STRICTER;
 	} else if (!strcmp(argv[i], "hideall")) {
 	    opt.hide = HIDE_ON | HIDE_EXT;
+	    opt.piflags |= PIF_STRICT | PIF_STRICTER;
 	} else if (!strcmp(argv[i], "unhide")) {
 	    opt.hide = HIDE_ON | HIDE_REV;
+	    opt.piflags |= PIF_STRICT | PIF_STRICTER;
 	} else if (!strcmp(argv[i], "unhideall")) {
 	    opt.hide = HIDE_ON | HIDE_EXT | HIDE_REV;
+	    opt.piflags |= PIF_STRICT | PIF_STRICTER;
 	} else if (!strcmp(argv[i], "setbpb")) {
 	    opt.setbpb = true;
 	} else if (!strcmp(argv[i], "nosetbpb")) {
@@ -329,16 +336,29 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.maps = false;
 	} else if (!strcmp(argv[i], "save")) {
 	    opt.save = true;
+	    opt.piflags |= PIF_STRICT | PIF_STRICTER;
 	} else if (!strcmp(argv[i], "nosave")) {
 	    opt.save = false;
 	} else if (!strcmp(argv[i], "fixchs")) {
 	    opt.fixchs = true;
+	    opt.piflags |= PIF_STRICT | PIF_STRICTER;
 	} else if (!strcmp(argv[i], "nofixchs")) {
 	    opt.fixchs = false;
-	} else if (!strcmp(argv[i], "relax")) {
-	    opt.piflags |= PIF_RELAX;
-	} else if (!strcmp(argv[i], "norelax")) {
-	    opt.piflags &= ~PIF_RELAX;
+	} else if (!strcmp(argv[i], "relax") || !strcmp(argv[i], "nostrict")) {
+	    opt.piflags &= ~(PIF_STRICT | PIF_STRICTER);
+	} else if (!strcmp(argv[i], "norelax") || !strcmp(argv[i], "strict")) {
+	    opt.piflags |= PIF_STRICT | PIF_STRICTER;
+	} else if (!strncmp(argv[i], "strict=", 7)) {
+	    if (argv[i][7] < '0' || argv[i][7] > '2' || !argv[i][8]) {
+		error("Strict level must be 0, 1 or 2.");
+		goto bail;
+	    }
+	    opt.piflags &= ~(PIF_STRICT | PIF_STRICTER);
+	    switch (argv[i][7]) {
+		case '2': opt.piflags |= PIF_STRICTER;
+		case '1': opt.piflags |= PIF_STRICT; break;
+		default:;
+	    }
 	} else if (!strcmp(argv[i], "warn")) {
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {

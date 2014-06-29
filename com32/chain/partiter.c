@@ -176,7 +176,7 @@ static int notsane_logical(const struct part_iter *iter)
 	return -1;
     }
 
-    if (iter->flags & PIF_RELAX)
+    if (!(iter->flags & PIF_STRICT))
 	return 0;
 
     end_log = dp[0].start_lba + dp[0].length;
@@ -215,7 +215,7 @@ static int notsane_extended(const struct part_iter *iter)
 	return -1;
     }
 
-    if (iter->flags & PIF_RELAX)
+    if (!(iter->flags & PIF_STRICT))
 	return 0;
 
     end_ebr = dp[1].start_lba + dp[1].length;
@@ -245,13 +245,13 @@ static int notsane_primary(const struct part_iter *iter)
     if (!dp->ostype)
 	return 0;
 
-    if (iter->flags & PIF_RELAX)
+    if (!(iter->flags & PIF_STRICT))
 	return 0;
 
     if (!dp->start_lba ||
 	!dp->length ||
 	!sane(dp->start_lba, dp->length) ||
-	dp->start_lba + dp->length > iter->di.lbacnt) {
+	((iter->flags & PIF_STRICTER) && (dp->start_lba + dp->length > iter->di.lbacnt))) {
 	error("Primary partition (in MBR) with invalid offset and/or length.");
 	return -1;
     }
@@ -268,7 +268,7 @@ static int notsane_gpt(const struct part_iter *iter)
     if (guid_is0(&gp->type))
 	return 0;
 
-    if (iter->flags & PIF_RELAX)
+    if (!(iter->flags & PIF_STRICT))
 	return 0;
 
     if (gp->lba_first < iter->gpt.ufirst ||
@@ -602,7 +602,7 @@ static int notsane_gpt_hdr(const struct disk_info *di, const struct disk_gpt_hea
     uint64_t gpt_lsiz;	    /* size of GPT partition list in bytes */
     uint64_t gpt_lcnt;	    /* size of GPT partition in sectors */
 
-    if (flags & PIF_RELAX)
+    if (!(flags & PIF_STRICT))
 	return 0;
 
     gpt_loff = gpth->lba_table;
@@ -619,7 +619,7 @@ static int notsane_gpt_hdr(const struct disk_info *di, const struct disk_gpt_hea
 	    gpt_loff + gpt_lcnt > gpth->lba_first_usable ||
 	    !sane(gpth->lba_last_usable, gpt_lcnt) ||
 	    gpth->lba_last_usable + gpt_lcnt >= gpth->lba_alt ||
-	    gpth->lba_alt >= di->lbacnt ||
+	    ((flags & PIF_STRICTER) && (gpth->lba_alt >= di->lbacnt)) ||
 	    gpth->part_size < sizeof(struct disk_gpt_part_entry))
 	return -1;
 
