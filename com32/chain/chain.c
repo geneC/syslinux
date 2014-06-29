@@ -352,7 +352,7 @@ int find_dp(struct part_iter **_iter)
 	    } while (!pi_next(iter));
 	    /* broken part structure or other problems */
 	    if (iter->status) {
-		error("Can't find myself on the drive I booted from.");
+		error("Unable to find partition with syslinux (fs).");
 		goto bail;
 	    }
 	}
@@ -372,7 +372,7 @@ int find_dp(struct part_iter **_iter)
 		break;
 	} while (!pi_next(iter));
 	if (iter->status) {
-	    error("Requested disk / partition combination not found.");
+	    error("Unable to find requested disk / partition combination.");
 	    goto bail;
 	}
     }

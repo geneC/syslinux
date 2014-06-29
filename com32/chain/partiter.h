@@ -42,7 +42,7 @@
 
 /* status */
 
-enum {PI_OK, PI_DONE, PI_INSANE, PI_ERRLOAD};
+enum {PI_ERRLOAD = -31, PI_INSANE, PI_OK = 0, PI_DONE};
 
 /* flags */
 
@@ -102,11 +102,6 @@ extern const struct itertype * const typeraw;
 
 struct part_iter *pi_begin(const struct disk_info *, int flags);
 void pi_del(struct part_iter **);
-
-static inline int pi_errored(struct part_iter *iter)
-{
-    return iter->status > PI_DONE;
-}
 
 /* inline virtuals */
 static inline int pi_next(struct part_iter *iter)

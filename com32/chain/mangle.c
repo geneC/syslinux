@@ -562,7 +562,7 @@ int manglepe_hide(struct part_iter *miter)
 	}
     }
 
-    if (pi_errored(iter))
+    if (iter->status < 0)
 	goto bail;
 
     /* last update */
@@ -663,7 +663,7 @@ int manglepe_fixchs(struct part_iter *miter)
 	}
     }
 
-    if (pi_errored(iter))
+    if (iter->status < 0)
 	goto bail;
 
     /* last update */
