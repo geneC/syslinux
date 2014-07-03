@@ -521,5 +521,18 @@ LUALIB_API int luaopen_syslinux(lua_State * L)
     export_key (DELETE);
     lua_setfield (L, -2, "KEY");
 
+    lua_newtable (L);
+#define export_image_type(x) lua_pushinteger (L, IMAGE_TYPE_##x); lua_setfield (L, -2, #x);
+    export_image_type (KERNEL);
+    export_image_type (LINUX);
+    export_image_type (BOOT);
+    export_image_type (BSS);
+    export_image_type (PXE);
+    export_image_type (FDIMAGE);
+    export_image_type (COM32);
+    export_image_type (CONFIG);
+    export_image_type (LOCALBOOT);
+    lua_setfield (L, -2, "IMAGE_TYPE");
+
     return 1;
 }
