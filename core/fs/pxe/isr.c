@@ -267,6 +267,7 @@ void pxe_start_isr(void)
 	int hwad = ((int)MAC[0] << 16) + ((int)MAC[1] << 8) + MAC[2];
 	dprintf("pxe_start_isr: got %06x %04x\n", hwad, pxe_undi_iface.ServiceFlags);
 	if ((hwad == 0x000023ae) && (pxe_undi_iface.ServiceFlags == 0xdc1b) ||
+	    (hwad == 0x005c260a) && (pxe_undi_iface.ServiceFlags == 0xdc1b) ||
 	    (hwad == 0x00180373) && (pxe_undi_iface.ServiceFlags == 0xdc1b)) {
 		asm volatile("orb $1,%0" : "+m" (pxe_need_poll));
 		dprintf("pxe_start_isr: forcing pxe_need_poll by model\n");
