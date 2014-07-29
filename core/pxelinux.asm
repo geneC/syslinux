@@ -370,9 +370,11 @@ pxenv:
 		cli
 		inc word [cs:PXEStackLock]
 		jnz .skip1
+		pop bp
 		mov [cs:PXEStack],sp
 		mov [cs:PXEStack+2],ss
 		lss sp,[cs:InitStack]
+		push bp
 .skip1:
 		popf
 
@@ -393,7 +395,9 @@ pxenv:
 		cli
 		dec word [cs:PXEStackLock]
 		jns .skip2
+		pop bp
 		lss sp,[cs:PXEStack]
+		push bp
 .skip2:
 		popf
 
