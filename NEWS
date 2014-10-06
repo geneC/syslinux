@@ -2,6 +2,81 @@ Starting with 1.47, changes marked with SYSLINUX, PXELINUX, ISOLINUX
 or EXTLINUX apply to that specific program only; other changes apply
 to all derivatives.
 
+Changes in 6.03:
+	* chain: Fix chainloading on 6.02 (Raphael S. Carvalho).
+	* core: Do not leak the __lowmem and __bss16 macros to modules;
+	  hide them so modules will not use them.
+	* load_linux: Do not use size heuristic for non-relocatable
+	  kernels, for zImage kernels and for non-Linux kernels.
+	* PXELINUX: Fix the SENDCOOKIES feature for HTTP
+	  (Russel Santillanes).
+	* gnu-efi: Add gnu-efi as a submodule.
+	* ANSI: Support color tables with more than 256 entries
+	  (James Buren).
+	* EFI: Fix displayed version; add DATE (Gene Cumm)
+	* PXELINUX, EFI: Fix bad read of file size over TFTP on EFI64
+	  (Sylvain Gault).
+	* Fix hand over to kernel:
+	  "Booting kernel failed: Invalid argument" error.
+	* ISOLINUX: EDX, LBA values higher than 65535; work around for
+	  buggy BIOS, where the system would hang, would reboot, or
+	  would show a "Disk error 01, AX=42" message.
+	* core/legacynet: Enable dot quad resolution (Gene Cumm).
+	* diag/geodsp improvements (Gene Cumm).
+	* DOS: Fix syslinux.com DOS-based installer.
+	* Improve gcc 4.3.0 compatibility.
+	* syslxint: fix compilation on non-x86 architectures.
+	* localboot: Fix "localboot 0x80" and similar cases.
+	* Add memset() calls prior to any intcall() and other mem fixes;
+	  specially relevant for older hardware and/or buggy BIOS.
+	* poweroff.c32: Fixes (Gene Cumm).
+	* HDT: Fix memory leak in CLI (Felipe Pena).
+	* ACPI: Remove memset of buffer; it makes things clearer but
+	  also prevents some compilation warnings (Erwan Velu).
+	* Add manpages for isohybrid, memdiskfind
+	  (Peter Jones, Gene Cumm).
+	* ISOLINUX: Experimental Rock Ridge support (Thomas Schmitt).
+	* comapi: Remove the comapi interfaces.
+	* EFI: Fixes on PE files and OVMF compatibility
+	  (Sylvain Gault, Gene Cumm).
+	* EFI: Updates and fixes for gnu-efi sub-module
+	  (Sylvain Gault, Gene Cumm).
+	* BIOS: Fix low memory check.
+	* Filesystem UUID to SYSAPPEND bit 0x40000 for FAT and ext2
+	  (Serj Kalichev).
+	* Makefiles: Export the firmware type as a cpp variable.
+	  Additional improvements. Fix "make spotless".
+	* core, BIOS: Move __syslinux_shuffler_size to assembly.
+	  Actually get the shuffler size sanely. Fix booting recent
+	  Syslinux versions on certain hardware and on certain
+	  virtualization software (e.g. QEMU 0.11.1, VirtualBox 4.1.x).
+	* lua: Upgrade to v.5.2.3 (Ferenc Wágner) and additional fixes.
+	* chainload: Fixes to chain.c32 and pxechn.c32.
+	* NTFS: Make byte_shift a constant.
+	* NTFS: Correct parsing of file runs (Andy Alex).
+	* core, BIOS: Correct detection of EDD (Andy Alex).
+	* core: Avoid initializing the cache more than once
+	  (Raphael S. Carvalho).
+	* NTFS: Handle fragmented $MFT file (Andy Alex).
+	* BIOS: Use int 0x16, ah=0x02 to probe for shift flags. Attempt
+	  workaround for USB keyboards not responding at boot time.
+	* kbd: Getting the keyboard shift state is now a firmware method.
+	* kbd: Fix force-prompt features.
+	* BTRFS: Fix booting on BTRFS.
+	* cache, btrfs: Provide a general cached read routine.
+	* NTFS: Correct file->offset usage in ntfs_readdir (Andy Alex).
+	* New support for UFS/FFS (UFS1/2) (Raphael S. Carvalho).
+	* adv: Remove double definition;
+	  it should fix uses of the ADV, including "--once".
+	* memdump: Remove old obsolete COM16 binary.
+	* isohybrid: Numerous fixes (Thomas Schmitt).
+	* chain.c32: Add an adjustable "strict={0,1,2}" flag, improve
+	  error reporting (Michal Soltys.)
+	* lpxelinux.0: Workaround for various buggy BIOSes (Gene
+	  Cumm.)
+	* PXE: Fix a stack-smashing bug which broke a large number of
+	  systems.
+
 Changes in 6.02:
 	* efi64: Add support for booting 32-bit kernels.
 	* efi: Use the EFI handover protocol when booting kernels if
