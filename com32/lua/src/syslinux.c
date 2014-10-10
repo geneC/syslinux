@@ -45,6 +45,7 @@
 int __parse_argv(char ***argv, const char *str);
 
 static const char SYSLINUX_FILE[] = "syslinux_file";
+static const char SYSLINUX_INITRAMFS[] = "syslinux_initramfs";
 
 typedef struct syslinux_file {
     void *data;
@@ -282,50 +283,56 @@ static int sl_filename(lua_State * L)
 
 static int sl_initramfs_init(lua_State * L)
 {
-    struct initramfs *initramfs;
+    struct initramfs *ir = lua_newuserdata (L, sizeof (*ir));
 
-    initramfs = initramfs_init();
-    if (!initramfs)
-	printf("Initializing initrd failed!\n");
-
-    lua_pushlightuserdata(L, initramfs);
-    luaL_getmetatable(L, SYSLINUX_FILE);
-    lua_setmetatable(L, -2);
-
+    memset (ir, 0, sizeof (*ir)); /* adapted from initramfs_init() */
+    ir->prev = ir->next = ir;
+    luaL_setmetatable (L, SYSLINUX_INITRAMFS);
     return 1;
 }
 
 static int sl_initramfs_load_archive(lua_State * L)
 {
-    struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
     const char *filename = luaL_checkstring(L, 2);
 
-    if (initramfs_load_archive(initramfs, filename)) {
-	printf("failed!\n");
-    }
-
+    if (initramfs_load_archive (luaL_checkudata(L, 1, SYSLINUX_INITRAMFS), filename))
+        return luaL_error (L, "Loading initramfs %s failed", filename);
     return 0;
 }
 
 static int sl_initramfs_add_file(lua_State * L)
 {
-    struct initramfs *initramfs = luaL_checkudata(L, 1, SYSLINUX_FILE);
     const char *filename = luaL_checkstring(L, 2);
     void *file_data = NULL;
     size_t file_len = 0;
 
-    return initramfs_add_file(initramfs, file_data, file_len, file_len,
-			      filename, 0, 0755);
+    if (initramfs_add_file(luaL_checkudata(L, 1, SYSLINUX_INITRAMFS),
+                           file_data, file_len, file_len, filename, 0, 0755))
+        return luaL_error (L, "Adding file %s to initramfs failed", filename);
+    return 0;
+}
+
+static int sl_initramfs_size (lua_State *L)
+{
+    lua_pushinteger (L, initramfs_size (luaL_checkudata(L, 1, SYSLINUX_INITRAMFS)));
+    return 1;
 }
 
 static int sl_boot_it(lua_State * L)
 {
     const syslinux_file *kernel = luaL_checkudata(L, 1, SYSLINUX_FILE);
-    struct initramfs *initramfs = luaL_checkudata(L, 2, SYSLINUX_FILE);
-    const char *cmdline = luaL_optstring(L, 3, "");
+    struct initramfs *ir = luaL_testudata(L, 2, SYSLINUX_INITRAMFS);
+    size_t len;
+    const char *cmdline_param = luaL_optlstring(L, 3, "", &len);
+    char *cmdline = malloc (len+1); /* syslinux_boot_linux needs non-const cmdline */
+    int err;
 
-    return syslinux_boot_linux(kernel->data, kernel->size,
-			       initramfs, NULL, (char *)cmdline);
+    if (!cmdline) return luaL_error (L, "Out of memory");
+    memcpy (cmdline, cmdline_param, len+1);
+    err = syslinux_boot_linux (kernel->data, kernel->size, ir, NULL, cmdline);
+    free (cmdline);
+    if (err) return luaL_error (L, "Booting failed");
+    return 0; /* unexpected */
 }
 
 static int sl_config_file(lua_State * L)
@@ -415,9 +422,7 @@ static const luaL_Reg syslinuxlib[] = {
     {"sleep", sl_sleep},
     {"msleep", sl_msleep},
     {"loadfile", sl_loadfile},
-    {"initramfs_init", sl_initramfs_init},
-    {"initramfs_load_archive", sl_initramfs_load_archive},
-    {"initramfs_add_file", sl_initramfs_add_file},
+    {"initramfs", sl_initramfs_init},
     {"boot_it", sl_boot_it},
     {"config_file", sl_config_file},
     {"ipappend_strs", sl_ipappend_strs},
@@ -436,6 +441,13 @@ static const luaL_Reg file_methods[] = {
     {NULL, NULL}
 };
 
+static const luaL_Reg initramfs_methods[] = {
+    {"load", sl_initramfs_load_archive},
+    {"add_file", sl_initramfs_add_file},
+    {"size", sl_initramfs_size},
+    {NULL, NULL}
+};
+
 /* This defines a function that opens up your library. */
 
 LUALIB_API int luaopen_syslinux(lua_State * L)
@@ -446,6 +458,12 @@ LUALIB_API int luaopen_syslinux(lua_State * L)
     lua_pushvalue (L, -2);
     lua_settable (L, -3);
     luaL_setfuncs (L, file_methods, 0);
+
+    luaL_newmetatable (L, SYSLINUX_INITRAMFS);
+    lua_pushstring (L, "__index");
+    lua_pushvalue (L, -2);
+    lua_settable (L, -3);
+    luaL_setfuncs (L, initramfs_methods, 0);
 
     luaL_newlib(L, syslinuxlib);
 
