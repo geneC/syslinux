@@ -73,48 +73,6 @@ static char *find_argument(char **argv, const char *argument)
     return ptr;
 }
 
-/* Get a value with a potential suffix (k/m/g/t/p/e) */
-static unsigned long long suffix_number(const char *str)
-{
-    char *ep;
-    unsigned long long v;
-    int shift;
-
-    v = strtoull(str, &ep, 0);
-    switch (*ep | 0x20) {
-    case 'k':
-	shift = 10;
-	break;
-    case 'm':
-	shift = 20;
-	break;
-    case 'g':
-	shift = 30;
-	break;
-    case 't':
-	shift = 40;
-	break;
-    case 'p':
-	shift = 50;
-	break;
-    case 'e':
-	shift = 60;
-	break;
-    default:
-	shift = 0;
-	break;
-    }
-    v <<= shift;
-
-    return v;
-}
-
-/* Truncate to 32 bits, with saturate */
-static inline uint32_t saturate32(unsigned long long v)
-{
-    return (v > 0xffffffff) ? 0xffffffff : (uint32_t) v;
-}
-
 /* Stitch together the command line from a set of argv's */
 static char *make_cmdline(char **argv)
 {
@@ -182,8 +140,8 @@ static int sl_boot_linux(lua_State * L)
     const char *kernel = luaL_checkstring(L, 1);
     const char *cmdline = luaL_optstring(L, 2, "");
     char *initrd;
-    void *kernel_data, *file_data;
-    size_t kernel_len, file_len;
+    void *kernel_data;
+    size_t kernel_len;
     struct initramfs *initramfs;
     char *newcmdline;
     uint32_t mem_limit = luaL_optint(L, 3, 0);
