@@ -256,6 +256,15 @@ static int sl_loadfile(lua_State * L)
     return 1;
 }
 
+static int sl_unloadfile (lua_State *L)
+{
+    syslinux_file *file = luaL_checkudata (L, 1, SYSLINUX_FILE);
+
+    free (file->name);
+    free (file->data);
+    return 0;
+}
+
 static int sl_filesize(lua_State * L)
 {
     const syslinux_file *file = luaL_checkudata(L, 1, SYSLINUX_FILE);
@@ -430,12 +439,18 @@ static const luaL_Reg syslinuxlib[] = {
     {NULL, NULL}
 };
 
+static const luaL_Reg file_methods[] = {
+    {"__gc", sl_unloadfile},
+    {NULL, NULL}
+};
+
 /* This defines a function that opens up your library. */
 
 LUALIB_API int luaopen_syslinux(lua_State * L)
 {
 
     luaL_newmetatable(L, SYSLINUX_FILE);
+    luaL_setfuncs (L, file_methods, 0);
 
     luaL_newlib(L, syslinuxlib);
 
