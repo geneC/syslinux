@@ -144,13 +144,8 @@ static int sl_boot_linux(lua_State * L)
     size_t kernel_len;
     struct initramfs *initramfs;
     char *newcmdline;
-    uint32_t mem_limit = luaL_optint(L, 3, 0);
-    uint16_t video_mode = luaL_optint(L, 4, 0);
     int ret;
     char **argv, **argp, *arg, *p;
-
-    (void)mem_limit;
-    (void)video_mode;
 
     ret = __parse_argv(&argv, cmdline);
 
@@ -328,11 +323,6 @@ static int sl_boot_it(lua_State * L)
     const syslinux_file *kernel = luaL_checkudata(L, 1, SYSLINUX_FILE);
     struct initramfs *initramfs = luaL_checkudata(L, 2, SYSLINUX_FILE);
     const char *cmdline = luaL_optstring(L, 3, "");
-    uint32_t mem_limit = luaL_optint(L, 4, 0);
-    uint16_t video_mode = luaL_optint(L, 5, 0);
-    /* Preventing gcc to complain about unused variables */
-    (void)video_mode;
-    (void)mem_limit;
 
     return syslinux_boot_linux(kernel->data, kernel->size,
 			       initramfs, NULL, (char *)cmdline);
