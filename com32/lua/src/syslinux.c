@@ -262,6 +262,8 @@ static int sl_unloadfile (lua_State *L)
 
     free (file->name);
     free (file->data);
+    /* the __gc method may also be (repeatedly) called before garbage collection, so: */
+    file->name = file->data = NULL;
     return 0;
 }
 
@@ -423,8 +425,6 @@ static const luaL_Reg syslinuxlib[] = {
     {"sleep", sl_sleep},
     {"msleep", sl_msleep},
     {"loadfile", sl_loadfile},
-    {"filesize", sl_filesize},
-    {"filename", sl_filename},
     {"initramfs_init", sl_initramfs_init},
     {"initramfs_load_archive", sl_initramfs_load_archive},
     {"initramfs_add_file", sl_initramfs_add_file},
@@ -441,6 +441,8 @@ static const luaL_Reg syslinuxlib[] = {
 
 static const luaL_Reg file_methods[] = {
     {"__gc", sl_unloadfile},
+    {"name", sl_filename},
+    {"size", sl_filesize},
     {NULL, NULL}
 };
 
@@ -450,6 +452,9 @@ LUALIB_API int luaopen_syslinux(lua_State * L)
 {
 
     luaL_newmetatable(L, SYSLINUX_FILE);
+    lua_pushstring (L, "__index");
+    lua_pushvalue (L, -2);
+    lua_settable (L, -3);
     luaL_setfuncs (L, file_methods, 0);
 
     luaL_newlib(L, syslinuxlib);
