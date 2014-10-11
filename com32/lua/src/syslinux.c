@@ -318,6 +318,21 @@ static int sl_initramfs_size (lua_State *L)
     return 1;
 }
 
+static int sl_initramfs_purge (lua_State *L)
+{
+    struct initramfs *ir = luaL_checkudata(L, 1, SYSLINUX_INITRAMFS);
+
+    ir = ir->next;
+    while (ir->len) {
+        free ((void *)ir->data);
+        ir = ir->next;
+        free (ir->prev);
+    }
+    /* the __gc method may also be (repeatedly) called before garbage collection, so: */
+    ir->next = ir->prev = ir;
+    return 0;
+}
+
 static int sl_boot_it(lua_State * L)
 {
     const syslinux_file *kernel = luaL_checkudata(L, 1, SYSLINUX_FILE);
@@ -442,6 +457,7 @@ static const luaL_Reg file_methods[] = {
 };
 
 static const luaL_Reg initramfs_methods[] = {
+    {"__gc", sl_initramfs_purge},
     {"load", sl_initramfs_load_archive},
     {"add_file", sl_initramfs_add_file},
     {"size", sl_initramfs_size},
