@@ -44,10 +44,10 @@
 
 int __parse_argv(char ***argv, const char *str);
 
-#define SYSLINUX_FILE "syslinux_file"
+static const char SYSLINUX_FILE[] = "syslinux_file";
 
 typedef struct syslinux_file {
-    char *data;
+    void *data;
     char *name;
     size_t size;
 } syslinux_file;
@@ -241,26 +241,18 @@ static int sl_run_kernel_image(lua_State * L)
 
 static int sl_loadfile(lua_State * L)
 {
-    const char *filename = luaL_checkstring(L, 1);
-    syslinux_file *file;
+    size_t name_len;
+    const char *filename = luaL_checklstring (L, 1, &name_len);
+    syslinux_file *file = lua_newuserdata (L, sizeof (syslinux_file));
 
-    void *file_data;
-    size_t file_len;
-
-    if (loadfile(filename, &file_data, &file_len)) {
-	lua_pushstring(L, "Could not load file");
-	lua_error(L);
+    file->name = malloc (name_len+1);
+    if (!file->name) return luaL_error (L, "Out of memory");
+    memcpy (file->name, filename, name_len+1);
+    if (loadfile (file->name, &file->data, &file->size)) {
+        free (file->name);
+        return luaL_error (L, "Could not load file");
     }
-
-    file = malloc(sizeof(syslinux_file));
-    strlcpy(file->name,filename,sizeof(syslinux_file));
-    file->size = file_len;
-    file->data = file_data;
-
-    lua_pushlightuserdata(L, file);
-    luaL_getmetatable(L, SYSLINUX_FILE);
-    lua_setmetatable(L, -2);
-
+    luaL_setmetatable (L, SYSLINUX_FILE);
     return 1;
 }
 
