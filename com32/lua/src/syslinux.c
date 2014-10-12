@@ -130,8 +130,7 @@ static int sl_local_boot(lua_State * L)
 
 static int sl_final_cleanup(lua_State * L)
 {
-    uint16_t flags = luaL_checkint(L, 1);
-    syslinux_local_boot(flags);
+    syslinux_final_cleanup (luaL_checkint (L, 1));
     return 0;
 }
 
