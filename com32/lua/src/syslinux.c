@@ -302,11 +302,18 @@ static int sl_initramfs_load_archive(lua_State * L)
 static int sl_initramfs_add_file(lua_State * L)
 {
     const char *filename = luaL_checkstring(L, 2);
-    void *file_data = NULL;
-    size_t file_len = 0;
+    size_t file_len;
+    const char *file_data = luaL_optlstring (L, 3, NULL, &file_len);
+    void *data = NULL;
 
+    if (file_len) {
+        data = malloc (file_len);
+        if (!data) return luaL_error (L, "Out of memory");
+        memcpy (data, file_data, file_len);
+    }
     if (initramfs_add_file(luaL_checkudata(L, 1, SYSLINUX_INITRAMFS),
-                           file_data, file_len, file_len, filename, 0, 0755))
+                           data, file_len, file_len, filename,
+                           luaL_optint (L, 4, 0), luaL_optint (L, 5, 0755)))
         return luaL_error (L, "Adding file %s to initramfs failed", filename);
     return 0;
 }
