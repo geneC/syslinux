@@ -50,7 +50,7 @@ local function scan (params)
                initrd = nil
             end
             table.insert (params.items, {
-                             show = function () return name .. (initrd and " +initrd" or "") end,
+                             show = name .. (initrd and " +initrd" or ""),
                              version = version,
                              execute = function ()
                                           boot (path, initrd,
@@ -94,21 +94,18 @@ local function kernel_gt (k1, k2)
    return version_gt (k1.version, k2.version)
 end
 
-local function print_or_call (x, def)
-   local t = type (x)
-   if t == "nil" then
-      if def then print (def) end
-   elseif t == "function" then
-      x ()
+local function get (x)
+   if type (x) == "function" then
+      return x ()
    else
-      print (x)
+      return x
    end
 end
 
 local function draw (params)
-   print_or_call (params.title, "\n=== Boot menu ===")
+   print (get (params.title) or "\n=== Boot menu ===")
    for i, item in ipairs (params.items) do
-      print ((i == params.default and " > " or "   ") .. i .. "  " .. item.show ())
+      print ((i == params.default and " > " or "   ") .. i .. "  " .. get (item.show))
    end
    print ("\nKernel arguments:\n  " .. params.append .. modifiers ())
    print ("\nHit a number to select from the menu,\n    ENTER to accept default,\n    ESC to exit\n or any other key to print menu again")
