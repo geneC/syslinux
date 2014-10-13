@@ -296,7 +296,8 @@ static int sl_initramfs_load_archive(lua_State * L)
 
     if (initramfs_load_archive (luaL_checkudata(L, 1, SYSLINUX_INITRAMFS), filename))
         return luaL_error (L, "Loading initramfs %s failed", filename);
-    return 0;
+    lua_settop (L, 1);
+    return 1;
 }
 
 static int sl_initramfs_add_file(lua_State * L)
@@ -315,7 +316,8 @@ static int sl_initramfs_add_file(lua_State * L)
                            data, file_len, file_len, filename,
                            luaL_optint (L, 4, 0), luaL_optint (L, 5, 0755)))
         return luaL_error (L, "Adding file %s to initramfs failed", filename);
-    return 0;
+    lua_settop (L, 1);
+    return 1;
 }
 
 static int sl_initramfs_size (lua_State *L)
