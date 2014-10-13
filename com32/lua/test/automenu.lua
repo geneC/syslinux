@@ -26,6 +26,17 @@ local function modifiers ()
    return (single and " single" or "") .. ({" quiet",""," debug"})[verbosity]
 end
 
+local function boot (kernel_path, initrd_path, cmdline)
+   print ("Loading " .. kernel_path .. " ...")
+   local kernel = sl.loadfile (kernel_path)
+   local initrd
+   if (initrd_path) then
+      print ("Loading " .. initrd_path .. " ...")
+      initrd = sl.initramfs():load (initrd_path)
+   end
+   sl.boot_it (kernel, initrd, cmdline)
+end
+
 local function scan (params)
    local sep = string.sub (params.dir, -1) == "/" and "" or "/"
    if not params.items then params.items = {} end
@@ -35,14 +46,16 @@ local function scan (params)
          local from,to,version = string.find (name, "^vmlinuz%-(.*)")
          if from then
             local initrd = params.dir .. sep .. "initrd.img-" .. version
-            local initrd_param = ""
-            if lfs.attributes (initrd, "size") then
-               initrd_param = "initrd=" .. initrd .. " "
+            if not lfs.attributes (initrd, "size") then
+               initrd = nil
             end
             table.insert (params.items, {
-                             show = function () return name end,
+                             show = function () return name .. (initrd and " +initrd" or "") end,
                              version = version,
-                             execute = function () sl.boot_linux (path, initrd_param .. params.append .. modifiers ()) end
+                             execute = function ()
+                                          boot (path, initrd,
+                                                params.append .. modifiers ())
+                                       end
                           })
          end
       end
