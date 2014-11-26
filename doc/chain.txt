@@ -235,6 +235,18 @@ Useful to see warnings emited by the chain module.
 In the case of presence of non-standard hybrid MBR/GPT layout, this flag makes
 chain module prefer MBR layout over GPT.
 
+	*gpthcrc
+	nogpthcrc
+
+GPT header contains its crc32 checksum. By default the partition iterator
+verifies it and aborts in case of mismatch.
+
+	*gptlcrc
+	nogptlcrc
+
+GPT header contains crc32 checksum of GPT partition list. By default the
+partition iterator verifies it and aborts in case of mismatch.
+
 	strict[=<0|1|2>]
 	*strict=1
 	relax
@@ -251,7 +263,6 @@ disk corruption in some later EMBR partition.
 - strict=2 enables all checks
 - relax and nostrict are equivalent to strict=0
 - norelax and strict are equivalent to strict=2
-
 
 	break
 	*nobreak

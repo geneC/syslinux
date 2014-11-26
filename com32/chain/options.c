@@ -132,6 +132,8 @@ static void usage(void)
 "  keeppxe              Keep the PXE and UNDI stacks in memory (PXELINUX)",
 "  warn                 Wait for a keypress to continue chainloading",
 "  break                Don't chainload",
+"  gpthcrc              Perform gpt header crc check",
+"  gptlcrc              Perform gpt list crc check",
 "  strict[=<0|1|2>]     Set the level of strictness in sanity checks",
 "                       - strict w/o any value is the same as strict=2",
 "  relax                The same as strict=0",
@@ -174,7 +176,8 @@ void opt_set_defs(void)
     opt.maps = true;	    /* by def. map sector */
     opt.hand = true;	    /* by def. prepare handover */
     opt.brkchain = false;   /* by def. do chainload */
-    opt.piflags = PIF_STRICT;	/* by def. be strict, but ignore disk sizes */
+    /* strict but ignore disk size, do all gpt crc checks */
+    opt.piflags = PIF_STRICT | PIF_GPTHCRC | PIF_GPTLCRC;
     opt.foff = opt.soff = opt.fip = opt.sip = 0x7C00;
     opt.drivename = "boot";
 #ifdef DEBUG
@@ -359,6 +362,14 @@ int opt_parse_args(int argc, char *argv[])
 		case '1': opt.piflags |= PIF_STRICT; break;
 		default:;
 	    }
+	} else if (!strcmp(argv[i], "gpthcrc")) {
+	    opt.piflags |= PIF_GPTHCRC;
+	} else if (!strcmp(argv[i], "nogpthcrc")) {
+	    opt.piflags &= ~PIF_GPTHCRC;
+	} else if (!strcmp(argv[i], "gptlcrc")) {
+	    opt.piflags |= PIF_GPTLCRC;
+	} else if (!strcmp(argv[i], "nogptlcrc")) {
+	    opt.piflags &= ~PIF_GPTLCRC;
 	} else if (!strcmp(argv[i], "warn")) {
 	    opt.warn = true;
 	} else if (!strcmp(argv[i], "nowarn")) {

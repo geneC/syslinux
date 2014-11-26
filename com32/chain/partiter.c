@@ -412,16 +412,29 @@ static inline int valid_crc(uint32_t crc, const uint8_t *buf, unsigned int siz)
     return crc == crc32(crc32(0, NULL, 0), buf, siz);
 }
 
-static int valid_crc_hdr(void *buf)
+static int valid_crc_gpth(struct disk_gpt_header *gh, int flags)
 {
-    struct disk_gpt_header *gh = buf;
-    uint32_t crc = gh->chksum;
-    int valid;
+    uint32_t crc, crcc;
 
+    if (!(flags & PIF_GPTHCRC))
+	return 1;
+
+    crc = gh->chksum;
     gh->chksum = 0;
-    valid = crc == crc32(crc32(0, NULL, 0), buf, gh->hdr_size);
+    crcc = crc32(crc32(0, NULL, 0), (const uint8_t *)gh, gh->hdr_size);
     gh->chksum = crc;
-    return valid;
+    return crc == crcc;
+}
+
+static int valid_crc_gptl(const struct disk_gpt_header *gh, const struct disk_gpt_part_entry *gl, int flags)
+{
+    uint32_t crcc;
+
+    if (!(flags & PIF_GPTLCRC))
+	return 1;
+
+    crcc = crc32(crc32(0, NULL, 0), (const uint8_t *)gl, gh->part_size * gh->part_count);
+    return gh->table_chksum == crcc;
 }
 
 static int pi_next_(struct part_iter *iter)
@@ -582,7 +595,7 @@ static struct disk_gpt_header *try_gpt_hdr(const struct disk_info *di, int sec, 
 	sprintf(errbuf, "Unable to read %s GPT header.", desc);
 	goto out;
     }
-    if(!valid_crc_hdr(gpth)) {
+    if(!valid_crc_gpth(gpth, flags)) {
 	sprintf(errbuf, "Invalid checksum of %s GPT header.", desc);
 	goto out;
     }
@@ -597,18 +610,16 @@ out:
     return NULL;
 }
 
-static struct disk_gpt_part_entry *try_gpt_list(const struct disk_info *di, const struct disk_gpt_header *gpth, int alt)
+static struct disk_gpt_part_entry *try_gpt_list(const struct disk_info *di, const struct disk_gpt_header *gpth, int alt, int flags)
 {
     int pri = gpth->lba_cur < gpth->lba_alt;
     const char *desc = alt ? "alternative" : "main";
     struct disk_gpt_part_entry *gptl;
     char errbuf[64];
-    uint64_t gpt_lsiz;	    /* size of GPT partition list in bytes */
-    uint64_t gpt_lcnt;	    /* size of GPT partition in sectors */
+    uint32_t gpt_lcnt;	    /* size of GPT partition in sectors */
     uint64_t gpt_loff;	    /* offset to GPT partition list in sectors */
 
-    gpt_lsiz = (uint64_t)gpth->part_size * gpth->part_count;
-    gpt_lcnt = (gpt_lsiz + di->bps - 1) / di->bps;
+    gpt_lcnt = (gpth->part_size * gpth->part_count + di->bps - 1) / di->bps;
     if (!alt) {
 	/* prefer header value for partition table if not asking for alternative */
 	gpt_loff = gpth->lba_table;
@@ -623,16 +634,17 @@ static struct disk_gpt_part_entry *try_gpt_list(const struct disk_info *di, cons
     gptl = disk_read_sectors(di, gpt_loff, gpt_lcnt);
     if (!gptl) {
 	sprintf(errbuf, "Unable to read %s GPT partition list.", desc);
-	try_gpt_we(errbuf, alt);
-	return NULL;
+	goto out;
     }
-    if (!valid_crc(gpth->table_chksum, (const uint8_t *)gptl, gpt_lsiz)) {
+    if (!valid_crc_gptl(gpth, gptl, flags)) {
 	sprintf(errbuf, "Invalid checksum of %s GPT partition list.", desc);
-	try_gpt_we(errbuf, alt);
-	free(gptl);
-	return NULL;
+	goto out;
     }
     return gptl;
+out:
+    try_gpt_we(errbuf, alt);
+    free(gptl);
+    return NULL;
 }
 
 /* pi_begin() - validate and and get proper iterator for a disk described by di */
@@ -687,9 +699,9 @@ struct part_iter *pi_begin(const struct disk_info *di, int flags)
 	dprintf("Looks like a GPT v1.0 disk.\n");
 	disk_gpt_header_dump(gpth);
 #endif
-	gptl = try_gpt_list(di, gpth, 0);
+	gptl = try_gpt_list(di, gpth, 0, flags);
 	if (!gptl)
-	    gptl = try_gpt_list(di, gpth, 1);
+	    gptl = try_gpt_list(di, gpth, 1, flags);
 	if (!gptl)
 	    goto out;
 
