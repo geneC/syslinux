@@ -32,7 +32,7 @@ typedef u64 __le64;
 
 #define BTRFS_MAGIC "_BHRfS_M"
 #define BTRFS_MAGIC_L 8
-#define BTRFS_MAGIC_N 0x4d5f53665248425f
+#define BTRFS_MAGIC_N 0x4d5f53665248425fULL
 
 #define BTRFS_SUPER_FLAG_METADUMP	(1ULL << 33)
 
