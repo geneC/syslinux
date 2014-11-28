@@ -274,6 +274,11 @@ IPAPPEND bitmask
 	 28	Blade
 	 29	Blade enclosure
 
+	0x20000: Append a file system UUID string.  For EXT2/3/4, this is the typical file system UUID.  For FAT12/16/32, this is the 32-bit file system serial number (ie DA1A-0B2E).
+
+		FSUUID=<FS-UUID>
+
+
 SENDCOOKIES bitmask			[PXELINUX only]
 
 	When downloading files over http, the SYSAPPEND strings are
