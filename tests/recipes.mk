@@ -9,6 +9,8 @@
 #
 # Canned recipes
 
+sudo?=sudo
+
 #
 # copy-files - copy a config to the mounted filesystem
 # 
@@ -19,7 +21,7 @@
 #
 define copy-files =
     for f in $($@_files); do \
-	sudo cp $$f $(INSTALL_DIR) ;\
+	${sudo} cp $$f $(INSTALL_DIR) ;\
     done
     sync
 endef
@@ -28,7 +30,7 @@ endef
 # install-config
 #
 define install-config =
-    sudo sh -c 'echo INCLUDE $($@_cfg) >> $(CONFIG_FILE)'
+    ${sudo} sh -c 'echo INCLUDE $($@_cfg) >> $(CONFIG_FILE)'
     sync
 endef
 
@@ -39,7 +41,7 @@ endef
 #
 define remove-files =
     for f in $($@_files); do \
-	sudo rm $(INSTALL_DIR)/$$f ;\
+	${sudo} rm $(INSTALL_DIR)/$$f ;\
     done
 endef
 
@@ -47,7 +49,7 @@ endef
 # delete-config - remove a test's config file from the master config
 #
 define delete-config =
-    sudo sed -i -e '/INCLUDE $($@_cfg)/d' $(CONFIG_FILE)
+    ${sudo} sed -i -e '/INCLUDE $($@_cfg)/d' $(CONFIG_FILE)
 endef
 
 #
@@ -57,12 +59,12 @@ define run-test =
     $(copy-files)
     $(install-config)
 
-    sudo $(QEMU) $(QEMU_FLAGS) -serial file:$@.log
+    ${sudo} $(QEMU) $(QEMU_FLAGS) -serial file:$@.log
 
     $(delete-config)
     $(remove-files)
 
-    sudo sort $@.log -o $@.log
+    ${sudo} sort $@.log -o $@.log
     if [ `comm -1 -3 $@.log $($@_results) | wc -l` -ne 0 ]; then \
         printf "      [!] $@ failed\n" ;\
     else \

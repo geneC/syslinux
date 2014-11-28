@@ -16,6 +16,8 @@
 # full.
 #
 
+sudo?=
+
 ifeq ($(INITIAL),)
 
 INITIAL := 1
@@ -24,7 +26,7 @@ HDD = $(OBJ)/hdd.img
 
 export QEMU QEMU_FLAGS INITIAL HDD
 
-SYSLINUX_output-str := $(shell sudo $(SRC)/build-syslinux start \
+SYSLINUX_output-str := $(shell ${sudo} $(SRC)/build-syslinux start \
 				$(objdir)/bios $(HDD) test.cfg)
 SYSLINUX_MOUNT_DIR = $(firstword $(SYSLINUX_output-str))
 SYSLINUX_INSTALL_DIR = $(SYSLINUX_MOUNT_DIR)/boot/syslinux
@@ -43,7 +45,7 @@ syslinux-tests:
 		INITIAL="$(INITIAL)" INSTALL_DIR="$(SYSLINUX_INSTALL_DIR)" \
 		CONFIG_FILE="$(SYSLINUX_CONFIG_FILE)" \
 		DERIVATIVE=SYSLINUX
-	@sudo $(SRC)/build-syslinux stop $(SYSLINUX_MOUNT_DIR) \
+	@${sudo} $(SRC)/build-syslinux stop $(SYSLINUX_MOUNT_DIR) \
 		$(SYSLINUX_LOOPDEV) test.cfg
 
 pxelinux-tests:
