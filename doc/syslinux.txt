@@ -229,12 +229,13 @@ IPAPPEND bitmask
 	0x00100	SYSSKU=		System SKU
 	0x00200	SYSFAMILY=	System family
 	0x00400	MBVENDOR=	Motherboard vendor name
-	0x00800	MBVERSION=	Motherboard version
-	0x01000	MBSERIAL=	Motherboard serial number
-	0x02000	MBASSET=	Motherboard asset tag
-	0x04000 BIOSVENDOR=	BIOS vendor name
-	0x08000	BIOSVERSION=	BIOS version
-	0x10000	SYSFF=		System form factor
+	0x00800	MBPRODUCT=	Motherboard product name
+	0x01000	MBVERSION=	Motherboard version
+	0x02000	MBSERIAL=	Motherboard serial number
+	0x04000 MBASSET=	Motherboard asset tag
+	0x08000	BIOSVENDOR=	BIOS vendor name
+	0x10000	BIOSVERSION=	BIOS version
+	0x20000	SYSFF=		System form factor
 
 	If these strings contain whitespace they are replaced with
 	underscores (_).
@@ -274,7 +275,7 @@ IPAPPEND bitmask
 	 28	Blade
 	 29	Blade enclosure
 
-	0x20000: Append a file system UUID string.  For EXT2/3/4, this is the typical file system UUID.  For FAT12/16/32, this is the 32-bit file system serial number (ie DA1A-0B2E).
+	0x40000: Append a file system UUID string.  For EXT2/3/4, this is the typical file system UUID.  For FAT12/16/32, this is the 32-bit file system serial number (ie DA1A-0B2E).
 
 		FSUUID=<FS-UUID>
 
