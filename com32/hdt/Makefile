@@ -25,7 +25,7 @@ CFLAGS    += -I$(com32)/cmenu/libmenu -I$(com32)
 MODULES	  = hdt.c32
 TESTFILES =
 
-OBJS	  = $(subst $(SRC)/,,$(patsubst %.c,%.o,$(wildcard $(SRC)/*.c)))
+OBJS	  = $(subst $(SRC)/,,$(patsubst %.c,%.o,$(sort $(wildcard $(SRC)/*.c))))
 VERSION   = $(shell $(SED) -n 's/\#define VERSION \"\(.*\)\"/\1/p' hdt.h)
 CODENAME  = $(shell $(SED) -n 's/\#define CODENAME \"\(.*\)\"/\1/p' hdt.h)
 NODASH_VERSION = $(shell echo $(VERSION) | $(SED) -e 's/-/_/g' | $(SED) -e 's/\./_/g')

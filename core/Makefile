@@ -39,8 +39,8 @@ BTARGET  = kwdhash.gen \
 	   isolinux.bin isolinux-debug.bin pxelinux.0 lpxelinux.0
 
 # All primary source files for the main syslinux files
-NASMSRC	 := $(wildcard $(SRC)/*.asm)
-NASMHDR  := $(wildcard $(SRC)/*.inc)
+NASMSRC	 := $(sort $(wildcard $(SRC)/*.asm))
+NASMHDR  := $(sort $(wildcard $(SRC)/*.inc))
 CSRC	 := $(shell find $(SRC) -name '*.c' -print)
 SSRC	 := $(shell find $(SRC) -name '*.S' -print)
 CHDR	 := $(shell find $(SRC) -name '*.h' -print)
@@ -80,9 +80,9 @@ FILTER_OBJS = %rawcon.o %plaincon.o %pxelinux-c.o %ldlinux-c.o \
 ifdef EFI_BUILD
 # EFI is single-threaded, and doesn't use the LZO assembly decoder
 FILTER_OBJS += $(subst $(SRC)/,, \
-	$(patsubst %.S,%.o, $(wildcard $(SRC)/lzo/*.S)) \
-	$(patsubst %.c,%.o, $(wildcard $(SRC)/thread/*.c)) \
-	$(patsubst %.S,%.o, $(wildcard $(SRC)/thread/*.S)))
+	$(patsubst %.S,%.o, $(sort $(wildcard $(SRC)/lzo/*.S))) \
+	$(patsubst %.c,%.o, $(sort $(wildcard $(SRC)/thread/*.c))) \
+	$(patsubst %.S,%.o, $(sort $(wildcard $(SRC)/thread/*.S))))
 endif
 
 COBJS	 = $(filter-out $(FILTER_OBJS),$(COBJ))

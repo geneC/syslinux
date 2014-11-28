@@ -34,7 +34,7 @@ SRCS     = syslinux.c \
 	   ../libinstaller/getopt/getopt_long.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/mbr_bin.c \
-           $(wildcard $(SRC)/../libfat/*.c)
+           $(sort $(wildcard $(SRC)/../libfat/*.c))
 OBJS	 = header.o crt0.o ldlinux.o \
 	   $(patsubst %.c,%.o,$(notdir $(SRCS)))
 LIBOBJS	 = int2526.o conio.o memcpy.o memset.o memmove.o skipatou.o atou.o \

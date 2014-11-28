@@ -8,7 +8,7 @@ include $(MAKEDIR)/lib.mk
 REQFLAGS += -I$(SRC)/../gplinclude -I$(SRC)/../gplinclude/zzjson
 
 GPLDIRS := $(SRC) $(addprefix $(SRC)/,disk dmi vpd acpi zzjson)
-LIBOBJS := $(subst $(SRC)/,,$(foreach dir,$(GPLDIRS),$(patsubst %.c,%.o,$(wildcard $(dir)/*.c))))
+LIBOBJS := $(subst $(SRC)/,,$(foreach dir,$(GPLDIRS),$(patsubst %.c,%.o,$(sort $(wildcard $(dir)/*.c)))))
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib

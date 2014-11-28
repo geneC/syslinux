@@ -246,9 +246,9 @@ endif
 #
 # BIN has the form bin[-[arch-]platform]
 
-ARCHS		:= $(patsubst arch/%,%,$(wildcard arch/*))
+ARCHS		:= $(patsubst arch/%,%,$(sort $(wildcard arch/*)))
 PLATFORMS	:= $(patsubst config/defaults/%.h,%,\
-		     $(wildcard config/defaults/*.h))
+		     $(sort $(wildcard config/defaults/*.h)))
 archs :
 	@$(ECHO) $(ARCHS)
 
@@ -307,8 +307,8 @@ srcdirs :
 
 # SRCS lists all .c or .S files found in any SRCDIR
 #
-SRCS	+= $(wildcard $(patsubst %,%/*.c,$(SRCDIRS)))
-SRCS	+= $(wildcard $(patsubst %,%/*.S,$(SRCDIRS)))
+SRCS	+= $(sort $(wildcard $(patsubst %,%/*.c,$(SRCDIRS))))
+SRCS	+= $(sort $(wildcard $(patsubst %,%/*.S,$(SRCDIRS))))
 srcs :
 	@$(ECHO) $(SRCS)
 
@@ -677,7 +677,7 @@ endef
 $(BIN)/%.objs : $(BIN)/%.tmp
 	$(Q)$(ECHO) $(call objs_list,$<)
 $(BIN)/%.sizes : $(BIN)/%.tmp
-	$(Q)$(SIZE) -t $(foreach OBJ,$(call objs_list,$<),$(wildcard $(BIN)/$(subst _,?,$(OBJ)).o)) | \
+	$(Q)$(SIZE) -t $(foreach OBJ,$(call objs_list,$<),$(sort $(wildcard $(BIN)/$(subst _,?,$(OBJ)).o))) | \
 		sort -g
 
 # Get dependency list for the specified target
@@ -807,7 +807,7 @@ $(BIN)/%.o : payload/%.img
 	$(Q)$(LD) -b binary -r -o $@ $< --undefined obj_payload \
 		--defsym obj_$*=0
 
-BOBJS += $(patsubst payload/%.img,$(BIN)/%.o,$(wildcard payload/*.img))
+BOBJS += $(patsubst payload/%.img,$(BIN)/%.o,$(sort $(wildcard payload/*.img)))
 
 # The "allXXXs" targets for each suffix
 #

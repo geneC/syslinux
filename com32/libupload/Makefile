@@ -4,7 +4,7 @@ include $(MAKEDIR)/com32.mk
 
 REQFLAGS += -I$(SRC)
 
-LIBOBJS := $(notdir $(patsubst %.c,%.o,$(wildcard $(SRC)/*.c)))
+LIBOBJS := $(notdir $(patsubst %.c,%.o,$(sort $(wildcard $(SRC)/*.c))))
 
 BINDIR   = /usr/bin
 LIBDIR   = /usr/lib
