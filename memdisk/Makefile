@@ -23,7 +23,7 @@ NFLAGS   = -dDATE='"$(DATE)"'
 NINCLUDE = -I$(SRC)/
 
 VPATH = $(SRC)
-SRCS	 = $(wildcard *.asm *.c *.h)
+SRCS	 = $(sort $(wildcard *.asm *.c *.h))
 
 # The DATE is set on the make command line when building binaries for
 # official release.  Otherwise, substitute a hex string that is pretty much
