@@ -22,3 +22,4 @@ samples: libutil elflink/ldlinux
 sysdump: lib libutil libupload gpllib
 lua/src: cmenu modules
 libupload: lib
+gpllib: lib
