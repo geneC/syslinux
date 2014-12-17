@@ -63,7 +63,7 @@ int parse_xsdt(s_acpi * acpi)
 
 	    /* Let's grab the pointed table header */
 	    char address[16] = { 0 };
-	    sprintf(address, "%llx", *p);
+	    sprintf(address, "%" PRIx64 "x", *p);
 	    uint64_t *pointed_address = (uint64_t *)strtoul(address, NULL, 16);
 
 	    x->entry[x->entry_count] = pointed_address;

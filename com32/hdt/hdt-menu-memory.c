@@ -57,10 +57,10 @@ static void compute_e820(struct s_my_menu *menu)
     for (int j = 0; j < count; j++) {
 	get_type(map[j].type, type, 14);
 	snprintf(buffer, sizeof buffer,
-		 "%016llx - %016llx (%s)",
+		 "%016" PRIx64 "x - %016" PRIx64 "x (%s)",
 		 map[j].addr, map[j].size, remove_spaces(type));
 	snprintf(statbuffer, sizeof statbuffer,
-		 "%016llx - %016llx (%s)",
+		 "%016" PRIx64 "x - %016" PRIx64 "x (%s)",
 		 map[j].addr, map[j].size, remove_spaces(type));
 	add_item(buffer, statbuffer, OPT_INACTIVE, NULL, 0);
 	menu->items_count++;

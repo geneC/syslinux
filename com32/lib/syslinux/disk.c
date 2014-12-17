@@ -528,9 +528,9 @@ void disk_gpt_part_dump(const struct disk_gpt_part_entry *const gpt_part)
     char guid_text[37];
 
     dprintf("----------------------------------\n"
-	    "GPT part. LBA first __ : 0x%.16llx\n"
-	    "GPT part. LBA last ___ : 0x%.16llx\n"
-	    "GPT part. attribs ____ : 0x%.16llx\n"
+	    "GPT part. LBA first __ : 0x%.16" PRIx64 "x\n"
+	    "GPT part. LBA last ___ : 0x%.16" PRIx64 "x\n"
+	    "GPT part. attribs ____ : 0x%.16" PRIx64 "x\n"
 	    "GPT part. name _______ : '",
 	    gpt_part->lba_first, gpt_part->lba_last, gpt_part->attribs);
     for (i = 0; i < sizeof(gpt_part->name); i++) {
@@ -559,11 +559,11 @@ void disk_gpt_header_dump(const struct disk_gpt_header *const gpt)
 	   "GPT header size ______ : 0x%.8x\n"
 	   "GPT header checksum __ : 0x%.8x\n"
 	   "GPT reserved _________ : '%4.4s'\n"
-	   "GPT LBA current ______ : 0x%.16llx\n"
-	   "GPT LBA alternative __ : 0x%.16llx\n"
-	   "GPT LBA first usable _ : 0x%.16llx\n"
-	   "GPT LBA last usable __ : 0x%.16llx\n"
-	   "GPT LBA part. table __ : 0x%.16llx\n"
+	   "GPT LBA current ______ : 0x%.16" PRIx64 "x\n"
+	   "GPT LBA alternative __ : 0x%.16" PRIx64 "x\n"
+	   "GPT LBA first usable _ : 0x%.16" PRIx64 "x\n"
+	   "GPT LBA last usable __ : 0x%.16" PRIx64 "x\n"
+	   "GPT LBA part. table __ : 0x%.16" PRIx64 "x\n"
 	   "GPT partition count __ : 0x%.8x\n"
 	   "GPT partition size ___ : 0x%.8x\n"
 	   "GPT part. table chksum : 0x%.8x\n",

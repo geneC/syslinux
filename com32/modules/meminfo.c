@@ -71,12 +71,12 @@ static void dump_e820(void)
 
 	if (oreg.ecx.l >= 24) {
 	    /* ebx base length end type */
-	    printf("%8x %016llx %016llx %016llx %d [%x]",
+	    printf("%8x %016" PRIx64 "x %016" PRIx64 "x %016" PRIx64 "x %d [%x]",
 		   ireg.ebx.l, ed.base, ed.len, ed.base + ed.len, ed.type,
 		   ed.extattr);
 	} else {
 	    /* ebx base length end */
-	    printf("%8x %016llx %016llx %016llx %d [-]",
+	    printf("%8x %016" PRIx64 "x %016" PRIx64 "x %016" PRIx64 "x %d [-]",
 		   ireg.ebx.l, ed.base, ed.len, ed.base + ed.len, ed.type);
 	    ed.extattr = 1;
 	}
