@@ -91,9 +91,9 @@ void dump_e820(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 		char begin[24]={0};
 		char size[24]={0};
 		char end[24]={0};
-		snprintf(begin,sizeof(begin),"0x%016llx",map[i].addr);
-		snprintf(size,sizeof(size),"0x%016llx",map[i].size);
-		snprintf(end,sizeof(end),"0x%016llx",map[i].addr+map[i].size);
+		snprintf(begin,sizeof(begin),"0x%016" PRIx64 "x",map[i].addr);
+		snprintf(size,sizeof(size),"0x%016" PRIx64 "x",map[i].size);
+		snprintf(end,sizeof(end),"0x%016" PRIx64 "x",map[i].addr+map[i].size);
 		CREATE_NEW_OBJECT;
 			add_s("memory.segment.start",begin);
 			add_s("memory.segment.size ",size);
@@ -108,9 +108,9 @@ void dump_e820(struct s_hardware *hardware, ZZJSON_CONFIG *config, ZZJSON **item
 		char begin[24]={0};
 		char size[24]={0};
 		char end[24]={0};
-		snprintf(begin,sizeof(begin),"0x%016llx",nm[i].addr);
-		snprintf(size,sizeof(size),"0x%016llx",nm[i].size);
-		snprintf(end,sizeof(end),"0x%016llx",nm[i].addr+nm[i].size);
+		snprintf(begin,sizeof(begin),"0x%016" PRIx64 "x",nm[i].addr);
+		snprintf(size,sizeof(size),"0x%016" PRIx64 "x",nm[i].size);
+		snprintf(end,sizeof(end),"0x%016" PRIx64 "x",nm[i].addr+nm[i].size);
 		CREATE_NEW_OBJECT;
 			add_s("sanitized_memory.segment.start",begin);
 			add_s("sanitized_memory.segment.size ",size);
