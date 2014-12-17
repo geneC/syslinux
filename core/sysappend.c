@@ -35,7 +35,7 @@ static char *copy_and_mangle(char *dst, const char *src)
     char c;
 
     while ((c = *src++)) {
-	if (c <= ' ' && c == '\x7f') {
+	if (c <= ' ' || c == '\x7f') {
 	    if (!was_space)
 		*dst++ = '_';
 	    was_space = true;
