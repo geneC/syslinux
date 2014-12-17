@@ -15,7 +15,7 @@ include $(MAKEDIR)/build.mk
 
 INCLUDES += -I$(SRC)/include
 
-LIBOBJS = $(patsubst %.c,%.o,$(subst $(SRC)/,,$(wildcard $(SRC)/src/*.c)))
+LIBOBJS = $(patsubst %.c,%.o,$(subst $(SRC)/,,$(sort $(wildcard $(SRC)/src/*.c))))
 LIB     = lzo.a
 BINS    = prepcore
 

@@ -1,6 +1,6 @@
 VPATH		= $(SRC)
 PERL		= perl
-CPSRC		= $(wildcard $(SRC)/*.txt)
+CPSRC		= $(sort $(wildcard $(SRC)/*.txt))
 CPOBJ		= $(notdir $(CPSRC))
 GENFILES	= $(patsubst %.txt,%.cp,$(CPOBJ))
 

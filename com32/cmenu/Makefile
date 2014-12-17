@@ -32,8 +32,8 @@ LIBMENU = libmenu/syslnx.o libmenu/com32io.o libmenu/tui.o \
 	libmenu/menu.o libmenu/passwords.o libmenu/des.o libmenu/help.o \
 	$(objdir)/com32/libutil/libutil.c32 $(objdir)/com32/lib/libcom32.c32
 
-CMENUS = $(patsubst %.c,%.c32,$(wildcard $(SRC)/*.c))
-IMENUS = $(patsubst %.menu,%.c32,$(wildcard $(SRC)/*.menu))
+CMENUS = $(patsubst %.c,%.c32,$(sort $(wildcard $(SRC)/*.c)))
+IMENUS = $(patsubst %.menu,%.c32,$(sort $(wildcard $(SRC)/*.menu)))
 
 MENUS = $(LIBS) $(subst $(SRC)/,,$(CMENUS) $(IMENUS))
 
@@ -62,7 +62,7 @@ clean: tidy menuclean
 	rm -f *.lss *.com
 
 menuclean:
-	rm -f $(patsubst %.menu,%.c,$(wildcard *.menu))
+	rm -f $(patsubst %.menu,%.c,$(sort $(wildcard *.menu)))
 
 spotless: clean libclean menuclean
 	rm -f *~ \#* *.c32

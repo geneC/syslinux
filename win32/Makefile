@@ -59,7 +59,7 @@ LIBSRC   = ../libinstaller/fs.c \
 	   ../libinstaller/ldlinux_bin.c \
 	   ../libinstaller/ldlinuxc32_bin.c \
 	   ../libinstaller/mbr_bin.c \
-	   $(wildcard $(SRC)/../libfat/*.c)
+	   $(sort $(wildcard $(SRC)/../libfat/*.c))
 LIBOBJS  = $(patsubst %.c,%.obj,$(notdir $(LIBSRC)))
 
 LIB	 = syslinux.lib
