@@ -61,7 +61,7 @@ addr_t map_data(const void *data, size_t len, size_t align, int flags)
 	return 0;
     }
 
-    dprintf("Mapping 0x%08x bytes (%#x pad) at 0x%08x\n", len, pad, start);
+    dprintf("Mapping 0x%08zx bytes (%#x pad) at 0x%08x\n", len, pad, start);
 
     if (start + len + pad > mboot_high_water_mark)
 	mboot_high_water_mark = start + len + pad;

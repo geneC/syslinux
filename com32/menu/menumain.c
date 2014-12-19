@@ -230,7 +230,7 @@ static int ask_passwd(const char *menu_entry)
     for (x = 2; x <= WIDTH - 2 * PASSWD_MARGIN - 1; x++)
 	putchar('q');
 
-    printf("j\017\033[%d;%dH\2#12 %s \033[%d;%dH\2#13",
+    printf("j\017\033[%d;%zdH\2#12 %s \033[%d;%dH\2#13",
 	   PASSWD_ROW, (WIDTH - (strlen(cm->messages[MSG_PASSPROMPT]) + 2)) / 2,
 	   cm->messages[MSG_PASSPROMPT], PASSWD_ROW + 1, PASSWD_MARGIN + 3);
 

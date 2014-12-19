@@ -216,7 +216,7 @@ int time_copy(char *fn, char do_simple, char do_verbose, size_t ibufsz, off_t ma
 				print_cp_result_long(fn, bcnt, bc, ec, ibufsz, do_verbose);
 		}
 		if (do_verbose)
-			printf("  numrd %d bcnt %d bufsz %d i %d\n", numrd, bcnt, bufsz, i);
+			printf("  numrd %d bcnt %zd bufsz %zd i %d\n", numrd, bcnt, bufsz, i);
 	}
 	return rv;
 }	/* int time_copy(char *fn, char do_simple, int bufsz, off_t maxlen) */

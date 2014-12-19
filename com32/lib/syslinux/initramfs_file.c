@@ -126,7 +126,7 @@ int initramfs_mknod(struct initramfs *ihead, const char *filename,
     if (do_mkdir)
 	bp += initramfs_mkdirs(filename, bp, bytes);
 
-    bp += sprintf(bp, "070701%08x%08x%08x%08x%08x%08x%08x%08x%08x"
+    bp += sprintf(bp, "070701%08x%08x%08x%08x%08x%08x%08zx%08x%08x"
 		  "%08x%08x%08x%08x", next_ino++, mode,
 		  0, 0, 1, 0, len, 0, 1, major, minor, namelen + 1, 0);
     memcpy(bp, filename, namelen);

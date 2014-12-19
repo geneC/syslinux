@@ -84,10 +84,10 @@ int boot_raw(void *ptr, size_t len, addr_t where, char **argv)
     dprintf("Initial memory map:\n");
     syslinux_dump_memmap(mmap);
 
-    dprintf("Segment at 0x%08x len 0x%08x\n", where, len);
+    dprintf("Segment at 0x%08x len 0x%08zx\n", where, len);
 
     if (syslinux_memmap_type(amap, where, len) != SMT_FREE) {
-	printf("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
+	printf("Memory segment at 0x%08x (len 0x%08zx) is unavailable\n",
 	       where, len);
 	goto bail;		/* Memory region unavailable */
     }

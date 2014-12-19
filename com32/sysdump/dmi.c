@@ -65,7 +65,7 @@ static void dump_smbios(struct upload_backend *be, size_t dptr)
     struct smbios_header smx = *smb;
     char filename[32];
 
-    snprintf(filename, sizeof filename, "dmi/%05x.%08x",
+    snprintf(filename, sizeof filename, "dmi/%05zx.%08x",
 	     dptr, smb->dmi.tbladdr);
     cpio_hdr(be, MODE_FILE, smb->dmi.tbllen + 32, filename);
 
@@ -90,7 +90,7 @@ static void dump_old_dmi(struct upload_backend *be, size_t dptr)
     } fake;
     char filename[32];
 
-    snprintf(filename, sizeof filename, "dmi/%05x.%08x",
+    snprintf(filename, sizeof filename, "dmi/%05zx.%08x",
 	     dptr, dmi->tbladdr);
     cpio_hdr(be, MODE_FILE, dmi->tbllen + 32, filename);
 
