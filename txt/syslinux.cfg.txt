@@ -242,10 +242,12 @@ of the specification, the following values are defined:
 	 27	Advanced TCI
 	 28	Blade
 	 29	Blade enclosure
-
-	0x40000: Append a file system UUID string.  For EXT2/3/4, this is the typical file system UUID.  For FAT12/16/32, this is the 32-bit file system serial number (ie DA1A-0B2E).
-
-		FSUUID=<FS-UUID>
++
+*0x40000*::: (6.03+) Append a file system UUID string.  For EXT2/3/4, this is the typical file system UUID.  For FAT12/16/32, this is the 32-bit file system serial number (ie DA1A-0B2E).
++
+----
+FSUUID=<FS-UUID>
+----
 
 
 == KERNEL-LIKE DIRECTIVES ==
