@@ -23,7 +23,9 @@ objdir=$(readlink -f "$2")
 
 (
 	cd ../..
-	git submodule update --init
+	if [ -d .git ]; then
+	    git submodule update --init
+	fi
 )
 
 if [ -d "$objdir/gnu-efi" ];then
