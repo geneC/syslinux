@@ -30,9 +30,10 @@ the Linux installers syslinux and syslinux-mtools, 'DEVICE' should be an
 unmounted file system.  For the DOS/Win32/Win64 installers, 'DEVICE'
 should be a drive like 'a:' (case insensitive).
 
-For versions ~4.00 and later, either -i/--install or -U/--update must be
-specified unless modifying the ADV of an existing install (options
-tagged with 'ADV') or requesting the help/usage or version info, .
+For versions ~4.00 and later, either *-i*/*--install* or *-U*/*--update*
+must be specified unless modifying the ADV of an existing install
+(options tagged with 'ADV') or requesting the help/usage or version
+info.
 
 If, during boot, the Shift or Alt keys are held down, or the Caps or
 Scroll locks are set, *Syslinux* will display a *lilo*(8) -style "boot:"
@@ -48,7 +49,8 @@ Please note, the ldlinux.sys boot loader file is flagged as immutable
 boot-time integrity.  File systems with a sufficiently large boot loader
 reserved area, like btrfs, will have ldlinux.sys installed there rather
 than as a normal file.  Prior to version 4.00, extlinux would install a
-file extlinux.sys which versions 4.00 and later installers will replace with ldlinux.sys.
+file extlinux.sys which versions 4.00 and later installers will replace
+with ldlinux.sys.
 
 
 == OPTIONS ==
@@ -83,8 +85,7 @@ active.
 only).
 
 *-f*, *--force*::
-Force install even if it appears unsafe.  Before 4.00, -f was used for
---offset in the Linux installers.
+Force install even if it appears unsafe.
 
 *-H*, *--heads* 'head-count'::
 Override the detected number of heads for the geometry.  See also
@@ -110,7 +111,7 @@ in the boot sequence (usually the next hard disk) instead of stopping
 with an error message.  This is useful for RAID-1 booting.
 
 *--reset-adv*::
-(ADV) Reset auxilliary data vector.
+(ADV) Reset auxiliary data vector.
 
 *-S*, *--sectors* 'sector-count'::
 Override the detected number of sectors for the geometry.  See also
@@ -119,13 +120,14 @@ Override the detected number of sectors for the geometry.  See also
 *-s*, *--stupid*::
 Install a "safe, slow and stupid" version of *SYSLINUX*. This version
 may work on some very buggy BIOSes on which *SYSLINUX* would otherwise
-fail. If you find a machine on which the -s option is required to make
+fail. If you find a machine on which the *-s* option is required to make
 it boot reliably, please send as much info about your machine as you
 can, and include the failure mode.
 
 *-t*, *--offset* 'offset'::
 (Linux syslinux/syslinux-mtools ONLY) Indicates that the filesystem is
-at an offset from the base of the device or file.
+at an offset from the base of the device or file. Some older versions
+did not accept the short format, *-t*.
 
 *-z*, *--zipdrive*
 Assume zipdrive geometry ('--heads 64 --sectors 32').  See also *--head*
@@ -195,7 +197,7 @@ the partion number is:
     iflag=fullblock conv=notrunc of=/dev/sda
 +
 Note: using 'cat' for writing the MBR can under some circumstances cause
-data loss or overwritting.  For this reason, using 'dd' is recommended
+data loss or overwriting.  For this reason, using 'dd' is recommended
 for all situations.
 
 //[FIXME]: any clean way to handle the above long command for manpage?
