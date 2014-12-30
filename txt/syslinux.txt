@@ -97,7 +97,7 @@ Override the detected number of heads for the geometry.  See also
 *-M*, *--menu-save*::
 (4.00+; ADV) Set the label to select as default on the next boot.
 
-*-o*, *--once* 'command'::
+*--once* 'command'::
 (ADV) Declare a boot command to be tried on the first boot only.  The
 use of *-o* for the Linux installers syslinux or syslinux-mtools has
 been deprecated as of \~4.00 and is no longer valid as of ~4.02.
