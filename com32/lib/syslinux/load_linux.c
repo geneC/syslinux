@@ -155,8 +155,8 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
 		    char *cmdline)
 {
     struct linux_header hdr, *whdr;
-    size_t real_mode_size, prot_mode_size, base;
-    addr_t real_mode_base, prot_mode_base, prot_mode_max;
+    size_t real_mode_size, prot_mode_size;
+    addr_t real_mode_base, prot_mode_base, prot_mode_max, base;
     addr_t irf_size;
     size_t cmdline_size, cmdline_offset;
     struct setup_data *sdp;
