@@ -162,7 +162,7 @@ int spawn_load(const char *name, int argc, char **argv)
 	struct elf_module *cur_module;
 	int type;
 
-	dprintf("enter: name = %s", name);
+	dprintf("enter: name = %s\n", name);
 
 	if (module == NULL)
 		return -1;
@@ -190,7 +190,7 @@ int spawn_load(const char *name, int argc, char **argv)
 
 	type = get_module_type(module);
 
-	dprintf("type = %d, prev = %s, cur = %s",
+	dprintf("type = %d, prev = %s, cur = %s\n",
 		type, cur_module->name, module->name);
 
 	if(type==EXEC_MODULE)
