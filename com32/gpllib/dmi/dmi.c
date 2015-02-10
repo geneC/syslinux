@@ -100,20 +100,20 @@ static const char *dmi_system_reset_boot_option(uint8_t code)
     return out_of_spec;
 }
 
-static void dmi_system_reset_count(uint16_t code, char *array)
+static void dmi_system_reset_count(uint16_t code, char *array, size_t len)
 {
     if (code == 0xFFFF)
-	strlcpy(array, "Unknown", sizeof array);
+	strlcpy(array, "Unknown", len);
     else
-	snprintf(array, sizeof array, "%u", code);
+	snprintf(array, len, "%u", code);
 }
 
-static void dmi_system_reset_timer(uint16_t code, char *array)
+static void dmi_system_reset_timer(uint16_t code, char *array, size_t len)
 {
     if (code == 0xFFFF)
-	strlcpy(array, "Unknown", sizeof array);
+	strlcpy(array, "Unknown", len);
     else
-	snprintf(array, sizeof array, "%u min", code);
+	snprintf(array, len, "%u min", code);
 }
 
 /*
@@ -947,13 +947,17 @@ void dmi_decode(struct dmi_header *h, uint16_t ver, s_dmi * dmi)
 		dmi_system_reset_boot_option((data[0x04] >> 3) & 0x3),
 		sizeof dmi->system.system_reset.boot_option_on_limit);
 	dmi_system_reset_count(WORD(data + 0x05),
-			       dmi->system.system_reset.reset_count);
+			       dmi->system.system_reset.reset_count,
+			       sizeof(dmi->system.system_reset.reset_count));
 	dmi_system_reset_count(WORD(data + 0x07),
-			       dmi->system.system_reset.reset_limit);
+			       dmi->system.system_reset.reset_limit,
+			       sizeof(dmi->system.system_reset.reset_limit));
 	dmi_system_reset_timer(WORD(data + 0x09),
-			       dmi->system.system_reset.timer_interval);
+			       dmi->system.system_reset.timer_interval,
+			       sizeof(dmi->system.system_reset.timer_interval));
 	dmi_system_reset_timer(WORD(data + 0x0B),
-			       dmi->system.system_reset.timeout);
+			       dmi->system.system_reset.timeout,
+			       sizeof(dmi->system.system_reset.timeout));
 	break;
     case 24:			/* 3.3.25 Hardware Security */
 	if (h->length < 0x05)
