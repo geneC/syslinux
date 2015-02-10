@@ -50,7 +50,7 @@ static bool append_ch(char *str, size_t size, size_t *pos, int ch)
 static size_t cookie_len, header_len;
 static char *cookie_buf, *header_buf;
 
-__export uint32_t SendCookies = -1UL; /* Send all cookies */
+__export uint32_t SendCookies = UINT_MAX; /* Send all cookies */
 
 static size_t http_do_bake_cookies(char *q)
 {
