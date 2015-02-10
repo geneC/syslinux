@@ -254,7 +254,7 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     cmdline_offset = calc_cmdline_offset(mmap, &hdr, cmdline_size,
 					 real_mode_base,
 					 real_mode_base + real_mode_size);
-    dprintf("cmdline_offset at 0x%x\n", real_mode_base + cmdline_offset);
+    dprintf("cmdline_offset at 0x%zx\n", real_mode_base + cmdline_offset);
 
     if (hdr.version < 0x020a) {
 	/*
