@@ -45,7 +45,7 @@
  * something that better describes your network interface.
  */
 
-/* other headers include deprintf.h too early */
+/* other headers include dprintf.h too early */
 #define UNDIIF_ID_FULL_DEBUG (UNDIIF_ID_DEBUG | UNDIIF_DEBUG)
 
 #if UNDIIF_ID_FULL_DEBUG

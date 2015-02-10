@@ -263,7 +263,7 @@ extern int _module_unload(struct elf_module *module);
  *
  * This function returns the type of module we're dealing with
  * either a library module ( LIB_MODULE ), executable module ( EXEC_MODULE ),
- * or an error ( UNKNOWN_MODULE ). The way it checks teh type is by checking to see
+ * or an error ( UNKNOWN_MODULE ). The way it checks the type is by checking to see
  * if the module has its main_func set ( in which case it's an executable ). In case
  * it doesn't it then checks to see if init_func is set ( in which case it's a
  * library module. If this isn't the case either we don't know what it is so bail out

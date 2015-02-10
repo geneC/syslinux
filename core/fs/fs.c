@@ -331,7 +331,7 @@ err_path:
     return file_to_handle(file);
 
 err:
-    dprintf("serachdir: error seraching file %s\n", name);
+    dprintf("searchdir: error searching file %s\n", name);
     _close_file(file);
 err_no_close:
     return -1;
