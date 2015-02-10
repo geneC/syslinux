@@ -211,7 +211,7 @@ cli_mode_t mode_s_to_mode_t(char *name)
     int i = 0;
 
     while (list_modes[i]) {
-	if (!strncmp(name, list_modes[i]->name, sizeof(list_modes[i]->name)))
+	if (!strcmp(name, list_modes[i]->name))
 	    break;
 	i++;
     }
@@ -288,8 +288,7 @@ static void expand_aliases(char *line __unused, char **command, char **module,
     /* Simple aliases mapping a single command to another one */
     for (i = 0; i < MAX_ALIASES; i++) {
 	for (j = 0; j < hdt_aliases[i].nb_aliases; j++) {
-	    if (!strncmp(*command, hdt_aliases[i].aliases[j],
-			 sizeof(hdt_aliases[i].aliases[j]))) {
+	    if (!strcmp(*command, hdt_aliases[i].aliases[j])) {
 		dprintf("CLI DEBUG: ALIAS %s ", *command);
 		strlcpy(*command, hdt_aliases[i].command,
 			sizeof(hdt_aliases[i].command) + 1);
