@@ -29,6 +29,9 @@
 #ifndef DEFINE_LIB_ANSI_H
 #define DEFINE_LIB_ANSI_H
 
+#include <stdbool.h>
+#include <stdio.h>
+
 #define CSI "\e["
 
 void display_cursor(bool status);

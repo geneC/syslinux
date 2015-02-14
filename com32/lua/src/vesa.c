@@ -59,8 +59,6 @@ static int vesa_getmodes(lua_State *L)
   while ((mode = *mode_ptr++) != 0xFFFF) {
     mode &= 0x1FF;              /* The rest are attributes of sorts */
 
-    printf("Found mode: 0x%04x (%dx%dx%d)\n", mode, mi->h_res, mi->v_res, mi->bpp);
-
     memset(&rm, 0, sizeof(rm));
     memset(mi, 0, sizeof *mi);
     rm.eax.w[0] = 0x4F01;       /* Get SVGA mode information */
