@@ -65,7 +65,7 @@ while ( read($IFILE, $ch, 1) ) {
 }
 $tail = (SECTOR_SIZE - ($len % SECTOR_SIZE)) % SECTOR_SIZE;
 $ch = pack("C", 0);
-print("Len: $len\ttail: $tail\n");
+print(STDERR "Len: $len\ttail: $tail\n");
 for ($i=0; $i<$tail; $i++) {
     print($OFILE $ch);
 }
