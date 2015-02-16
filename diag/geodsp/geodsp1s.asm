@@ -1,6 +1,6 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 2010 Gene Cumm
+;   Copyright 2010-2014 Gene Cumm
 ;
 ;   Portions from diskstart.inc:
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
@@ -55,7 +55,14 @@ retry_count	equ 16
 dbuf		equ 8000h
 int13_ret	equ 7e00h
 
-
+; Uncomment to test EDD
+%define TEST_EDD	1
+; Uncomment to show errors (while it still continues)
+%define SHOW_ERR	1
+; Uncomment to have room for a partition table
+%define HAVE_PTABLE	1
+; Uncomment to force DL == 80h
+; %define FORCE_80	1
 
 ; 		extern	real_mode_seg
 ; 		section .real_mode	write nobits align=65536
@@ -82,24 +89,43 @@ start:
 		xor cx,cx
 		mov ss,cx
 		mov sp,StackBuf-2	; Just below BSS (-2 for alignment)
+%ifdef FORCE_80
+		mov dl,80h		; Should encode as B2h 80h
+%else
+		nop			; Reserve the space for forcing DL
+		nop			; Should encode as 90h 90h
+%endif	; FORCE_80
 		push dx			; Save drive number (in DL)
 			; Kill everything else and let the BIOS sort it out later
 		mov es,cx
 		mov ds,cx
 		sti
+; 		clc			; just in case it's not clear
+
+write_drivenum:
+; 		mov al,[DriveNumber]
+		mov al,dl
+		call writehex2
 
 get_geo:		; DL and ES ready
 		mov ah,08h
 		mov di,0
 		int 13h
 write_geo:
-		jc .bad_geo
+		jnc .ok_geo
+%ifdef SHOW_ERR
+		mov al,'!'
+		call writechr
+%endif	; SHOW_ERR
+		clc
+.ok_geo:
 		mov si,s_chs
 		call writestr_early
 		call write_chs
-		call crlf
-		jmp short .done
-.bad_geo:
+		mov si,s_crlf
+		call writestr_early
+; 		jmp short .done
+; .bad_geo:
 .done:
 
 		mov bx,dbuf
@@ -117,8 +143,9 @@ get_c1c:		; 1,0,1
 ;
 ; Do we have EBIOS (EDD)?
 ;
-edd:
-.check:
+%ifdef TEST_EDD
+	edd:
+	.check:
 		mov bx,55AAh
 		mov ah,41h		; EDD existence query
 		mov dl,[DriveNumber]
@@ -134,21 +161,22 @@ edd:
 		mov bx,dbuf
 		xor edx,edx
 		mov dword [s_chs],m_EDD_SP
-.get_lba63:
+	.get_lba63:
 		mov eax,63	; Same length as mov al,64; movzx eax,al
 		call getonesec_ebios
 		jc .bad_edd	;read error
 		call write_edd_lba
-.get_lba16065:
+	.get_lba16065:
 		mov eax,16065
 		call getonesec_ebios
 		jc .bad_edd	;read error
 		call write_edd_lba
-.good_edd:
+	.good_edd:
 		mov dword [s_type],m_EDD0
-.bad_edd:
-.noedd:
-.end:
+	.bad_edd:
+	.noedd:
+	.end:
+%endif	; TEST_EDD
 
 write_final_type:
 		mov si,s_typespec
@@ -161,9 +189,10 @@ write_final_type:
 ;
 ; getonesec implementation for EBIOS (EDD)
 ;
-getonesec_ebios:
+%ifdef TEST_EDD
+	getonesec_ebios:
 		mov cx,retry_count
-.retry:
+	.retry:
 		; Form DAPA on stack
 		push edx
 		push eax
@@ -180,7 +209,7 @@ getonesec_ebios:
 		jc .error
                 ret
 
-.error:
+	.error:
 		; Some systems seem to get "stuck" in an error state when
 		; using EBIOS.  Doesn't happen when using CBIOS, which is
 		; good, since some other systems get timeout failures
@@ -195,6 +224,7 @@ getonesec_ebios:
 		; Total failure.
 		stc
 		ret
+%endif	; TEST_EDD
 
 ;
 ; getonesec_chs:
@@ -208,7 +238,13 @@ getonesec_chs:	; We could use an xchg and get a loop
 		mov ax,0201h		; Read one sector
 		call xint13
 		popad
-		jc .error
+		jnc .no_error
+%ifdef SHOW_ERR
+		mov al,'!'
+		call writechr
+%endif	; SHOW_ERR
+		clc
+.no_error:
 		ret
 
 .error:
@@ -217,8 +253,8 @@ getonesec_chs:	; We could use an xchg and get a loop
 ;
 ; kaboom: write a message and bail out.
 ;
-		global kaboom
 disk_error:
+		global kaboom
 kaboom:
 .patch:
 		mov si,bailmsg
@@ -240,30 +276,19 @@ xint13:
 		mov [int13_ret],ax
 		ret
 
-;
-;
-; writestr_early: write a null-terminated string to the console
-;	    This assumes we're on page 0.  This is only used for early
-;           messages, so it should be OK.
-;
-writestr_early:
-		pushad
-.loop:		lodsb
-		and al,al
-                jz .return
-		call writechr
-		jmp short .loop
-.return:	popad
-		ret
-
 %include "geodsplib.inc"
 bailmsg		equ s_end
 
-		; This fails if the boot sector overflowsg
+%ifdef HAVE_PTABLE
+		; This fails if the boot sector overflows into the partition table
 		zb 1BEh-($-$$)
 
 ptable		zb 40h		; Partition table
+%endif	; HAVE_PTABLE
 
 bootsignature	dw 0xAA55
+
+		; This fails if the boot sector overflows
+		zb 200h-($-$$)
 
 sector_2:

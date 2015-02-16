@@ -55,6 +55,12 @@ LDLINUX_MAGIC	equ 0x3eb202fe		; A random number to identify ourselves with
 Sect1Ptr0_VAL	equ 1
 Sect1Ptr1_VAL	equ 0
 
+ ; Uncomment to test EDD
+%define TEST_EDD	1
+ ; Uncomment to show errors (while it still continues)
+%define SHOW_ERR	1
+
+
 ; 		global STACK_LEN, STACK_TOP, STACK_BASE
 ; STACK_LEN	equ 4096
 STACK_TOP	equ 7c00h
@@ -86,7 +92,8 @@ write_geo:
 		mov si,s_chs
 		call writestr_early
 		call write_chs
-		call crlf
+		mov si,s_crlf
+		call writestr_early
 		jmp short .done
 .bad_geo:
 .done:
@@ -166,27 +173,9 @@ getonesec_chs:	; We could use an xchg and get a loop
 
 %include "geodsplib.inc"
 
-;
-;
-; writestr_early: write a null-terminated string to the console
-;	    This assumes we're on page 0.  This is only used for early
-;           messages, so it should be OK.
-;
-writestr_early:
-		pushad
-.loop:		lodsb
-		and al,al
-                jz .return
-		mov ah,0Eh		; Write to screen as TTY
-		mov bx,0007h		; Attribute
-		int 10h
-		jmp short .loop
-.return:	popad
-		ret
-
 SuperInfo:	zd 32			; The first 16 bytes expanded 8 times
 
-		; This fails if the sector overflowsg
+		; This fails if the sector overflows
 		zb 400h-($-$$)
 end:
 

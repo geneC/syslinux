@@ -1,6 +1,6 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 2010 Gene Cumm
+;   Copyright 2010-2014 Gene Cumm
 ;
 ;   Portions from diskstart.inc:
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved
@@ -22,22 +22,18 @@
 
 		; ES:BX points to the buffer with address
 		; DX,CX as they should be for INT13h,AH=02
-		; For now assume C<256
+		; Should work for C>=256
 write_chs_lba:
-		pushad
+; 		pushad
 		mov si,s_atchs
 		call writestr_early
 		call write_chs
-		mov al,':'
-		call writechr
-		mov eax,[es:bx]
-		call writehex8
-		call crlf
-		popad
+		call write_col_val_crlf
+; 		popad
 		ret
 
 		; DX,CX as they should be for INT13h,AH=02
-		; For now assume C<256
+		; Should work for C>=256
 write_chs:
 		pushad
 		mov al,ch
@@ -56,25 +52,54 @@ write_chs:
 		popad
 		ret
 
-write_edd_lba:
+%ifdef TEST_EDD
+	write_edd_lba:
 		pushad
 		mov si,s_atchs
 		call writestr_early
 		call writehex8
+		call write_col_val_crlf
+		popad
+		ret
+%endif	; TEST_EDD
+
+write_col_val_crlf:
 		mov al,':'
 		call writechr
 		mov eax,[es:bx]
 		call writehex8
-		call crlf
-		popad
-		ret
-
-
-crlf:
-		push si
 		mov si,s_crlf
 		call writestr_early
-		pop si
+		ret
+
+; write_exc:
+; ; 		push ax
+; 		mov al,'!'
+; 		call writechr
+; ; 		pop ax
+; 		ret
+
+; crlf:
+; 		push si
+; 		mov si,s_crlf
+; 		call writestr_early
+; 		pop si
+; 		ret
+
+;
+;
+; writestr_early: write a null-terminated string to the console
+;	    This assumes we're on page 0.  This is only used for early
+;           messages, so it should be OK.
+;
+writestr_early:
+		pushad
+.loop:		lodsb
+		and al,al
+                jz .return
+		call writechr
+		jmp short .loop
+.return:	popad
 		ret
 
 writechr:
