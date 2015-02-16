@@ -431,7 +431,7 @@ xint13:
 ;
 bailmsg:	db 'Boot error', 0Dh, 0Ah, 0
 
-		; This fails if the boot sector overflowsg
+		; This fails if the boot sector overflows
 		zb 1F8h-($-$$)
 
 bs_magic	dd LDLINUX_MAGIC
