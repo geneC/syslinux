@@ -22,12 +22,13 @@ include $(MAKEDIR)/embedded.mk
 coredir = $(topdir)/core
 VPATH = $(SRC)
 
-BTARGET = geodsp1s.bin geodspms.bin \
-	geodsp1s.img.xz geodspms.img.xz
+BTARGET = geodsp1s.bin geodsp1s_f.bin geodspms.bin \
+	geodsp1s.img.xz geodsp1s_f.img.xz geodspms.img.xz
 
 NASMOPT = -i $(coredir)/ -i $(SRC)/ -Ox -f bin -dBINFMT
 NASMOPT += -w+orphan-labels
 CFLAGS = -g -O
+LIBS = $(coredir)/writehex.inc $(coredir)/macros.inc $(coredir)/diskboot.inc geodsplib.inc
 
 all: $(BTARGET)
 
@@ -42,8 +43,11 @@ all: $(BTARGET)
 %.img: %.bin mk-lba-img.pl
 	$(PERL) $(SRC)/mk-lba-img.pl $< > $@ || ( rm -f $@ ; false )
 
-%.bin: %.asm $(coredir)/writehex.inc $(coredir)/macros.inc $(coredir)/diskboot.inc
+%.bin: %.asm $(LIBS)
 	$(NASM) $(NASMOPT) -o $@ -l $(@:.bin=.lst) $<
+
+%_f.bin: %.asm $(LIBS)
+	$(NASM) $(NASMOPT) -o $@ -dFORCE_80 -l $(@:.bin=.lst) $<
 
 mk-lba-img: mk-lba-img.c
 	$(CC) $(CFLAGS) -o $@ $<
