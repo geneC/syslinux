@@ -1,6 +1,6 @@
 ; -----------------------------------------------------------------------
 ;
-;   Copyright 2010 Gene Cumm
+;   Copyright 2010-2015 Gene Cumm
 ;
 ;   Portions from diskstart.inc:
 ;   Copyright 1994-2009 H. Peter Anvin - All Rights Reserved

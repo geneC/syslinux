@@ -1,6 +1,6 @@
 ## -----------------------------------------------------------------------
 ##
-##   Copyright 2010-2011 Gene Cumm
+##   Copyright 2010-2015 Gene Cumm
 ##
 ##   Portions from core/Makefile:
 ##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
@@ -23,7 +23,7 @@ coredir = $(topdir)/core
 VPATH = $(SRC)
 
 BTARGET = geodsp1s.bin geodsp1s_f.bin geodspms.bin \
-	geodsp1s.img.xz geodsp1s_f.img.xz geodspms.img.xz
+	geodsp1s.img.xz geodspms.img.xz
 
 NASMOPT = -i $(coredir)/ -i $(SRC)/ -Ox -f bin -dBINFMT
 NASMOPT += -w+orphan-labels
