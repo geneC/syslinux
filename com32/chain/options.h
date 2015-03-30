@@ -3,7 +3,7 @@
  *   Copyright 2003-2009 H. Peter Anvin - All Rights Reserved
  *   Copyright 2009-2010 Intel Corporation; author: H. Peter Anvin
  *   Copyright 2010 Shao Miller
- *   Copyright 2010+ Michal Soltys
+ *   Copyright 2010-2015 Michal Soltys
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
