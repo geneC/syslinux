@@ -323,6 +323,7 @@ int bios_boot_linux(void *kernel_buf, size_t kernel_size,
     }
 
     whdr->code32_start += base - prot_mode_base;
+    prot_mode_base = base;
 
     /* Real mode code */
     if (syslinux_memmap_find(amap, &real_mode_base,
