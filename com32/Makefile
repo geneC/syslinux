@@ -18,6 +18,6 @@ gfxboot: lib libutil gpllib
 hdt: lib libupload cmenu gpllib libutil
 lua/src: cmenu modules
 modules: lib libutil gpllib
-rosh: lib libutil
-samples: libutil elflink/ldlinux
+rosh: lib libutil gpllib
+samples: libutil gpllib elflink/ldlinux
 sysdump: lib libutil libupload gpllib
