@@ -1311,7 +1311,7 @@ static void parse_config_file(FILE * f)
 		uint32_t baud;
 
 		p = skipspace(p + 6);
-		port = atoi(p);
+		port = strtoul(p, &p, 0);
 
 		while (isalnum(*p))
 			p++;
@@ -1335,7 +1335,7 @@ static void parse_config_file(FILE * f)
 			flow = 0;
 			if (isalnum(*p)) {
 				/* flow control */
-				flow = atoi(p);
+				flow = strtoul(p, NULL, 0);
 				ignore = ((flow & 0x0F00) >> 4);
 			}
 
