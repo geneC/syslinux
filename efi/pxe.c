@@ -120,7 +120,7 @@ void net_parse_dhcp(void)
 		       embedded_dhcp_options.bdhcp_len, 0);
 
     /*
-     * Get the DHCP client identifiers (query info 1)
+     * Get the DHCP client identifiers (BIOS/PXE query info 1)
      */
     Print(L"Getting cached packet ");
     parse_dhcp(&mode->DhcpDiscover.Dhcpv4, pkt_len);
@@ -137,7 +137,7 @@ void net_parse_dhcp(void)
 
     /*
      * Get the BOOTP/DHCP packet that brought us file (and an IP
-     * address). This lives in the DHCPACK packet (query info 2)
+     * address). This lives in the DHCPACK packet (BIOS/PXE query info 2)
      */
     parse_dhcp(&mode->DhcpAck.Dhcpv4, pkt_len);
     /*
@@ -152,7 +152,7 @@ void net_parse_dhcp(void)
 
     /*
      * Get the boot file and other info. This lives in the CACHED_REPLY
-     * packet (query info 3)
+     * packet (BIOS/PXE query info 3)
      */
     parse_dhcp(&mode->PxeReply.Dhcpv4, pkt_len);
     Print(L"\n");
