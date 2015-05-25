@@ -154,7 +154,15 @@ void net_parse_dhcp(void)
      * Get the boot file and other info. This lives in the CACHED_REPLY
      * packet (BIOS/PXE query info 3)
      */
-    parse_dhcp(&mode->PxeReply.Dhcpv4, pkt_len);
+    EFI_PXE_BASE_CODE_DHCPV4_PACKET*     pkt_v4 = NULL;
+
+    if (mode->PxeReplyReceived)
+	pkt_v4 = &mode->PxeReply.Dhcpv4;
+    else if (mode->ProxyOfferReceived)
+	pkt_v4 = &mode->ProxyOffer.Dhcpv4;
+
+    if (pkt_v4)
+	parse_dhcp(pkt_v4, pkt_len);
     Print(L"\n");
 
     /*
