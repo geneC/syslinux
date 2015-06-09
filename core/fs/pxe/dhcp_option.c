@@ -183,7 +183,7 @@ void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
             break;
 
         /* Anything else will have a length field */
-        opt_len = *p++; /* c  <- option lenght */
+        opt_len = *p++; /* c  <- option length */
         size -= opt_len + 1;
         if (size < 0)
             break;
