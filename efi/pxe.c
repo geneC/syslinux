@@ -140,15 +140,6 @@ void net_parse_dhcp(void)
      * address). This lives in the DHCPACK packet (BIOS/PXE query info 2)
      */
     parse_dhcp(&mode->DhcpAck.Dhcpv4, pkt_len);
-    /*
-     * Save away MAC address (assume this is in query info 2. If this
-     * turns out to be problematic it might be better getting it from
-     * the query info 1 packet
-     */
-    hardlen = mode->DhcpAck.Dhcpv4.BootpHwAddrLen;
-    MAC_len = hardlen > 16 ? 0 : hardlen;
-    MAC_type = mode->DhcpAck.Dhcpv4.BootpHwType;
-    memcpy(MAC, mode->DhcpAck.Dhcpv4.BootpHwAddr, MAC_len);
 
     /*
      * Get the boot file and other info. This lives in the CACHED_REPLY
@@ -163,6 +154,17 @@ void net_parse_dhcp(void)
 
     if (pkt_v4)
 	parse_dhcp(pkt_v4, pkt_len);
+
+    /*
+     * Save away MAC address (assume this is in query info 2. If this
+     * turns out to be problematic it might be better getting it from
+     * the query info 1 packet
+     */
+    hardlen = mode->DhcpAck.Dhcpv4.BootpHwAddrLen;
+    MAC_len = hardlen > 16 ? 0 : hardlen;
+    MAC_type = mode->DhcpAck.Dhcpv4.BootpHwType;
+    memcpy(MAC, mode->DhcpAck.Dhcpv4.BootpHwAddr, MAC_len);
+
     Print(L"\n");
 
     /*
