@@ -212,6 +212,8 @@ void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
  * Parse a DHCP packet.  This includes dealing with "overloaded"
  * option fields (see RFC 2132, section 9.3)
  *
+ * pkt_type 1 for Discover, 2 for Ack, 3 for ProxyDHCP, 0 for everything
+ *
  * This should fill in the following global variables, if the
  * information is present:
  *
@@ -225,7 +227,7 @@ void parse_dhcp_options(const void *option, int size, uint8_t opt_filter)
  * MAC_len, MAC	- Client identifier, if MAC_len == 0
  *
  */
-void parse_dhcp(const void *pkt, size_t pkt_len)
+void parse_dhcp(const void *pkt, size_t pkt_len, int pkt_type)
 {
     const struct bootp_t *dhcp = (const struct bootp_t *)pkt;
     int opt_len;
@@ -233,7 +235,7 @@ void parse_dhcp(const void *pkt, size_t pkt_len)
     IPInfo.ipver = 4;		/* This is IPv4 only for now... */
 
     over_load = 0;
-    if (ip_ok(dhcp->yip))
+    if ((pkt_type == 0 || pkt_type == 2) && ip_ok(dhcp->yip))
         IPInfo.myip = dhcp->yip;
 
     if (ip_ok(dhcp->sip))

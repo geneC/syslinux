@@ -414,7 +414,7 @@ void net_parse_dhcp(void)
      */
     ddprintf("Getting cached packet ");
     pkt_len = pxe_get_cached_info(1, bp, dhcp_max_packet);
-    parse_dhcp(bp, pkt_len);
+    parse_dhcp(bp, pkt_len, 1);
 
     /*
      * We don't use flags from the request packet, so
@@ -432,7 +432,7 @@ void net_parse_dhcp(void)
      * address). This lives in the DHCPACK packet (query info 2)
      */
     pkt_len = pxe_get_cached_info(2, bp, dhcp_max_packet);
-    parse_dhcp(bp, pkt_len);
+    parse_dhcp(bp, pkt_len, 2);
     /*
      * Save away MAC address (assume this is in query info 2. If this
      * turns out to be problematic it might be better getting it from
@@ -447,7 +447,7 @@ void net_parse_dhcp(void)
      * packet (query info 3)
      */
     pkt_len = pxe_get_cached_info(3, bp, dhcp_max_packet);
-    parse_dhcp(bp, pkt_len);
+    parse_dhcp(bp, pkt_len, 3);
     ddprintf("\n");
 
     /*

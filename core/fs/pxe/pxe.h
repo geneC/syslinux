@@ -232,7 +232,7 @@ void undiif_input(t_PXENV_UNDI_ISR *isr);
 
 /* dhcp_options.c */
 void parse_dhcp_options(const void *, int, uint8_t);
-void parse_dhcp(const void *, size_t);
+void parse_dhcp(const void *, size_t, int);
 
 /* idle.c */
 void pxe_idle_init(void);

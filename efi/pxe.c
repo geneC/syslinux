@@ -123,7 +123,7 @@ void net_parse_dhcp(void)
      * Get the DHCP client identifiers (BIOS/PXE query info 1)
      */
     Print(L"Getting cached packet ");
-    parse_dhcp(&mode->DhcpDiscover.Dhcpv4, pkt_len);
+    parse_dhcp(&mode->DhcpDiscover.Dhcpv4, pkt_len, 1);
     /*
      * We don't use flags from the request packet, so
      * this is a good time to initialize DHCPMagic...
@@ -139,7 +139,7 @@ void net_parse_dhcp(void)
      * Get the BOOTP/DHCP packet that brought us file (and an IP
      * address). This lives in the DHCPACK packet (BIOS/PXE query info 2)
      */
-    parse_dhcp(&mode->DhcpAck.Dhcpv4, pkt_len);
+    parse_dhcp(&mode->DhcpAck.Dhcpv4, pkt_len, 2);
 
     /*
      * Get the boot file and other info. This lives in the CACHED_REPLY
@@ -153,7 +153,7 @@ void net_parse_dhcp(void)
 	pkt_v4 = &mode->ProxyOffer.Dhcpv4;
 
     if (pkt_v4)
-	parse_dhcp(pkt_v4, pkt_len);
+	parse_dhcp(pkt_v4, pkt_len, 3);
 
     /*
      * Save away MAC address (assume this is in query info 2. If this
