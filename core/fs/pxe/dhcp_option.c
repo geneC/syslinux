@@ -72,9 +72,6 @@ static void server(const void *data, int opt_len)
     if (opt_len != 4)
 	return;
 
-    if (IPInfo.serverip)
-        return;
-
     ip = *(uint32_t *)data;
     if (ip_ok(ip))
         IPInfo.serverip = ip;
