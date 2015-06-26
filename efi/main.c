@@ -40,36 +40,27 @@ efi_close_protocol(EFI_HANDLE handle, EFI_GUID *guid, EFI_HANDLE agent,
 			     guid, agent, controller);
 }
 
+/* As of UEFI-2.4.0, all EFI_SERVICE_BINDINGs are for networking */
 struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
 {
     EFI_SERVICE_BINDING *sbp;
     struct efi_binding *b;
     EFI_STATUS status;
-    EFI_HANDLE protocol, child, *handles = NULL;
-    UINTN i, nr_handles = 0;
+    EFI_HANDLE protocol, child;
 
     b = malloc(sizeof(*b));
     if (!b)
 	return NULL;
 
-    status = LibLocateHandle(ByProtocol, bguid, NULL, &nr_handles, &handles);
+    status = uefi_call_wrapper(BS->OpenProtocol, 6, pxe_handle,
+			       bguid, (void **)&sbp,
+			       image_handle, pxe_handle,
+			       EFI_OPEN_PROTOCOL_GET_PROTOCOL);
     if (status != EFI_SUCCESS)
 	goto free_binding;
 
-    for (i = 0; i < nr_handles; i++) {
-	status = uefi_call_wrapper(BS->OpenProtocol, 6, handles[i],
-				   bguid, (void **)&sbp,
-				   image_handle, handles[i],
-				   EFI_OPEN_PROTOCOL_GET_PROTOCOL);
-	if (status == EFI_SUCCESS)
-	    break;
-
-	uefi_call_wrapper(BS->CloseProtocol, 4, handles[i], bguid,
-			  image_handle, handles[i]);
-    }
-
-    if (i == nr_handles)
-	goto free_binding;
+    uefi_call_wrapper(BS->CloseProtocol, 4, pxe_handle, bguid,
+		      image_handle, pxe_handle);
 
     child = NULL;
 
@@ -78,13 +69,13 @@ struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
 	goto close_protocol;
 
     status = uefi_call_wrapper(BS->OpenProtocol, 6, child,
-			      pguid, (void **)&protocol,
-			      image_handle, sbp,
-			      EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+			       pguid, (void **)&protocol,
+			       image_handle, sbp,
+			       EFI_OPEN_PROTOCOL_GET_PROTOCOL);
     if (status != EFI_SUCCESS)
 	goto destroy_child;
 
-    b->parent = handles[i];
+    b->parent = pxe_handle;
     b->binding = sbp;
     b->child = child;
     b->this = protocol;
@@ -95,8 +86,8 @@ destroy_child:
     uefi_call_wrapper(sbp->DestroyChild, 2, sbp, child);
 
 close_protocol:
-    uefi_call_wrapper(BS->CloseProtocol, 4, handles[i], bguid,
-		      image_handle, handles[i]);
+    uefi_call_wrapper(BS->CloseProtocol, 4, pxe_handle, bguid,
+		      image_handle, pxe_handle);
 
 free_binding:
     free(b);
@@ -454,7 +445,7 @@ get_mem_desc(unsigned long memmap, UINTN desc_sz, int i)
 	return (EFI_MEMORY_DESCRIPTOR *)(memmap + (i * desc_sz));
 }
 
-EFI_HANDLE image_handle;
+EFI_HANDLE image_handle, pxe_handle;
 
 static inline UINT64 round_up(UINT64 x, UINT64 y)
 {
@@ -1295,6 +1286,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	} else {
 		efi_derivative(SYSLINUX_FS_PXELINUX);
 		ops[0] = &pxe_fs_ops;
+		pxe_handle = info->DeviceHandle;
 	}
 
 	/* setup timer for boot menu system support */

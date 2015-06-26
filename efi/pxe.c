@@ -93,20 +93,13 @@ void net_parse_dhcp(void)
     EFI_PXE_BASE_CODE *bc;
     unsigned int pkt_len = sizeof(EFI_PXE_BASE_CODE_PACKET);
     EFI_STATUS status;
-    EFI_HANDLE *handles = NULL;
-    UINTN nr_handles = 0;
     uint8_t hardlen;
     uint32_t ip;
     char dst[256];
+    UINTN i = 0;
 
-    status = LibLocateHandle(ByProtocol, &PxeBaseCodeProtocol,
-			 NULL, &nr_handles, &handles);
-    if (status != EFI_SUCCESS)
-	return;
-
-    /* Probably want to use IPv4 protocol to decide which handle to use */
-    status = uefi_call_wrapper(BS->HandleProtocol, 3, handles[0],
-			   &PxeBaseCodeProtocol, (void **)&bc);
+    status = uefi_call_wrapper(BS->HandleProtocol, 3, pxe_handle,
+			       &PxeBaseCodeProtocol, (void **)&bc);
     if (status != EFI_SUCCESS) {
 	Print(L"Failed to lookup PxeBaseCodeProtocol\n");
     }
@@ -182,4 +175,7 @@ void net_parse_dhcp(void)
         ((const uint8_t *)&ip)[3]);
 
     Print(L"My IP is %a\n", dst);
+    if (!(ip_ok(ip))) {
+	Print(L"  NO valid IP found.\n");
+    }
 }

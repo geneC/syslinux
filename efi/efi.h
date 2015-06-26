@@ -42,7 +42,7 @@ struct efi_binding {
     EFI_HANDLE this;
 };
 
-extern EFI_HANDLE image_handle;
+extern EFI_HANDLE image_handle, pxe_handle;
 
 struct screen_info;
 extern void setup_screen(struct screen_info *);
