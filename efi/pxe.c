@@ -102,6 +102,7 @@ void net_parse_dhcp(void)
 			       &PxeBaseCodeProtocol, (void **)&bc);
     if (status != EFI_SUCCESS) {
 	Print(L"Failed to lookup PxeBaseCodeProtocol\n");
+	return;
     }
 
     mode = bc->Mode;
