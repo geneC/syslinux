@@ -59,9 +59,6 @@ struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
     if (status != EFI_SUCCESS)
 	goto free_binding;
 
-    uefi_call_wrapper(BS->CloseProtocol, 4, pxe_handle, bguid,
-		      image_handle, pxe_handle);
-
     child = NULL;
 
     status = uefi_call_wrapper(sbp->CreateChild, 2, sbp, (EFI_HANDLE *)&child);
