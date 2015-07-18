@@ -200,5 +200,5 @@ __export void sirq_cleanup_nowipe(void)
 void sirq_cleanup(void)
 {
 	sirq_cleanup_nowipe();
-	memcpy(SerialHead, 0x0, serial_buf_size);
+	memset(SerialHead, 0x0, serial_buf_size);
 }
