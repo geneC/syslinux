@@ -155,7 +155,6 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     udata.UseDefaultAddress = TRUE;
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
-    udata.AcceptPromiscuous = TRUE;
     udata.TimeToLive = 64;
 
     status = core_udp_configure(udp, &udata, L"core_udp_connect");
@@ -377,7 +376,6 @@ void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
     udata.UseDefaultAddress = TRUE;
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
-    udata.AcceptPromiscuous = TRUE;
     udata.TimeToLive = 64;
 
     status = core_udp_configure(udp, &udata, L"core_udp_sendto");
