@@ -371,7 +371,6 @@ __export int open_file(const char *name, int flags, struct com32_filedata *filed
     filedata->handle	= rv;
 
     restore_fs();
-    restore_chdir_start();
 
     return rv;
 }

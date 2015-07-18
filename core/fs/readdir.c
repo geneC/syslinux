@@ -29,7 +29,6 @@ __export DIR *opendir(const char *path)
     }
 
     restore_fs();
-    restore_chdir_start();
 
     return (DIR *)file;
 }

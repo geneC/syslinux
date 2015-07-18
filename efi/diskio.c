@@ -43,7 +43,7 @@ static int efi_rdwr_sectors(struct disk *disk, void *buf,
 
 struct disk *efi_disk_init(void *private)
 {
-    static struct disk disk;
+    struct disk *disk;
     struct efi_disk_private *priv = (struct efi_disk_private *)private;
     EFI_HANDLE handle = priv->dev_handle;
     EFI_BLOCK_IO *bio;
@@ -60,33 +60,37 @@ struct disk *efi_disk_init(void *private)
     if (status != EFI_SUCCESS)
 	    return NULL;
 
+    disk = malloc(sizeof(*disk));
+    if (!disk)
+        return NULL;
+
     /*
      * XXX Do we need to map this to a BIOS disk number?
      */
-    disk.disk_number   = bio->Media->MediaId;
+    disk->disk_number   = bio->Media->MediaId;
 
-    disk.sector_size   = bio->Media->BlockSize;
-    disk.rdwr_sectors  = efi_rdwr_sectors;
-    disk.sector_shift  = ilog2(disk.sector_size);
+    disk->sector_size   = bio->Media->BlockSize;
+    disk->rdwr_sectors  = efi_rdwr_sectors;
+    disk->sector_shift  = ilog2(disk->sector_size);
 
-    dprintf("sector_size=%d, disk_number=%d\n", disk.sector_size,
-	    disk.disk_number);
+    dprintf("sector_size=%d, disk_number=%d\n", disk->sector_size,
+	    disk->disk_number);
 
     priv->bio = bio;
     priv->dio = dio;
-    disk.private = private;
+    disk->private = private;
 #if 0
 
-    disk.part_start    = part_start;
-    disk.secpercyl     = disk.h * disk.s;
+    disk->part_start    = part_start;
+    disk->secpercyl     = disk->h * disk->s;
 
 
-    disk.maxtransfer   = MaxTransfer;
+    disk->maxtransfer   = MaxTransfer;
 
     dprintf("disk %02x cdrom %d type %d sector %u/%u offset %llu limit %u\n",
-	    media_id, cdrom, ebios, sector_size, disk.sector_shift,
-	    part_start, disk.maxtransfer);
+	    media_id, cdrom, ebios, sector_size, disk->sector_shift,
+	    part_start, disk->maxtransfer);
 #endif
 
-    return &disk;
+    return disk;
 }

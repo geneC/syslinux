@@ -16,6 +16,7 @@
 #include "fio.h"
 #include "version.h"
 #include "efi_pxe.h"
+#include "multifs_utils.h"
 
 __export uint16_t PXERetry;
 __export char copyright_str[] = "Copyright (C) 2011-" YEAR_STR "\n";
@@ -1267,12 +1268,22 @@ static inline void syslinux_register_efi(void)
 
 extern void init(void);
 extern const struct fs_ops vfat_fs_ops;
+extern const struct fs_ops ext2_fs_ops;
+extern const struct fs_ops ntfs_fs_ops;
+extern const struct fs_ops xfs_fs_ops;
+extern const struct fs_ops btrfs_fs_ops;
+extern const struct fs_ops ufs_fs_ops;
 extern const struct fs_ops pxe_fs_ops;
 
 char free_high_memory[4096];
 
 extern char __bss_start[];
 extern char __bss_end[];
+
+static const struct fs_ops *fs_ops[] = {
+	&vfat_fs_ops, &ext2_fs_ops, &ntfs_fs_ops, &xfs_fs_ops, &btrfs_fs_ops,
+	&ufs_fs_ops, &pxe_fs_ops, NULL,
+};
 
 static void efi_setcwd(CHAR16 *dp)
 {
@@ -1310,7 +1321,6 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	EFI_PXE_BASE_CODE *pxe;
 	EFI_LOADED_IMAGE *info;
 	EFI_STATUS status = EFI_SUCCESS;
-	const struct fs_ops *ops[] = { NULL, NULL };
 	unsigned long len = (unsigned long)__bss_end - (unsigned long)__bss_start;
 	static struct efi_disk_private priv;
 	SIMPLE_INPUT_INTERFACE *in;
@@ -1347,10 +1357,14 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 		}
 
 		efi_derivative(SYSLINUX_FS_SYSLINUX);
-		ops[0] = &vfat_fs_ops;
+		status = init_multifs();
+		if (EFI_ERROR(status)) {
+			Print(L"Failed to initialise multifs support: %r\n",
+			      status);
+			goto out;
+		}
 	} else {
 		efi_derivative(SYSLINUX_FS_PXELINUX);
-		ops[0] = &pxe_fs_ops;
 		image_device_handle = info->DeviceHandle;
 	}
 
@@ -1371,7 +1385,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	 */
 	efi_setcwd(DevicePathToStr(info->FilePath));
 
-	fs_init(ops, (void *)&priv);
+	fs_init(fs_ops, (void *)&priv);
 
 	/*
 	 * There may be pending user input that wasn't processed by

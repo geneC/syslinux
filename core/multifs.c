@@ -71,6 +71,5 @@ int switch_fs(const char **path)
     }
 ret:
     this_fs = fs;
-    restore_chdir_start();
     return 0;
 }

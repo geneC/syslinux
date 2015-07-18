@@ -306,8 +306,6 @@ __export int main(int argc __unused, char **argv)
 	size_t count = 0;
 	int retval;
 
-	init_multifs(); /* Init MultiFS support */
-	
 	ldlinux_console_init();
 
 	parse_configs(&argv[1]);
