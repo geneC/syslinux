@@ -38,9 +38,7 @@ EFI_STATUS core_udp_configure(EFI_UDP4 *udp, EFI_UDP4_CONFIG_DATA *udata,
     last = start = jiffies();
     while (unmapped){
 	status = uefi_call_wrapper(udp->Configure, 2, udp, udata);
-	if (status != EFI_NO_MAPPING)
-		unmapped = 0;
-	else {
+	if (status == EFI_NO_MAPPING) {
 	    cur = jiffies();
 	    if ( (cur - last) >= EFI_NOMAP_PRINT_DELAY ) {
 		last = cur;
@@ -49,6 +47,10 @@ EFI_STATUS core_udp_configure(EFI_UDP4 *udp, EFI_UDP4_CONFIG_DATA *udata,
 		Print(L"%s: aborting on no mapping\n", f);
 		unmapped = 0;
 	    }
+	} else {
+	    if (status != EFI_SUCCESS)
+		Print(L"%s: udp->Configure() unsuccessful (%i)", f, status);
+	    unmapped = 0;
 	}
     }
     return status;
