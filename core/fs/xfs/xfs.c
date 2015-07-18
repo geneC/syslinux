@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2015 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -331,7 +331,7 @@ out:
     return NULL;
 }
 
-static inline int xfs_read_superblock(struct fs_info *fs, xfs_sb_t *sb)
+static inline int xfs_read_sb(struct fs_info *fs, xfs_sb_t *sb)
 {
     struct disk *disk = fs->fs_dev->disk;
 
@@ -376,24 +376,21 @@ static int xfs_fs_init(struct fs_info *fs)
     SECTOR_SHIFT(fs) = disk->sector_shift;
     SECTOR_SIZE(fs) = 1 << SECTOR_SHIFT(fs);
 
-    if (xfs_read_superblock(fs, &sb)) {
+    if (xfs_read_sb(fs, &sb)) {
 	xfs_error("Superblock read failed");
 	goto out;
     }
-
-    if (!xfs_is_valid_magicnum(&sb)) {
+    if (!xfs_is_valid_sb(&sb)) {
 	xfs_error("Invalid superblock");
 	goto out;
     }
-
-    xfs_debug("magicnum 0x%lX", be32_to_cpu(sb.sb_magicnum));
+    xfs_debug("sb magic: 0x%lX", be32_to_cpu(sb.sb_magicnum));
 
     info = xfs_new_sb_info(&sb);
     if (!info) {
 	xfs_error("Failed to fill in filesystem-specific info structure");
 	goto out;
     }
-
     fs->fs_info = info;
 
     xfs_debug("block_shift %u blocksize 0x%lX (%lu)", info->block_shift,

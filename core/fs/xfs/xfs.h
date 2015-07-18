@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2015 Paulo Alcantara <pcacjr@zytor.com>
  *
  * Some parts borrowed from Linux kernel tree (linux/fs/xfs):
  *
@@ -30,15 +30,16 @@
 #include "xfs_types.h"
 #include "xfs_ag.h"
 
-#define xfs_error(fmt, args...)						\
-    ({									\
-	printf("%s:%u: xfs - [ERROR] " fmt "\n", __func__, __LINE__, ## args); \
+#define xfs_error(fmt, args...)                                         \
+    ({                                                                  \
+        dprintf("%s:%u: xfs - [error] " fmt "\n", __func__, __LINE__,   \
+                ## args);                                               \
     })
 
-#define xfs_debug(fmt, args...)						\
-    ({									\
-	dprintf("%s:%u: xfs - [DEBUG] " fmt "\n", __func__, __LINE__,	\
-		## args);						\
+#define xfs_debug(fmt, args...)                                         \
+    ({                                                                  \
+        dprintf("%s:%u: xfs - [debug] " fmt "\n", __func__, __LINE__,   \
+                ## args);                                               \
     })
 
 struct xfs_fs_info;
@@ -617,7 +618,7 @@ typedef struct xfs_da_intnode {
 typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;
 typedef struct xfs_da_node_entry xfs_da_node_entry_t;
 
-static inline bool xfs_is_valid_magicnum(const xfs_sb_t *sb)
+static inline bool xfs_is_valid_sb(const xfs_sb_t *sb)
 {
     return sb->sb_magicnum == *(uint32_t *)XFS_SB_MAGIC;
 }
