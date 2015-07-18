@@ -195,7 +195,7 @@ void local_cursor_enable(bool);
 
 static inline int my_isspace(char c)
 {
-    return (unsigned char)c <= ' ';
+    return (unsigned char)c <= ' ' || (unsigned char)c == '\x7f';
 }
 
 int my_isxdigit(char c);
