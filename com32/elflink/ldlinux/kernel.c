@@ -88,6 +88,15 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 		    temp++;	/* Skip = or , */
 
 		    p = temp;
+		    if (*p == '(') {
+			/* handle MultiFS path syntax: e.g. (hdX,Y)... */
+			do {
+			    p++;
+			    n++;
+			} while (*p && *p != ')');
+			p++;
+			n++;
+		    }
 		    while (*p != ' ' && *p != ',' && *p) {
 			p++;
 			n++;
