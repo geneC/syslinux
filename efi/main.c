@@ -15,6 +15,7 @@
 #include "efi.h"
 #include "fio.h"
 #include "version.h"
+#include "efi_pxe.h"
 
 __export uint16_t PXERetry;
 __export char copyright_str[] = "Copyright (C) 2011-" YEAR_STR "\n";
@@ -39,6 +40,41 @@ efi_close_protocol(EFI_HANDLE handle, EFI_GUID *guid, EFI_HANDLE agent,
     return uefi_call_wrapper(BS->CloseProtocol, 4, handle,
 			     guid, agent, controller);
 }
+
+bool efi_get_MAC( EFI_DEVICE_PATH * pDevPath, uint8_t * mac, uint16_t mac_size)
+{
+    /*
+     * in case the DevPath contains more than one instance we consider all of them
+     * contain "the same" MAC Address Device Path structure
+     */
+    EFI_DEVICE_PATH     *DevPathNode;
+    MAC_ADDR_DEVICE_PATH    *MAC;
+
+    if (!pDevPath)
+	return FALSE;
+
+    pDevPath = UnpackDevicePath(pDevPath);
+
+    /* Process each device path node */
+    DevPathNode = pDevPath;
+    while (!IsDevicePathEnd(DevPathNode)) {
+        /* Find the handler to dump this device path node */
+	if (DevicePathType(DevPathNode) == MESSAGING_DEVICE_PATH &&
+		DevicePathSubType(DevPathNode) == MSG_MAC_ADDR_DP) {
+	    MAC = DevPathNode;
+	    CopyMem(mac, MAC->MacAddress.Addr, PXE_MAC_LENGTH);
+	    FreePool(pDevPath);
+	    return TRUE;
+	}
+
+	/* Next device path node */
+	DevPathNode = NextDevicePathNode(DevPathNode);
+    }
+
+    FreePool(pDevPath);
+    return FALSE;
+}
+
 
 /* As of UEFI-2.4.0, all EFI_SERVICE_BINDINGs are for networking */
 struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
