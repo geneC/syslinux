@@ -33,6 +33,8 @@ char aux_seg[256];
 
 static jmp_buf load_error_buf;
 
+EFI_HANDLE image_handle, image_device_handle, mnpsb_handle;
+
 static inline EFI_STATUS
 efi_close_protocol(EFI_HANDLE handle, EFI_GUID *guid, EFI_HANDLE agent,
 		   EFI_HANDLE controller)
@@ -82,16 +84,48 @@ struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
     EFI_SERVICE_BINDING *sbp;
     struct efi_binding *b;
     EFI_STATUS status;
-    EFI_HANDLE protocol, child;
+    EFI_HANDLE sb_handle, protocol, child;
 
     b = malloc(sizeof(*b));
     if (!b)
 	return NULL;
 
-    status = uefi_call_wrapper(BS->OpenProtocol, 6, image_device_handle,
+    sb_handle = (mnpsb_handle ? mnpsb_handle : image_device_handle);
+    status = uefi_call_wrapper(BS->OpenProtocol, 6, sb_handle,
 			       bguid, (void **)&sbp,
-			       image_handle, image_device_handle,
+			       image_handle, sb_handle,
 			       EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+    if (status != EFI_SUCCESS) {
+	EFI_HANDLE *handles = NULL;
+	UINTN i, nr_handles = 0;
+	EFI_DEVICE_PATH *DevicePath = NULL;
+	uint8_t mac_1[PXE_MAC_LENGTH], mac_2[PXE_MAC_LENGTH];
+	DevicePath = DevicePathFromHandle(image_device_handle);
+	if (DevicePath == NULL) {
+	    status = EFI_UNSUPPORTED;
+	    goto free_binding;
+	}
+	efi_get_MAC(DevicePath, &mac_1, PXE_MAC_LENGTH);
+	status = LibLocateHandle(ByProtocol, bguid, NULL, &nr_handles, &handles);
+	if (status != EFI_SUCCESS)
+	    goto free_binding;
+	for (i = 0; i < nr_handles; i++) {
+	    DevicePath = DevicePathFromHandle(handles[i]);
+	    if (efi_get_MAC(DevicePath, &mac_2, PXE_MAC_LENGTH)
+		    && memcmp(mac_1, mac_2, PXE_MAC_LENGTH) == 0) {
+		sb_handle = handles[i];
+		status = uefi_call_wrapper(BS->OpenProtocol, 6, sb_handle,
+					bguid, (void **)&sbp,
+					image_handle, sb_handle,
+					EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+		if (status == EFI_SUCCESS) {
+		    mnpsb_handle = sb_handle;
+		    break;
+		}
+	    }
+
+	}
+    }
     if (status != EFI_SUCCESS)
 	goto free_binding;
 
@@ -119,8 +153,8 @@ destroy_child:
     uefi_call_wrapper(sbp->DestroyChild, 2, sbp, child);
 
 close_protocol:
-    uefi_call_wrapper(BS->CloseProtocol, 4, image_device_handle, bguid,
-		      image_handle, image_device_handle);
+    uefi_call_wrapper(BS->CloseProtocol, 4, sb_handle, bguid,
+		      image_handle, sb_handle);
 
 free_binding:
     free(b);
@@ -477,8 +511,6 @@ get_mem_desc(unsigned long memmap, UINTN desc_sz, int i)
 {
 	return (EFI_MEMORY_DESCRIPTOR *)(memmap + (i * desc_sz));
 }
-
-EFI_HANDLE image_handle, image_device_handle, mnpsb_handle;
 
 static inline UINT64 round_up(UINT64 x, UINT64 y)
 {
