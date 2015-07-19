@@ -98,7 +98,7 @@ void net_parse_dhcp(void)
     char dst[256];
     UINTN i = 0;
 
-    status = uefi_call_wrapper(BS->HandleProtocol, 3, pxe_handle,
+    status = uefi_call_wrapper(BS->HandleProtocol, 3, image_device_handle,
 			       &PxeBaseCodeProtocol, (void **)&bc);
     if (status != EFI_SUCCESS) {
 	Print(L"Failed to lookup PxeBaseCodeProtocol\n");
