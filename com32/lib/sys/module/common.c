@@ -59,12 +59,17 @@ void print_elf_symbols(struct elf_module *module) {
 
 FILE *findpath(char *name)
 {
+	int is_multifs_path = 0;
+	char *p;
 	struct path_entry *entry;
 	char path[FILENAME_MAX];
 	FILE *f;
 
+	/* NOTE: multifs already handle both relative and absolute paths */
+	if ((p = strchr(name, ')')) && strchr(p, ')'))
+		is_multifs_path = 1; /* assume multifs-like path */
 	f = fopen(name, "rb"); /* for full path */
-	if (f)
+	if (f || is_multifs_path)
 		return f;
 
 	list_for_each_entry(entry, &PATH, list) {
