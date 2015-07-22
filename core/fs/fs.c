@@ -350,7 +350,7 @@ __export int open_file(const char *name, int flags, struct com32_filedata *filed
 
     dprintf("open_file %s\n", name);
 
-    if (switch_fs(&name))
+    if (multifs_switch_fs(&name))
 	return -1;
 
     mangle_name(mangled_name, name);
@@ -370,7 +370,7 @@ __export int open_file(const char *name, int flags, struct com32_filedata *filed
     filedata->blocklg2	= SECTOR_SHIFT(file->fs);
     filedata->handle	= rv;
 
-    restore_fs();
+    multifs_restore_fs();
 
     return rv;
 }

@@ -14,7 +14,7 @@ __export DIR *opendir(const char *path)
     int rv;
     struct file *file;
 
-    if (switch_fs(&path))
+    if (multifs_switch_fs(&path))
 	return NULL;
 
     rv = searchdir(path, O_RDONLY|O_DIRECTORY);
@@ -28,7 +28,7 @@ __export DIR *opendir(const char *path)
 	return NULL;
     }
 
-    restore_fs();
+    multifs_restore_fs();
 
     return (DIR *)file;
 }

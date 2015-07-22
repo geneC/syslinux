@@ -5,6 +5,7 @@
 #include <codepage.h>
 #include <core.h>
 #include <fs.h>
+#include <multifs.h>
 #include <com32.h>
 #include <syslinux/memscan.h>
 #include <syslinux/firmware.h>
@@ -16,7 +17,6 @@
 #include "fio.h"
 #include "version.h"
 #include "efi_pxe.h"
-#include "multifs_utils.h"
 
 __export uint16_t PXERetry;
 __export char copyright_str[] = "Copyright (C) 2011-" YEAR_STR "\n";
@@ -202,6 +202,7 @@ void __cdecl core_farcall(uint32_t c, const com32sys_t *a, com32sys_t *b)
 __export struct firmware *firmware = NULL;
 __export void *__syslinux_adv_ptr;
 __export size_t __syslinux_adv_size;
+__export const struct multifs_ops *multifs_ops = NULL;
 char core_xfer_buf[65536];
 struct iso_boot_info {
 	uint32_t pvd;               /* LBA of primary volume descriptor */
@@ -1261,9 +1262,18 @@ struct firmware efi_fw = {
 	.mem = &efi_mem_ops,
 };
 
+extern struct fs_info *efi_multifs_get_fs_info(const char **path);
+extern void efi_multifs_init(void);
+
+const struct multifs_ops efi_multifs_ops = {
+	.get_fs_info = efi_multifs_get_fs_info,
+	.init = efi_multifs_init,
+};
+
 static inline void syslinux_register_efi(void)
 {
 	firmware = &efi_fw;
+	multifs_ops = &efi_multifs_ops;
 }
 
 extern void init(void);
@@ -1357,12 +1367,6 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 		}
 
 		efi_derivative(SYSLINUX_FS_SYSLINUX);
-		status = init_multifs();
-		if (EFI_ERROR(status)) {
-			Print(L"Failed to initialise multifs support: %r\n",
-			      status);
-			goto out;
-		}
 	} else {
 		efi_derivative(SYSLINUX_FS_PXELINUX);
 		image_device_handle = info->DeviceHandle;

@@ -30,7 +30,6 @@
 #include <syslinux/movebits.h>
 #include <syslinux/config.h>
 #include <syslinux/boot.h>
-#include <syslinux/multifs_utils.h>
 
 const struct image_types image_boot_types[] = {
     { "localboot", IMAGE_TYPE_LOCALBOOT },
@@ -149,8 +148,6 @@ __export void execute(const char *cmdline, uint32_t type, bool sysappend)
 		config = malloc(FILENAME_MAX);
 		if (!config)
 			goto out;
-
-		init_multifs();
 
 		realpath(config, kernel, FILENAME_MAX);
 

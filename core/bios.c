@@ -1,6 +1,7 @@
 #include <sys/ansi.h>
 #include <sys/io.h>
 #include <fs.h>
+#include <multifs.h>
 #include <bios.h>
 #include <com32.h>
 #include <graphics.h>
@@ -15,6 +16,7 @@
 #include "core.h"
 
 __export struct firmware *firmware = NULL;
+__export const struct multifs_ops *multifs_ops = NULL;
 
 extern struct ansi_ops bios_ansi_ops;
 
@@ -713,7 +715,16 @@ struct firmware bios_fw = {
 	.mem = &bios_mem_ops,
 };
 
+struct fs_info *bios_multifs_get_fs_info(const char **path);
+extern void bios_multifs_init(void);
+
+const struct multifs_ops bios_multifs_ops = {
+	.get_fs_info = bios_multifs_get_fs_info,
+	.init = bios_multifs_init,
+};
+
 void syslinux_register_bios(void)
 {
 	firmware = &bios_fw;
+	multifs_ops = &bios_multifs_ops;
 }

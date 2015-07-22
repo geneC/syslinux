@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2012 Andre Ericson <de.ericson@gmail.com>
- * Copyright (C) 2012 Paulo Cavalcanti <pcacjr@zytor.com>
+ * Copyright (C) 2012-2015 Paulo Alcantara <pcacjr@zytor.com>
  * Copyright (C) 2013 Raphael S. Carvalho <raphael.scarv@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,27 +25,8 @@
 #include <syslinux/partiter.h>
 #include "fs.h"
 
-struct part_node {
-    int partition;
-    struct fs_info *fs;
-    struct part_node *next;
-};
+typedef void *(*bios_find_partition_t)(uint8_t, uint8_t);
 
-struct queue_head {
-    struct part_node *first;
-    struct part_node *last;
-};
-
-/*
- * Needs to keep ROOT_FS_OPS after fs_init()
- * to be used by multidisk
- */
-extern const struct fs_ops **p_ops;
-
-/*
- * Used to initialize MultiFS support
- */
-extern void enable_multifs(void *);
-extern void init_multifs(void);
+void *bios_find_partition(uint8_t diskno, uint8_t partno);
 
 #endif /* MULTIDISK_UTILS_H */

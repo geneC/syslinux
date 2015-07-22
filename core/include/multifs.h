@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 Raphael S. Carvalho <raphael.scarv@gmail.com>
+ * Copyright (C) 2015 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +21,8 @@
 #ifndef MULTIFS_H
 #define MULTIFS_H
 
+#include "fs.h"
+
 /*
  * MULTIFS SYNTAX:
  * (hd[disk number],[partition number])/path/to/file
@@ -27,35 +30,21 @@
  * E.G.: (hd0,1)/dir/file means /dir/file at partition 1 of the disk 0.
  * Disk and Partition numbering starts from 0 and 1 respectivelly.
  */
-#include "fs.h"
 
-/*
- * root_fs means the file system where ldlinux.sys lives in.
- * this_fs means the file system being currently used.
- */
-extern struct fs_info *this_fs, *root_fs;
+struct multifs_ops {
+    struct fs_info *(*get_fs_info)(const char **);
+    void (*init)(void *);
+};
 
-/*
- * Set this_fs back to root_fs,
- * otherwise unexpected behavior may occurs.
- */
-static inline void restore_fs(void)
-{
-    this_fs = root_fs;
-}
+extern struct fs_info *root_fs;
+extern const struct fs_ops **p_ops;
+extern const struct multifs_ops *multifs_ops;
 
-/*
- * Basically restores the cwd of the underlying fs.
- */
-static inline void restore_chdir_start(void)
-{
-    if (this_fs->fs_ops->chdir_start) {
-	if (this_fs->fs_ops->chdir_start() < 0)
-	    printf("Failed to chdir to start directory\n");
-    }
-}
-
-typedef	struct fs_info *(*get_fs_info_t)(const char **);
-extern int switch_fs(const char **);
+struct fs_info *multifs_get_fs(uint8_t diskno, uint8_t partno);
+int multifs_parse_path(const char **path, uint8_t *diskno, uint8_t *partno);
+int multifs_setup_fs_info(struct fs_info *fsp, uint8_t diskno, uint8_t partno,
+                          void *priv);
+void multifs_restore_fs(void);
+int multifs_switch_fs(const char **path);
 
 #endif /* MULTIFS_H */
