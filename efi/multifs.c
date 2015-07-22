@@ -97,11 +97,15 @@ static inline EFI_HANDLE find_device_handle(unsigned int diskno,
     return get_logical_part(partno);
 }
 
-static inline void *get_dev_info_priv(EFI_HANDLE lpart)
+static inline void *get_dev_info_priv(EFI_HANDLE handle)
 {
-    static struct efi_disk_private priv;
-    priv.dev_handle = lpart;
-    return (void *)&priv;
+    struct efi_disk_private *priv;
+
+    priv = malloc(sizeof(*priv));
+    if (!priv)
+        return NULL;
+    priv->dev_handle = handle;
+    return priv;
 }
 
 __export struct fs_info *efi_multifs_get_fs_info(const char **path)
@@ -136,11 +140,11 @@ __export struct fs_info *efi_multifs_get_fs_info(const char **path)
     ret = multifs_setup_fs_info(fsp, diskno, partno, priv);
     if (ret) {
         dprintf("%s: failed to set up fs info\n", __func__);
-        goto free_dev_info;
+        goto free_priv;
     }
     return fsp;
 
-free_dev_info:
+free_priv:
     free(priv);
 free_fsp:
     free(fsp);
