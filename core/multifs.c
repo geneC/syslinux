@@ -116,7 +116,7 @@ int multifs_parse_path(const char **path, uint8_t *diskno, uint8_t *partno)
     if (!p)
         return -1;
     if (*diskno >= DISKS_MAX) {
-        printf("MultiFS: disk number is out of range: 0-%d\n", DISKS_MAX - 1);
+        printf("multifs: disk number is out of range: 0-%d\n", DISKS_MAX - 1);
         return -1;
     }
 
@@ -131,7 +131,7 @@ int multifs_parse_path(const char **path, uint8_t *diskno, uint8_t *partno)
     }
 
     *path = p;
-    dprintf("MultiFS: disk: %u partition: %u path: %s\n", *diskno, *partno,
+    dprintf("multifs: disk: %u partition: %u path: %s\n", *diskno, *partno,
             *path);
     return 0;
 }

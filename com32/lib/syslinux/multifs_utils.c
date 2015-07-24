@@ -29,7 +29,7 @@
  * BIOS limitation */
 #define DISK_ID_OFFSET 0x80
 
-/* MaxTransfer for MultiFS access */
+/* MaxTransfer for multifs access */
 #define MAX_TRANSFER 127
 
 static void *get_private(uint8_t devno, uint64_t part_start,
@@ -81,11 +81,11 @@ void *bios_find_partition(uint8_t diskno, uint8_t partno)
     } while (!pi_next(iter));
 
     if (iter->status) {
-        dprintf("MultiFS: Request disk/partition combination not found.\n");
+        dprintf("multifs: Request disk/partition combination not found.\n");
         pi_del(&iter);
         return NULL;
     }
-    dprintf("MultiFS: found 0x%llx at index: %i and partition %i\n",
+    dprintf("multifs: found 0x%llx at index: %i and partition %i\n",
             iter->abs_lba, iter->index, partno);
     return get_private(disk_devno, iter->abs_lba, diskinfo.head, diskinfo.spt);
 }

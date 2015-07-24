@@ -162,5 +162,5 @@ __export void efi_multifs_init(void *addr __attribute__((unused)))
         printf("%s: EFI status code: 0x%08X\n", __func__, status);
         return;
     }
-    dprintf("%s: initialised MultiFS support\n", __func__);
+    dprintf("%s: initialised multifs support\n", __func__);
 }

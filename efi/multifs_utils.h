@@ -44,7 +44,7 @@ struct queue_head {
 extern const struct fs_ops **p_ops;
 
 /*
- * Used to initialize MultiFS support
+ * Used to initialize multifs support
  */
 extern void enable_multifs(void *);
 extern EFI_STATUS init_multifs(void);

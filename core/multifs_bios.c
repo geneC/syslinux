@@ -26,7 +26,7 @@
 
 #include <syslinux/multifs_utils.h>
 
-/* MaxTransfer for MultiFS access */
+/* MaxTransfer for multifs access */
 #define MAX_TRANSFER 127
 
 static bios_find_partition_t find_partition = NULL;
@@ -40,7 +40,7 @@ __export struct fs_info *bios_multifs_get_fs_info(const char **path)
     int ret;
 
     if (multifs_parse_path(path, &hdd, &partition)) {
-        printf("MultiFS: Syntax invalid: %s\n", *path);
+        printf("multifs: Syntax invalid: %s\n", *path);
         return NULL;
     }
 
@@ -54,7 +54,7 @@ __export struct fs_info *bios_multifs_get_fs_info(const char **path)
 
     private = find_partition(hdd, partition);
     if (!private) {
-        printf("MultiFS: Failed to get disk/partition: %s\n", *path);
+        printf("multifs: Failed to get disk/partition: %s\n", *path);
         goto bail;
     }
     ret = multifs_setup_fs_info(fsp, hdd, partition, private);
@@ -71,5 +71,5 @@ bail:
 __export void bios_multifs_init(void *addr)
 {
     find_partition = addr;
-    dprintf("%s: initialised MultiFS support\n", __func__);
+    dprintf("%s: initialised multifs support\n", __func__);
 }
