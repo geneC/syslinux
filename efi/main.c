@@ -81,7 +81,7 @@ bool efi_get_MAC( EFI_DEVICE_PATH * pDevPath, uint8_t * mac, uint16_t mac_size)
 /* As of UEFI-2.4.0, all EFI_SERVICE_BINDINGs are for networking */
 struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
 {
-    EFI_SERVICE_BINDING *sbp;
+    EFI_SERVICE_BINDING *sbp = NULL;
     struct efi_binding *b;
     EFI_STATUS status;
     EFI_HANDLE sb_handle, protocol, child;
@@ -126,7 +126,7 @@ struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
 
 	}
     }
-    if (status != EFI_SUCCESS)
+    if (status != EFI_SUCCESS || sbp == NULL)
 	goto free_binding;
 
     child = NULL;
