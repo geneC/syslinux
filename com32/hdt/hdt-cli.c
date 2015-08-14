@@ -322,7 +322,7 @@ out:
  *	command is always malloc'ed (even for an empty line)
  **/
 static void parse_command_line(char *line, char **command, char **module,
-			       int *argc, char **argv)
+			       int *argc, char ***argv)
 {
     int argc_iter = 0, args_pos = 0, token_found = 0, token_len = 0;
     int args_len = 0;
@@ -390,8 +390,8 @@ static void parse_command_line(char *line, char **command, char **module,
     pch = strtok(line + args_pos, CLI_SPACE);
     while (pch != NULL) {
 	dprintf("CLI DEBUG parse: argv[%d] = %s\n", argc_iter, pch);
-	argv[argc_iter] = malloc(strlen(pch) * sizeof(char));
-	strlcpy(argv[argc_iter], pch, strlen(pch));
+	*argv[argc_iter] = malloc(strlen(pch) * sizeof(char));
+	strlcpy(*argv[argc_iter], pch, strlen(pch));
 	argc_iter++;
 	pch = strtok(NULL, CLI_SPACE);
 	/*
@@ -582,7 +582,7 @@ static void autocomplete(char *line)
     char *command = NULL, *module = NULL;
     char **argv = NULL;
 
-    parse_command_line(line, &command, &module, &argc, argv);
+    parse_command_line(line, &command, &module, &argc, &argv);
 
     dprintf("CLI DEBUG autocomplete: before checking args\n");
     /* If the user specified arguments, there is nothing we can complete */
@@ -623,7 +623,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
     struct cli_callback_descr *current_module = NULL;
 
     /* This will allocate memory for command and module */
-    parse_command_line(line, &command, &module, &argc, argv);
+    parse_command_line(line, &command, &module, &argc, &argv);
 
     dprintf("CLI DEBUG exec: Checking for aliases\n");
     /*
