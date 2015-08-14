@@ -635,7 +635,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
     find_cli_callback_descr(command, current_mode->default_modules,
 				&current_module);
 
-    if ((module == NULL) || (current_module->nomodule == true)) {
+    if ((module == NULL) || ((current_module != NULL) && current_module->nomodule == true)) {
 	dprintf("CLI DEBUG exec : single command detected\n");
 	/*
 	 * A single word was specified: look at the list of default
@@ -645,7 +645,7 @@ static void exec_command(char *line, struct s_hardware *hardware)
 	 */
 
 	/* First of all it the command doesn't need module, let's rework the arguments */
-	if ((current_module->nomodule == true) && ( module != NULL)) {
+	if (((current_module != NULL) && (current_module->nomodule == true)) && ( module != NULL)) {
 		dprintf("CLI_DEBUG exec: Reworking arguments with argc=%d\n",argc);
 		char **new_argv=NULL;
     		new_argv=malloc((argc + 2)*sizeof(char *));
