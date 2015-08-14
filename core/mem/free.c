@@ -87,7 +87,9 @@ void bios_free(void *ptr)
 
 __export void free(void *ptr)
 {
+#ifdef DEBUG_MALLOC
     dprintf("free(%p) @ %p\n", ptr, __builtin_return_address(0));
+#endif
 
     if ( !ptr )
         return;

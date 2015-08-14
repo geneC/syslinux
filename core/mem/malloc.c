@@ -93,14 +93,18 @@ static void *_malloc(size_t size, enum heap heap, malloc_tag_t tag)
 {
     void *p;
 
+#ifdef DEBUG_MALLOC
     dprintf("_malloc(%zu, %u, %u) @ %p = ",
 	size, heap, tag, __builtin_return_address(0));
+#endif
 
     sem_down(&__malloc_semaphore, 0);
     p = firmware->mem->malloc(size, heap, tag);
     sem_up(&__malloc_semaphore);
 
+#ifdef DEBUG_MALLOC
     dprintf("%p\n", p);
+#endif
     return p;
 }
 
