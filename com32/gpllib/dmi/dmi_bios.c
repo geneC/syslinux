@@ -75,5 +75,7 @@ const char *bios_charac_x1_strings[] = {
 const char *bios_charac_x2_strings[] = {
     "BIOS boot specification is supported",	/* 0 */
     "Function key-initiated network boot is supported",
-    "Targeted content distribution is supported"	/* 2 */
+    "Targeted content distribution is supported",
+    "UEFI is supported",
+    "System is a virtual machine" /* 4 */
 };

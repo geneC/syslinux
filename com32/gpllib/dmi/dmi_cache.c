@@ -130,10 +130,11 @@ const char *dmi_cache_associativity(uint8_t code)
 	"24-way Set-associative",
 	"32-way Set-associative",
 	"48-way Set-associative",
-	"64-way Set-associative"	/* 0x0D */
+	"64-way Set-associative",
+	"20-way Set-associative" /* 0x0E */
     };
 
-    if (code >= 0x01 && code <= 0x0D)
+    if (code >= 0x01 && code <= 0x0E)
 	return type[code - 0x01];
     return out_of_spec;
 }

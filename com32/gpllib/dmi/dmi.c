@@ -231,7 +231,7 @@ void dmi_bios_characteristics_x2(uint8_t code, s_dmi * dmi)
 {
     int i;
 
-    for (i = 0; i <= 2; i++)
+    for (i = 0; i <= 4; i++)
 	if (code & (1 << i))
 	    ((bool *) (&dmi->bios.characteristics_x2))[i] = true;
 }

@@ -256,8 +256,8 @@ const char *dmi_processor_family(uint8_t code, char *manufacturer)
 	"G5",
 	"ESA/390 G6",		/* 0xCB */
 	"z/Architectur",
-	NULL,
-	NULL,
+	"Core i5",
+	"Core i3",
 	NULL,
 	NULL,			/*0xD0 */
 	NULL,
@@ -268,29 +268,29 @@ const char *dmi_processor_family(uint8_t code, char *manufacturer)
 	"Multi-Core Xeon",			/*0xD6 */
 	"Dual-Core Xeon 3xxx",
 	"Quad-Core Xeon 3xxx",  /*0xD8 */
-	NULL,
+	"Nano",
 	"Dual-Core Xeon 5xxx", /*0xDA */
 	"Quad-Core Xeon 5xxx",
 	NULL,
 	"Dual-Core Xeon 7xxx", /*0xDD */
 	"Quad-Core Xeon 7xxx",
 	"Multi-Core Xeon 7xxx",
-	NULL,			/*0xE0 */
+	"Multi-Core Xeon 3400",	/*0xE0 */
 	NULL,
 	NULL,
 	NULL,
-	NULL,
-	NULL,
+	"Opteron 3000",
+	"Sempron II",
 	"Embedded Opteron Quad-Core",	/* 0xE6 */
 	"Phenom Triple-Core",
 	"Turion Ultra Dual-Core Mobile",
 	"Turion Dual-Core Mobile",
 	"Athlon Dual-Core",
 	"Sempron SI",		/*0xEB */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	"Phenom II",
+	"Athlon II",
+	"Six-Core Opteron",
+	"Sempron M",
 	NULL,
 	NULL,
 	NULL,
@@ -367,17 +367,40 @@ const char *dmi_processor_upgrade(uint8_t code)
 	"Socket 478",
 	"Socket 754",
 	"Socket 940",
-	"Socket 939"		/* 0x12 */
+	"Socket 939",
 	"Socket mPGA604",
 	"Socket LGA771",
 	"Socket LGA775",
 	"Socket S1",
 	"Socket AM2",
-	"Socket F (1207)"
-	"Socket LGA1366"	/* 0x19 */
+	"Socket F (1207)",
+	"Socket LGA1366",
+	"Socket G34",
+	"Socket AM3",
+	"Socket C32",
+	"Socket LGA1156",
+	"Socket LGA1567",
+	"Socket PGA988A",
+	"Socket BGA1288",
+	"Socket rPGA988B",
+	"Socket BGA1023",
+	"Socket BGA1224",
+	"Socket BGA1155",
+	"Socket LGA1356",
+	"Socket LGA2011",
+	"Socket FS1",
+	"Socket FS2",
+	"Socket FM1",
+	"Socket FM2",
+	"Socket LGA2011-3",
+	"Socket LGA1356-3",
+	"Socket LGA1150",
+	"Socket BGA1168",
+	"Socket BGA1234",
+	"Socket BGA1364" /* 0x30 */
     };
 
-    if (code >= 0x01 && code <= 0x19)
+    if (code >= 0x01 && code <= 0x30)
 	return upgrade[code - 0x01];
     return out_of_spec;
 }

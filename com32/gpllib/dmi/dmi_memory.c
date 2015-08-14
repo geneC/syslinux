@@ -124,15 +124,20 @@ const char *dmi_memory_device_type(uint8_t code)
 	"RDRAM",
 	"DDR",
 	"DDR2",
-	"DDR2 FB-DIMM",		/* 0x14 */
-	NULL,
-	NULL,
-	NULL,
-	"DDR3",			/* 0x18 */
-	"FBD2"			/* 0x19 */
+	"DDR2 FB-DIMM",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"DDR3",
+	"FBD2",
+	"DDR4",
+	"LPDDR",
+	"LPDDR2",
+	"LPDDR3",
+	"LPDDR4" /* 0x1E */
     };
 
-    if (code >= 0x01 && code <= 0x19)
+    if (code >= 0x01 && code <= 0x1E)
 	return type[code - 0x01];
     return out_of_spec;
 }
@@ -152,7 +157,10 @@ void dmi_memory_device_type_detail(uint16_t code, char *type_detail, int sizeof_
 	"EDO",
 	"Window DRAM",
 	"Cache DRAM",
-	"Non-Volatile"		/* 12 */
+	"Non-Volatile",
+	"Registered (Buffered)",
+	"Unbuffered (Unregistered)",
+	"LRDIMM"  /* 15 */
     };
 
     if ((code & 0x1FFE) == 0)
@@ -160,7 +168,7 @@ void dmi_memory_device_type_detail(uint16_t code, char *type_detail, int sizeof_
     else {
 	int i;
 
-	for (i = 1; i <= 12; i++)
+	for (i = 1; i <= 15; i++)
 	    if (code & (1 << i))
 		snprintf(type_detail, sizeof_type_detail, "%s", detail[i - 1]);
     }
