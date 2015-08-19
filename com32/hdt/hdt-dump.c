@@ -228,7 +228,8 @@ void dump(struct s_hardware *hardware)
 	/* As we manage a tftp connection, let's display the associated error message */
 	more_printf("Dump failed !\n");
 	more_printf("TFTP ERROR on  : %s:/%s \n", hardware->tftp_ip, filename);
-	more_printf("TFTP ERROR msg : %s \n", tftp_string_error_message[-err]);
+	more_printf("TFTP ERROR num : %d \n", err);
+	more_printf("TFTP ERROR msg : %s \n", tftp_string_error_message[err]);
     } else {
 	more_printf("Dump file sent at %s:/%s\n", hardware->tftp_ip, filename);
     }
