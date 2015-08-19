@@ -116,6 +116,12 @@ char *compute_filename(struct s_hardware *hardware)
     /* Avoid space to make filename easier to manipulate */
     chrreplace(filename, ' ', '_');
 
+    /* Avoid commas to make filename easier to manipulate */
+    chrreplace(filename, ',', '_');
+
+    /* Avoid pluses to make filename easier to manipulate */
+    chrreplace(filename, '+', '_');
+
     return filename;
 }
 
