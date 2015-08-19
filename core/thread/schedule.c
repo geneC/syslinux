@@ -4,6 +4,10 @@
 #include "core.h"
 #include <dprintf.h>
 
+#ifndef DEBUG_THREAD
+#define dprintf
+#endif
+
 void (*sched_hook_func)(void);
 
 /*
