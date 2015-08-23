@@ -40,7 +40,7 @@ int write_sectors(const struct driveinfo *drive_info, const unsigned int lba,
     void *buf;
     int rv = -1;
 
-    buf = lmalloc(size);
+    buf = lmalloc(SECTOR * size);
     if (!buf)
 	return -1;
 
@@ -48,7 +48,7 @@ int write_sectors(const struct driveinfo *drive_info, const unsigned int lba,
     if (!dapa)
 	goto out;
 
-    memcpy(buf, data, size);
+    memcpy(buf, data, SECTOR * size);
     memset(&inreg, 0, sizeof inreg);
 
     if (drive_info->ebios) {
@@ -123,7 +123,7 @@ int write_verify_sectors(struct driveinfo *drive_info,
 			 const unsigned int lba,
 			 const void *data, const int size)
 {
-    char *rb = malloc(SECTOR * size * sizeof(char));
+    char *rb = malloc(SECTOR * size);
     int status;
 
     if (write_sectors(drive_info, lba, data, size) == -1)
