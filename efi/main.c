@@ -105,13 +105,13 @@ struct efi_binding *efi_create_binding(EFI_GUID *bguid, EFI_GUID *pguid)
 	    status = EFI_UNSUPPORTED;
 	    goto free_binding;
 	}
-	efi_get_MAC(DevicePath, &mac_1, PXE_MAC_LENGTH);
+	efi_get_MAC(DevicePath, mac_1, PXE_MAC_LENGTH);
 	status = LibLocateHandle(ByProtocol, bguid, NULL, &nr_handles, &handles);
 	if (status != EFI_SUCCESS)
 	    goto free_binding;
 	for (i = 0; i < nr_handles; i++) {
 	    DevicePath = DevicePathFromHandle(handles[i]);
-	    if (efi_get_MAC(DevicePath, &mac_2, PXE_MAC_LENGTH)
+	    if (efi_get_MAC(DevicePath, mac_2, PXE_MAC_LENGTH)
 		    && memcmp(mac_1, mac_2, PXE_MAC_LENGTH) == 0) {
 		sb_handle = handles[i];
 		status = uefi_call_wrapper(BS->OpenProtocol, 6, sb_handle,
