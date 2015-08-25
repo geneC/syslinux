@@ -63,7 +63,7 @@ bool efi_get_MAC( EFI_DEVICE_PATH * pDevPath, uint8_t * mac, uint16_t mac_size)
         /* Find the handler to dump this device path node */
 	if (DevicePathType(DevPathNode) == MESSAGING_DEVICE_PATH &&
 		DevicePathSubType(DevPathNode) == MSG_MAC_ADDR_DP) {
-	    MAC = DevPathNode;
+	    MAC = (MAC_ADDR_DEVICE_PATH *)DevPathNode;
 	    CopyMem(mac, MAC->MacAddress.Addr, PXE_MAC_LENGTH);
 	    FreePool(pDevPath);
 	    return TRUE;
