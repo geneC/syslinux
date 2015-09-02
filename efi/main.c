@@ -1381,7 +1381,7 @@ EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *table)
 	in = ST->ConIn;
 	do {
 		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
-	} while (status != EFI_NOT_READY);
+	} while (status == EFI_SUCCESS);
 
 	if (!setjmp(load_error_buf))
 		load_env32(NULL);
