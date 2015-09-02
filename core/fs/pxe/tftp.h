@@ -50,5 +50,16 @@
 #define TFTP_EEXISTS	 htons(6)		// File exists
 #define TFTP_ENOUSER	 htons(7)		// No such user
 #define TFTP_EOPTNEG	 htons(8)		// Option negotiation failure
+#define TFTP_ERESOLVE	 htons(9)		// Not in RFC, internal usage
+#define TFTP_ECONNECT	 htons(10)		// Not in RFC, internal usage
+#define TFTP_OK	 	 htons(11)		// Not in RFC, internal usage
 
+struct tftp_error {
+        uint16_t opcode;
+        uint16_t errcode;
+        char errmsg[0];
+} __attribute__ (( packed ));
+
+int tftp_put(struct url_info *url, int flags, struct inode *inode,
+		               const char **redir, char *data, int data_length);
 #endif /* PXE_TFTP_H */

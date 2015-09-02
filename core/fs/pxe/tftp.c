@@ -423,3 +423,173 @@ done:
 
     return;
 }
+
+
+/**
+ * Send a file to a TFTP  server
+ *
+ * @param:inode, the inode to store our state in
+ * @param:ip, the ip to contact to get the file
+ * @param:filename, the file we wanna push
+ *
+ * @out: open_file_t structure, stores in file->open_file
+ * @out: the lenght of this file, stores in file->file_len
+ *
+ */
+__export int tftp_put(struct url_info *url, int flags, struct inode *inode,
+	       const char **redir, char *data, int data_length)
+{
+    struct pxe_pvt_inode *socket = PVT(inode);
+    char *buf;
+    uint16_t buf_len;
+    static const char wrq_tail[] = "octet";
+    char wrq_packet_buf[512+4+6];
+    char reply_packet_buf[PKTBUF_SIZE];
+    int err;
+    int wrq_len;
+    const uint8_t  *timeout_ptr;
+    jiffies_t timeout;
+    jiffies_t oldtime;
+    uint16_t opcode;
+    uint16_t src_port = url->port;
+    uint32_t src_ip;
+    uint16_t seq = 0;
+    size_t chunk = 0;
+    int len = data_length;
+    int return_code = -ntohs(TFTP_EUNDEF);
+
+    (void)redir;		/* TFTP does not redirect */
+    (void)flags;
+
+    if (url->type != URL_OLD_TFTP) {
+	/*
+	 * The TFTP URL specification allows the TFTP to end with a
+	 * ;mode= which we just ignore.
+	 */
+	url_unescape(url->path, ';');
+    }
+
+    if (!src_port)
+	src_port = TFTP_PORT;
+
+//    socket->ops = &tftp_conn_ops;
+    if (core_udp_open(socket))
+	return return_code;
+
+    buf = wrq_packet_buf;
+    *(uint16_t *)buf = TFTP_WRQ;  /* TFTP opcode */
+    buf += 2;
+
+    buf += strlcpy(buf, url->path, 512);
+
+    buf++;			/* Point *past* the final NULL */
+    memcpy(buf, wrq_tail, sizeof wrq_tail);
+    buf += sizeof wrq_tail;
+
+    wrq_len = buf - wrq_packet_buf;
+
+    timeout_ptr = TimeoutTable;   /* Reset timeout */
+sendreq:
+    timeout = *timeout_ptr++;
+    if (!timeout)
+	return return_code;			/* No file available... */
+    oldtime = jiffies();
+
+    core_udp_sendto(socket, wrq_packet_buf, wrq_len, url->ip, src_port);
+
+    /* If the WRITE call fails, we let the timeout take care of it... */
+    for (;;) {
+	buf_len = sizeof(reply_packet_buf);
+
+	err = core_udp_recv(socket, reply_packet_buf, &buf_len,
+			    &src_ip, &src_port);
+	if (err) {
+	    jiffies_t now = jiffies();
+	    if (now - oldtime >= timeout)
+		 goto sendreq;
+	} else {
+	    /* Make sure the packet actually came from the server and
+	       is long enough for a TFTP opcode */
+	    dprintf("tftp_put: got packet buflen=%d from server %u.%u.%u.%u(%u.%u.%u.%u)\n",
+			buf_len,
+			((uint8_t *)&src_ip)[0],
+			((uint8_t *)&src_ip)[1],
+			((uint8_t *)&src_ip)[2],
+			((uint8_t *)&src_ip)[3],
+			((uint8_t *)&url->ip)[0],
+			((uint8_t *)&url->ip)[1],
+			((uint8_t *)&url->ip)[2],
+			((uint8_t *)&url->ip)[3]);
+	    if ((src_ip == url->ip) && (buf_len >= 2))
+		break;
+	}
+    }
+
+    core_udp_disconnect(socket);
+    core_udp_connect(socket, src_ip, src_port);
+
+    /* filesize <- -1 == unknown */
+    inode->size = -1;
+    socket->tftp_blksize = TFTP_BLOCKSIZE;
+
+    /*
+     * Get the opcode type, and parse it
+     */
+    opcode = *(uint16_t *)reply_packet_buf;
+    switch (opcode) {
+    case TFTP_ERROR:
+	dprintf("tftp_push: received a TFTP_ERROR\n");
+	struct tftp_error *te = (struct tftp_error *)(reply_packet_buf+1);
+	return_code = -ntohs(te->errcode);
+        inode->size = 0;
+	goto done;        /* ERROR reply; don't try again */
+
+    case TFTP_ACK:
+	dprintf("tftp_push: received a TFTP_ACK\n");
+	/* We received a ACK packet, sending the associated data packet */
+
+	/* If data was completly sent, we can stop here */
+	if (len == 0) {
+		return_code = -ntohs(TFTP_OK);
+		goto done;
+	}
+
+	/* If the server sequence is not aligned with our, we have an issue
+	 * Let's break the transmission for now but could be improved later */
+	uint16_t srv_seq = ntohs(*(uint16_t *)(reply_packet_buf+2));
+	if (srv_seq != seq) {
+		printf("tftp_push: server sequence (%"PRIu16") is not aligned with our sequence (%"PRIu16"\n", srv_seq, seq);
+		return_code = -ntohs(TFTP_EBADOP);
+		goto done;
+	}
+
+	/* Let's transmit the data block */
+	chunk = len >= 512 ? 512 : len;
+	buf = wrq_packet_buf;
+	*(uint16_t *)buf = TFTP_DATA;  /* TFTP opcode */
+	*((uint16_t *)(buf+2)) = htons(++seq);
+	memcpy(buf+4, data, chunk);
+	wrq_len = chunk + 4;
+	data += chunk;
+	len -= chunk;
+	timeout_ptr = TimeoutTable;   /* Reset timeout */
+	goto sendreq;
+
+    default:
+	dprintf("tftp_push: unknown opcode %d\n", ntohs(opcode));
+	return_code = -ntohs(TFTP_EOPTNEG);
+	goto err_reply;
+    }
+
+err_reply:
+    /* Build the TFTP error packet */
+    dprintf("tftp_push: Failure\n");
+    tftp_error(inode, TFTP_EOPTNEG, "TFTP protocol error");
+    inode->size = 0;
+
+done:
+    if (!inode->size)
+	core_udp_close(socket);
+
+    return return_code;
+}

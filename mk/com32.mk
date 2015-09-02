@@ -67,12 +67,16 @@ CFLAGS     = $(GCCOPT) $(GCCWARN) \
 	     -fomit-frame-pointer -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \
-	     -I$(com32)/include/sys $(GPLINCLUDE)
+	     -I$(com32)/include/sys $(GPLINCLUDE) \
+	     -I$(topdir)/core \
+	     -I$(topdir)/core/include
 SFLAGS     = $(GCCOPT) $(GCCWARN) \
 	     -fomit-frame-pointer -D__COM32__ -D__FIRMWARE_$(FIRMWARE)__ \
 	     -nostdinc -iwithprefix include \
 	     -I$(com32)/libutil/include -I$(com32)/include \
-	     -I$(com32)/include/sys $(GPLINCLUDE)
+	     -I$(com32)/include/sys $(GPLINCLUDE) \
+	     -I$(topdir)/core \
+	     -I$(topdir)/core/include
 
 COM32LD	   = $(com32)/lib/$(ARCH)/elf.ld
 LDFLAGS    = -m elf_$(ARCH) -shared --hash-style=gnu -T $(COM32LD)

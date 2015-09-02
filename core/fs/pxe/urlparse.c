@@ -59,7 +59,7 @@ enum url_type url_type(const char *url)
  * this routine does not allocate any additional storage.  Freeing the
  * original buffer frees all storage used.
  */
-void parse_url(struct url_info *ui, char *url)
+__export void parse_url(struct url_info *ui, char *url)
 {
     char *p = url;
     char *q, *r, *s;
