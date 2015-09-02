@@ -259,7 +259,16 @@ wait_pkt:
 	} else {
 	    /* Make sure the packet actually came from the server and
 	       is long enough for a TFTP opcode */
-	    dprintf("tftp_open: got packet buflen=%d\n", buf_len);
+	    dprintf("tftp_open: got packet buflen=%d from server %u.%u.%u.%u(%u.%u.%u.%u)\n",
+			buf_len,
+			((uint8_t *)&src_ip)[0],
+			((uint8_t *)&src_ip)[1],
+			((uint8_t *)&src_ip)[2],
+			((uint8_t *)&src_ip)[3],
+			((uint8_t *)&url->ip)[0],
+			((uint8_t *)&url->ip)[1],
+			((uint8_t *)&url->ip)[2],
+			((uint8_t *)&url->ip)[3]);
 	    if ((src_ip == url->ip) && (buf_len >= 2))
 		break;
 	}
