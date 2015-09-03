@@ -130,7 +130,8 @@ int write_adv(const char *path, const char *cfg)
 	    close(fd);
 	    fd = open(file, O_RDWR | O_SYNC);
 	    if (fd < 0) {
-		err = -1;
+		fprintf(stderr, "Cannot open file '%s' in read/write mode !\nFatal error, exiting.\n", file);
+		return -EACCES;
 	    } else if (fstat(fd, &xst) || xst.st_ino != st.st_ino ||
 		       xst.st_dev != st.st_dev || xst.st_size != st.st_size) {
 		fprintf(stderr, "%s: race condition on write\n", file);
