@@ -5,35 +5,38 @@ system, and the simple menu system.
 +++ THE ADVANCED MENU SYSTEM +++
 
 The advanced menu system, written by Murali Krishnan Ganapathy, is
-located in the menu/ subdirectly.  It allows the user to create
-hierarchial submenus, dynamic options, checkboxes, and just about
-anything you want.  It requires that the menu is compiled from a
-simple C file, see menu/simple.c and menu/complex.c for examples.
+located in the com32/cmenu/ sub-directory.  It allows the user to
+create hierarchical sub-menus, dynamic options, check-boxes, and just
+about anything.  It requires the menu to be compiled from a simple C
+file (see com32/cmenu/simple.c and com32/cmenu/complex.c for examples).
 
-The advanced menu system doesn't support serial console at this time.
+The advanced menu system does not support serial console at this time.
 
-See menu/README for more information.
+See com32/cmenu/README for more information.
 
 
 +++ THE SIMPLE MENU SYSTEM +++
 
-The simple menu system is a single module located at
+The simple menu system is based on a module located at
 com32/menu/vesamenu.c32 (graphical) or com32/menu/menu.c32 (text
 mode only).  It uses the same configuration file as the regular
 Syslinux command line, and displays all the LABEL statements.
 
 To use the menu system, simply make sure [vesa]menu.c32 is in the
-appropriate location for your boot medium (the same directory as the
+appropriate location for the boot medium (the same directory as the
 configuration file for SYSLINUX, EXTLINUX and ISOLINUX, and the same
 directory as pxelinux.0 for PXELINUX), and put the following options
-in your configuration file:
+in the configuration file:
 
 UI menu.c32
 
 
 There are a few menu additions to the configuration file, all starting
-with the keywords MENU or TEXT; like the rest of the Syslinux config
-file language, it is case insensitive:
+with the keywords MENU or TEXT. As the rest of the Syslinux
+configuration file language, it is case-insensitive.
+
+The remaining of this document is a reference of the directives that
+are relevant in the Simple Menu System.
 
 
 MENU TITLE title
@@ -50,7 +53,7 @@ MENU HIDDEN
 
 MENU HIDDENKEY key[,key...] command...
 
-	If they key used to interrupt MENU HIDDEN is <key>, then
+	If the key used to interrupt MENU HIDDEN is <key>, then
 	execute the specified command instead of displaying the menu.
 
 	Currently, the following key names are recognized:
@@ -60,9 +63,9 @@ MENU HIDDENKEY key[,key...] command...
 
 	... in addition to all single characters plus the syntax ^X
 	for Ctrl-X.  Note that single characters are treated as case
-	sensitive, so a different command can be bound to "A" than
-	"a".  One can bind the same command to multiple keys by giving
-	a comma-separated list of keys:
+	sensitive, so "A" and "a" can bind different commands.  The
+	same command can be bound to different keys by giving a
+	comma-separated list of them:
 
 	menu hiddenkey A,a key_a_command
 
@@ -77,8 +80,8 @@ MENU CLEAR
 
 MENU SHIFTKEY
 
-	Exit the menu system immediately unless either the Shift or Alt
-	key is pressed, or Caps Lock or Scroll Lock is set.
+	Exit the menu system immediately unless either the Shift or the
+	Alt key is pressed, or Caps Lock or Scroll Lock is set.
 
 
 MENU SEPARATOR
@@ -89,9 +92,8 @@ MENU SEPARATOR
 MENU LABEL label
 
 	(Only valid after a LABEL statement.)
-	Changes the label displayed for a specific entry.  This allows
-	you to have a label that isn't suitable for the command line,
-	for example:
+	Change the label displayed for a specific menu entry.  Display
+	a label that is not suitable for the command line. For example:
 
 	# Soft Cap Linux
 	LABEL softcap
@@ -105,12 +107,14 @@ MENU LABEL label
 		KERNEL chain.c32
 		APPEND hd0 2
 
-	The ^ symbol in a MENU LABEL statement defines a hotkey.
-	The hotkey will be highlighted in the menu and will move the
-	menu cursor immediately to that entry.
+	The caret symbol (^) in a MENU LABEL statement defines a hotkey.
+	Hotkeys are highlighted in the menu.  When a hotkey is pressed,
+	the cursor will move to the corresponding menu entry.  If MENU
+	IMMEDIATE is present, then when a hotkey is pressed the
+	corresponding menu entry will be directly launched.
 
-	Reusing hotkeys is disallowed, subsequent entries will not be
-	highlighted, and will not work.
+	Reusing hotkeys has no effect on subsequent entries; they will
+	not be highlighted, and the cursor will not move again.
 
 	Keep in mind that the LABELs, not MENU LABELs, must be unique,
 	or odd things will happen to the command-line.
@@ -119,15 +123,15 @@ MENU LABEL label
 MENU INDENT count
 
 	(Only valid after a LABEL statement.)
-	Will add "count" spaces in front of the displayed menu entry.
+	Add "count" spaces in front of the displayed menu entry.
 
 
 MENU DISABLE
 
 	(Only valid after a LABEL statement.)
-	Makes the entry unselectable.  This allows you to make a
-	section in your menu with different options below it.
-	for example:
+	Make the entry unselectable.  This allows to display a
+	section in the menu with different options below it.
+	For example:
 
 	# Entries for network boots
 	LABEL -
@@ -173,15 +177,16 @@ MENU DISABLE
 MENU HIDE
 
 	(Only valid after a LABEL statement.)
-	Suppresses a particular LABEL entry from the menu.
+	Suppress a particular LABEL entry from the menu.
 
 
 MENU DEFAULT
 
 	(Only valid after a LABEL statement.)
 
-	Indicates that this entry should be the default for this
-	particular submenu.  See also the DEFAULT directive below.
+	The particular menu entry is considered the default for the
+	particular (sub)menu.  If no default is specified, use the
+	first one. See also the DEFAULT directive.
 
 
 TEXT HELP
@@ -191,7 +196,7 @@ ENDTEXT
 
 	(Only valid after a LABEL statement.)
 
-	Specifies a help text that should be displayed when a particular
+	Specify a help text that should be displayed when a particular
 	selection is highlighted.
 
 
@@ -199,7 +204,7 @@ MENU PASSWD passwd
 
 	(Only valid after a LABEL statement.)
 
-	Sets a password on this menu entry.  "passwd" can be either a
+	Set a password on this menu entry.  "passwd" can be either a
 	cleartext password or a password encrypted with one of the
 	following algorithms:
 
@@ -215,9 +220,9 @@ MENU PASSWD passwd
 	recent Linux distributions.  Obviously, if you don't encrypt
 	your passwords they will not be very secure at all.
 
-	If you are using passwords, you want to make sure you also use
-	the settings "NOESCAPE 1", "PROMPT 0", and either set
-	"ALLOWOPTIONS 0" or use a master password (see below.)
+	If using passwords, make sure to use "NOESCAPE 1" and
+	"PROMPT 0", and either set "ALLOWOPTIONS 0" or use a master
+	password (see below).
 
 	If passwd is an empty string, this menu entry can only be
 	unlocked with the master password.
@@ -225,14 +230,14 @@ MENU PASSWD passwd
 
 MENU MASTER PASSWD passwd
 
-	Sets a master password.  This password can be used to boot any
-	menu entry, and is required for the [Tab] and [Esc] keys to
-	work.
+	Set a master password.  This password can be used to boot any
+	menu entry. If this directive is used, then the master password
+	is also required for the [Tab] and [Esc] keys to work.
 
 
-MENU RESOLUTION height width
+MENU RESOLUTION width height
 
-	Requests a specific screen resolution when in graphics mode.
+	Request a specific screen resolution when in graphics mode.
 	The default is "640 480" corresponding to a resolution of
 	640x480 pixels, which all VGA-compatible monitors should be
 	able to display.
@@ -243,18 +248,21 @@ MENU RESOLUTION height width
 
 MENU BACKGROUND background
 
-	For vesamenu.c32, sets the background image.  The background
+	For vesamenu.c32, set the background image.  The background
 	can either be a color (see MENU COLOR) or the name of an image
 	file, which should be the size of the screen (normally 640x480
 	pixels, but see MENU RESOLUTION) and either in PNG, JPEG or
 	LSS16 format.
+
+	Note: When using an image file as background, its resolution
+	should match the values used in MENU RESOLUTION.
 
 
 MENU BEGIN [tagname]
 MENU END
 
 	Begin/end a submenu.  The entries between MENU BEGIN and MENU
-	END form a submenu, which is marked with a > mark on the right
+	END form a submenu, which is marked with a ">" mark on the right
 	hand of the screen.  Submenus inherit the properties of their
 	parent menus, but can override them, and can thus have their
 	own backgrounds, master passwords, titles, timeouts, messages
@@ -265,14 +273,13 @@ MENU GOTO tagname
 
 	(Only valid after a LABEL statement.)
 
-	This label will transfer to the named submenu instead of
-	booting anything.  To transfer to the top-level menu, specify
-	"menu goto .top".
+	Transfer to the named submenu instead of booting anything.
+	To transfer to the top-level menu, specify "menu goto .top".
 
 
 MENU EXIT [tagname]
 
-	(Only valid after a label statement inside MENU BEGIN ...
+	(Only valid after a LABEL statement inside MENU BEGIN ...
 	MENU END)
 
 	Exit to the next higher menu, or, if tagname is specified, to
@@ -283,31 +290,31 @@ MENU QUIT
 
 	(Only valid after a LABEL statement.)
 
-	This label quits the menu system.
+	Quit the menu system.
 
-	WARNING: if MENU MASTER PASSWD or ALLOWOPTIONS 0 is set, this
-	will still allow exiting to the CLI; however, a separate MENU
-	PASSWD can of course be set for this label.
+	WARNING: Even if either MENU MASTER PASSWD or "ALLOWOPTIONS 0"
+	is set, MENU QUIT will still allow exiting to the CLI; however,
+	a separate MENU PASSWD can of course be set for this
+	label / menu entry.
 
 
 MENU START
 
 	(Only valid inside MENU BEGIN ... MENU END)
 
-	Indicates that the menu system should start at the menu being
-	defined instead of at the top-level menu.  See also the
-	DEFAULT directive below.
+	Define the starting menu for the menu system, instead of
+	starting at the top-level menu.  See also the DEFAULT directive.
 
 
 DEFAULT label
 
 	Set the global default.  If "label" points into a submenu,
-	that menu becomes the start menu; in other words, this
+	that menu becomes the start menu.  In other words, this
 	directive has the same effect as both MENU DEFAULT and MENU
 	START.
 
 	For backwards compatibility with earlier versions of Syslinux,
-	this directive is ignored unless the configuration file also
+	this behavior is ignored unless the configuration file also
 	contains a UI directive.
 
 	Note: the CLI accepts options after the label, or even a
@@ -317,18 +324,18 @@ DEFAULT label
 MENU SAVE
 MENU NOSAVE
 
-	Remember the last entry selected and make that the default for
-	the next boot.  A password-protected menu entry is *not*
+	Remember the last selected entry and make that one the default
+	for the next boot.  A password-protected menu entry is *not*
 	saved.  This requires the ADV data storage mechanism, which is
 	currently only implemented for EXTLINUX, although the other
-	Syslinux derivatives will accept the command (and ignore it.)
+	Syslinux derivatives will accept the command (and ignore it).
 
-	NOTE: MENU SAVE stores the LABEL tag of the selected entry;
-	this mechanism therefore relies on LABEL tags being unique.
+	NOTE: MENU SAVE stores the LABEL tag of the selected entry.
+	This mechanism therefore relies on LABEL tags being unique.
 	On the other hand, it handles changes in the configuration
 	file gracefully.
 
-	NOTE: In software RAID-1 setups MENU SAVE only stores the
+	NOTE: In software RAID-1 setups, MENU SAVE only stores the
 	default label on the actual boot disk.  This may lead to
 	inconsistent reads from the array, or unexpectedly change the
 	default label after array resynchronization or disk failure.
@@ -339,51 +346,53 @@ MENU NOSAVE
 	A MENU SAVE or MENU NOSAVE at the top of a (sub)menu affects
 	all entries underneath that (sub)menu except those that in
 	turn have MENU SAVE or MENU NOSAVE declared.  This can be used
-	to only save certain entires when selected.
+	to restrict which specific entries are allowed to be saved when
+	selected.
 
 
 INCLUDE filename [tagname]
 MENU INCLUDE filename [tagname]
 
-	Include the contents of the configuration file filename at
+	Include the contents of the "filename" configuration file at
 	this point.
 
 	In the case of MENU INCLUDE, the included data is only seen by
-	the menu system; the core syslinux code does not parse this
+	the menu system; the core Syslinux code does not parse this
 	command, so any labels defined in it are unavailable.
 
 	If a tagname is included, the whole file is considered to have
-	been bracketed with a MENU BEGIN tagname ... MENU END pair,
+	been bracketed with a "MENU BEGIN tagname ... MENU END" pair,
 	and will therefore show up as a submenu.
 
 
 MENU AUTOBOOT message
 
-	Replaces the message "Automatic boot in # second{,s}...".  The
-	symbol # is replaced with the number of seconds remaining.
+	Replace the message "Automatic boot in # second{,s}...".  The
+	"#" symbol is replaced with the number of remaining seconds.
 	The syntax "{singular,[dual,]plural}" can be used to conjugate
 	appropriately.
 
 
 MENU TABMSG message
 
-	Replaces the message "Press [Tab] to edit options".
+	Replace the message "Press [Tab] to edit options".
 
 
 MENU NOTABMSG message
 
-	Takes the place of the TABMSG message if option editing is
-	disabled.  Defaults to blank.
+	Take the place of the TABMSG message when the [Tab] key is not
+	allowed, i.e. if the possibility to edit the command is
+	disabled. Defaults to blank.
 
 
 MENU PASSPROMPT message
 
-	Replaces the message "Password required".
+	Replace the message "Password required".
 
 
 MENU COLOR element ansi foreground background shadow
 
-	Sets the color of element "element" to the specified color
+	Set the color of element "element" to the specified color
 	sequence:
 
 	screen          Rest of the screen
@@ -453,7 +462,7 @@ MENU COLOR element ansi foreground background shadow
 	shadow.  Permitted values are "none" (no shadowing), "std" or
 	"standard" (standard shadowing - foreground pixels are
 	raised), "all" (both background and foreground raised), and
-	"rev" or "reverse" (background pixels are raised.)
+	"rev" or "reverse" (background pixels are raised).
 
 	If any field is set to "*" or omitted (at the end of the line)
 	then that field is left unchanged.
@@ -484,7 +493,7 @@ MENU COLOR element ansi foreground background shadow
 
 MENU MSGCOLOR fg_filter bg_filter shadow
 
-	Sets *all* the msgXX colors to a color scheme derived from the
+	Set *all* the msgXX colors to a color scheme derived from the
 	fg_filter and bg_filter values.  Background color zero is
 	always treated as transparent.  The default corresponds to:
 
@@ -513,37 +522,38 @@ MENU VSHIFT 0
 	The values above are the defaults.
 
 	A negative value is relative to the calculated length of the
-	screen (25 for text mode, 28 for VESA graphics mode.)
+	screen (25 rows for text mode, 28 rows for VESA graphics mode).
 
 
 F1 textfile [background]
 ...
 F12 textfile [background]
 
-	Displays full-screen help (also available at the command line.)
+	Display full-screen help (also available at the command line).
 	The same control code sequences as in the command line
 	interface are supported, although some are ignored.
 
-	Additionally, a optional second argument allows a different
-	background image (see MENU BACKGROUND for supported formats)
-	to be displayed.
+	Additionally, an optional second argument allows a different
+	background image to be displayed by vesamenu.c32 (see MENU
+	BACKGROUND for supported formats).  The CLI and menu.c32 will
+	ignore the second argument.
 
 
 MENU HELP textfile [background]
 
-	Creates a menu entry which, when selected, displays
+	Create a menu entry which, when selected, displays
 	full-screen help in the same way as the F-key help.
 
 
-The menu system honours the TIMEOUT command; if TIMEOUT is specified
+The menu system honours the TIMEOUT command.  If TIMEOUT is specified,
 it will execute the ONTIMEOUT command if one exists, otherwise it will
-pick the default menu option.  WARNING: the timeout action will bypass
-password protection even if one is set for the specified or default
-entry!
+pick the DEFAULT menu option.  WARNING: the TIMEOUT action will bypass
+password protection even if one is set for the specified ONTIMEOUT
+and/or DEFAULT entry!
 
-Normally, the user can press [Tab] to edit the menu entry, and [Esc]
+Normally, users can press [Tab] to edit the menu entry, and [Esc]
 to return to the Syslinux command line.  However, if the configuration
-file specifies ALLOWOPTIONS 0, these keys will be disabled, and if
+file specifies "ALLOWOPTIONS 0", these keys will be disabled, and if
 MENU MASTER PASSWD is set, they require the master password.
 
 The simple menu system supports serial console, using the normal
@@ -557,7 +567,7 @@ other end.
 
 
 It is also possible to load a secondary configuration file, to get to
-another menu.  To do that, invoke menu.c32 with the name of the
+another menu.  To do that, invoke (vesa)menu.c32 with the name of the
 secondary configuration file.
 
 LABEL othermenu
