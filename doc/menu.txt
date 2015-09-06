@@ -35,7 +35,7 @@ There are a few menu additions to the configuration file, all starting
 with the keywords MENU or TEXT. As the rest of the Syslinux
 configuration file language, it is case-insensitive.
 
-The remaining of this document is a reference of the directives that
+The remainder of this document is a reference of the directives that
 are relevant in the Simple Menu System.
 
 
@@ -111,10 +111,11 @@ MENU LABEL label
 	Hotkeys are highlighted in the menu.  When a hotkey is pressed,
 	the cursor will move to the corresponding menu entry.  If MENU
 	IMMEDIATE is present, then when a hotkey is pressed the
-	corresponding menu entry will be directly launched.
+	corresponding menu entry will be immediately launched.
 
 	Reusing hotkeys has no effect on subsequent entries; they will
-	not be highlighted, and the cursor will not move again.
+	not be highlighted, and the cursor will not move to them when
+	the hotkey is pressed again.
 
 	Keep in mind that the LABELs, not MENU LABELs, must be unique,
 	or odd things will happen to the command-line.
@@ -242,7 +243,7 @@ MENU RESOLUTION width height
 	640x480 pixels, which all VGA-compatible monitors should be
 	able to display.
 
-	If the selected resolution is unavailable, the text mode menu
+	If the requested resolution is unavailable, the text mode menu
 	is displayed instead.
 
 
@@ -327,7 +328,7 @@ MENU NOSAVE
 	Remember the last selected entry and make that one the default
 	for the next boot.  A password-protected menu entry is *not*
 	saved.  This requires the ADV data storage mechanism, which is
-	currently only implemented for EXTLINUX, although the other
+	currently only implemented for SYSLINUX, although the other
 	Syslinux derivatives will accept the command (and ignore it).
 
 	NOTE: MENU SAVE stores the LABEL tag of the selected entry.
@@ -347,7 +348,7 @@ MENU NOSAVE
 	all entries underneath that (sub)menu except those that in
 	turn have MENU SAVE or MENU NOSAVE declared.  This can be used
 	to restrict which specific entries are allowed to be saved when
-	selected.
+	executed.
 
 
 INCLUDE filename [tagname]
