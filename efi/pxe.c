@@ -96,7 +96,6 @@ void net_parse_dhcp(void)
     uint8_t hardlen;
     uint32_t ip;
     char dst[256];
-    UINTN i = 0;
 
     status = uefi_call_wrapper(BS->HandleProtocol, 3, image_device_handle,
 			       &PxeBaseCodeProtocol, (void **)&bc);
