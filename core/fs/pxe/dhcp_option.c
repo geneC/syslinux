@@ -143,7 +143,6 @@ static const struct dhcp_options dhcp_opts[] = {
     {15,  local_domain},
     {43,  vendor_encaps},
     {52,  option_overload},
-    {54,  server},
     {61,  client_identifier},
     {67,  bootfile_name},
     {97,  uuid_client_identifier},
