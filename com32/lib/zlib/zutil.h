@@ -253,12 +253,12 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define Tracec(c,x) {if (z_verbose>0 && (c)) fprintf x ;}
 #  define Tracecv(c,x) {if (z_verbose>1 && (c)) fprintf x ;}
 #else
-#  define Assert(cond,msg)
-#  define Trace(x)
-#  define Tracev(x)
-#  define Tracevv(x)
-#  define Tracec(c,x)
-#  define Tracecv(c,x)
+#  define Assert(cond,msg) ((void)0)
+#  define Trace(x) ((void)0)
+#  define Tracev(x) ((void)0)
+#  define Tracevv(x) ((void)0)
+#  define Tracec(c,x) ((void)0)
+#  define Tracecv(c,x) ((void)0)
 #endif
 
 
