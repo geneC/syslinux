@@ -27,7 +27,7 @@ kernel_jump:
 base_address:
 	pop %rsi
 
-	/* need to perform a long jump to update cs
+	/* need to perform a long jump to update cs */
 
 	/* load absolute address of pm_code in jmp_address location */
 	lea (pm_code - base_address)(%rsi, 1), %rax
