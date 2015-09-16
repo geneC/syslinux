@@ -60,11 +60,10 @@ DATE    := $(shell sh $(SRC)/../gen-id.sh $(VERSION) $(HEXDATE))
 endif
 CFLAGS		+= -DDATE_STR='"$(DATE)"'
 
-.PHONY: subdirs
-subdirs:
-	mkdir -p $(ARCH)
+$(OBJ)/$(ARCH):
+	mkdir -p $@
 
-$(OBJS): subdirs
+$(OBJS): | $(OBJ)/$(ARCH)
 
 # The targets to build in this directory
 BTARGET  = syslinux.efi
