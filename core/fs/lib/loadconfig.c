@@ -22,6 +22,11 @@ int generic_open_config(struct com32_filedata *filedata)
     };
     static const char *filenames[] = {
 	"extlinux.conf",
+#if defined(__FIRMWARE_EFI64__)
+	"syslx64.cfg",
+#elif defined(__FIRMWARE_EFI32__)
+	"syslia32.cfg",
+#endif
 	"syslinux.cfg",
 	NULL
     };
