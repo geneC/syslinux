@@ -1032,12 +1032,12 @@ err:
 }
 
 #ifndef __KLIBC__
-static const char *find_device(const char *mtab_file, dev_t dev)
+static char *find_device(const char *mtab_file, dev_t dev)
 {
     struct mntent *mnt;
     struct stat dst;
     FILE *mtab;
-    const char *devname = NULL;
+    char *devname = NULL;
     bool done;
 
     mtab = setmntent(mtab_file, "r");
@@ -1119,7 +1119,7 @@ static const char *find_device(const char *mtab_file, dev_t dev)
  * On newer Linux kernels we can use sysfs to get a backwards mapping
  * from device names to standard filenames
  */
-static const char *find_device_sysfs(dev_t dev)
+static char *find_device_sysfs(dev_t dev)
 {
     char sysname[64];
     char linkname[PATH_MAX];
@@ -1269,9 +1269,20 @@ err:
     return rv;
 }
 
-static const char *get_devname(const char *path)
+static char *dupname(const char *name)
 {
-    const char *devname = NULL;
+    char *out = NULL;
+    int len = 0;
+    if (name)
+        len = strlen(name);
+    if (len > 0)
+        out = strndup(name, len);
+    return out;
+}
+
+static char *get_devname(const char *path)
+{
+    char *devname = NULL;
     struct stat st;
     struct statfs sfs;
 
@@ -1285,17 +1296,17 @@ static const char *get_devname(const char *path)
     }
 
     if (opt.device)
-	devname = opt.device;
+	devname = strdup(opt.device);
 
     if (!devname){
 	if (fs_type == BTRFS) {
 	    /* For btrfs try to get the device name from btrfs itself */
-	    devname = find_device_btrfs(path);
+	    devname = dupname(find_device_btrfs(path));
 	}
     }
 
     if (!devname) {
-	devname = find_device_mountinfo(path, st.st_dev);
+	devname = dupname(find_device_mountinfo(path, st.st_dev));
     }
 
 #ifdef __KLIBC__
@@ -1314,7 +1325,7 @@ static const char *get_devname(const char *path)
 	}
 
 	atexit(device_cleanup);	/* unlink the device node on exit */
-	devname = devname_buf;
+	devname = dupname(devname_buf);
     }
 
 #else
@@ -1338,10 +1349,10 @@ static const char *get_devname(const char *path)
     return devname;
 }
 
-static int open_device(const char *path, struct stat *st, const char **_devname)
+static int open_device(const char *path, struct stat *st, char **_devname)
 {
     int devfd;
-    const char *devname = NULL;
+    char *devname = NULL;
     struct statfs sfs;
 
     if (st)
@@ -1381,11 +1392,10 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
 
     devfd = -1;
     devname = get_devname(path);
-    if (_devname)
-	*_devname = devname;
 
     if ((devfd = open(devname, O_RDWR | O_SYNC)) < 0) {
 	fprintf(stderr, "%s: cannot open device %s\n", program, devname);
+	free(devname);
 	return -1;
     }
 
@@ -1393,9 +1403,14 @@ static int open_device(const char *path, struct stat *st, const char **_devname)
     if (validate_device(path, devfd)) {
 	fprintf(stderr, "%s: path %s doesn't match device %s\n",
 		program, path, devname);
+	free(devname);
 	close(devfd);
 	return -1;
     }
+    if (_devname)
+        *_devname = devname;
+    else
+        free(devname);
     return devfd;
 }
 
@@ -1456,7 +1471,7 @@ static int install_loader(const char *path, int update_only)
 {
     struct stat st, fst;
     int devfd, rv;
-    const char *devname;
+    char *devname = NULL;
 
     devfd = open_device(path, &st, &devname);
     if (devfd < 0)
@@ -1496,6 +1511,7 @@ static int install_loader(const char *path, int update_only)
 
     sync();
     rv = install_bootblock(devfd, devname);
+    free(devname);
     close(devfd);
     sync();
 
