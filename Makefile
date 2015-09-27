@@ -95,6 +95,7 @@ ifeq ($(real-target),)
 endif
 
 ifeq ($(real-firmware),)
+	do-spotless-gpxe = no-fw
 	real-firmware = $(firmware)
 endif
 
@@ -346,6 +347,8 @@ install: local-install
 	set -e ; for i in $(INSTALLSUBDIRS) ; \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
 		-f $(SRC)/$$i/Makefile $@; done
+
+do-spotless-gpxe = bios
 else
 install:
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
@@ -406,7 +409,14 @@ local-spotless:
 		-type f -print0 \
 	| xargs -0rt rm -f
 
-spotless: local-spotless
+ifeq ($(do-spotless-gpxe),)
+spotless-gpxe:
+else
+spotless-gpxe:
+	$(MAKE) -C "$(topdir)/gpxe" SRC="$(topdir)/gpxe" spotless
+endif
+
+spotless: local-spotless spotless-gpxe
 	rm -rf $(all_firmware)
 
 #
