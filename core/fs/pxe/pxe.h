@@ -244,7 +244,11 @@ void tftp_open(struct url_info *url, int flags, struct inode *inode,
 
 /* gpxeurl.c */
 void gpxe_open(struct inode *inode, const char *url);
-#define GPXE 0
+#ifdef __FIRMWARE_BIOS__
+# define GPXE 1
+#else
+# define GPXE 0
+#endif
 
 /* http.c */
 void http_open(struct url_info *url, int flags, struct inode *inode,
