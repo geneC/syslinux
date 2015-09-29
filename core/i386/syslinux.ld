@@ -266,7 +266,7 @@ SECTIONS
 		__text_end = .;
 	}
 
-	. = ALIGN(16);
+	. = ALIGN(32);
 
 	__rodata_vma = .;
 	__rodata_lma = __rodata_vma + __text_lma - __text_vma;
@@ -361,7 +361,7 @@ SECTIONS
 		__dynamic_end = .;
 	}
 
-	. = ALIGN(16);
+	. = ALIGN(32);
 
 	__data_vma = .;
 	__data_lma = __data_vma + __text_lma - __text_vma;
@@ -377,7 +377,7 @@ SECTIONS
 	__pm_code_dwords = (__pm_code_len + 3) >> 2;
 
 	. = ALIGN(128);
-	
+
 	__bss_vma = .;
 	__bss_lma = .;		/* Dummy */
 	.bss (NOLOAD) : AT (__bss_lma) {
