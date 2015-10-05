@@ -46,15 +46,16 @@ SECTIONS
 
 	.ctors : {
 		__ctors_start = .;
-		KEEP (*(SORT(.ctors.*)))
-		KEEP (*(.ctors))
+		KEEP (*(SORT(.preinit_array*)))
+		KEEP (*(SORT(.init_array*)))
+		KEEP (*(SORT(.ctors*)))
 		__ctors_end = .;
 	}
 
 	.dtors : {
 		__dtors_start = .;
-		KEEP (*(SORT(.dtors.*)))
-		KEEP (*(.dtors))
+		KEEP (*(SORT(.fini_array*)))
+		KEEP (*(SORT(.dtors*)))
 		__dtors_end = .;
 	}
 
