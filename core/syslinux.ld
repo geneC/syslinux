@@ -211,21 +211,6 @@ SECTIONS
 	xfer_buf_seg = core_xfer_buf >> 4;
 
 	/*
-	 * The auxilliary data segment is used by the 16-bit code
-	 * for items that don't need to live in the bottom 64K.
-	 */
-
-	. = ALIGN(16);
-	.auxseg (NOLOAD) : {
-		__auxseg_start = .;
-		*(.auxseg)
-		__auxseg_end = .;
-	}
-	__auxseg_len = ABSOLUTE(__auxseg_end) - ABSOLUTE(__auxseg_start);
-	__auxseg_dwords = (__auxseg_len + 3) >> 2;
-	aux_seg = __auxseg_start >> 4;
-
-	/*
 	 * Used to allocate lowmem buffers from 32-bit code
 	 */
 	.lowmem (NOLOAD) : {
