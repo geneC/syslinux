@@ -335,6 +335,20 @@ SECTIONS
 	__bss_len = ABSOLUTE(__bss_end) - ABSOLUTE(__bss_start);
 	__bss_dwords = (__bss_len + 3) >> 2;
 
+	/* Data saved away before bss initialization */
+	. = ALIGN(128);
+
+	__savedata_vma = .;
+	__savedata_lma = .;		/* Dummy */
+	.savedata (NOLOAD) : AT (__savedata_lma) {
+		__savedata_start = .;
+		*(.savedata)
+		*(.savedata.*)
+		__savedata_end = .;
+	}
+	__savedata_len = ABSOLUTE(__savedata_end) - ABSOLUTE(__savedata_start);
+	__savedata_dwords = (__savedata_len + 3) >> 2;
+
 	/* XXX: This stack should be unified with the COM32 stack */
 	__stack_vma = .;
 	__stack_lma = .;	/* Dummy */
