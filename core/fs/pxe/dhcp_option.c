@@ -72,9 +72,12 @@ static void server(const void *data, int opt_len)
     if (opt_len != 4)
 	return;
 
+    if (IPInfo.serverip)
+	return;
+
     ip = *(uint32_t *)data;
     if (ip_ok(ip))
-        IPInfo.serverip = ip;
+	IPInfo.serverip = ip;
 }
 
 static void client_identifier(const void *data, int opt_len)
@@ -143,6 +146,7 @@ static const struct dhcp_options dhcp_opts[] = {
     {15,  local_domain},
     {43,  vendor_encaps},
     {52,  option_overload},
+    {54,  server},
     {61,  client_identifier},
     {67,  bootfile_name},
     {97,  uuid_client_identifier},
@@ -237,7 +241,7 @@ void parse_dhcp(const void *pkt, size_t pkt_len, int pkt_type)
     if ((pkt_type == 2) && ip_ok(dhcp->yip))
         IPInfo.myip = dhcp->yip;
 
-    if (ip_ok(dhcp->sip))
+    if (ip_ok(dhcp->sip) || pkt_type == 3)
         IPInfo.serverip = dhcp->sip;
 
     opt_len = (char *)dhcp + pkt_len - (char *)&dhcp->options;
