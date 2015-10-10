@@ -211,12 +211,25 @@ void http_open(struct url_info *url, int flags, struct inode *inode,
     header_bytes += snprintf(header_buf + header_bytes,
 			     header_len - header_bytes,
 			     " HTTP/1.0\r\n"
-			     "Host: %s\r\n"
+			     "Host: %s",
+			     url->host);
+    if (header_bytes >= header_len)
+	goto fail;		/* Buffer overflow */
+    if (url->port != HTTP_PORT) {
+	header_bytes += snprintf(header_buf + header_bytes,
+			     header_len - header_bytes,
+			     ":%d", url->port);
+	if (header_bytes >= header_len)
+	    goto fail;		/* Buffer overflow */
+    }
+    header_bytes += snprintf(header_buf + header_bytes,
+			     header_len - header_bytes,
+			     "\r\n"
 			     "User-Agent: Syslinux/" VERSION_STR "\r\n"
 			     "Connection: close\r\n"
 			     "%s"
 			     "\r\n",
-			     url->host, cookie_buf ? cookie_buf : "");
+			     cookie_buf ? cookie_buf : "");
     if (header_bytes >= header_len)
 	goto fail;		/* Buffer overflow */
 
