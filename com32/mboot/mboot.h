@@ -46,6 +46,7 @@
 #include <minmax.h>
 #include <sys/stat.h>
 #include <elf.h>
+#include <sys/elf64.h>
 #include <console.h>
 
 #include <syslinux/loadfile.h>

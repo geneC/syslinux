@@ -106,6 +106,11 @@ struct multiboot_header *map_image(void *ptr, size_t len)
     Elf32_Ehdr *eh = ptr;
     Elf32_Phdr *ph;
     Elf32_Shdr *sh;
+
+    Elf64_Ehdr *eh64 = ptr;
+    Elf64_Phdr *ph64;
+    Elf64_Shdr *sh64;
+
     unsigned int i, mbh_offset;
     uint32_t bad_flags;
 
@@ -149,6 +154,18 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 	eh->e_phentsize < sizeof(Elf32_Phdr) ||
 	!eh->e_phnum || eh->e_phoff + eh->e_phentsize * eh->e_phnum > len)
 	eh = NULL;		/* No valid ELF header found */
+
+    /* Determine 64-bit images */
+    if ((eh != NULL) ||
+	len < sizeof(Elf64_Ehdr) ||
+	memcmp(eh64->e_ident, "\x7f" "ELF\2\1\1", 6) ||
+	(eh64->e_machine != EM_X86_64) ||
+	eh64->e_version != EV_CURRENT ||
+	eh64->e_ehsize < sizeof(Elf64_Ehdr) || eh64->e_ehsize >= len ||
+	eh64->e_phentsize < sizeof(Elf64_Phdr) ||
+	!eh64->e_phnum ||
+	eh64->e_phoff + eh64->e_phentsize * eh64->e_phnum > len)
+	eh64 = NULL;		/* No valid ELF64 header found */
 
     /* Is this a Solaris kernel? */
     if (!set.solaris && eh && kernel_is_solaris(eh))
@@ -263,6 +280,112 @@ struct multiboot_header *map_image(void *ptr, size_t len)
 		    return NULL;
 		}
 		sh[i].sh_addr = addr;
+	    }
+	}
+    } else if (eh64 && !(opt.aout && mbh_len &&
+			(mbh->flags & MULTIBOOT_AOUT_KLUDGE))) {
+        /* Load 64-bit ELF */
+	regs.eip = eh64->e_entry;	/* Can be overridden further down... */
+
+	ph64 = (Elf64_Phdr *) (cptr + eh64->e_phoff);
+
+	for (i = 0; i < eh64->e_phnum; i++) {
+	    if (ph64->p_type == PT_LOAD || ph64->p_type == PT_PHDR) {
+		/*
+		 * This loads at p_paddr, which matches Grub.  However, if
+		 * e_entry falls within the p_vaddr range of this PHDR, then
+		 * adjust it to match the p_paddr range... this is how Grub
+		 * behaves, so it's by definition correct (it doesn't have to
+		 * make sense...)
+		 */
+		addr_t addr = ph64->p_paddr;
+		addr_t msize = ph64->p_memsz;
+		addr_t dsize = min(msize, ph64->p_filesz);
+
+		if (eh64->e_entry >= ph64->p_vaddr
+		    && eh64->e_entry < ph64->p_vaddr + msize)
+		    regs.eip = eh64->e_entry + (ph64->p_paddr - ph64->p_vaddr);
+
+		dprintf("Segment at 0x%08x data 0x%08x len 0x%08x\n",
+			addr, dsize, msize);
+
+		if (syslinux_memmap_type(amap, addr, msize) != SMT_FREE) {
+		    printf
+			("Memory segment at 0x%08x (len 0x%08x) is unavailable\n",
+			 addr, msize);
+		    return NULL;	/* Memory region unavailable */
+		}
+
+		/* Mark this region as allocated in the available map */
+		if (syslinux_add_memmap(&amap, addr, msize, SMT_ALLOC)) {
+		    error("Overlapping segments found in ELF header\n");
+		    return NULL;
+		}
+
+		if (ph64->p_filesz) {
+		    /* Data present region.  Create a move entry for it. */
+		    if (syslinux_add_movelist
+			(&ml, addr, (addr_t) cptr + ph64->p_offset, dsize)) {
+			error("Failed to map PHDR data\n");
+			return NULL;
+		    }
+		}
+		if (msize > dsize) {
+		    /* Zero-filled region.  Mark as a zero region in the memory map. */
+		    if (syslinux_add_memmap
+			(&mmap, addr + dsize, msize - dsize, SMT_ZERO)) {
+			error("Failed to map PHDR zero region\n");
+			return NULL;
+		    }
+		}
+		if (addr + msize > mboot_high_water_mark)
+		    mboot_high_water_mark = addr + msize;
+	    } else {
+		/* Ignore this program header */
+	    }
+
+	    ph64 = (Elf64_Phdr *) ((char *)ph64 + eh64->e_phentsize);
+	}
+
+	/* Load the ELF symbol table */
+	if (eh64->e_shoff) {
+	    addr_t addr, len;
+
+	    sh64 = (Elf64_Shdr *) ((char *)eh64 + eh64->e_shoff);
+
+	    len = eh64->e_shentsize * eh64->e_shnum;
+	    /*
+	     * Align this, but don't pad -- in general this means a bunch of
+	     * smaller sections gets packed into a single page.
+	     */
+	    addr = map_data(sh64, len, 4096, MAP_HIGH | MAP_NOPAD);
+	    if (!addr) {
+		error("Failed to map symbol table\n");
+		return NULL;
+	    }
+
+	    mbinfo.flags |= MB_INFO_ELF_SHDR;
+	    mbinfo.syms.e.addr = addr;
+	    mbinfo.syms.e.num = eh64->e_shnum;
+	    mbinfo.syms.e.size = eh64->e_shentsize;
+	    mbinfo.syms.e.shndx = eh64->e_shstrndx;
+
+	    for (i = 0; i < eh64->e_shnum; i++) {
+		addr_t align;
+
+		if (!sh64[i].sh_size)
+		    continue;	/* Empty section */
+		if (sh64[i].sh_flags & SHF_ALLOC)
+		    continue;	/* SHF_ALLOC sections should have PHDRs */
+
+		align = sh64[i].sh_addralign ? sh64[i].sh_addralign : 0;
+		addr = map_data((char *)ptr + sh64[i].sh_offset,
+				sh64[i].sh_size, align, MAP_HIGH);
+		if (!addr) {
+		    error("Failed to map symbol section\n");
+		    return NULL;
+		}
+		sh64[i].sh_addr = addr;
 	    }
 	}
     } else if (mbh_len && (mbh->flags & MULTIBOOT_AOUT_KLUDGE)) {
