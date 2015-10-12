@@ -31,6 +31,8 @@ static const struct file_ext file_extensions[] = {
 	{ NULL, 0 },
 };
 
+jmp_buf __return_to_command_prompt;
+
 /*
  * Return a pointer to one byte after the last character of the
  * command.
@@ -302,6 +304,7 @@ __export int main(int argc __unused, char **argv)
 	const void *adv;
 	const char *cmdline;
 	size_t count = 0;
+	int retval;
 
 	ldlinux_console_init();
 
@@ -333,16 +336,25 @@ __export int main(int argc __unused, char **argv)
 		if (!syslinux_setadv(ADV_BOOTONCE, 0, NULL))
 			syslinux_adv_write();
 
-		load_kernel(cmdline); /* Shouldn't return */
-		ldlinux_enter_command();
+		/*
+		 * The corresponding longjmp is located in the execute function
+		 * after a COM32 module has returned.
+		 */
+		retval = setjmp(__return_to_command_prompt);
+		if (retval == 0)
+			load_kernel(cmdline); /* Shouldn't return */
+	} else {
+		retval = setjmp(__return_to_command_prompt);
+		if (retval == 0) {
+			if (!forceprompt && !shift_is_held())
+				ldlinux_auto_boot();
+
+			if (defaultlevel > 1)
+				ldlinux_auto_boot();
+		}
 	}
 
-	if (!forceprompt && !shift_is_held())
-		ldlinux_auto_boot();
-
-	if (defaultlevel > 1)
-		ldlinux_auto_boot();
-
+	retval = setjmp(__return_to_command_prompt);
 	ldlinux_enter_command();
 	return 0;
 }
