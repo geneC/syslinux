@@ -83,7 +83,7 @@ int core_tcp_connect(struct pxe_pvt_inode *socket, uint32_t ip, uint16_t port)
 	    }
 	} else {
 	    if (status != EFI_SUCCESS)
-		Print(L"core_tcp_connect: tcp->Configure() unsuccessful (%i)", status);
+		Print(L"core_tcp_connect: tcp->Configure() unsuccessful (%d)", status);
 	    unmapped = 0;
 	}
     }

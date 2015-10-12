@@ -49,7 +49,7 @@ EFI_STATUS core_udp_configure(EFI_UDP4 *udp, EFI_UDP4_CONFIG_DATA *udata,
 	    }
 	} else {
 	    if (status != EFI_SUCCESS)
-		Print(L"%s: udp->Configure() unsuccessful (%i)", f, status);
+		Print(L"%s: udp->Configure() unsuccessful (%d)", f, status);
 	    unmapped = 0;
 	}
     }
