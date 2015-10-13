@@ -125,7 +125,7 @@ const char *edit_cmdline(const char *input, int top /*, int width */ ,
 			 int (*pDraw_Menu) (int, int, int),
 			 void (*show_fkey) (int), bool *timedout)
 {
-    char cmdline[MAX_CMDLINE_LEN] = { };
+    static char cmdline[MAX_CMDLINE_LEN] = { };
     int key, len, prev_len, cursor;
     int redraw = 0;
     int x, y;
