@@ -18,6 +18,9 @@ extern EFI_GUID Udp4ServiceBindingProtocol, Udp4Protocol;
  */
 static struct efi_binding *udp_reader;
 
+static int volatile efi_udp_has_recv = 0;
+int volatile efi_net_def_addr = 1;
+
 /** 
  * Try to configure this UDP socket
  *
@@ -48,8 +51,11 @@ EFI_STATUS core_udp_configure(EFI_UDP4 *udp, EFI_UDP4_CONFIG_DATA *udata,
 		unmapped = 0;
 	    }
 	} else {
-	    if (status != EFI_SUCCESS)
+	    if (status != EFI_SUCCESS) {
 		Print(L"%s: udp->Configure() unsuccessful (%d)", f, status);
+		if (!efi_net_def_addr && (status == EFI_INVALID_PARAMETER))
+		    efi_net_def_addr = 2;
+	    }
 	    unmapped = 0;
 	}
     }
@@ -152,7 +158,13 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     /* Re-use the existing local port number */
     udata.StationPort = socket->net.efi.localport;
 
-    udata.UseDefaultAddress = TRUE;
+    if (efi_net_def_addr) {
+	udata.UseDefaultAddress = TRUE;
+    } else {
+	udata.UseDefaultAddress = FALSE;
+	memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
+	memcpy(&udata.StationAddress, &IPInfo.netmask, sizeof(IPInfo.netmask));
+    }
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
     udata.TimeToLive = 64;
@@ -243,6 +255,10 @@ int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 
 	    uefi_call_wrapper(udp->Cancel, 2, udp, &token);
 	    dprintf("core_udp_recv: timed out\n");
+	    if (!efi_udp_has_recv && (efi_net_def_addr == 1)) {
+		efi_net_def_addr = 0;
+		Print(L"disable UseDefaultAddress\n");
+	    }
 	}
 
 	uefi_call_wrapper(udp->Poll, 1, udp);
@@ -256,6 +272,9 @@ int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 
     if (rv)
 	goto bail;
+
+    if (!efi_udp_has_recv)
+	efi_udp_has_recv = 1;
 
     rxdata = token.Packet.RxData;
     frag = &rxdata->FragmentTable[0];
@@ -373,7 +392,13 @@ void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
     /* Re-use the existing local port number */
     udata.StationPort = socket->net.efi.localport;
 
-    udata.UseDefaultAddress = TRUE;
+    if (efi_net_def_addr) {
+	udata.UseDefaultAddress = TRUE;
+    } else {
+	udata.UseDefaultAddress = FALSE;
+	memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
+	memcpy(&udata.StationAddress, &IPInfo.netmask, sizeof(IPInfo.netmask));
+    }
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
     udata.TimeToLive = 64;
