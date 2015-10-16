@@ -34,8 +34,8 @@ all:	mbr.bin   altmbr.bin   gptmbr.bin   isohdpfx.bin   isohdppx.bin \
 
 .PRECIOUS: %.elf
 #%.elf: %.o mbr.ld
-%.elf: %.o $(SRC)/$(ARCH)/mbr.ld
-	$(LD) $(LDFLAGS) -T $(SRC)/$(ARCH)/mbr.ld -e _start -o $@ $<
+%.elf: %.o $(SRC)/mbr.ld
+	$(LD) $(LDFLAGS) -T $(SRC)/mbr.ld -e _start -o $@ $<
 
 %.bin: %.elf $(SRC)/checksize.pl
 	$(OBJCOPY) -O binary $< $@
