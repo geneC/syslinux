@@ -26,7 +26,7 @@ all:	handoff.bin
 
 .PRECIOUS: %.elf
 %.elf: %.o $(mbrdir)/mbr.ld
-	$(LD) $(LDFLAGS) -T $(mbrdir)/$(ARCH)/mbr.ld -e _start -o $@ $<
+	$(LD) $(LDFLAGS) -T $(mbrdir)/mbr.ld -e _start -o $@ $<
 
 %.bin: %.elf $(mbrdir)/checksize.pl
 	$(OBJCOPY) -O binary $< $@
