@@ -161,7 +161,7 @@ kwdhash.gen: keywords genhash.pl
 
 AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a \
 	libpxelinux.a liblpxelinux.a
-LDSCRIPT = $(SRC)/$(ARCH)/syslinux.ld
+LDSCRIPT = $(SRC)/syslinux.ld
 
 %.elf: %.o $(LIBDEP) $(LDSCRIPT) $(AUXLIBS)
 	$(LD) $(LDFLAGS) -Bsymbolic $(LD_PIE) -E --hash-style=gnu -T $(LDSCRIPT) -M -o $@ $< \
