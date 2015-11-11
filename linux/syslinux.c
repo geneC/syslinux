@@ -68,6 +68,7 @@
 
 #include <getopt.h>
 #include <sysexits.h>
+#include "syslxrw.h"
 #include "syslxcom.h"
 #include "syslxfs.h"
 #include "setadv.h"

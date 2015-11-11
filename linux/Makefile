@@ -23,6 +23,7 @@ LDFLAGS	 =
 
 SRCS     = syslinux.c \
 	   ../libinstaller/syslxopt.c \
+	   ../libinstaller/syslxrw.c \
 	   ../libinstaller/syslxcom.c \
 	   ../libinstaller/setadv.c \
 	   ../libinstaller/advio.c \

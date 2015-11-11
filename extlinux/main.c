@@ -56,6 +56,7 @@
 #include "version.h"
 #include "syslxint.h"
 #include "syslxcom.h" /* common functions shared with extlinux and syslinux */
+#include "syslxrw.h"
 #include "syslxfs.h"
 #include "setadv.h"
 #include "syslxopt.h" /* unified options */

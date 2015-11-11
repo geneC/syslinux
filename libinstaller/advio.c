@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "syslxint.h"
+#include "syslxrw.h"
 #include "syslxcom.h"
 
 /*

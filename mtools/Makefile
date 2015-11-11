@@ -9,7 +9,7 @@ SRCS     = syslinux.c \
 	   ../libinstaller/fs.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
-	   ../libinstaller/syslxcom.c \
+	   ../libinstaller/syslxrw.c \
 	   ../libinstaller/setadv.c \
 	   ../libinstaller/bootsect_bin.c \
 	   ../libinstaller/ldlinux_bin.c \

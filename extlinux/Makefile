@@ -27,6 +27,7 @@ SRCS     = main.c \
 	   ../libinstaller/syslxmod.c \
 	   ../libinstaller/syslxopt.c \
 	   ../libinstaller/syslxcom.c \
+	   ../libinstaller/syslxrw.c \
 	   ../libinstaller/setadv.c \
 	   ../libinstaller/advio.c \
 	   ../libinstaller/bootsect_bin.c \

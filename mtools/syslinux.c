@@ -42,8 +42,9 @@
 #include "setadv.h"
 #include "syslxopt.h"
 #include "syslxfs.h"
-#include "syslxcom.h"
+#include "syslxrw.h"
 
+const char *program;
 pid_t mypid;
 
 void __attribute__ ((noreturn)) die(const char *msg)
