@@ -338,6 +338,59 @@ static int patch_file_and_bootblock(int fd, const char *dir, int devfd)
     return rv;
 }
 
+static int ext_read_adv_offset(int devfd, off_t offset)
+{
+    const size_t adv_size = 2 * ADV_SIZE;
+
+    if (xpread(devfd, syslinux_adv, adv_size, offset) != adv_size)
+      return -1;
+
+    return syslinux_validate_adv(syslinux_adv) ? 1 : 0;
+}
+
+static int ext_read_adv(const char *path, int devfd, const char **namep)
+{
+    int err;
+    const char *name;
+
+    if (fs_type == BTRFS) {
+	/* btrfs "ldlinux.sys" is in 64k blank area */
+	return ext_read_adv_offset(devfd, BTRFS_ADV_OFFSET);
+    } else if (fs_type == XFS) {
+	/* XFS "ldlinux.sys" is in the first 2048 bytes of the primary AG */
+	return ext_read_adv_offset(devfd, boot_image_len);
+    } else {
+	err = read_adv(path, name = "ldlinux.sys");
+	if (err == 2)		/* ldlinux.sys does not exist */
+	    err = read_adv(path, name = "extlinux.sys");
+	if (namep)
+	    *namep = name;
+	return err;
+    }
+}
+
+static int ext_write_adv_offset(int devfd, off_t offset)
+{
+    const size_t adv_size = 2 * ADV_SIZE;
+
+    if (xpwrite(devfd, syslinux_adv, adv_size, offset) != adv_size) {
+	perror("writing adv");
+	return 1;
+    }
+
+    return 0;
+}
+
+static int ext_write_adv(const char *path, const char *cfg, int devfd)
+{
+    if (fs_type == BTRFS) {
+	/* btrfs "ldlinux.sys" is in 64k blank area */
+	return ext_write_adv_offset(devfd, BTRFS_ADV_OFFSET);
+    } else {
+	return write_adv(path, cfg);
+    }
+}
+
 /*
  * Install the boot block on the specified device.
  * Must be run AFTER install_file()!
@@ -484,8 +537,7 @@ static int rewrite_boot_image(int devfd, const char *path, const char *filename)
     }
 
     /* Write ADV */
-    ret = xpwrite(fd, syslinux_adv, 2 * ADV_SIZE, boot_image_len);
-    if (ret != 2 * ADV_SIZE) {
+    if (ext_write_adv_offset(fd, boot_image_len)) {
 	fprintf(stderr, "%s: write failure on %s\n", program, filename);
 	goto error;
     }
@@ -617,9 +669,7 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 	return 1;
     }
     dprintf("write boot_image to 0x%x\n", BTRFS_EXTLINUX_OFFSET);
-    if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE, BTRFS_ADV_OFFSET)
-	!= 2 * ADV_SIZE) {
-	perror("writing adv");
+    if (ext_write_adv_offset(devfd, BTRFS_ADV_OFFSET)) {
 	return 1;
     }
     dprintf("write adv to 0x%x\n", BTRFS_ADV_OFFSET);
@@ -1416,59 +1466,6 @@ static int open_device(const char *path, struct stat *st, char **_devname)
     else
         free(devname);
     return devfd;
-}
-
-static int btrfs_read_adv(int devfd)
-{
-    if (xpread(devfd, syslinux_adv, 2 * ADV_SIZE, BTRFS_ADV_OFFSET)
-	!= 2 * ADV_SIZE)
-	return -1;
-
-    return syslinux_validate_adv(syslinux_adv) ? 1 : 0;
-}
-
-static inline int xfs_read_adv(int devfd)
-{
-    const size_t adv_size = 2 * ADV_SIZE;
-
-    if (xpread(devfd, syslinux_adv, adv_size, boot_image_len) != adv_size)
-	return -1;
-
-    return syslinux_validate_adv(syslinux_adv) ? 1 : 0;
-}
-
-static int ext_read_adv(const char *path, int devfd, const char **namep)
-{
-    int err;
-    const char *name;
-
-    if (fs_type == BTRFS) {
-	/* btrfs "ldlinux.sys" is in 64k blank area */
-	return btrfs_read_adv(devfd);
-    } else if (fs_type == XFS) {
-	/* XFS "ldlinux.sys" is in the first 2048 bytes of the primary AG */
-	return xfs_read_adv(devfd);
-    } else {
-	err = read_adv(path, name = "ldlinux.sys");
-	if (err == 2)		/* ldlinux.sys does not exist */
-	    err = read_adv(path, name = "extlinux.sys");
-	if (namep)
-	    *namep = name;
-	return err;
-    }
-}
-
-static int ext_write_adv(const char *path, const char *cfg, int devfd)
-{
-    if (fs_type == BTRFS) { /* btrfs "ldlinux.sys" is in 64k blank area */
-	if (xpwrite(devfd, syslinux_adv, 2 * ADV_SIZE,
-		BTRFS_ADV_OFFSET) != 2 * ADV_SIZE) {
-		perror("writing adv");
-		return 1;
-	}
-	return 0;
-    }
-    return write_adv(path, cfg);
 }
 
 static int install_loader(const char *path, int update_only)
