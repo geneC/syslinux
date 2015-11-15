@@ -393,11 +393,11 @@ int install_bootblock(int fd, const char *device)
 	if (sb5.sb_magicnum == *(u32 *)XFS_SB_MAGIC) {
 	    if (be32_to_cpu(sb5.sb_blocksize) != XFS_SUPPORTED_BLOCKSIZE) {
 		fprintf(stderr,
-			"You need to have 4 KiB filesystem block size for "
-			" being able to install Syslinux in your XFS "
-			"partition (because there is no enough space in MBR to "
-			"determine where Syslinux bootsector can be installed "
-			"regardless the filesystem block size)\n");
+			"You need to have 4 KiB filesystem block size for"
+			" being able to install Syslinux in your XFS"
+			" partition (because there is not enough space in MBR to"
+			" determine where Syslinux bootsector can be installed"
+			" regardless of the filesystem block size)\n");
 		return 1;
 	    }
 
@@ -420,8 +420,8 @@ int install_bootblock(int fd, const char *device)
 
     if (!ok) {
 	fprintf(stderr,
-		"no fat, ntfs, ext2/3/4, btrfs, xfs "
-		"or ufs1/2 superblock found on %s\n",
+		"no fat, ntfs, ext2/3/4, btrfs, xfs"
+		" or ufs1/2 superblock found on %s\n",
 		device);
 	return 1;
     }
@@ -754,7 +754,7 @@ bail:
  *  * test if path is a subvolume:
  *   * this function return
  *    * 0-> path exists but it is not a subvolume
- *     * 1-> path exists and it is  a subvolume
+ *     * 1-> path exists and it is a subvolume
  *      * -1 -> path is unaccessible
  *       */
 static int test_issubvolume(char *path)
@@ -1388,8 +1388,8 @@ static int open_device(const char *path, struct stat *st, char **_devname)
 
     if (!fs_type) {
 	fprintf(stderr,
-		"%s: not a fat, ntfs, ext2/3/4, btrfs, xfs or"
-		"ufs1/2 filesystem: %s\n",
+		"%s: not a fat, ntfs, ext2/3/4, btrfs, xfs"
+		" or ufs1/2 filesystem: %s\n",
 		program, path);
 	return -1;
     }
