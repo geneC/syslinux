@@ -14,7 +14,7 @@
 /*
  * extlinux.c
  *
- * Install the syslinux boot block on an fat, ntfs, ext2/3/4, btrfs, xfs,
+ * Install the syslinux boot block on a fat, ntfs, ext2/3/4, btrfs, xfs,
  * and ufs1/2 filesystem.
  */
 
@@ -598,9 +598,9 @@ bail:
     return 1;
 }
 
-/* btrfs has to install the ldlinux.sys in the first 64K blank area, which
-   is not managered by btrfs tree, so actually this is not installed as files.
-   since the cow feature of btrfs will move the ldlinux.sys every where */
+/* btrfs has to install ldlinux.sys in the first 64K blank area, which
+   is not managed by btrfs tree, so actually this is not installed as a file,
+   since the cow feature of btrfs would move the ldlinux.sys file everywhere. */
 int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 {
     char *file;
@@ -662,7 +662,7 @@ int btrfs_install_file(const char *path, int devfd, struct stat *rst)
  * Due to historical reasons (SGI IRIX's design of disk layouts), the first
  * sector in the primary AG on XFS filesystems contains the superblock, which is
  * a problem with bootloaders that rely on BIOSes (that load VBRs which are
- * (located in the first sector of the partition).
+ * located in the first sector of the partition).
  *
  * Thus, we need to handle this issue, otherwise Syslinux will damage the XFS's
  * superblock.
