@@ -598,9 +598,12 @@ bail:
     return 1;
 }
 
-/* btrfs has to install ldlinux.sys in the first 64K blank area, which
-   is not managed by btrfs tree, so actually this is not installed as a file,
-   since the cow feature of btrfs would move the ldlinux.sys file everywhere. */
+/* btrfs has to install ldlinux.sys to a boot area, which is not managed by
+   btrfs tree, so actually this is not installed as a file, since the cow
+   feature of btrfs would move the ldlinux.sys file everywhere. Older
+   versions installed it to the first 64kiB (aka Boot Area A) but as of
+   commit ID 37eef640 (before 6.03-pre12, before 6.03), it is now in Boot
+   Area B (a 768kiB blank space at offset 256kiB). */
 int btrfs_install_file(const char *path, int devfd, struct stat *rst)
 {
     char *file;
