@@ -54,7 +54,9 @@ WARNFLAGS = $(GCCWARN) -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Winl
 
 CFLAGS  = $(OPTFLAGS) $(REQFLAGS) $(WARNFLAGS) $(LIBFLAGS)
 
-ifndef EFI_BUILD
+ifdef EFI_BUILD
+CFLAGS += -mno-red-zone
+else
 CFLAGS += -mregparm=3 -DREGPARM=3
 endif
 

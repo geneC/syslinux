@@ -48,7 +48,9 @@ GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
 GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
 
-ifndef EFI_BUILD
+ifdef EFI_BUILD
+GCCOPT += -mno-red-zone
+else
 GCCOPT += -mregparm=3 -DREGPARM=3
 endif
 
