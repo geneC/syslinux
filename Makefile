@@ -102,7 +102,8 @@ endif
 .PHONY: $(filter-out $(private-targets), $(MAKECMDGOALS))
 $(filter-out $(private-targets), $(MAKECMDGOALS)):
 	$(MAKE) -C $(OBJDIR) -f $(CURDIR)/Makefile SRC="$(topdir)" \
-		OBJ=$(OBJDIR) objdir=$(OBJDIR) $(MAKECMDGOALS)
+		OBJ=$(OBJDIR) objdir=$(OBJDIR) EFI_BUILD=$(EFI_BUILD) \
+		$(MAKECMDGOALS)
 
 unittest:
 	printf "Executing unit tests\n"
@@ -111,7 +112,7 @@ unittest:
 
 regression:
 	$(MAKE) -C tests SRC="$(topdir)/tests" OBJ="$(topdir)/tests" \
-		objdir=$(OBJDIR) \
+		objdir=$(OBJDIR) EFI_BUILD=$(EFI_BUILD) \
 		-f $(topdir)/tests/Makefile all
 
 test: unittest regression
@@ -284,17 +285,17 @@ subdirs: $(BSUBDIRS) $(ISUBDIRS)
 
 $(sort $(ISUBDIRS) $(BSUBDIRS)):
 	@mkdir -p $@
-	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" EFI_BUILD=$(EFI_BUILD) \
 		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
 
 $(ITARGET):
 	@mkdir -p $@
-	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" EFI_BUILD=$(EFI_BUILD) \
 		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
 
 $(BINFILES):
 	@mkdir -p $@
-	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" EFI_BUILD=$(EFI_BUILD) \
 		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
 
 #
@@ -309,7 +310,7 @@ gpxe: core
 installer: installer-local
 	set -e; for i in $(ISUBDIRS); \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
-		-f $(SRC)/$$i/Makefile all; done
+		EFI_BUILD=$(EFI_BUILD) -f $(SRC)/$$i/Makefile all; done
 
 
 installer-local: $(ITARGET) $(BINFILES)
@@ -317,7 +318,7 @@ installer-local: $(ITARGET) $(BINFILES)
 strip: strip-local
 	set -e; for i in $(ISUBDIRS); \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
-		-f $(SRC)/$$i/Makefile strip; done
+		EFI_BUILD=$(EFI_BUILD) -f $(SRC)/$$i/Makefile strip; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
 strip-local:
@@ -355,7 +356,7 @@ install:
 	set -e ; for i in $(INSTALLSUBDIRS) ; \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
 		BITS="$(BITS)" AUXDIR="$(AUXDIR)/efi$(BITS)" \
-		-f $(SRC)/$$i/Makefile $@; done
+		EFI_BUILD=$(EFI_BUILD) -f $(SRC)/$$i/Makefile $@; done
 	-install -m 644 $(INSTALLABLE_MODULES) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 	install -m 644 com32/elflink/ldlinux/$(LDLINUX) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 endif

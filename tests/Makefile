@@ -39,7 +39,7 @@ QEMU = qemu-system-i386
 
 all: syslinux-tests pxelinux-tests
 syslinux-tests:
-	$(MAKE) SRC="$(SRC)" OBJ="$(OBJ)" objdir="$(objdir)" \
+	$(MAKE) SRC="$(SRC)" OBJ="$(OBJ)" objdir="$(objdir)" EFI_BUILD=$(EFI_BUILD) \
 		INITIAL="$(INITIAL)" INSTALL_DIR="$(SYSLINUX_INSTALL_DIR)" \
 		CONFIG_FILE="$(SYSLINUX_CONFIG_FILE)" \
 		DERIVATIVE=SYSLINUX
@@ -47,7 +47,7 @@ syslinux-tests:
 		$(SYSLINUX_LOOPDEV) test.cfg
 
 pxelinux-tests:
-	$(MAKE) SRC="$(SRC)" OBJ="$(OBJ)" objdir="$(objdir)" \
+	$(MAKE) SRC="$(SRC)" OBJ="$(OBJ)" objdir="$(objdir)" EFI_BUILD=$(EFI_BUILD) \
 		INITIAL="$(INITIAL)" INSTALL_DIR="$(PXELINUX_INSTALL_DIR)" \
 		CONFIG_FILE="$(PXELINUX_CONFIG_FILE)" \
 		DERIVATIVE=PXELINUX
@@ -71,7 +71,7 @@ SUBDIRS = linux com32
 subdirs: $(SUBDIRS)
 $(SUBDIRS):
 	mkdir -p $(OBJ)/$@
-	$(MAKE) -C $(OBJ)/$@ SRC="$(SRC)"/$@ OBJ="$(OBJ)"/$@/ \
+	$(MAKE) -C $(OBJ)/$@ SRC="$(SRC)"/$@ OBJ="$(OBJ)"/$@/ EFI_BUILD=$(EFI_BUILD) \
 		-f $(SRC)/$@/Makefile objdir="$(objdir)/tests" \
 		INSTALL_DIR="$(INSTALL_DIR)" CONFIG_FILE="$(CONFIG_FILE)" \
 		DERIVATIVE="$(DERIVATIVE)"
