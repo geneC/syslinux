@@ -138,6 +138,7 @@ static void usage(void)
 "                       - strict w/o any value is the same as strict=2",
 "  relax                The same as strict=0",
 "  prefmbr              On hybrid MBR/GPT disks, prefer legacy layout",
+"  exit                 Don't read anything after this keyword",
 "",
 "  file=<file>          Load and execute <file>",
 "  seg=<s[:o[:i]]>      Load file at <s:o>, jump to <s:i>",
@@ -194,6 +195,8 @@ int opt_parse_args(int argc, char *argv[])
     for (i = 1; i < argc; i++) {
 	if (!strncmp(argv[i], "file=", 5)) {
 	    opt.file = argv[i] + 5;
+	} else if (!strncmp(argv[i], "exit", 4)) {
+	    break;
 	} else if (!strcmp(argv[i], "nofile")) {
 	    opt.file = NULL;
 	} else if (!strncmp(argv[i], "seg=", 4)) {
