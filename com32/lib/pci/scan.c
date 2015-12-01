@@ -603,6 +603,7 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
   char sub_product_id[16];
   FILE *f;
   struct pci_device *dev=NULL;
+  int valid_lines=0;
 
   /* Intializing the linux_kernel_module for each pci device to "unknown" */
   /* adding a dev_info member if needed */
@@ -630,6 +631,7 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
     if ((line[0] == '#') || (strstr(line,"alias pci:v")==NULL))
         continue;
 
+    valid_lines++;
     /* Resetting temp buffer*/
     memset(module_name,0,sizeof(module_name));
     memset(vendor_id,0,sizeof(vendor_id));
@@ -725,5 +727,11 @@ int get_module_name_from_alias(struct pci_domain *domain, char *modules_alias_pa
     }
   }
   fclose(f);
+  /* If no valid line was found in the module.alias,
+   * we shall report it as broken/empty/non-existing */
+  if (valid_lines == 0) {
+    return -ENOMODULESALIAS;
+  }
+
   return 0;
 }
