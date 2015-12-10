@@ -82,11 +82,11 @@ ARCH ?= $(strip $(SUBARCH))
 GCCWARN  = -W -Wall -Wstrict-prototypes $(DEBUGOPT)
 
 # Common stanza to make gcc generate .*.d dependency files
-MAKEDEPS = -MT $@ -MD
+MAKEDEPS = -MT $@ -MD -MF $(dir $@).$(notdir $@).d
 
 # Dependencies that exclude system headers; use whenever we use
 # header files from the platform.
-UMAKEDEPS = -MT $@ -MMD
+UMAKEDEPS = -MT $@ -MMD -MF $(dir $@).$(notdir $@).d
 
 # Items that are only appropriate during development; this file is
 # removed when tarballs are generated.
