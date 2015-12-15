@@ -23,8 +23,8 @@
 
 #include "xfs.h"
 
-const void *xfs_dir2_dirblks_get_cached(struct fs_info *fs, block_t startblock,
-					xfs_filblks_t c);
+void *xfs_dir2_dirblks_get_cached(struct fs_info *fs, block_t startblock,
+				  xfs_filblks_t c);
 void xfs_dir2_dirblks_flush_cache(void);
 
 uint32_t xfs_dir2_da_hashname(const uint8_t *name, int namelen);
@@ -46,7 +46,7 @@ static inline bool xfs_dir2_isleaf(struct fs_info *fs, xfs_dinode_t *dip)
     uint64_t last = 0;
     xfs_bmbt_irec_t irec;
 
-    bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&dip->di_literal_area[0]) +
+    bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)XFS_DFORK_PTR(dip, XFS_DATA_FORK) +
 		         be32_to_cpu(dip->di_nextents) - 1);
     last = irec.br_startoff + irec.br_blockcount;
 

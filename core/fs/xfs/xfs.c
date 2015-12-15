@@ -74,10 +74,13 @@ static int xfs_readdir(struct file *file, struct dirent *dirent)
 	return -1;
     }
 
-    if (core->di_format == XFS_DINODE_FMT_LOCAL)
+    switch (core->di_format) {
+    case XFS_DINODE_FMT_LOCAL:
 	return xfs_fmt_local_readdir(file, dirent, core);
-    else if (core->di_format == XFS_DINODE_FMT_EXTENTS)
+    case XFS_DINODE_FMT_EXTENTS:
+    case XFS_DINODE_FMT_BTREE:
 	return xfs_fmt_extents_readdir(file, dirent, core);
+    }
 
     return -1;
 }
@@ -117,8 +120,10 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
         goto out;
 
     if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
-	bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
-						XFS_PVT(inode)->i_cur_extent++);
+	bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)XFS_DFORK_PTR(core,
+							    XFS_DATA_FORK) +
+						XFS_PVT(inode)->i_cur_extent);
+	XFS_PVT(inode)->i_cur_extent++;
 
 	bno = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
 
@@ -130,7 +135,7 @@ static int xfs_next_extent(struct inode *inode, uint32_t lstart)
     } else if (core->di_format == XFS_DINODE_FMT_BTREE) {
         xfs_debug("XFS_DINODE_FMT_BTREE");
         index = XFS_PVT(inode)->i_cur_extent++;
-        rblock = (xfs_bmdr_block_t *)&core->di_literal_area[0];
+        rblock = XFS_DFORK_PTR(core, XFS_DATA_FORK);
         fsize = XFS_DFORK_SIZE(core, fs, XFS_DATA_FORK);
         pp = XFS_BMDR_PTR_ADDR(rblock, 1, xfs_bmdr_maxrecs(fsize, 0));
         bno = fsblock_to_bytes(fs, be64_to_cpu(pp[0])) >> BLOCK_SHIFT(fs);
@@ -278,9 +283,9 @@ static int xfs_readlink(struct inode *inode, char *buf)
     }
 
     if (core->di_format == XFS_DINODE_FMT_LOCAL) {
-	memcpy(buf, (char *)&core->di_literal_area[0], pathlen);
+	memcpy(buf, XFS_DFORK_PTR(core, XFS_DATA_FORK), pathlen);
     } else if (core->di_format == XFS_DINODE_FMT_EXTENTS) {
-	bmbt_irec_get(&rec, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
+	bmbt_irec_get(&rec, XFS_DFORK_PTR(core, XFS_DATA_FORK));
 	db = fsblock_to_bytes(fs, rec.br_startblock) >> BLOCK_SHIFT(fs);
 	dir_buf = xfs_dir2_dirblks_get_cached(fs, db, rec.br_blockcount);
 
