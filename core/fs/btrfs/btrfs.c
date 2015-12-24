@@ -81,7 +81,8 @@ static int btrfs_comp_chunk_map(struct btrfs_chunk_map_item *m1,
 }
 
 /* insert a new chunk mapping item */
-static void insert_map(struct fs_info *fs, struct btrfs_chunk_map_item *item)
+static void insert_chunk_item(struct fs_info *fs,
+			      struct btrfs_chunk_map_item *item)
 {
 	struct btrfs_info * const bfs = fs->fs_info;
 	struct btrfs_chunk_map *chunk_map = &bfs->chunk_map;
@@ -111,6 +112,22 @@ static void insert_map(struct fs_info *fs, struct btrfs_chunk_map_item *item)
 		chunk_map->map[i] = chunk_map->map[i-1];
 	chunk_map->map[slot] = *item;
 	chunk_map->cur_length++;
+}
+
+static inline void insert_map(struct fs_info *fs, struct btrfs_disk_key *key,
+			      struct btrfs_chunk *chunk)
+{
+	struct btrfs_stripe *stripe = &chunk->stripe;
+	struct btrfs_stripe *stripe_end = stripe + chunk->num_stripes;
+	struct btrfs_chunk_map_item item;
+
+	item.logical = key->offset;
+	item.length = chunk->length;
+	for ( ; stripe < stripe_end; stripe++) {
+		item.devid = stripe->devid;
+		item.physical = stripe->offset;
+		insert_chunk_item(fs, &item);
+	}
 }
 
 /*
@@ -330,7 +347,6 @@ static int next_slot(struct fs_info *fs, struct btrfs_disk_key *key,
 static void btrfs_read_sys_chunk_array(struct fs_info *fs)
 {
 	struct btrfs_info * const bfs = fs->fs_info;
-	struct btrfs_chunk_map_item item;
 	struct btrfs_disk_key *key;
 	struct btrfs_chunk *chunk;
 	int cur;
@@ -342,12 +358,7 @@ static void btrfs_read_sys_chunk_array(struct fs_info *fs)
 		cur += sizeof(*key);
 		chunk = (struct btrfs_chunk *)(bfs->sb.sys_chunk_array + cur);
 		cur += btrfs_chunk_item_size(chunk->num_stripes);
-		/* insert to mapping table, ignore multi stripes */
-		item.logical = key->offset;
-		item.length = chunk->length;
-		item.devid = chunk->stripe.devid;
-		item.physical = chunk->stripe.offset;/*ignore other stripes */
-		insert_map(fs, &item);
+		insert_map(fs, key, chunk);
 	}
 }
 
@@ -355,14 +366,18 @@ static void btrfs_read_sys_chunk_array(struct fs_info *fs)
 static void btrfs_read_chunk_tree(struct fs_info *fs)
 {
 	struct btrfs_info * const bfs = fs->fs_info;
+	struct btrfs_disk_key ignore_key;
 	struct btrfs_disk_key search_key;
 	struct btrfs_chunk *chunk;
-	struct btrfs_chunk_map_item item;
 	struct btrfs_path path;
 
 	if (!(bfs->sb.flags & BTRFS_SUPER_FLAG_METADUMP)) {
 		if (bfs->sb.num_devices > 1)
 			printf("warning: only support single device btrfs\n");
+
+		ignore_key.objectid = BTRFS_DEV_ITEMS_OBJECTID;
+		ignore_key.type = BTRFS_DEV_ITEM_KEY;
+
 		/* read chunk from chunk_tree */
 		search_key.objectid = BTRFS_FIRST_CHUNK_TREE_OBJECTID;
 		search_key.type = BTRFS_CHUNK_ITEM_KEY;
@@ -371,16 +386,18 @@ static void btrfs_read_chunk_tree(struct fs_info *fs)
 		search_tree(fs, bfs->sb.chunk_root, &search_key, &path);
 		do {
 			do {
+				/* skip information about underlying block
+				 * devices.
+				 */
+				if (!btrfs_comp_keys_type(&ignore_key,
+							  &path.item.key))
+					continue;
 				if (btrfs_comp_keys_type(&search_key,
-							&path.item.key))
+							 &path.item.key))
 					break;
+
 				chunk = (struct btrfs_chunk *)(path.data);
-				/* insert to mapping table, ignore stripes */
-				item.logical = path.item.key.offset;
-				item.length = chunk->length;
-				item.devid = chunk->stripe.devid;
-				item.physical = chunk->stripe.offset;
-				insert_map(fs, &item);
+				insert_map(fs, &path.item.key, chunk);
 			} while (!next_slot(fs, &search_key, &path));
 			if (btrfs_comp_keys_type(&search_key, &path.item.key))
 				break;

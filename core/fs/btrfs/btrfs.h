@@ -56,6 +56,8 @@ typedef u64 __le64;
 #define BTRFS_MAX_LEVEL 8
 #define BTRFS_MAX_CHUNK_ENTRIES 256
 
+#define BTRFS_DEV_ITEMS_OBJECTID 1ULL
+
 #define BTRFS_FT_REG_FILE	1
 #define BTRFS_FT_DIR		2
 #define BTRFS_FT_SYMLINK	7
