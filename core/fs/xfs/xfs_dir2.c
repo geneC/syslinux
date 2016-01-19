@@ -630,7 +630,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     block_t fsblkno;
     xfs_da_node_hdr_t *nhdr;
     uint32_t hashwant;
-    uint32_t hash;
+    uint32_t hash = 0;
     uint16_t i;
     uint16_t count;
     xfs_da_node_entry_t *btree;
@@ -645,7 +645,7 @@ struct inode *xfs_dir2_node_find_entry(const char *dname, struct inode *parent,
     uint8_t *end_name;
     int low;
     int high;
-    int mid;
+    int mid = 0;
     uint32_t newdb;
     uint32_t curdb;
     xfs_intino_t ino;
