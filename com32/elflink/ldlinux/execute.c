@@ -44,6 +44,7 @@ const struct image_types image_boot_types[] = {
     { NULL, 0 },
 };
 
+extern jmp_buf __return_to_command_prompt;
 extern int create_args_and_load(char *);
 
 __export void execute(const char *cmdline, uint32_t type, bool sysappend)
@@ -136,7 +137,8 @@ __export void execute(const char *cmdline, uint32_t type, bool sysappend)
 		/* Restore the console */
 		ldlinux_console_init();
 
-		ldlinux_enter_command();
+		/* Jump back to the main to call ldlinux_enter_command */
+		longjmp(__return_to_command_prompt, 1);
 	} else if (type == IMAGE_TYPE_CONFIG) {
 		char *argv[] = { LDLINUX, NULL, NULL };
 		char *config;

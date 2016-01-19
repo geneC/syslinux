@@ -55,7 +55,7 @@ void init_module_subsystem(struct elf_module *module)
     list_add(&module->list, &modules_head);
 }
 
-__export int start_ldlinux(int argc, char **argv)
+static int _start_ldlinux(int argc, char **argv)
 {
 	int rv;
 
@@ -94,6 +94,62 @@ again:
 	}
 
 	return rv;
+}
+
+__export int start_ldlinux(int argc, char **argv)
+{
+	/* These variables are static to survive the longjmp. */
+	static int has_jmpbuf = 0;
+	static jmp_buf restart;
+	static int savedargc;
+	static char *heapargs;
+	static size_t argsmem = 0;
+	char **stackargv;
+	char *stackargs;
+	char *p, *q;
+	int i;
+
+
+	/* 1. Save the arguments on the heap */
+	for (i = 0; i < argc; i++)
+		argsmem += strlen(argv[i]) + 1;
+
+	savedargc = argc;
+	heapargs = malloc(argsmem);
+
+	p = heapargs;
+	for (i = 0; i < savedargc; i++) {
+		q = argv[i];
+		while (*q)
+			*p++ = *q++;
+
+		*p++ = '\0';
+	}
+
+	/* 2. Undo the stack if we're restarting ldlinux */
+	if (has_jmpbuf)
+		longjmp(restart, 1);
+
+	setjmp(restart);
+	has_jmpbuf = 1;
+
+	/* 3. Convert the heap memory to stack memory to avoid memory leaks */
+	stackargs = alloca(argsmem);
+	stackargv = alloca(savedargc * (sizeof(char *) + 1));
+
+	memcpy(stackargs, heapargs, argsmem);
+
+	p = stackargs;
+	for (i = 0; i < savedargc; i++) {
+		stackargv[i] = p;
+		p += strlen(p) + 1;
+	}
+
+	stackargv[savedargc] = NULL;
+
+	free(heapargs);
+
+	return _start_ldlinux(savedargc, stackargv);
 }
 
 /* note to self: do _*NOT*_ use static key word on this function */
