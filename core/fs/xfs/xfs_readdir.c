@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 Paulo Alcantara <pcacjr@zytor.com>
+ * Copyright (c) 2012-2015 Paulo Alcantara <pcacjr@zytor.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -64,10 +64,12 @@ static int fill_dirent(struct fs_info *fs, struct dirent *dirent,
 int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
 			   xfs_dinode_t *core)
 {
-    xfs_dir2_sf_t *sf = (xfs_dir2_sf_t *)&core->di_literal_area[0];
+    xfs_dir2_sf_t *sf = XFS_DFORK_PTR(core, XFS_DATA_FORK);
     xfs_dir2_sf_entry_t *sf_entry;
+    uint8_t ftypelen = core->di_version == 3 ? 1 : 0;
     uint8_t count = sf->hdr.i8count ? sf->hdr.i8count : sf->hdr.count;
     uint32_t offset = file->offset;
+    xfs_dir2_inou_t *inou;
     uint8_t *start_name;
     uint8_t *end_name;
     xfs_ino_t ino;
@@ -82,7 +84,7 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
 
     file->offset++;
 
-    sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)&sf->list[0] -
+    sf_entry = (xfs_dir2_sf_entry_t *)((uint8_t *)sf->list -
 				       (!sf->hdr.i8count ? 4 : 0));
 
     if (file->offset - 1) {
@@ -91,20 +93,22 @@ int xfs_readdir_dir2_local(struct file *file, struct dirent *dirent,
 	    sf_entry = (xfs_dir2_sf_entry_t *)(
 				(uint8_t *)sf_entry +
 				offsetof(struct xfs_dir2_sf_entry,
-					 name[0]) +
+					 name) +
 				sf_entry->namelen +
+				ftypelen +
 				(sf->hdr.i8count ? 8 : 4));
 	}
     }
 
-    start_name = &sf_entry->name[0];
+    start_name = sf_entry->name;
     end_name = start_name + sf_entry->namelen;
 
-    ino = xfs_dir2_sf_get_inumber(sf, (xfs_dir2_inou_t *)(
-				      (uint8_t *)sf_entry +
-				      offsetof(struct xfs_dir2_sf_entry,
-					       name[0]) +
-				      sf_entry->namelen));
+    inou = (xfs_dir2_inou_t *)((uint8_t *)sf_entry +
+			       offsetof(struct xfs_dir2_sf_entry,
+					name) +
+			       sf_entry->namelen +
+			       ftypelen);
+    ino = xfs_dir2_sf_get_inumber(sf, inou);
 
     retval = fill_dirent(fs, dirent, file->offset, ino, (char *)start_name,
 			 end_name - start_name);
@@ -126,6 +130,7 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
     block_t dir_blk;
     struct fs_info *fs = file->fs;
     const uint8_t *dirblk_buf;
+    bool isdir3;
     uint8_t *p;
     uint32_t offset;
     xfs_dir2_data_hdr_t *hdr;
@@ -139,12 +144,16 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
 
     xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
-    bmbt_irec_get(&r, (xfs_bmbt_rec_t *)&core->di_literal_area[0]);
+    bmbt_irec_get(&r, XFS_DFORK_PTR(core, XFS_DATA_FORK));
     dir_blk = fsblock_to_bytes(fs, r.br_startblock) >> BLOCK_SHIFT(fs);
 
     dirblk_buf = xfs_dir2_dirblks_get_cached(fs, dir_blk, r.br_blockcount);
     hdr = (xfs_dir2_data_hdr_t *)dirblk_buf;
-    if (be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC) {
+    if (be32_to_cpu(hdr->magic) == XFS_DIR2_BLOCK_MAGIC) {
+	isdir3 = false;
+    } else if (be32_to_cpu(hdr->magic) == XFS_DIR3_BLOCK_MAGIC) {
+	isdir3 = true;
+    } else {
         xfs_error("Block directory header's magic number does not match!");
         xfs_debug("hdr->magic: 0x%lx", be32_to_cpu(hdr->magic));
 	goto out;
@@ -157,7 +166,8 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
 
     file->offset++;
 
-    p = (uint8_t *)(hdr + 1);
+    p = (uint8_t *)dirblk_buf + (isdir3 ? sizeof(struct xfs_dir3_data_hdr) :
+				 sizeof(struct xfs_dir2_data_hdr));
 
     if (file->offset - 1) {
 	offset = file->offset;
@@ -170,7 +180,8 @@ int xfs_readdir_dir2_block(struct file *file, struct dirent *dirent,
 		continue;
 	    }
 
-	    p += xfs_dir2_data_entsize(dep->namelen);
+	    p += (isdir3 ? xfs_dir3_data_entsize(dep->namelen) :
+		  xfs_dir2_data_entsize(dep->namelen));
 	}
     }
 
@@ -197,9 +208,11 @@ out:
 int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
 			  xfs_dinode_t *core)
 {
+    xfs_dir2_leaf_hdr_t *hdr;
+    xfs_dir2_leaf_entry_t *ents;
+    uint16_t count;
     xfs_bmbt_irec_t irec;
     struct fs_info *fs = file->fs;
-    xfs_dir2_leaf_t *leaf;
     block_t leaf_blk, dir_blk;
     xfs_dir2_leaf_entry_t *lep;
     uint32_t db;
@@ -214,39 +227,49 @@ int xfs_readdir_dir2_leaf(struct file *file, struct dirent *dirent,
 
     xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
-    bmbt_irec_get(&irec, ((xfs_bmbt_rec_t *)&core->di_literal_area[0]) +
+    bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)XFS_DFORK_PTR(core, XFS_DATA_FORK) +
 					be32_to_cpu(core->di_nextents) - 1);
     leaf_blk = fsblock_to_bytes(fs, irec.br_startblock) >>
 					BLOCK_SHIFT(file->fs);
 
-    leaf = (xfs_dir2_leaf_t *)xfs_dir2_dirblks_get_cached(fs, leaf_blk,
-							  irec.br_blockcount);
-    if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAF1_MAGIC) {
+    hdr = xfs_dir2_dirblks_get_cached(fs, leaf_blk, irec.br_blockcount);
+    if (!hdr)
+        return -1;
+
+    if (be16_to_cpu(hdr->info.magic) == XFS_DIR2_LEAF1_MAGIC) {
+	count = be16_to_cpu(hdr->count);
+	ents = (xfs_dir2_leaf_entry_t *)((uint8_t *)hdr +
+					 sizeof(struct xfs_dir2_leaf_hdr));
+    } else if (be16_to_cpu(hdr->info.magic) == XFS_DIR3_LEAF1_MAGIC) {
+	count = be16_to_cpu(((xfs_dir3_leaf_hdr_t *)hdr)->count);
+	ents = (xfs_dir2_leaf_entry_t *)((uint8_t *)hdr +
+					 sizeof(struct xfs_dir3_leaf_hdr));
+    } else {
         xfs_error("Single leaf block header's magic number does not match!");
         goto out;
     }
 
-    if (!leaf->hdr.count)
-        goto out;
-
-    if (file->offset + 1 > be16_to_cpu(leaf->hdr.count))
+    if (!count || file->offset + 1 > count)
 	goto out;
 
-    lep = &leaf->ents[file->offset++];
+    lep = &ents[file->offset++];
 
     /* Skip over stale leaf entries */
     for ( ; be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR;
-	  lep++, file->offset++);
+	  lep++, file->offset++)
+	;
 
     db = xfs_dir2_dataptr_to_db(fs, be32_to_cpu(lep->address));
 
-    bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] + db);
+    bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)XFS_DFORK_PTR(core,
+							 XFS_DATA_FORK) + db);
 
     dir_blk = fsblock_to_bytes(fs, irec.br_startblock) >> BLOCK_SHIFT(fs);
 
     buf = xfs_dir2_dirblks_get_cached(fs, dir_blk, irec.br_blockcount);
     data_hdr = (xfs_dir2_data_hdr_t *)buf;
-    if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
+    if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC &&
+	be32_to_cpu(data_hdr->magic) != XFS_DIR3_DATA_MAGIC) {
 	xfs_error("Leaf directory's data magic number does not match!");
 	goto out;
     }
@@ -277,14 +300,16 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
 			  xfs_dinode_t *core)
 {
     struct fs_info *fs = file->fs;
-    xfs_bmbt_irec_t irec;
-    uint32_t node_off = 0;
     block_t fsblkno;
-    xfs_da_intnode_t *node = NULL;
+    xfs_da_node_hdr_t *nhdr;
+    xfs_da_node_entry_t *btree;
+    uint16_t btcount;
+    uint16_t lfcount;
+    xfs_dir2_leaf_hdr_t *lhdr;
+    xfs_dir2_leaf_entry_t *ents;
     struct inode *inode = file->inode;
     int error;
     xfs_dir2_data_hdr_t *data_hdr;
-    xfs_dir2_leaf_t *leaf;
     xfs_dir2_leaf_entry_t *lep;
     unsigned int offset;
     xfs_dir2_data_entry_t *dep;
@@ -296,52 +321,71 @@ int xfs_readdir_dir2_node(struct file *file, struct dirent *dirent,
 
     xfs_debug("file %p dirent %p core %p", file, dirent, core);
 
-    do {
-        bmbt_irec_get(&irec, (xfs_bmbt_rec_t *)&core->di_literal_area[0] +
-								++node_off);
-    } while (irec.br_startoff < xfs_dir2_byte_to_db(fs, XFS_DIR2_LEAF_OFFSET));
+    db = xfs_dir2_byte_to_db(fs, XFS_DIR2_LEAF_OFFSET);
+    fsblkno = xfs_dir2_get_right_blk(fs, core, db, &error);
+    if (error) {
+	xfs_error("Cannot find fs block");
+	return -1;
+    }
 
-    fsblkno = fsblock_to_bytes(fs, irec.br_startblock) >> BLOCK_SHIFT(fs);
-
-    node = (xfs_da_intnode_t *)xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
-    if (be16_to_cpu(node->hdr.info.magic) != XFS_DA_NODE_MAGIC) {
-        xfs_error("Node's magic number does not match!");
+    nhdr = xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
+    if (be16_to_cpu(nhdr->info.magic) == XFS_DA_NODE_MAGIC) {
+	btcount = be16_to_cpu(nhdr->count);
+	btree = (xfs_da_node_entry_t *)((uint8_t *)nhdr +
+					sizeof(struct xfs_da_node_hdr));
+    } else if (be16_to_cpu(nhdr->info.magic) == XFS_DA3_NODE_MAGIC) {
+	btcount = be16_to_cpu(((xfs_da3_node_hdr_t *)nhdr)->count);
+	btree = (xfs_da_node_entry_t *)((uint8_t *)nhdr +
+					sizeof(struct xfs_da3_node_hdr));
+    } else {
+        xfs_error("Node's magic number (0x%04x) does not match!",
+		  be16_to_cpu(nhdr->info.magic));
         goto out;
     }
 
 try_next_btree:
-    if (!node->hdr.count ||
-	XFS_PVT(inode)->i_btree_offset >= be16_to_cpu(node->hdr.count))
+    if (!btcount ||
+	XFS_PVT(inode)->i_btree_offset >= btcount)
 	goto out;
 
-    fsblkno = be32_to_cpu(node->btree[XFS_PVT(inode)->i_btree_offset].before);
+    fsblkno = be32_to_cpu(btree[XFS_PVT(inode)->i_btree_offset].before);
     fsblkno = xfs_dir2_get_right_blk(fs, core, fsblkno, &error);
     if (error) {
         xfs_error("Cannot find leaf rec!");
         goto out;
     }
 
-    leaf = (xfs_dir2_leaf_t*)xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
-    if (be16_to_cpu(leaf->hdr.info.magic) != XFS_DIR2_LEAFN_MAGIC) {
-        xfs_error("Leaf's magic number does not match!");
+    lhdr = xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
+    if (be16_to_cpu(lhdr->info.magic) == XFS_DIR2_LEAFN_MAGIC) {
+	lfcount = be16_to_cpu(lhdr->count);
+	ents = (xfs_dir2_leaf_entry_t *)((uint8_t *)lhdr +
+					 sizeof(struct xfs_dir2_leaf_hdr));
+    } else if (be16_to_cpu(lhdr->info.magic) == XFS_DIR3_LEAFN_MAGIC) {
+	lfcount = be16_to_cpu(((xfs_dir3_leaf_hdr_t *)lhdr)->count);
+	ents = (xfs_dir2_leaf_entry_t *)((uint8_t *)lhdr +
+					 sizeof(struct xfs_dir3_leaf_hdr));
+    } else {
+        xfs_error("Leaf's magic number does not match (0x%04x)!",
+		  be16_to_cpu(lhdr->info.magic));
         goto out;
     }
 
-    if (!leaf->hdr.count ||
-	XFS_PVT(inode)->i_leaf_ent_offset >= be16_to_cpu(leaf->hdr.count)) {
+    if (!lfcount ||
+	XFS_PVT(inode)->i_leaf_ent_offset >= lfcount) {
 	XFS_PVT(inode)->i_btree_offset++;
 	XFS_PVT(inode)->i_leaf_ent_offset = 0;
 	goto try_next_btree;
     }
 
-    lep = &leaf->ents[XFS_PVT(inode)->i_leaf_ent_offset];
+    lep = &ents[XFS_PVT(inode)->i_leaf_ent_offset];
 
     /* Skip over stale leaf entries */
-    for ( ; XFS_PVT(inode)->i_leaf_ent_offset < be16_to_cpu(leaf->hdr.count) &&
+    for ( ; XFS_PVT(inode)->i_leaf_ent_offset < lfcount &&
 			be32_to_cpu(lep->address) == XFS_DIR2_NULL_DATAPTR;
-	  lep++, XFS_PVT(inode)->i_leaf_ent_offset++);
+	  lep++, XFS_PVT(inode)->i_leaf_ent_offset++)
+	;
 
-    if (XFS_PVT(inode)->i_leaf_ent_offset == be16_to_cpu(leaf->hdr.count)) {
+    if (XFS_PVT(inode)->i_leaf_ent_offset == lfcount) {
 	XFS_PVT(inode)->i_btree_offset++;
 	XFS_PVT(inode)->i_leaf_ent_offset = 0;
 	goto try_next_btree;
@@ -359,7 +403,8 @@ try_next_btree:
 
     buf = xfs_dir2_dirblks_get_cached(fs, fsblkno, 1);
     data_hdr = (xfs_dir2_data_hdr_t *)buf;
-    if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC) {
+    if (be32_to_cpu(data_hdr->magic) != XFS_DIR2_DATA_MAGIC &&
+	be32_to_cpu(data_hdr->magic) != XFS_DIR3_DATA_MAGIC) {
 	xfs_error("Leaf directory's data magic No. does not match!");
 	goto out;
     }

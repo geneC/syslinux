@@ -116,6 +116,9 @@ struct xfs_fs_info;
 
 #define XFS_DIR2_NULL_DATAPTR   ((uint32_t)0)
 
+#define	XFS_DIR3_BLOCK_MAGIC	0x58444233	/* XDB3: single block dirs */
+#define	XFS_DIR3_DATA_MAGIC	0x58444433	/* XDD3: multiblock dirs */
+
 /* File types and modes */
 #define S_IFMT  	00170000
 #define S_IFSOCK 	0140000
@@ -346,8 +349,19 @@ typedef struct xfs_dinode {
 
     /* di_next_unlinked is the only non-core field in the old dinode */
     uint32_t		di_next_unlinked;/* agi unlinked list ptr */
-    uint8_t		di_literal_area[1];
-} __attribute__((packed)) xfs_dinode_t;
+
+    /* start of the extended dinode, writable fields */
+    uint32_t		di_crc;		 /* CRC of the inode */
+    uint64_t		di_changecount;	 /* number of attribute changes */
+    uint64_t		di_lsn;		 /* flush sequence */
+    uint64_t		di_flags2;	 /* more random flags */
+    uint8_t		di_pad2[16];
+
+    /* fields only written to during inode creation */
+    xfs_timestamp_t	di_crtime;	 /* time created */
+    uint64_t		di_ino;		 /* inode number */
+    uuid_t		di_uuid;	 /* UUID of the filesystem */
+} __attribute__((__packed__)) xfs_dinode_t;
 
 /*
  * Inode size for given fs.
@@ -359,23 +373,41 @@ typedef struct xfs_dinode {
         (XFS_BTREE_LBLOCK_LEN - sizeof(xfs_bmdr_block_t))
 
 /*
+ * Size of the core inode on disk.  Version 1 and 2 inodes have
+ * the same size, but version 3 has grown a few additional fields.
+ */
+static inline unsigned int xfs_dinode_size(int version)
+{
+    if (version == 3)
+	return sizeof(struct xfs_dinode);
+    return offsetof(struct xfs_dinode, di_crc);
+}
+
+/*
  * Inode data & attribute fork sizes, per inode.
  */
 #define XFS_DFORK_Q(dip)	((dip)->di_forkoff != 0)
 #define XFS_DFORK_BOFF(dip)	((int)((dip)->di_forkoff << 3))
 
-#define XFS_DFORK_DSIZE(dip, fs) \
-        (XFS_DFORK_Q(dip) ? \
-                XFS_DFORK_BOFF(dip) : \
-                XFS_LITINO(fs))
-#define XFS_DFORK_ASIZE(dip, fs) \
-        (XFS_DFORK_Q(dip) ? \
-                XFS_LITINO(fs) - XFS_DFORK_BOFF(dip) : \
-                0)
-#define XFS_DFORK_SIZE(dip, fs, w) \
-        ((w) == XFS_DATA_FORK ? \
-                XFS_DFORK_DSIZE(dip, fs) : \
-                XFS_DFORK_ASIZE(dip, fs))
+#define XFS_DFORK_DSIZE(dip, fs)		\
+    (XFS_DFORK_Q(dip) ?				\
+     XFS_DFORK_BOFF(dip) :			\
+     XFS_LITINO(fs))
+#define XFS_DFORK_ASIZE(dip, fs)		\
+    (XFS_DFORK_Q(dip) ?				\
+     XFS_LITINO(fs) - XFS_DFORK_BOFF(dip) :	\
+     0)
+#define XFS_DFORK_SIZE(dip, fs, w)		\
+    ((w) == XFS_DATA_FORK ?			\
+     XFS_DFORK_DSIZE(dip, fs) :			\
+     XFS_DFORK_ASIZE(dip, fs))
+
+#define XFS_DFORK_DPTR(dip) \
+    ((void *)((uint8_t *)dip + xfs_dinode_size(dip->di_version)))
+#define XFS_DFORK_APTR(dip) \
+    ((void *)((uint8_t *)XFS_DFORK_DPTR(dip) + XFS_DFORK_BOFF(dip)))
+#define XFS_DFORK_PTR(dip,w) \
+    ((w) == XFS_DATA_FORK ? XFS_DFORK_DPTR(dip) : XFS_DFORK_APTR(dip))
 
 struct xfs_inode {
     xfs_agblock_t 	i_agblock;
@@ -406,13 +438,12 @@ typedef struct xfs_dir2_sf_hdr {
 typedef struct xfs_dir2_sf_entry {
     uint8_t             namelen;        /* actual name length */
     xfs_dir2_sf_off_t   offset;         /* saved offset */
-    uint8_t             name[1];        /* name, variable size */
-    xfs_dir2_inou_t	inumber;	/* inode number, var. offset */
+    uint8_t             name[];         /* name, variable size */
 } __attribute__((__packed__)) xfs_dir2_sf_entry_t;
 
 typedef struct xfs_dir2_sf {
-    xfs_dir2_sf_hdr_t       hdr;            /* shortform header */
-    xfs_dir2_sf_entry_t     list[1];        /* shortform entries */
+    xfs_dir2_sf_hdr_t       hdr;        /* shortform header */
+    xfs_dir2_sf_entry_t     list[];     /* shortform entries */
 } __attribute__((__packed__)) xfs_dir2_sf_t;
 
 typedef xfs_ino_t	xfs_intino_t;
@@ -483,6 +514,21 @@ typedef struct xfs_dir2_data_unused {
  /* uint16_t tag; */  /* starting offset of us */
 } __attribute__((__packed__)) xfs_dir2_data_unused_t;
 
+struct xfs_dir3_blk_hdr {
+    uint32_t			magic;	/* magic number */
+    uint32_t			crc;	/* CRC of block */
+    uint64_t			blkno;	/* first block of the buffer */
+    uint64_t			lsn;	/* sequence number of last write */
+    uuid_t			uuid;	/* filesystem we belong to */
+    uint64_t			owner;	/* inode that owns the block */
+} __attribute__((__packed__));
+
+struct xfs_dir3_data_hdr {
+    struct xfs_dir3_blk_hdr	hdr;
+    xfs_dir2_data_free_t	best_free[XFS_DIR2_DATA_FD_COUNT];
+    uint32_t			pad;	/* 64 bit alignment */
+} __attribute__((__packed__));
+
 /**
  * rol32 - rotate a 32-bit value left
  * @word: value to rotate
@@ -502,8 +548,15 @@ static inline uint32_t rol32(uint32_t word, signed int shift)
 
 static inline int xfs_dir2_data_entsize(int n)
 {
-    return (int)roundup(offsetof(struct xfs_dir2_data_entry, name[0]) + n + 
+    return (int)roundup(offsetof(struct xfs_dir2_data_entry, name[0]) + n +
 			(unsigned int)sizeof(uint16_t), XFS_DIR2_DATA_ALIGN);
+}
+
+static inline int xfs_dir3_data_entsize(int n)
+{
+    return (int)roundup(offsetof(struct xfs_dir2_data_entry, name[0]) + n +
+			(unsigned int)sizeof(uint16_t) + sizeof(uint8_t),
+			XFS_DIR2_DATA_ALIGN);
 }
 
 static inline uint16_t *
@@ -598,25 +651,67 @@ typedef struct xfs_dir2_leaf {
     xfs_dir2_leaf_entry_t	ents[];	/* entries */
 } __attribute__((__packed__)) xfs_dir2_leaf_t;
 
+typedef struct xfs_da3_blkinfo {
+    /*
+     * the node link manipulation code relies on the fact that the first
+     * element of this structure is the struct xfs_da_blkinfo so it can
+     * ignore the differences in the rest of the structures.
+     */
+    xfs_da_blkinfo_t	hdr;
+    uint32_t		crc;	/* CRC of block */
+    uint64_t		blkno;	/* first block of the buffer */
+    uint64_t		lsn;	/* sequence number of last write */
+    uuid_t		uuid;	/* filesystem we belong to */
+    uint64_t		owner;	/* inode that owns the block */
+} __attribute__((__packed__)) xfs_da3_blkinfo_t;
+
+typedef struct xfs_dir3_leaf_hdr {
+    xfs_da3_blkinfo_t           info;		/* header for da routines */
+    uint16_t			count;		/* count of entries */
+    uint16_t			stale;		/* count of stale entries */
+    uint32_t			pad;		/* 64 bit alignment */
+} __attribute__((__packed__)) xfs_dir3_leaf_hdr_t;
+
+typedef struct xfs_dir3_leaf {
+    xfs_dir3_leaf_hdr_t 	hdr;	/* leaf header */
+    xfs_dir2_leaf_entry_t	ents[];	/* entries */
+} __attribute__((__packed__)) xfs_dir3_leaf_t;
+
 #define XFS_DA_NODE_MAGIC	0xfebeU	/* magic number: non-leaf blocks */
 #define XFS_ATTR_LEAF_MAGIC	0xfbeeU	/* magic number: attribute leaf blks */
 #define XFS_DIR2_LEAF1_MAGIC	0xd2f1U /* magic number: v2 dirlf single blks */
 #define XFS_DIR2_LEAFN_MAGIC	0xd2ffU	/* magic number: V2 dirlf multi blks */
 
+#define XFS_DA3_NODE_MAGIC	0x3ebe	/* magic number: non-leaf blocks */
+#define XFS_ATTR3_LEAF_MAGIC	0x3bee	/* magic number: attribute leaf blks */
+#define	XFS_DIR3_LEAF1_MAGIC	0x3df1	/* magic number: v2 dirlf single blks */
+#define	XFS_DIR3_LEAFN_MAGIC	0x3dff	/* magic number: v2 dirlf multi blks */
+
+#define	XFS_DIR3_LEAF1_MAGIC	0x3df1	/* magic number: v2 dirlf single blks */
+#define	XFS_DIR3_LEAFN_MAGIC	0x3dff	/* magic number: v2 dirlf multi blks */
+
+typedef struct xfs_da_node_hdr {
+    xfs_da_blkinfo_t info;	/* block type, links, etc. */
+    uint16_t count;		/* count of active entries */
+    uint16_t level;		/* level above leaves (leaf == 0) */
+} __attribute__((__packed__)) xfs_da_node_hdr_t;
+
+typedef struct xfs_da_node_entry {
+    uint32_t hashval;	/* hash value for this descendant */
+    uint32_t before;	/* Btree block before this key */
+} __attribute__((__packed__)) xfs_da_node_entry_t;
+
 typedef struct xfs_da_intnode {
-    struct xfs_da_node_hdr {	/* constant-structure header block */
-	xfs_da_blkinfo_t info;	/* block type, links, etc. */
-	uint16_t count;		/* count of active entries */
-	uint16_t level;		/* level above leaves (leaf == 0) */
-    } hdr;
-    struct xfs_da_node_entry {
-	uint32_t hashval;	/* hash value for this descendant */
-	uint32_t before;	/* Btree block before this key */
-    } btree[1];
+    xfs_da_node_hdr_t hdr;
+    xfs_da_node_entry_t btree[];
 } __attribute__((__packed__)) xfs_da_intnode_t;
 
-typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;
-typedef struct xfs_da_node_entry xfs_da_node_entry_t;
+typedef struct xfs_da3_node_hdr {
+    xfs_da3_blkinfo_t		info;  /* block type, links, etc. */
+    uint16_t			count; /* count of active entries */
+    uint16_t			level; /* level above leaves (leaf == 0) */
+    uint32_t			pad32;
+} __attribute__((__packed__)) xfs_da3_node_hdr_t;
 
 static inline bool xfs_is_valid_sb(const xfs_sb_t *sb)
 {
