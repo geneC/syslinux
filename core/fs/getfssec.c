@@ -39,18 +39,23 @@
  * will store the initial sector number into inode->next_extent.lstart
  * on return.)
  *
+ * If inode->next_extent.pstart is EXTENT_ZERO, then no disk I/O is
+ * performed, and the data in the extent is all zero.
+ *
  * If inode->next_extent.len != 0 on entry then the routine is allowed
  * to assume inode->next_extent contains valid data from the previous
  * usage, which can be used for optimization purposes.
  *
  * If the filesystem can map the entire file as a single extent
  * (e.g. iso9660), then the filesystem can simply insert the extent
- * information into inode->next_extent at searchdir/iget time, and leave
- * next_extent() as NULL.
+ * information into inode->next_extent at searchdir/iget time, and point
+ * next_extent() to the generic function no_next_extent().
  *
  * Note: the filesystem driver is not required to do extent coalescing,
  * if that is difficult to do; this routine will perform extent lookahead
- * and coalescing.
+ * and coalescing.  However, if the filesystem can do extent coalescing
+ * very cheaply by using filesystem-specific knowledge, then that is
+ * preferred (e.g. FAT).
  */
 
 #include <dprintf.h>
