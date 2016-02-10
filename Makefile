@@ -95,7 +95,6 @@ ifeq ($(real-target),)
 endif
 
 ifeq ($(real-firmware),)
-	do-spotless-gpxe = no-fw
 	real-firmware = $(firmware)
 endif
 
@@ -164,7 +163,7 @@ BOBJECTS = $(BTARGET) \
 	mbr/*.bin \
 	core/pxelinux.0 core/lpxelinux.0 \
 	core/isolinux.bin core/isolinux-debug.bin \
-	gpxe/gpxelinux.0 dos/syslinux.com \
+	dos/syslinux.com \
 	win32/syslinux.exe win64/syslinux64.exe \
 	dosutil/*.com dosutil/*.sys \
 	$(MODULES)
@@ -187,7 +186,7 @@ NETINSTALLABLE = efi/syslinux.efi $(INSTALLABLE_MODULES)
 
 else
 
-BSUBDIRS = codepage com32 lzo core memdisk mbr gpxe sample \
+BSUBDIRS = codepage com32 lzo core memdisk mbr sample \
 	   diag libinstaller dos win32 win64 dosutil txt
 
 ITARGET  =
@@ -201,7 +200,7 @@ INSTALL_BIN   =	mtools/syslinux
 # Things to install in /sbin
 INSTALL_SBIN  = extlinux/extlinux
 # Things to install in /usr/lib/syslinux
-INSTALL_AUX   =	core/pxelinux.0 gpxe/gpxelinux.0 gpxe/gpxelinuxk.0 \
+INSTALL_AUX   =	core/pxelinux.0 \
 		core/isolinux.bin core/isolinux-debug.bin \
 		dos/syslinux.com core/lpxelinux.0 \
 		mbr/*.bin $(INSTALLABLE_MODULES)
@@ -216,7 +215,7 @@ INSTALLSUBDIRS = com32 utils dosutil
 EXTBOOTINSTALL = $(INSTALLABLE_MODULES)
 
 # Things to install in /tftpboot
-NETINSTALLABLE = core/pxelinux.0 gpxe/gpxelinux.0 core/lpxelinux.0 \
+NETINSTALLABLE = core/pxelinux.0 core/lpxelinux.0 \
 		 $(INSTALLABLE_MODULES)
 
 endif # ifdef EFI_BUILD
@@ -305,7 +304,6 @@ libinstaller: core
 utils: mbr
 core: com32
 efi: core
-gpxe: core
 
 installer: installer-local
 	set -e; for i in $(ISUBDIRS); \
@@ -348,8 +346,6 @@ install: local-install
 	set -e ; for i in $(INSTALLSUBDIRS) ; \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
 		-f $(SRC)/$$i/Makefile $@; done
-
-do-spotless-gpxe = bios
 else
 install:
 	mkdir -m 755 -p $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
@@ -410,14 +406,7 @@ local-spotless:
 		-type f -print0 \
 	| xargs -0rt rm -f
 
-ifeq ($(do-spotless-gpxe),)
-spotless-gpxe:
-else
-spotless-gpxe:
-	$(MAKE) -C "$(topdir)/gpxe" SRC="$(topdir)/gpxe" spotless
-endif
-
-spotless: local-spotless spotless-gpxe
+spotless: local-spotless
 	rm -rf $(all_firmware)
 
 #
