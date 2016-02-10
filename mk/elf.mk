@@ -60,7 +60,7 @@ CFLAGS     = $(GCCOPT) $(GCCWARN) -W -Wall \
 	     -I$(com32)/libutil/include -I$(com32)/include \
 		-I$(com32)/include/sys $(GPLINCLUDE) -I$(core)/include \
 		-I$(objdir) -DLDLINUX=\"$(LDLINUX)\"
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 GCCOPT += -mno-red-zone
 else
 GCCOPT += -mregparm=3 -DREGPARM=3

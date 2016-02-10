@@ -6,7 +6,7 @@ subdirs: $(SUBDIRS)
 $(SUBDIRS):
 	@mkdir -p $(OBJ)/$@
 	$(MAKE) -C $(OBJ)/$@ SRC="$(SRC)"/$@ OBJ="$(OBJ)"/$@/ \
-		EFI_BUILD=$(EFI_BUILD) -f $(SRC)/$@/Makefile $(MAKECMDGOALS)
+		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
 
 all tidy dist clean spotless install: subdirs
 

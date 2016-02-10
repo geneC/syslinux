@@ -48,7 +48,7 @@ GCCOPT += $(call gcc_ok,-falign-jumps=0,-malign-jumps=0)
 GCCOPT += $(call gcc_ok,-falign-labels=0,-malign-labels=0)
 GCCOPT += $(call gcc_ok,-falign-loops=0,-malign-loops=0)
 
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 GCCOPT += -mno-red-zone
 else
 GCCOPT += -mregparm=3 -DREGPARM=3
@@ -119,5 +119,3 @@ C_LNXLIBS  = $(com32)/libutil/libutil_lnx.a
 
 %.c32: %.elf
 	$(OBJCOPY) --strip-debug --strip-unneeded $< $@
-	##$(OBJCOPY) -O binary $< $@
-	##$(RELOCS) $< >> $@ || ( rm -f $@ ; false )

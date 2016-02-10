@@ -22,7 +22,7 @@ LIBJPG_OBJS = \
 	jpeg/rgb24.o jpeg/bgr24.o jpeg/yuv420p.o jpeg/grey.o		\
 	jpeg/rgba32.o jpeg/bgra32.o					
 
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 I915VESA_OBJ =
 else
 I915VESA_OBJ = sys/vesa/i915resolution.o

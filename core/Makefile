@@ -1,7 +1,7 @@
 ## -----------------------------------------------------------------------
 ##
 ##   Copyright 1998-2009 H. Peter Anvin - All Rights Reserved
-##   Copyright 2009-2014 Intel Corporation; author: H. Peter Anvin
+##   Copyright 2009-2016 Intel Corporation; author: H. Peter Anvin
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -77,18 +77,20 @@ FILTER_OBJS = %rawcon.o %plaincon.o %pxelinux-c.o %ldlinux-c.o \
 	$(subst $(OBJ)/,,$(LPXELINUX_OBJS)) \
 	$(subst $(OBJ)/,,$(PXELINUX_OBJS))
 
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 # EFI is single-threaded, and doesn't use the LZO assembly decoder
 FILTER_OBJS += $(subst $(SRC)/,, \
 	$(patsubst %.S,%.o, $(sort $(wildcard $(SRC)/lzo/*.S))) \
 	$(patsubst %.c,%.o, $(sort $(wildcard $(SRC)/thread/*.c))) \
-	$(patsubst %.S,%.o, $(sort $(wildcard $(SRC)/thread/*.S))))
+	$(patsubst %.S,%.o, $(sort $(wildcard $(SRC)/thread/*.S)))) \
+	$(patsubst %.asm,%.o, $(sort $(wildcard $(SRC)/*.asm))) \
+	$(patsubst %.c,%.o, $(sort $(wildcard $(SRC)/bios*.c)))
 endif
 
 COBJS	 = $(filter-out $(FILTER_OBJS),$(COBJ))
 SOBJS	 = $(filter-out $(FILTER_OBJS),$(SOBJ))
 
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 COBJS += $(subst $(SRC)/,,$(CORE_PXE_CSRC:%.c=%.o) fs/pxe/ftp.o fs/pxe/ftp_readdir.o \
 	fs/pxe/http.o fs/pxe/http_readdir.o)
 endif
@@ -116,20 +118,7 @@ ifndef DATE
 DATE    := $(shell sh $(SRC)/../gen-id.sh $(VERSION) $(HEXDATE))
 endif
 
-# Set up the NASM and LD options for the architecture
-NASM_ELF = "unknown"
-LD_PIE = "unknown"
-ifeq ($(ARCH),i386)
-	NASM_ELF = elf
-	LD_PIE = -pie
-endif
-ifeq ($(ARCH),x86_64)
-	NASM_ELF = elf64
-	#LD_PIE = --pic-executable
-	LD_PIE = 
-endif
-
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 all: makeoutputdirs $(filter-out %bios.o,$(COBJS) $(SOBJS)) codepage.o
 else
 all: makeoutputdirs $(BTARGET)
@@ -141,14 +130,14 @@ makeoutputdirs:
 kwdhash.gen: keywords genhash.pl
 	$(PERL) $(SRC)/genhash.pl < $(SRC)/keywords > $(OBJ)/kwdhash.gen
 
-.PRECIOUS: %.elf
+ifeq ($(FWCLASS),BIOS)
 
+.PRECIOUS: %.elf
 %.raw: %.elf
 	$(OBJCOPY) -O binary -S $< $(@:.bin=.raw)
 
-# GNU make 3.82 gets confused by the first form
-.PRECIOUS: $(OBJ)/%.raw
-
+# GNU make 3.82 gets confused by plain %.raw; make 4.0 requires it
+.PRECIOUS: $(OBJ)/%.raw %.raw
 %.bin: %.raw $(PREPCORE)
 	$(PREPCORE) $< $@
 
@@ -161,10 +150,16 @@ kwdhash.gen: keywords genhash.pl
 
 AUXLIBS = libisolinux.a libisolinux-debug.a libldlinux.a \
 	libpxelinux.a liblpxelinux.a
+
 LDSCRIPT = $(SRC)/$(ARCH)/syslinux.ld
 
+NASM_ELF = elf
+
 %.elf: %.o $(LIBDEP) $(LDSCRIPT) $(AUXLIBS)
-	$(LD) $(LDFLAGS) -Bsymbolic $(LD_PIE) -E --hash-style=gnu -T $(LDSCRIPT) -M -o $@ $< \
+	$(LD) $(LDFLAGS) -pie -Bsymbolic \
+		-T $(LDSCRIPT) \
+		--unresolved-symbols=report-all \
+		-E --hash-style=gnu -M -o $@ $< \
 		--start-group $(LIBS) $(subst $(*F).elf,lib$(*F).a,$@) --end-group \
 		> $(@:.elf=.map)
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
@@ -191,11 +186,6 @@ liblpxelinux.a: rawcon.o pxeboot.o pxelinux-c.o $(LPXELINUX_OBJS)
 	$(RANLIB) $@
 
 libldlinux.a: plaincon.o localboot.o ldlinux-c.o
-	rm -f $@
-	$(AR) cq $@ $^
-	$(RANLIB) $@
-
-$(LIB): $(LIBOBJS)
 	rm -f $@
 	$(AR) cq $@ $^
 	$(RANLIB) $@
@@ -227,6 +217,13 @@ ldlinux.bss: ldlinux.bin
 
 ldlinux.sys: ldlinux.bin
 	dd if=$< of=$@ bs=512 skip=2
+
+endif # BIOS
+
+$(LIB): $(LIBOBJS)
+	rm -f $@
+	$(AR) cq $@ $^
+	$(RANLIB) $@
 
 codepage.cp: $(OBJ)/../codepage/$(CODEPAGE).cp
 	cp -f $< $@

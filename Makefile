@@ -86,9 +86,8 @@ endif
 # creating. Which means that we always need a *real* target, such as
 # 'all', appended to the make goals.
 #
-firmware = $(all_firmware)
-real-target := $(filter-out $(firmware), $(MAKECMDGOALS))
-real-firmware := $(filter $(firmware), $(MAKECMDGOALS))
+real-target := $(filter-out $(all_firmware), $(MAKECMDGOALS))
+real-firmware := $(filter $(all_firmware), $(MAKECMDGOALS))
 
 ifeq ($(real-target),)
 	real-target = all
@@ -101,7 +100,7 @@ endif
 .PHONY: $(filter-out $(private-targets), $(MAKECMDGOALS))
 $(filter-out $(private-targets), $(MAKECMDGOALS)):
 	$(MAKE) -C $(OBJDIR) -f $(CURDIR)/Makefile SRC="$(topdir)" \
-		OBJ=$(OBJDIR) objdir=$(OBJDIR) EFI_BUILD=$(EFI_BUILD) \
+		OBJ=$(OBJDIR) objdir=$(OBJDIR) $(BUILDOPTS) \
 		$(MAKECMDGOALS)
 
 unittest:
@@ -111,7 +110,7 @@ unittest:
 
 regression:
 	$(MAKE) -C tests SRC="$(topdir)/tests" OBJ="$(topdir)/tests" \
-		objdir=$(OBJDIR) EFI_BUILD=$(EFI_BUILD) \
+		objdir=$(OBJDIR) $(BUILDOPTS) \
 		-f $(topdir)/tests/Makefile all
 
 test: unittest regression
@@ -137,7 +136,7 @@ include $(MAKEDIR)/syslinux.mk
 # directories.
 #
 
-ifndef EFI_BUILD
+ifeq ($(FWCLASS),BIOS)
 MODULES = memdisk/memdisk \
 	com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/hdt/*.c32 com32/rosh/*.c32 com32/gfxboot/*.c32 \
@@ -152,6 +151,8 @@ MODULES = com32/menu/*.c32 com32/modules/*.c32 com32/mboot/*.c32 \
 	com32/lib/*.c32 com32/libutil/*.c32 com32/gpllib/*.c32 \
 	com32/cmenu/libmenu/*.c32 com32/elflink/ldlinux/$(LDLINUX)
 endif
+
+export FIRMWARE FWCLASS ARCH BITS
 
 # List of module objects that should be installed for all derivatives
 INSTALLABLE_MODULES = $(MODULES)
@@ -175,7 +176,7 @@ BOBJECTS = $(BTARGET) \
 # files that depend only on the B phase, but may have to be regenerated
 # for "make installer".
 
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 
 BSUBDIRS = codepage com32 lzo core mbr sample efi txt
 ISUBDIRS =
@@ -218,11 +219,11 @@ EXTBOOTINSTALL = $(INSTALLABLE_MODULES)
 NETINSTALLABLE = core/pxelinux.0 core/lpxelinux.0 \
 		 $(INSTALLABLE_MODULES)
 
-endif # ifdef EFI_BUILD
+endif # ifeq ($(FWCLASS),EFI)
 
 .PHONY: subdirs $(BSUBDIRS) $(ISUBDIRS) test
 
-ifeq ($(HAVE_FIRMWARE),)
+ifeq ($(FIRMWARE),)
 
 firmware = $(all_firmware)
 
@@ -254,27 +255,27 @@ endif
 bios:
 	@mkdir -p $(OBJ)/bios
 	$(MAKE) -C $(OBJ)/bios -f $(SRC)/Makefile SRC="$(SRC)" \
-		objdir=$(OBJ)/bios OBJ=$(OBJ)/bios HAVE_FIRMWARE=1 \
-		FIRMWARE=BIOS \
+		objdir=$(OBJ)/bios OBJ=$(OBJ)/bios \
+		FIRMWARE=BIOS FWCLASS=BIOS \
 		ARCH=i386 LDLINUX=ldlinux.c32 $(MAKECMDGOALS)
 
 efi32:
 	@mkdir -p $(OBJ)/efi32
 	$(MAKE) -C $(OBJ)/efi32 -f $(SRC)/Makefile SRC="$(SRC)" \
-		objdir=$(OBJ)/efi32 OBJ=$(OBJ)/efi32 HAVE_FIRMWARE=1 \
-		ARCH=i386 BITS=32 EFI_BUILD=1 LDLINUX=ldlinux.e32 \
-		FIRMWARE=EFI32 \
+		objdir=$(OBJ)/efi32 OBJ=$(OBJ)/efi32 \
+		ARCH=i386 BITS=32 LDLINUX=ldlinux.e32 \
+		FIRMWARE=EFI32 FWCLASS=EFI \
 		$(MAKECMDGOALS)
 
 efi64:
 	@mkdir -p $(OBJ)/efi64
 	$(MAKE) -C $(OBJ)/efi64 -f $(SRC)/Makefile SRC="$(SRC)" \
-		objdir=$(OBJ)/efi64 OBJ=$(OBJ)/efi64 HAVE_FIRMWARE=1 \
-		ARCH=x86_64 BITS=64 EFI_BUILD=1 LDLINUX=ldlinux.e64 \
-		FIRMWARE=EFI64 \
+		objdir=$(OBJ)/efi64 OBJ=$(OBJ)/efi64 \
+		ARCH=x86_64 BITS=64 LDLINUX=ldlinux.e64 \
+		FIRMWARE=EFI64 FWCLASS=EFI \
 		$(MAKECMDGOALS)
 
-else # ifeq($(HAVE_FIRMWARE),)
+else # FIRMWARE
 
 all: all-local subdirs
 
@@ -284,17 +285,17 @@ subdirs: $(BSUBDIRS) $(ISUBDIRS)
 
 $(sort $(ISUBDIRS) $(BSUBDIRS)):
 	@mkdir -p $@
-	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" EFI_BUILD=$(EFI_BUILD) \
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
 		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
 
 $(ITARGET):
 	@mkdir -p $@
-	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" EFI_BUILD=$(EFI_BUILD) \
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
 		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
 
 $(BINFILES):
 	@mkdir -p $@
-	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" EFI_BUILD=$(EFI_BUILD) \
+	$(MAKE) -C $@ SRC="$(SRC)/$@" OBJ="$(OBJ)/$@" \
 		-f $(SRC)/$@/Makefile $(MAKECMDGOALS)
 
 #
@@ -308,7 +309,7 @@ efi: core
 installer: installer-local
 	set -e; for i in $(ISUBDIRS); \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
-		EFI_BUILD=$(EFI_BUILD) -f $(SRC)/$$i/Makefile all; done
+		-f $(SRC)/$$i/Makefile all; done
 
 
 installer-local: $(ITARGET) $(BINFILES)
@@ -316,7 +317,7 @@ installer-local: $(ITARGET) $(BINFILES)
 strip: strip-local
 	set -e; for i in $(ISUBDIRS); \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
-		EFI_BUILD=$(EFI_BUILD) -f $(SRC)/$$i/Makefile strip; done
+		-f $(SRC)/$$i/Makefile strip; done
 	-ls -l $(BOBJECTS) $(IOBJECTS)
 
 strip-local:
@@ -341,7 +342,7 @@ local-install: installer
 	: mkdir -m 755 -p $(INSTALLROOT)$(MANDIR)/man8
 	: install -m 644 -c man/*.8 $(INSTALLROOT)$(MANDIR)/man8
 
-ifndef EFI_BUILD
+ifneq ($(FWCLASS),EFI)
 install: local-install
 	set -e ; for i in $(INSTALLSUBDIRS) ; \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
@@ -352,12 +353,12 @@ install:
 	set -e ; for i in $(INSTALLSUBDIRS) ; \
 		do $(MAKE) -C $$i SRC="$(SRC)/$$i" OBJ="$(OBJ)/$$i" \
 		BITS="$(BITS)" AUXDIR="$(AUXDIR)/efi$(BITS)" \
-		EFI_BUILD=$(EFI_BUILD) -f $(SRC)/$$i/Makefile $@; done
+		-f $(SRC)/$$i/Makefile $@; done
 	-install -m 644 $(INSTALLABLE_MODULES) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 	install -m 644 com32/elflink/ldlinux/$(LDLINUX) $(INSTALLROOT)$(AUXDIR)/efi$(BITS)
 endif
 
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 netinstall:
 	mkdir -p $(INSTALLROOT)$(TFTPBOOT)/efi$(BITS)
 	install -m 644 $(NETINSTALLABLE) $(INSTALLROOT)$(TFTPBOOT)/efi$(BITS)
@@ -396,7 +397,7 @@ dist: local-dist local-tidy $(BESUBDIRS) $(IESUBDIRS) $(BSUBDIRS) $(ISUBDIRS)
 klibc:
 	$(MAKE) clean
 	$(MAKE) CC=klcc ITARGET= ISUBDIRS='linux extlinux' BSUBDIRS=
-endif # ifeq ($(HAVE_FIRMWARE),)
+endif # ifeq ($(FIRMWARE),)
 
 endif # ifeq ($(topdir),)
 

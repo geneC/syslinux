@@ -22,7 +22,7 @@ OBJS = ldlinux.o cli.o readconfig.o refstr.o colors.o getadv.o adv.o \
 
 BTARGET = $(LDLINUX)
 
-ifdef EFI_BUILD
+ifeq ($(FWCLASS),EFI)
 %.e$(BITS): %.elf
 	$(OBJCOPY) --strip-debug --strip-unneeded $< $@
 SONAME = $(patsubst %.elf,%.e$(BITS),$(@F))
