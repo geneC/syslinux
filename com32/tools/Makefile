@@ -1,6 +1,6 @@
 ## -*- makefile -*- ------------------------------------------------------
 ##
-##   Copyright 2001-2008 H. Peter Anvin - All Rights Reserved
+##   Copyright 2001-2016 H. Peter Anvin - All Rights Reserved
 ##
 ##   This program is free software; you can redistribute it and/or modify
 ##   it under the terms of the GNU General Public License as published by
@@ -13,14 +13,11 @@
 VPATH = $(SRC)
 include $(MAKEDIR)/build.mk
 
-BINS    = relocs
+BINS    =
 
 INCLUDES += -I$(SRC)/include
 
 all : $(BINS)
-
-relocs : relocs.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 tidy dist clean spotless:
 	rm -f $(BINS)

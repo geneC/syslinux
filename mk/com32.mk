@@ -55,7 +55,6 @@ GCCOPT += -mregparm=3 -DREGPARM=3
 endif
 
 com32  := $(topdir)/com32
-RELOCS := $(com32)/tools/relocs
 
 ifneq ($(NOGPL),1)
 GPLLIB     = $(com32)/gpllib/libcom32gpl.a
