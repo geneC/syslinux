@@ -139,17 +139,6 @@ serial_buf_size	equ 4096		; Should be a power of 2
 core_xfer_buf	resb 65536
 
 ;
-; Segment for the real mode code (needed as long as we have a in-kernel
-; loader and/or COM16 support.
-; One symbol for the segment number, one for the absolute address
-;
-		extern	real_mode_seg
-		section .real_mode	write nobits align=65536
-		global	core_real_mode:data hidden
-core_real_mode	resb 65536
-comboot_seg	equ real_mode_seg	; COMBOOT image loading zone
-
-;
 ; At the very end, the lowmem heap
 ;
 		extern __lowmem_heap
