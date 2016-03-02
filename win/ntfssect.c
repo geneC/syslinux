@@ -45,7 +45,7 @@ DWORD M_NTFSSECT_API NtfsSectGetFileVcnExtent(
     LARGE_INTEGER * Vcn,
     S_NTFSSECT_EXTENT * Extent
   ) {
-    BOOL bad, ok;
+    BOOL bad;
     DWORD output_size, rc;
     STARTING_VCN_INPUT_BUFFER input;
     RETRIEVAL_POINTERS_BUFFER output;
@@ -60,7 +60,7 @@ DWORD M_NTFSSECT_API NtfsSectGetFileVcnExtent(
       return ERROR_INVALID_PARAMETER;
 
     input.StartingVcn = *Vcn;
-    ok = DeviceIoControl(
+    DeviceIoControl(
         File,
         FSCTL_GET_RETRIEVAL_POINTERS,
         &input,
@@ -112,7 +112,7 @@ static DWORD NtfsSectGetVolumeHandle(
       c[-1] = 0;
 
     /* Open the volume */
-    VolumeInfo->Handle = CreateFile(
+    VolumeInfo->Handle = CreateFileA(
         volname,
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -302,7 +302,7 @@ DWORD M_NTFSSECT_API NtfsSectLoadXpFuncs(S_NTFSSECT_XPFUNCS * XpFuncs) {
 
     XpFuncs->Size = sizeof *XpFuncs;
 
-    XpFuncs->Kernel32 = LoadLibrary("kernel32.dll");
+    XpFuncs->Kernel32 = LoadLibraryA("kernel32.dll");
     rc = GetLastError();
     if (!XpFuncs->Kernel32) {
         M_ERR("KERNEL32.DLL not found!");

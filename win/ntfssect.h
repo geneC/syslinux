@@ -39,7 +39,7 @@ typedef struct S_NTFSSECT_XPFUNCS_ S_NTFSSECT_XPFUNCS;
 
 /* The function type for Kernel32.dll's GetDiskFreeSpace() */
 typedef BOOL WINAPI F_KERNEL32_GETDISKFREESPACE(
-    LPCTSTR,
+    LPCSTR,
     LPDWORD,
     LPDWORD,
     LPDWORD,
@@ -47,7 +47,7 @@ typedef BOOL WINAPI F_KERNEL32_GETDISKFREESPACE(
   );
 
 /* The function type for Kernel32.dll's GetVolumePathName() */
-typedef BOOL WINAPI F_KERNEL32_GETVOLUMEPATHNAME(LPCTSTR, LPCTSTR, DWORD);
+typedef BOOL WINAPI F_KERNEL32_GETVOLUMEPATHNAME(LPCSTR, LPCSTR, DWORD);
 
 /*** Function declarations */
 
