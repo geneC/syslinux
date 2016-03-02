@@ -162,6 +162,8 @@ NASM_ELF = elf
 		-E --hash-style=gnu -M -o $@ $< \
 		--start-group $(LIBS) $(subst $(*F).elf,lib$(*F).a,$@) --end-group \
 		> $(@:.elf=.map)
+	if [ `$(NM) -D -u $@ | wc -l` -ne 0 ]; then \
+		$(NM) -D -u $@ 1>&2; rm -f $@; false; fi
 	$(OBJDUMP) -h $@ > $(@:.elf=.sec)
 	$(PERL) $(SRC)/lstadjust.pl $(@:.elf=.lsr) $(@:.elf=.sec) $(@:.elf=.lst)
 
