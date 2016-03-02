@@ -372,8 +372,8 @@ SECTIONS
 
 	_end = .;
 
-	/* COM32R and kernels are loaded after our own PM code */
-	. = ALIGN(65536);
+	/* The first block of the heap is here */
+	. = ALIGN(4096);
 	free_high_memory = .;
 
 	/* Stuff we don't need... */
