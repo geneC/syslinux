@@ -54,7 +54,7 @@
 
 %if IS_PXELINUX
 	; pxe.c
-	extern unload_pxe, reset_pxe, http_bake_cookies
+	extern unload_pxe, reset_pxe
 %endif
 
 	; plaincon.c
