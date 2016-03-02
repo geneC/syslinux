@@ -78,7 +78,4 @@
 	; font.c
 	extern pm_getchar, pm_adjust_screen, pm_userfont
 
-	; localboot.c
-	extern pm_local_boot
-
 %endif ; EXTERN_INC

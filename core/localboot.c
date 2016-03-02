@@ -87,8 +87,3 @@ __export void local_boot(int16_t ax)
 	ireg.edx.w[0] = ax;
 	call16(local_boot16, &ireg, NULL);
 }
-
-void pm_local_boot(com32sys_t *regs)
-{
-	local_boot(regs->eax.w[0]);
-}
