@@ -48,9 +48,9 @@ sub load_map
     $empty = 1;
     while (<FILE>) {
 	chop;
-	if (/^(static\s+)?u_short\s+(\S+)_map\[\S*\]\s+=\s+{\s*$/) {
+	if (/^(static\s+)?(u_|unsigned )short\s+(\S+)_map\[\S*\]\s+=\s+{\s*$/) {
 	    die "active at beginning of map" if defined $current;
-	    $current = $pfx.":".$2;
+	    $current = $pfx.":".$3;
 	    next;
 	}
 	undef $current if /^};\s*$/;
