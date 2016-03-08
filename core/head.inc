@@ -22,6 +22,8 @@
 
 %if __NASM_MAJOR__ < 2 || (__NASM_MAJOR__ == 2 && __NASM_MINOR__ < 3)
  %error "NASM 2.03 or later required to compile correctly"
+%elif __NASM_VERSION_ID__ == 0x020b0600
+ %fatal "NASM 2.11.06 is known to miscompile Syslinux"
 %endif
 
 %include "macros.inc"
