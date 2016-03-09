@@ -41,7 +41,8 @@ static void generate_extents(struct syslinux_extent _slimg *ex, int nptrs,
     unsigned int len;
 
     base = addr;
-    len = lba = 0;
+    len = 0;
+    lba = 0;
 
     memset_sl(ex, 0, nptrs * sizeof *ex);
 
