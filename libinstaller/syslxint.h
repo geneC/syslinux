@@ -17,7 +17,7 @@
 
 #include "syslinux.h"
 
-#if defined(__386__) || defined(__i386__) || defined(__x86_64__)
+#if defined(__386__) || defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 # define X86_MEM 1		/* Littleendian and unaligned safe */
 #else
 # define X86_MEM 0
@@ -26,10 +26,15 @@
 #ifdef __GNUC__
 # ifdef __MINGW32__
    /* gcc 4.7 miscompiles packed structures in MS-bitfield mode */
+#  define PACKME
 #  define PACKED __attribute__((packed,gcc_struct))
 # else
+#  define PACKME
 #  define PACKED __attribute__((packed))
 # endif
+#elif defined(_MSC_VER)
+# define PACKME __pragma(pack(push, 1))
+# define PACKED __pragma(pack(pop))
 #else
 # error "Need to define PACKED for this compiler"
 #endif
@@ -214,12 +219,14 @@ struct ext_patch_area {
 };
 
 /* Sector extent */
+PACKME
 struct syslinux_extent {
     uint64_t lba;
     uint16_t len;
 } PACKED;
 
 /* FAT bootsector format, also used by other disk-based derivatives */
+PACKME
 struct fat_boot_sector {
     uint8_t bsJump[3];
     char bsOemName[8];
@@ -236,7 +243,9 @@ struct fat_boot_sector {
     uint32_t bsHiddenSecs;
     uint32_t bsHugeSectors;
 
+    PACKME
     union {
+	PACKME
 	struct {
 	    uint8_t DriveNumber;
 	    uint8_t Reserved1;
@@ -246,6 +255,7 @@ struct fat_boot_sector {
 	    char FileSysType[8];
 	    uint8_t Code[442];
 	} PACKED bs16;
+	PACKME
 	struct {
 	    uint32_t FATSz32;
 	    uint16_t ExtFlags;
@@ -270,6 +280,7 @@ struct fat_boot_sector {
 } PACKED;
 
 /* NTFS bootsector format */
+PACKME
 struct ntfs_boot_sector {
     uint8_t bsJump[3];
     char bsOemName[8];
