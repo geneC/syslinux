@@ -1,3 +1,7 @@
+/*
+ * EFI image boot capabilities by Patrick Masotta (Serva) (c)2015
+ */
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -132,4 +136,67 @@ bail:
 	free(cmdline);
 	printf("%s\n", strerror(errno));
 	return 1;
+}
+
+
+int new_efi_image(char *okernel, char *ocmdline)
+{
+    const char *kernel_name = NULL, *args = NULL;
+    char *temp;
+    void *kernel_data;
+    size_t kernel_len, cmdline_len;
+    char *cmdline=NULL;
+
+
+    //lets clear the screen before loading the efi image
+    if(firmware && firmware->clear_screen)
+	firmware->clear_screen();
+
+
+    dprintf("okernel = %s, ocmdline = %s", okernel, ocmdline);
+
+    if (okernel)
+	kernel_name = okernel;
+    else if (globaldefault)
+	kernel_name = globaldefault;
+
+    if (ocmdline)
+	args = ocmdline;
+    else if (append)
+	args = append;
+
+    if(args!=NULL && *args!=0) {
+	int i;
+	int args_len;
+	args_len = strlen(args);
+	cmdline_len = (args_len+1) * 2 ;
+	cmdline = malloc(cmdline_len);
+	if (!cmdline) {
+	    printf("Failed to alloc memory for cmdline\n");
+	    return 1;
+	}
+	memset(cmdline,0,cmdline_len);
+	for(i=0; i < args_len ; i++)
+	    cmdline[2*i]=args[i];
+    } else {
+	cmdline_len=0;
+    }
+
+    printf("Loading %s... ", kernel_name);
+    if (loadfile(kernel_name, &kernel_data, &kernel_len)) {
+	printf("failed: ");
+	goto bail;
+    }
+    printf("ok\n");
+
+
+    /* This should not return... */
+    syslinux_boot_efi(kernel_data, kernel_len, cmdline, cmdline_len);
+    printf("Booting efi image failed: ");
+
+bail:
+    if(cmdline)
+	free(cmdline);
+    printf("%s\n", strerror(errno));
+    return 1;
 }
