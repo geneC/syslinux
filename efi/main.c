@@ -414,7 +414,8 @@ char efi_getchar(char *hi)
 	/*
 	 * We currently only handle scan codes that fit in 8 bits.
 	 */
-	*hi = (char)key.ScanCode;
+	if(hi)
+	    *hi = (char)key.ScanCode;
 	return 0;
 }
 
