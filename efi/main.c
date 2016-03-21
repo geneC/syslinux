@@ -1348,6 +1348,8 @@ struct firmware efi_fw = {
 	.get_serial_console_info = serialcfg,
 	.adv_ops = &efi_adv_ops,
 	.boot_linux = efi_boot_linux,
+	.boot_efi = efi_boot_efi,
+	.clear_screen = efi_clear_screen,
 	.vesa = &efi_vesa_ops,
 	.mem = &efi_mem_ops,
 };

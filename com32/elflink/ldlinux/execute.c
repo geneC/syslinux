@@ -91,6 +91,13 @@ __export void execute(const char *cmdline, uint32_t type, bool sysappend)
 		do_sysappend(q);
 	}
 
+#ifdef __FIRMWARE_BIOS__
+        if(type==IMAGE_TYPE_EFI) {
+                printf("Bios core cannot load efi image %s\n",kernel);
+                return;
+        }
+#endif
+
 	dprintf("kernel is %s, args = %s  type = %d \n", kernel, args, type);
 
 	if (kernel[0] == '.') {
@@ -164,6 +171,8 @@ __export void execute(const char *cmdline, uint32_t type, bool sysappend)
 	} else if (type == IMAGE_TYPE_PXE || type == IMAGE_TYPE_BSS ||
 		   type == IMAGE_TYPE_BOOT) {
 		chainboot_file(kernel, type);
+	} else if (type == IMAGE_TYPE_EFI) {
+		new_efi_image((char *)kernel, (char *)args);
 	} else {
 		/* Need add one item for kernel load, as we don't use
 		* the assembly runkernel.inc any more */
