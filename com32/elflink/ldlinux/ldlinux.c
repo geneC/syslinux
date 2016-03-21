@@ -28,6 +28,7 @@ static const struct file_ext file_extensions[] = {
 	{ ".bin", IMAGE_TYPE_BOOT },
 	{ ".bs", IMAGE_TYPE_BOOT },
 	{ ".0", IMAGE_TYPE_PXE },
+	{ ".efi", IMAGE_TYPE_EFI },
 	{ NULL, 0 },
 };
 

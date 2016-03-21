@@ -1334,6 +1334,7 @@ struct firmware efi_fw = {
 	.boot_linux = efi_boot_linux,
 	.vesa = &efi_vesa_ops,
 	.mem = &efi_mem_ops,
+	.boot_efi = efi_boot_efi,
 };
 
 static inline void syslinux_register_efi(void)
