@@ -406,7 +406,11 @@ char efi_getchar(char *hi)
 
 	do {
 		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
-	} while (status == EFI_NOT_READY);
+	} while (status != EFI_NOT_READY);
+
+        status = WaitForSingleEvent(in->WaitForKey, 0);
+        status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
+
 
 	if (!key.ScanCode)
 		return (char)key.UnicodeChar;
