@@ -1,7 +1,7 @@
 /*
  * Copyright 2011-2014 Intel Corporation - All Rights Reserved
+ * EFI image boot capabilities by Serva/Patrick Masotta (c)2015
  */
-
 #include <codepage.h>
 #include <core.h>
 #include <fs.h>
@@ -1098,6 +1098,81 @@ static int exit_boot(struct boot_params *bp)
 
 	return 0;
 }
+
+
+/*
+ * efi_boot_efi:
+ * Boots an efi image
+ */
+int efi_boot_efi(void *kernel_buf, size_t kernel_size,
+		char *cmdline, int cmdlineSize)
+{
+
+    char* szLoadImage   	= "LoadImage()";
+    char* szHandleProtocol	= "HandleProtocol()";
+    char* szStartImage  	= "StartImage()";
+
+    char* action = NULL;
+
+    EFI_LOADED_IMAGE *	image_info = NULL;
+    EFI_HANDLE 		Child_image_handle;
+    EFI_LOADED_IMAGE *	Child_image_info = NULL;
+    EFI_STATUS 		status;
+
+    CHAR16 w_emptyCmdLine [4]={0,0,0,0};
+
+    //Get info of the running image
+    status = uefi_call_wrapper(BS->HandleProtocol, 3, image_handle,
+				&LoadedImageProtocol,(void**)&image_info);
+    if (status != EFI_SUCCESS) {
+	action=szHandleProtocol;
+	goto bail;
+    }
+
+    status = uefi_call_wrapper(BS->LoadImage, 6, TRUE, image_handle, NULL,
+				kernel_buf, kernel_size, &Child_image_handle);
+    if (status != EFI_SUCCESS) {
+	action=szLoadImage;
+	goto bail;
+    }
+
+
+    status = uefi_call_wrapper(BS->HandleProtocol, 3, Child_image_handle,
+				&LoadedImageProtocol,
+				(void**)&Child_image_info);
+    if (status != EFI_SUCCESS) {
+	uefi_call_wrapper(BS->UnloadImage,1, Child_image_handle );
+	action=szHandleProtocol;
+	goto bail;
+    }
+
+    Child_image_info->ParentHandle = image_handle;
+    Child_image_info->DeviceHandle = image_info->DeviceHandle;
+    Child_image_info->LoadOptionsSize = (UINT32)cmdlineSize;
+    if (cmdline!=NULL && cmdlineSize != 0)
+	Child_image_info->LoadOptions = (VOID *)cmdline;
+    else
+	Child_image_info->LoadOptions = (VOID *)w_emptyCmdLine;
+
+    efi_console_restore();
+    status = uefi_call_wrapper(BS->StartImage, 3, Child_image_handle,
+				NULL, NULL);
+    efi_console_restore();
+    if (status != EFI_SUCCESS) {
+	uefi_call_wrapper(BS->UnloadImage, 1, Child_image_handle );
+	action=szStartImage;
+	goto bail;
+    }
+
+    return 0;
+
+bail:
+    printf("EFI Err: %s failed; EFI_STATUS=%d\n", action,status);
+    printf("Press any key...\n");
+    efi_getchar(NULL);
+    return -1;
+}
+
 
 /* efi_boot_linux: 
  * Boots the linux kernel using the image and parameters to boot with.

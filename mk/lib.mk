@@ -163,7 +163,8 @@ LIBLOAD_OBJS = \
 	\
 	syslinux/load_linux.o syslinux/initramfs.o			\
 	syslinux/initramfs_file.o syslinux/initramfs_loadfile.o		\
-	syslinux/initramfs_archive.o
+	syslinux/initramfs_archive.o syslinux/load_efi.o
+
 
 LIBMODULE_OBJS = \
 	sys/module/common.o sys/module/$(ARCH)/elf_module.o		\

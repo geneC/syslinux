@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   EFI image boot capabilities by Serva/Patrick Masotta (c)2015
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -41,6 +42,7 @@ const struct image_types image_boot_types[] = {
     { "fdimage", IMAGE_TYPE_FDIMAGE },
     { "com32", IMAGE_TYPE_COM32 },
     { "config", IMAGE_TYPE_CONFIG },
+    { "efi", IMAGE_TYPE_EFI },
     { NULL, 0 },
 };
 
