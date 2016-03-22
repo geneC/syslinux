@@ -408,11 +408,7 @@ char efi_getchar(char *hi)
 
 	do {
 		status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
-	} while (status != EFI_NOT_READY);
-
-        status = WaitForSingleEvent(in->WaitForKey, 0);
-        status = uefi_call_wrapper(in->ReadKeyStroke, 2, in, &key);
-
+	} while (status == EFI_NOT_READY);
 
 	if (!key.ScanCode)
 		return (char)key.UnicodeChar;
@@ -1339,7 +1335,6 @@ struct firmware efi_fw = {
 	.adv_ops = &efi_adv_ops,
 	.boot_linux = efi_boot_linux,
 	.boot_efi = efi_boot_efi,
-	.clear_screen = efi_clear_screen,
 	.vesa = &efi_vesa_ops,
 	.mem = &efi_mem_ops,
 };
