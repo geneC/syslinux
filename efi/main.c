@@ -425,16 +425,6 @@ char efi_getchar(char *hi)
 	return 0;
 }
 
-void efi_clear_screen(void)
-{
-
-        //simple form feed leaving only the background if any
-        char buf[55];
-        memset(&buf,'\n',sizeof(buf));
-        printf("%s",buf);
-
-}
-
 int efi_pollchar(void)
 {
 	SIMPLE_INPUT_INTERFACE *in = ST->ConIn;

@@ -11,7 +11,6 @@
 #include <syslinux/loadfile.h>
 #include <syslinux/linux.h>
 #include <syslinux/pxe.h>
-#include <syslinux/firmware.h>
 #include "core.h"
 
 const char *globaldefault = NULL;
@@ -27,9 +26,6 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 	size_t kernel_len, cmdline_len;
 	bool opt_quiet = false;
 	char *initrd_name, *cmdline;
-
-        if(firmware && firmware->clear_screen)
-                firmware->clear_screen();
 
 	dprintf("okernel = %s, ocmdline = %s", okernel, ocmdline);
 
@@ -146,12 +142,6 @@ int new_efi_image(char *okernel, char *ocmdline)
     void *kernel_data;
     size_t kernel_len, cmdline_len;
     char *cmdline=NULL;
-
-
-    //lets clear the screen before loading the efi image
-    if(firmware && firmware->clear_screen)
-	firmware->clear_screen();
-
 
     dprintf("okernel = %s, ocmdline = %s", okernel, ocmdline);
 
