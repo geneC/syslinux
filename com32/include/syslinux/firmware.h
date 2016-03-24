@@ -60,9 +60,9 @@ struct firmware {
 	struct adv_ops *adv_ops;
 	int (*boot_linux)(void *, size_t, struct initramfs *,
 			  struct setup_data *, char *);
-	int (*boot_efi)(void *, size_t, char *, int);
 	struct vesa_ops *vesa;
 	struct mem_ops *mem;
+	int 	(*boot_efi)(void *, size_t, char *, int);
 };
 
 extern struct firmware *firmware;

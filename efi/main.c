@@ -1335,9 +1335,9 @@ struct firmware efi_fw = {
 	.get_serial_console_info = serialcfg,
 	.adv_ops = &efi_adv_ops,
 	.boot_linux = efi_boot_linux,
-	.boot_efi = efi_boot_efi,
 	.vesa = &efi_vesa_ops,
 	.mem = &efi_mem_ops,
+	.boot_efi = efi_boot_efi,
 };
 
 static inline void syslinux_register_efi(void)
