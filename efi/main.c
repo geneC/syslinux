@@ -1155,16 +1155,17 @@ int efi_boot_efi(void *kernel_buf, size_t kernel_size,
     else
 	Child_image_info->LoadOptions = (VOID *)w_emptyCmdLine;
 
+    efi_gop_restore();
+    efi_console_restore();
     status = uefi_call_wrapper(BS->StartImage, 3, Child_image_handle,
 				NULL, NULL);
+    efi_gop_restore();
+    efi_console_restore();
     if (status != EFI_SUCCESS) {
 	uefi_call_wrapper(BS->UnloadImage, 1, Child_image_handle );
 	action=szStartImage;
 	goto bail;
     }
-
-    //If we are here the child image has run/finished/returned
-    efi_console_restore();
 
     return 0;
 
