@@ -1147,7 +1147,7 @@ int efi_boot_efi(void *kernel_buf, size_t kernel_size,
 	goto bail;
     }
 
-    Child_image_info->ParentHandle = image_info;
+    Child_image_info->ParentHandle = image_handle;
     Child_image_info->DeviceHandle = image_info->DeviceHandle;
     Child_image_info->LoadOptionsSize = (UINT32)cmdlineSize;
     if (cmdline!=NULL && cmdlineSize != 0)
