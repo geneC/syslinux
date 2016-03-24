@@ -43,6 +43,7 @@ const struct image_types image_boot_types[] = {
     { "com32", IMAGE_TYPE_COM32 },
     { "config", IMAGE_TYPE_CONFIG },
     { "efi", IMAGE_TYPE_EFI },
+    { "EFI", IMAGE_TYPE_EFI },
     { NULL, 0 },
 };
 

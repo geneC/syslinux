@@ -29,6 +29,7 @@ static const struct file_ext file_extensions[] = {
 	{ ".bs", IMAGE_TYPE_BOOT },
 	{ ".0", IMAGE_TYPE_PXE },
 	{ ".efi", IMAGE_TYPE_EFI },
+        { ".EFI", IMAGE_TYPE_EFI },
 	{ NULL, 0 },
 };
 
