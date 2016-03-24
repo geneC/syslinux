@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2007-2008 H. Peter Anvin - All Rights Reserved
+ *   EFI image boot capabilities by Serva/Patrick Masotta (c)2015
  *
  *   Permission is hereby granted, free of charge, to any person
  *   obtaining a copy of this software and associated documentation
@@ -24,7 +25,6 @@
  *   OTHER DEALINGS IN THE SOFTWARE.
  *
  * ----------------------------------------------------------------------- */
-
 /*
  * syslinux/boot.h
  *
@@ -68,7 +68,6 @@ extern const struct image_types image_boot_types[];
 #define IMAGE_TYPE_CONFIG	8
 #define IMAGE_TYPE_LOCALBOOT	9
 #define IMAGE_TYPE_EFI         10
-
 
 uint32_t parse_image_type(const char *cmdline);
 void syslinux_run_kernel_image(const char *filename, const char *cmdline,

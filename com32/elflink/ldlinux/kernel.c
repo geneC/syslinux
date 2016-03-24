@@ -1,5 +1,6 @@
+
 /*
- * EFI image boot capabilities by Patrick Masotta (Serva) (c)2015
+ * EFI image boot capabilities by Serva/Patrick Masotta (c)2015
  */
 
 #include <stdbool.h>
@@ -133,7 +134,6 @@ bail:
 	printf("%s\n", strerror(errno));
 	return 1;
 }
-
 
 int new_efi_image(char *okernel, char *ocmdline)
 {

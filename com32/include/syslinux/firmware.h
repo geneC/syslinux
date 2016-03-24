@@ -1,3 +1,6 @@
+/*
+ * EFI image boot capabilities by Serva/Patrick Masotta (c)2015
+ */
 #ifndef _SYSLINUX_FIRMWARE_H
 #define _SYSLINUX_FIRMWARE_H
 

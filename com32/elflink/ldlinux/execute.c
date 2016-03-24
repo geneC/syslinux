@@ -1,6 +1,7 @@
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2004-2008 H. Peter Anvin - All Rights Reserved
+ *   EFI image boot capabilities by Serva/Patrick Masotta (c)2015
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by

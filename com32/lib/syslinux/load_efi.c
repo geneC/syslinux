@@ -1,5 +1,5 @@
 /*
- * EFI image boot capabilities by Patrick Masotta (Serva) (c)2015
+ * EFI image boot capabilities by Serva/Patrick Masotta (c)2015
  */
 
 /*

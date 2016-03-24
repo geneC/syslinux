@@ -1,9 +1,7 @@
 /*
  * Copyright 2011-2014 Intel Corporation - All Rights Reserved
- *
- * EFI image boot capabilities by Patrick Masotta (Serva) (c)2015
+ * EFI image boot capabilities by Serva/Patrick Masotta (c)2015
  */
-
 #include <codepage.h>
 #include <core.h>
 #include <fs.h>
@@ -1123,6 +1121,7 @@ int efi_boot_efi(void *kernel_buf, size_t kernel_size,
 
     CHAR16 w_emptyCmdLine [4]={0,0,0,0};
 
+    //Get info of the running image
     status = uefi_call_wrapper(BS->HandleProtocol, 3, image_handle,
 				&LoadedImageProtocol,(void**)&image_info);
     if (status != EFI_SUCCESS) {
