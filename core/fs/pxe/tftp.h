@@ -53,6 +53,7 @@
 #define TFTP_ERESOLVE	 htons(9)		// Not in RFC, internal usage
 #define TFTP_ECONNECT	 htons(10)		// Not in RFC, internal usage
 #define TFTP_OK	 	 htons(11)		// Not in RFC, internal usage
+#define TFTP_NONETWORK   htons(12)              // Not in RFC, internal usage
 
 struct tftp_error {
         uint16_t opcode;
@@ -61,5 +62,6 @@ struct tftp_error {
 } __attribute__ (( packed ));
 
 int tftp_put(struct url_info *url, int flags, struct inode *inode,
-		               const char **redir, char *data, int data_length);
+	     const char **redir, char *data, int data_length);
+
 #endif /* PXE_TFTP_H */

@@ -10,22 +10,28 @@
 #include <sys/times.h>
 #include <fs/pxe/pxe.h>
 #include <fs/pxe/url.h>
+#include <fs/pxe/tftp.h>
 #include "upload_backend.h"
 
 const char *tftp_string_error_message[]={
-"Unknown error",
-"File not found",
-"Access Denied",
-"Disk Full",
-"Illegal Operation",
-"Unknown Transfert ID",
-"File already exists",
-"Unknown User",
-"Negociation failed",
-"Unable to resolve hostname", // not in RFC
-"Unable to connect", // not in RFC
-"No Error",
+    "Unknown error",
+    "File not found",
+    "Access Denied",
+    "Disk Full",
+    "Illegal Operation",
+    "Unknown Transfer ID",
+    "File already exists",
+    "Unknown User",
+    "Negotiation failed",
+
+    /* These are not in any RFC, defined internally */
+    "Unable to resolve hostname",
+    "Unable to connect",
+    "No Error",
+    "Network unavailable",
 };
+
+static bool have_real_network(void);
 
 static int upload_tftp_write(struct upload_backend *be) {
     const union syslinux_derivative_info *sdi =
@@ -35,6 +41,11 @@ static int upload_tftp_write(struct upload_backend *be) {
     char url_path[255] = {0};
     uint32_t ip;
     int err;
+
+    if (!have_real_network()) {
+	dprintf("\nNot running from the network\n");
+	return -TFTP_ERR_NO_NETWORK;
+    }
 
     if (be->argv[1]) {
         ip = pxe_dns(be->argv[1]);
@@ -75,3 +86,46 @@ struct upload_backend upload_tftp = {
     .minargs    = 1,
     .write      = upload_tftp_write,
 };
+
+/*
+ * Dummy functions to prevent link failure for non-network cores
+ */
+static int _dummy_tftp_put(struct url_info *url, int flags,
+			   struct inode *inode, const char **redir,
+			   char *data, int data_length)
+{
+    (void)url;
+    (void)flags;
+    (void)inode;
+    (void)redir;
+    (void)data;
+    (void)data_length;
+
+    return -TFTP_ERR_NO_NETWORK;
+}
+
+__weak int __attribute__((alias("_dummy_tftp_put")))
+tftp_put(struct url_info *url, int flags, struct inode *inode,
+	 const char **redir, char *data, int data_length);
+
+static int _dummy_tftp_put(struct url_info *url, int flags,
+			   struct inode *inode, const char **redir,
+			   char *data, int data_length);
+
+static bool have_real_network(void)
+{
+    return tftp_put != _dummy_tftp_put;
+}
+
+__weak uint32_t dns_resolv(const char *host)
+{
+    (void)host;
+
+    return 0;
+}
+
+__weak void parse_url(struct url_info *ui, char *url)
+{
+    (void)ui;
+    (void)url;
+}
