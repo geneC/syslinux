@@ -253,7 +253,7 @@ __export int url_set_ip(struct url_info *url)
 	url->ip = IPInfo.serverip;
 	if (!url->ip)
 	    err = -ntohs(TFTP_NONETWORK);
-    }make
+    }
 
     return err;
 }
