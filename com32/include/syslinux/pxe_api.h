@@ -585,11 +585,11 @@ typedef struct s_PXENV_UNLOAD_STACK {
 #define PXENV_STATUS_LOADER_UNDI_START			 0xca
 #define PXENV_STATUS_LOADER_BC_START			 0xcb
 
-int __weak pxe_call(int, void *);
-void __weak unload_pxe(uint16_t flags);
-uint32_t __weak dns_resolv(const char *);
+int pxe_call(int, void *);
+void unload_pxe(uint16_t flags);
+uint32_t dns_resolv(const char *);
 
-extern uint32_t __weak SendCookies;
-void __weak http_bake_cookies(void);
+extern uint32_t SendCookies;
+void http_bake_cookies(void);
 
 #endif /* _SYSLINUX_PXE_API_H */
