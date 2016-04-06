@@ -34,12 +34,9 @@ const char *tftp_string_error_message[]={
 static bool have_real_network(void);
 
 static int upload_tftp_write(struct upload_backend *be) {
-    const union syslinux_derivative_info *sdi =
-	syslinux_derivative_info();
     struct url_info url;
     struct inode inode;
-    char url_path[255] = {0};
-    uint32_t ip;
+    char url_path[255];
     int err;
 
     if (!have_real_network()) {
@@ -47,37 +44,26 @@ static int upload_tftp_write(struct upload_backend *be) {
 	return -TFTP_ERR_NO_NETWORK;
     }
 
-    if (be->argv[1]) {
-        ip = pxe_dns(be->argv[1]);
-        if (!ip) {
-            dprintf("\nUnable to resolve hostname: %s\n", be->argv[1]);
-            return -TFTP_ERR_UNABLE_TO_RESOLVE;
-        }
-    } else {
-        ip   = sdi->pxe.ipinfo->serverip;
-        if (!ip) {
-            dprintf("\nNo server IP address\n");
-            return -TFTP_ERR_UNABLE_TO_CONNECT;
-        }
-    }
-
-    snprintf(url_path, sizeof(url_path), "tftp://%u.%u.%u.%u/%s",
-	((uint8_t *)&ip)[0],
-	((uint8_t *)&ip)[1],
-	((uint8_t *)&ip)[2],
-	((uint8_t *)&ip)[3],
-	be->argv[0]);
+    if (!strncmp(be->argv[0], "tftp://", 7))
+	strlcpy(url_path, be->argv[0], sizeof(url_path));
+    else
+	snprintf(url_path, sizeof(url_path), "tftp://%s/%s",
+		 be->argv[1] ? be->argv[1] : "", be->argv[0]);
 
     parse_url(&url, url_path);
-    url.ip = ip;
+    err = -url_set_ip(&url);
+    if (err != TFTP_OK)
+	return err;
 
     dprintf("Connecting to %s to send %s\n", url.host, url.path);
-    err = tftp_put(&url, 0, &inode, NULL, be->outbuf, be->zbytes);
+    err = -tftp_put(&url, 0, &inode, NULL, be->outbuf, be->zbytes);
 
-    if (-err != TFTP_OK)
-	printf("upload_tftp_write: TFTP server returned error %d : %s\n", err, tftp_string_error_message[-err]);
+    if (err != TFTP_OK) {
+	printf("upload_tftp_write: TFTP server returned error %d : %s\n",
+	       err, tftp_string_error_message[err]);
+    }
 
-    return -err;
+    return err;
 }
 
 struct upload_backend upload_tftp = {
@@ -117,11 +103,11 @@ static bool have_real_network(void)
     return tftp_put != _dummy_tftp_put;
 }
 
-__weak uint32_t pxe_dns(const char *host)
+__weak int url_set_ip(struct url_info *ui)
 {
-    (void)host;
+    (void)ui;
 
-    return 0;
+    return -TFTP_ERR_NO_NETWORK;
 }
 
 __weak void parse_url(struct url_info *ui, char *url)

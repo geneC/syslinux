@@ -237,13 +237,25 @@ static uint32_t pxe_getfssec(struct file *file, char *buf,
 /*
  * Assign an IP address to a URL
  */
-static void url_set_ip(struct url_info *url)
+__export int url_set_ip(struct url_info *url)
 {
+    int err = -ntohs(TFTP_OK);
+
     url->ip = 0;
-    if (url->host)
+    if (url->host && url->host[0]) {
 	url->ip = pxe_dns(url->host);
-    if (!url->ip)
+	if (!url->ip)
+	    err = -ntohs(TFTP_ERESOLVE);
+    }
+
+    /* Note: default to the server IP on resolve failure */
+    if (!url->ip) {
 	url->ip = IPInfo.serverip;
+	if (!url->ip)
+	    err = -ntohs(TFTP_NONETWORK);
+    }make
+
+    return err;
 }
 
 /**

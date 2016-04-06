@@ -19,7 +19,7 @@ struct url_info {
     char *user;
     char *passwd;
     char *host;
-    uint32_t ip;		/* Placeholder field not set by parse_url() */
+    uint32_t ip;		/* Not set by parse_url(), use url_set_ip() */
     unsigned int port;
     char *path;			/* Includes query */
     enum url_type type;
@@ -29,5 +29,6 @@ enum url_type url_type(const char *url);
 void parse_url(struct url_info *ui, char *url);
 size_t url_escape_unsafe(char *output, const char *input, size_t bufsize);
 char *url_unescape(char *buffer, char terminator);
+int url_set_ip(struct url_info *ui);
 
 #endif /* CORE_PXE_URL_H */
