@@ -25,7 +25,7 @@
 
 uint32_t resolv(const char *name)
 {
-    return dns_resolv(name);
+    return pxe_dns(name);
 }
 
 int main(int argc, char *argv[])

@@ -587,7 +587,7 @@ typedef struct s_PXENV_UNLOAD_STACK {
 
 int pxe_call(int, void *);
 void unload_pxe(uint16_t flags);
-uint32_t dns_resolv(const char *);
+uint32_t pxe_dns(const char *);
 
 extern uint32_t SendCookies;
 void http_bake_cookies(void);

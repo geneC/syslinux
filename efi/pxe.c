@@ -35,7 +35,7 @@ int reset_pxe(void)
 #define DNS_MAX_SERVERS 4		/* Max no of DNS servers */
 uint32_t dns_server[DNS_MAX_SERVERS] = {0, };
 
-__export uint32_t dns_resolv(const char *name)
+__export uint32_t pxe_dns(const char *name)
 {
     /*
      * Return failure on an empty input... this can happen during

@@ -88,7 +88,7 @@ static bool parse_dotquad(const char *ip_str, uint32_t *res)
  * _ip_ if it exists and can be found.  If _ip_ = 0 on exit, the
  * lookup failed. _name_ will be updated
  */
-__export uint32_t dns_resolv(const char *name)
+__export uint32_t pxe_dns(const char *name)
 {
     err_t err;
     struct ip_addr ip;
@@ -121,14 +121,4 @@ __export uint32_t dns_resolv(const char *name)
 	return 0;
 
     return ip.addr;
-}
-
-/*
- * the one should be called from ASM file
- */
-void pm_pxe_dns_resolv(com32sys_t *regs)
-{
-    const char *name = MK_PTR(regs->ds, regs->esi.w[0]);
-
-    regs->eax.l = dns_resolv(name);
 }

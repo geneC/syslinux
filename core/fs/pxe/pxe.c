@@ -241,7 +241,7 @@ static void url_set_ip(struct url_info *url)
 {
     url->ip = 0;
     if (url->host)
-	url->ip = dns_resolv(url->host);
+	url->ip = pxe_dns(url->host);
     if (!url->ip)
 	url->ip = IPInfo.serverip;
 }

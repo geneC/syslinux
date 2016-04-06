@@ -6,11 +6,6 @@
 #include <com32.h>
 #include <syslinux/pxe.h>
 
-static inline uint32_t dns_resolve(const char *hostname)
-{
-    return pxe_dns(hostname);
-}
-
 static inline void usage(const char *s)
 {
     fprintf(stderr, "Usage: %s hostname [, hostname_1, hostname_2, ...]\n", s);
@@ -29,7 +24,7 @@ int main(int argc, char *argv[])
     }
 
     for (i = 1; i < argc; i++) {
-        ip = dns_resolve(argv[i]);
+        ip = pxe_dns(argv[i]);
         if (!ip) {
             printf("%s not found.\n", argv[i]);
         } else {

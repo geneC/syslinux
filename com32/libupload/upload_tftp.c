@@ -117,7 +117,7 @@ static bool have_real_network(void)
     return tftp_put != _dummy_tftp_put;
 }
 
-__weak uint32_t dns_resolv(const char *host)
+__weak uint32_t pxe_dns(const char *host)
 {
     (void)host;
 

@@ -46,7 +46,6 @@ LIBSYSLINUX_OBJS = \
 	syslinux/reboot.o syslinux/keyboard.o				\
 	syslinux/version.o						\
 	syslinux/pxe_get_cached.o syslinux/pxe_get_nic.o		\
-	syslinux/pxe_dns.o						\
 	syslinux/video/fontquery.o syslinux/video/reportmode.o
 
 DYNENTRY_OBJS = \
