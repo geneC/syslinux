@@ -38,6 +38,7 @@
 #include <sysexits.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/vfs.h>
