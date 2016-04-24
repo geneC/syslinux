@@ -52,13 +52,13 @@ static int upload_tftp_write(struct upload_backend *be) {
 
     parse_url(&url, url_path);
     err = -url_set_ip(&url);
-    if (err != TFTP_OK)
+    if (err != TFTP_ERR_OK)
 	return err;
 
     dprintf("Connecting to %s to send %s\n", url.host, url.path);
     err = -tftp_put(&url, 0, &inode, NULL, be->outbuf, be->zbytes);
 
-    if (err != TFTP_OK) {
+    if (err != TFTP_ERR_OK) {
 	printf("upload_tftp_write: TFTP server returned error %d : %s\n",
 	       err, tftp_string_error_message[err]);
     }

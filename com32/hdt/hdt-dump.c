@@ -224,7 +224,7 @@ void dump(struct s_hardware *hardware)
     /* We close & flush the file to send */
     cpio_close(upload);
 
-    if ((err = flush_data(upload)) != TFTP_OK) {
+    if ((err = flush_data(upload)) != TFTP_ERR_OK) {
 	/* As we manage a tftp connection, let's display the associated error message */
 	more_printf("Dump failed !\n");
 	more_printf("TFTP ERROR on  : %s:/%s \n", hardware->tftp_ip, filename);
