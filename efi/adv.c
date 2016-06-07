@@ -283,7 +283,7 @@ int efi_adv_write(void)
     }
 
     if (err == -2)
-	efi_printerr(L"%s: cannot write auxilliary data (need --update)?\n",
+	efi_printerr(L"%s: cannot write auxiliary data (need --update)?\n",
 		file);
     else if (err == -1)
 	efi_perror(L"efi_adv_write:");

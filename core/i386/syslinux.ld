@@ -207,7 +207,7 @@ SECTIONS
 	xfer_buf_seg = core_xfer_buf >> 4;
 
 	/*
-	 * The auxilliary data segment is used by the 16-bit code
+	 * The auxiliary data segment is used by the 16-bit code
 	 * for items that don't need to live in the bottom 64K.
 	 */
 

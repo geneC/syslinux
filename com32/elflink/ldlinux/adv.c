@@ -28,7 +28,7 @@
 /*
  * syslinux/adv.c
  *
- * Access the syslinux auxilliary data vector
+ * Access the syslinux auxiliary data vector
  */
 
 #include <syslinux/adv.h>

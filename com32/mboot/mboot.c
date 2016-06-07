@@ -223,13 +223,13 @@ int main(int argc, char *argv[])
 	    mbinfo.flags |= MB_INFO_CMDLINE;
     }
 
-    /* Map auxilliary images */
+    /* Map auxiliary images */
     if (nmodules > 1) {
 	if (map_modules(modules + 1, nmodules - 1))
 	    return 1;
     }
 
-    /* Add auxilliary information */
+    /* Add auxiliary information */
     mboot_make_memmap();
     mboot_apm();
     mboot_syslinux_info();

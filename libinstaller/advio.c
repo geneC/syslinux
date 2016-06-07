@@ -150,7 +150,7 @@ int write_adv(const char *path, const char *cfg)
     }
 
     if (err == -2)
-	fprintf(stderr, "%s: cannot write auxilliary data (need --update)?\n",
+	fprintf(stderr, "%s: cannot write auxiliary data (need --update)?\n",
 		file);
     else if (err == -1)
 	perror(file);

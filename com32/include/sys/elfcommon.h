@@ -162,7 +162,7 @@
 #define DT_EXTRATAGIDX(tag)	((Elf32_Word)-((Elf32_Sword) (tag) <<1>>1)-1)
 #define DT_EXTRANUM	3
 
-/* Auxilliary table entries */
+/* Auxiliary table entries */
 #define AT_NULL		0	/* end of vector */
 #define AT_IGNORE	1	/* entry should be ignored */
 #define AT_EXECFD	2	/* file descriptor of program */

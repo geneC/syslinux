@@ -28,7 +28,7 @@
 /*
  * syslinux/getadv.c
  *
- * Get a data item from the auxilliary data vector.  Returns a pointer
+ * Get a data item from the auxiliary data vector.  Returns a pointer
  * and sets *size on success; NULL on failure.
  */
 

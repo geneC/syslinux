@@ -112,7 +112,7 @@ void __attribute__ ((noreturn)) usage(int rv, enum syslinux_mode mode)
 	    "  --raid       -r  Fall back to the next device on boot failure\n"
 	    "  --once=...   %s  Execute a command once upon boot\n"
 	    "  --clear-once -O  Clear the boot-once command\n"
-	    "  --reset-adv      Reset auxilliary data\n",
+	    "  --reset-adv      Reset auxiliary data\n",
 	    mode == MODE_SYSLINUX  ? "  " : "-o");
     /*
      * Have to chop this roughly in half for the DOS installer due

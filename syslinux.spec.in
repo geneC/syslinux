@@ -231,7 +231,7 @@ fi
 
 * Fri Apr 13 2001 H. Peter Anvin <hpa@zytor.com>
 - Upgrade to 1.61
-- Install auxilliary programs in /usr/lib/syslinux
+- Install auxiliary programs in /usr/lib/syslinux
 
 * Sat Feb 10 2001 Matt Wilson <msw@redhat.com>
 - 1.52

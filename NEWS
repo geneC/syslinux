@@ -768,7 +768,7 @@ Changes in 3.61:
 	  memory regions in the e820 map.
 
 Changes in 3.60:
-	* Support for "auxilliary data vector", a small amount of
+	* Support for "auxiliary data vector", a small amount of
 	  writable storage.  Currently only supported for EXTLINUX,
 	  but the infrastructure is there for the other derivatives,
 	  assuming a suitable storage location can be found.
