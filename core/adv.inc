@@ -13,9 +13,9 @@
 ;;
 ;; adv.inc
 ;;
-;; The auxillary data vector and its routines
+;; The auxiliary data vector and its routines
 ;;
-;; The auxillary data vector is a 512-byte aligned block that on the
+;; The auxiliary data vector is a 512-byte aligned block that on the
 ;; disk-based derivatives can be part of the syslinux file itself.  It
 ;; exists in two copies; when written, both copies are written (with a
 ;; sync in between, if from the operating system.)  The first two

@@ -48,7 +48,7 @@ slight modifications.
 
 5. EXTLINUX now has "boot-once" support.  The boot-once information is
    stored in an on-disk datastructure, part of extlinux.sys, called
-   the "Auxillary Data Vector".  The Auxiliary Data Vector is also
+   the "Auxiliary Data Vector".  The Auxiliary Data Vector is also
    available to COM32 modules that want to store small amounts of
    information.
 
@@ -68,7 +68,7 @@ slight modifications.
    certain circumstances a RAID-1 rebuild can "resurrect" the
    boot-once information otherwise.
 
-   To clear the entire Auxillary Data Vector, do:
+   To clear the entire Auxiliary Data Vector, do:
 
 	extlinux --reset-adv /boot/extlinux
 

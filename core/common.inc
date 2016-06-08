@@ -7,7 +7,7 @@
 %include "pm.inc"		; Protected mode
 %include "bcopy32.inc"		; 32-bit bcopy
 %include "strcpy.inc"           ; strcpy()
-%include "adv.inc"		; Auxillary Data Vector
+%include "adv.inc"		; Auxiliary Data Vector
 %include "timer.inc"		; Timer handling
 
 ; Note: the prefix section is included late, to avoid problems with some
