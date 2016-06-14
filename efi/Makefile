@@ -18,17 +18,17 @@ include $(MAKEDIR)/efi.mk
 CFLAGS += -Wno-strict-prototypes
 
 CORE_CSRC := $(wildcard $(core)/*.c $(core)/*/*.c $(core)/*/*/*.c)
-CORE_COBJ := $(subst $(core),$(OBJ)/../core/,$(patsubst %.c,%.o,$(CORE_CSRC)))
+CORE_COBJ := $(subst $(core),$(OBJ)/../core,$(patsubst %.c,%.o,$(CORE_CSRC)))
 
 # We don't want to include any of the networking stack or the thread
 # code since it will be implemented completely differently for EFI.
-FILTERED_OBJS:= $(subst $(core),$(OBJ)/../core/,$(patsubst %.c,%.o, \
+FILTERED_OBJS:= $(subst $(core),$(OBJ)/../core,$(patsubst %.c,%.o, \
 	$(wildcard $(core)/legacynet/*.c) \
 	$(wildcard $(core)/fs/pxe/*.c) \
 	$(wildcard $(core)/thread/*.c)))
 
 # Don't include unit tests
-FILTERED_OBJS += $(subst $(core),$(OBJ)/../core/, \
+FILTERED_OBJS += $(subst $(core),$(OBJ)/../core, \
 	$(patsubst %.c,%.o,$(shell find $(core) -path "*/tests/*.c" -print)))
 
 # Don't include console objects
