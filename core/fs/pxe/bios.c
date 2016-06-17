@@ -361,7 +361,7 @@ __export void unload_pxe(uint16_t flags)
 
     api = 0xff00;
     if (real_base_mem <= bios_fbm()) {  /* Sanity check */
-	dprintf("FBM %d < real_base_mem %d\n", bios_fbm(), real_base_mem);
+	dprintf("FBM %d > real_base_mem %d\n", bios_fbm(), real_base_mem);
 	goto cant_free;
     }
     api++;
