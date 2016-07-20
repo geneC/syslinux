@@ -585,8 +585,8 @@ typedef struct s_PXENV_UNLOAD_STACK {
 #define PXENV_STATUS_LOADER_UNDI_START			 0xca
 #define PXENV_STATUS_LOADER_BC_START			 0xcb
 
-int pxe_call(int, void *);
-void unload_pxe(uint16_t flags);
+int __weak pxe_call(int, void *);
+void __weak unload_pxe(uint16_t flags);
 uint32_t pxe_dns(const char *);
 
 extern uint32_t SendCookies;
