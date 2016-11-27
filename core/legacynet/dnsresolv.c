@@ -208,7 +208,7 @@ static bool parse_dotquad(const char *ip_str, uint32_t *res)
  *
  * XXX: probably need some caching here.
  */
-__export uint32_t pxe_dns(const char *name)
+__export uint32_t __weak pxe_dns(const char *name)
 {
     static char __lowmem DNSSendBuf[PKTBUF_SIZE];
     static char __lowmem DNSRecvBuf[PKTBUF_SIZE];
