@@ -967,7 +967,7 @@ main(int argc, char *argv[])
 
     srand(time(NULL) << (getppid() << getpid()));
 
-    if (!(fp = fopen(argv[0], "r+")))
+    if (!(fp = fopen(argv[0], "rb+")))
         err(1, "could not open file `%s'", argv[0]);
 
     if (fseeko(fp, (off_t) (16 << 11), SEEK_SET))
