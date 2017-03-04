@@ -224,15 +224,9 @@ int opt_parse_args(int argc, char *argv[])
 	    opt.setbpb = true;
 	    opt.hand = false;
 	} else if (!strncmp(argv[i], "reactos=", 8)) {
-	    /*
-	     * settings based on commit
-	     *   ad4cf1470977f648ee1dd45e97939589ccb0393c
-	     * note, conflicts with:
-	     *   http://reactos.freedoors.org/Reactos%200.3.13/ReactOS-0.3.13-REL-src/boot/freeldr/notes.txt
-	     */
-	    opt.fseg = 0;
-	    opt.foff = 0x8000;
-	    opt.fip = 0x8100;
+	    opt.fseg = 0x0F80;
+	    opt.foff = 0;
+	    opt.fip = 0;
 	    opt.file = argv[i] + 8;
 	    opt.setbpb = true;
 	    opt.hand = false;

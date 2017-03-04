@@ -296,7 +296,7 @@ Prepares to load recovery console directly. In-memory copy of bootsector is
 patched with "cmdcons\0". Remarks the same as in 'ntldr='.
 
 	reactos=<file>
-	sets: file=<file> seg=0:0x8000:0x8100 setbpb nohand
+	sets: file=<file> seg=0x0F80 setbpb nohand
 
 Prepares to load ReactOS's freeldr directly. You might want to add 'save'
 option to store corrected BPB values.
