@@ -48,14 +48,6 @@ int new_linux_kernel(char *okernel, char *ocmdline)
 
 	sprintf(cmdline, "BOOT_IMAGE=%s %s", kernel_name, args);
 
-	/* "keeppxe" handling */
-#if IS_PXELINUX
-	extern char KeepPXE;
-
-	if (strstr(cmdline, "keeppxe"))
-		KeepPXE |= 1;
-#endif
-
 	if (strstr(cmdline, "quiet"))
 		opt_quiet = true;
 
