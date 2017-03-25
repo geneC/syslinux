@@ -48,8 +48,8 @@ isolinux_start_hybrid		= 0x7c00+64+4
 stack		= 0x7c00
 partoffset	= (stack-8)
 driveno		= (stack-14)
-heads		= (stack-16)
-sectors		= (stack-18)
+sectors		= (stack-16)
+heads		= (stack-18)
 ebios_flag	= (stack-20)
 secpercyl	= (stack-24)
 
