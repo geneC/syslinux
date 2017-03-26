@@ -48,8 +48,8 @@ isolinux_start_hybrid		= 0x7c00+64+4
 stack		= 0x7c00
 partoffset	= (stack-8)
 driveno		= (stack-14)
-sectors		= (stack-16)
-heads		= (stack-18)
+heads		= (stack-16)
+sectors		= (stack-18)
 ebios_flag	= (stack-20)
 secpercyl	= (stack-24)
 
@@ -175,12 +175,12 @@ next:
 	/* Get (C)HS geometry */
 	movb	$0x08, %ah
 	int	$0x13
-	andw	$0x3f, %cx	/* Sector count */
 	popw	%bx		/* EBIOS flag */
-	pushw	%cx		/* -16: Save sectors on the stack */
 	movzbw	%dh, %ax	/* dh = max head */
 	incw	%ax		/* From 0-based max to count */
-	pushw	%ax		/* -18: Save heads on the stack */
+	pushw	%ax		/* -16: Save heads on the stack */
+	andw	$0x3f, %cx	/* Sector count */
+	pushw	%cx		/* -18: Save sectors on the stack */
 	mulw	%cx		/* Heads*sectors -> sectors per cylinder */
 
 	pushw	%bx		/* -20: EBIOS flag */
