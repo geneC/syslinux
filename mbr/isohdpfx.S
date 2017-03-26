@@ -167,8 +167,10 @@ next:
 	   read_sector_cbios: movb $0x42, %ah ;  jmp read_common */
 	movl	$0xeb42b4+((read_common-read_sector_cbios-4) << 24), \
 		(read_sector_cbios)
-	jmp	1f
+	jmp	2f
 1:
+	xor	%cx, %cx	/* Clear EBIOS flag. */
+2:
 	popw	%dx
 	pushw	%cx		/* EBIOS flag */
 
