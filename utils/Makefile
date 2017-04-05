@@ -17,8 +17,8 @@
 VPATH = $(SRC)
 include $(MAKEDIR)/syslinux.mk
 
-CFLAGS   = $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64 -I$(SRC)
-LDFLAGS  = -O2
+CFLAGS   = $(CFLAGS_FOR_BUILD) $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64 -I$(SRC)
+LDFLAGS  = $(LDFLAGS_FOR_BUILD) -O2
 
 C_TARGETS	 = isohybrid gethostip memdiskfind
 SCRIPT_TARGETS	 = mkdiskimage
@@ -35,7 +35,7 @@ ISOHDPFX = $(addprefix $(OBJ)/,../mbr/isohdpfx.bin ../mbr/isohdpfx_f.bin \
 all: $(TARGETS)
 
 %.o: %.c
-	$(CC) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
+	$(CC_FOR_BUILD) $(UMAKEDEPS) $(CFLAGS) -c -o $@ $<
 
 mkdiskimage: mkdiskimage.in ../mbr/mbr.bin bin2hex.pl
 	$(PERL) $(SRC)/bin2hex.pl < $(OBJ)/../mbr/mbr.bin | cat $(SRC)/mkdiskimage.in - > $@
@@ -51,13 +51,13 @@ isohdpfx.c: $(ISOHDPFX) isohdpfxarray.pl
 	$(PERL) $(SRC)/isohdpfxarray.pl $(ISOHDPFX) > $@
 
 isohybrid: isohybrid.o isohdpfx.o
-	$(CC) $(LDFLAGS) -o $@ $^ -luuid
+	$(CC_FOR_BUILD) $(LDFLAGS) -o $@ $^ -luuid
 
 gethostip: gethostip.o
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC_FOR_BUILD) $(LDFLAGS) -o $@ $^
 
 memdiskfind: memdiskfind.o
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC_FOR_BUILD) $(LDFLAGS) -o $@ $^
 
 tidy dist:
 	rm -f *.o .*.d isohdpfx.c
