@@ -78,7 +78,7 @@ memdisk16.o: memdisk16.asm
 	$(NASM) -f bin $(NASMOPT) $(NFLAGS) $(NINCLUDE) -o $@ -l $*.lst $<
 
 memdisk_%.o: memdisk_%.bin
-	$(LD) -r -b binary -o $@ $<
+	$(LD) --oformat elf32-i386 -r -b binary -o $@ $<
 
 memdisk16.elf: $(OBJS16)
 	$(LD) -Ttext 0 -o $@ $^
