@@ -163,7 +163,7 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     } else {
 	udata.UseDefaultAddress = FALSE;
 	memcpy(&udata.StationAddress, &IPInfo.myip, sizeof(IPInfo.myip));
-	memcpy(&udata.StationAddress, &IPInfo.netmask, sizeof(IPInfo.netmask));
+	memcpy(&udata.SubnetMask, &IPInfo.netmask, sizeof(IPInfo.netmask));
     }
     memcpy(&udata.RemoteAddress, &ip, sizeof(ip));
     udata.RemotePort = port;
