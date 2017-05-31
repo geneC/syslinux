@@ -158,6 +158,7 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     /* Re-use the existing local port number */
     udata.StationPort = socket->net.efi.localport;
 
+retry:
     if (efi_net_def_addr) {
 	udata.UseDefaultAddress = TRUE;
     } else {
@@ -170,6 +171,11 @@ void core_udp_connect(struct pxe_pvt_inode *socket, uint32_t ip,
     udata.TimeToLive = 64;
 
     status = core_udp_configure(udp, &udata, L"core_udp_connect");
+    if (efi_net_def_addr && (status == EFI_NO_MAPPING)) {
+	efi_net_def_addr = 0;
+	Print(L"disable UseDefaultAddress\n");
+	goto retry;
+    }
     if (status != EFI_SUCCESS) {
 	Print(L"Failed to configure UDP: %d\n", status);
 	return;
@@ -392,6 +398,7 @@ void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
     /* Re-use the existing local port number */
     udata.StationPort = socket->net.efi.localport;
 
+retry:
     if (efi_net_def_addr) {
 	udata.UseDefaultAddress = TRUE;
     } else {
@@ -404,6 +411,11 @@ void core_udp_sendto(struct pxe_pvt_inode *socket, const void *data,
     udata.TimeToLive = 64;
 
     status = core_udp_configure(udp, &udata, L"core_udp_sendto");
+    if (efi_net_def_addr && (status == EFI_NO_MAPPING)) {
+	efi_net_def_addr = 0;
+	Print(L"disable UseDefaultAddress\n");
+	goto retry;
+    }
     if (status != EFI_SUCCESS)
 	goto bail;
 
