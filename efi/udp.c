@@ -10,14 +10,6 @@
 
 extern EFI_GUID Udp4ServiceBindingProtocol, Udp4Protocol;
 
-/*
- * This UDP binding is configured to operate in promiscuous mode. It is
- * only used for reading packets. It has no associated state unlike
- * socket->net.efi.binding, which has a remote IP address and port
- * number.
- */
-static struct efi_binding *udp_reader;
-
 static int volatile efi_udp_has_recv = 0;
 int volatile efi_net_def_addr = 1;
 
@@ -76,17 +68,11 @@ int core_udp_open(struct pxe_pvt_inode *socket)
     EFI_STATUS status;
     EFI_UDP4 *udp;
 
-    (void)socket;
-
-    udp_reader = efi_create_binding(&Udp4ServiceBindingProtocol, &Udp4Protocol);
-    if (!udp_reader)
-	return -1;
-
     b = efi_create_binding(&Udp4ServiceBindingProtocol, &Udp4Protocol);
     if (!b)
 	goto bail;
 
-    udp = (EFI_UDP4 *)udp_reader->this;
+    udp = (EFI_UDP4 *)b->this;
 
     memset(&udata, 0, sizeof(udata));
 
@@ -114,9 +100,6 @@ bail:
     if (b)
 	efi_destroy_binding(b, &Udp4ServiceBindingProtocol);
 
-    efi_destroy_binding(udp_reader, &Udp4ServiceBindingProtocol);
-    udp_reader = NULL;
-
     return -1;
 }
 
@@ -127,9 +110,6 @@ bail:
  */
 void core_udp_close(struct pxe_pvt_inode *socket)
 {
-    efi_destroy_binding(udp_reader, &Udp4ServiceBindingProtocol);
-    udp_reader = NULL;
-
     if (!socket->net.efi.binding)
 	return;
 
@@ -239,7 +219,7 @@ int core_udp_recv(struct pxe_pvt_inode *socket, void *buf, uint16_t *buf_len,
 
     (void)socket;
 
-    b = udp_reader;
+    b = socket->net.efi.binding;
     udp = (EFI_UDP4 *)b->this;
     memset(&token, 0, sizeof(token));
 
