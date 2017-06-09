@@ -11,15 +11,6 @@
 #define MAX_EFI_ARGS		64
 #define WS(c16)         (c16 == L' ' || c16 == CHAR_TAB)
 
-/* VPrint is not in export declarations in gnu-efi lib yet
- * although it is a global function; declare it here
- */
-extern UINTN
-VPrint (
-    IN CHAR16   *fmt,
-    va_list     args
-    );
-
 extern EFI_STATUS efi_errno;
 
 void efi_memcpy(unsigned char *dst, unsigned char *src, size_t len);
