@@ -80,7 +80,7 @@ syslinux.so: $(OBJS) $(CORE_OBJS) $(LIB_OBJS)
 #	cp $^ $@
 
 wrapper: wrapper.c
-	$(CC) $^ -o $@
+	$(CC_FOR_BUILD) $^ -o $@
 
 #
 # Build the wrapper app and wrap our .so to produce a .efi
