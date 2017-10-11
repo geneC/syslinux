@@ -278,6 +278,7 @@ struct ext2_sb_info {
     uint32_t s_first_data_block;	/* First Data Block */
     int      s_inode_size;
     uint8_t  s_uuid[16];	/* 128-bit uuid for volume */
+    int      s_desc_size;	/* size of group descriptor */
 };
 
 static inline struct ext2_sb_info *EXT2_SB(struct fs_info *fs)

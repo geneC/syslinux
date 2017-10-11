@@ -25,22 +25,17 @@ static enum dirent_type ext2_cvt_type(unsigned int d_file_type)
 	return inode_type[d_file_type];
 }
 
-/*
- * get the group's descriptor of group_num
- */
-static const struct ext2_group_desc *
-ext2_get_group_desc(struct fs_info *fs, uint32_t group_num)
+static const void *__ext2_get_group_desc(struct fs_info *fs, uint32_t group_num)
 {
     struct ext2_sb_info *sbi = EXT2_SB(fs);
     uint32_t desc_block, desc_index;
-    const struct ext2_group_desc *desc_data_block;
+    uint8_t *p;
 
     if (group_num >= sbi->s_groups_count) {
 	printf ("ext2_get_group_desc"
 		"block_group >= groups_count - "
 		"block_group = %d, groups_count = %d",
 		group_num, sbi->s_groups_count);
-
 	return NULL;
     }
 
@@ -49,8 +44,17 @@ ext2_get_group_desc(struct fs_info *fs, uint32_t group_num)
 
     desc_block += sbi->s_first_data_block + 1;
 
-    desc_data_block = get_cache(fs->fs_dev, desc_block);
-    return &desc_data_block[desc_index];
+    p = get_cache(fs->fs_dev, desc_block);
+    return p + sbi->s_desc_size * desc_index;
+}
+
+/*
+ * get the group's descriptor of group_num
+ */
+static inline const struct ext2_group_desc *
+ext2_get_group_desc(struct fs_info *fs, uint32_t group_num)
+{
+    return __ext2_get_group_desc(fs, group_num);
 }
 
 /*
@@ -306,6 +310,7 @@ static int ext2_fs_init(struct fs_info *fs)
     if (sb.s_desc_size < sizeof(struct ext2_group_desc))
 	sb.s_desc_size = sizeof(struct ext2_group_desc);
     sbi->s_desc_per_block   = BLOCK_SIZE(fs) / sb.s_desc_size;
+    sbi->s_desc_size = sb.s_desc_size;
     sbi->s_groups_count     = (sb.s_blocks_count - sb.s_first_data_block
 			       + EXT2_BLOCKS_PER_GROUP(fs) - 1)
 	                      / EXT2_BLOCKS_PER_GROUP(fs);
