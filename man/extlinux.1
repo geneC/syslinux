@@ -1,17 +1,17 @@
-.TH extlinux "1" "18 December 2007" "SYSLINUX for ext2/ext3 filesystem"
+.TH extlinux "1" "18 December 2007" "SYSLINUX for ext/btrfs/xfs filesystems"
 .SH NAME
-extlinux \- install the \s-1SYSLINUX\s+1 bootloader on a ext2/ext3 filesystem
+extlinux \- install the \s-1SYSLINUX\s+1 bootloader on an ext2/ext3/ext4/btrfs/xfs filesystem
 .SH SYNOPSIS
 .B extlinux
 [\fIoptions\fP] \fIdirectory\fP
 .SH DESCRIPTION
-\fBEXTLINUX\fP is a new syslinux derivative, which boots from a Linux ext2/ext3
+\fBEXTLINUX\fP is a new syslinux derivative, which boots from a Linux ext2/ext3/ext4/btrfs or xfs
 filesystem.  It works the same way as \fBSYSLINUX\fP, with a few slight modifications.
 It is intended to simplify first-time installation of Linux, and for creation of
 rescue and other special-purpose boot disks.
 .PP
 The installer is designed to be run on a mounted directory.  For example, if you have an
-ext2 or ext3 usb key mounted on /mnt, you can run the following command:
+ext2, ext3, ext4, or btrfs usb key mounted on /mnt, you can run the following command:
 .IP
 .B extlinux --install /mnt
 .SH OPTIONS
@@ -56,6 +56,9 @@ The extlinux configuration file needs to be named syslinux.cfg or
 extlinux.conf and needs to be stored in the extlinux installation
 directory. For more information about the contents of extlinux.conf,
 see syslinux(1) manpage, section files.
+.SH LIMITATIONS
+Booting from XFS only works when an MBR partition table is used (not on GPT
+partition tables).
 .SH BUGS
 I would appreciate hearing of any problems you have with \s-1SYSLINUX\s+1.  I
 would also like to hear from you if you have successfully used \s-1SYSLINUX\s+1,
@@ -66,8 +69,14 @@ about your system and your BIOS; the vast majority of all problems
 reported turn out to be BIOS or hardware bugs, and I need as much
 information as possible in order to diagnose the problems.
 .PP
-There is a mailing list for discussion among \s-1SYSLINUX\s+1 users and for
-announcements of new and test versions. To join, send a message to
-majordomo@linux.kernel.org with the line:
+There is a
+.MT syslinux@\:zytor.com
+mailing list
+.ME
+for discussion among \s-1SYSLINUX\s+1 users and for announcements of new and
+test versions.  You can
+.UR http://\:www.zytor.com/\:mailman/\:listinfo/\:syslinux
+subscribe to this mailing list
+.UE .
 .SH SEE ALSO
 .BR syslinux (1)
