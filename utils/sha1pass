@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 use bytes;
-use Digest::SHA1;
+use Digest::SHA;
 use MIME::Base64;
 
 sub random_bytes($) {
@@ -29,6 +29,6 @@ sub random_bytes($) {
 unless (defined($salt)) {
     $salt = MIME::Base64::encode(random_bytes(6), '');
 }
-$pass = Digest::SHA1::sha1_base64($salt, $pass);
+$pass = Digest::SHA::sha1_base64($salt, $pass);
 
 print '$4$', $salt, '$', $pass, "\$\n";
