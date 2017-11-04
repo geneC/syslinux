@@ -71,8 +71,11 @@ if ($align != 0) {
 
 printf "\n};\n\nconst unsigned int %s_len = %u;\n", $table_name, $total_len;
 
-@st = stat STDIN;
-
-printf "\nconst int %s_mtime = %d;\n", $table_name, $st[9];
+if (defined $ENV{'SOURCE_DATE_EPOCH'}) {
+    printf "\nconst int %s_mtime = %s;\n", $table_name, $ENV{'SOURCE_DATE_EPOCH'};
+} else {
+    @st = stat STDIN;
+    printf "\nconst int %s_mtime = %d;\n", $table_name, $st[9];
+}
 
 exit 0;
