@@ -17,6 +17,8 @@
 VPATH = $(SRC)
 include $(MAKEDIR)/syslinux.mk
 
+CC_FOR_BUILD ?= $(CC)
+
 CFLAGS   = $(CFLAGS_FOR_BUILD) $(GCCWARN) -Os -fomit-frame-pointer -D_FILE_OFFSET_BITS=64 -I$(SRC)
 LDFLAGS  = $(LDFLAGS_FOR_BUILD) -O2
 
