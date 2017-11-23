@@ -14,6 +14,8 @@ VPATH = $(SRC)
 include $(MAKEDIR)/lib.mk
 include $(MAKEDIR)/efi.mk
 
+CC_FOR_BUILD ?= $(CC)
+
 # Upstream gnu-efi has old-style function definitions.
 CFLAGS += -Wno-strict-prototypes
 
