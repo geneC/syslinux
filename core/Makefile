@@ -41,9 +41,9 @@ BTARGET  = kwdhash.gen \
 # All primary source files for the main syslinux files
 NASMSRC	 := $(sort $(wildcard $(SRC)/*.asm))
 NASMHDR  := $(sort $(wildcard $(SRC)/*.inc))
-CSRC	 := $(shell find $(SRC) -name '*.c' -print)
-SSRC	 := $(shell find $(SRC) -name '*.S' -print)
-CHDR	 := $(shell find $(SRC) -name '*.h' -print)
+CSRC	 := $(sort $(shell find $(SRC) -name '*.c' -print))
+SSRC	 := $(sort $(shell find $(SRC) -name '*.S' -print))
+CHDR	 := $(sort $(shell find $(SRC) -name '*.h' -print))
 OTHERSRC := keywords
 ALLSRC    = $(NASMSRC) $(NASMHDR) $(CSRC) $(SSRC) $(CHDR) $(OTHERSRC)
 
@@ -56,13 +56,13 @@ CORE_PXE_CSRC = \
 	$(addprefix $(SRC)/fs/pxe/, dhcp_option.c pxe.c tftp.c urlparse.c bios.c)
 
 LPXELINUX_CSRC = $(CORE_PXE_CSRC) \
-	$(shell find $(SRC)/lwip -name '*.c' -print) \
+	$(sort $(shell find $(SRC)/lwip -name '*.c' -print)) \
 	$(addprefix $(SRC)/fs/pxe/, \
 		core.c dnsresolv.c ftp.c ftp_readdir.c gpxeurl.c http.c \
 		http_readdir.c idle.c isr.c tcp.c)
 
 PXELINUX_CSRC = $(CORE_PXE_CSRC) \
-	$(shell find $(SRC)/legacynet -name '*.c' -print)
+	$(sort $(shell find $(SRC)/legacynet -name '*.c' -print))
 
 LPXELINUX_OBJS = $(subst $(SRC)/,,$(LPXELINUX_CSRC:%.c=%.o))
 PXELINUX_OBJS  = $(subst $(SRC)/,,$(PXELINUX_CSRC:%.c=%.o))
