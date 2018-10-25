@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 	unsigned int ptr;
 	outfile_len =
 	    ((offset - start + out_len + 2047) & ~2047) - (offset - start);
-	for (ptr = 64; ptr < offset; ptr += 4)
+	for (ptr = start + 64; ptr < offset; ptr += 4)
 	    csum += get_32((uint32_t *) (infile + ptr));
 	for (ptr = 0; ptr < outfile_len; ptr += 4)
 	    csum += get_32((uint32_t *) (out + ptr));
