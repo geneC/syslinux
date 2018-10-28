@@ -30,7 +30,7 @@ objdir=$(readlink -f "$2")
 
 if [ -d "$objdir/gnu-efi" ];then
 	cd "$objdir/gnu-efi"
-	EFIDIR="$(readlink -f "$objdir/../gnu-efi/gnu-efi-3.0")"
+	EFIDIR="$(readlink -f "$objdir/../gnu-efi")"
 	make SRCDIR="$EFIDIR" TOPDIR="$EFIDIR" -f "$EFIDIR/Makefile" ARCH=$ARCH clean
 fi
 
