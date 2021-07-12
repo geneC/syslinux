@@ -1129,7 +1129,7 @@ int efi_boot_linux(void *kernel_buf, size_t kernel_size,
 	/* allocate for boot parameter block */
 	addr = 0x3FFFFFFF;
 	status = allocate_pages(AllocateMaxAddress, EfiLoaderData,
-			     BOOT_PARAM_BLKSIZE, &addr);
+			     EFI_SIZE_TO_PAGES(BOOT_PARAM_BLKSIZE), &addr);
 	if (status != EFI_SUCCESS) {
 		printf("Failed to allocate memory for kernel boot parameter block, bailing out\n");
 		goto bail;
