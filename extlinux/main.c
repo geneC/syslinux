@@ -1428,7 +1428,8 @@ static int open_device(const char *path, struct stat *st, char **_devname)
     else if (sfs.f_type == MSDOS_SUPER_MAGIC)
 	fs_type = VFAT;
     else if (sfs.f_type == NTFS_SB_MAGIC ||
-                sfs.f_type == FUSE_SUPER_MAGIC /* ntfs-3g */)
+                sfs.f_type == FUSE_SUPER_MAGIC /* ntfs-3g */ ||
+                sfs.f_type == NTFS3_SB_MAGIC)
 	fs_type = NTFS;
     else if (sfs.f_type == XFS_SUPER_MAGIC)
 	fs_type = XFS;

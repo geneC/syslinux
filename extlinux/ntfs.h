@@ -15,5 +15,6 @@
 
 #define NTFS_SB_MAGIC 0x5346544E
 #define FUSE_SUPER_MAGIC 0x65735546
+#define NTFS3_SB_MAGIC 0x7366746E
 
 #endif /* _NTFS_H_ */
